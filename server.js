@@ -10,7 +10,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors());
@@ -104,13 +104,14 @@ app.get('/api/predictions/:id', async (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log('');
   console.log('═══════════════════════════════════════════════════');
   console.log(`  🚀 TatTester Proxy Server Running`);
   console.log('═══════════════════════════════════════════════════');
-  console.log(`  Local:   http://localhost:${PORT}`);
-  console.log(`  API:     http://localhost:${PORT}/api`);
+  console.log(`  Port:    ${PORT}`);
+  console.log(`  Host:    0.0.0.0 (accessible from anywhere)`);
+  console.log(`  API:     /api`);
   console.log('');
   console.log(`  Token configured: ${REPLICATE_API_TOKEN ? '✓ Yes' : '✗ No - Add to .env'}`);
   console.log('═══════════════════════════════════════════════════');
