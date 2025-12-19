@@ -46,7 +46,7 @@ function ArtistProfile() {
           <p className="text-xl text-gray-600 font-light mb-6">{artist.shopName}</p>
 
           <div className="flex flex-wrap gap-6 text-sm text-gray-600 mb-8">
-            <span>{artist.location.display}</span>
+            <span>{artist.location}</span>
             <span>{artist.yearsExperience} years experience</span>
             <span>{artist.rating} / 5.0</span>
           </div>
@@ -136,8 +136,8 @@ function ArtistProfile() {
               <div className="text-sm text-gray-600 uppercase tracking-wider">Clients</div>
             </div>
             <div>
-              <div className="text-3xl font-light text-gray-900 mb-1">${artist.startingPrice}+</div>
-              <div className="text-sm text-gray-600 uppercase tracking-wider">Starting</div>
+              <div className="text-3xl font-light text-gray-900 mb-1">${artist.hourlyRate}/hr</div>
+              <div className="text-sm text-gray-600 uppercase tracking-wider">Rate</div>
             </div>
           </div>
 

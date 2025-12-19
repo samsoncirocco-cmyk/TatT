@@ -25,13 +25,13 @@ function Artists() {
     // Filter by style
     if (selectedStyle !== 'All Styles') {
       results = results.filter(artist =>
-        artist.specialties.includes(selectedStyle)
+        artist.styles?.includes(selectedStyle)
       );
     }
 
     // Filter by location
     if (selectedLocation !== 'All Locations') {
-      results = results.filter(artist => artist.location.display === selectedLocation);
+      results = results.filter(artist => artist.location === selectedLocation);
     }
 
     setFilteredArtists(results);
