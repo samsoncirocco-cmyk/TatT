@@ -32,12 +32,31 @@ const CHARACTER_NAMES = getAllCharacterNames();
  * @returns {string} Enhanced description with character details
  */
 function enhanceCharacterDescription(userIdea) {
-  let enhanced = userIdea;
-
-  // Replace each character name with enhanced description
-  // Sort by length (longest first) to avoid partial matches replacing longer names
+  // Find all character names mentioned in the user's idea
   const sortedNames = Object.keys(CHARACTER_MAP).sort((a, b) => b.length - a.length);
+  const matchedCharacters = [];
 
+  for (const characterName of sortedNames) {
+    const regex = new RegExp(`\\b${characterName}\\b`, 'gi');
+    if (regex.test(userIdea)) {
+      matchedCharacters.push({
+        name: characterName,
+        description: CHARACTER_MAP[characterName]
+      });
+    }
+  }
+
+  // If multiple characters found, format them with clear separation
+  if (matchedCharacters.length > 1) {
+    const characterDescriptions = matchedCharacters.map((char, index) => {
+      const position = index === 0 ? 'FIRST CHARACTER' : index === 1 ? 'SECOND CHARACTER' : `CHARACTER ${index + 1}`;
+      return `${position}: ${char.description}`;
+    });
+    return characterDescriptions.join('. ');
+  }
+
+  // Single character or no characters - use original simple replacement
+  let enhanced = userIdea;
   for (const characterName of sortedNames) {
     const regex = new RegExp(`\\b${characterName}\\b`, 'gi');
     enhanced = enhanced.replace(regex, CHARACTER_MAP[characterName]);
