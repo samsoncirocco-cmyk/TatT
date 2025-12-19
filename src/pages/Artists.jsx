@@ -111,7 +111,7 @@ function Artists() {
                 <h3 className="text-lg font-light mb-1 text-gray-900">{artist.name}</h3>
                 <p className="text-sm text-gray-600 mb-2">{artist.shopName}</p>
                 <p className="text-xs text-gray-500 uppercase tracking-wider">
-                  {artist.specialties.slice(0, 2).join(', ')}
+                  {artist.styles?.slice(0, 2).join(', ') || 'Various Styles'}
                 </p>
               </div>
             </div>
