@@ -7,8 +7,12 @@
 
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import DesignGenerator from './components/DesignGenerator';
+import DesignGeneratorWithCouncil from './components/DesignGeneratorWithCouncil';
 import DesignLibrary from './components/DesignLibrary';
 import Home from './components/Home';
+
+// Feature flag for council integration
+const USE_COUNCIL = import.meta.env.VITE_USE_COUNCIL === 'true';
 
 function App() {
   return (
@@ -16,7 +20,7 @@ function App() {
       <div className="min-h-screen bg-gray-50">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/generate" element={<DesignGenerator />} />
+          <Route path="/generate" element={USE_COUNCIL ? <DesignGeneratorWithCouncil /> : <DesignGenerator />} />
           <Route path="/library" element={<DesignLibrary />} />
         </Routes>
 

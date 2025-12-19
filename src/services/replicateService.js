@@ -93,6 +93,22 @@ export const AI_MODELS = {
       refine: 'expert_ensemble_refiner',
       high_noise_frac: 0.8
     }
+  },
+  imagen3: {
+    id: 'imagen3',
+    name: 'Imagen 3 (Google)',
+    version: 'google/imagen-3',
+    description: 'Google\'s latest model, photorealistic quality',
+    cost: 0.02, // Approximate Vertex AI pricing
+    provider: 'vertex-ai', // Special flag for Vertex AI models
+    params: {
+      num_outputs: 4,
+      width: 1024,
+      height: 1024,
+      aspect_ratio: '1:1',
+      safety_filter_level: 'block_only_high', // Fixed: valid option
+      person_generation: 'allow_adult'
+    }
   }
 };
 
@@ -185,13 +201,33 @@ export async function generateTattooDesign(userInput) {
     throw new Error(`Invalid model: ${modelId}`);
   }
 
-  // Build optimized prompt
-  const promptConfig = buildPrompt(userInput);
+  // Detect if this is a council-enhanced prompt
+  // Council prompts are already complete and should not be wrapped in templates
+  const isCouncilEnhanced = userInput.subject && (
+    userInput.subject.includes('masterfully composed') ||
+    userInput.subject.includes('Character details:') ||
+    userInput.subject.includes('photorealistic') ||
+    userInput.subject.length > 500 // Long prompts are likely council-enhanced
+  );
 
-  // Add model-specific prompt prefix if needed
-  let finalPrompt = promptConfig.prompt;
-  if (model.promptPrefix) {
-    finalPrompt = `${model.promptPrefix} ${promptConfig.prompt}`;
+  let finalPrompt;
+  let negativePrompt;
+
+  if (isCouncilEnhanced) {
+    // Use the enhanced prompt directly without template wrapping
+    console.log('[Replicate] Using council-enhanced prompt (skipping template)');
+    finalPrompt = userInput.subject;
+    negativePrompt = userInput.negativePrompt || 'blurry, low quality, distorted, watermark, text, signature, cartoon, childish, unrealistic anatomy, multiple people, cluttered background, oversaturated, low contrast, pixelated, amateur, messy linework';
+  } else {
+    // Build optimized prompt using templates
+    const promptConfig = buildPrompt(userInput);
+    finalPrompt = promptConfig.prompt;
+    negativePrompt = promptConfig.negativePrompt;
+
+    // Add model-specific prompt prefix if needed
+    if (model.promptPrefix) {
+      finalPrompt = `${model.promptPrefix} ${finalPrompt}`;
+    }
   }
 
   console.log('[Replicate] Using model:', model.name);
@@ -208,11 +244,11 @@ export async function generateTattooDesign(userInput) {
       success: true,
       images: MOCK_IMAGES,
       metadata: {
-        ...promptConfig.metadata,
         generatedAt: new Date().toISOString(),
-        prompt: promptConfig.prompt,
-        negativePrompt: promptConfig.negativePrompt,
-        demoMode: true
+        prompt: finalPrompt,
+        negativePrompt: negativePrompt,
+        demoMode: true,
+        councilEnhanced: isCouncilEnhanced
       },
       userInput
     };
@@ -233,7 +269,7 @@ export async function generateTattooDesign(userInput) {
         input: {
           ...model.params,
           prompt: finalPrompt,
-          negative_prompt: promptConfig.negativePrompt
+          negative_prompt: negativePrompt
         }
       })
     });
@@ -283,10 +319,10 @@ export async function generateTattooDesign(userInput) {
       success: true,
       images: Array.isArray(result.output) ? result.output : [result.output],
       metadata: {
-        ...promptConfig.metadata,
         generatedAt: new Date().toISOString(),
-        prompt: promptConfig.prompt,
-        negativePrompt: promptConfig.negativePrompt
+        prompt: finalPrompt,
+        negativePrompt: negativePrompt,
+        councilEnhanced: isCouncilEnhanced
       },
       userInput
     };
@@ -408,7 +444,7 @@ export function getEstimatedCost(numVariations = 4) {
  */
 const rateLimiter = {
   requests: [],
-  maxRequestsPerMinute: 10,
+  maxRequestsPerMinute: 60, // Increased to 60 (Replicate's limit with billing)
 
   canMakeRequest() {
     const now = Date.now();

@@ -1,33 +1,48 @@
 /**
- * Design Generator Component
+ * Design Generator with LLM Council Integration
  *
- * Main interface for AI tattoo design generation.
- * Mobile-first, clean gallery-like aesthetic.
+ * Enhanced version of DesignGenerator that uses the LLM Council
+ * to generate better prompts before calling the image generation API.
  *
  * User Flow:
- * 1. Select style, enter subject, choose body part and size
- * 2. Click generate
- * 3. View 4 variations in responsive grid
- * 4. Tap to enlarge, save favorites to library
+ * 1. User enters basic idea (e.g., "dragon")
+ * 2. User clicks "Enhance with AI Council"
+ * 3. Council generates 3 detailed prompt levels
+ * 4. User selects prompt level or customizes
+ * 5. Image generation uses enhanced prompt
+ * 6. Better tattoo designs generated!
+ *
+ * Features:
+ * - AI-powered prompt enhancement
+ * - Real-time council discussion visualization
+ * - Multiple detail levels
+ * - Custom prompt editing
+ * - Backward compatible with direct generation
  */
 
 import { useState, useEffect } from 'react';
 import { generateWithRateLimit, getAPIUsage, AI_MODELS } from '../services/replicateService';
 import { saveDesign } from '../services/designLibraryService';
-import { processInBrowser, optimizeForAR } from '../services/imageProcessingService';
 import { TATTOO_STYLES, BODY_PART_SPECS, SIZE_SPECS } from '../config/promptTemplates';
+import PromptEnhancer from './PromptEnhancer';
+import CouncilLoadingState from './CouncilLoadingState';
 import StencilExport from './StencilExport';
 import InpaintingEditor from './InpaintingEditor';
 
-export default function DesignGenerator() {
+export default function DesignGeneratorWithCouncil() {
   // Form state
   const [formData, setFormData] = useState({
     style: 'traditional',
     subject: '',
     bodyPart: 'forearm',
     size: 'medium',
-    aiModel: 'tattoo' // Default to tattoo-specific model
+    aiModel: 'tattoo'
   });
+
+  // Enhanced prompt state
+  const [enhancedPrompt, setEnhancedPrompt] = useState(null);
+  const [negativePrompt, setNegativePrompt] = useState(null);
+  const [showEnhancer, setShowEnhancer] = useState(false);
 
   // Generation state
   const [isGenerating, setIsGenerating] = useState(false);
@@ -54,12 +69,26 @@ export default function DesignGenerator() {
       ...prev,
       [field]: value
     }));
+
+    // Reset enhanced prompt if user changes subject
+    if (field === 'subject') {
+      setEnhancedPrompt(null);
+      setNegativePrompt(null);
+    }
+  };
+
+  // Handle prompt enhancement selection
+  const handlePromptSelected = (prompt, negative) => {
+    console.log('[DesignGenerator] Prompt enhanced:', { prompt, negative });
+    setEnhancedPrompt(prompt);
+    setNegativePrompt(negative);
+    setShowEnhancer(false);
   };
 
   // Handle generate button click
   const handleGenerate = async () => {
     // Validate input
-    if (!formData.subject.trim()) {
+    if (!formData.subject.trim() && !enhancedPrompt) {
       setError('Please describe what you want in your tattoo');
       return;
     }
@@ -69,10 +98,19 @@ export default function DesignGenerator() {
     setGeneratedDesigns(null);
 
     try {
-      console.log('[DesignGenerator] Generating designs with:', formData);
+      console.log('[DesignGenerator] Generating designs with:', {
+        ...formData,
+        enhancedPrompt,
+        negativePrompt
+      });
 
-      // Call Replicate API
-      const result = await generateWithRateLimit(formData);
+      // Call Replicate API with enhanced prompt (if available)
+      const result = await generateWithRateLimit({
+        ...formData,
+        // Override subject with enhanced prompt if available
+        subject: enhancedPrompt || formData.subject,
+        negativePrompt: negativePrompt
+      });
 
       console.log('[DesignGenerator] Generation successful:', result);
 
@@ -97,7 +135,9 @@ export default function DesignGenerator() {
         imageUrl,
         {
           ...generatedDesigns.metadata,
-          variationIndex: index
+          variationIndex: index,
+          enhancedPrompt: enhancedPrompt || null,
+          negativePrompt: negativePrompt || null
         },
         formData
       );
@@ -106,7 +146,6 @@ export default function DesignGenerator() {
 
       console.log('[DesignGenerator] Design saved to library:', design.id);
 
-      // Show success feedback
       alert('Design saved to your library!');
 
     } catch (err) {
@@ -129,7 +168,6 @@ export default function DesignGenerator() {
   const handleInpaintingSave = (newImageUrl) => {
     console.log('[DesignGenerator] Inpainting complete, new image:', newImageUrl);
 
-    // Replace the image in the generated designs
     if (generatedDesigns && selectedForInpainting !== null) {
       const updatedImages = [...generatedDesigns.images];
       updatedImages[selectedForInpainting] = newImageUrl;
@@ -139,18 +177,14 @@ export default function DesignGenerator() {
         images: updatedImages
       });
 
-      // Track which images have been inpainted
       setInpaintedImages(prev => ({
         ...prev,
         [selectedForInpainting]: true
       }));
     }
 
-    // Close the editor
     setSelectedForInpainting(null);
-
-    // Show success message
-    alert('Design edited successfully! Your customized design is now in the gallery.');
+    alert('Design edited successfully!');
   };
 
   return (
@@ -158,10 +192,22 @@ export default function DesignGenerator() {
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
-          <h1 className="text-2xl font-bold text-gray-900">AI Tattoo Designer</h1>
-          <p className="text-sm text-gray-600 mt-1">
-            Create custom tattoo designs with AI
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">AI Tattoo Designer</h1>
+              <p className="text-sm text-gray-600 mt-1">
+                Create custom tattoo designs with AI Council enhancement
+              </p>
+            </div>
+            {enhancedPrompt && (
+              <div className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium flex items-center">
+                <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
+                Council Enhanced
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -171,20 +217,14 @@ export default function DesignGenerator() {
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-blue-900">
-                  Budget Tracker
-                </p>
+                <p className="text-sm font-medium text-blue-900">Budget Tracker</p>
                 <p className="text-xs text-blue-700 mt-1">
                   ${apiUsage.totalSpent.toFixed(2)} spent / ${apiUsage.remainingBudget.toFixed(2)} remaining
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-xs text-blue-700">
-                  Today: {apiUsage.todayRequests} requests
-                </p>
-                <p className="text-xs text-blue-600">
-                  ${apiUsage.todaySpent.toFixed(2)}
-                </p>
+                <p className="text-xs text-blue-700">Today: {apiUsage.todayRequests} requests</p>
+                <p className="text-xs text-blue-600">${apiUsage.todaySpent.toFixed(2)}</p>
               </div>
             </div>
           </div>
@@ -258,53 +298,73 @@ export default function DesignGenerator() {
               type="text"
               value={formData.subject}
               onChange={(e) => handleInputChange('subject', e.target.value)}
-              placeholder="e.g., wolf and moon, rose with thorns, geometric mountains..."
+              placeholder="e.g., dragon, geometric wolf, rose with thorns..."
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
             <p className="mt-1 text-xs text-gray-500">
-              Be specific! The more detail, the better the result.
+              Start simple! The AI Council will enhance it for you.
             </p>
           </div>
 
-          {/* Body Part Selector */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Body Placement
-            </label>
-            <select
-              value={formData.bodyPart}
-              onChange={(e) => handleInputChange('bodyPart', e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
-            >
-              {Object.entries(BODY_PART_SPECS).map(([key, spec]) => (
-                <option key={key} value={key}>
-                  {spec.displayName}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Body Part & Size Row */}
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Body Placement
+              </label>
+              <select
+                value={formData.bodyPart}
+                onChange={(e) => handleInputChange('bodyPart', e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
+              >
+                {Object.entries(BODY_PART_SPECS).map(([key, spec]) => (
+                  <option key={key} value={key}>
+                    {spec.displayName}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          {/* Size Selector */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Size
-            </label>
-            <div className="grid grid-cols-3 gap-3">
-              {Object.entries(SIZE_SPECS).map(([key, spec]) => (
-                <button
-                  key={key}
-                  onClick={() => handleInputChange('size', key)}
-                  className={`px-4 py-3 border rounded-lg font-medium transition-all ${
-                    formData.size === key
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
-                  }`}
-                >
-                  {spec.displayName.split(' ')[0]}
-                </button>
-              ))}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Size
+              </label>
+              <select
+                value={formData.size}
+                onChange={(e) => handleInputChange('size', e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
+              >
+                {Object.entries(SIZE_SPECS).map(([key, spec]) => (
+                  <option key={key} value={key}>
+                    {spec.displayName}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
+
+          {/* Show Enhanced Prompt (if set) */}
+          {enhancedPrompt && !showEnhancer && (
+            <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+              <div className="flex items-start justify-between mb-2">
+                <p className="text-sm font-semibold text-purple-900">
+                  ✨ AI Enhanced Prompt:
+                </p>
+                <button
+                  onClick={() => {
+                    setEnhancedPrompt(null);
+                    setNegativePrompt(null);
+                  }}
+                  className="text-xs text-purple-600 hover:text-purple-700"
+                >
+                  Clear
+                </button>
+              </div>
+              <p className="text-sm text-purple-800 leading-relaxed">
+                {enhancedPrompt}
+              </p>
+            </div>
+          )}
 
           {/* Error Message */}
           {error && (
@@ -313,33 +373,77 @@ export default function DesignGenerator() {
             </div>
           )}
 
-          {/* Generate Button */}
-          <button
-            onClick={handleGenerate}
-            disabled={isGenerating || !formData.subject.trim()}
-            className={`w-full py-4 rounded-lg font-semibold text-white transition-all ${
-              isGenerating || !formData.subject.trim()
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700 active:scale-98'
-            }`}
-          >
-            {isGenerating ? (
-              <span className="flex items-center justify-center">
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          {/* Action Buttons */}
+          <div className="space-y-3">
+            {/* Enhance Prompt Button */}
+            {!enhancedPrompt && !showEnhancer && (
+              <button
+                onClick={() => setShowEnhancer(true)}
+                disabled={!formData.subject.trim()}
+                className={`w-full py-3 px-4 rounded-lg font-semibold transition-all flex items-center justify-center ${
+                  formData.subject.trim()
+                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl'
+                    : 'bg-gray-400 cursor-not-allowed text-white'
+                }`}
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
-                Consulting with AI tattoo artist...
-              </span>
-            ) : (
-              'Generate Design'
+                ✨ Enhance with AI Council
+              </button>
             )}
-          </button>
 
-          <p className="mt-2 text-xs text-center text-gray-500">
-            Generates 4 unique variations (~${(AI_MODELS[formData.aiModel].cost * AI_MODELS[formData.aiModel].params.num_outputs).toFixed(4)} per request)
-          </p>
+            {/* Generate Button */}
+            <button
+              onClick={handleGenerate}
+              disabled={isGenerating || (!formData.subject.trim() && !enhancedPrompt)}
+              className={`w-full py-4 rounded-lg font-semibold text-white transition-all ${
+                isGenerating || (!formData.subject.trim() && !enhancedPrompt)
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700 active:scale-98'
+              }`}
+            >
+              {isGenerating ? (
+                <CouncilLoadingState message="Generating your tattoo designs..." />
+              ) : (
+                `Generate Design ${enhancedPrompt ? '(Enhanced)' : ''}`
+              )}
+            </button>
+
+            <p className="text-xs text-center text-gray-500">
+              {enhancedPrompt
+                ? '✨ Using AI-enhanced prompt for better results'
+                : 'Tip: Enhance your prompt with AI Council for better designs!'
+              }
+            </p>
+          </div>
         </div>
+
+        {/* Prompt Enhancer Panel */}
+        {showEnhancer && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">
+                AI Council Prompt Enhancement
+              </h2>
+              <button
+                onClick={() => setShowEnhancer(false)}
+                className="text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <PromptEnhancer
+              userInput={formData.subject}
+              onPromptSelected={handlePromptSelected}
+              style={formData.style}
+              bodyPart={formData.bodyPart}
+            />
+          </div>
+        )}
 
         {/* Generated Designs Grid */}
         {generatedDesigns && (
@@ -368,16 +472,10 @@ export default function DesignGenerator() {
                     {generatedDesigns.metadata.bodyPart}
                   </span>
                 </div>
-                <div>
-                  <span className="text-gray-600">Subject:</span>
+                <div className="col-span-2">
+                  <span className="text-gray-600">Prompt:</span>
                   <span className="ml-2 font-medium text-gray-900">
-                    {generatedDesigns.metadata.subject}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-gray-600">Size:</span>
-                  <span className="ml-2 font-medium text-gray-900">
-                    {generatedDesigns.metadata.size}
+                    {enhancedPrompt ? '✨ AI Enhanced' : generatedDesigns.metadata.subject}
                   </span>
                 </div>
               </div>
@@ -390,7 +488,6 @@ export default function DesignGenerator() {
                   key={index}
                   className="relative group rounded-lg overflow-hidden bg-gray-100 aspect-square"
                 >
-                  {/* Image */}
                   <img
                     src={imageUrl}
                     alt={`Variation ${index + 1}`}
@@ -398,10 +495,8 @@ export default function DesignGenerator() {
                     onClick={() => handleImageClick(imageUrl)}
                   />
 
-                  {/* Hover Overlay */}
                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all pointer-events-none" />
 
-                  {/* Action Buttons */}
                   <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                     <div className="space-y-2">
                       <button
@@ -439,13 +534,17 @@ export default function DesignGenerator() {
                     </div>
                   </div>
 
-                  {/* Variation Number & Edited Badge */}
                   <div className="absolute top-3 left-3 flex gap-2">
                     <div className="bg-black/50 text-white text-xs font-medium px-2 py-1 rounded">
                       #{index + 1}
                     </div>
-                    {inpaintedImages[index] && (
+                    {enhancedPrompt && (
                       <div className="bg-purple-600 text-white text-xs font-medium px-2 py-1 rounded">
+                        ✨ AI Enhanced
+                      </div>
+                    )}
+                    {inpaintedImages[index] && (
+                      <div className="bg-blue-600 text-white text-xs font-medium px-2 py-1 rounded">
                         ✏️ Edited
                       </div>
                     )}
@@ -488,7 +587,6 @@ export default function DesignGenerator() {
             onClick={handleCloseEnlarged}
           >
             <div className="relative max-w-4xl w-full">
-              {/* Close Button */}
               <button
                 onClick={handleCloseEnlarged}
                 className="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors"
@@ -498,7 +596,6 @@ export default function DesignGenerator() {
                 </svg>
               </button>
 
-              {/* Image */}
               <img
                 src={selectedImage}
                 alt="Enlarged view"

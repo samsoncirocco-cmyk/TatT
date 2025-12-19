@@ -1,0 +1,226 @@
+{
+  "cities": ["All Locations", "Phoenix, AZ", "Scottsdale, AZ", "Tempe, AZ", "Mesa, AZ", "Glendale, AZ"],
+  "styles": ["All Styles", "Anime", "Traditional", "Realism", "Watercolor", "Minimalist", "Japanese", "Tribal", "Geometric", "Blackwork", "Neo-Traditional", "Fine Line", "Color"],
+  "artists": [
+    {
+      "id": 1,
+      "name": "Sarah Rodriguez",
+      "shopName": "Anime Ink Phoenix",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": { "lat": 33.4484, "lon": -112.0740, "display": "Phoenix, AZ" },
+      "styles": ["Anime", "Color", "Neo-Traditional"],
+      "tags": ["dragon ball z", "goku", "anime", "sleeve", "naruto", "one piece"],
+      "portfolioImages": [
+        "https://images.unsplash.com/photo-1565058586142-88f6f3db0275?w=400&h=400&fit=crop",
+        "https://images.unsplash.com/photo-1598161388271-72f6c7c7db4d?w=400&h=400&fit=crop",
+        "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=400&fit=crop"
+      ],
+      "instagram": "@sarah_anime_ink",
+      "hourly_rate": 150,
+      "rating": 4.9,
+      "reviewCount": 243,
+      "bio": "Phoenix's premier anime tattoo specialist. Bringing your favorite characters to life with vibrant colors and authentic style. Dragon Ball Z, Naruto, One Piece, and more!",
+      "yearsExperience": 8,
+      "bookingAvailable": true
+    },
+    {
+      "id": 2,
+      "name": "Marcus Chen",
+      "shopName": "Desert Dragon Tattoo",
+      "city": "Scottsdale",
+      "state": "AZ",
+      "location": { "lat": 33.4942, "lon": -111.9261, "display": "Scottsdale, AZ" },
+      "styles": ["Anime", "Japanese", "Color"],
+      "tags": ["dragon ball z", "vegeta", "anime", "attack on titan", "demon slayer"],
+      "portfolioImages": [
+        "https://images.unsplash.com/photo-1568515387631-8b650bbcdb90?w=400&h=400&fit=crop",
+        "https://images.unsplash.com/photo-1590246814883-57c511194477?w=400&h=400&fit=crop",
+        "https://images.unsplash.com/photo-1611501275019-9b5cda994e8d?w=400&h=400&fit=crop"
+      ],
+      "instagram": "@marcus_desert_dragon",
+      "hourly_rate": 200,
+      "rating": 4.8,
+      "reviewCount": 189,
+      "bio": "Specializing in anime and Japanese fusion tattoos. Dragon Ball Z expert with 10+ years creating dynamic action scenes and character portraits.",
+      "yearsExperience": 10,
+      "bookingAvailable": true
+    },
+    {
+      "id": 3,
+      "name": "Alex Thompson",
+      "shopName": "Nerd Culture Ink",
+      "city": "Tempe",
+      "state": "AZ",
+      "location": { "lat": 33.4255, "lon": -111.9400, "display": "Tempe, AZ" },
+      "styles": ["Anime", "Color", "Geek Culture"],
+      "tags": ["dragon ball z", "goku", "vegeta", "fusion", "anime", "my hero academia", "pokemon"],
+      "portfolioImages": [
+        "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=400&h=400&fit=crop",
+        "https://images.unsplash.com/photo-1611432579699-484f7990b127?w=400&h=400&fit=crop",
+        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop"
+      ],
+      "instagram": "@alex_nerd_ink",
+      "hourly_rate": 175,
+      "rating": 4.9,
+      "reviewCount": 167,
+      "bio": "Your go-to artist for anime, gaming, and pop culture tattoos. Proud DBZ superfan ready to bring your favorite Saiyans to life!",
+      "yearsExperience": 7,
+      "bookingAvailable": true
+    },
+    {
+      "id": 4,
+      "name": "Jordan Blake",
+      "shopName": "Minimalist Ink",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": { "lat": 33.4152, "lon": -112.0786, "display": "Phoenix, AZ" },
+      "styles": ["Minimalist", "Fine Line", "Watercolor"],
+      "tags": ["mountain", "minimalist", "nature", "flower", "watercolor", "moon"],
+      "portfolioImages": [
+        "https://images.unsplash.com/photo-1483655827844-6fd85ac87e0f?w=400&h=400&fit=crop",
+        "https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?w=400&h=400&fit=crop",
+        "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop"
+      ],
+      "instagram": "@jordan_minimalist",
+      "hourly_rate": 125,
+      "rating": 4.7,
+      "reviewCount": 156,
+      "bio": "Creating delicate, meaningful designs with clean lines and subtle details. Perfect for first-timers and those who appreciate understated elegance.",
+      "yearsExperience": 6,
+      "bookingAvailable": true
+    },
+    {
+      "id": 5,
+      "name": "Maria Santos",
+      "shopName": "Realism Studios Phoenix",
+      "city": "Mesa",
+      "state": "AZ",
+      "location": { "lat": 33.4152, "lon": -111.8315, "display": "Mesa, AZ" },
+      "styles": ["Realism", "Portrait", "Blackwork"],
+      "tags": ["portrait", "realism", "black and gray", "animal", "wolf", "rose"],
+      "portfolioImages": [
+        "https://images.unsplash.com/photo-1565058586142-88f6f3db0275?w=400&h=400&fit=crop",
+        "https://images.unsplash.com/photo-1598161388271-72f6c7c7db4d?w=400&h=400&fit=crop",
+        "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=400&fit=crop"
+      ],
+      "instagram": "@maria_realism",
+      "hourly_rate": 250,
+      "rating": 4.9,
+      "reviewCount": 98,
+      "bio": "Award-winning realism artist focused on creating stunning photorealistic portraits and nature scenes. Each piece is a unique work of art crafted with precision.",
+      "yearsExperience": 12,
+      "bookingAvailable": false
+    },
+    {
+      "id": 6,
+      "name": "David Kim",
+      "shopName": "Traditional Tales",
+      "city": "Glendale",
+      "state": "AZ",
+      "location": { "lat": 33.5387, "lon": -112.1860, "display": "Glendale, AZ" },
+      "styles": ["Traditional", "Neo-Traditional", "Color"],
+      "tags": ["skull", "traditional", "americana", "anchor", "nautical", "eagle"],
+      "portfolioImages": [
+        "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop",
+        "https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=400&h=400&fit=crop",
+        "https://images.unsplash.com/photo-1463453091185-61582044d556?w=400&h=400&fit=crop"
+      ],
+      "instagram": "@david_traditional",
+      "hourly_rate": 180,
+      "rating": 4.8,
+      "reviewCount": 134,
+      "bio": "Keeping the tradition alive with bold lines and vibrant colors. Specializing in classic American traditional with a modern edge.",
+      "yearsExperience": 9,
+      "bookingAvailable": true
+    },
+    {
+      "id": 7,
+      "name": "Yuki Tanaka",
+      "shopName": "Rising Sun Tattoo",
+      "city": "Scottsdale",
+      "state": "AZ",
+      "location": { "lat": 33.5092, "lon": -111.8985, "display": "Scottsdale, AZ" },
+      "styles": ["Japanese", "Oriental", "Color"],
+      "tags": ["koi fish", "japanese", "water", "color", "dragon", "samurai"],
+      "portfolioImages": [
+        "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=400&fit=crop",
+        "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=400&h=400&fit=crop",
+        "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&h=400&fit=crop"
+      ],
+      "instagram": "@yuki_risingsun",
+      "hourly_rate": 300,
+      "rating": 5.0,
+      "reviewCount": 89,
+      "bio": "Master of traditional Japanese tattooing (Irezumi). Trained in Tokyo, bringing authentic Japanese artistry to Arizona. Specializing in full sleeves and back pieces.",
+      "yearsExperience": 15,
+      "bookingAvailable": false
+    },
+    {
+      "id": 8,
+      "name": "Luna Martinez",
+      "shopName": "Watercolor Dreams",
+      "city": "Tempe",
+      "state": "AZ",
+      "location": { "lat": 33.3879, "lon": -111.9314, "display": "Tempe, AZ" },
+      "styles": ["Watercolor", "Fine Line", "Floral"],
+      "tags": ["watercolor", "butterfly", "color", "delicate", "flower", "botanical", "galaxy"],
+      "portfolioImages": [
+        "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop",
+        "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=400&fit=crop",
+        "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&h=400&fit=crop"
+      ],
+      "instagram": "@luna_watercolor",
+      "hourly_rate": 160,
+      "rating": 4.7,
+      "reviewCount": 167,
+      "bio": "Creating dreamy watercolor tattoos with delicate florals and soft color palettes. Each piece is like wearable art that flows with your skin.",
+      "yearsExperience": 5,
+      "bookingAvailable": true
+    },
+    {
+      "id": 9,
+      "name": "Kai Nakamura",
+      "shopName": "Geometric Visions",
+      "city": "Mesa",
+      "state": "AZ",
+      "location": { "lat": 33.4019, "lon": -111.7179, "display": "Mesa, AZ" },
+      "styles": ["Geometric", "Dotwork", "Minimalist"],
+      "tags": ["mandala", "geometric", "dotwork", "sacred geometry", "animal", "linework"],
+      "portfolioImages": [
+        "https://images.unsplash.com/photo-1489424731084-a5d8b219a5bb?w=400&h=400&fit=crop",
+        "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400&h=400&fit=crop",
+        "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=400&h=400&fit=crop"
+      ],
+      "instagram": "@kai_geometric",
+      "hourly_rate": 190,
+      "rating": 4.8,
+      "reviewCount": 92,
+      "bio": "Precision dotwork and geometric patterns. Creating intricate mandala designs and sacred geometry tattoos with meditative attention to detail.",
+      "yearsExperience": 8,
+      "bookingAvailable": true
+    },
+    {
+      "id": 10,
+      "name": "Marcus Thompson",
+      "shopName": "Tribal Traditions",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": { "lat": 33.5722, "lon": -112.0901, "display": "Phoenix, AZ" },
+      "styles": ["Tribal", "Blackwork", "Polynesian"],
+      "tags": ["tribal", "polynesian", "blackwork", "sleeve", "maori", "warrior"],
+      "portfolioImages": [
+        "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop",
+        "https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=400&h=400&fit=crop",
+        "https://images.unsplash.com/photo-1463453091185-61582044d556?w=400&h=400&fit=crop"
+      ],
+      "instagram": "@marcus_tribal",
+      "hourly_rate": 220,
+      "rating": 4.9,
+      "reviewCount": 134,
+      "bio": "Specializing in bold tribal and Polynesian blackwork. Creating powerful, symmetrical designs inspired by Polynesian and Maori traditions.",
+      "yearsExperience": 11,
+      "bookingAvailable": true
+    }
+  ]
+}

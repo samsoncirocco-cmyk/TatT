@@ -5,7 +5,9 @@ AI-powered tattoo visualization platform that transforms first-time tattoo seeke
 ## Features
 
 ### Phase 1 MVP (Current)
-- **AI Design Generation**: Create custom tattoo designs using Replicate's SDXL model
+- **AI Design Generation**: Create custom tattoo designs using multiple AI models (SDXL, Anime XL, DreamShaper XL, Tattoo Flash Art)
+- **Design Inpainting**: Edit specific parts of generated designs with AI-powered brush tool
+- **Stencil Export**: Export designs as high-quality 300 DPI stencils for professional use
 - **7 Tattoo Styles**: Traditional, Neo-Traditional, Japanese, Minimalist, Watercolor, Blackwork, Realism
 - **Prompt Engineering**: Optimized templates for each style to ensure tattoo-quality results
 - **Design Library**: Save and manage up to 50 designs locally
@@ -19,12 +21,14 @@ AI-powered tattoo visualization platform that transforms first-time tattoo seeke
 
 ## Technology Stack
 
-- **Frontend**: React 18 + Vite
-- **Routing**: React Router DOM
-- **Styling**: Tailwind CSS
-- **AI Generation**: Replicate.com (SDXL model)
-- **Image Processing**: Sharp.js (for stencil-quality output)
-- **Storage**: localStorage (Phase 1), Database (Phase 2)
+- **Frontend**: React 19 + Vite 5
+- **Routing**: React Router DOM v7
+- **Styling**: Tailwind CSS 3.4
+- **AI Generation**: Replicate.com (SDXL, Anime XL, DreamShaper XL, Tattoo Flash Art models)
+- **AI Inpainting**: Stable Diffusion Inpainting for design customization
+- **Image Processing**: Canvas API (browser) + Sharp.js (stencil export)
+- **Backend**: Express.js proxy server for Replicate API
+- **Storage**: localStorage + IndexedDB (Phase 1), Database (Phase 2)
 
 ## Getting Started
 
@@ -54,24 +58,49 @@ AI-powered tattoo visualization platform that transforms first-time tattoo seeke
 
    Get your token from: https://replicate.com/account/api-tokens
 
-4. **Start development server**
+4. **Start development servers**
    ```bash
+   # Terminal 1: Frontend dev server
    npm run dev
+
+   # Terminal 2: Backend proxy server
+   npm run server
    ```
 
-   App will open at `http://localhost:3000`
+   - Frontend: `http://localhost:3000`
+   - Backend: `http://localhost:3001`
 
 ## Usage
 
 ### Generating Your First Design
 
 1. Navigate to the **Generate** tab
-2. Select a tattoo style (Traditional, Japanese, etc.)
-3. Describe what you want (e.g., "wolf and moon")
-4. Choose body placement and size
-5. Click "Generate Design"
-6. Wait ~10-30 seconds for 4 variations
-7. Save your favorites to the library
+2. Select an AI model (SDXL recommended for tattoos)
+3. Choose a tattoo style (Traditional, Japanese, etc.)
+4. Describe what you want (e.g., "wolf and moon")
+5. Select body placement and size
+6. Click "Generate Design"
+7. Wait ~10-30 seconds for 4 variations
+8. Hover over designs to reveal action buttons
+
+### Editing a Design with Inpainting
+
+1. After generating designs, hover over any variation
+2. Click "✏️ Edit Design" button
+3. Use the brush to paint over areas you want to change (shown in red)
+4. Adjust brush size as needed
+5. Describe what you want in the painted area
+6. Click "Generate Edited Design"
+7. Wait ~10-20 seconds for the AI to regenerate only the masked area
+8. Your edited design replaces the original in the gallery
+
+### Exporting as Stencil
+
+1. Hover over a generated design
+2. Click "Export as Stencil"
+3. Review the 300 DPI processed version
+4. Click "Download Stencil" to save as PNG
+5. Design is optimized for professional tattoo transfer
 
 ### Managing Your Library
 
@@ -84,9 +113,13 @@ AI-powered tattoo visualization platform that transforms first-time tattoo seeke
 ## Budget Management
 
 ### Cost Structure
-- **Per Request**: ~$0.022 (generates 4 variations)
+- **SDXL Generation**: ~$0.022 per request (4 variations)
+- **Anime XL**: ~$0.12 per request (4 variations)
+- **DreamShaper XL Turbo**: ~$0.004 per request (4 variations, fastest)
+- **Tattoo Flash Art**: ~$0.012 per request (4 variations)
+- **Inpainting**: ~$0.0014 per second (~$0.014 typical edit)
 - **Phase 1 Budget**: $500
-- **Estimated Capacity**: ~22,700 variations or ~5,675 requests
+- **Estimated Capacity**: ~5,000-20,000 requests depending on model mix
 
 ### Budget Tracking
 The app automatically tracks:
@@ -108,17 +141,21 @@ tatt-tester/
 ├── src/
 │   ├── components/          # React components
 │   │   ├── DesignGenerator.jsx   # Main generation UI
+│   │   ├── InpaintingEditor.jsx  # Design editing with brush tool
+│   │   ├── StencilExport.jsx     # 300 DPI stencil processor
 │   │   ├── DesignLibrary.jsx     # Saved designs gallery
 │   │   └── Home.jsx              # Landing page
 │   ├── services/            # Business logic
-│   │   ├── replicateService.js   # API integration
-│   │   ├── imageProcessingService.js  # Sharp.js processing
+│   │   ├── replicateService.js   # AI generation API
+│   │   ├── inpaintingService.js  # AI inpainting API
+│   │   ├── imageProcessingService.js  # Canvas + Sharp.js
 │   │   └── designLibraryService.js    # localStorage management
 │   ├── config/              # Configuration
 │   │   └── promptTemplates.js    # Style-specific prompts
 │   ├── App.jsx              # Root component + routing
 │   ├── main.jsx             # Entry point
 │   └── index.css            # Global styles + Tailwind
+├── server.js                # Express proxy for Replicate API
 ├── .env                     # Environment variables
 ├── package.json
 ├── vite.config.js
@@ -128,11 +165,20 @@ tatt-tester/
 ### Key Services
 
 **replicateService.js**
-- Handles Replicate API calls
+- Handles Replicate API calls for design generation
+- Supports 4 AI models (SDXL, Anime XL, DreamShaper XL, Tattoo Flash Art)
 - Implements retry logic with exponential backoff
-- Provides rate limiting
-- Tracks budget usage
+- Provides rate limiting (10 requests/minute)
+- Tracks budget usage per model
 - Error handling for auth, rate limits, credits
+- Demo mode for testing without API calls
+
+**inpaintingService.js**
+- AI-powered design editing
+- Stable Diffusion Inpainting model integration
+- Canvas-based brush tool for masking
+- Prompt-guided regeneration of masked areas
+- Cost estimation and tracking
 
 **imageProcessingService.js**
 - Browser-based image processing (Canvas API)
@@ -183,7 +229,8 @@ Prompts are automatically enhanced with:
 ### Available Scripts
 
 ```bash
-npm run dev      # Start development server
+npm run dev      # Start frontend dev server (port 3000)
+npm run server   # Start backend proxy server (port 3001)
 npm run build    # Build for production
 npm run preview  # Preview production build
 npm run lint     # Run ESLint
@@ -194,6 +241,9 @@ npm run lint     # Run ESLint
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `VITE_REPLICATE_API_TOKEN` | Your Replicate API token | Yes |
+| `REPLICATE_API_TOKEN` | Server-side Replicate token (same as above) | Yes |
+| `VITE_PROXY_URL` | Backend proxy URL (default: http://localhost:3001/api) | No |
+| `VITE_DEMO_MODE` | Enable demo mode (true/false) | No |
 
 ## Scaling Considerations
 
@@ -300,11 +350,14 @@ This is a solo-founder bootstrap project in MVP phase. Contributions welcome pos
 ## Roadmap
 
 ### Phase 1: AI Design Generation (Current)
-- [x] Replicate API integration
+- [x] Replicate API integration with 4 AI models
 - [x] 7 tattoo styles with optimized prompts
+- [x] AI-powered design inpainting/editing
+- [x] 300 DPI stencil export
 - [x] Design library with localStorage
 - [x] Budget tracking
 - [x] Mobile-first UI
+- [x] Express.js proxy server
 
 ### Phase 2: AR Preview (Post-Seed)
 - [ ] AR.js or 8th Wall integration
