@@ -18,6 +18,12 @@ export default function StencilExport({ imageUrl, designName = 'tattoo' }) {
   });
 
   const handleGeneratePreview = async () => {
+    // Validate imageUrl exists before processing
+    if (!imageUrl) {
+      alert('No image selected. Please select a design first.');
+      return;
+    }
+
     setIsProcessing(true);
     try {
       const preset = STYLE_PRESETS[selectedPreset];
@@ -31,7 +37,7 @@ export default function StencilExport({ imageUrl, designName = 'tattoo' }) {
       setStencilPreview(stencil);
     } catch (error) {
       console.error('Failed to generate stencil:', error);
-      alert('Failed to generate stencil. Please try again.');
+      alert(`Failed to generate stencil: ${error.message}. Please try again.`);
     } finally {
       setIsProcessing(false);
     }

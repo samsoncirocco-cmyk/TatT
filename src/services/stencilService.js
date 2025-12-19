@@ -56,6 +56,11 @@ const DEFAULT_STENCIL_SETTINGS = {
  * @returns {Promise<string>} Data URL of stencil image
  */
 export async function convertToStencil(imageUrl, settings = {}) {
+  // Validate imageUrl
+  if (!imageUrl) {
+    throw new Error('Image URL is required');
+  }
+
   const options = { ...DEFAULT_STENCIL_SETTINGS, ...settings };
 
   return new Promise((resolve, reject) => {
@@ -69,6 +74,10 @@ export async function convertToStencil(imageUrl, settings = {}) {
         canvas.width = img.width;
         canvas.height = img.height;
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+        if (!ctx) {
+          throw new Error('Failed to create canvas context');
+        }
 
         // Draw original image
         ctx.drawImage(img, 0, 0);
@@ -115,8 +124,8 @@ export async function convertToStencil(imageUrl, settings = {}) {
       }
     };
 
-    img.onerror = () => {
-      reject(new Error('Failed to load image for stencil conversion'));
+    img.onerror = (error) => {
+      reject(new Error(`Failed to load image for stencil conversion: ${error?.message || 'Unknown error'}`));
     };
 
     img.src = imageUrl;
@@ -130,6 +139,11 @@ export async function convertToStencil(imageUrl, settings = {}) {
  * @returns {Promise<string>} Data URL of resized image
  */
 export async function resizeToStencilSize(imageUrl, sizeKey) {
+  // Validate inputs
+  if (!imageUrl) {
+    throw new Error('Image URL is required');
+  }
+
   const size = STENCIL_SIZES[sizeKey];
   if (!size) {
     throw new Error(`Invalid size: ${sizeKey}`);
@@ -140,21 +154,29 @@ export async function resizeToStencilSize(imageUrl, sizeKey) {
     img.crossOrigin = 'anonymous';
 
     img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
+      try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
 
-      // Set to desired size
-      canvas.width = size.pixels;
-      canvas.height = size.pixels;
+        if (!ctx) {
+          throw new Error('Failed to create canvas context');
+        }
 
-      // Draw image scaled to fit
-      ctx.drawImage(img, 0, 0, size.pixels, size.pixels);
+        // Set to desired size
+        canvas.width = size.pixels;
+        canvas.height = size.pixels;
 
-      resolve(canvas.toDataURL('image/png'));
+        // Draw image scaled to fit
+        ctx.drawImage(img, 0, 0, size.pixels, size.pixels);
+
+        resolve(canvas.toDataURL('image/png'));
+      } catch (error) {
+        reject(new Error(`Failed to resize image: ${error.message}`));
+      }
     };
 
-    img.onerror = () => {
-      reject(new Error('Failed to load image for resizing'));
+    img.onerror = (error) => {
+      reject(new Error(`Failed to load image: ${error?.message || 'Unknown error'}. Please check the image URL.`));
     };
 
     img.src = imageUrl;
