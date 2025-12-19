@@ -1,225 +1,3605 @@
 {
-  "cities": ["All Locations", "Phoenix, AZ", "Scottsdale, AZ", "Tempe, AZ", "Mesa, AZ", "Glendale, AZ"],
-  "styles": ["All Styles", "Anime", "Traditional", "Realism", "Watercolor", "Minimalist", "Japanese", "Tribal", "Geometric", "Blackwork", "Neo-Traditional", "Fine Line", "Color"],
+  "cities": [
+    "All Locations",
+    "Phoenix, AZ",
+    "Scottsdale, AZ",
+    "Tempe, AZ",
+    "Mesa, AZ",
+    "Gilbert, AZ",
+    "Glendale, AZ",
+    "Chandler, AZ",
+    "Tucson, AZ",
+    "Flagstaff, AZ",
+    "Prescott, AZ",
+    "Sedona, AZ",
+    "Yuma, AZ",
+    "Peoria, AZ",
+    "Surprise, AZ",
+    "Apache Junction, AZ",
+    "Cave Creek, AZ",
+    "Bullhead City, AZ",
+    "Lake Havasu City, AZ",
+    "Kingman, AZ",
+    "Sierra Vista, AZ"
+  ],
+  "styles": [
+    "All Styles",
+    "Traditional",
+    "Realism",
+    "Watercolor",
+    "Minimalist",
+    "Japanese",
+    "Tribal",
+    "Geometric",
+    "Blackwork",
+    "Neo-Traditional",
+    "Fine Line",
+    "Color",
+    "Portrait",
+    "Lettering",
+    "Dotwork",
+    "Illustrative"
+  ],
   "artists": [
     {
       "id": 1,
-      "name": "Sarah Rodriguez",
-      "shopName": "Anime Ink Phoenix",
+      "name": "Felix Young",
+      "shopName": "Golden Rule Tattoo (Roosevelt)",
       "city": "Phoenix",
       "state": "AZ",
-      "location": { "lat": 33.4484, "lon": -112.0740, "display": "Phoenix, AZ" },
-      "styles": ["Anime", "Color", "Neo-Traditional"],
-      "tags": ["dragon ball z", "goku", "anime", "sleeve", "naruto", "one piece"],
-      "portfolioImages": [
-        "https://images.unsplash.com/photo-1565058586142-88f6f3db0275?w=400&h=400&fit=crop",
-        "https://images.unsplash.com/photo-1598161388271-72f6c7c7db4d?w=400&h=400&fit=crop",
-        "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=400&fit=crop"
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Color"
       ],
-      "instagram": "@sarah_anime_ink",
-      "hourly_rate": 150,
-      "rating": 4.9,
-      "reviewCount": 243,
-      "bio": "Phoenix's premier anime tattoo specialist. Bringing your favorite characters to life with vibrant colors and authentic style. Dragon Ball Z, Naruto, One Piece, and more!",
-      "yearsExperience": 8,
-      "bookingAvailable": true
-    },
-    {
-      "id": 2,
-      "name": "Marcus Chen",
-      "shopName": "Desert Dragon Tattoo",
-      "city": "Scottsdale",
-      "state": "AZ",
-      "location": { "lat": 33.4942, "lon": -111.9261, "display": "Scottsdale, AZ" },
-      "styles": ["Anime", "Japanese", "Color"],
-      "tags": ["dragon ball z", "vegeta", "anime", "attack on titan", "demon slayer"],
-      "portfolioImages": [
-        "https://images.unsplash.com/photo-1568515387631-8b650bbcdb90?w=400&h=400&fit=crop",
-        "https://images.unsplash.com/photo-1590246814883-57c511194477?w=400&h=400&fit=crop",
-        "https://images.unsplash.com/photo-1611501275019-9b5cda994e8d?w=400&h=400&fit=crop"
+      "tags": [
+        "vibrant",
+        "colorful",
+        "full color"
       ],
-      "instagram": "@marcus_desert_dragon",
-      "hourly_rate": 200,
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-1-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-1-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-1-3.png"
+      ],
+      "instagram": "@felix_young_ink",
+      "hourlyRate": 250,
       "rating": 4.8,
-      "reviewCount": 189,
-      "bio": "Specializing in anime and Japanese fusion tattoos. Dragon Ball Z expert with 10+ years creating dynamic action scenes and character portraits.",
-      "yearsExperience": 10,
-      "bookingAvailable": true
-    },
-    {
-      "id": 3,
-      "name": "Alex Thompson",
-      "shopName": "Nerd Culture Ink",
-      "city": "Tempe",
-      "state": "AZ",
-      "location": { "lat": 33.4255, "lon": -111.9400, "display": "Tempe, AZ" },
-      "styles": ["Anime", "Color", "Geek Culture"],
-      "tags": ["dragon ball z", "goku", "vegeta", "fusion", "anime", "my hero academia", "pokemon"],
-      "portfolioImages": [
-        "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=400&h=400&fit=crop",
-        "https://images.unsplash.com/photo-1611432579699-484f7990b127?w=400&h=400&fit=crop",
-        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop"
-      ],
-      "instagram": "@alex_nerd_ink",
-      "hourly_rate": 175,
-      "rating": 4.9,
-      "reviewCount": 167,
-      "bio": "Your go-to artist for anime, gaming, and pop culture tattoos. Proud DBZ superfan ready to bring your favorite Saiyans to life!",
-      "yearsExperience": 7,
-      "bookingAvailable": true
-    },
-    {
-      "id": 4,
-      "name": "Jordan Blake",
-      "shopName": "Minimalist Ink",
-      "city": "Phoenix",
-      "state": "AZ",
-      "location": { "lat": 33.4152, "lon": -112.0786, "display": "Phoenix, AZ" },
-      "styles": ["Minimalist", "Fine Line", "Watercolor"],
-      "tags": ["mountain", "minimalist", "nature", "flower", "watercolor", "moon"],
-      "portfolioImages": [
-        "https://images.unsplash.com/photo-1483655827844-6fd85ac87e0f?w=400&h=400&fit=crop",
-        "https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?w=400&h=400&fit=crop",
-        "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop"
-      ],
-      "instagram": "@jordan_minimalist",
-      "hourly_rate": 125,
-      "rating": 4.7,
-      "reviewCount": 156,
-      "bio": "Creating delicate, meaningful designs with clean lines and subtle details. Perfect for first-timers and those who appreciate understated elegance.",
-      "yearsExperience": 6,
-      "bookingAvailable": true
-    },
-    {
-      "id": 5,
-      "name": "Maria Santos",
-      "shopName": "Realism Studios Phoenix",
-      "city": "Mesa",
-      "state": "AZ",
-      "location": { "lat": 33.4152, "lon": -111.8315, "display": "Mesa, AZ" },
-      "styles": ["Realism", "Portrait", "Blackwork"],
-      "tags": ["portrait", "realism", "black and gray", "animal", "wolf", "rose"],
-      "portfolioImages": [
-        "https://images.unsplash.com/photo-1565058586142-88f6f3db0275?w=400&h=400&fit=crop",
-        "https://images.unsplash.com/photo-1598161388271-72f6c7c7db4d?w=400&h=400&fit=crop",
-        "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=400&fit=crop"
-      ],
-      "instagram": "@maria_realism",
-      "hourly_rate": 250,
-      "rating": 4.9,
-      "reviewCount": 98,
-      "bio": "Award-winning realism artist focused on creating stunning photorealistic portraits and nature scenes. Each piece is a unique work of art crafted with precision.",
-      "yearsExperience": 12,
-      "bookingAvailable": false
-    },
-    {
-      "id": 6,
-      "name": "David Kim",
-      "shopName": "Traditional Tales",
-      "city": "Glendale",
-      "state": "AZ",
-      "location": { "lat": 33.5387, "lon": -112.1860, "display": "Glendale, AZ" },
-      "styles": ["Traditional", "Neo-Traditional", "Color"],
-      "tags": ["skull", "traditional", "americana", "anchor", "nautical", "eagle"],
-      "portfolioImages": [
-        "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop",
-        "https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=400&h=400&fit=crop",
-        "https://images.unsplash.com/photo-1463453091185-61582044d556?w=400&h=400&fit=crop"
-      ],
-      "instagram": "@david_traditional",
-      "hourly_rate": 180,
-      "rating": 4.8,
-      "reviewCount": 134,
-      "bio": "Keeping the tradition alive with bold lines and vibrant colors. Specializing in classic American traditional with a modern edge.",
+      "reviewCount": 475,
+      "bio": "Specializing in Color tattoos. 9+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
       "yearsExperience": 9,
       "bookingAvailable": true
     },
     {
-      "id": 7,
-      "name": "Yuki Tanaka",
-      "shopName": "Rising Sun Tattoo",
-      "city": "Scottsdale",
+      "id": 2,
+      "name": "Tyler Wilson",
+      "shopName": "Golden Rule Tattoo (Camelback)",
+      "city": "Phoenix",
       "state": "AZ",
-      "location": { "lat": 33.5092, "lon": -111.8985, "display": "Scottsdale, AZ" },
-      "styles": ["Japanese", "Oriental", "Color"],
-      "tags": ["koi fish", "japanese", "water", "color", "dragon", "samurai"],
-      "portfolioImages": [
-        "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=400&fit=crop",
-        "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=400&h=400&fit=crop",
-        "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&h=400&fit=crop"
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.5095,
+        "lng": -111.981
+      },
+      "styles": [
+        "Tribal",
+        "Portrait",
+        "Fine Line"
       ],
-      "instagram": "@yuki_risingsun",
-      "hourly_rate": 300,
-      "rating": 5.0,
-      "reviewCount": 89,
-      "bio": "Master of traditional Japanese tattooing (Irezumi). Trained in Tokyo, bringing authentic Japanese artistry to Arizona. Specializing in full sleeves and back pieces.",
-      "yearsExperience": 15,
+      "tags": [
+        "memorial",
+        "geometric",
+        "small",
+        "cultural",
+        "realistic",
+        "detail",
+        "delicate",
+        "celebrity"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-2-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-2-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-2-3.png"
+      ],
+      "instagram": "@tyler_wilson_ink",
+      "hourlyRate": 250,
+      "rating": 4.8,
+      "reviewCount": 120,
+      "bio": "Specializing in Tribal & Portrait & Fine Line tattoos. 19+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 19,
+      "bookingAvailable": true
+    },
+    {
+      "id": 3,
+      "name": "Sophia Phillips",
+      "shopName": "Copper State Tattoo",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Traditional",
+        "Portrait"
+      ],
+      "tags": [
+        "memorial",
+        "dagger",
+        "realistic",
+        "skull",
+        "bold",
+        "face"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-3-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-3-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-3-3.png"
+      ],
+      "instagram": "@sophia_phillips_ink",
+      "hourlyRate": 175,
+      "rating": 4.7,
+      "reviewCount": 393,
+      "bio": "Specializing in Traditional & Portrait tattoos. 16+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 16,
+      "bookingAvailable": false
+    },
+    {
+      "id": 4,
+      "name": "Sarah Martin",
+      "shopName": "27 Tattoo Studio",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Portrait"
+      ],
+      "tags": [
+        "memorial",
+        "celebrity",
+        "realistic"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-4-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-4-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-4-3.png"
+      ],
+      "instagram": "@sarah_martin_ink",
+      "hourlyRate": 150,
+      "rating": 4.2,
+      "reviewCount": 36,
+      "bio": "Specializing in Portrait tattoos. 4+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 4,
+      "bookingAvailable": true
+    },
+    {
+      "id": 5,
+      "name": "Olivia Thomas",
+      "shopName": "Grand Avenue Tattoo",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4742,
+        "lng": -112.104
+      },
+      "styles": [
+        "Illustrative",
+        "Minimalist",
+        "Fine Line"
+      ],
+      "tags": [
+        "simple",
+        "creative",
+        "small",
+        "custom",
+        "delicate",
+        "clean",
+        "unique",
+        "intricate"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-5-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-5-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-5-3.png"
+      ],
+      "instagram": "@olivia_thomas_ink",
+      "hourlyRate": 175,
+      "rating": 4.5,
+      "reviewCount": 377,
+      "bio": "Specializing in Illustrative & Minimalist & Fine Line tattoos. 11+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 11,
+      "bookingAvailable": true
+    },
+    {
+      "id": 6,
+      "name": "Miguel Smith",
+      "shopName": "High Noon Tattoo",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Lettering"
+      ],
+      "tags": [
+        "script",
+        "calligraphy",
+        "words"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-6-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-6-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-6-3.png"
+      ],
+      "instagram": "@miguel_smith_ink",
+      "hourlyRate": 250,
+      "rating": 4.4,
+      "reviewCount": 151,
+      "bio": "Specializing in Lettering tattoos. 11+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 11,
+      "bookingAvailable": false
+    },
+    {
+      "id": 7,
+      "name": "Taylor Thomas",
+      "shopName": "1912 Tattoo Studio",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Tribal",
+        "Dotwork",
+        "Realism"
+      ],
+      "tags": [
+        "mandala",
+        "stippling",
+        "geometric",
+        "black and gray",
+        "cultural",
+        "detailed",
+        "maori",
+        "photorealistic"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-7-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-7-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-7-3.png"
+      ],
+      "instagram": "@taylor_thomas_ink",
+      "hourlyRate": 225,
+      "rating": 4.9,
+      "reviewCount": 261,
+      "bio": "Specializing in Tribal & Dotwork & Realism tattoos. 10+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 10,
       "bookingAvailable": false
     },
     {
       "id": 8,
-      "name": "Luna Martinez",
-      "shopName": "Watercolor Dreams",
-      "city": "Tempe",
+      "name": "Adrian Phillips",
+      "shopName": "GreyWash Ink Tattoo",
+      "city": "Phoenix",
       "state": "AZ",
-      "location": { "lat": 33.3879, "lon": -111.9314, "display": "Tempe, AZ" },
-      "styles": ["Watercolor", "Fine Line", "Floral"],
-      "tags": ["watercolor", "butterfly", "color", "delicate", "flower", "botanical", "galaxy"],
-      "portfolioImages": [
-        "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop",
-        "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=400&fit=crop",
-        "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&h=400&fit=crop"
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Blackwork",
+        "Geometric"
       ],
-      "instagram": "@luna_watercolor",
-      "hourly_rate": 160,
-      "rating": 4.7,
-      "reviewCount": 167,
-      "bio": "Creating dreamy watercolor tattoos with delicate florals and soft color palettes. Each piece is like wearable art that flows with your skin.",
-      "yearsExperience": 5,
-      "bookingAvailable": true
+      "tags": [
+        "solid black",
+        "symmetrical",
+        "ornamental",
+        "mandala",
+        "bold",
+        "sacred geometry"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-8-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-8-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-8-3.png"
+      ],
+      "instagram": "@adrian_phillips_ink",
+      "hourlyRate": 175,
+      "rating": 4.1,
+      "reviewCount": 321,
+      "bio": "Specializing in Blackwork & Geometric tattoos. 3+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 3,
+      "bookingAvailable": false
     },
     {
       "id": 9,
-      "name": "Kai Nakamura",
-      "shopName": "Geometric Visions",
-      "city": "Mesa",
+      "name": "Kimberly Johnson",
+      "shopName": "Solace Tattoo",
+      "city": "Phoenix",
       "state": "AZ",
-      "location": { "lat": 33.4019, "lon": -111.7179, "display": "Mesa, AZ" },
-      "styles": ["Geometric", "Dotwork", "Minimalist"],
-      "tags": ["mandala", "geometric", "dotwork", "sacred geometry", "animal", "linework"],
-      "portfolioImages": [
-        "https://images.unsplash.com/photo-1489424731084-a5d8b219a5bb?w=400&h=400&fit=crop",
-        "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400&h=400&fit=crop",
-        "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=400&h=400&fit=crop"
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Tribal",
+        "Dotwork"
       ],
-      "instagram": "@kai_geometric",
-      "hourly_rate": 190,
+      "tags": [
+        "mandala",
+        "geometric",
+        "maori",
+        "bold lines",
+        "intricate",
+        "shading"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-9-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-9-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-9-3.png"
+      ],
+      "instagram": "@kimberly_johnson_ink",
+      "hourlyRate": 100,
       "rating": 4.8,
-      "reviewCount": 92,
-      "bio": "Precision dotwork and geometric patterns. Creating intricate mandala designs and sacred geometry tattoos with meditative attention to detail.",
-      "yearsExperience": 8,
+      "reviewCount": 238,
+      "bio": "Specializing in Tribal & Dotwork tattoos. 14+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 14,
       "bookingAvailable": true
     },
     {
       "id": 10,
-      "name": "Marcus Thompson",
-      "shopName": "Tribal Traditions",
+      "name": "Hector Mitchell",
+      "shopName": "Goliath Tattoo",
       "city": "Phoenix",
       "state": "AZ",
-      "location": { "lat": 33.5722, "lon": -112.0901, "display": "Phoenix, AZ" },
-      "styles": ["Tribal", "Blackwork", "Polynesian"],
-      "tags": ["tribal", "polynesian", "blackwork", "sleeve", "maori", "warrior"],
-      "portfolioImages": [
-        "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop",
-        "https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=400&h=400&fit=crop",
-        "https://images.unsplash.com/photo-1463453091185-61582044d556?w=400&h=400&fit=crop"
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Japanese"
       ],
-      "instagram": "@marcus_tribal",
-      "hourly_rate": 220,
+      "tags": [
+        "tiger",
+        "dragon",
+        "samurai"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-10-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-10-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-10-3.png"
+      ],
+      "instagram": "@hector_mitchell_ink",
+      "hourlyRate": 225,
+      "rating": 4.3,
+      "reviewCount": 105,
+      "bio": "Specializing in Japanese tattoos. 5+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 5,
+      "bookingAvailable": true
+    },
+    {
+      "id": 11,
+      "name": "Javier Williams",
+      "shopName": "Sentient Tattoo Collective",
+      "city": "Tempe",
+      "state": "AZ",
+      "location": "Tempe, AZ",
+      "coordinates": {
+        "lat": 33.4255,
+        "lng": -111.94
+      },
+      "styles": [
+        "Neo-Traditional",
+        "Illustrative",
+        "Tribal"
+      ],
+      "tags": [
+        "illustrative",
+        "artistic",
+        "geometric",
+        "creative",
+        "cultural",
+        "colorful",
+        "bold",
+        "bold lines"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-11-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-11-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-11-3.png"
+      ],
+      "instagram": "@javier_williams_ink",
+      "hourlyRate": 250,
+      "rating": 4.3,
+      "reviewCount": 358,
+      "bio": "Specializing in Neo-Traditional & Illustrative & Tribal tattoos. 16+ years creating custom designs in the heart of Tempe, AZ. Book your consultation today!",
+      "yearsExperience": 16,
+      "bookingAvailable": true
+    },
+    {
+      "id": 12,
+      "name": "Adrian Wright",
+      "shopName": "Living Canvas Tattoos",
+      "city": "Tempe",
+      "state": "AZ",
+      "location": "Tempe, AZ",
+      "coordinates": {
+        "lat": 33.4255,
+        "lng": -111.94
+      },
+      "styles": [
+        "Color",
+        "Minimalist",
+        "Portrait"
+      ],
+      "tags": [
+        "memorial",
+        "simple",
+        "small",
+        "colorful",
+        "delicate",
+        "vibrant",
+        "celebrity",
+        "face"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-12-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-12-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-12-3.png"
+      ],
+      "instagram": "@adrian_wright_ink",
+      "hourlyRate": 125,
+      "rating": 4.1,
+      "reviewCount": 291,
+      "bio": "Specializing in Color & Minimalist & Portrait tattoos. 1+ years creating custom designs in the heart of Tempe, AZ. Book your consultation today!",
+      "yearsExperience": 1,
+      "bookingAvailable": true
+    },
+    {
+      "id": 13,
+      "name": "Angel Wright",
+      "shopName": "Club Tattoo (ASU)",
+      "city": "Tempe",
+      "state": "AZ",
+      "location": "Tempe, AZ",
+      "coordinates": {
+        "lat": 33.4255,
+        "lng": -111.94
+      },
+      "styles": [
+        "Traditional"
+      ],
+      "tags": [
+        "eagle",
+        "bold",
+        "anchor"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-13-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-13-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-13-3.png"
+      ],
+      "instagram": "@angel_wright_ink",
+      "hourlyRate": 175,
+      "rating": 4.2,
+      "reviewCount": 500,
+      "bio": "Specializing in Traditional tattoos. 7+ years creating custom designs in the heart of Tempe, AZ. Book your consultation today!",
+      "yearsExperience": 7,
+      "bookingAvailable": false
+    },
+    {
+      "id": 14,
+      "name": "Victoria Walker",
+      "shopName": "No Regrets Tattoo Parlor",
+      "city": "Tempe",
+      "state": "AZ",
+      "location": "Tempe, AZ",
+      "coordinates": {
+        "lat": 33.4255,
+        "lng": -111.94
+      },
+      "styles": [
+        "Traditional"
+      ],
+      "tags": [
+        "dagger",
+        "skull",
+        "anchor"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-14-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-14-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-14-3.png"
+      ],
+      "instagram": "@victoria_walker_ink",
+      "hourlyRate": 250,
+      "rating": 4.7,
+      "reviewCount": 175,
+      "bio": "Specializing in Traditional tattoos. 15+ years creating custom designs in the heart of Tempe, AZ. Book your consultation today!",
+      "yearsExperience": 15,
+      "bookingAvailable": true
+    },
+    {
+      "id": 15,
+      "name": "Diego Anderson",
+      "shopName": "Lady Luck Tattoo Gallery",
+      "city": "Tempe",
+      "state": "AZ",
+      "location": "Tempe, AZ",
+      "coordinates": {
+        "lat": 33.4255,
+        "lng": -111.94
+      },
+      "styles": [
+        "Fine Line",
+        "Japanese",
+        "Lettering"
+      ],
+      "tags": [
+        "samurai",
+        "calligraphy",
+        "small",
+        "wave",
+        "words",
+        "detail",
+        "delicate",
+        "cherry blossom"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-15-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-15-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-15-3.png"
+      ],
+      "instagram": "@diego_anderson_ink",
+      "hourlyRate": 250,
+      "rating": 4.3,
+      "reviewCount": 57,
+      "bio": "Specializing in Fine Line & Japanese & Lettering tattoos. 16+ years creating custom designs in the heart of Tempe, AZ. Book your consultation today!",
+      "yearsExperience": 16,
+      "bookingAvailable": false
+    },
+    {
+      "id": 16,
+      "name": "David Carter",
+      "shopName": "Club Tattoo (Scottsdale)",
+      "city": "Scottsdale",
+      "state": "AZ",
+      "location": "Scottsdale, AZ",
+      "coordinates": {
+        "lat": 33.4942,
+        "lng": -111.9261
+      },
+      "styles": [
+        "Portrait",
+        "Illustrative",
+        "Watercolor"
+      ],
+      "tags": [
+        "memorial",
+        "artistic",
+        "creative",
+        "splash",
+        "custom",
+        "celebrity",
+        "face",
+        "abstract"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-16-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-16-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-16-3.png"
+      ],
+      "instagram": "@david_carter_ink",
+      "hourlyRate": 100,
       "rating": 4.9,
-      "reviewCount": 134,
-      "bio": "Specializing in bold tribal and Polynesian blackwork. Creating powerful, symmetrical designs inspired by Polynesian and Maori traditions.",
+      "reviewCount": 443,
+      "bio": "Specializing in Portrait & Illustrative & Watercolor tattoos. 6+ years creating custom designs in the heart of Scottsdale, AZ. Book your consultation today!",
+      "yearsExperience": 6,
+      "bookingAvailable": false
+    },
+    {
+      "id": 17,
+      "name": "Rachel Lopez",
+      "shopName": "Dame of the West Tattoo",
+      "city": "Scottsdale",
+      "state": "AZ",
+      "location": "Scottsdale, AZ",
+      "coordinates": {
+        "lat": 33.4942,
+        "lng": -111.9261
+      },
+      "styles": [
+        "Geometric"
+      ],
+      "tags": [
+        "precise",
+        "mandala",
+        "sacred geometry"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-17-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-17-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-17-3.png"
+      ],
+      "instagram": "@rachel_lopez_ink",
+      "hourlyRate": 125,
+      "rating": 4.6,
+      "reviewCount": 370,
+      "bio": "Specializing in Geometric tattoos. 17+ years creating custom designs in the heart of Scottsdale, AZ. Book your consultation today!",
+      "yearsExperience": 17,
+      "bookingAvailable": true
+    },
+    {
+      "id": 18,
+      "name": "Sophia Allen",
+      "shopName": "Old Town Ink",
+      "city": "Scottsdale",
+      "state": "AZ",
+      "location": "Scottsdale, AZ",
+      "coordinates": {
+        "lat": 33.4942,
+        "lng": -111.9261
+      },
+      "styles": [
+        "Fine Line",
+        "Neo-Traditional"
+      ],
+      "tags": [
+        "illustrative",
+        "small",
+        "colorful",
+        "bold",
+        "detail",
+        "intricate"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-18-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-18-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-18-3.png"
+      ],
+      "instagram": "@sophia_allen_ink",
+      "hourlyRate": 175,
+      "rating": 4.3,
+      "reviewCount": 126,
+      "bio": "Specializing in Fine Line & Neo-Traditional tattoos. 7+ years creating custom designs in the heart of Scottsdale, AZ. Book your consultation today!",
+      "yearsExperience": 7,
+      "bookingAvailable": true
+    },
+    {
+      "id": 19,
+      "name": "Emily Harris",
+      "shopName": "Immaculate Tattoo",
+      "city": "Mesa",
+      "state": "AZ",
+      "location": "Mesa, AZ",
+      "coordinates": {
+        "lat": 33.4152,
+        "lng": -111.8315
+      },
+      "styles": [
+        "Illustrative"
+      ],
+      "tags": [
+        "custom",
+        "creative",
+        "unique"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-19-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-19-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-19-3.png"
+      ],
+      "instagram": "@emily_harris_ink",
+      "hourlyRate": 100,
+      "rating": 4.5,
+      "reviewCount": 99,
+      "bio": "Specializing in Illustrative tattoos. 12+ years creating custom designs in the heart of Mesa, AZ. Book your consultation today!",
+      "yearsExperience": 12,
+      "bookingAvailable": true
+    },
+    {
+      "id": 20,
+      "name": "Jennifer Jones",
+      "shopName": "Urban Art Tattoo",
+      "city": "Mesa",
+      "state": "AZ",
+      "location": "Mesa, AZ",
+      "coordinates": {
+        "lat": 33.4152,
+        "lng": -111.8315
+      },
+      "styles": [
+        "Traditional",
+        "Illustrative"
+      ],
+      "tags": [
+        "artistic",
+        "sailor",
+        "creative",
+        "skull",
+        "custom",
+        "anchor"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-20-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-20-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-20-3.png"
+      ],
+      "instagram": "@jennifer_jones_ink",
+      "hourlyRate": 250,
+      "rating": 4.6,
+      "reviewCount": 455,
+      "bio": "Specializing in Traditional & Illustrative tattoos. 11+ years creating custom designs in the heart of Mesa, AZ. Book your consultation today!",
       "yearsExperience": 11,
+      "bookingAvailable": true
+    },
+    {
+      "id": 21,
+      "name": "Taylor Davis",
+      "shopName": "Black Lotus Tattooers",
+      "city": "Gilbert",
+      "state": "AZ",
+      "location": "Gilbert, AZ",
+      "coordinates": {
+        "lat": 33.3528,
+        "lng": -111.789
+      },
+      "styles": [
+        "Blackwork",
+        "Illustrative"
+      ],
+      "tags": [
+        "ornamental",
+        "artistic",
+        "creative",
+        "bold",
+        "unique",
+        "dotwork"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-21-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-21-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-21-3.png"
+      ],
+      "instagram": "@taylor_davis_ink",
+      "hourlyRate": 125,
+      "rating": 5.0,
+      "reviewCount": 419,
+      "bio": "Specializing in Blackwork & Illustrative tattoos. 17+ years creating custom designs in the heart of Gilbert, AZ. Book your consultation today!",
+      "yearsExperience": 17,
+      "bookingAvailable": true
+    },
+    {
+      "id": 22,
+      "name": "Kayla Hall",
+      "shopName": "Fifth Estate",
+      "city": "Gilbert",
+      "state": "AZ",
+      "location": "Gilbert, AZ",
+      "coordinates": {
+        "lat": 33.3528,
+        "lng": -111.789
+      },
+      "styles": [
+        "Geometric",
+        "Lettering",
+        "Blackwork"
+      ],
+      "tags": [
+        "solid black",
+        "symmetrical",
+        "ornamental",
+        "precise",
+        "script",
+        "words",
+        "bold",
+        "sacred geometry"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-22-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-22-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-22-3.png"
+      ],
+      "instagram": "@kayla_hall_ink",
+      "hourlyRate": 150,
+      "rating": 4.5,
+      "reviewCount": 29,
+      "bio": "Specializing in Geometric & Lettering & Blackwork tattoos. 11+ years creating custom designs in the heart of Gilbert, AZ. Book your consultation today!",
+      "yearsExperience": 11,
+      "bookingAvailable": true
+    },
+    {
+      "id": 23,
+      "name": "Marcus Martinez",
+      "shopName": "Old West Tattoo",
+      "city": "Glendale",
+      "state": "AZ",
+      "location": "Glendale, AZ",
+      "coordinates": {
+        "lat": 33.5387,
+        "lng": -112.186
+      },
+      "styles": [
+        "Fine Line",
+        "Illustrative",
+        "Color"
+      ],
+      "tags": [
+        "artistic",
+        "small",
+        "colorful",
+        "detail",
+        "custom",
+        "bright",
+        "full color",
+        "unique"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-23-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-23-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-23-3.png"
+      ],
+      "instagram": "@marcus_martinez_ink",
+      "hourlyRate": 150,
+      "rating": 4.1,
+      "reviewCount": 184,
+      "bio": "Specializing in Fine Line & Illustrative & Color tattoos. 3+ years creating custom designs in the heart of Glendale, AZ. Book your consultation today!",
+      "yearsExperience": 3,
+      "bookingAvailable": true
+    },
+    {
+      "id": 24,
+      "name": "Brandon Ramirez",
+      "shopName": "Fifth Finger Studio",
+      "city": "Glendale",
+      "state": "AZ",
+      "location": "Glendale, AZ",
+      "coordinates": {
+        "lat": 33.5387,
+        "lng": -112.186
+      },
+      "styles": [
+        "Minimalist",
+        "Japanese"
+      ],
+      "tags": [
+        "dragon",
+        "small",
+        "koi",
+        "delicate",
+        "clean",
+        "cherry blossom"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-24-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-24-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-24-3.png"
+      ],
+      "instagram": "@brandon_ramirez_ink",
+      "hourlyRate": 100,
+      "rating": 4.4,
+      "reviewCount": 255,
+      "bio": "Specializing in Minimalist & Japanese tattoos. 16+ years creating custom designs in the heart of Glendale, AZ. Book your consultation today!",
+      "yearsExperience": 16,
+      "bookingAvailable": true
+    },
+    {
+      "id": 25,
+      "name": "David Johnson",
+      "shopName": "Revival Art Collective",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Blackwork",
+        "Japanese"
+      ],
+      "tags": [
+        "solid black",
+        "ornamental",
+        "samurai",
+        "dragon",
+        "bold",
+        "cherry blossom"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-25-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-25-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-25-3.png"
+      ],
+      "instagram": "@david_johnson_ink",
+      "hourlyRate": 175,
+      "rating": 4.2,
+      "reviewCount": 410,
+      "bio": "Specializing in Blackwork & Japanese tattoos. 18+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 18,
+      "bookingAvailable": true
+    },
+    {
+      "id": 26,
+      "name": "Hector Davis",
+      "shopName": "Ink Therapy Tattoo",
+      "city": "Peoria",
+      "state": "AZ",
+      "location": "Peoria, AZ",
+      "coordinates": {
+        "lat": 33.5806,
+        "lng": -112.2374
+      },
+      "styles": [
+        "Watercolor",
+        "Japanese",
+        "Geometric"
+      ],
+      "tags": [
+        "symmetrical",
+        "mandala",
+        "dragon",
+        "wave",
+        "colorful",
+        "vibrant",
+        "sacred geometry",
+        "abstract"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-26-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-26-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-26-3.png"
+      ],
+      "instagram": "@hector_davis_ink",
+      "hourlyRate": 200,
+      "rating": 4.4,
+      "reviewCount": 465,
+      "bio": "Specializing in Watercolor & Japanese & Geometric tattoos. 9+ years creating custom designs in the heart of Peoria, AZ. Book your consultation today!",
+      "yearsExperience": 9,
+      "bookingAvailable": true
+    },
+    {
+      "id": 27,
+      "name": "Emily Davis",
+      "shopName": "Three Tides Tattoo",
+      "city": "Apache Junction",
+      "state": "AZ",
+      "location": "Apache Junction, AZ",
+      "coordinates": {
+        "lat": 33.4151,
+        "lng": -111.5496
+      },
+      "styles": [
+        "Blackwork",
+        "Color",
+        "Geometric"
+      ],
+      "tags": [
+        "solid black",
+        "symmetrical",
+        "ornamental",
+        "precise",
+        "mandala",
+        "bold",
+        "bright",
+        "vibrant"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-27-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-27-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-27-3.png"
+      ],
+      "instagram": "@emily_davis_ink",
+      "hourlyRate": 100,
+      "rating": 4.6,
+      "reviewCount": 271,
+      "bio": "Specializing in Blackwork & Color & Geometric tattoos. 2+ years creating custom designs in the heart of Apache Junction, AZ. Book your consultation today!",
+      "yearsExperience": 2,
+      "bookingAvailable": true
+    },
+    {
+      "id": 28,
+      "name": "Isaiah Rivera",
+      "shopName": "Lucid Art",
+      "city": "Cave Creek",
+      "state": "AZ",
+      "location": "Cave Creek, AZ",
+      "coordinates": {
+        "lat": 33.8428,
+        "lng": -111.951
+      },
+      "styles": [
+        "Lettering",
+        "Fine Line"
+      ],
+      "tags": [
+        "calligraphy",
+        "words",
+        "small",
+        "delicate",
+        "typography",
+        "intricate"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-28-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-28-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-28-3.png"
+      ],
+      "instagram": "@isaiah_rivera_ink",
+      "hourlyRate": 200,
+      "rating": 5.0,
+      "reviewCount": 223,
+      "bio": "Specializing in Lettering & Fine Line tattoos. 20+ years creating custom designs in the heart of Cave Creek, AZ. Book your consultation today!",
+      "yearsExperience": 20,
+      "bookingAvailable": true
+    },
+    {
+      "id": 29,
+      "name": "Amanda Smith",
+      "shopName": "She Devil Tattoo",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Geometric",
+        "Watercolor"
+      ],
+      "tags": [
+        "symmetrical",
+        "precise",
+        "artistic",
+        "vibrant",
+        "sacred geometry",
+        "abstract"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-29-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-29-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-29-3.png"
+      ],
+      "instagram": "@amanda_smith_ink",
+      "hourlyRate": 175,
+      "rating": 4.5,
+      "reviewCount": 14,
+      "bio": "Specializing in Geometric & Watercolor tattoos. 13+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 13,
+      "bookingAvailable": true
+    },
+    {
+      "id": 30,
+      "name": "Ashley Baker",
+      "shopName": "Gypsy Rose Tattoo",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Color",
+        "Blackwork"
+      ],
+      "tags": [
+        "solid black",
+        "ornamental",
+        "colorful",
+        "bold",
+        "bright",
+        "full color"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-30-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-30-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-30-3.png"
+      ],
+      "instagram": "@ashley_baker_ink",
+      "hourlyRate": 175,
+      "rating": 4.6,
+      "reviewCount": 27,
+      "bio": "Specializing in Color & Blackwork tattoos. 3+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 3,
+      "bookingAvailable": true
+    },
+    {
+      "id": 31,
+      "name": "Brandon Chen",
+      "shopName": "Lady Luck Tattoo",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Illustrative"
+      ],
+      "tags": [
+        "custom",
+        "creative",
+        "unique"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-31-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-31-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-31-3.png"
+      ],
+      "instagram": "@brandon_chen_ink",
+      "hourlyRate": 200,
+      "rating": 4.7,
+      "reviewCount": 166,
+      "bio": "Specializing in Illustrative tattoos. 13+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 13,
+      "bookingAvailable": true
+    },
+    {
+      "id": 32,
+      "name": "Melissa Flores",
+      "shopName": "Karma Tattoo Studio",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Lettering",
+        "Geometric"
+      ],
+      "tags": [
+        "symmetrical",
+        "precise",
+        "script",
+        "words",
+        "calligraphy",
+        "sacred geometry"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-32-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-32-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-32-3.png"
+      ],
+      "instagram": "@melissa_flores_ink",
+      "hourlyRate": 150,
+      "rating": 4.1,
+      "reviewCount": 125,
+      "bio": "Specializing in Lettering & Geometric tattoos. 9+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 9,
+      "bookingAvailable": true
+    },
+    {
+      "id": 33,
+      "name": "Jasmine Thompson",
+      "shopName": "Arizona Classic Tattoo Company",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Minimalist",
+        "Color"
+      ],
+      "tags": [
+        "small",
+        "colorful",
+        "delicate",
+        "bright",
+        "full color",
+        "line art"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-33-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-33-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-33-3.png"
+      ],
+      "instagram": "@jasmine_thompson_ink",
+      "hourlyRate": 175,
+      "rating": 4.3,
+      "reviewCount": 19,
+      "bio": "Specializing in Minimalist & Color tattoos. 16+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 16,
+      "bookingAvailable": true
+    },
+    {
+      "id": 34,
+      "name": "Kayla Adams",
+      "shopName": "Last Laugh Tattoo",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Watercolor",
+        "Tribal"
+      ],
+      "tags": [
+        "geometric",
+        "colorful",
+        "splash",
+        "vibrant",
+        "maori",
+        "polynesian"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-34-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-34-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-34-3.png"
+      ],
+      "instagram": "@kayla_adams_ink",
+      "hourlyRate": 150,
+      "rating": 4.5,
+      "reviewCount": 317,
+      "bio": "Specializing in Watercolor & Tribal tattoos. 7+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 7,
+      "bookingAvailable": true
+    },
+    {
+      "id": 35,
+      "name": "Kayla Lopez",
+      "shopName": "Happy Daze AZ",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Fine Line"
+      ],
+      "tags": [
+        "detail",
+        "delicate",
+        "intricate"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-35-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-35-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-35-3.png"
+      ],
+      "instagram": "@kayla_lopez_ink",
+      "hourlyRate": 125,
+      "rating": 4.9,
+      "reviewCount": 227,
+      "bio": "Specializing in Fine Line tattoos. 5+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 5,
+      "bookingAvailable": true
+    },
+    {
+      "id": 36,
+      "name": "James Anderson",
+      "shopName": "Tattoo Paulski",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Illustrative",
+        "Minimalist"
+      ],
+      "tags": [
+        "simple",
+        "artistic",
+        "creative",
+        "small",
+        "clean",
+        "unique"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-36-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-36-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-36-3.png"
+      ],
+      "instagram": "@james_anderson_ink",
+      "hourlyRate": 175,
+      "rating": 4.8,
+      "reviewCount": 355,
+      "bio": "Specializing in Illustrative & Minimalist tattoos. 14+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 14,
+      "bookingAvailable": true
+    },
+    {
+      "id": 37,
+      "name": "Jennifer Carter",
+      "shopName": "TattooU",
+      "city": "Tempe",
+      "state": "AZ",
+      "location": "Tempe, AZ",
+      "coordinates": {
+        "lat": 33.4255,
+        "lng": -111.94
+      },
+      "styles": [
+        "Dotwork",
+        "Color",
+        "Blackwork"
+      ],
+      "tags": [
+        "solid black",
+        "ornamental",
+        "mandala",
+        "stippling",
+        "bright",
+        "vibrant",
+        "full color",
+        "dotwork"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-37-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-37-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-37-3.png"
+      ],
+      "instagram": "@jennifer_carter_ink",
+      "hourlyRate": 200,
+      "rating": 4.3,
+      "reviewCount": 385,
+      "bio": "Specializing in Dotwork & Color & Blackwork tattoos. 12+ years creating custom designs in the heart of Tempe, AZ. Book your consultation today!",
+      "yearsExperience": 12,
+      "bookingAvailable": true
+    },
+    {
+      "id": 38,
+      "name": "Felix King",
+      "shopName": "Yours Truly",
+      "city": "Mesa",
+      "state": "AZ",
+      "location": "Mesa, AZ",
+      "coordinates": {
+        "lat": 33.4152,
+        "lng": -111.8315
+      },
+      "styles": [
+        "Blackwork"
+      ],
+      "tags": [
+        "solid black",
+        "dotwork",
+        "bold"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-38-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-38-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-38-3.png"
+      ],
+      "instagram": "@felix_king_ink",
+      "hourlyRate": 200,
+      "rating": 4.4,
+      "reviewCount": 81,
+      "bio": "Specializing in Blackwork tattoos. 6+ years creating custom designs in the heart of Mesa, AZ. Book your consultation today!",
+      "yearsExperience": 6,
+      "bookingAvailable": false
+    },
+    {
+      "id": 39,
+      "name": "Natalie Campbell",
+      "shopName": "Dreamscapes Fine Art",
+      "city": "Scottsdale",
+      "state": "AZ",
+      "location": "Scottsdale, AZ",
+      "coordinates": {
+        "lat": 33.4942,
+        "lng": -111.9261
+      },
+      "styles": [
+        "Illustrative",
+        "Blackwork"
+      ],
+      "tags": [
+        "solid black",
+        "artistic",
+        "bold",
+        "custom",
+        "dotwork",
+        "unique"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-39-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-39-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-39-3.png"
+      ],
+      "instagram": "@natalie_campbell_ink",
+      "hourlyRate": 125,
+      "rating": 4.9,
+      "reviewCount": 295,
+      "bio": "Specializing in Illustrative & Blackwork tattoos. 3+ years creating custom designs in the heart of Scottsdale, AZ. Book your consultation today!",
+      "yearsExperience": 3,
+      "bookingAvailable": true
+    },
+    {
+      "id": 40,
+      "name": "Jose Baker",
+      "shopName": "Sun Gold Tattoo and Barber",
+      "city": "Scottsdale",
+      "state": "AZ",
+      "location": "Scottsdale, AZ",
+      "coordinates": {
+        "lat": 33.4942,
+        "lng": -111.9261
+      },
+      "styles": [
+        "Minimalist",
+        "Tribal"
+      ],
+      "tags": [
+        "simple",
+        "geometric",
+        "small",
+        "cultural",
+        "delicate",
+        "polynesian"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-40-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-40-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-40-3.png"
+      ],
+      "instagram": "@jose_baker_ink",
+      "hourlyRate": 100,
+      "rating": 4.2,
+      "reviewCount": 162,
+      "bio": "Specializing in Minimalist & Tribal tattoos. 11+ years creating custom designs in the heart of Scottsdale, AZ. Book your consultation today!",
+      "yearsExperience": 11,
+      "bookingAvailable": true
+    },
+    {
+      "id": 41,
+      "name": "Natalie Hill",
+      "shopName": "Istari Studios",
+      "city": "Tucson",
+      "state": "AZ",
+      "location": "Tucson, AZ",
+      "coordinates": {
+        "lat": 32.2217,
+        "lng": -110.9265
+      },
+      "styles": [
+        "Lettering"
+      ],
+      "tags": [
+        "words",
+        "calligraphy",
+        "typography"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-41-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-41-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-41-3.png"
+      ],
+      "instagram": "@natalie_hill_ink",
+      "hourlyRate": 175,
+      "rating": 4.6,
+      "reviewCount": 381,
+      "bio": "Specializing in Lettering tattoos. 18+ years creating custom designs in the heart of Tucson, AZ. Book your consultation today!",
+      "yearsExperience": 18,
+      "bookingAvailable": true
+    },
+    {
+      "id": 42,
+      "name": "Olivia Davis",
+      "shopName": "Haunted Hands",
+      "city": "Tucson",
+      "state": "AZ",
+      "location": "Tucson, AZ",
+      "coordinates": {
+        "lat": 32.2217,
+        "lng": -110.9265
+      },
+      "styles": [
+        "Lettering",
+        "Fine Line"
+      ],
+      "tags": [
+        "script",
+        "words",
+        "calligraphy",
+        "detail",
+        "delicate",
+        "intricate"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-42-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-42-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-42-3.png"
+      ],
+      "instagram": "@olivia_davis_ink",
+      "hourlyRate": 200,
+      "rating": 4.2,
+      "reviewCount": 259,
+      "bio": "Specializing in Lettering & Fine Line tattoos. 3+ years creating custom designs in the heart of Tucson, AZ. Book your consultation today!",
+      "yearsExperience": 3,
+      "bookingAvailable": true
+    },
+    {
+      "id": 43,
+      "name": "Jennifer Lopez",
+      "shopName": "Trinity Tattoo",
+      "city": "Tucson",
+      "state": "AZ",
+      "location": "Tucson, AZ",
+      "coordinates": {
+        "lat": 32.2217,
+        "lng": -110.9265
+      },
+      "styles": [
+        "Lettering",
+        "Geometric"
+      ],
+      "tags": [
+        "symmetrical",
+        "precise",
+        "mandala",
+        "script",
+        "calligraphy",
+        "typography"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-43-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-43-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-43-3.png"
+      ],
+      "instagram": "@jennifer_lopez_ink",
+      "hourlyRate": 200,
+      "rating": 4.4,
+      "reviewCount": 70,
+      "bio": "Specializing in Lettering & Geometric tattoos. 3+ years creating custom designs in the heart of Tucson, AZ. Book your consultation today!",
+      "yearsExperience": 3,
+      "bookingAvailable": false
+    },
+    {
+      "id": 44,
+      "name": "Natalie Hernandez",
+      "shopName": "Liberty House Tattoo",
+      "city": "Tucson",
+      "state": "AZ",
+      "location": "Tucson, AZ",
+      "coordinates": {
+        "lat": 32.2217,
+        "lng": -110.9265
+      },
+      "styles": [
+        "Blackwork",
+        "Traditional"
+      ],
+      "tags": [
+        "solid black",
+        "dagger",
+        "bold",
+        "dotwork",
+        "anchor"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-44-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-44-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-44-3.png"
+      ],
+      "instagram": "@natalie_hernandez_ink",
+      "hourlyRate": 200,
+      "rating": 4.7,
+      "reviewCount": 112,
+      "bio": "Specializing in Blackwork & Traditional tattoos. 13+ years creating custom designs in the heart of Tucson, AZ. Book your consultation today!",
+      "yearsExperience": 13,
+      "bookingAvailable": false
+    },
+    {
+      "id": 45,
+      "name": "Adrian Davis",
+      "shopName": "Black Rose Tattooers",
+      "city": "Tucson",
+      "state": "AZ",
+      "location": "Tucson, AZ",
+      "coordinates": {
+        "lat": 32.2217,
+        "lng": -110.9265
+      },
+      "styles": [
+        "Lettering",
+        "Fine Line",
+        "Portrait"
+      ],
+      "tags": [
+        "script",
+        "calligraphy",
+        "realistic",
+        "detail",
+        "delicate",
+        "celebrity",
+        "face",
+        "typography"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-45-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-45-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-45-3.png"
+      ],
+      "instagram": "@adrian_davis_ink",
+      "hourlyRate": 225,
+      "rating": 4.7,
+      "reviewCount": 213,
+      "bio": "Specializing in Lettering & Fine Line & Portrait tattoos. 6+ years creating custom designs in the heart of Tucson, AZ. Book your consultation today!",
+      "yearsExperience": 6,
+      "bookingAvailable": true
+    },
+    {
+      "id": 46,
+      "name": "Felix Harris",
+      "shopName": "Sanctity Tattoo",
+      "city": "Tucson",
+      "state": "AZ",
+      "location": "Tucson, AZ",
+      "coordinates": {
+        "lat": 32.2217,
+        "lng": -110.9265
+      },
+      "styles": [
+        "Illustrative"
+      ],
+      "tags": [
+        "creative",
+        "unique",
+        "artistic"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-46-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-46-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-46-3.png"
+      ],
+      "instagram": "@felix_harris_ink",
+      "hourlyRate": 250,
+      "rating": 4.1,
+      "reviewCount": 290,
+      "bio": "Specializing in Illustrative tattoos. 17+ years creating custom designs in the heart of Tucson, AZ. Book your consultation today!",
+      "yearsExperience": 17,
+      "bookingAvailable": true
+    },
+    {
+      "id": 47,
+      "name": "Carlos Williams",
+      "shopName": "Tucson Tattoo Company",
+      "city": "Tucson",
+      "state": "AZ",
+      "location": "Tucson, AZ",
+      "coordinates": {
+        "lat": 32.2217,
+        "lng": -110.9265
+      },
+      "styles": [
+        "Portrait"
+      ],
+      "tags": [
+        "memorial",
+        "realistic",
+        "face"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-47-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-47-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-47-3.png"
+      ],
+      "instagram": "@carlos_williams_ink",
+      "hourlyRate": 175,
+      "rating": 4.0,
+      "reviewCount": 224,
+      "bio": "Specializing in Portrait tattoos. 14+ years creating custom designs in the heart of Tucson, AZ. Book your consultation today!",
+      "yearsExperience": 14,
+      "bookingAvailable": false
+    },
+    {
+      "id": 48,
+      "name": "Tyler Williams",
+      "shopName": "Fast Lane Tattoo",
+      "city": "Tucson",
+      "state": "AZ",
+      "location": "Tucson, AZ",
+      "coordinates": {
+        "lat": 32.2217,
+        "lng": -110.9265
+      },
+      "styles": [
+        "Illustrative",
+        "Japanese",
+        "Neo-Traditional"
+      ],
+      "tags": [
+        "illustrative",
+        "samurai",
+        "artistic",
+        "dragon",
+        "colorful",
+        "bold",
+        "custom",
+        "unique"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-48-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-48-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-48-3.png"
+      ],
+      "instagram": "@tyler_williams_ink",
+      "hourlyRate": 200,
+      "rating": 4.1,
+      "reviewCount": 268,
+      "bio": "Specializing in Illustrative & Japanese & Neo-Traditional tattoos. 19+ years creating custom designs in the heart of Tucson, AZ. Book your consultation today!",
+      "yearsExperience": 19,
+      "bookingAvailable": true
+    },
+    {
+      "id": 49,
+      "name": "Kimberly Garcia",
+      "shopName": "The Painted Lady",
+      "city": "Tucson",
+      "state": "AZ",
+      "location": "Tucson, AZ",
+      "coordinates": {
+        "lat": 32.2217,
+        "lng": -110.9265
+      },
+      "styles": [
+        "Illustrative"
+      ],
+      "tags": [
+        "custom",
+        "creative",
+        "artistic"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-49-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-49-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-49-3.png"
+      ],
+      "instagram": "@kimberly_garcia_ink",
+      "hourlyRate": 225,
+      "rating": 4.4,
+      "reviewCount": 23,
+      "bio": "Specializing in Illustrative tattoos. 18+ years creating custom designs in the heart of Tucson, AZ. Book your consultation today!",
+      "yearsExperience": 18,
+      "bookingAvailable": false
+    },
+    {
+      "id": 50,
+      "name": "Daniel Torres",
+      "shopName": "Spark Project Collective",
+      "city": "Tucson",
+      "state": "AZ",
+      "location": "Tucson, AZ",
+      "coordinates": {
+        "lat": 32.2217,
+        "lng": -110.9265
+      },
+      "styles": [
+        "Japanese",
+        "Minimalist"
+      ],
+      "tags": [
+        "simple",
+        "samurai",
+        "koi",
+        "small",
+        "cherry blossom",
+        "line art"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-50-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-50-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-50-3.png"
+      ],
+      "instagram": "@daniel_torres_ink",
+      "hourlyRate": 150,
+      "rating": 4.1,
+      "reviewCount": 307,
+      "bio": "Specializing in Japanese & Minimalist tattoos. 6+ years creating custom designs in the heart of Tucson, AZ. Book your consultation today!",
+      "yearsExperience": 6,
+      "bookingAvailable": true
+    },
+    {
+      "id": 51,
+      "name": "Taylor Harris",
+      "shopName": "Flagstaff Tattoo Company",
+      "city": "Flagstaff",
+      "state": "AZ",
+      "location": "Flagstaff, AZ",
+      "coordinates": {
+        "lat": 35.1983,
+        "lng": -111.6513
+      },
+      "styles": [
+        "Illustrative"
+      ],
+      "tags": [
+        "creative",
+        "unique",
+        "artistic"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-51-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-51-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-51-3.png"
+      ],
+      "instagram": "@taylor_harris_ink",
+      "hourlyRate": 125,
+      "rating": 4.8,
+      "reviewCount": 353,
+      "bio": "Specializing in Illustrative tattoos. 20+ years creating custom designs in the heart of Flagstaff, AZ. Book your consultation today!",
+      "yearsExperience": 20,
+      "bookingAvailable": false
+    },
+    {
+      "id": 52,
+      "name": "Sarah Ramirez",
+      "shopName": "Burly Fish Tattoo",
+      "city": "Flagstaff",
+      "state": "AZ",
+      "location": "Flagstaff, AZ",
+      "coordinates": {
+        "lat": 35.1983,
+        "lng": -111.6513
+      },
+      "styles": [
+        "Fine Line",
+        "Lettering",
+        "Illustrative"
+      ],
+      "tags": [
+        "artistic",
+        "script",
+        "calligraphy",
+        "small",
+        "creative",
+        "detail",
+        "typography",
+        "unique"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-52-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-52-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-52-3.png"
+      ],
+      "instagram": "@sarah_ramirez_ink",
+      "hourlyRate": 200,
+      "rating": 4.5,
+      "reviewCount": 395,
+      "bio": "Specializing in Fine Line & Lettering & Illustrative tattoos. 19+ years creating custom designs in the heart of Flagstaff, AZ. Book your consultation today!",
+      "yearsExperience": 19,
+      "bookingAvailable": true
+    },
+    {
+      "id": 53,
+      "name": "Sarah Jones",
+      "shopName": "Woody's World Famous Tattoo",
+      "city": "Flagstaff",
+      "state": "AZ",
+      "location": "Flagstaff, AZ",
+      "coordinates": {
+        "lat": 35.1983,
+        "lng": -111.6513
+      },
+      "styles": [
+        "Portrait"
+      ],
+      "tags": [
+        "memorial",
+        "realistic",
+        "face"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-53-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-53-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-53-3.png"
+      ],
+      "instagram": "@sarah_jones_ink",
+      "hourlyRate": 175,
+      "rating": 4.7,
+      "reviewCount": 106,
+      "bio": "Specializing in Portrait tattoos. 13+ years creating custom designs in the heart of Flagstaff, AZ. Book your consultation today!",
+      "yearsExperience": 13,
+      "bookingAvailable": true
+    },
+    {
+      "id": 54,
+      "name": "Brittany Walker",
+      "shopName": "Mirror Gallery",
+      "city": "Flagstaff",
+      "state": "AZ",
+      "location": "Flagstaff, AZ",
+      "coordinates": {
+        "lat": 35.1983,
+        "lng": -111.6513
+      },
+      "styles": [
+        "Dotwork",
+        "Tribal"
+      ],
+      "tags": [
+        "stippling",
+        "geometric",
+        "bold lines",
+        "polynesian",
+        "intricate",
+        "shading"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-54-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-54-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-54-3.png"
+      ],
+      "instagram": "@brittany_walker_ink",
+      "hourlyRate": 250,
+      "rating": 4.8,
+      "reviewCount": 383,
+      "bio": "Specializing in Dotwork & Tribal tattoos. 10+ years creating custom designs in the heart of Flagstaff, AZ. Book your consultation today!",
+      "yearsExperience": 10,
+      "bookingAvailable": true
+    },
+    {
+      "id": 55,
+      "name": "Jessica Ramirez",
+      "shopName": "Sacred Art Tattoo",
+      "city": "Prescott",
+      "state": "AZ",
+      "location": "Prescott, AZ",
+      "coordinates": {
+        "lat": 34.54,
+        "lng": -112.4685
+      },
+      "styles": [
+        "Japanese",
+        "Illustrative",
+        "Geometric"
+      ],
+      "tags": [
+        "symmetrical",
+        "mandala",
+        "artistic",
+        "creative",
+        "koi",
+        "sacred geometry",
+        "cherry blossom",
+        "unique"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-55-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-55-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-55-3.png"
+      ],
+      "instagram": "@jessica_ramirez_ink",
+      "hourlyRate": 200,
+      "rating": 4.3,
+      "reviewCount": 16,
+      "bio": "Specializing in Japanese & Illustrative & Geometric tattoos. 3+ years creating custom designs in the heart of Prescott, AZ. Book your consultation today!",
+      "yearsExperience": 3,
+      "bookingAvailable": true
+    },
+    {
+      "id": 56,
+      "name": "Miguel Nguyen",
+      "shopName": "Black Cat Tattoo",
+      "city": "Prescott",
+      "state": "AZ",
+      "location": "Prescott, AZ",
+      "coordinates": {
+        "lat": 34.54,
+        "lng": -112.4685
+      },
+      "styles": [
+        "Geometric",
+        "Illustrative"
+      ],
+      "tags": [
+        "precise",
+        "mandala",
+        "artistic",
+        "creative",
+        "custom",
+        "sacred geometry"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-56-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-56-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-56-3.png"
+      ],
+      "instagram": "@miguel_nguyen_ink",
+      "hourlyRate": 175,
+      "rating": 4.2,
+      "reviewCount": 383,
+      "bio": "Specializing in Geometric & Illustrative tattoos. 17+ years creating custom designs in the heart of Prescott, AZ. Book your consultation today!",
+      "yearsExperience": 17,
+      "bookingAvailable": true
+    },
+    {
+      "id": 57,
+      "name": "Kimberly Young",
+      "shopName": "Dovetail Tattoo",
+      "city": "Prescott",
+      "state": "AZ",
+      "location": "Prescott, AZ",
+      "coordinates": {
+        "lat": 34.54,
+        "lng": -112.4685
+      },
+      "styles": [
+        "Watercolor",
+        "Geometric"
+      ],
+      "tags": [
+        "symmetrical",
+        "mandala",
+        "colorful",
+        "vibrant",
+        "sacred geometry",
+        "abstract"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-57-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-57-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-57-3.png"
+      ],
+      "instagram": "@kimberly_young_ink",
+      "hourlyRate": 125,
+      "rating": 4.4,
+      "reviewCount": 123,
+      "bio": "Specializing in Watercolor & Geometric tattoos. 19+ years creating custom designs in the heart of Prescott, AZ. Book your consultation today!",
+      "yearsExperience": 19,
+      "bookingAvailable": true
+    },
+    {
+      "id": 58,
+      "name": "Javier Davis",
+      "shopName": "Iron Horse Tattoo",
+      "city": "Bullhead City",
+      "state": "AZ",
+      "location": "Bullhead City, AZ",
+      "coordinates": {
+        "lat": 35.136,
+        "lng": -114.5683
+      },
+      "styles": [
+        "Realism",
+        "Neo-Traditional"
+      ],
+      "tags": [
+        "modern",
+        "portrait",
+        "detailed",
+        "colorful",
+        "bold",
+        "photorealistic"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-58-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-58-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-58-3.png"
+      ],
+      "instagram": "@javier_davis_ink",
+      "hourlyRate": 175,
+      "rating": 4.2,
+      "reviewCount": 259,
+      "bio": "Specializing in Realism & Neo-Traditional tattoos. 11+ years creating custom designs in the heart of Bullhead City, AZ. Book your consultation today!",
+      "yearsExperience": 11,
+      "bookingAvailable": true
+    },
+    {
+      "id": 59,
+      "name": "Emily Lewis",
+      "shopName": "Darkside Tattoo",
+      "city": "Lake Havasu City",
+      "state": "AZ",
+      "location": "Lake Havasu City, AZ",
+      "coordinates": {
+        "lat": 34.4839,
+        "lng": -114.3224
+      },
+      "styles": [
+        "Lettering",
+        "Illustrative"
+      ],
+      "tags": [
+        "artistic",
+        "words",
+        "calligraphy",
+        "custom",
+        "typography",
+        "unique"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-59-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-59-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-59-3.png"
+      ],
+      "instagram": "@emily_lewis_ink",
+      "hourlyRate": 175,
+      "rating": 4.5,
+      "reviewCount": 395,
+      "bio": "Specializing in Lettering & Illustrative tattoos. 9+ years creating custom designs in the heart of Lake Havasu City, AZ. Book your consultation today!",
+      "yearsExperience": 9,
+      "bookingAvailable": true
+    },
+    {
+      "id": 60,
+      "name": "Natalie Campbell",
+      "shopName": "Ink and Iron",
+      "city": "Yuma",
+      "state": "AZ",
+      "location": "Yuma, AZ",
+      "coordinates": {
+        "lat": 32.6927,
+        "lng": -114.6277
+      },
+      "styles": [
+        "Fine Line",
+        "Illustrative"
+      ],
+      "tags": [
+        "artistic",
+        "small",
+        "creative",
+        "custom",
+        "delicate",
+        "intricate"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-60-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-60-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-60-3.png"
+      ],
+      "instagram": "@natalie_campbell_ink",
+      "hourlyRate": 200,
+      "rating": 4.2,
+      "reviewCount": 435,
+      "bio": "Specializing in Fine Line & Illustrative tattoos. 17+ years creating custom designs in the heart of Yuma, AZ. Book your consultation today!",
+      "yearsExperience": 17,
+      "bookingAvailable": true
+    },
+    {
+      "id": 61,
+      "name": "Amanda Flores",
+      "shopName": "Blind Tiger Tattoo",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Lettering"
+      ],
+      "tags": [
+        "script",
+        "typography",
+        "words"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-61-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-61-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-61-3.png"
+      ],
+      "instagram": "@amanda_flores_ink",
+      "hourlyRate": 225,
+      "rating": 4.1,
+      "reviewCount": 348,
+      "bio": "Specializing in Lettering tattoos. 20+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 20,
+      "bookingAvailable": false
+    },
+    {
+      "id": 62,
+      "name": "Christina Lopez",
+      "shopName": "Love & Hate Tattoo",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Watercolor",
+        "Color",
+        "Blackwork"
+      ],
+      "tags": [
+        "solid black",
+        "splash",
+        "colorful",
+        "bold",
+        "bright",
+        "vibrant",
+        "abstract",
+        "full color"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-62-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-62-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-62-3.png"
+      ],
+      "instagram": "@christina_lopez_ink",
+      "hourlyRate": 200,
+      "rating": 4.2,
+      "reviewCount": 331,
+      "bio": "Specializing in Watercolor & Color & Blackwork tattoos. 8+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 8,
+      "bookingAvailable": false
+    },
+    {
+      "id": 63,
+      "name": "Alexis Wilson",
+      "shopName": "Stay True Tattoo",
+      "city": "Sedona",
+      "state": "AZ",
+      "location": "Sedona, AZ",
+      "coordinates": {
+        "lat": 34.8697,
+        "lng": -111.761
+      },
+      "styles": [
+        "Neo-Traditional",
+        "Illustrative",
+        "Portrait"
+      ],
+      "tags": [
+        "illustrative",
+        "memorial",
+        "artistic",
+        "realistic",
+        "colorful",
+        "bold",
+        "custom",
+        "celebrity"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-63-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-63-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-63-3.png"
+      ],
+      "instagram": "@alexis_wilson_ink",
+      "hourlyRate": 125,
+      "rating": 4.8,
+      "reviewCount": 51,
+      "bio": "Specializing in Neo-Traditional & Illustrative & Portrait tattoos. 1+ years creating custom designs in the heart of Sedona, AZ. Book your consultation today!",
+      "yearsExperience": 1,
+      "bookingAvailable": true
+    },
+    {
+      "id": 64,
+      "name": "Felix Sanchez",
+      "shopName": "Divinity Tattoo",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Japanese",
+        "Realism"
+      ],
+      "tags": [
+        "black and gray",
+        "dragon",
+        "detailed",
+        "cherry blossom",
+        "tiger",
+        "photorealistic"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-64-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-64-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-64-3.png"
+      ],
+      "instagram": "@felix_sanchez_ink",
+      "hourlyRate": 125,
+      "rating": 4.2,
+      "reviewCount": 189,
+      "bio": "Specializing in Japanese & Realism tattoos. 16+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 16,
+      "bookingAvailable": true
+    },
+    {
+      "id": 65,
+      "name": "Amanda Ramirez",
+      "shopName": "Artistic Tattoo",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Traditional",
+        "Japanese"
+      ],
+      "tags": [
+        "dagger",
+        "samurai",
+        "dragon",
+        "sailor",
+        "cherry blossom",
+        "eagle"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-65-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-65-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-65-3.png"
+      ],
+      "instagram": "@amanda_ramirez_ink",
+      "hourlyRate": 175,
+      "rating": 4.5,
+      "reviewCount": 148,
+      "bio": "Specializing in Traditional & Japanese tattoos. 10+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 10,
+      "bookingAvailable": true
+    },
+    {
+      "id": 66,
+      "name": "Madison Moore",
+      "shopName": "Blue Arms Tattoo",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Traditional",
+        "Blackwork",
+        "Dotwork"
+      ],
+      "tags": [
+        "solid black",
+        "mandala",
+        "skull",
+        "bold",
+        "eagle",
+        "dotwork",
+        "intricate",
+        "shading"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-66-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-66-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-66-3.png"
+      ],
+      "instagram": "@madison_moore_ink",
+      "hourlyRate": 175,
+      "rating": 4.5,
+      "reviewCount": 161,
+      "bio": "Specializing in Traditional & Blackwork & Dotwork tattoos. 11+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 11,
+      "bookingAvailable": true
+    },
+    {
+      "id": 67,
+      "name": "Jasmine Ramirez",
+      "shopName": "Heart and Soul Tattoo",
+      "city": "Glendale",
+      "state": "AZ",
+      "location": "Glendale, AZ",
+      "coordinates": {
+        "lat": 33.5387,
+        "lng": -112.186
+      },
+      "styles": [
+        "Neo-Traditional",
+        "Fine Line",
+        "Portrait"
+      ],
+      "tags": [
+        "illustrative",
+        "realistic",
+        "colorful",
+        "bold",
+        "detail",
+        "delicate",
+        "celebrity",
+        "face"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-67-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-67-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-67-3.png"
+      ],
+      "instagram": "@jasmine_ramirez_ink",
+      "hourlyRate": 150,
+      "rating": 4.6,
+      "reviewCount": 253,
+      "bio": "Specializing in Neo-Traditional & Fine Line & Portrait tattoos. 1+ years creating custom designs in the heart of Glendale, AZ. Book your consultation today!",
+      "yearsExperience": 1,
+      "bookingAvailable": true
+    },
+    {
+      "id": 68,
+      "name": "Alexis Carter",
+      "shopName": "Painted Bird Tattoo",
+      "city": "Chandler",
+      "state": "AZ",
+      "location": "Chandler, AZ",
+      "coordinates": {
+        "lat": 33.3062,
+        "lng": -111.8413
+      },
+      "styles": [
+        "Color",
+        "Illustrative"
+      ],
+      "tags": [
+        "artistic",
+        "creative",
+        "colorful",
+        "bright",
+        "vibrant",
+        "unique"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-68-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-68-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-68-3.png"
+      ],
+      "instagram": "@alexis_carter_ink",
+      "hourlyRate": 125,
+      "rating": 4.0,
+      "reviewCount": 216,
+      "bio": "Specializing in Color & Illustrative tattoos. 15+ years creating custom designs in the heart of Chandler, AZ. Book your consultation today!",
+      "yearsExperience": 15,
+      "bookingAvailable": false
+    },
+    {
+      "id": 69,
+      "name": "Isaiah Scott",
+      "shopName": "Sage & Serpent",
+      "city": "Gilbert",
+      "state": "AZ",
+      "location": "Gilbert, AZ",
+      "coordinates": {
+        "lat": 33.3528,
+        "lng": -111.789
+      },
+      "styles": [
+        "Lettering",
+        "Illustrative",
+        "Realism"
+      ],
+      "tags": [
+        "artistic",
+        "portrait",
+        "calligraphy",
+        "words",
+        "detailed",
+        "custom",
+        "typography",
+        "unique"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-69-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-69-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-69-3.png"
+      ],
+      "instagram": "@isaiah_scott_ink",
+      "hourlyRate": 175,
+      "rating": 4.1,
+      "reviewCount": 251,
+      "bio": "Specializing in Lettering & Illustrative & Realism tattoos. 7+ years creating custom designs in the heart of Gilbert, AZ. Book your consultation today!",
+      "yearsExperience": 7,
+      "bookingAvailable": true
+    },
+    {
+      "id": 70,
+      "name": "Lauren Johnson",
+      "shopName": "Salt & Light Tattoo",
+      "city": "Chandler",
+      "state": "AZ",
+      "location": "Chandler, AZ",
+      "coordinates": {
+        "lat": 33.3062,
+        "lng": -111.8413
+      },
+      "styles": [
+        "Illustrative",
+        "Color"
+      ],
+      "tags": [
+        "artistic",
+        "custom",
+        "bright",
+        "vibrant",
+        "full color",
+        "unique"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-70-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-70-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-70-3.png"
+      ],
+      "instagram": "@lauren_johnson_ink",
+      "hourlyRate": 200,
+      "rating": 5.0,
+      "reviewCount": 301,
+      "bio": "Specializing in Illustrative & Color tattoos. 10+ years creating custom designs in the heart of Chandler, AZ. Book your consultation today!",
+      "yearsExperience": 10,
+      "bookingAvailable": true
+    },
+    {
+      "id": 71,
+      "name": "Adrian Carter",
+      "shopName": "Tattoo Gallery",
+      "city": "Prescott",
+      "state": "AZ",
+      "location": "Prescott, AZ",
+      "coordinates": {
+        "lat": 34.54,
+        "lng": -112.4685
+      },
+      "styles": [
+        "Dotwork",
+        "Realism",
+        "Illustrative"
+      ],
+      "tags": [
+        "mandala",
+        "stippling",
+        "black and gray",
+        "creative",
+        "custom",
+        "nature",
+        "photorealistic",
+        "unique"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-71-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-71-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-71-3.png"
+      ],
+      "instagram": "@adrian_carter_ink",
+      "hourlyRate": 175,
+      "rating": 4.9,
+      "reviewCount": 34,
+      "bio": "Specializing in Dotwork & Realism & Illustrative tattoos. 13+ years creating custom designs in the heart of Prescott, AZ. Book your consultation today!",
+      "yearsExperience": 13,
+      "bookingAvailable": false
+    },
+    {
+      "id": 72,
+      "name": "Adrian Chen",
+      "shopName": "Ink Therapy",
+      "city": "Surprise",
+      "state": "AZ",
+      "location": "Surprise, AZ",
+      "coordinates": {
+        "lat": 33.6303,
+        "lng": -112.3679
+      },
+      "styles": [
+        "Illustrative",
+        "Geometric",
+        "Realism"
+      ],
+      "tags": [
+        "symmetrical",
+        "precise",
+        "artistic",
+        "black and gray",
+        "portrait",
+        "detailed",
+        "custom",
+        "sacred geometry"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-72-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-72-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-72-3.png"
+      ],
+      "instagram": "@adrian_chen_ink",
+      "hourlyRate": 100,
+      "rating": 4.5,
+      "reviewCount": 490,
+      "bio": "Specializing in Illustrative & Geometric & Realism tattoos. 17+ years creating custom designs in the heart of Surprise, AZ. Book your consultation today!",
+      "yearsExperience": 17,
+      "bookingAvailable": true
+    },
+    {
+      "id": 73,
+      "name": "Jordan Martinez",
+      "shopName": "Arizona Ink",
+      "city": "Yuma",
+      "state": "AZ",
+      "location": "Yuma, AZ",
+      "coordinates": {
+        "lat": 32.6927,
+        "lng": -114.6277
+      },
+      "styles": [
+        "Neo-Traditional"
+      ],
+      "tags": [
+        "modern",
+        "colorful",
+        "bold"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-73-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-73-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-73-3.png"
+      ],
+      "instagram": "@jordan_martinez_ink",
+      "hourlyRate": 150,
+      "rating": 4.6,
+      "reviewCount": 198,
+      "bio": "Specializing in Neo-Traditional tattoos. 9+ years creating custom designs in the heart of Yuma, AZ. Book your consultation today!",
+      "yearsExperience": 9,
+      "bookingAvailable": true
+    },
+    {
+      "id": 74,
+      "name": "Carlos Nelson",
+      "shopName": "Electric Tiger Tattoo",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Fine Line",
+        "Lettering"
+      ],
+      "tags": [
+        "script",
+        "words",
+        "small",
+        "delicate",
+        "typography",
+        "intricate"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-74-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-74-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-74-3.png"
+      ],
+      "instagram": "@carlos_nelson_ink",
+      "hourlyRate": 150,
+      "rating": 4.4,
+      "reviewCount": 96,
+      "bio": "Specializing in Fine Line & Lettering tattoos. 7+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 7,
+      "bookingAvailable": true
+    },
+    {
+      "id": 75,
+      "name": "Jennifer Martin",
+      "shopName": "Copper State Tattoo (2nd Location)",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Realism"
+      ],
+      "tags": [
+        "portrait",
+        "black and gray",
+        "nature"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-75-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-75-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-75-3.png"
+      ],
+      "instagram": "@jennifer_martin_ink",
+      "hourlyRate": 150,
+      "rating": 4.1,
+      "reviewCount": 378,
+      "bio": "Specializing in Realism tattoos. 20+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 20,
+      "bookingAvailable": true
+    },
+    {
+      "id": 76,
+      "name": "Anthony Clark",
+      "shopName": "Living Canvas (Mill Ave)",
+      "city": "Tempe",
+      "state": "AZ",
+      "location": "Tempe, AZ",
+      "coordinates": {
+        "lat": 33.4255,
+        "lng": -111.94
+      },
+      "styles": [
+        "Japanese"
+      ],
+      "tags": [
+        "tiger",
+        "samurai",
+        "cherry blossom"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-76-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-76-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-76-3.png"
+      ],
+      "instagram": "@anthony_clark_ink",
+      "hourlyRate": 125,
+      "rating": 4.0,
+      "reviewCount": 209,
+      "bio": "Specializing in Japanese tattoos. 7+ years creating custom designs in the heart of Tempe, AZ. Book your consultation today!",
+      "yearsExperience": 7,
+      "bookingAvailable": true
+    },
+    {
+      "id": 77,
+      "name": "Jose Green",
+      "shopName": "Anchor Tattoo",
+      "city": "Chandler",
+      "state": "AZ",
+      "location": "Chandler, AZ",
+      "coordinates": {
+        "lat": 33.3062,
+        "lng": -111.8413
+      },
+      "styles": [
+        "Watercolor"
+      ],
+      "tags": [
+        "colorful",
+        "vibrant",
+        "artistic"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-77-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-77-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-77-3.png"
+      ],
+      "instagram": "@jose_green_ink",
+      "hourlyRate": 150,
+      "rating": 4.9,
+      "reviewCount": 431,
+      "bio": "Specializing in Watercolor tattoos. 6+ years creating custom designs in the heart of Chandler, AZ. Book your consultation today!",
+      "yearsExperience": 6,
+      "bookingAvailable": true
+    },
+    {
+      "id": 78,
+      "name": "Hector Williams",
+      "shopName": "Black Sage Tattoo",
+      "city": "Sedona",
+      "state": "AZ",
+      "location": "Sedona, AZ",
+      "coordinates": {
+        "lat": 34.8697,
+        "lng": -111.761
+      },
+      "styles": [
+        "Lettering",
+        "Fine Line"
+      ],
+      "tags": [
+        "script",
+        "words",
+        "small",
+        "detail",
+        "typography",
+        "intricate"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-78-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-78-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-78-3.png"
+      ],
+      "instagram": "@hector_williams_ink",
+      "hourlyRate": 125,
+      "rating": 4.4,
+      "reviewCount": 444,
+      "bio": "Specializing in Lettering & Fine Line tattoos. 5+ years creating custom designs in the heart of Sedona, AZ. Book your consultation today!",
+      "yearsExperience": 5,
+      "bookingAvailable": true
+    },
+    {
+      "id": 79,
+      "name": "Amanda Flores",
+      "shopName": "Cactus Tattoo",
+      "city": "Scottsdale",
+      "state": "AZ",
+      "location": "Scottsdale, AZ",
+      "coordinates": {
+        "lat": 33.4942,
+        "lng": -111.9261
+      },
+      "styles": [
+        "Traditional",
+        "Illustrative",
+        "Fine Line"
+      ],
+      "tags": [
+        "dagger",
+        "rose",
+        "artistic",
+        "small",
+        "custom",
+        "detail",
+        "delicate",
+        "unique"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-79-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-79-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-79-3.png"
+      ],
+      "instagram": "@amanda_flores_ink",
+      "hourlyRate": 125,
+      "rating": 4.9,
+      "reviewCount": 195,
+      "bio": "Specializing in Traditional & Illustrative & Fine Line tattoos. 1+ years creating custom designs in the heart of Scottsdale, AZ. Book your consultation today!",
+      "yearsExperience": 1,
+      "bookingAvailable": true
+    },
+    {
+      "id": 80,
+      "name": "Isaiah Flores",
+      "shopName": "Desert Rose Tattoo",
+      "city": "Kingman",
+      "state": "AZ",
+      "location": "Kingman, AZ",
+      "coordinates": {
+        "lat": 35.1894,
+        "lng": -114.053
+      },
+      "styles": [
+        "Realism",
+        "Blackwork"
+      ],
+      "tags": [
+        "solid black",
+        "ornamental",
+        "black and gray",
+        "detailed",
+        "bold",
+        "nature"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-80-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-80-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-80-3.png"
+      ],
+      "instagram": "@isaiah_flores_ink",
+      "hourlyRate": 175,
+      "rating": 5.0,
+      "reviewCount": 166,
+      "bio": "Specializing in Realism & Blackwork tattoos. 2+ years creating custom designs in the heart of Kingman, AZ. Book your consultation today!",
+      "yearsExperience": 2,
+      "bookingAvailable": true
+    },
+    {
+      "id": 81,
+      "name": "Jordan Martinez",
+      "shopName": "Emerald City Tattoo",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Blackwork"
+      ],
+      "tags": [
+        "solid black",
+        "ornamental",
+        "bold"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-81-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-81-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-81-3.png"
+      ],
+      "instagram": "@jordan_martinez_ink",
+      "hourlyRate": 175,
+      "rating": 4.9,
+      "reviewCount": 59,
+      "bio": "Specializing in Blackwork tattoos. 9+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 9,
+      "bookingAvailable": true
+    },
+    {
+      "id": 82,
+      "name": "Felix Walker",
+      "shopName": "Fire & Ice Tattoo",
+      "city": "Tucson",
+      "state": "AZ",
+      "location": "Tucson, AZ",
+      "coordinates": {
+        "lat": 32.2217,
+        "lng": -110.9265
+      },
+      "styles": [
+        "Neo-Traditional"
+      ],
+      "tags": [
+        "illustrative",
+        "modern",
+        "bold"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-82-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-82-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-82-3.png"
+      ],
+      "instagram": "@felix_walker_ink",
+      "hourlyRate": 150,
+      "rating": 4.1,
+      "reviewCount": 234,
+      "bio": "Specializing in Neo-Traditional tattoos. 20+ years creating custom designs in the heart of Tucson, AZ. Book your consultation today!",
+      "yearsExperience": 20,
+      "bookingAvailable": false
+    },
+    {
+      "id": 83,
+      "name": "Diego Chen",
+      "shopName": "Gold Dust Tattoo",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Watercolor",
+        "Color"
+      ],
+      "tags": [
+        "artistic",
+        "colorful",
+        "vibrant",
+        "abstract",
+        "full color"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-83-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-83-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-83-3.png"
+      ],
+      "instagram": "@diego_chen_ink",
+      "hourlyRate": 250,
+      "rating": 4.5,
+      "reviewCount": 381,
+      "bio": "Specializing in Watercolor & Color tattoos. 20+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 20,
+      "bookingAvailable": true
+    },
+    {
+      "id": 84,
+      "name": "Melissa Mitchell",
+      "shopName": "Hidden Rose Tattoo",
+      "city": "Flagstaff",
+      "state": "AZ",
+      "location": "Flagstaff, AZ",
+      "coordinates": {
+        "lat": 35.1983,
+        "lng": -111.6513
+      },
+      "styles": [
+        "Realism",
+        "Neo-Traditional",
+        "Illustrative"
+      ],
+      "tags": [
+        "modern",
+        "artistic",
+        "detailed",
+        "colorful",
+        "bold",
+        "custom",
+        "nature",
+        "unique"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-84-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-84-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-84-3.png"
+      ],
+      "instagram": "@melissa_mitchell_ink",
+      "hourlyRate": 200,
+      "rating": 4.1,
+      "reviewCount": 195,
+      "bio": "Specializing in Realism & Neo-Traditional & Illustrative tattoos. 16+ years creating custom designs in the heart of Flagstaff, AZ. Book your consultation today!",
+      "yearsExperience": 16,
+      "bookingAvailable": true
+    },
+    {
+      "id": 85,
+      "name": "Brittany Rodriguez",
+      "shopName": "Iron Monk Tattoo",
+      "city": "Glendale",
+      "state": "AZ",
+      "location": "Glendale, AZ",
+      "coordinates": {
+        "lat": 33.5387,
+        "lng": -112.186
+      },
+      "styles": [
+        "Color"
+      ],
+      "tags": [
+        "bright",
+        "vibrant",
+        "full color"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-85-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-85-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-85-3.png"
+      ],
+      "instagram": "@brittany_rodriguez_ink",
+      "hourlyRate": 250,
+      "rating": 4.4,
+      "reviewCount": 413,
+      "bio": "Specializing in Color tattoos. 3+ years creating custom designs in the heart of Glendale, AZ. Book your consultation today!",
+      "yearsExperience": 3,
+      "bookingAvailable": true
+    },
+    {
+      "id": 86,
+      "name": "Jessica Jones",
+      "shopName": "Jaded Tattoo",
+      "city": "Mesa",
+      "state": "AZ",
+      "location": "Mesa, AZ",
+      "coordinates": {
+        "lat": 33.4152,
+        "lng": -111.8315
+      },
+      "styles": [
+        "Blackwork",
+        "Geometric",
+        "Illustrative"
+      ],
+      "tags": [
+        "solid black",
+        "symmetrical",
+        "ornamental",
+        "mandala",
+        "artistic",
+        "custom",
+        "sacred geometry",
+        "unique"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-86-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-86-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-86-3.png"
+      ],
+      "instagram": "@jessica_jones_ink",
+      "hourlyRate": 250,
+      "rating": 4.8,
+      "reviewCount": 83,
+      "bio": "Specializing in Blackwork & Geometric & Illustrative tattoos. 20+ years creating custom designs in the heart of Mesa, AZ. Book your consultation today!",
+      "yearsExperience": 20,
+      "bookingAvailable": true
+    },
+    {
+      "id": 87,
+      "name": "Brandon Flores",
+      "shopName": "Kingman Tattoo",
+      "city": "Kingman",
+      "state": "AZ",
+      "location": "Kingman, AZ",
+      "coordinates": {
+        "lat": 35.1894,
+        "lng": -114.053
+      },
+      "styles": [
+        "Realism"
+      ],
+      "tags": [
+        "detailed",
+        "photorealistic",
+        "black and gray"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-87-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-87-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-87-3.png"
+      ],
+      "instagram": "@brandon_flores_ink",
+      "hourlyRate": 225,
+      "rating": 4.8,
+      "reviewCount": 216,
+      "bio": "Specializing in Realism tattoos. 16+ years creating custom designs in the heart of Kingman, AZ. Book your consultation today!",
+      "yearsExperience": 16,
+      "bookingAvailable": true
+    },
+    {
+      "id": 88,
+      "name": "Taylor Carter",
+      "shopName": "Lost Dutch Tattoo",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Minimalist"
+      ],
+      "tags": [
+        "line art",
+        "delicate",
+        "simple"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-88-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-88-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-88-3.png"
+      ],
+      "instagram": "@taylor_carter_ink",
+      "hourlyRate": 100,
+      "rating": 4.8,
+      "reviewCount": 150,
+      "bio": "Specializing in Minimalist tattoos. 4+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 4,
+      "bookingAvailable": true
+    },
+    {
+      "id": 89,
+      "name": "Daniel Baker",
+      "shopName": "Midnight Tattoo",
+      "city": "Tucson",
+      "state": "AZ",
+      "location": "Tucson, AZ",
+      "coordinates": {
+        "lat": 32.2217,
+        "lng": -110.9265
+      },
+      "styles": [
+        "Japanese",
+        "Traditional"
+      ],
+      "tags": [
+        "rose",
+        "koi",
+        "wave",
+        "sailor",
+        "cherry blossom",
+        "anchor"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-89-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-89-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-89-3.png"
+      ],
+      "instagram": "@daniel_baker_ink",
+      "hourlyRate": 200,
+      "rating": 4.2,
+      "reviewCount": 167,
+      "bio": "Specializing in Japanese & Traditional tattoos. 2+ years creating custom designs in the heart of Tucson, AZ. Book your consultation today!",
+      "yearsExperience": 2,
+      "bookingAvailable": false
+    },
+    {
+      "id": 90,
+      "name": "Diego Roberts",
+      "shopName": "Northside Tattoo",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Watercolor",
+        "Neo-Traditional"
+      ],
+      "tags": [
+        "modern",
+        "colorful",
+        "bold",
+        "vibrant",
+        "abstract"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-90-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-90-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-90-3.png"
+      ],
+      "instagram": "@diego_roberts_ink",
+      "hourlyRate": 100,
+      "rating": 4.8,
+      "reviewCount": 356,
+      "bio": "Specializing in Watercolor & Neo-Traditional tattoos. 10+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 10,
+      "bookingAvailable": true
+    },
+    {
+      "id": 91,
+      "name": "Christina Rodriguez",
+      "shopName": "Oracle Tattoo",
+      "city": "Tucson",
+      "state": "AZ",
+      "location": "Tucson, AZ",
+      "coordinates": {
+        "lat": 32.2217,
+        "lng": -110.9265
+      },
+      "styles": [
+        "Blackwork",
+        "Minimalist",
+        "Dotwork"
+      ],
+      "tags": [
+        "solid black",
+        "ornamental",
+        "mandala",
+        "stippling",
+        "small",
+        "bold",
+        "clean",
+        "line art"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-91-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-91-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-91-3.png"
+      ],
+      "instagram": "@christina_rodriguez_ink",
+      "hourlyRate": 250,
+      "rating": 4.5,
+      "reviewCount": 307,
+      "bio": "Specializing in Blackwork & Minimalist & Dotwork tattoos. 20+ years creating custom designs in the heart of Tucson, AZ. Book your consultation today!",
+      "yearsExperience": 20,
+      "bookingAvailable": true
+    },
+    {
+      "id": 92,
+      "name": "Christina Smith",
+      "shopName": "Prickly Pear Tattoo",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Minimalist",
+        "Japanese"
+      ],
+      "tags": [
+        "simple",
+        "samurai",
+        "dragon",
+        "delicate",
+        "clean",
+        "tiger"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-92-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-92-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-92-3.png"
+      ],
+      "instagram": "@christina_smith_ink",
+      "hourlyRate": 225,
+      "rating": 4.9,
+      "reviewCount": 352,
+      "bio": "Specializing in Minimalist & Japanese tattoos. 19+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 19,
+      "bookingAvailable": true
+    },
+    {
+      "id": 93,
+      "name": "Jose Brown",
+      "shopName": "Queen City Tattoo",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Neo-Traditional",
+        "Blackwork"
+      ],
+      "tags": [
+        "ornamental",
+        "modern",
+        "colorful",
+        "bold",
+        "dotwork"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-93-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-93-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-93-3.png"
+      ],
+      "instagram": "@jose_brown_ink",
+      "hourlyRate": 200,
+      "rating": 5.0,
+      "reviewCount": 390,
+      "bio": "Specializing in Neo-Traditional & Blackwork tattoos. 2+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 2,
+      "bookingAvailable": true
+    },
+    {
+      "id": 94,
+      "name": "Roberto Thompson",
+      "shopName": "Red Letter Tattoo",
+      "city": "Tempe",
+      "state": "AZ",
+      "location": "Tempe, AZ",
+      "coordinates": {
+        "lat": 33.4255,
+        "lng": -111.94
+      },
+      "styles": [
+        "Geometric",
+        "Illustrative"
+      ],
+      "tags": [
+        "precise",
+        "mandala",
+        "artistic",
+        "creative",
+        "custom",
+        "sacred geometry"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-94-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-94-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-94-3.png"
+      ],
+      "instagram": "@roberto_thompson_ink",
+      "hourlyRate": 150,
+      "rating": 4.5,
+      "reviewCount": 86,
+      "bio": "Specializing in Geometric & Illustrative tattoos. 8+ years creating custom designs in the heart of Tempe, AZ. Book your consultation today!",
+      "yearsExperience": 8,
+      "bookingAvailable": true
+    },
+    {
+      "id": 95,
+      "name": "Lauren Martin",
+      "shopName": "Silver Key Tattoo",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Illustrative"
+      ],
+      "tags": [
+        "custom",
+        "creative",
+        "artistic"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-95-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-95-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-95-3.png"
+      ],
+      "instagram": "@lauren_martin_ink",
+      "hourlyRate": 200,
+      "rating": 4.3,
+      "reviewCount": 98,
+      "bio": "Specializing in Illustrative tattoos. 10+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 10,
+      "bookingAvailable": true
+    },
+    {
+      "id": 96,
+      "name": "Olivia Johnson",
+      "shopName": "Thin Line Tattoo",
+      "city": "Sierra Vista",
+      "state": "AZ",
+      "location": "Sierra Vista, AZ",
+      "coordinates": {
+        "lat": 31.5455,
+        "lng": -110.2773
+      },
+      "styles": [
+        "Japanese"
+      ],
+      "tags": [
+        "koi",
+        "samurai",
+        "cherry blossom"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-96-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-96-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-96-3.png"
+      ],
+      "instagram": "@olivia_johnson_ink",
+      "hourlyRate": 175,
+      "rating": 4.4,
+      "reviewCount": 323,
+      "bio": "Specializing in Japanese tattoos. 20+ years creating custom designs in the heart of Sierra Vista, AZ. Book your consultation today!",
+      "yearsExperience": 20,
+      "bookingAvailable": false
+    },
+    {
+      "id": 97,
+      "name": "Nicole Campbell",
+      "shopName": "Under the Gun Tattoo",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Lettering",
+        "Portrait"
+      ],
+      "tags": [
+        "memorial",
+        "script",
+        "calligraphy",
+        "celebrity",
+        "face",
+        "typography"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-97-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-97-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-97-3.png"
+      ],
+      "instagram": "@nicole_campbell_ink",
+      "hourlyRate": 225,
+      "rating": 4.7,
+      "reviewCount": 296,
+      "bio": "Specializing in Lettering & Portrait tattoos. 8+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 8,
+      "bookingAvailable": false
+    },
+    {
+      "id": 98,
+      "name": "Mario Jones",
+      "shopName": "Velvet Iron Tattoo",
+      "city": "Scottsdale",
+      "state": "AZ",
+      "location": "Scottsdale, AZ",
+      "coordinates": {
+        "lat": 33.4942,
+        "lng": -111.9261
+      },
+      "styles": [
+        "Illustrative",
+        "Fine Line"
+      ],
+      "tags": [
+        "creative",
+        "small",
+        "custom",
+        "delicate",
+        "unique",
+        "intricate"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-98-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-98-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-98-3.png"
+      ],
+      "instagram": "@mario_jones_ink",
+      "hourlyRate": 200,
+      "rating": 4.1,
+      "reviewCount": 418,
+      "bio": "Specializing in Illustrative & Fine Line tattoos. 12+ years creating custom designs in the heart of Scottsdale, AZ. Book your consultation today!",
+      "yearsExperience": 12,
+      "bookingAvailable": true
+    },
+    {
+      "id": 99,
+      "name": "Christina Ramirez",
+      "shopName": "Wild Card Tattoo",
+      "city": "Mesa",
+      "state": "AZ",
+      "location": "Mesa, AZ",
+      "coordinates": {
+        "lat": 33.4152,
+        "lng": -111.8315
+      },
+      "styles": [
+        "Portrait",
+        "Watercolor"
+      ],
+      "tags": [
+        "memorial",
+        "realistic",
+        "colorful",
+        "vibrant",
+        "abstract",
+        "face"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-99-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-99-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-99-3.png"
+      ],
+      "instagram": "@christina_ramirez_ink",
+      "hourlyRate": 100,
+      "rating": 4.4,
+      "reviewCount": 205,
+      "bio": "Specializing in Portrait & Watercolor tattoos. 16+ years creating custom designs in the heart of Mesa, AZ. Book your consultation today!",
+      "yearsExperience": 16,
+      "bookingAvailable": true
+    },
+    {
+      "id": 100,
+      "name": "Samantha Jackson",
+      "shopName": "Zenith Tattoo",
+      "city": "Phoenix",
+      "state": "AZ",
+      "location": "Phoenix, AZ",
+      "coordinates": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "styles": [
+        "Lettering",
+        "Neo-Traditional"
+      ],
+      "tags": [
+        "illustrative",
+        "script",
+        "calligraphy",
+        "colorful",
+        "bold",
+        "typography"
+      ],
+      "portfolioImages": [
+        "https://replicate.delivery/pbxt/placeholder-portfolio-100-1.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-100-2.png",
+        "https://replicate.delivery/pbxt/placeholder-portfolio-100-3.png"
+      ],
+      "instagram": "@samantha_jackson_ink",
+      "hourlyRate": 175,
+      "rating": 4.8,
+      "reviewCount": 327,
+      "bio": "Specializing in Lettering & Neo-Traditional tattoos. 3+ years creating custom designs in the heart of Phoenix, AZ. Book your consultation today!",
+      "yearsExperience": 3,
       "bookingAvailable": true
     }
   ]
