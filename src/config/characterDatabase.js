@@ -347,7 +347,7 @@ function getTopCharacters(limit = 10) {
     .slice(0, limit);
 }
 
-module.exports = {
+export {
   CHARACTER_DATABASE,
   buildCharacterMap,
   getAllCharacterNames,
