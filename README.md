@@ -2,6 +2,7 @@
 
 AI-powered tattoo visualization platform that transforms first-time tattoo seekers' commitment anxiety into confidence through custom design generation, AR preview, and artist matching.
 
+
 ## Features
 
 ### Phase 1 MVP (Current)
