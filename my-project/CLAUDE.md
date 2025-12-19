@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - ✅ Artist matching algorithm implemented (40% style, 25% keywords, 15% distance, 10% budget, 10% random)
 - ✅ Camera-based tattoo visualization working
 - ✅ Tinder-style artist swiping implemented
-- ✅ Market research completed (TAM: $21B, SAM: $337M, SOM: $7.5M ARR by Year 3)
+- ✅ Market research completed (TAM: $33-37B, SAM: $12-15B, SOM: $5-10M ARR by Year 3)
 - ✅ Express.js proxy server for Replicate API
 - ⚠️ No backend yet (localStorage + IndexedDB only)
 - ⚠️ Neo4j populated but not connected to UI
