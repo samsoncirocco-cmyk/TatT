@@ -574,7 +574,7 @@ export default function DesignGeneratorWithCouncil() {
               </div>
               <StencilExport
                 imageUrl={selectedForStencil}
-                designName={generatedDesigns ? `${generatedDesigns.metadata.subject.replace(/\s+/g, '-')}-${Date.now()}` : 'tattoo'}
+                designName={formData.subject ? `${formData.subject.replace(/\s+/g, '-')}-${Date.now()}` : `tattoo-${Date.now()}`}
               />
             </div>
           </div>

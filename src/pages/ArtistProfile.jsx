@@ -55,7 +55,7 @@ function ArtistProfile() {
           <div className="mb-8">
             <p className="text-xs text-gray-500 uppercase tracking-wider mb-3">Specialties</p>
             <div className="flex flex-wrap gap-3">
-              {artist.specialties.map((specialty, index) => (
+              {(artist.styles || artist.specialties || []).map((specialty, index) => (
                 <span
                   key={index}
                   className="text-sm text-gray-700 border-b border-gray-300"
