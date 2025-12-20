@@ -15,7 +15,7 @@ import { useState, useEffect } from 'react';
 import { generateWithRateLimit, getAPIUsage, AI_MODELS } from '../services/replicateService';
 import { saveDesign } from '../services/designLibraryService';
 import { processInBrowser, optimizeForAR } from '../services/imageProcessingService';
-import { TATTOO_STYLES, BODY_PART_SPECS, SIZE_SPECS } from '../config/promptTemplates';
+import { TATTOO_STYLES, BODY_PART_SPECS, SIZE_SPECS, getTemplateCategories, getTemplatesByCategory, getRecommendedModel, getRandomTip } from '../config/promptTemplates';
 import StencilExport from './StencilExport';
 import InpaintingEditor from './InpaintingEditor';
 
@@ -41,6 +41,10 @@ export default function DesignGenerator() {
   const [selectedForStencil, setSelectedForStencil] = useState(null);
   const [selectedForInpainting, setSelectedForInpainting] = useState(null);
   const [inpaintedImages, setInpaintedImages] = useState({});
+  const [showTemplates, setShowTemplates] = useState(false);
+
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [currentTip, setCurrentTip] = useState(null);
 
   // Load API usage on mount
   useEffect(() => {
@@ -48,12 +52,34 @@ export default function DesignGenerator() {
     setApiUsage(usage);
   }, []);
 
+  // Auto-recommend AI model based on selected style
+  useEffect(() => {
+    const recommendedModel = getRecommendedModel(formData.style);
+    if (formData.aiModel !== recommendedModel) {
+      setFormData(prev => ({
+        ...prev,
+        aiModel: recommendedModel
+      }));
+    }
+  }, [formData.style]);
+
   // Handle form field changes
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
+  };
+
+  // Handle template selection
+  const handleTemplateSelect = (template) => {
+    setFormData(prev => ({
+      ...prev,
+      subject: template.subject,
+      style: template.recommendedStyle || prev.style
+    }));
+    setShowTemplates(false);
+    setSelectedCategory(null);
   };
 
   // Handle generate button click
@@ -67,6 +93,12 @@ export default function DesignGenerator() {
     setIsGenerating(true);
     setError(null);
     setGeneratedDesigns(null);
+
+    // Start showing tips
+    setCurrentTip(getRandomTip());
+    const tipInterval = setInterval(() => {
+      setCurrentTip(getRandomTip());
+    }, 4000);
 
     try {
       console.log('[DesignGenerator] Generating designs with:', formData);
@@ -87,6 +119,8 @@ export default function DesignGenerator() {
       setError(err.message || 'Failed to generate designs. Please try again.');
     } finally {
       setIsGenerating(false);
+      clearInterval(tipInterval);
+      setCurrentTip(null);
     }
   };
 
@@ -199,32 +233,40 @@ export default function DesignGenerator() {
           {/* AI Model Selector */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              AI Model
+              AI Model <span className="text-xs text-gray-500 font-normal">(Auto-selected based on your style)</span>
             </label>
             <div className="grid grid-cols-2 gap-3">
-              {Object.entries(AI_MODELS).map(([key, model]) => (
-                <button
-                  key={key}
-                  onClick={() => handleInputChange('aiModel', key)}
-                  className={`p-3 border rounded-lg text-left transition-all ${
-                    formData.aiModel === key
+              {Object.entries(AI_MODELS).map(([key, model]) => {
+                const isRecommended = getRecommendedModel(formData.style) === key;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => handleInputChange('aiModel', key)}
+                    className={`p-3 border rounded-lg text-left transition-all relative ${formData.aiModel === key
                       ? 'bg-blue-600 text-white border-blue-600'
                       : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
-                  }`}
-                >
-                  <div className="font-medium text-sm">{model.name}</div>
-                  <div className={`text-xs mt-1 ${
-                    formData.aiModel === key ? 'text-blue-100' : 'text-gray-500'
-                  }`}>
-                    {model.description}
-                  </div>
-                  <div className={`text-xs mt-1 font-medium ${
-                    formData.aiModel === key ? 'text-blue-200' : 'text-gray-600'
-                  }`}>
-                    ${(model.cost * model.params.num_outputs).toFixed(4)} per request
-                  </div>
-                </button>
-              ))}
+                      }`}
+                  >
+                    {isRecommended && (
+                      <span className={`absolute top-2 right-2 text-xs px-2 py-0.5 rounded font-medium ${formData.aiModel === key
+                        ? 'bg-green-400 text-green-900'
+                        : 'bg-green-100 text-green-700'
+                        }`}>
+                        Recommended
+                      </span>
+                    )}
+                    <div className="font-medium text-sm">{model.name}</div>
+                    <div className={`text-xs mt-1 ${formData.aiModel === key ? 'text-blue-100' : 'text-gray-500'
+                      }`}>
+                      {model.description}
+                    </div>
+                    <div className={`text-xs mt-1 font-medium ${formData.aiModel === key ? 'text-blue-200' : 'text-gray-600'
+                      }`}>
+                      ${(model.cost * model.params.num_outputs).toFixed(4)} per request
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -247,6 +289,79 @@ export default function DesignGenerator() {
             <p className="mt-1 text-xs text-gray-500">
               {TATTOO_STYLES[formData.style].description}
             </p>
+          </div>
+
+          {/* Guided Prompt Templates */}
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Need inspiration?
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowTemplates(!showTemplates)}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                {showTemplates ? 'Hide Templates' : 'Browse Templates'}
+              </button>
+            </div>
+
+            {showTemplates && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4">
+                <p className="text-xs text-gray-600">
+                  Choose from pre-made templates designed to reduce anxiety and improve results
+                </p>
+
+                {/* Category Selection */}
+                {!selectedCategory && (
+                  <div className="grid grid-cols-2 gap-3">
+                    {getTemplateCategories().map((category) => (
+                      <button
+                        key={category.id}
+                        onClick={() => setSelectedCategory(category.id)}
+                        className="p-3 bg-white border border-gray-300 rounded-lg hover:border-blue-400 hover:shadow-sm transition-all text-left"
+                      >
+                        <div className="text-2xl mb-1">{category.icon}</div>
+                        <div className="font-medium text-sm text-gray-900">{category.name}</div>
+                        <div className="text-xs text-gray-600 mt-1">{category.description}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Template List */}
+                {selectedCategory && (
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => setSelectedCategory(null)}
+                      className="text-xs text-blue-600 hover:text-blue-700 mb-2"
+                    >
+                      ← Back to categories
+                    </button>
+                    {getTemplatesByCategory(selectedCategory).map((template) => (
+                      <button
+                        key={template.id}
+                        onClick={() => handleTemplateSelect(template)}
+                        className="w-full p-3 bg-white border border-gray-300 rounded-lg hover:border-blue-400 hover:shadow-sm transition-all text-left"
+                      >
+                        <div className="font-medium text-sm text-gray-900 mb-1">{template.name}</div>
+                        <div className="text-xs text-gray-600 mb-2">{template.subject}</div>
+                        <div className="flex flex-wrap gap-1">
+                          {template.keywords.map((keyword, idx) => (
+                            <span
+                              key={idx}
+                              className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded"
+                            >
+                              {keyword}
+                            </span>
+                          ))}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Subject Input */}
@@ -294,11 +409,10 @@ export default function DesignGenerator() {
                 <button
                   key={key}
                   onClick={() => handleInputChange('size', key)}
-                  className={`px-4 py-3 border rounded-lg font-medium transition-all ${
-                    formData.size === key
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
-                  }`}
+                  className={`px-4 py-3 border rounded-lg font-medium transition-all ${formData.size === key
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                    }`}
                 >
                   {spec.displayName.split(' ')[0]}
                 </button>
@@ -317,19 +431,25 @@ export default function DesignGenerator() {
           <button
             onClick={handleGenerate}
             disabled={isGenerating || !formData.subject.trim()}
-            className={`w-full py-4 rounded-lg font-semibold text-white transition-all ${
-              isGenerating || !formData.subject.trim()
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700 active:scale-98'
-            }`}
+            className={`w-full py-4 rounded-lg font-semibold text-white transition-all ${isGenerating || !formData.subject.trim()
+              ? 'bg-gray-400 cursor-not-allowed'
+              : 'bg-blue-600 hover:bg-blue-700 active:scale-98'
+              }`}
           >
             {isGenerating ? (
-              <span className="flex items-center justify-center">
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Consulting with AI tattoo artist...
+              <span className="flex flex-col items-center justify-center">
+                <div className="flex items-center mb-2">
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Consulting with AI tattoo artist...
+                </div>
+                {currentTip && (
+                  <span className="text-sm font-normal text-blue-100 animate-pulse bg-blue-700/50 px-3 py-1 rounded-full">
+                    {currentTip.text}
+                  </span>
+                )}
               </span>
             ) : (
               'Generate Design'
@@ -419,11 +539,10 @@ export default function DesignGenerator() {
                           handleSaveToLibrary(imageUrl, index);
                         }}
                         disabled={savedImages.has(imageUrl)}
-                        className={`w-full py-2 px-4 rounded-lg font-medium transition-all ${
-                          savedImages.has(imageUrl)
-                            ? 'bg-green-500 text-white cursor-default'
-                            : 'bg-white text-gray-900 hover:bg-gray-100'
-                        }`}
+                        className={`w-full py-2 px-4 rounded-lg font-medium transition-all ${savedImages.has(imageUrl)
+                          ? 'bg-green-500 text-white cursor-default'
+                          : 'bg-white text-gray-900 hover:bg-gray-100'
+                          }`}
                       >
                         {savedImages.has(imageUrl) ? '✓ Saved' : 'Save to Library'}
                       </button>

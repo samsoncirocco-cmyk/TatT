@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import artistsData from '../data/artists.json';
+import { getAllDesigns } from '../services/designLibraryService';
 
 function ArtistProfile() {
   const { id } = useParams();
@@ -9,6 +10,8 @@ function ArtistProfile() {
 
   const [selectedImage, setSelectedImage] = useState(0);
   const [showQuoteModal, setShowQuoteModal] = useState(false);
+  const [selectedDesign, setSelectedDesign] = useState(null);
+  const [savedDesigns, setSavedDesigns] = useState([]);
 
   // If artist not found, redirect to artists page
   if (!artist) {
@@ -19,6 +22,13 @@ function ArtistProfile() {
       </div>
     );
   }
+
+  // Load saved designs when modal opens
+  useEffect(() => {
+    if (showQuoteModal) {
+      setSavedDesigns(getAllDesigns());
+    }
+  }, [showQuoteModal]);
 
   const handleRequestQuote = () => {
     setShowQuoteModal(true);
@@ -103,11 +113,10 @@ function ArtistProfile() {
               <button
                 key={index}
                 onClick={() => setSelectedImage(index)}
-                className={`overflow-hidden bg-gray-100 transition-opacity ${
-                  selectedImage === index
+                className={`overflow-hidden bg-gray-100 transition-opacity ${selectedImage === index
                     ? 'opacity-100'
                     : 'opacity-60 hover:opacity-100'
-                }`}
+                  }`}
               >
                 <img
                   src={image}
@@ -207,6 +216,53 @@ function ArtistProfile() {
                   className="w-full border-b border-gray-300 pb-2 focus:border-gray-900 outline-none bg-transparent"
                   placeholder="e.g., 4 inches x 6 inches"
                 />
+              </div>
+
+              {/* Design Attachment Section */}
+              <div className="border-t border-gray-200 pt-6">
+                <label className="block text-xs uppercase tracking-wider text-gray-600 mb-3">
+                  Attach Design (Optional)
+                </label>
+                {savedDesigns.length > 0 ? (
+                  <>
+                    <p className="text-xs text-gray-500 mb-3">
+                      Select a design from your library to share with the artist
+                    </p>
+                    <div className="grid grid-cols-3 gap-3 max-h-48 overflow-y-auto">
+                      {savedDesigns.map((design) => (
+                        <button
+                          key={design.id}
+                          type="button"
+                          onClick={() => setSelectedDesign(design.id === selectedDesign ? null : design.id)}
+                          className={`relative aspect-square border-2 transition-all ${selectedDesign === design.id
+                              ? 'border-blue-600 ring-2 ring-blue-200'
+                              : 'border-gray-300 hover:border-gray-400'
+                            }`}
+                        >
+                          <img
+                            src={design.imageUrl}
+                            alt={design.userInput.subject}
+                            className="w-full h-full object-cover"
+                          />
+                          {selectedDesign === design.id && (
+                            <div className="absolute top-1 right-1 bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
+                              ✓
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                    {selectedDesign && (
+                      <p className="text-xs text-green-600 mt-2">
+                        ✓ Design attached
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-xs text-gray-500">
+                    No saved designs yet. <Link to="/generate" className="text-blue-600 hover:underline">Generate one first</Link>
+                  </p>
+                )}
               </div>
 
               <div className="flex gap-3 pt-6">

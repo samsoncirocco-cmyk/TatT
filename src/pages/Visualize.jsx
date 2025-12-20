@@ -1,9 +1,21 @@
 import { useState, useRef, useEffect } from 'react';
 import designsData from '../data/designs.json';
 
+
+const CONFIDENCE_TIPS = [
+  "Looking good! 87% of users feel more confident after preview.",
+  "Try moving your arm to see how the design flows.",
+  "Check the design from different angles.",
+  "Placement is key - try a few centimeters up or down.",
+  "Visualize your new look!",
+  "Take your time to find the perfect spot."
+];
+
 function Visualize() {
   const [photo, setPhoto] = useState(null);
   const [showCamera, setShowCamera] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(true);
+  const [currentConfidenceTip, setCurrentConfidenceTip] = useState("");
   const [stream, setStream] = useState(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -50,6 +62,23 @@ function Visualize() {
       }
     };
   }, [stream]);
+
+  // Rotate confidence tips
+  useEffect(() => {
+    if (photo && selectedTattoo) {
+      // Set initial tip
+      setCurrentConfidenceTip(CONFIDENCE_TIPS[0]);
+
+      const interval = setInterval(() => {
+        const randomIndex = Math.floor(Math.random() * CONFIDENCE_TIPS.length);
+        setCurrentConfidenceTip(CONFIDENCE_TIPS[randomIndex]);
+      }, 5000);
+
+      return () => clearInterval(interval);
+    } else {
+      setCurrentConfidenceTip("");
+    }
+  }, [photo, selectedTattoo]);
 
   // Start camera
   const startCamera = async () => {
@@ -303,6 +332,32 @@ function Visualize() {
           </button>
           <span className="text-sm text-gray-600 font-light">Tap to capture</span>
         </div>
+
+        {/* Onboarding Overlay */}
+        {showOnboarding && (
+          <div className="absolute inset-0 z-50 bg-black/80 flex items-center justify-center p-6">
+            <div className="bg-white rounded-xl p-6 max-w-sm w-full text-center">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Capture Your Canvas</h3>
+              <p className="text-gray-600 mb-6 text-sm">
+                For the best AR result:
+                <br />✨ Find bright, even lighting
+                <br />📏 Keep the camera steady relative to your body
+                <br />🎯 Center the body part
+              </p>
+              <button
+                onClick={() => setShowOnboarding(false)}
+                className="w-full py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
+              >
+                I'm Ready
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -339,6 +394,15 @@ function Visualize() {
               className="max-w-full max-h-full object-contain select-none"
               draggable={false}
             />
+
+            {/* Confidence Trigger / Tip Overlay */}
+            {currentConfidenceTip && (
+              <div className="absolute top-4 left-0 right-0 flex justify-center pointer-events-none fade-in">
+                <div className="bg-black/60 backdrop-blur-sm text-white px-4 py-2 rounded-full text-xs font-medium shadow-lg animate-fade-in-up">
+                  ✨ {currentConfidenceTip}
+                </div>
+              </div>
+            )}
 
             {/* Tattoo Overlay */}
             {selectedTattoo && (
@@ -429,11 +493,10 @@ function Visualize() {
               <button
                 key={category}
                 onClick={() => setSelectedCategory(category)}
-                className={`flex-shrink-0 px-4 py-2 rounded-none text-xs uppercase tracking-wider transition-all ${
-                  selectedCategory === category
-                    ? 'bg-gray-900 text-white'
-                    : 'border border-gray-300 text-gray-700 hover:border-gray-900'
-                }`}
+                className={`flex-shrink-0 px-4 py-2 rounded-none text-xs uppercase tracking-wider transition-all ${selectedCategory === category
+                  ? 'bg-gray-900 text-white'
+                  : 'border border-gray-300 text-gray-700 hover:border-gray-900'
+                  }`}
               >
                 {category}
               </button>
@@ -453,11 +516,10 @@ function Visualize() {
               <button
                 key={tattoo.id}
                 onClick={() => setSelectedTattoo(tattoo)}
-                className={`flex-shrink-0 w-20 h-20 border p-2 transition-all ${
-                  selectedTattoo?.id === tattoo.id
-                    ? 'border-gray-900 bg-gray-100'
-                    : 'border-gray-300 bg-white hover:border-gray-900'
-                }`}
+                className={`flex-shrink-0 w-20 h-20 border p-2 transition-all ${selectedTattoo?.id === tattoo.id
+                  ? 'border-gray-900 bg-gray-100'
+                  : 'border-gray-300 bg-white hover:border-gray-900'
+                  }`}
                 title={tattoo.name}
               >
                 <img

@@ -93,8 +93,8 @@ function haversineDistance(coord1, coord2) {
   const dLng = toRadians(coord2.lng - coord1.lng);
 
   const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(toRadians(coord1.lat)) * Math.cos(toRadians(coord2.lat)) *
-            Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    Math.cos(toRadians(coord1.lat)) * Math.cos(toRadians(coord2.lat)) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
@@ -164,7 +164,16 @@ function calculateBudgetFit(artistRate, userBudget) {
  * @param {Object} userLocation - {lat, lng}
  * @returns {number} Total match score
  */
+/**
+ * Calculate match score for a single artist
+ * @param {Object} preferences - User preferences
+ * @param {Object} artist - Artist data
+ * @param {Object} userLocation - {lat, lng}
+ * @returns {Object} { score: number, reasons: Array }
+ */
 function calculateArtistScore(preferences, artist, userLocation) {
+  const reasons = [];
+
   // 1. Style Overlap (40%)
   let styleScore = 0;
   if (preferences.styles && artist.styles) {
@@ -173,7 +182,10 @@ function calculateArtistScore(preferences, artist, userLocation) {
         artistStyle.toLowerCase() === style.toLowerCase()
       )
     );
-    styleScore = matchingStyles.length / Math.max(preferences.styles.length, 1);
+    if (matchingStyles.length > 0) {
+      styleScore = matchingStyles.length / Math.max(preferences.styles.length, 1);
+      reasons.push(`Specializes in ${matchingStyles.join(', ')}`);
+    }
   }
 
   // 2. Keyword Match (25%)
@@ -181,18 +193,34 @@ function calculateArtistScore(preferences, artist, userLocation) {
     preferences.keywords || [],
     artist.tags || []
   );
+  if (keywordScore > 0.3) {
+    reasons.push('High keyword match');
+  }
 
   // 3. Distance (15%)
   let distanceScore = 0.5; // Default neutral score
   if (userLocation && artist.location) {
-    const artistCoords = getCoordinatesFromZipCode(artist.location);
-    const distance = haversineDistance(userLocation, artistCoords);
-
-    // Score based on distance: 0-5 miles = 1.0, 5-10 miles = 0.75, 10-20 miles = 0.5, 20+ = 0.25
-    if (distance < 5) distanceScore = 1.0;
-    else if (distance < 10) distanceScore = 0.75;
-    else if (distance < 20) distanceScore = 0.5;
-    else distanceScore = 0.25;
+    // If we have precise coordinates for both
+    if (artist.coordinates && userLocation.lat && userLocation.lng) {
+      const distance = haversineDistance(userLocation, artist.coordinates);
+      if (distance < 5) {
+        distanceScore = 1.0;
+        reasons.push('Likely nearby (< 5 miles)');
+      } else if (distance < 10) {
+        distanceScore = 0.75;
+        reasons.push('Within 10 miles');
+      } else if (distance < 20) {
+        distanceScore = 0.5;
+        reasons.push('Within 20 miles');
+      } else {
+        distanceScore = 0.25;
+      }
+    }
+    // Fallback to city matching if coordinates fail or are generic
+    else if (artist.city && preferences.location && artist.city.toLowerCase() === preferences.location.toLowerCase()) {
+      distanceScore = 1.0;
+      reasons.push(`Located in ${artist.city}`);
+    }
   }
 
   // 4. Budget Fit (10%)
@@ -200,6 +228,9 @@ function calculateArtistScore(preferences, artist, userLocation) {
     artist.hourlyRate || 150,
     preferences.budget || 200
   );
+  if (budgetScore === 1) {
+    reasons.push('Within your budget');
+  }
 
   // 5. Random Quality (10%) - adds variety to results
   const randomScore = Math.random();
@@ -212,7 +243,10 @@ function calculateArtistScore(preferences, artist, userLocation) {
     (budgetScore * 0.10) +
     (randomScore * 0.10);
 
-  return totalScore;
+  return {
+    score: totalScore,
+    reasons: reasons.length > 0 ? reasons : ['Explore this artist']
+  };
 }
 
 /**
@@ -230,10 +264,16 @@ export function calculateMatches(preferences, artists) {
   const userLocation = getCoordinatesFromZipCode(preferences.location);
 
   // Calculate scores for each artist
-  const scoredArtists = artists.map(artist => ({
-    ...artist,
-    matchScore: calculateArtistScore(preferences, artist, userLocation)
-  }));
+  // Calculate scores for each artist
+  const scoredArtists = artists.map(artist => {
+    const { score, reasons } = calculateArtistScore(preferences, artist, userLocation);
+    return {
+      ...artist,
+      matchScore: score, // For sorting, using the raw 0-1 value
+      score: score * 100, // For display, 0-100
+      reasons: reasons
+    };
+  });
 
   // Sort by match score (highest first) and return top 20
   return scoredArtists
