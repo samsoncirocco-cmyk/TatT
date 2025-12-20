@@ -116,3 +116,24 @@ body {
   font-weight: 700;
   letter-spacing: -0.02em;
 }
+
+/* Oregon Ducks Utilities */
+.text-ducks-green {
+  color: var(--accent-green);
+}
+
+.text-ducks-yellow {
+  color: var(--accent-yellow);
+}
+
+.bg-ducks-green {
+  background-color: var(--accent-green);
+}
+
+.bg-ducks-yellow {
+  background-color: var(--accent-yellow);
+}
+
+.border-ducks-green {
+  border-color: var(--accent-green);
+}
