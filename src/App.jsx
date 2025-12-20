@@ -88,10 +88,10 @@ function NavLink({ to, icon, label }) {
   return (
     <Link
       to={to}
-      className={`flex flex-col items-center justify-center py-3 transition-colors ${isActive ? 'text-purple-600' : 'text-gray-400 hover:text-gray-600'
+      className={`flex flex-col items-center justify-center py-3 transition-colors ${isActive ? 'text-ducks-green' : 'text-gray-400 hover:text-gray-600'
         }`}
     >
-      <svg className={`w-6 h-6 mb-1 ${isActive ? 'drop-shadow-[0_0_8px_rgba(124,58,237,0.3)]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className={`w-6 h-6 mb-1 ${isActive ? 'drop-shadow-[0_0_8px_rgba(21,71,51,0.3)]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
         {icons[icon]}
       </svg>
       <span className="text-[10px] font-bold uppercase tracking-widest">{label}</span>

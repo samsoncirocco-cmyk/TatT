@@ -6,8 +6,12 @@ export default {
   ],
   theme: {
     extend: {
+      colors: {
+        'ducks-green': '#154733',
+        'ducks-yellow': '#FEE123',
+      },
       fontFamily: {
-        sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Helvetica Neue', 'sans-serif'],
+        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
       },
     },
   },
