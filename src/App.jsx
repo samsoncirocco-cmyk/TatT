@@ -15,6 +15,7 @@ import SmartMatch from './pages/SmartMatch';
 import SwipeMatch from './pages/SwipeMatch';
 import Artists from './pages/Artists';
 import ArtistProfile from './pages/ArtistProfile';
+import Journey from './pages/Journey';
 
 // Feature flag for council integration
 const USE_COUNCIL = import.meta.env.VITE_USE_COUNCIL === 'true';
@@ -25,6 +26,7 @@ function App() {
       <div className="min-h-screen bg-gray-50">
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/journey" element={<Journey />} />
           <Route path="/generate" element={USE_COUNCIL ? <DesignGeneratorWithCouncil /> : <DesignGenerator />} />
           <Route path="/library" element={<DesignLibrary />} />
           <Route path="/visualize" element={<Visualize />} />
