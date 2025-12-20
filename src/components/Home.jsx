@@ -1,183 +1,179 @@
 import { Link } from 'react-router-dom';
-import { getLibraryStats } from '../services/designLibraryService';
-import { getAPIUsage } from '../services/replicateService';
 import { useState, useEffect } from 'react';
+import artistsData from '../data/artists.json';
 
 export default function Home() {
-  const [stats, setStats] = useState(null);
-  const [usage, setUsage] = useState(null);
+  const [artists, setArtists] = useState([]);
 
   useEffect(() => {
-    setStats(getLibraryStats());
-    setUsage(getAPIUsage());
+    // Filter artists who are "Booking Now"
+    const bookingArtists = artistsData.artists.filter(a => a.bookingAvailable);
+    setArtists(bookingArtists);
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0c] text-[#f8f9fa] selection:bg-blue-500/30">
-      <div className="grain-overlay opacity-10" />
+    <div className="min-h-screen bg-white text-gray-900 border-t border-gray-100">
 
-      {/* Hero Section - High Intent */}
-      <section className="relative min-h-[95vh] flex flex-col justify-center px-6 overflow-hidden border-b border-white/5">
-        <div className="max-w-6xl mx-auto w-full z-10 grid md:grid-cols-2 gap-12 items-center">
-          <div>
-            <div className="inline-block px-3 py-1 bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] uppercase tracking-[0.2em] font-bold mb-8 rounded">
-              The Permanence Crisis
-            </div>
-            <h1 className="text-6xl sm:text-8xl font-bold heading-editorial mb-8 tracking-tighter leading-[0.9]">
-              The Tattoo Process is <br />
-              <span className="text-white/40 italic">Broken.</span>
-            </h1>
-            <p className="text-lg text-gray-400 mb-10 max-w-lg leading-relaxed font-light">
-              70% of first-timers spend 15+ months in "Permanent Panic."
-              Gatekept shops, expensive consultation loops, and the fear of "what if it looks bad?" keep your vision locked in your head.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Link
-                to="/generate"
-                className="btn-premium px-10 py-5 text-lg"
-              >
-                Solve the Vision Gap
-              </Link>
-              <Link
-                to="/journey"
-                className="px-10 py-5 border border-white/10 hover:bg-white/5 transition-all text-sm uppercase tracking-widest font-bold flex items-center justify-center"
-              >
-                See the Transformation
-              </Link>
-            </div>
+      {/* 1. TOP CAROUSEL SECTION */}
+      <section className="pt-24 pb-12 overflow-hidden border-b border-gray-100">
+        <div className="max-w-[1400px] mx-auto px-6 grid md:grid-cols-[300px_1fr] gap-12 items-start">
+          <div className="pt-4">
+            <p className="italic text-xs text-gray-400 mb-2">No catches here</p>
+            <h1 className="text-2xl font-bold mb-4">Tattoo Artists Booking Now</h1>
+            <ul className="space-y-2 mb-8 text-[11px] text-gray-600 uppercase tracking-wider font-semibold">
+              <li className="flex items-center gap-2"><span className="text-purple-600">✓</span> Verified by Industry Peers</li>
+              <li className="flex items-center gap-2"><span className="text-purple-600">✓</span> Studio Health, Safety, & Legitimacy</li>
+              <li className="flex items-center gap-2"><span className="text-purple-600">✓</span> Professional Skill & Quality</li>
+              <li className="flex items-center gap-2"><span className="text-purple-600">✓</span> Human-to-Human in Rental Channels</li>
+              <li className="flex items-center gap-2"><span className="text-purple-600">✓</span> Uphold Code of Conduct</li>
+            </ul>
+            <Link to="/artists" className="btn-cocreate">See Booking Artists →</Link>
           </div>
 
-          <div className="relative hidden md:block">
-            <div className="glass-card aspect-[4/5] p-2 rotate-3 overflow-hidden">
-              <div className="w-full h-full bg-[#121216] relative flex items-center justify-center">
-                <div className="absolute top-4 left-4 text-[10px] text-white/20 uppercase tracking-widest">Simulation v4.2</div>
-                <div className="w-48 h-48 border border-white/5 rounded-full animate-ping opacity-20" />
-                <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 to-transparent" />
-                <span className="text-white/10 text-9xl font-bold italic select-none">INK</span>
+          <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-8">
+            {artists.map((artist) => (
+              <ArtistCard key={artist.id} artist={artist} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 2. VERIFICATION SECTION */}
+      <section className="py-24 border-b border-gray-100">
+        <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-2 gap-20 items-center">
+          <div className="relative h-[400px] flex items-center justify-center">
+            {/* The circular profile layout */}
+            <div className="relative w-64 h-64">
+              {/* Main Center Image */}
+              <div className="absolute inset-0 rounded-full overflow-hidden border-4 border-white shadow-xl z-20">
+                <img src={artists[0]?.portfolioImages[0]} alt="Featured Artist" className="w-full h-full object-cover" />
+                <div className="absolute bottom-2 right-2 bg-purple-600 text-white rounded-full p-1 border-2 border-white">
+                  <span className="text-xs">✓</span>
+                </div>
+              </div>
+              {/* Outer orbiting images */}
+              <div className="absolute -top-12 -left-12 w-16 h-16 rounded-full border-2 border-white shadow-md overflow-hidden z-10">
+                <img src={artists[1]?.portfolioImages[1]} alt="Artist" className="w-full h-full object-cover" />
+              </div>
+              <div className="absolute top-0 -right-16 w-14 h-14 rounded-full border-2 border-white shadow-md overflow-hidden z-10">
+                <img src={artists[2]?.portfolioImages[0]} alt="Artist" className="w-full h-full object-cover" />
+              </div>
+              <div className="absolute -bottom-10 right-10 w-20 h-20 rounded-full border-2 border-white shadow-md overflow-hidden z-10">
+                <img src={artists[3]?.portfolioImages[2]} alt="Artist" className="w-full h-full object-cover" />
+              </div>
+              <div className="absolute -bottom-4 -left-20 w-12 h-12 rounded-full border-2 border-white shadow-md overflow-hidden z-10">
+                <img src={artists[4]?.portfolioImages[0]} alt="Artist" className="w-full h-full object-cover" />
+              </div>
+              <div className="absolute top-20 -left-20 w-10 h-10 rounded-full border-2 border-white shadow-md overflow-hidden z-10">
+                <img src={artists[5]?.portfolioImages[1]} alt="Artist" className="w-full h-full object-cover" />
+              </div>
+
+              <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 text-center w-full">
+                <h3 className="text-xl font-bold tracking-tight">{artists[0]?.name}</h3>
               </div>
             </div>
-            <div className="absolute -bottom-8 -left-8 glass-card p-6 -rotate-6 border-blue-500/30">
-              <div className="text-3xl font-bold text-glow mb-1">90%</div>
-              <div className="text-[10px] text-gray-500 uppercase tracking-widest">Reduction in Anxiety</div>
+          </div>
+
+          <div>
+            <h2 className="text-2xl font-bold mb-4">Why Our Verification Drives Bookings</h2>
+            <p className="text-gray-500 text-sm mb-8 leading-relaxed max-w-sm">
+              Connecting with verified artists means you bypass the mystery and amateur loops. We verify health standards, professional track records, and craftsmanship so you only see the best.
+            </p>
+            <Link to="/philosophy" className="bg-orange-500 text-white px-6 py-2 rounded font-bold text-xs uppercase tracking-widest hover:bg-orange-600">Want to get verified? →</Link>
+          </div>
+        </div>
+      </section>
+
+      {/* 3. SYSTEM FEATURES SECTION */}
+      <section className="py-24 border-b border-gray-100 bg-gray-50/30">
+        <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-[1fr_400px] gap-20 items-center">
+          <div>
+            <h2 className="text-2xl font-bold mb-8">A System Built to Turn Interest Into Bookings - Free For Artists</h2>
+            <ul className="space-y-4 mb-10">
+              <FeatureItem text="Verified Booking Platform" />
+              <FeatureItem text="Artist Portfolio & Talent Management" />
+              <FeatureItem text="Custom Web & Phone View Designs" />
+              <FeatureItem text="Professional Trade Leads" />
+              <FeatureItem text="Direct Client Communication" />
+              <FeatureItem text="Schedule & Manage Appointments" />
+              <FeatureItem text="Secure Deposits & Payment Flows" />
+            </ul>
+            <Link to="/generate" className="bg-orange-500 text-white px-6 py-2 rounded font-bold text-xs uppercase tracking-widest hover:bg-orange-600">Learn More ↓</Link>
+          </div>
+
+          <div className="relative">
+            <div className="relative z-10 rotate-3">
+              <img src="/images/phone_tatt_mockup.png" alt="TatTester App" className="w-full max-w-[300px] mx-auto drop-shadow-2xl" />
+            </div>
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-purple-500/10 rounded-full blur-[80px] -z-10" />
+          </div>
+        </div>
+      </section>
+
+      {/* 4. TESTIMONIAL GRID */}
+      <section className="py-24 bg-purple-600 overflow-hidden">
+        <div className="max-w-[1600px] mx-auto">
+          <div className="flex gap-4 overflow-x-auto hide-scrollbar px-6">
+            <QuoteCard text="Connecting me with everything together so I'm not juggling different tools. Makes it much easier to focus on tattooing." author="Dominic Harris" />
+            <QuoteCard text="Booking artists and managing clients became a breeze. The interface is intuitive and the talent is top-notch." author="Jordan Lee" />
+            <QuoteCard text="The verification process gave me peace of mind. Knowing my artist is professional and verified is everything." author="Alex Rivera" />
+            <QuoteCard text="Finally, a platform that understands the artistic side of tattoos, not just the booking side." author="Mila Chen" />
+            <QuoteCard text="Great for clients and artists alike. The AR previews are a game changer for my consultation process." author="Marcus Thorne" />
+            <div className="min-w-[400px] bg-white/10 rounded-lg flex items-center justify-center p-12 text-center text-white">
+              <h3 className="text-2xl font-bold">Join CoCreate <br /> Booking Artists</h3>
             </div>
           </div>
         </div>
       </section>
 
-      {/* The Problem Grid */}
-      <section className="py-32 px-6 border-b border-white/5">
-        <div className="max-w-6xl mx-auto">
-          <div className="mb-20">
-            <h2 className="text-4xl font-bold mb-4 tracking-tight uppercase italic text-white/60">Why you still haven't booked:</h2>
-            <div className="h-px w-24 bg-red-500" />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-0 border border-white/10">
-            <ProblemTile
-              title="The 15-Month Lag"
-              desc="Average time from 'Idea' to 'Ink' due to decision paralysis and lack of visualization."
-              stat="15-20 Months"
-            />
-            <ProblemTile
-              title="Artist Mismatch"
-              desc="84% of regret stems from booking an artist whose style doesn't match the specific vision."
-              stat="84% Error Rate"
-            />
-            <ProblemTile
-              title="The 'Blind' Deposit"
-              desc="Paying $200+ for a consultation without seeing if the design actually flows with your body."
-              stat="Financial Risk"
-            />
-          </div>
+      {/* 5. BOTTOM CTA BAR */}
+      <footer className="bg-purple-600 py-2 border-t border-purple-500">
+        <div className="text-center text-white/60 text-[10px] uppercase tracking-widest font-bold">
+          Join CoCreate ↓ Start Booking Now
         </div>
-      </section>
-
-      {/* The Solution - Transformation */}
-      <section className="py-32 px-6 bg-[#0c0c10]">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-5xl font-bold mb-12 heading-editorial">Confidence is <br /><span className="text-blue-500 italic">Engineered.</span></h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-16 text-left">
-            <div>
-              <div className="text-xs text-red-500 font-bold uppercase tracking-widest mb-4">Old World Path</div>
-              <ul className="space-y-6">
-                <li className="flex items-start gap-4 text-gray-500">
-                  <div className="w-6 h-6 rounded-full border border-red-500/30 flex items-center justify-center text-[10px]">✕</div>
-                  <span>Guessing placement based on mirror selfies.</span>
-                </li>
-                <li className="flex items-start gap-4 text-gray-500">
-                  <div className="w-6 h-6 rounded-full border border-red-500/30 flex items-center justify-center text-[10px]">✕</div>
-                  <span>Endlessly scrolling Pinterest for "similar" ideas.</span>
-                </li>
-                <li className="flex items-start gap-4 text-gray-500">
-                  <div className="w-6 h-6 rounded-full border border-red-500/30 flex items-center justify-center text-[10px]">✕</div>
-                  <span>Awkward consultation calls with no visual shared langauge.</span>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <div className="text-xs text-blue-500 font-bold uppercase tracking-widest mb-4">The TatTester Way</div>
-              <ul className="space-y-6">
-                <li className="flex items-start gap-4 text-white">
-                  <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-[10px]">✓</div>
-                  <span>Photorealistic AR previews on YOUR skin.</span>
-                </li>
-                <li className="flex items-start gap-4 text-white">
-                  <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-[10px]">✓</div>
-                  <span>AI Design Forge: 4 variations in 30 seconds.</span>
-                </li>
-                <li className="flex items-start gap-4 text-white">
-                  <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-[10px]">✓</div>
-                  <span>One-click design sharing with matched specialists.</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="py-32 px-6">
-        <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-12 border-t border-white/5 pt-20">
-          <BigStat metric="3.5x" label="Confidence Boost" />
-          <BigStat metric="90%" label="Time Saved" />
-          <BigStat metric="12k+" label="Simulations Run" />
-          <BigStat metric="0" label="Registration Required" />
-        </div>
-      </section>
-
-      {/* Footer / CTA */}
-      <section className="py-48 px-6 text-center border-t border-white/5 relative overflow-hidden">
-        <div className="absolute inset-0 bg-blue-500/5 blur-[120px] rounded-full scale-50" />
-        <div className="relative z-10">
-          <h2 className="text-5xl md:text-7xl font-bold mb-12 tracking-tighter">Your Skin Deserves <br /><span className="italic opacity-50">Precision.</span></h2>
-          <Link
-            to="/generate"
-            className="btn-premium px-12 py-6 text-xl"
-          >
-            Enter the Simulation
-          </Link>
-        </div>
-      </section>
+      </footer>
     </div>
   );
 }
 
-function ProblemTile({ title, desc, stat }) {
+function ArtistCard({ artist }) {
   return (
-    <div className="p-10 border-white/10 border-collapse hover:bg-white/[0.02] transition-all">
-      <div className="text-red-500 text-sm font-bold mb-6 tracking-tighter uppercase">{stat}</div>
-      <h3 className="text-2xl font-bold mb-4 italic text-white/90">{title}</h3>
-      <p className="text-gray-500 leading-relaxed font-light text-sm">{desc}</p>
+    <div className="min-w-[180px] group cursor-pointer relative">
+      <div className="aspect-[3/4] overflow-hidden rounded-md mb-3 shadow-sm border border-gray-100">
+        <img
+          src={artist.portfolioImages[0]}
+          alt={artist.name}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+        />
+        <div className="absolute bottom-10 left-3 z-10">
+          <h3 className="text-white text-sm font-bold drop-shadow-md">{artist.name}</h3>
+        </div>
+        <div className="absolute bottom-3 left-3 z-10">
+          <span className="text-white/80 text-[10px] uppercase font-bold tracking-widest bg-black/20 px-2 py-0.5 rounded">Booking</span>
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
+      </div>
     </div>
   );
 }
 
-function BigStat({ metric, label }) {
+function FeatureItem({ text }) {
   return (
-    <div className="text-center">
-      <div className="text-5xl font-bold text-glow mb-2 tracking-tighter">{metric}</div>
-      <div className="text-[10px] text-gray-500 uppercase tracking-[0.3em] font-bold">{label}</div>
+    <li className="flex items-center gap-3 group">
+      <div className="w-1.5 h-1.5 bg-purple-600 rounded-full group-hover:scale-150 transition-transform" />
+      <span className="text-sm font-semibold text-gray-700 tracking-tight">{text}</span>
+    </li>
+  );
+}
+
+function QuoteCard({ text, author }) {
+  return (
+    <div className="min-w-[320px] bg-white p-8 rounded-lg shadow-xl shadow-purple-900/20 flex flex-col justify-between">
+      <p className="text-sm italic text-gray-700 leading-relaxed mb-6 font-medium">"{text}"</p>
+      <div>
+        <p className="font-bold text-xs uppercase tracking-widest">{author}</p>
+        <p className="text-[10px] text-gray-400 mt-1 uppercase">Tattoo Artist</p>
+      </div>
     </div>
   );
 }
