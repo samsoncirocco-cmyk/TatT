@@ -5,7 +5,7 @@
  * with AI design generation and AR preview
  */
 
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import DesignGenerator from './components/DesignGenerator';
 import DesignGeneratorWithCouncil from './components/DesignGeneratorWithCouncil';
 import DesignLibrary from './components/DesignLibrary';
@@ -16,6 +16,7 @@ import SwipeMatch from './pages/SwipeMatch';
 import Artists from './pages/Artists';
 import ArtistProfile from './pages/ArtistProfile';
 import Journey from './pages/Journey';
+import Philosophy from './pages/Philosophy';
 
 // Feature flag for council integration
 const USE_COUNCIL = import.meta.env.VITE_USE_COUNCIL === 'true';
@@ -23,9 +24,11 @@ const USE_COUNCIL = import.meta.env.VITE_USE_COUNCIL === 'true';
 function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-white text-gray-900">
+
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/philosophy" element={<Philosophy />} />
           <Route path="/journey" element={<Journey />} />
           <Route path="/generate" element={USE_COUNCIL ? <DesignGeneratorWithCouncil /> : <DesignGenerator />} />
           <Route path="/library" element={<DesignLibrary />} />
@@ -37,12 +40,12 @@ function App() {
         </Routes>
 
         {/* Mobile Navigation */}
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
+        <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-lg border-t border-gray-100 z-40">
           <div className="max-w-7xl mx-auto px-4">
             <div className="grid grid-cols-5 gap-1">
               <NavLink to="/" icon="home" label="Home" />
-              <NavLink to="/generate" icon="sparkles" label="Generate" />
-              <NavLink to="/visualize" icon="camera" label="Preview" />
+              <NavLink to="/generate" icon="sparkles" label="Forge" />
+              <NavLink to="/visualize" icon="camera" label="AR" />
               <NavLink to="/artists" icon="users" label="Artists" />
               <NavLink to="/library" icon="folder" label="Library" />
             </div>
@@ -50,7 +53,7 @@ function App() {
         </nav>
 
         {/* Bottom spacer for fixed nav */}
-        <div className="h-16" />
+        <div className="h-20" />
       </div>
     </Router>
   );
@@ -58,7 +61,8 @@ function App() {
 
 // Navigation Link Component
 function NavLink({ to, icon, label }) {
-  const isActive = window.location.pathname === to;
+  const location = useLocation();
+  const isActive = location.pathname === to;
 
   const icons = {
     home: (
@@ -84,14 +88,13 @@ function NavLink({ to, icon, label }) {
   return (
     <Link
       to={to}
-      className={`flex flex-col items-center justify-center py-3 transition-colors ${
-        isActive ? 'text-blue-600' : 'text-gray-600 hover:text-gray-900'
-      }`}
+      className={`flex flex-col items-center justify-center py-3 transition-colors ${isActive ? 'text-purple-600' : 'text-gray-400 hover:text-gray-600'
+        }`}
     >
-      <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className={`w-6 h-6 mb-1 ${isActive ? 'drop-shadow-[0_0_8px_rgba(124,58,237,0.3)]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
         {icons[icon]}
       </svg>
-      <span className="text-xs font-medium">{label}</span>
+      <span className="text-[10px] font-bold uppercase tracking-widest">{label}</span>
     </Link>
   );
 }

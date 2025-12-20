@@ -31,3 +31,6 @@ dist-ssr
 # Temporary image processing files
 temp/
 uploads/
+
+# Secrets
+google-credentials.json

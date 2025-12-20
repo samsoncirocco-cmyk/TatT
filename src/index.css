@@ -7,9 +7,11 @@
   --bg-secondary: #f9fafb;
   --text-primary: #111827;
   --text-secondary: #4b5563;
-  --accent-purple: #7c3aed;
-  /* CoCreate Purple */
-  --accent-purple-hover: #6d28d9;
+  --accent-green: #154733;
+  /* Oregon Duck Green */
+  --accent-yellow: #FEE123;
+  /* Oregon Duck Yellow */
+  --accent-green-hover: #0d2e21;
   --border-light: #e5e7eb;
   --glass-bg: rgba(255, 255, 255, 0.8);
 }
@@ -33,29 +35,48 @@ body {
   scrollbar-width: none;
 }
 
-/* CoCreate specific components */
+/* TatTester specific components */
 .btn-cocreate {
-  background-color: var(--accent-purple);
+  background-color: var(--accent-green);
   color: white;
   padding: 0.5rem 1rem;
-  border-radius: 0.25rem;
-  font-weight: 600;
+  border-radius: 4px;
+  font-weight: 700;
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
 }
 
 .btn-cocreate:hover {
-  background-color: var(--accent-purple-hover);
+  background-color: var(--accent-green-hover);
+  box-shadow: 0 4px 12px rgba(21, 71, 51, 0.2);
+}
+
+.btn-cocreate-yellow {
+  background-color: var(--accent-yellow);
+  color: var(--accent-green);
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 0 4px 0px #d4bc1d;
+  transition: all 0.1s;
+}
+
+.btn-cocreate-yellow:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0px #d4bc1d;
 }
 
 .btn-cocreate-outline {
-  border: 1px solid var(--accent-purple);
-  color: var(--accent-purple);
+  border: 1px solid var(--accent-green);
+  color: var(--accent-green);
   padding: 0.5rem 1rem;
-  border-radius: 0.25rem;
-  font-weight: 600;
+  border-radius: 4px;
+  font-weight: 700;
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
