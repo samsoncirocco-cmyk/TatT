@@ -21,6 +21,17 @@ vi.mock('../src/services/replicateService', () => ({
     todayRequests: 2,
     remainingBudget: 499.5
   })),
+  checkServiceHealth: vi.fn(() => Promise.resolve({
+    healthy: true,
+    status: 'healthy',
+    message: 'Service ready'
+  })),
+  HealthStatus: {
+    HEALTHY: 'healthy',
+    UNAVAILABLE: 'unavailable',
+    AUTH_REQUIRED: 'auth_required',
+    NOT_CONFIGURED: 'not_configured'
+  },
   AI_MODELS: {
     tattoo: {
       id: 'tattoo',

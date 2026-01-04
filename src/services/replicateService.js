@@ -196,9 +196,10 @@ export function getAPIUsage() {
  * @param {string} userInput.bodyPart - Body part placement
  * @param {string} userInput.size - Design size (small, medium, large)
  * @param {string} userInput.aiModel - AI model to use ('sdxl' or 'tattoo')
+ * @param {AbortSignal} signal - Optional abort signal to cancel polling
  * @returns {Promise<Object>} Generated design data with image URLs
  */
-export async function generateTattooDesign(userInput) {
+export async function generateTattooDesign(userInput, signal = null) {
   // Validate input
   const validation = validateInput(userInput);
   if (!validation.isValid) {
@@ -290,15 +291,34 @@ export async function generateTattooDesign(userInput) {
 
     console.log('[Replicate] Prediction created:', prediction.id);
 
-    // Step 2: Poll for completion
+    // Step 2: Poll for completion with abort support
     let result = prediction;
     const maxAttempts = 60; // 60 attempts × 2 seconds = 2 minutes max
     let attempts = 0;
 
     while (result.status !== 'succeeded' && result.status !== 'failed' && attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+      // Check for abort before waiting
+      if (signal?.aborted) {
+        console.log('[Replicate] Polling cancelled by user');
+        throw new Error('Generation cancelled');
+      }
 
-      result = await fetchJSON(`${PROXY_URL}/predictions/${prediction.id}`);
+      // Abortable wait
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(resolve, 2000);
+        signal?.addEventListener('abort', () => {
+          clearTimeout(timeout);
+          reject(new Error('Generation cancelled'));
+        }, { once: true });
+      });
+
+      // Check abort before fetching
+      if (signal?.aborted) {
+        console.log('[Replicate] Polling cancelled by user');
+        throw new Error('Generation cancelled');
+      }
+
+      result = await fetchJSON(`${PROXY_URL}/predictions/${prediction.id}`, { signal });
       attempts++;
 
       console.log(`[Replicate] Status: ${result.status} (attempt ${attempts}/${maxAttempts})`);
@@ -357,17 +377,29 @@ export async function generateTattooDesign(userInput) {
 
 /**
  * Retry logic for failed generations
- * Implements exponential backoff
+ * Implements exponential backoff with retry budget cap
+ *
+ * @param {Object} userInput - Design parameters
+ * @param {AbortSignal} signal - Optional abort signal
+ * @param {number} maxRetries - Maximum retry attempts (default: 3)
+ * @returns {Promise<Object>} Generated design data
  */
-export async function generateWithRetry(userInput, maxRetries = 3) {
+export async function generateWithRetry(userInput, signal = null, maxRetries = 3) {
   let lastError;
+  let retryBudget = maxRetries;
 
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+  for (let attempt = 1; attempt <= retryBudget; attempt++) {
     try {
-      console.log(`[Replicate] Generation attempt ${attempt}/${maxRetries}`);
-      return await generateTattooDesign(userInput);
+      console.log(`[Replicate] Generation attempt ${attempt}/${retryBudget}`);
+      return await generateTattooDesign(userInput, signal);
     } catch (error) {
       lastError = error;
+
+      // Don't retry on cancellation
+      if (error.message.includes('cancelled') || signal?.aborted) {
+        console.log('[Replicate] Retry aborted by user');
+        throw error;
+      }
 
       // Don't retry on authentication or validation errors
       if (
@@ -378,12 +410,23 @@ export async function generateWithRetry(userInput, maxRetries = 3) {
         throw error;
       }
 
-      // Wait before retrying (exponential backoff)
-      if (attempt < maxRetries) {
-        const waitTime = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
-        console.log(`[Replicate] Retrying in ${waitTime / 1000}s...`);
-        await new Promise(resolve => setTimeout(resolve, waitTime));
+      // Check if retry budget exhausted
+      if (attempt >= retryBudget) {
+        console.error(`[Replicate] Retry budget exhausted (${retryBudget} attempts)`);
+        throw new Error(`Failed after ${retryBudget} attempts: ${error.message}`);
       }
+
+      // Wait before retrying (exponential backoff)
+      const waitTime = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+      console.log(`[Replicate] Retrying in ${waitTime / 1000}s... (${retryBudget - attempt} retries left)`);
+      
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(resolve, waitTime);
+        signal?.addEventListener('abort', () => {
+          clearTimeout(timeout);
+          reject(new Error('Retry cancelled'));
+        }, { once: true });
+      });
     }
   }
 
@@ -391,15 +434,34 @@ export async function generateWithRetry(userInput, maxRetries = 3) {
 }
 
 /**
+ * Health check result types
+ */
+export const HealthStatus = {
+  HEALTHY: 'healthy',
+  UNAVAILABLE: 'unavailable',
+  AUTH_REQUIRED: 'auth_required',
+  NOT_CONFIGURED: 'not_configured'
+};
+
+/**
  * Check if Replicate service is configured and accessible
+ * Returns typed health status for UI banner display
+ *
+ * @returns {Promise<Object>} Health status with banner message
  */
 export async function checkServiceHealth() {
   try {
     if (!PROXY_URL) {
       return {
+        status: HealthStatus.NOT_CONFIGURED,
         healthy: false,
         error: 'Proxy URL not configured. Set VITE_PROXY_URL in your .env file.',
-        code: ErrorCodes.NETWORK_ERROR
+        code: ErrorCodes.NETWORK_ERROR,
+        banner: {
+          type: 'error',
+          message: 'Backend not configured. Please check your environment settings.',
+          action: 'Check .env file'
+        }
       };
     }
 
@@ -408,13 +470,20 @@ export async function checkServiceHealth() {
 
     if (!data.hasToken) {
       return {
+        status: HealthStatus.AUTH_REQUIRED,
         healthy: false,
         error: 'API token not configured on server',
-        code: ErrorCodes.AUTH_INVALID
+        code: ErrorCodes.AUTH_INVALID,
+        banner: {
+          type: 'warning',
+          message: 'API credentials not configured on server.',
+          action: 'Contact administrator'
+        }
       };
     }
 
     return {
+      status: HealthStatus.HEALTHY,
       healthy: true,
       message: 'Replicate service is ready',
       authRequired: data.authRequired
@@ -422,16 +491,30 @@ export async function checkServiceHealth() {
   } catch (error) {
     if (error instanceof FetchError) {
       return {
+        status: HealthStatus.UNAVAILABLE,
         healthy: false,
         error: getUserErrorMessage(error),
-        code: error.code
+        code: error.code,
+        banner: {
+          type: 'error',
+          message: error.code === ErrorCodes.AUTH_INVALID 
+            ? 'Authentication failed. Check your credentials.'
+            : 'Cannot connect to server. Make sure the backend is running.',
+          action: error.code === ErrorCodes.NETWORK_ERROR ? 'Start server' : 'Check auth'
+        }
       };
     }
 
     return {
+      status: HealthStatus.UNAVAILABLE,
       healthy: false,
       error: 'Cannot connect to proxy server. Make sure the backend is running.',
-      code: ErrorCodes.NETWORK_ERROR
+      code: ErrorCodes.NETWORK_ERROR,
+      banner: {
+        type: 'error',
+        message: 'Backend server is offline.',
+        action: 'Run npm run server'
+      }
     };
   }
 }
@@ -482,13 +565,17 @@ const rateLimiter = {
 
 /**
  * Generate with rate limiting
+ *
+ * @param {Object} userInput - Design parameters
+ * @param {AbortSignal} signal - Optional abort signal for cancellation
+ * @returns {Promise<Object>} Generated design data
  */
-export async function generateWithRateLimit(userInput) {
+export async function generateWithRateLimit(userInput, signal = null) {
   if (!rateLimiter.canMakeRequest()) {
     const waitTime = rateLimiter.getTimeUntilNextRequest();
     throw new Error(`Rate limit reached. Please wait ${Math.ceil(waitTime / 1000)} seconds before generating again.`);
   }
 
   rateLimiter.recordRequest();
-  return generateWithRetry(userInput);
+  return generateWithRetry(userInput, signal);
 }

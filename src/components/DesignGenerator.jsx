@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { generateWithRateLimit, getAPIUsage, AI_MODELS } from '../services/replicateService';
+import { generateWithRateLimit, getAPIUsage, AI_MODELS, checkServiceHealth, HealthStatus } from '../services/replicateService';
 import { saveDesign } from '../services/designLibraryService';
 import { getRecommendedModel, getRandomTip } from '../config/promptTemplates';
 import { useToast } from '../hooks/useToast';
@@ -32,6 +32,7 @@ export default function DesignGenerator() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedDesigns, setGeneratedDesigns] = useState(null);
   const [error, setError] = useState(null);
+  const [serviceHealth, setServiceHealth] = useState(null);
 
   // UI state
   const [selectedImage, setSelectedImage] = useState(null);
@@ -46,11 +47,16 @@ export default function DesignGenerator() {
 
   // Refs for cleanup
   const tipIntervalRef = useRef(null);
+  const abortControllerRef = useRef(null);
 
-  // Load API usage on mount
+  // Load API usage and check service health on mount
   useEffect(() => {
     const usage = getAPIUsage();
     setApiUsage(usage);
+    
+    checkServiceHealth().then(health => {
+      setServiceHealth(health);
+    });
   }, []);
 
   // Auto-recommend AI model based on selected style
@@ -64,12 +70,16 @@ export default function DesignGenerator() {
     }
   }, [formData.style, formData.aiModel]);
 
-  // Cleanup tip interval on unmount or when generation completes
+  // Cleanup tip interval and abort controller on unmount
   useEffect(() => {
     return () => {
       if (tipIntervalRef.current) {
         clearInterval(tipIntervalRef.current);
         tipIntervalRef.current = null;
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
       }
     };
   }, []);
@@ -105,6 +115,9 @@ export default function DesignGenerator() {
     setError(null);
     setGeneratedDesigns(null);
 
+    // Create abort controller for cancellation
+    abortControllerRef.current = new AbortController();
+
     // Start showing tips with proper cleanup
     setCurrentTip(getRandomTip());
     tipIntervalRef.current = setInterval(() => {
@@ -114,7 +127,7 @@ export default function DesignGenerator() {
     try {
       console.log('[DesignGenerator] Generating designs with:', formData);
 
-      const result = await generateWithRateLimit(formData);
+      const result = await generateWithRateLimit(formData, abortControllerRef.current.signal);
 
       console.log('[DesignGenerator] Generation successful:', result);
 
@@ -126,7 +139,11 @@ export default function DesignGenerator() {
 
     } catch (err) {
       console.error('[DesignGenerator] Generation failed:', err);
-      setError(err.message || 'Failed to generate designs. Please try again.');
+      
+      // Don't show error toast for user-cancelled generations
+      if (!err.message.includes('cancelled')) {
+        setError(err.message || 'Failed to generate designs. Please try again.');
+      }
     } finally {
       setIsGenerating(false);
       
@@ -136,6 +153,9 @@ export default function DesignGenerator() {
         tipIntervalRef.current = null;
       }
       setCurrentTip(null);
+      
+      // Clean up abort controller
+      abortControllerRef.current = null;
     }
   };
 
@@ -200,6 +220,40 @@ export default function DesignGenerator() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+        {/* Service Health Banner */}
+        {serviceHealth && !serviceHealth.healthy && serviceHealth.banner && (
+          <div className={`rounded-lg p-4 mb-6 ${
+            serviceHealth.banner.type === 'error' 
+              ? 'bg-error-50 border border-error-200' 
+              : 'bg-warning-50 border border-warning-200'
+          }`}>
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <p className={`text-sm font-medium ${
+                  serviceHealth.banner.type === 'error' ? 'text-error-900' : 'text-warning-900'
+                }`}>
+                  ⚠️ {serviceHealth.banner.message}
+                </p>
+                {serviceHealth.banner.action && (
+                  <p className={`text-xs mt-1 ${
+                    serviceHealth.banner.type === 'error' ? 'text-error-700' : 'text-warning-700'
+                  }`}>
+                    Action: {serviceHealth.banner.action}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => setServiceHealth(null)}
+                className={`ml-4 text-sm font-medium ${
+                  serviceHealth.banner.type === 'error' ? 'text-error-700 hover:text-error-900' : 'text-warning-700 hover:text-warning-900'
+                }`}
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Budget Tracker */}
         {apiUsage && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
