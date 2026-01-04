@@ -6,12 +6,20 @@
  *
  * Storage Structure:
  * - Each design has unique ID
- * - Stores image URL/data, metadata, and user preferences
+ * - Stores image URLs ONLY (no base64 blobs)
  * - Maintains creation timestamp for sorting
+ * - Auto-purges expired designs
  *
  * Budget Note: localStorage is free and works offline.
  * Perfect for MVP before implementing backend.
  */
+
+import { 
+  safeLocalStorageGet, 
+  safeLocalStorageSet, 
+  validateDesign, 
+  purgeExpiredDesigns 
+} from './storageService.js';
 
 const LIBRARY_STORAGE_KEY = 'tattester_design_library';
 const MAX_DESIGNS = 50; // Limit to prevent localStorage overflow
@@ -46,10 +54,10 @@ function generateId() {
  */
 export function getAllDesigns() {
   try {
-    const library = localStorage.getItem(LIBRARY_STORAGE_KEY);
-    if (!library) return [];
-
-    const designs = JSON.parse(library);
+    // Auto-purge expired designs on read
+    purgeExpiredDesigns();
+    
+    const designs = safeLocalStorageGet(LIBRARY_STORAGE_KEY, []);
     return Array.isArray(designs) ? designs : [];
   } catch (error) {
     console.error('[DesignLibrary] Error loading designs:', error);
@@ -83,13 +91,23 @@ export function saveDesign(imageUrl, metadata, userInput) {
     // Create new design
     const newDesign = createDesign(imageUrl, metadata, userInput);
 
+    // Validate design (no base64 blobs)
+    const validation = validateDesign(newDesign);
+    if (!validation.valid) {
+      throw new Error(`Invalid design: ${validation.errors.join(', ')}`);
+    }
+
     // Add to beginning of array (most recent first)
     designs.unshift(newDesign);
 
-    // Save to localStorage
-    localStorage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify(designs));
+    // Save to localStorage with safety checks
+    const result = safeLocalStorageSet(LIBRARY_STORAGE_KEY, designs);
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to save design');
+    }
 
-    console.log('[DesignLibrary] Design saved:', newDesign.id);
+    console.log('[DesignLibrary] Design saved:', newDesign.id, `(${result.sizeKB}KB)`);
 
     return newDesign;
   } catch (error) {
@@ -130,7 +148,11 @@ export function updateDesign(designId, updates) {
       }
     };
 
-    localStorage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify(designs));
+    const result = safeLocalStorageSet(LIBRARY_STORAGE_KEY, designs);
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to update design');
+    }
 
     return designs[index];
   } catch (error) {
@@ -147,7 +169,11 @@ export function deleteDesign(designId) {
     const designs = getAllDesigns();
     const filtered = designs.filter(d => d.id !== designId);
 
-    localStorage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify(filtered));
+    const result = safeLocalStorageSet(LIBRARY_STORAGE_KEY, filtered);
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to delete design');
+    }
 
     console.log('[DesignLibrary] Design deleted:', designId);
 
@@ -317,7 +343,11 @@ export function importLibrary(file) {
           )
           .slice(0, MAX_DESIGNS);
 
-        localStorage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify(uniqueDesigns));
+        const result = safeLocalStorageSet(LIBRARY_STORAGE_KEY, uniqueDesigns);
+        
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to import library');
+        }
 
         resolve({
           imported: importData.designs.length,

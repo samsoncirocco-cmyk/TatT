@@ -52,12 +52,20 @@ AI-powered tattoo visualization platform that transforms first-time tattoo seeke
 
 3. **Configure environment variables**
 
-   Create or update `.env` file:
+   Create a `.env` file in the project root:
    ```bash
-   VITE_REPLICATE_API_TOKEN=your_actual_replicate_api_token
+   # Server-side API token (never exposed to client)
+   REPLICATE_API_TOKEN=your_actual_replicate_api_token
+   
+   # Frontend auth token (change in production)
+   FRONTEND_AUTH_TOKEN=dev-token-change-in-production
+   VITE_FRONTEND_AUTH_TOKEN=dev-token-change-in-production
+   
+   # Proxy URL for frontend
+   VITE_PROXY_URL=http://localhost:3001/api
    ```
 
-   Get your token from: https://replicate.com/account/api-tokens
+   Get your Replicate token from: https://replicate.com/account/api-tokens
 
 4. **Start development servers**
    ```bash
@@ -241,9 +249,11 @@ npm run lint     # Run ESLint
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `VITE_REPLICATE_API_TOKEN` | Your Replicate API token | Yes |
-| `REPLICATE_API_TOKEN` | Server-side Replicate token (same as above) | Yes |
+| `REPLICATE_API_TOKEN` | Server-side Replicate API token (never exposed to client) | Yes |
+| `FRONTEND_AUTH_TOKEN` | Server-side auth token for proxy protection | Yes |
+| `VITE_FRONTEND_AUTH_TOKEN` | Client-side auth token (must match FRONTEND_AUTH_TOKEN) | Yes |
 | `VITE_PROXY_URL` | Backend proxy URL (default: http://localhost:3001/api) | No |
+| `ALLOWED_ORIGINS` | Comma-separated CORS whitelist | No |
 | `VITE_DEMO_MODE` | Enable demo mode (true/false) | No |
 
 ## Scaling Considerations

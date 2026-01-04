@@ -9,16 +9,11 @@ import { useState, useEffect, useRef } from 'react';
 import { generateWithRateLimit, getAPIUsage, AI_MODELS } from '../services/replicateService';
 import { saveDesign } from '../services/designLibraryService';
 import { getRecommendedModel, getRandomTip } from '../config/promptTemplates';
-import { useToast } from '../hooks/useToast';
-import { ToastContainer } from './ui/Toast';
 import DesignForm from './generator/DesignForm';
 import ResultsGrid from './generator/ResultsGrid';
 import GeneratorModals from './generator/GeneratorModals';
 
 export default function DesignGenerator() {
-  // Toast notifications
-  const { toast, toasts, removeToast } = useToast();
-
   // Form state
   const [formData, setFormData] = useState({
     style: 'traditional',
@@ -155,11 +150,12 @@ export default function DesignGenerator() {
 
       console.log('[DesignGenerator] Design saved to library:', design.id);
 
-      toast.success('Design saved to your library!');
+      // TODO: Replace with toast notification
+      alert('Design saved to your library!');
 
     } catch (err) {
       console.error('[DesignGenerator] Failed to save:', err);
-      toast.error(`Failed to save design: ${err.message}`);
+      alert(`Failed to save design: ${err.message}`);
     }
   };
 
@@ -184,7 +180,8 @@ export default function DesignGenerator() {
 
     setSelectedForInpainting(null);
 
-    toast.success('Design edited successfully! Your customized design is now in the gallery.');
+    // TODO: Replace with toast notification
+    alert('Design edited successfully! Your customized design is now in the gallery.');
   };
 
   return (
@@ -266,9 +263,6 @@ export default function DesignGenerator() {
           onCloseInpainting={() => setSelectedForInpainting(null)}
         />
       </main>
-
-      {/* Toast Notifications */}
-      <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   );
 }

@@ -62,7 +62,9 @@ function App() {
 // Navigation Link Component
 function NavLink({ to, icon, label }) {
   const location = useLocation();
-  const isActive = location.pathname === to;
+  // Fix: Use startsWith for nested routes like /artists/:id
+  const isActive = location.pathname === to || 
+    (to !== '/' && location.pathname.startsWith(to));
 
   const icons = {
     home: (

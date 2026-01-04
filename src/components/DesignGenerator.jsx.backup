@@ -1,53 +1,33 @@
 /**
- * Design Generator with LLM Council Integration
+ * Design Generator Component
  *
- * Enhanced version of DesignGenerator that uses the LLM Council
- * to generate better prompts before calling the image generation API.
+ * Main interface for AI tattoo design generation.
+ * Mobile-first, clean gallery-like aesthetic.
  *
  * User Flow:
- * 1. User enters basic idea (e.g., "dragon")
- * 2. User clicks "Enhance with AI Council"
- * 3. Council generates 3 detailed prompt levels
- * 4. User selects prompt level or customizes
- * 5. Image generation uses enhanced prompt
- * 6. Better tattoo designs generated!
- *
- * Features:
- * - AI-powered prompt enhancement
- * - Real-time council discussion visualization
- * - Multiple detail levels
- * - Custom prompt editing
- * - Backward compatible with direct generation
+ * 1. Select style, enter subject, choose body part and size
+ * 2. Click generate
+ * 3. View 4 variations in responsive grid
+ * 4. Tap to enlarge, save favorites to library
  */
 
 import { useState, useEffect } from 'react';
 import { generateWithRateLimit, getAPIUsage, AI_MODELS } from '../services/replicateService';
 import { saveDesign } from '../services/designLibraryService';
-import { TATTOO_STYLES, BODY_PART_SPECS, SIZE_SPECS } from '../config/promptTemplates';
-import { useToast } from '../hooks/useToast';
-import { ToastContainer } from './ui/Toast';
-import PromptEnhancer from './PromptEnhancer';
-import CouncilLoadingState from './CouncilLoadingState';
+import { processInBrowser, optimizeForAR } from '../services/imageProcessingService';
+import { TATTOO_STYLES, BODY_PART_SPECS, SIZE_SPECS, getTemplateCategories, getTemplatesByCategory, getRecommendedModel, getRandomTip } from '../config/promptTemplates';
 import StencilExport from './StencilExport';
 import InpaintingEditor from './InpaintingEditor';
 
-export default function DesignGeneratorWithCouncil() {
-  // Toast notifications
-  const { toast, toasts, removeToast } = useToast();
-
+export default function DesignGenerator() {
   // Form state
   const [formData, setFormData] = useState({
     style: 'traditional',
     subject: '',
     bodyPart: 'forearm',
     size: 'medium',
-    aiModel: 'tattoo'
+    aiModel: 'tattoo' // Default to tattoo-specific model
   });
-
-  // Enhanced prompt state
-  const [enhancedPrompt, setEnhancedPrompt] = useState(null);
-  const [negativePrompt, setNegativePrompt] = useState(null);
-  const [showEnhancer, setShowEnhancer] = useState(false);
 
   // Generation state
   const [isGenerating, setIsGenerating] = useState(false);
@@ -61,6 +41,10 @@ export default function DesignGeneratorWithCouncil() {
   const [selectedForStencil, setSelectedForStencil] = useState(null);
   const [selectedForInpainting, setSelectedForInpainting] = useState(null);
   const [inpaintedImages, setInpaintedImages] = useState({});
+  const [showTemplates, setShowTemplates] = useState(false);
+
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [currentTip, setCurrentTip] = useState(null);
 
   // Load API usage on mount
   useEffect(() => {
@@ -68,32 +52,40 @@ export default function DesignGeneratorWithCouncil() {
     setApiUsage(usage);
   }, []);
 
+  // Auto-recommend AI model based on selected style
+  useEffect(() => {
+    const recommendedModel = getRecommendedModel(formData.style);
+    if (formData.aiModel !== recommendedModel) {
+      setFormData(prev => ({
+        ...prev,
+        aiModel: recommendedModel
+      }));
+    }
+  }, [formData.style]);
+
   // Handle form field changes
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
-
-    // Reset enhanced prompt if user changes subject
-    if (field === 'subject') {
-      setEnhancedPrompt(null);
-      setNegativePrompt(null);
-    }
   };
 
-  // Handle prompt enhancement selection
-  const handlePromptSelected = (prompt, negative) => {
-    console.log('[DesignGenerator] Prompt enhanced:', { prompt, negative });
-    setEnhancedPrompt(prompt);
-    setNegativePrompt(negative);
-    setShowEnhancer(false);
+  // Handle template selection
+  const handleTemplateSelect = (template) => {
+    setFormData(prev => ({
+      ...prev,
+      subject: template.subject,
+      style: template.recommendedStyle || prev.style
+    }));
+    setShowTemplates(false);
+    setSelectedCategory(null);
   };
 
   // Handle generate button click
   const handleGenerate = async () => {
     // Validate input
-    if (!formData.subject.trim() && !enhancedPrompt) {
+    if (!formData.subject.trim()) {
       setError('Please describe what you want in your tattoo');
       return;
     }
@@ -102,20 +94,17 @@ export default function DesignGeneratorWithCouncil() {
     setError(null);
     setGeneratedDesigns(null);
 
-    try {
-      console.log('[DesignGenerator] Generating designs with:', {
-        ...formData,
-        enhancedPrompt,
-        negativePrompt
-      });
+    // Start showing tips
+    setCurrentTip(getRandomTip());
+    const tipInterval = setInterval(() => {
+      setCurrentTip(getRandomTip());
+    }, 4000);
 
-      // Call Replicate API with enhanced prompt (if available)
-      const result = await generateWithRateLimit({
-        ...formData,
-        // Override subject with enhanced prompt if available
-        subject: enhancedPrompt || formData.subject,
-        negativePrompt: negativePrompt
-      });
+    try {
+      console.log('[DesignGenerator] Generating designs with:', formData);
+
+      // Call Replicate API
+      const result = await generateWithRateLimit(formData);
 
       console.log('[DesignGenerator] Generation successful:', result);
 
@@ -130,6 +119,8 @@ export default function DesignGeneratorWithCouncil() {
       setError(err.message || 'Failed to generate designs. Please try again.');
     } finally {
       setIsGenerating(false);
+      clearInterval(tipInterval);
+      setCurrentTip(null);
     }
   };
 
@@ -140,9 +131,7 @@ export default function DesignGeneratorWithCouncil() {
         imageUrl,
         {
           ...generatedDesigns.metadata,
-          variationIndex: index,
-          enhancedPrompt: enhancedPrompt || null,
-          negativePrompt: negativePrompt || null
+          variationIndex: index
         },
         formData
       );
@@ -151,11 +140,12 @@ export default function DesignGeneratorWithCouncil() {
 
       console.log('[DesignGenerator] Design saved to library:', design.id);
 
-      toast.success('Design saved to your library!');
+      // Show success feedback
+      alert('Design saved to your library!');
 
     } catch (err) {
       console.error('[DesignGenerator] Failed to save:', err);
-      toast.error(`Failed to save design: ${err.message}`);
+      alert(`Failed to save design: ${err.message}`);
     }
   };
 
@@ -173,6 +163,7 @@ export default function DesignGeneratorWithCouncil() {
   const handleInpaintingSave = (newImageUrl) => {
     console.log('[DesignGenerator] Inpainting complete, new image:', newImageUrl);
 
+    // Replace the image in the generated designs
     if (generatedDesigns && selectedForInpainting !== null) {
       const updatedImages = [...generatedDesigns.images];
       updatedImages[selectedForInpainting] = newImageUrl;
@@ -182,14 +173,18 @@ export default function DesignGeneratorWithCouncil() {
         images: updatedImages
       });
 
+      // Track which images have been inpainted
       setInpaintedImages(prev => ({
         ...prev,
         [selectedForInpainting]: true
       }));
     }
 
+    // Close the editor
     setSelectedForInpainting(null);
-    toast.success('Design edited successfully!');
+
+    // Show success message
+    alert('Design edited successfully! Your customized design is now in the gallery.');
   };
 
   return (
@@ -197,22 +192,10 @@ export default function DesignGeneratorWithCouncil() {
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">AI Tattoo Designer</h1>
-              <p className="text-sm text-gray-600 mt-1">
-                Create custom tattoo designs with AI Council enhancement
-              </p>
-            </div>
-            {enhancedPrompt && (
-              <div className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium flex items-center">
-                <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
-                Council Enhanced
-              </div>
-            )}
-          </div>
+          <h1 className="text-2xl font-bold text-gray-900">AI Tattoo Designer</h1>
+          <p className="text-sm text-gray-600 mt-1">
+            Create custom tattoo designs with AI
+          </p>
         </div>
       </header>
 
@@ -222,14 +205,20 @@ export default function DesignGeneratorWithCouncil() {
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-blue-900">Budget Tracker</p>
+                <p className="text-sm font-medium text-blue-900">
+                  Budget Tracker
+                </p>
                 <p className="text-xs text-blue-700 mt-1">
                   ${apiUsage.totalSpent.toFixed(2)} spent / ${apiUsage.remainingBudget.toFixed(2)} remaining
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-xs text-blue-700">Today: {apiUsage.todayRequests} requests</p>
-                <p className="text-xs text-blue-600">${apiUsage.todaySpent.toFixed(2)}</p>
+                <p className="text-xs text-blue-700">
+                  Today: {apiUsage.todayRequests} requests
+                </p>
+                <p className="text-xs text-blue-600">
+                  ${apiUsage.todaySpent.toFixed(2)}
+                </p>
               </div>
             </div>
           </div>
@@ -244,32 +233,40 @@ export default function DesignGeneratorWithCouncil() {
           {/* AI Model Selector */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              AI Model
+              AI Model <span className="text-xs text-gray-500 font-normal">(Auto-selected based on your style)</span>
             </label>
             <div className="grid grid-cols-2 gap-3">
-              {Object.entries(AI_MODELS).map(([key, model]) => (
-                <button
-                  key={key}
-                  onClick={() => handleInputChange('aiModel', key)}
-                  className={`p-3 border rounded-lg text-left transition-all ${
-                    formData.aiModel === key
+              {Object.entries(AI_MODELS).map(([key, model]) => {
+                const isRecommended = getRecommendedModel(formData.style) === key;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => handleInputChange('aiModel', key)}
+                    className={`p-3 border rounded-lg text-left transition-all relative ${formData.aiModel === key
                       ? 'bg-blue-600 text-white border-blue-600'
                       : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
-                  }`}
-                >
-                  <div className="font-medium text-sm">{model.name}</div>
-                  <div className={`text-xs mt-1 ${
-                    formData.aiModel === key ? 'text-blue-100' : 'text-gray-500'
-                  }`}>
-                    {model.description}
-                  </div>
-                  <div className={`text-xs mt-1 font-medium ${
-                    formData.aiModel === key ? 'text-blue-200' : 'text-gray-600'
-                  }`}>
-                    ${(model.cost * model.params.num_outputs).toFixed(4)} per request
-                  </div>
-                </button>
-              ))}
+                      }`}
+                  >
+                    {isRecommended && (
+                      <span className={`absolute top-2 right-2 text-xs px-2 py-0.5 rounded font-medium ${formData.aiModel === key
+                        ? 'bg-green-400 text-green-900'
+                        : 'bg-green-100 text-green-700'
+                        }`}>
+                        Recommended
+                      </span>
+                    )}
+                    <div className="font-medium text-sm">{model.name}</div>
+                    <div className={`text-xs mt-1 ${formData.aiModel === key ? 'text-blue-100' : 'text-gray-500'
+                      }`}>
+                      {model.description}
+                    </div>
+                    <div className={`text-xs mt-1 font-medium ${formData.aiModel === key ? 'text-blue-200' : 'text-gray-600'
+                      }`}>
+                      ${(model.cost * model.params.num_outputs).toFixed(4)} per request
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -294,6 +291,79 @@ export default function DesignGeneratorWithCouncil() {
             </p>
           </div>
 
+          {/* Guided Prompt Templates */}
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Need inspiration?
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowTemplates(!showTemplates)}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                {showTemplates ? 'Hide Templates' : 'Browse Templates'}
+              </button>
+            </div>
+
+            {showTemplates && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4">
+                <p className="text-xs text-gray-600">
+                  Choose from pre-made templates designed to reduce anxiety and improve results
+                </p>
+
+                {/* Category Selection */}
+                {!selectedCategory && (
+                  <div className="grid grid-cols-2 gap-3">
+                    {getTemplateCategories().map((category) => (
+                      <button
+                        key={category.id}
+                        onClick={() => setSelectedCategory(category.id)}
+                        className="p-3 bg-white border border-gray-300 rounded-lg hover:border-blue-400 hover:shadow-sm transition-all text-left"
+                      >
+                        <div className="text-2xl mb-1">{category.icon}</div>
+                        <div className="font-medium text-sm text-gray-900">{category.name}</div>
+                        <div className="text-xs text-gray-600 mt-1">{category.description}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Template List */}
+                {selectedCategory && (
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => setSelectedCategory(null)}
+                      className="text-xs text-blue-600 hover:text-blue-700 mb-2"
+                    >
+                      ← Back to categories
+                    </button>
+                    {getTemplatesByCategory(selectedCategory).map((template) => (
+                      <button
+                        key={template.id}
+                        onClick={() => handleTemplateSelect(template)}
+                        className="w-full p-3 bg-white border border-gray-300 rounded-lg hover:border-blue-400 hover:shadow-sm transition-all text-left"
+                      >
+                        <div className="font-medium text-sm text-gray-900 mb-1">{template.name}</div>
+                        <div className="text-xs text-gray-600 mb-2">{template.subject}</div>
+                        <div className="flex flex-wrap gap-1">
+                          {template.keywords.map((keyword, idx) => (
+                            <span
+                              key={idx}
+                              className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded"
+                            >
+                              {keyword}
+                            </span>
+                          ))}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Subject Input */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -303,73 +373,52 @@ export default function DesignGeneratorWithCouncil() {
               type="text"
               value={formData.subject}
               onChange={(e) => handleInputChange('subject', e.target.value)}
-              placeholder="e.g., dragon, geometric wolf, rose with thorns..."
+              placeholder="e.g., wolf and moon, rose with thorns, geometric mountains..."
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
             <p className="mt-1 text-xs text-gray-500">
-              Start simple! The AI Council will enhance it for you.
+              Be specific! The more detail, the better the result.
             </p>
           </div>
 
-          {/* Body Part & Size Row */}
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Body Placement
-              </label>
-              <select
-                value={formData.bodyPart}
-                onChange={(e) => handleInputChange('bodyPart', e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
-              >
-                {Object.entries(BODY_PART_SPECS).map(([key, spec]) => (
-                  <option key={key} value={key}>
-                    {spec.displayName}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Size
-              </label>
-              <select
-                value={formData.size}
-                onChange={(e) => handleInputChange('size', e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
-              >
-                {Object.entries(SIZE_SPECS).map(([key, spec]) => (
-                  <option key={key} value={key}>
-                    {spec.displayName}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* Body Part Selector */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Body Placement
+            </label>
+            <select
+              value={formData.bodyPart}
+              onChange={(e) => handleInputChange('bodyPart', e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
+            >
+              {Object.entries(BODY_PART_SPECS).map(([key, spec]) => (
+                <option key={key} value={key}>
+                  {spec.displayName}
+                </option>
+              ))}
+            </select>
           </div>
 
-          {/* Show Enhanced Prompt (if set) */}
-          {enhancedPrompt && !showEnhancer && (
-            <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-              <div className="flex items-start justify-between mb-2">
-                <p className="text-sm font-semibold text-purple-900">
-                  ✨ AI Enhanced Prompt:
-                </p>
+          {/* Size Selector */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Size
+            </label>
+            <div className="grid grid-cols-3 gap-3">
+              {Object.entries(SIZE_SPECS).map(([key, spec]) => (
                 <button
-                  onClick={() => {
-                    setEnhancedPrompt(null);
-                    setNegativePrompt(null);
-                  }}
-                  className="text-xs text-purple-600 hover:text-purple-700"
+                  key={key}
+                  onClick={() => handleInputChange('size', key)}
+                  className={`px-4 py-3 border rounded-lg font-medium transition-all ${formData.size === key
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                    }`}
                 >
-                  Clear
+                  {spec.displayName.split(' ')[0]}
                 </button>
-              </div>
-              <p className="text-sm text-purple-800 leading-relaxed">
-                {enhancedPrompt}
-              </p>
+              ))}
             </div>
-          )}
+          </div>
 
           {/* Error Message */}
           {error && (
@@ -378,77 +427,39 @@ export default function DesignGeneratorWithCouncil() {
             </div>
           )}
 
-          {/* Action Buttons */}
-          <div className="space-y-3">
-            {/* Enhance Prompt Button */}
-            {!enhancedPrompt && !showEnhancer && (
-              <button
-                onClick={() => setShowEnhancer(true)}
-                disabled={!formData.subject.trim()}
-                className={`w-full py-3 px-4 rounded-lg font-semibold transition-all flex items-center justify-center ${
-                  formData.subject.trim()
-                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl'
-                    : 'bg-gray-400 cursor-not-allowed text-white'
-                }`}
-              >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                ✨ Enhance with AI Council
-              </button>
-            )}
-
-            {/* Generate Button */}
-            <button
-              onClick={handleGenerate}
-              disabled={isGenerating || (!formData.subject.trim() && !enhancedPrompt)}
-              className={`w-full py-4 rounded-lg font-semibold text-white transition-all ${
-                isGenerating || (!formData.subject.trim() && !enhancedPrompt)
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700 active:scale-98'
+          {/* Generate Button */}
+          <button
+            onClick={handleGenerate}
+            disabled={isGenerating || !formData.subject.trim()}
+            className={`w-full py-4 rounded-lg font-semibold text-white transition-all ${isGenerating || !formData.subject.trim()
+              ? 'bg-gray-400 cursor-not-allowed'
+              : 'bg-blue-600 hover:bg-blue-700 active:scale-98'
               }`}
-            >
-              {isGenerating ? (
-                <CouncilLoadingState message="Generating your tattoo designs..." />
-              ) : (
-                `Generate Design ${enhancedPrompt ? '(Enhanced)' : ''}`
-              )}
-            </button>
+          >
+            {isGenerating ? (
+              <span className="flex flex-col items-center justify-center">
+                <div className="flex items-center mb-2">
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Consulting with AI tattoo artist...
+                </div>
+                {currentTip && (
+                  <span className="text-sm font-normal text-blue-100 animate-pulse bg-blue-700/50 px-3 py-1 rounded-full">
+                    {currentTip.text}
+                  </span>
+                )}
+              </span>
+            ) : (
+              'Generate Design'
+            )}
+          </button>
 
-            <p className="text-xs text-center text-gray-500">
-              {enhancedPrompt
-                ? '✨ Using AI-enhanced prompt for better results'
-                : 'Tip: Enhance your prompt with AI Council for better designs!'
-              }
-            </p>
-          </div>
+          <p className="mt-2 text-xs text-center text-gray-500">
+            Generates 4 unique variations (~${(AI_MODELS[formData.aiModel].cost * AI_MODELS[formData.aiModel].params.num_outputs).toFixed(4)} per request)
+          </p>
         </div>
-
-        {/* Prompt Enhancer Panel */}
-        {showEnhancer && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">
-                AI Council Prompt Enhancement
-              </h2>
-              <button
-                onClick={() => setShowEnhancer(false)}
-                className="text-gray-500 hover:text-gray-700 transition-colors"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <PromptEnhancer
-              userInput={formData.subject}
-              onPromptSelected={handlePromptSelected}
-              style={formData.style}
-              bodyPart={formData.bodyPart}
-            />
-          </div>
-        )}
 
         {/* Generated Designs Grid */}
         {generatedDesigns && (
@@ -477,10 +488,16 @@ export default function DesignGeneratorWithCouncil() {
                     {generatedDesigns.metadata.bodyPart}
                   </span>
                 </div>
-                <div className="col-span-2">
-                  <span className="text-gray-600">Prompt:</span>
+                <div>
+                  <span className="text-gray-600">Subject:</span>
                   <span className="ml-2 font-medium text-gray-900">
-                    {enhancedPrompt ? '✨ AI Enhanced' : generatedDesigns.metadata.subject}
+                    {generatedDesigns.metadata.subject}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Size:</span>
+                  <span className="ml-2 font-medium text-gray-900">
+                    {generatedDesigns.metadata.size}
                   </span>
                 </div>
               </div>
@@ -493,6 +510,7 @@ export default function DesignGeneratorWithCouncil() {
                   key={index}
                   className="relative group rounded-lg overflow-hidden bg-gray-100 aspect-square"
                 >
+                  {/* Image */}
                   <img
                     src={imageUrl}
                     alt={`Variation ${index + 1}`}
@@ -500,8 +518,10 @@ export default function DesignGeneratorWithCouncil() {
                     onClick={() => handleImageClick(imageUrl)}
                   />
 
+                  {/* Hover Overlay */}
                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all pointer-events-none" />
 
+                  {/* Action Buttons */}
                   <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                     <div className="space-y-2">
                       <button
@@ -519,11 +539,10 @@ export default function DesignGeneratorWithCouncil() {
                           handleSaveToLibrary(imageUrl, index);
                         }}
                         disabled={savedImages.has(imageUrl)}
-                        className={`w-full py-2 px-4 rounded-lg font-medium transition-all ${
-                          savedImages.has(imageUrl)
-                            ? 'bg-green-500 text-white cursor-default'
-                            : 'bg-white text-gray-900 hover:bg-gray-100'
-                        }`}
+                        className={`w-full py-2 px-4 rounded-lg font-medium transition-all ${savedImages.has(imageUrl)
+                          ? 'bg-green-500 text-white cursor-default'
+                          : 'bg-white text-gray-900 hover:bg-gray-100'
+                          }`}
                       >
                         {savedImages.has(imageUrl) ? '✓ Saved' : 'Save to Library'}
                       </button>
@@ -539,17 +558,13 @@ export default function DesignGeneratorWithCouncil() {
                     </div>
                   </div>
 
+                  {/* Variation Number & Edited Badge */}
                   <div className="absolute top-3 left-3 flex gap-2">
                     <div className="bg-black/50 text-white text-xs font-medium px-2 py-1 rounded">
                       #{index + 1}
                     </div>
-                    {enhancedPrompt && (
-                      <div className="bg-purple-600 text-white text-xs font-medium px-2 py-1 rounded">
-                        ✨ AI Enhanced
-                      </div>
-                    )}
                     {inpaintedImages[index] && (
-                      <div className="bg-blue-600 text-white text-xs font-medium px-2 py-1 rounded">
+                      <div className="bg-purple-600 text-white text-xs font-medium px-2 py-1 rounded">
                         ✏️ Edited
                       </div>
                     )}
@@ -579,7 +594,7 @@ export default function DesignGeneratorWithCouncil() {
               </div>
               <StencilExport
                 imageUrl={selectedForStencil}
-                designName={formData.subject ? `${formData.subject.replace(/\s+/g, '-')}-${Date.now()}` : `tattoo-${Date.now()}`}
+                designName={generatedDesigns ? `${generatedDesigns.metadata.subject.replace(/\s+/g, '-')}-${Date.now()}` : 'tattoo'}
               />
             </div>
           </div>
@@ -592,6 +607,7 @@ export default function DesignGeneratorWithCouncil() {
             onClick={handleCloseEnlarged}
           >
             <div className="relative max-w-4xl w-full">
+              {/* Close Button */}
               <button
                 onClick={handleCloseEnlarged}
                 className="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors"
@@ -601,6 +617,7 @@ export default function DesignGeneratorWithCouncil() {
                 </svg>
               </button>
 
+              {/* Image */}
               <img
                 src={selectedImage}
                 alt="Enlarged view"
@@ -620,9 +637,6 @@ export default function DesignGeneratorWithCouncil() {
           />
         )}
       </main>
-
-      {/* Toast Notifications */}
-      <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   );
 }

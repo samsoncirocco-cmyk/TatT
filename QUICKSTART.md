@@ -36,7 +36,10 @@ This will install:
 Open `.env` file and replace the placeholder:
 
 ```bash
-VITE_REPLICATE_API_TOKEN=r8_your_actual_token_here
+REPLICATE_API_TOKEN=r8_your_actual_token_here
+FRONTEND_AUTH_TOKEN=dev-token-change-in-production
+VITE_FRONTEND_AUTH_TOKEN=dev-token-change-in-production
+VITE_PROXY_URL=http://localhost:3001/api
 ```
 
 **Important**: Keep this file private! It's already in `.gitignore`.
@@ -142,7 +145,7 @@ Deploy the `dist/` folder to:
 - AWS S3 + CloudFront
 - Any static hosting
 
-**Remember**: Add `VITE_REPLICATE_API_TOKEN` to your hosting platform's environment variables!
+**Remember**: Add `REPLICATE_API_TOKEN`, `FRONTEND_AUTH_TOKEN`, and `VITE_FRONTEND_AUTH_TOKEN` to your hosting platform's environment variables!
 
 ## Development Tips
 

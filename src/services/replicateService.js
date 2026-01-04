@@ -12,9 +12,21 @@
  */
 
 import { buildPrompt, validateInput } from '../config/promptTemplates.js';
+import { 
+  fetchJSON, 
+  postJSON, 
+  FetchError, 
+  ErrorCodes, 
+  getUserErrorMessage,
+  isErrorCode 
+} from './fetchWithAbort.js';
 
-// Proxy server configuration (local backend to avoid CORS issues)
-const PROXY_URL = import.meta.env.VITE_PROXY_URL || 'http://localhost:3001/api';
+// Proxy server configuration (injected via env)
+const PROXY_URL = import.meta.env.VITE_PROXY_URL;
+
+if (!PROXY_URL) {
+  console.error('[Replicate] VITE_PROXY_URL not configured. Set it in your .env file.');
+}
 
 // Demo mode for testing without API calls
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
@@ -258,28 +270,24 @@ export async function generateTattooDesign(userInput) {
   }
 
   try {
-    // Step 1: Create prediction via proxy server
-    const createResponse = await fetch(`${PROXY_URL}/predictions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        version: model.version,
-        input: {
-          ...model.params,
-          prompt: finalPrompt,
-          negative_prompt: negativePrompt
-        }
-      })
-    });
-
-    if (!createResponse.ok) {
-      const errorData = await createResponse.json();
-      throw new Error(errorData.error || errorData.detail || 'Failed to create prediction');
+    // Check if proxy URL is configured
+    if (!PROXY_URL) {
+      throw new FetchError(
+        'Proxy URL not configured. Set VITE_PROXY_URL in your .env file.',
+        ErrorCodes.NETWORK_ERROR
+      );
     }
 
-    const prediction = await createResponse.json();
+    // Step 1: Create prediction via proxy server
+    const prediction = await postJSON(`${PROXY_URL}/predictions`, {
+      version: model.version,
+      input: {
+        ...model.params,
+        prompt: finalPrompt,
+        negative_prompt: negativePrompt
+      }
+    });
+
     console.log('[Replicate] Prediction created:', prediction.id);
 
     // Step 2: Poll for completion
@@ -290,13 +298,7 @@ export async function generateTattooDesign(userInput) {
     while (result.status !== 'succeeded' && result.status !== 'failed' && attempts < maxAttempts) {
       await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
 
-      const statusResponse = await fetch(`${PROXY_URL}/predictions/${prediction.id}`);
-
-      if (!statusResponse.ok) {
-        throw new Error('Failed to check prediction status');
-      }
-
-      result = await statusResponse.json();
+      result = await fetchJSON(`${PROXY_URL}/predictions/${prediction.id}`);
       attempts++;
 
       console.log(`[Replicate] Status: ${result.status} (attempt ${attempts}/${maxAttempts})`);
@@ -334,21 +336,19 @@ export async function generateTattooDesign(userInput) {
   } catch (error) {
     console.error('[Replicate] Generation error:', error);
 
-    // Handle specific error types
-    if (error.message.includes('authentication') || error.message.includes('401')) {
-      throw new Error('Invalid Replicate API token. Please check your .env configuration.');
+    // Handle FetchError instances with user-friendly messages
+    if (error instanceof FetchError) {
+      const userMessage = getUserErrorMessage(error);
+      throw new Error(userMessage);
     }
 
-    if (error.message.includes('rate limit') || error.message.includes('429')) {
-      throw new Error('Rate limit exceeded. Please wait a moment and try again.');
+    // Handle specific error types from Replicate API
+    if (error.message.includes('authentication') || error.message.includes('401')) {
+      throw new Error('Invalid Replicate API token. Please check your server configuration.');
     }
 
     if (error.message.includes('insufficient credits')) {
       throw new Error('Insufficient Replicate credits. Please add credits to your account.');
-    }
-
-    if (error.message.includes('Failed to fetch')) {
-      throw new Error('Cannot connect to proxy server. Make sure the backend is running on port 3001.');
     }
 
     throw new Error(`Failed to generate design: ${error.message}`);
@@ -395,33 +395,43 @@ export async function generateWithRetry(userInput, maxRetries = 3) {
  */
 export async function checkServiceHealth() {
   try {
-    // Check if proxy server is running
-    const response = await fetch(`${PROXY_URL}/health`);
-
-    if (!response.ok) {
+    if (!PROXY_URL) {
       return {
         healthy: false,
-        error: 'Proxy server not responding'
+        error: 'Proxy URL not configured. Set VITE_PROXY_URL in your .env file.',
+        code: ErrorCodes.NETWORK_ERROR
       };
     }
 
-    const data = await response.json();
+    // Check if proxy server is running (health endpoint doesn't require auth)
+    const data = await fetchJSON(`${PROXY_URL}/health`, { includeAuth: false });
 
     if (!data.hasToken) {
       return {
         healthy: false,
-        error: 'API token not configured on server'
+        error: 'API token not configured on server',
+        code: ErrorCodes.AUTH_INVALID
       };
     }
 
     return {
       healthy: true,
-      message: 'Replicate service is ready'
+      message: 'Replicate service is ready',
+      authRequired: data.authRequired
     };
   } catch (error) {
+    if (error instanceof FetchError) {
+      return {
+        healthy: false,
+        error: getUserErrorMessage(error),
+        code: error.code
+      };
+    }
+
     return {
       healthy: false,
-      error: 'Cannot connect to proxy server. Make sure server.js is running on port 3001.'
+      error: 'Cannot connect to proxy server. Make sure the backend is running.',
+      code: ErrorCodes.NETWORK_ERROR
     };
   }
 }
