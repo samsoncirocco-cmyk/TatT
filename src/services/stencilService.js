@@ -188,17 +188,34 @@ export async function resizeToStencilSize(imageUrl, sizeKey) {
  * @param {string} imageUrl - Original image URL
  * @param {string} sizeKey - Desired size
  * @param {Object} settings - Processing settings
+ * @param {string} mode - Processing mode: 'threshold' or 'edge'
  * @returns {Promise<string>} Data URL of final stencil
  */
-export async function generateStencil(imageUrl, sizeKey = 'medium', settings = {}) {
+export async function generateStencil(imageUrl, sizeKey = 'medium', settings = {}, mode = 'threshold') {
   try {
-    console.log('[Stencil] Generating stencil:', sizeKey);
+    console.log('[Stencil] Generating stencil:', sizeKey, 'mode:', mode);
 
     // Step 1: Resize to target size
     const resized = await resizeToStencilSize(imageUrl, sizeKey);
 
-    // Step 2: Convert to high-contrast stencil
-    const stencil = await convertToStencil(resized, settings);
+    // Step 2: Convert to high-contrast stencil based on mode
+    let stencil;
+    if (mode === 'edge') {
+      // Edge detection mode - dynamically import to avoid loading unless needed
+      console.log('[Stencil] Using edge detection mode');
+      const { convertToEdgeStencil } = await import('./stencilEdgeService.js');
+      
+      const edgeSettings = {
+        lowThreshold: settings.threshold ? settings.threshold * 0.4 : 50,
+        highThreshold: settings.threshold || 150,
+        suppressNonMaximum: true
+      };
+      
+      stencil = await convertToEdgeStencil(resized, edgeSettings);
+    } else {
+      // Default threshold mode
+      stencil = await convertToStencil(resized, settings);
+    }
 
     console.log('[Stencil] ✓ Stencil generated successfully');
     return stencil;

@@ -11,6 +11,7 @@ export default function StencilExport({ imageUrl, designName = 'tattoo' }) {
   const [stencilPreview, setStencilPreview] = useState(null);
   const [selectedSize, setSelectedSize] = useState('medium');
   const [selectedPreset, setSelectedPreset] = useState('balanced');
+  const [processingMode, setProcessingMode] = useState('threshold'); // 'threshold' or 'edge'
   const [customSettings, setCustomSettings] = useState({
     threshold: 128,
     contrast: 1.2,
@@ -33,7 +34,7 @@ export default function StencilExport({ imageUrl, designName = 'tattoo' }) {
         brightness: customSettings.brightness || preset.brightness
       };
 
-      const stencil = await generateStencil(imageUrl, selectedSize, settings);
+      const stencil = await generateStencil(imageUrl, selectedSize, settings, processingMode);
       setStencilPreview(stencil);
     } catch (error) {
       console.error('Failed to generate stencil:', error);
@@ -87,6 +88,41 @@ export default function StencilExport({ imageUrl, designName = 'tattoo' }) {
                 </label>
               ))}
             </div>
+          </div>
+
+          {/* Processing Mode Toggle */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Processing Mode
+            </label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setProcessingMode('threshold')}
+                className={`flex-1 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                  processingMode === 'threshold'
+                    ? 'bg-primary-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Threshold
+              </button>
+              <button
+                onClick={() => setProcessingMode('edge')}
+                className={`flex-1 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                  processingMode === 'edge'
+                    ? 'bg-primary-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Edge Detection
+                <span className="ml-1 text-xs">✨ New</span>
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              {processingMode === 'threshold' 
+                ? 'Classic threshold-based conversion (fast)' 
+                : 'Canny edge detection for crisp linework (slower)'}
+            </p>
           </div>
 
           {/* Style Preset */}
