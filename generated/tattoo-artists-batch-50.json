@@ -1,0 +1,1236 @@
+[
+  {
+    "id": "3bd06f61-bdf4-4147-9411-ec0fcff0cea4",
+    "name": "Aria Rivers",
+    "location_city": "Perth",
+    "location_region": "Western Australia",
+    "location_country": "Australia",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/53c3b017-2e65-4a4e-9d3c-f3660f961cf3",
+    "is_curated": false,
+    "created_at": "2025-09-29T13:28:22.034Z",
+    "styles": [
+      "Photo Realism",
+      "Realism",
+      "Fine Line",
+      "Dotwork"
+    ],
+    "color_palettes": [
+      "Earth Tones"
+    ],
+    "specializations": [
+      "Horror",
+      "Medical Cover-up"
+    ]
+  },
+  {
+    "id": "6026f7ac-5b01-4891-b47f-ae32f4ddf09b",
+    "name": "Aurora Moon",
+    "location_city": "Perth",
+    "location_region": "Western Australia",
+    "location_country": "Australia",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/d0a61dae-4ead-4974-ae4c-1e516bb48c29",
+    "is_curated": true,
+    "created_at": "2025-06-22T05:46:12.242Z",
+    "styles": [
+      "New School",
+      "Geometric"
+    ],
+    "color_palettes": [
+      "Black & Grey",
+      "Full Color"
+    ],
+    "specializations": [
+      "Portraits",
+      "Floral",
+      "Medical Cover-up"
+    ]
+  },
+  {
+    "id": "a9436f14-53f9-4056-953e-29f560dab5a9",
+    "name": "Violet Cross",
+    "location_city": "San Diego",
+    "location_region": "California",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/92506718-1ed4-457c-9a3e-6c4304c574cc",
+    "is_curated": false,
+    "created_at": "2025-05-15T11:52:59.950Z",
+    "styles": [
+      "Fine Line",
+      "Watercolor",
+      "New School",
+      "Illustrative"
+    ],
+    "color_palettes": [
+      "Full Color",
+      "Black & Grey",
+      "Pastel"
+    ],
+    "specializations": [
+      "Cover-ups",
+      "Lettering",
+      "Portraits",
+      "Mandala",
+      "Nature"
+    ]
+  },
+  {
+    "id": "92824bf4-f3b6-41c8-89bd-97eb1e600d1b",
+    "name": "Lyra Frost",
+    "location_city": "Tucson",
+    "location_region": "Arizona",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/022de882-02d8-43cb-9a33-951cb97c1445",
+    "is_curated": false,
+    "created_at": "2025-11-30T10:32:25.672Z",
+    "styles": [
+      "Dotwork"
+    ],
+    "color_palettes": [
+      "Bold Colors"
+    ],
+    "specializations": [
+      "Cover-ups",
+      "Biomechanical",
+      "Medical Cover-up",
+      "Large Scale"
+    ]
+  },
+  {
+    "id": "759e2449-2616-4d3a-a327-7e3bbd57083e",
+    "name": "Violet Black",
+    "location_city": "Brooklyn",
+    "location_region": "New York",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/807dd6f0-26e8-4d0b-a20c-4db149e234da",
+    "is_curated": true,
+    "created_at": "2025-07-03T01:13:38.427Z",
+    "styles": [
+      "Tribal",
+      "Minimalist",
+      "Geometric"
+    ],
+    "color_palettes": [
+      "Earth Tones"
+    ],
+    "specializations": [
+      "Mandala",
+      "Portraits",
+      "Cultural",
+      "Horror"
+    ]
+  },
+  {
+    "id": "942d3fd3-2fad-4074-adc9-abb76e638665",
+    "name": "Phoenix Bright",
+    "location_city": "Ewing Township",
+    "location_region": "New Jersey",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/da79af62-1316-4aa6-ae35-39c14289e2de",
+    "is_curated": false,
+    "created_at": "2025-04-11T13:38:52.742Z",
+    "styles": [
+      "Watercolor",
+      "Minimalist"
+    ],
+    "color_palettes": [
+      "Bold Colors"
+    ],
+    "specializations": [
+      "Biomechanical",
+      "Watercolor",
+      "Portraits",
+      "Lettering"
+    ]
+  },
+  {
+    "id": "81d10875-d68a-4e58-aef7-b29e5f8e48ce",
+    "name": "Luna Phillips",
+    "location_city": "Denver",
+    "location_region": "Colorado",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/db843d6f-e83d-4d2b-bcf0-bc2e220f938e",
+    "is_curated": true,
+    "created_at": "2025-10-28T06:21:07.579Z",
+    "styles": [
+      "Tribal",
+      "New School",
+      "Fine Line",
+      "Lettering"
+    ],
+    "color_palettes": [
+      "Black & Grey",
+      "Full Color"
+    ],
+    "specializations": [
+      "Portraits",
+      "Floral",
+      "Horror",
+      "Watercolor",
+      "Abstract"
+    ]
+  },
+  {
+    "id": "43ea7a24-622c-4402-8780-2acdcbe6d9cb",
+    "name": "Knox Frost",
+    "location_city": "San Francisco",
+    "location_region": "California",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/4c7ea194-1f50-4b2a-8f24-d2d0b24bc66b",
+    "is_curated": true,
+    "created_at": "2025-10-16T02:40:17.576Z",
+    "styles": [
+      "Photo Realism"
+    ],
+    "color_palettes": [
+      "Black & Grey",
+      "Full Color"
+    ],
+    "specializations": [
+      "Cultural",
+      "Cover-ups",
+      "Nature"
+    ]
+  },
+  {
+    "id": "ba5e7645-45d8-4acb-b1b4-cdbceb38a10a",
+    "name": "Ivy Star",
+    "location_city": "San Diego",
+    "location_region": "California",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/d1d32641-c7b5-4aaf-881b-b831259fdba6",
+    "is_curated": false,
+    "created_at": "2025-08-08T11:54:40.454Z",
+    "styles": [
+      "Dotwork",
+      "Traditional",
+      "Realism",
+      "Minimalist"
+    ],
+    "color_palettes": [
+      "Pastel"
+    ],
+    "specializations": [
+      "Minimalist",
+      "Medical Cover-up"
+    ]
+  },
+  {
+    "id": "018e0cac-4608-46ab-a3ad-474a9b9ab7de",
+    "name": "Amara Schwartz",
+    "location_city": "Melbourne",
+    "location_region": "Victoria",
+    "location_country": "Australia",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/96774666-98cf-41ca-a810-84327bacfaa5",
+    "is_curated": false,
+    "created_at": "2025-11-01T19:25:37.480Z",
+    "styles": [
+      "Watercolor",
+      "Realism",
+      "Neo-Traditional"
+    ],
+    "color_palettes": [
+      "Neon",
+      "Monochrome"
+    ],
+    "specializations": [
+      "Religious",
+      "Mandala",
+      "Minimalist",
+      "Nature"
+    ]
+  },
+  {
+    "id": "ce1fe16c-7d7b-43fb-aa11-51c027f3152c",
+    "name": "Orion Fox",
+    "location_city": "Tucson",
+    "location_region": "Arizona",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/8a8c0c3d-3d2a-4d3e-9198-57851dcc0ceb",
+    "is_curated": true,
+    "created_at": "2025-07-14T07:30:57.719Z",
+    "styles": [
+      "Fine Line",
+      "Watercolor",
+      "Photo Realism"
+    ],
+    "color_palettes": [
+      "Bold Colors",
+      "Black Only"
+    ],
+    "specializations": [
+      "Animal",
+      "Cover-ups",
+      "Small Delicate",
+      "Geometric"
+    ]
+  },
+  {
+    "id": "e614a27f-bb8b-4bb8-8afa-cb4f74751eb7",
+    "name": "Blair Cloud",
+    "location_city": "Melbourne",
+    "location_region": "Victoria",
+    "location_country": "Australia",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/a19bff64-1736-465b-b987-906c54fe5d9e",
+    "is_curated": false,
+    "created_at": "2025-02-10T03:45:27.252Z",
+    "styles": [
+      "Watercolor",
+      "Blackwork",
+      "Neo-Traditional"
+    ],
+    "color_palettes": [
+      "Earth Tones",
+      "Black Only",
+      "Bold Colors"
+    ],
+    "specializations": [
+      "Floral",
+      "Horror",
+      "Small Delicate",
+      "Animal",
+      "Nature"
+    ]
+  },
+  {
+    "id": "da6e554a-27e5-493f-a31a-b579036e52bb",
+    "name": "Sky Silver",
+    "location_city": "Austin",
+    "location_region": "Texas",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/27bc6c83-04cc-440b-90d5-4622bb74442a",
+    "is_curated": false,
+    "created_at": "2025-02-03T08:41:42.120Z",
+    "styles": [
+      "New School"
+    ],
+    "color_palettes": [
+      "Muted",
+      "Black Only"
+    ],
+    "specializations": [
+      "Animal"
+    ]
+  },
+  {
+    "id": "b21a3922-5c2c-4286-a7f3-c586ee2e927b",
+    "name": "Phoenix Flame",
+    "location_city": "Perth",
+    "location_region": "Western Australia",
+    "location_country": "Australia",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/a0b966fc-adbf-480a-bcb0-b6e86873b27e",
+    "is_curated": true,
+    "created_at": "2025-06-03T02:15:10.934Z",
+    "styles": [
+      "Japanese",
+      "Fine Line",
+      "Neo-Traditional"
+    ],
+    "color_palettes": [
+      "Black & Grey"
+    ],
+    "specializations": [
+      "Minimalist"
+    ]
+  },
+  {
+    "id": "25ad22ab-c8db-439a-81b7-1e48b85314ba",
+    "name": "Tyler Wilson",
+    "location_city": "Vancouver",
+    "location_region": "British Columbia",
+    "location_country": "Canada",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/3c501813-5cc2-4dcb-baff-f5ea34060efa",
+    "is_curated": true,
+    "created_at": "2025-01-12T02:46:30.172Z",
+    "styles": [
+      "Traditional",
+      "Blackwork",
+      "Lettering"
+    ],
+    "color_palettes": [
+      "Black Only",
+      "Earth Tones",
+      "Pastel"
+    ],
+    "specializations": [
+      "Nature",
+      "Religious"
+    ]
+  },
+  {
+    "id": "80dd0ffe-7841-4a7b-9920-68c84e20409f",
+    "name": "Cruz Gray",
+    "location_city": "Tucson",
+    "location_region": "Arizona",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/a5a7f7d1-fa8a-4b71-b7b5-fa833d421878",
+    "is_curated": true,
+    "created_at": "2025-04-11T04:39:11.749Z",
+    "styles": [
+      "Geometric"
+    ],
+    "color_palettes": [
+      "Neon",
+      "Black & Grey",
+      "Full Color"
+    ],
+    "specializations": [
+      "Cover-ups",
+      "Floral",
+      "Small Delicate",
+      "Minimalist"
+    ]
+  },
+  {
+    "id": "35908fd7-da81-4848-bac3-9c2a2b336b4b",
+    "name": "Kane Cloud",
+    "location_city": "Austin",
+    "location_region": "Texas",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/219c2b18-b3e3-4810-9f31-c58aa7221b25",
+    "is_curated": true,
+    "created_at": "2025-12-18T18:32:11.751Z",
+    "styles": [
+      "Dotwork",
+      "Watercolor",
+      "Blackwork",
+      "Portrait"
+    ],
+    "color_palettes": [
+      "Bold Colors"
+    ],
+    "specializations": [
+      "Portraits"
+    ]
+  },
+  {
+    "id": "b72a8e3a-18b6-4311-a23f-e7ec5092e619",
+    "name": "Sky Flame",
+    "location_city": "Vancouver",
+    "location_region": "British Columbia",
+    "location_country": "Canada",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/1102a9cd-7f97-4a17-96ce-924c970e5237",
+    "is_curated": true,
+    "created_at": "2025-12-08T05:38:11.596Z",
+    "styles": [
+      "Portrait",
+      "Watercolor",
+      "Fine Line",
+      "Photo Realism"
+    ],
+    "color_palettes": [
+      "Bold Colors"
+    ],
+    "specializations": [
+      "Small Delicate",
+      "Mandala",
+      "Watercolor"
+    ]
+  },
+  {
+    "id": "259dea08-04a7-4119-95ac-f5d2b3ba153d",
+    "name": "Storm Storm",
+    "location_city": "Houston",
+    "location_region": "Texas",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/dc4f3dc3-cfa8-4e6f-aff0-1fa7e7192db6",
+    "is_curated": false,
+    "created_at": "2025-10-18T13:14:21.444Z",
+    "styles": [
+      "Fine Line"
+    ],
+    "color_palettes": [
+      "Black & Grey",
+      "Earth Tones",
+      "Full Color"
+    ],
+    "specializations": [
+      "Small Delicate",
+      "Floral",
+      "Lettering",
+      "Geometric",
+      "Large Scale"
+    ]
+  },
+  {
+    "id": "aae32407-b25d-401e-8c80-aa744a523230",
+    "name": "Phoenix Wild",
+    "location_city": "San Francisco",
+    "location_region": "California",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/b31a10a5-48ac-4872-9e02-235c421a1bc9",
+    "is_curated": true,
+    "created_at": "2025-12-08T20:21:12.054Z",
+    "styles": [
+      "Biomechanical",
+      "Traditional",
+      "Geometric",
+      "New School"
+    ],
+    "color_palettes": [
+      "Neon",
+      "Pastel",
+      "Vibrant"
+    ],
+    "specializations": [
+      "Portraits",
+      "Geometric",
+      "Lettering",
+      "Watercolor"
+    ]
+  },
+  {
+    "id": "d985253d-7364-4aea-9efb-ab094935b1d1",
+    "name": "Phoenix Bright",
+    "location_city": "San Diego",
+    "location_region": "California",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/06be1648-1d85-4a09-b9c2-0fa5f69da6e1",
+    "is_curated": true,
+    "created_at": "2025-05-19T12:12:54.276Z",
+    "styles": [
+      "Blackwork",
+      "Geometric"
+    ],
+    "color_palettes": [
+      "Bold Colors",
+      "Earth Tones"
+    ],
+    "specializations": [
+      "Floral",
+      "Nature",
+      "Lettering"
+    ]
+  },
+  {
+    "id": "27346ff0-e86f-4c73-be87-d19d2691d7c7",
+    "name": "Lyra Knight",
+    "location_city": "Tampa",
+    "location_region": "Florida",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/fa0a370c-2b54-4e26-8251-bc025845d352",
+    "is_curated": false,
+    "created_at": "2025-11-01T16:13:01.772Z",
+    "styles": [
+      "Fine Line",
+      "New School",
+      "Japanese",
+      "Neo-Traditional"
+    ],
+    "color_palettes": [
+      "Muted"
+    ],
+    "specializations": [
+      "Watercolor",
+      "Nature",
+      "Horror",
+      "Biomechanical"
+    ]
+  },
+  {
+    "id": "f6677d34-df32-444d-a4f9-07414f2ccb71",
+    "name": "Ryder Moon",
+    "location_city": "Newark",
+    "location_region": "New Jersey",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/c6dfcf05-b43a-437a-a0d1-0923c9fbefbf",
+    "is_curated": false,
+    "created_at": "2025-12-22T12:23:51.153Z",
+    "styles": [
+      "Watercolor",
+      "Minimalist"
+    ],
+    "color_palettes": [
+      "Neon",
+      "Black & Grey"
+    ],
+    "specializations": [
+      "Abstract",
+      "Floral"
+    ]
+  },
+  {
+    "id": "839b9086-cf3f-4b42-98c5-68dfb89655cb",
+    "name": "Amara Thorn",
+    "location_city": "Montreal",
+    "location_region": "Quebec",
+    "location_country": "Canada",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/d7352e27-7df4-47ab-98aa-55e628070e5f",
+    "is_curated": false,
+    "created_at": "2025-05-13T06:28:48.876Z",
+    "styles": [
+      "Abstract",
+      "Realism",
+      "Dotwork"
+    ],
+    "color_palettes": [
+      "Black & Grey"
+    ],
+    "specializations": [
+      "Geometric",
+      "Large Scale",
+      "Religious",
+      "Lettering"
+    ]
+  },
+  {
+    "id": "20929771-d891-4b6a-944a-ae6ccf5fd67f",
+    "name": "Ryder Sharp",
+    "location_city": "Montreal",
+    "location_region": "Quebec",
+    "location_country": "Canada",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/717c2e18-4308-4b99-85a4-7357c62ccf7d",
+    "is_curated": true,
+    "created_at": "2025-10-26T02:52:08.583Z",
+    "styles": [
+      "Dotwork",
+      "Surrealism"
+    ],
+    "color_palettes": [
+      "Muted",
+      "Neon",
+      "Black & Grey"
+    ],
+    "specializations": [
+      "Cover-ups",
+      "Large Scale",
+      "Biomechanical",
+      "Medical Cover-up",
+      "Religious"
+    ]
+  },
+  {
+    "id": "9ccf2900-6eae-4e31-941a-537fd076b26e",
+    "name": "Knox Bright",
+    "location_city": "Houston",
+    "location_region": "Texas",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/fc16b65f-e0d1-4200-a0d2-412eba6d989e",
+    "is_curated": false,
+    "created_at": "2025-02-08T03:21:10.644Z",
+    "styles": [
+      "Illustrative",
+      "Fine Line",
+      "Tribal"
+    ],
+    "color_palettes": [
+      "Pastel",
+      "Black Only"
+    ],
+    "specializations": [
+      "Religious",
+      "Mandala",
+      "Horror",
+      "Biomechanical"
+    ]
+  },
+  {
+    "id": "543f2e52-b849-4819-a72e-670a0bb837b3",
+    "name": "Jade Iron",
+    "location_city": "Jersey City",
+    "location_region": "New Jersey",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/e440b55b-e9d7-43f8-b339-74b306692b4d",
+    "is_curated": false,
+    "created_at": "2025-11-03T23:17:42.392Z",
+    "styles": [
+      "Biomechanical",
+      "Traditional",
+      "Neo-Traditional"
+    ],
+    "color_palettes": [
+      "Black Only",
+      "Full Color",
+      "Vibrant"
+    ],
+    "specializations": [
+      "Nature"
+    ]
+  },
+  {
+    "id": "0aa0d199-c0e9-461e-b98f-682dad5469ec",
+    "name": "Blair Light",
+    "location_city": "San Diego",
+    "location_region": "California",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/10c2fed3-ce1f-4d1f-8d80-5b124bb19b80",
+    "is_curated": true,
+    "created_at": "2025-04-08T09:07:36.067Z",
+    "styles": [
+      "Surrealism",
+      "Biomechanical"
+    ],
+    "color_palettes": [
+      "Monochrome",
+      "Black Only",
+      "Full Color"
+    ],
+    "specializations": [
+      "Religious",
+      "Fantasy",
+      "Lettering",
+      "Biomechanical"
+    ]
+  },
+  {
+    "id": "05c1794a-a723-44c1-a5b6-4415c7bf2647",
+    "name": "Kane Fox",
+    "location_city": "Montreal",
+    "location_region": "Quebec",
+    "location_country": "Canada",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/8ce9d182-673f-4abd-9766-a32fafb6c8f7",
+    "is_curated": true,
+    "created_at": "2025-12-04T06:05:05.973Z",
+    "styles": [
+      "Lettering",
+      "Abstract",
+      "Dotwork"
+    ],
+    "color_palettes": [
+      "Black & Grey",
+      "Monochrome"
+    ],
+    "specializations": [
+      "Cultural",
+      "Portraits",
+      "Lettering",
+      "Abstract"
+    ]
+  },
+  {
+    "id": "d6a9930c-68ed-4f33-a8a5-7d44b441fe1e",
+    "name": "Dante Moon",
+    "location_city": "Portland",
+    "location_region": "Oregon",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/1033bcb3-34a4-49cd-a4a4-c21eda3bc05a",
+    "is_curated": false,
+    "created_at": "2025-09-19T02:58:28.946Z",
+    "styles": [
+      "Fine Line",
+      "Japanese",
+      "Minimalist"
+    ],
+    "color_palettes": [
+      "Monochrome"
+    ],
+    "specializations": [
+      "Fantasy",
+      "Geometric"
+    ]
+  },
+  {
+    "id": "eb333b79-aec6-4da1-b88d-08665d05fd3a",
+    "name": "Axel Anderson",
+    "location_city": "Ewing Township",
+    "location_region": "New Jersey",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/7f1a180e-69ab-4bc9-a4b9-f73571b4dfe1",
+    "is_curated": false,
+    "created_at": "2025-11-03T21:04:17.941Z",
+    "styles": [
+      "Geometric",
+      "Neo-Traditional",
+      "Surrealism"
+    ],
+    "color_palettes": [
+      "Black Only",
+      "Full Color",
+      "Earth Tones"
+    ],
+    "specializations": [
+      "Small Delicate",
+      "Fantasy"
+    ]
+  },
+  {
+    "id": "5845f507-6538-4cd8-b271-eb8aa11c53cd",
+    "name": "Zephyr Silver",
+    "location_city": "Tucson",
+    "location_region": "Arizona",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/23f9cd1e-5816-4976-89e0-84da5ccf822a",
+    "is_curated": true,
+    "created_at": "2025-01-08T07:15:41.593Z",
+    "styles": [
+      "Surrealism",
+      "New School"
+    ],
+    "color_palettes": [
+      "Muted"
+    ],
+    "specializations": [
+      "Lettering"
+    ]
+  },
+  {
+    "id": "8354ec80-dfe5-454e-ae06-224f4550b263",
+    "name": "Ember Thorn",
+    "location_city": "Melbourne",
+    "location_region": "Victoria",
+    "location_country": "Australia",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/6e2ff849-074f-4dc5-9b7b-a80a43b0844a",
+    "is_curated": true,
+    "created_at": "2025-04-13T15:29:28.258Z",
+    "styles": [
+      "Minimalist",
+      "Surrealism",
+      "Watercolor"
+    ],
+    "color_palettes": [
+      "Neon",
+      "Pastel",
+      "Muted"
+    ],
+    "specializations": [
+      "Mandala"
+    ]
+  },
+  {
+    "id": "f091156c-5130-48b2-93ee-78ecdb2dc131",
+    "name": "Jade Silver",
+    "location_city": "Jersey City",
+    "location_region": "New Jersey",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/b334496f-b822-4bc9-b4e4-5c918107c96b",
+    "is_curated": true,
+    "created_at": "2025-12-13T19:32:09.863Z",
+    "styles": [
+      "New School",
+      "Fine Line"
+    ],
+    "color_palettes": [
+      "Neon",
+      "Bold Colors"
+    ],
+    "specializations": [
+      "Large Scale",
+      "Cultural",
+      "Portraits"
+    ]
+  },
+  {
+    "id": "3e9af287-58da-40bc-bb97-131be29803b1",
+    "name": "Dante Black",
+    "location_city": "Melbourne",
+    "location_region": "Victoria",
+    "location_country": "Australia",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/ffb7b151-1172-47da-a00c-0d3d4df72398",
+    "is_curated": false,
+    "created_at": "2025-07-21T14:10:15.319Z",
+    "styles": [
+      "Dotwork"
+    ],
+    "color_palettes": [
+      "Neon",
+      "Black Only"
+    ],
+    "specializations": [
+      "Geometric"
+    ]
+  },
+  {
+    "id": "0cc00470-5afc-457d-825e-38cad7829982",
+    "name": "Seraphina Blade",
+    "location_city": "Tampa",
+    "location_region": "Florida",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/8c612d06-e7e7-4f63-89ab-17659592fcd8",
+    "is_curated": true,
+    "created_at": "2025-09-28T23:07:20.900Z",
+    "styles": [
+      "Lettering",
+      "Geometric",
+      "Realism",
+      "Blackwork"
+    ],
+    "color_palettes": [
+      "Black Only",
+      "Bold Colors",
+      "Full Color"
+    ],
+    "specializations": [
+      "Cover-ups",
+      "Floral",
+      "Cultural"
+    ]
+  },
+  {
+    "id": "2a0c04ba-e135-4ff4-9a27-a20a2e68ce15",
+    "name": "Axel Steele",
+    "location_city": "Newark",
+    "location_region": "New Jersey",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/4dc103cc-4797-480e-9268-08ce7b984fb3",
+    "is_curated": false,
+    "created_at": "2025-05-17T16:52:18.487Z",
+    "styles": [
+      "Watercolor",
+      "Traditional"
+    ],
+    "color_palettes": [
+      "Earth Tones",
+      "Full Color"
+    ],
+    "specializations": [
+      "Cover-ups",
+      "Floral",
+      "Nature",
+      "Mandala"
+    ]
+  },
+  {
+    "id": "e952f62a-2618-4286-92a5-dc01dd686041",
+    "name": "Amara Steele",
+    "location_city": "Manhattan",
+    "location_region": "New York",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/847afe37-ff73-491e-881b-b65483879dd8",
+    "is_curated": false,
+    "created_at": "2025-06-12T01:33:06.339Z",
+    "styles": [
+      "Abstract",
+      "Watercolor"
+    ],
+    "color_palettes": [
+      "Full Color",
+      "Black & Grey",
+      "Neon"
+    ],
+    "specializations": [
+      "Large Scale",
+      "Geometric",
+      "Medical Cover-up",
+      "Horror",
+      "Religious"
+    ]
+  },
+  {
+    "id": "b11c8811-91d2-44b8-bf6d-2c0be4b127a6",
+    "name": "Kai Rivers",
+    "location_city": "Sydney",
+    "location_region": "New South Wales",
+    "location_country": "Australia",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/174bb876-c645-43cb-bf8d-7cc9af5ee781",
+    "is_curated": false,
+    "created_at": "2025-01-14T18:19:25.098Z",
+    "styles": [
+      "New School",
+      "Lettering"
+    ],
+    "color_palettes": [
+      "Pastel",
+      "Black Only",
+      "Earth Tones"
+    ],
+    "specializations": [
+      "Portraits"
+    ]
+  },
+  {
+    "id": "cd5c9e8b-5610-4487-a22c-b09459ea4c91",
+    "name": "Blaze Hart",
+    "location_city": "Burlington",
+    "location_region": "Vermont",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/5746b626-d41c-43b4-9998-3831728b273c",
+    "is_curated": false,
+    "created_at": "2025-10-06T08:46:08.331Z",
+    "styles": [
+      "Fine Line",
+      "Tribal",
+      "Minimalist",
+      "Blackwork"
+    ],
+    "color_palettes": [
+      "Pastel",
+      "Muted"
+    ],
+    "specializations": [
+      "Fantasy",
+      "Religious"
+    ]
+  },
+  {
+    "id": "dc20c1aa-b217-4ecb-85e4-a13fa5f4f10b",
+    "name": "Storm Stone",
+    "location_city": "Dallas",
+    "location_region": "Texas",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/36bff623-8338-4cc4-82d8-373df9ccd392",
+    "is_curated": false,
+    "created_at": "2025-01-06T13:31:23.155Z",
+    "styles": [
+      "Surrealism",
+      "Photo Realism",
+      "Minimalist"
+    ],
+    "color_palettes": [
+      "Black & Grey",
+      "Vibrant",
+      "Full Color"
+    ],
+    "specializations": [
+      "Portraits"
+    ]
+  },
+  {
+    "id": "1f88ee60-8728-472f-a0fa-9f54afbfda10",
+    "name": "Jade Rivers",
+    "location_city": "Dallas",
+    "location_region": "Texas",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/551367de-97a7-4c0a-ab4b-cea011bf17ad",
+    "is_curated": true,
+    "created_at": "2025-07-15T22:16:47.203Z",
+    "styles": [
+      "Watercolor",
+      "Dotwork"
+    ],
+    "color_palettes": [
+      "Muted"
+    ],
+    "specializations": [
+      "Nature",
+      "Portraits"
+    ]
+  },
+  {
+    "id": "e4bd1bff-e8d8-49e9-b491-574e7a76d155",
+    "name": "Willow Anderson",
+    "location_city": "Phoenix",
+    "location_region": "Arizona",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/0122daed-2dc9-4eec-9751-7c57eb033241",
+    "is_curated": false,
+    "created_at": "2025-08-04T14:57:36.236Z",
+    "styles": [
+      "Blackwork",
+      "Traditional",
+      "Realism"
+    ],
+    "color_palettes": [
+      "Full Color"
+    ],
+    "specializations": [
+      "Horror"
+    ]
+  },
+  {
+    "id": "aeffaf5a-5e2e-455b-bfde-9ea0ab74fb87",
+    "name": "Storm Star",
+    "location_city": "Tampa",
+    "location_region": "Florida",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/233f9df2-9130-4312-948b-147605992319",
+    "is_curated": false,
+    "created_at": "2025-03-09T21:05:58.141Z",
+    "styles": [
+      "Surrealism",
+      "Realism",
+      "Geometric",
+      "Neo-Traditional"
+    ],
+    "color_palettes": [
+      "Black & Grey",
+      "Muted"
+    ],
+    "specializations": [
+      "Medical Cover-up",
+      "Religious"
+    ]
+  },
+  {
+    "id": "b86e99cc-5956-4f68-9fe3-1d7bb1a2ef0f",
+    "name": "Blair Silver",
+    "location_city": "San Diego",
+    "location_region": "California",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/ae03fa28-7aa7-4d09-96af-1d96832a1072",
+    "is_curated": true,
+    "created_at": "2025-06-09T03:28:32.911Z",
+    "styles": [
+      "Lettering"
+    ],
+    "color_palettes": [
+      "Black Only",
+      "Pastel",
+      "Monochrome"
+    ],
+    "specializations": [
+      "Floral"
+    ]
+  },
+  {
+    "id": "e8fe54b1-6a86-496f-b69d-71a357d8f92f",
+    "name": "Sophia Silver",
+    "location_city": "Vancouver",
+    "location_region": "British Columbia",
+    "location_country": "Canada",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/e759abb2-c5c7-47ed-8c62-620410176c69",
+    "is_curated": true,
+    "created_at": "2025-12-17T06:31:47.916Z",
+    "styles": [
+      "Fine Line",
+      "Japanese"
+    ],
+    "color_palettes": [
+      "Black & Grey",
+      "Full Color",
+      "Monochrome"
+    ],
+    "specializations": [
+      "Minimalist",
+      "Mandala",
+      "Horror"
+    ]
+  },
+  {
+    "id": "05668c66-56b9-460b-a950-a57552b65358",
+    "name": "Zephyr Reed",
+    "location_city": "Houston",
+    "location_region": "Texas",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/7bc8b137-2595-433b-a95d-b684ebe77c86",
+    "is_curated": true,
+    "created_at": "2025-05-15T12:09:11.497Z",
+    "styles": [
+      "Tribal",
+      "Fine Line",
+      "Surrealism"
+    ],
+    "color_palettes": [
+      "Black & Grey",
+      "Full Color"
+    ],
+    "specializations": [
+      "Minimalist",
+      "Large Scale",
+      "Small Delicate"
+    ]
+  },
+  {
+    "id": "53360081-cb1d-4b9e-ab1a-aeb1f647aa35",
+    "name": "Tyler Black",
+    "location_city": "Manhattan",
+    "location_region": "New York",
+    "location_country": "United States",
+    "has_multiple_locations": true,
+    "profile_url": "https://tatt.example.com/artists/6a1b14c6-36c6-43a0-9240-34ab16b32b53",
+    "is_curated": false,
+    "created_at": "2025-09-15T03:25:42.890Z",
+    "styles": [
+      "Photo Realism",
+      "Tribal"
+    ],
+    "color_palettes": [
+      "Black & Grey",
+      "Full Color",
+      "Monochrome"
+    ],
+    "specializations": [
+      "Floral",
+      "Portraits",
+      "Minimalist",
+      "Horror",
+      "Cultural"
+    ]
+  },
+  {
+    "id": "ebf28709-0a85-4601-a684-6609c07dde60",
+    "name": "Willow Storm",
+    "location_city": "Tampa",
+    "location_region": "Florida",
+    "location_country": "United States",
+    "has_multiple_locations": false,
+    "profile_url": "https://tatt.example.com/artists/2816697c-c448-45c1-8a93-5b3918d5b593",
+    "is_curated": false,
+    "created_at": "2025-02-14T07:26:45.854Z",
+    "styles": [
+      "Watercolor",
+      "Geometric"
+    ],
+    "color_palettes": [
+      "Black Only",
+      "Black & Grey",
+      "Bold Colors"
+    ],
+    "specializations": [
+      "Lettering",
+      "Memorial",
+      "Watercolor",
+      "Portraits",
+      "Cover-ups"
+    ]
+  },
+  {
+    "id": "ce067719-0280-4116-8d74-76eb38094bd7",
+    "name": "Drake Iron",
+    "location_city": "Los Angeles",
+    "location_region": "California",
+    "location_country": "United States",
+    "has_multiple_locations": true,
+    "profile_url": "https://tatt.example.com/artists/c0e5b0d8-234a-448a-a1a4-08dc9b2e8ffb",
+    "is_curated": true,
+    "created_at": "2025-08-20T05:03:11.994Z",
+    "styles": [
+      "Abstract"
+    ],
+    "color_palettes": [
+      "Full Color",
+      "Black & Grey"
+    ],
+    "specializations": [
+      "Religious",
+      "Mandala",
+      "Abstract",
+      "Memorial"
+    ]
+  }
+]
