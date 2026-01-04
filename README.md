@@ -29,7 +29,8 @@ AI-powered tattoo visualization platform that transforms first-time tattoo seeke
 - **AI Inpainting**: Stable Diffusion Inpainting for design customization
 - **Image Processing**: Canvas API (browser) + Sharp.js (stencil export)
 - **Backend**: Express.js proxy server for Replicate API
-- **Storage**: localStorage + IndexedDB (Phase 1), Database (Phase 2)
+- **Database**: Supabase (PostgreSQL) for artist data and future user data
+- **Storage**: localStorage + IndexedDB (temporary), Supabase Storage (production)
 
 ## Getting Started
 
@@ -52,20 +53,28 @@ AI-powered tattoo visualization platform that transforms first-time tattoo seeke
 
 3. **Configure environment variables**
 
-   Create a `.env` file in the project root:
+   Create a `.env` file in the project root (or copy from `.env.example`):
    ```bash
-   # Server-side API token (never exposed to client)
-   REPLICATE_API_TOKEN=your_actual_replicate_api_token
+   # Replicate AI API (for tattoo design generation)
+   REPLICATE_API_TOKEN=your_replicate_api_token_here
    
    # Frontend auth token (change in production)
    FRONTEND_AUTH_TOKEN=dev-token-change-in-production
    VITE_FRONTEND_AUTH_TOKEN=dev-token-change-in-production
    
    # Proxy URL for frontend
-   VITE_PROXY_URL=http://localhost:3001/api
+   VITE_PROXY_URL=http://127.0.0.1:3001/api
+   
+   # Supabase Configuration (for artist database)
+   SUPABASE_URL=https://yfcmysjmoehcyszvkxsr.supabase.co
+   SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlmY215c2ptb2VoY3lzenZreHNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc1NTE0ODksImV4cCI6MjA4MzEyNzQ4OX0.xTadlxXwyHvDQS1WI_dySeyP-fU-SEUm7Ro1vPVfGZA
+   SUPABASE_SERVICE_KEY=get_from_supabase_dashboard
    ```
 
-   Get your Replicate token from: https://replicate.com/account/api-tokens
+   **Get your credentials:**
+   - Replicate token: https://replicate.com/account/api-tokens
+   - Supabase service key: https://supabase.com/dashboard/project/yfcmysjmoehcyszvkxsr/settings/api
+   - See [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) for full Supabase configuration guide
 
 4. **Start development servers**
    ```bash
@@ -252,9 +261,14 @@ npm run lint     # Run ESLint
 | `REPLICATE_API_TOKEN` | Server-side Replicate API token (never exposed to client) | Yes |
 | `FRONTEND_AUTH_TOKEN` | Server-side auth token for proxy protection | Yes |
 | `VITE_FRONTEND_AUTH_TOKEN` | Client-side auth token (must match FRONTEND_AUTH_TOKEN) | Yes |
-| `VITE_PROXY_URL` | Backend proxy URL (default: http://localhost:3001/api) | No |
+| `VITE_PROXY_URL` | Backend proxy URL (default: http://127.0.0.1:3001/api) | No |
+| `SUPABASE_URL` | Supabase project URL | Yes |
+| `SUPABASE_ANON_KEY` | Supabase anon/public key | Yes |
+| `SUPABASE_SERVICE_KEY` | Supabase service role key (server-only) | Yes |
 | `ALLOWED_ORIGINS` | Comma-separated CORS whitelist | No |
 | `VITE_DEMO_MODE` | Enable demo mode (true/false) | No |
+
+For detailed Supabase setup, see [SUPABASE_SETUP.md](./SUPABASE_SETUP.md)
 
 ## Scaling Considerations
 
