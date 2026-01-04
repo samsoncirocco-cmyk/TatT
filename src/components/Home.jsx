@@ -5,36 +5,25 @@ export default function Home() {
   const [artists, setArtists] = useState([]);
 
   useEffect(() => {
-    // Safely load artists data
-    try {
-      import('../data/artists.json').then(module => {
+    // Safely load artists data with error handling
+    import('../data/artists.json')
+      .then(module => {
         const artistsData = module.default || module;
         if (artistsData?.artists) {
-          const bookingArtists = artistsData.artists.filter(a => a.bookingAvailable);
+          const bookingArtists = artistsData.artists.filter(a => a && a.bookingAvailable);
           setArtists(bookingArtists.slice(0, 6));
         }
-      }).catch(err => {
+      })
+      .catch(err => {
         console.error('Error loading artists:', err);
         setArtists([]);
       });
-    } catch (err) {
-      console.error('Error in artists useEffect:', err);
-      setArtists([]);
-    }
   }, []);
 
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section */}
       <section className="relative min-h-[90vh] md:min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-white via-green-50/30 to-yellow-50/20">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-[0.03]">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `radial-gradient(circle at 2px 2px, #154733 1px, transparent 0)`,
-            backgroundSize: '40px 40px'
-          }} />
-        </div>
-
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-12 md:py-20 lg:py-32">
           <div className="grid lg:grid-cols-2 gap-8 md:gap-12 lg:gap-16 items-center">
             {/* Left: Content */}
@@ -57,7 +46,7 @@ export default function Home() {
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start">
                 <Link 
                   to="/generate" 
-                  className="inline-flex items-center justify-center px-6 sm:px-8 py-3 sm:py-4 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 text-base sm:text-lg"
+                  className="inline-flex items-center justify-center px-6 sm:px-8 py-3 sm:py-4 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-all shadow-lg text-base sm:text-lg"
                 >
                   Start Creating Free
                   <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -103,9 +92,6 @@ export default function Home() {
                   />
                 </div>
               </div>
-              {/* Decorative Elements - Hidden on mobile */}
-              <div className="hidden md:block absolute -top-8 -right-8 w-48 h-48 lg:w-64 lg:h-64 bg-green-200 rounded-full blur-3xl opacity-30 -z-10"></div>
-              <div className="hidden md:block absolute -bottom-8 -left-8 w-48 h-48 lg:w-64 lg:h-64 bg-yellow-200 rounded-full blur-3xl opacity-30 -z-10"></div>
             </div>
           </div>
         </div>
@@ -125,93 +111,40 @@ export default function Home() {
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
             <FeatureCard
-              icon={
-                <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                </svg>
-              }
               title="AI Council Enhancement"
               description="250+ character database with intelligent prompt enhancement. Multi-character spatial separation prevents merging."
               badge="NEW"
             />
-
             <FeatureCard
-              icon={
-                <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              }
               title="5 AI Models"
               description="SDXL, Anime XL, DreamShaper Turbo, Tattoo Flash Art, and Imagen 3. Choose the perfect style for your vision."
             />
-
             <FeatureCard
-              icon={
-                <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-              }
               title="AR Visualization"
               description="See your tattoo on your body in real-time. ±2cm accuracy with photorealistic skin-mapping technology."
             />
-
             <FeatureCard
-              icon={
-                <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-              }
               title="Smart Artist Matching"
               description="Tinder-style swipe matching with graph database recommendations. Find the perfect artist for your style."
             />
-
             <FeatureCard
-              icon={
-                <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-              }
               title="AI Inpainting Editor"
               description="Edit specific parts of your design with AI-powered brush tool. Perfect your design before booking."
             />
-
             <FeatureCard
-              icon={
-                <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              }
               title="300 DPI Stencil Export"
               description="Professional-grade stencil export for artists. Print-ready at 300 DPI for crisp, clean lines."
             />
-
             <FeatureCard
-              icon={
-                <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
-                </svg>
-              }
               title="Design Library"
               description="Save and manage up to 50 designs. Organize your ideas and compare variations side-by-side."
             />
-
             <FeatureCard
-              icon={
-                <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
-              }
               title="Production Security"
               description="Enterprise-grade security with rate limiting, Bearer auth, CORS protection, and typed error handling."
               badge="SECURE"
             />
-
             <FeatureCard
-              icon={
-                <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-                </svg>
-              }
               title="7 Tattoo Styles"
               description="Traditional, Neo-Traditional, Japanese, Minimalist, Watercolor, Blackwork, and Realism. Optimized prompts for each."
             />
@@ -312,13 +245,13 @@ export default function Home() {
                   <div className="group cursor-pointer">
                     <div className="aspect-square rounded-xl md:rounded-2xl overflow-hidden mb-2 sm:mb-3 shadow-md group-hover:shadow-xl transition-all">
                       <img
-                        src={artist.portfolioImages[0]}
-                        alt={artist.name}
+                        src={artist.portfolioImages?.[0] || ''}
+                        alt={artist.name || 'Artist'}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                       />
                     </div>
                     <h3 className="font-semibold text-xs sm:text-sm mb-1">{artist.name}</h3>
-                    <p className="text-xs text-gray-500 line-clamp-1">{artist.specialties[0]}</p>
+                    <p className="text-xs text-gray-500 line-clamp-1">{artist.specialties?.[0] || ''}</p>
                   </div>
                 </Link>
               ))}
@@ -359,11 +292,13 @@ export default function Home() {
   );
 }
 
-function FeatureCard({ icon, title, description, badge }) {
+function FeatureCard({ title, description, badge }) {
   return (
     <div className="group p-6 md:p-8 bg-white rounded-xl md:rounded-2xl border border-gray-200 hover:border-green-300 hover:shadow-xl transition-all">
       <div className="w-12 h-12 sm:w-16 sm:h-16 bg-green-50 rounded-xl flex items-center justify-center text-green-600 mb-4 group-hover:bg-green-100 transition-colors">
-        {icon}
+        <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+        </svg>
       </div>
       {badge && (
         <span className="inline-block px-2 py-1 text-xs font-semibold bg-green-100 text-green-700 rounded mb-3">
@@ -406,7 +341,7 @@ function TestimonialCard({ quote, author, role }) {
           </svg>
         ))}
       </div>
-      <p className="text-sm sm:text-base text-gray-700 mb-4 sm:mb-6 italic leading-relaxed">"{quote}"</p>
+      <p className="text-sm sm:text-base text-gray-700 mb-4 sm:mb-6 italic leading-relaxed">&quot;{quote}&quot;</p>
       <div>
         <p className="font-semibold text-gray-900 text-sm sm:text-base">{author}</p>
         <p className="text-xs sm:text-sm text-gray-500">{role}</p>
