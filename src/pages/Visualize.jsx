@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import designsData from '../data/designs.json';
+import { requestCameraAccess, stopCameraStream, captureFrame, ARSessionState } from '../services/ar/arService';
 
 
 const CONFIDENCE_TIPS = [
@@ -17,6 +18,7 @@ function Visualize() {
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [currentConfidenceTip, setCurrentConfidenceTip] = useState("");
   const [stream, setStream] = useState(null);
+  const [arState, setArState] = useState(ARSessionState.IDLE);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -80,57 +82,61 @@ function Visualize() {
     }
   }, [photo, selectedTattoo]);
 
-  // Start camera
+  // Start camera with improved state management
   const startCamera = async () => {
+    setArState(ARSessionState.REQUESTING_PERMISSION);
+
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'environment',
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        }
-      });
+      const mediaStream = await requestCameraAccess();
 
       setStream(mediaStream);
       setShowCamera(true);
+      setArState(ARSessionState.LOADING);
 
       setTimeout(() => {
         if (videoRef.current) {
           videoRef.current.srcObject = mediaStream;
+          videoRef.current.onloadedmetadata = () => {
+            setArState(ARSessionState.ACTIVE);
+          };
         }
       }, 100);
     } catch (error) {
       console.error('Error accessing camera:', error);
-      alert('Unable to access camera. Please check permissions or try uploading a photo instead.');
+      
+      // Set appropriate error state based on error message
+      if (error.message.includes('permission denied')) {
+        setArState(ARSessionState.PERMISSION_DENIED);
+      } else if (error.message.includes('No camera found')) {
+        setArState(ARSessionState.NO_CAMERA);
+      } else {
+        setArState(ARSessionState.ERROR);
+      }
     }
   };
 
-  // Capture photo from camera
+  // Capture photo from camera using AR service
   const capturePhoto = () => {
     if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-
-      const context = canvas.getContext('2d');
-      context.drawImage(video, 0, 0);
-
-      const photoData = canvas.toDataURL('image/jpeg');
-      setPhoto(photoData);
-
-      stopCamera();
+      try {
+        const photoData = captureFrame(videoRef.current, canvasRef.current);
+        setPhoto(photoData);
+        stopCamera();
+      } catch (error) {
+        console.error('Failed to capture photo:', error);
+        setArState(ARSessionState.ERROR);
+      }
     }
   };
 
-  // Stop camera stream
+  // Stop camera stream with cleanup
   const stopCamera = () => {
     if (stream) {
-      stream.getTracks().forEach(track => track.stop());
+      stopCameraStream(stream);
       setStream(null);
     }
     setShowCamera(false);
+    setArState(ARSessionState.IDLE);
   };
 
   // Handle file upload
@@ -314,6 +320,55 @@ function Visualize() {
         </div>
 
         <div className="flex-1 relative flex items-center justify-center bg-black">
+          {/* AR State Banner */}
+          {arState === ARSessionState.REQUESTING_PERMISSION && (
+            <div className="absolute top-4 left-4 right-4 bg-blue-500 text-white px-4 py-3 rounded-lg shadow-lg z-10">
+              <p className="text-sm font-medium">📷 Requesting camera access...</p>
+            </div>
+          )}
+          {arState === ARSessionState.PERMISSION_DENIED && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black z-10 p-6">
+              <div className="bg-white rounded-lg p-6 max-w-sm text-center">
+                <p className="text-red-600 font-medium mb-2">⚠️ Camera Access Denied</p>
+                <p className="text-gray-600 text-sm mb-4">
+                  Please allow camera access in your browser settings and try again.
+                </p>
+                <button
+                  onClick={stopCamera}
+                  className="px-4 py-2 bg-gray-900 text-white rounded hover:bg-gray-800"
+                >
+                  Go Back
+                </button>
+              </div>
+            </div>
+          )}
+          {arState === ARSessionState.NO_CAMERA && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black z-10 p-6">
+              <div className="bg-white rounded-lg p-6 max-w-sm text-center">
+                <p className="text-red-600 font-medium mb-2">📷 No Camera Found</p>
+                <p className="text-gray-600 text-sm mb-4">
+                  Please connect a camera and try again, or upload a photo instead.
+                </p>
+                <button
+                  onClick={stopCamera}
+                  className="px-4 py-2 bg-gray-900 text-white rounded hover:bg-gray-800"
+                >
+                  Go Back
+                </button>
+              </div>
+            </div>
+          )}
+          {arState === ARSessionState.LOADING && (
+            <div className="absolute top-4 left-4 right-4 bg-yellow-500 text-white px-4 py-3 rounded-lg shadow-lg z-10">
+              <p className="text-sm font-medium">⏳ Loading camera...</p>
+            </div>
+          )}
+          {arState === ARSessionState.ACTIVE && (
+            <div className="absolute top-4 left-4 right-4 bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg z-10 animate-fade-in-up">
+              <p className="text-sm font-medium">✓ Camera ready</p>
+            </div>
+          )}
+          
           <video
             ref={videoRef}
             autoPlay
