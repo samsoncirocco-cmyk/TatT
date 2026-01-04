@@ -1,13 +1,26 @@
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import artistsData from '../data/artists.json';
 
 export default function Home() {
   const [artists, setArtists] = useState([]);
 
   useEffect(() => {
-    const bookingArtists = artistsData.artists.filter(a => a.bookingAvailable);
-    setArtists(bookingArtists.slice(0, 6));
+    // Safely load artists data
+    try {
+      import('../data/artists.json').then(module => {
+        const artistsData = module.default || module;
+        if (artistsData?.artists) {
+          const bookingArtists = artistsData.artists.filter(a => a.bookingAvailable);
+          setArtists(bookingArtists.slice(0, 6));
+        }
+      }).catch(err => {
+        console.error('Error loading artists:', err);
+        setArtists([]);
+      });
+    } catch (err) {
+      console.error('Error in artists useEffect:', err);
+      setArtists([]);
+    }
   }, []);
 
   return (
