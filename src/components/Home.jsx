@@ -6,181 +6,397 @@ export default function Home() {
   const [artists, setArtists] = useState([]);
 
   useEffect(() => {
-    // Filter artists who are "Booking Now"
     const bookingArtists = artistsData.artists.filter(a => a.bookingAvailable);
-    setArtists(bookingArtists);
+    setArtists(bookingArtists.slice(0, 6));
   }, []);
 
   return (
-    <div className="min-h-screen bg-white text-gray-900 border-t border-gray-100">
-
-      {/* 1. TOP CAROUSEL SECTION */}
-      <section className="pt-24 pb-12 overflow-hidden border-b border-gray-100">
-        <div className="max-w-[1400px] mx-auto px-6 grid md:grid-cols-[300px_1fr] gap-12 items-start">
-          <div className="pt-4">
-            <p className="italic text-xs text-ducks-green mb-2 font-bold tracking-widest uppercase">Initializing Life.exe...</p>
-            <h1 className="text-3xl font-bold mb-4 tracking-tighter leading-none">Your Skin is the <br /><span className="text-ducks-green italic">Final Ledger.</span></h1>
-            <ul className="space-y-2 mb-8 text-[10px] text-gray-500 uppercase tracking-widest font-bold">
-              <li className="flex items-center gap-2 text-ducks-green"><span className="text-ducks-yellow bg-ducks-green rounded-full w-4 h-4 flex items-center justify-center text-[8px]">✓</span> 15-Month Lag Collapsed</li>
-              <li className="flex items-center gap-2"><span className="text-ducks-green">✓</span> 4,200+ Regret Patterns Analyzed</li>
-              <li className="flex items-center gap-2"><span className="text-ducks-green">✓</span> Zero Latency Body-Mapping</li>
-              <li className="flex items-center gap-2"><span className="text-ducks-green">✓</span> Peer-Reviewed Artist Integrity</li>
-              <li className="flex items-center gap-2"><span className="text-ducks-green">✓</span> Hardcoded Permanence Prep</li>
-            </ul>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Link to="/artists" className="btn-cocreate">Patch Your Future Ink →</Link>
-              <Link to="/smart-match" className="btn-cocreate-yellow">Start Smart Match (Swipe) →</Link>
-            </div>
-          </div>
-
-          <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-8">
-            {artists.map((artist) => (
-              <ArtistCard key={artist.id} artist={artist} />
-            ))}
-          </div>
+    <div className="min-h-screen bg-white">
+      {/* Hero Section */}
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-white via-green-50/30 to-yellow-50/20">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-[0.03]">
+          <div className="absolute inset-0" style={{
+            backgroundImage: `radial-gradient(circle at 2px 2px, #154733 1px, transparent 0)`,
+            backgroundSize: '40px 40px'
+          }} />
         </div>
-      </section>
 
-      {/* 2. VERIFICATION SECTION */}
-      <section className="py-24 border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-2 gap-20 items-center">
-          <div className="relative h-[400px] flex items-center justify-center">
-            {/* The circular profile layout */}
-            <div className="relative w-64 h-64">
-              {/* Main Center Image */}
-              <div className="absolute inset-0 rounded-full overflow-hidden border-4 border-white shadow-xl z-20">
-                <img src={artists[0]?.portfolioImages[0]} alt="Featured Artist" className="w-full h-full object-cover" />
-                <div className="absolute bottom-2 right-2 bg-ducks-yellow text-ducks-green rounded-full p-1 border-2 border-white">
-                  <span className="text-xs font-bold">✓</span>
+        <div className="relative z-10 max-w-7xl mx-auto px-6 py-20 md:py-32">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            {/* Left: Content */}
+            <div className="space-y-8">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-100 rounded-full">
+                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                <span className="text-xs font-semibold text-green-700 uppercase tracking-wider">Production Ready</span>
+              </div>
+
+              <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold leading-tight tracking-tight">
+                Turn Your Tattoo Idea Into
+                <span className="block text-green-600 mt-2">Confidence</span>
+              </h1>
+
+              <p className="text-xl md:text-2xl text-gray-600 leading-relaxed max-w-2xl">
+                AI-powered design generation, AR visualization, and smart artist matching. 
+                Collapse 15 months of overthinking into 15 minutes of precision.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Link 
+                  to="/generate" 
+                  className="inline-flex items-center justify-center px-8 py-4 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                >
+                  Start Creating Free
+                  <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </Link>
+                <Link 
+                  to="/smart-match" 
+                  className="inline-flex items-center justify-center px-8 py-4 bg-white border-2 border-green-600 text-green-600 font-semibold rounded-lg hover:bg-green-50 transition-all"
+                >
+                  Find Your Artist
+                </Link>
+              </div>
+
+              {/* Trust Indicators */}
+              <div className="flex flex-wrap items-center gap-8 pt-8 border-t border-gray-200">
+                <div>
+                  <div className="text-2xl font-bold text-gray-900">250+</div>
+                  <div className="text-sm text-gray-500">Character Database</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-gray-900">5 AI</div>
+                  <div className="text-sm text-gray-500">Generation Models</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-gray-900">3.5x</div>
+                  <div className="text-sm text-gray-500">Higher Confidence</div>
                 </div>
               </div>
-              {/* Outer orbiting images */}
-              <div className="absolute -top-12 -left-12 w-16 h-16 rounded-full border-2 border-white shadow-md overflow-hidden z-10">
-                <img src={artists[1]?.portfolioImages[1]} alt="Artist" className="w-full h-full object-cover" />
-              </div>
-              <div className="absolute top-0 -right-16 w-14 h-14 rounded-full border-2 border-white shadow-md overflow-hidden z-10">
-                <img src={artists[2]?.portfolioImages[0]} alt="Artist" className="w-full h-full object-cover" />
-              </div>
-              <div className="absolute -bottom-10 right-10 w-20 h-20 rounded-full border-2 border-white shadow-md overflow-hidden z-10">
-                <img src={artists[3]?.portfolioImages[2]} alt="Artist" className="w-full h-full object-cover" />
-              </div>
-              <div className="absolute -bottom-4 -left-20 w-12 h-12 rounded-full border-2 border-white shadow-md overflow-hidden z-10">
-                <img src={artists[4]?.portfolioImages[0]} alt="Artist" className="w-full h-full object-cover" />
-              </div>
-              <div className="absolute top-20 -left-20 w-10 h-10 rounded-full border-2 border-white shadow-md overflow-hidden z-10">
-                <img src={artists[5]?.portfolioImages[1]} alt="Artist" className="w-full h-full object-cover" />
-              </div>
+            </div>
 
-              <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 text-center w-full">
-                <h3 className="text-xl font-bold tracking-tight">{artists[0]?.name}</h3>
-                <p className="text-[10px] uppercase tracking-widest text-ducks-green font-black">Samson Protocol: Validated</p>
+            {/* Right: Visual */}
+            <div className="relative">
+              <div className="relative z-10">
+                <div className="aspect-[4/5] rounded-3xl overflow-hidden shadow-2xl border-8 border-white">
+                  <img 
+                    src="/images/hero.png" 
+                    alt="TatTester App Preview" 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.src = 'https://images.unsplash.com/photo-1611605698335-8b1569810432?w=800&h=1000&fit=crop';
+                    }}
+                  />
+                </div>
               </div>
+              {/* Decorative Elements */}
+              <div className="absolute -top-8 -right-8 w-64 h-64 bg-green-200 rounded-full blur-3xl opacity-30 -z-10"></div>
+              <div className="absolute -bottom-8 -left-8 w-64 h-64 bg-yellow-200 rounded-full blur-3xl opacity-30 -z-10"></div>
             </div>
           </div>
+        </div>
+      </section>
 
-          <div>
-            <h2 className="text-3xl font-bold mb-4 leading-tight">Abort the <br /><span className="text-ducks-green italic">Permanence Crisis.</span></h2>
-            <p className="text-gray-500 text-sm mb-8 leading-relaxed max-w-sm font-medium">
-              Market data shows 70% of first-timers spend **15-20 months** in a "Permanent Panic" loop. In Life.exe, there is no undo button. TatTester bridges the "Vision Gap" for the 3,800+ seekers who can't visualize the ink.
-              We collapse 2 years of overthinking into 2 weeks of precision.
+      {/* Product Features Grid */}
+      <section className="py-24 bg-white">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">
+              Everything You Need to <span className="text-green-600">Get Inked</span>
+            </h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Powered by cutting-edge AI and production-grade infrastructure
             </p>
-            <Link to="/philosophy" className="btn-cocreate-yellow">Download Confidence.dmg →</Link>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <FeatureCard
+              icon={
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+              }
+              title="AI Council Enhancement"
+              description="250+ character database with intelligent prompt enhancement. Multi-character spatial separation prevents merging."
+              badge="NEW"
+            />
+
+            <FeatureCard
+              icon={
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              }
+              title="5 AI Models"
+              description="SDXL, Anime XL, DreamShaper Turbo, Tattoo Flash Art, and Imagen 3. Choose the perfect style for your vision."
+            />
+
+            <FeatureCard
+              icon={
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              }
+              title="AR Visualization"
+              description="See your tattoo on your body in real-time. ±2cm accuracy with photorealistic skin-mapping technology."
+            />
+
+            <FeatureCard
+              icon={
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              }
+              title="Smart Artist Matching"
+              description="Tinder-style swipe matching with graph database recommendations. Find the perfect artist for your style."
+            />
+
+            <FeatureCard
+              icon={
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              }
+              title="AI Inpainting Editor"
+              description="Edit specific parts of your design with AI-powered brush tool. Perfect your design before booking."
+            />
+
+            <FeatureCard
+              icon={
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              }
+              title="300 DPI Stencil Export"
+              description="Professional-grade stencil export for artists. Print-ready at 300 DPI for crisp, clean lines."
+            />
+
+            <FeatureCard
+              icon={
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+                </svg>
+              }
+              title="Design Library"
+              description="Save and manage up to 50 designs. Organize your ideas and compare variations side-by-side."
+            />
+
+            <FeatureCard
+              icon={
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+              }
+              title="Production Security"
+              description="Enterprise-grade security with rate limiting, Bearer auth, CORS protection, and typed error handling."
+              badge="SECURE"
+            />
+
+            <FeatureCard
+              icon={
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                </svg>
+              }
+              title="7 Tattoo Styles"
+              description="Traditional, Neo-Traditional, Japanese, Minimalist, Watercolor, Blackwork, and Realism. Optimized prompts for each."
+            />
           </div>
         </div>
       </section>
 
-      {/* 3. SYSTEM FEATURES SECTION */}
-      <section className="py-24 border-b border-gray-100 bg-gray-50/30">
-        <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-[1fr_400px] gap-20 items-center">
-          <div>
-            <h2 className="text-2xl font-bold mb-4 italic">The Simulation Layer</h2>
-            <p className="text-xs text-gray-400 mb-8 max-w-md">3.5x higher booking confidence validated via AR-adjacent conversion metrics. Your skin deserves higher resolution planning.</p>
-            <ul className="space-y-4 mb-10">
-              <FeatureItem text="Prompt-to-Simulation Architecture" />
-              <FeatureItem text="Photorealistic Skin-Map AR (±2cm accuracy)" />
-              <FeatureItem text="Samson-Verified Artist Network" />
-              <FeatureItem text="Regret-Vector Analysis" />
-              <FeatureItem text="Multi-Angle Placement Comparison" />
-              <FeatureItem text="Direct Bio-Trace Communication" />
-              <FeatureItem text="Secure Escrow Payment Flow" />
-            </ul>
-            <Link to="/generate" className="btn-cocreate">Execute Forge.exe ↓</Link>
+      {/* How It Works */}
+      <section className="py-24 bg-gradient-to-b from-white to-green-50/30">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">
+              From Idea to <span className="text-green-600">Ink</span> in Minutes
+            </h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              A simple, powerful workflow designed for first-time seekers
+            </p>
           </div>
 
-          <div className="relative">
-            <div className="relative z-10 rotate-3">
-              <div className="p-2 bg-ducks-green rounded-[2.5rem] shadow-2xl">
-                <img src="/images/phone_tatt_mockup.png" alt="TatTester App" className="w-full max-w-[300px] mx-auto rounded-[2rem]" />
+          <div className="grid md:grid-cols-3 gap-8">
+            <StepCard
+              number="1"
+              title="Generate Your Design"
+              description="Describe your idea. Our AI Council enhances it with 250+ character database and generates 4 variations using 5 different models."
+              link="/generate"
+              linkText="Start Creating →"
+            />
+            <StepCard
+              number="2"
+              title="Visualize on Your Body"
+              description="Use AR to see exactly how your tattoo will look. Drag, resize, and adjust placement with ±2cm accuracy."
+              link="/visualize"
+              linkText="Try AR Preview →"
+            />
+            <StepCard
+              number="3"
+              title="Find Your Artist"
+              description="Swipe through verified artists matched to your style. Book directly through our platform with confidence."
+              link="/smart-match"
+              linkText="Find Artists →"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Social Proof */}
+      <section className="py-24 bg-white">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">
+              Trusted by <span className="text-green-600">First-Time Seekers</span>
+            </h2>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            <TestimonialCard
+              quote="I was stuck in the loop for 18 months. TatTester collapsed the Vision Gap in 30 seconds. No more panic."
+              author="Samson C."
+              role="First-Time Seeker"
+            />
+            <TestimonialCard
+              quote="25% of my clients used to cancel due to anxiety. Now, if they've passed the TatTester simulation, they're 3.5x more likely to sit in the chair."
+              author="Felix Y."
+              role="Tattoo Artist"
+            />
+            <TestimonialCard
+              quote="The AR body-mapping is the first time I've felt in control of my skin's ledger. Accuracy matters."
+              author="Marcus T."
+              role="First-Time Seeker"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Artists */}
+      {artists.length > 0 && (
+        <section className="py-24 bg-gray-50">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="flex items-center justify-between mb-12">
+              <div>
+                <h2 className="text-4xl font-bold mb-2">Featured Artists</h2>
+                <p className="text-gray-600">Verified professionals ready to bring your vision to life</p>
               </div>
+              <Link 
+                to="/artists" 
+                className="text-green-600 font-semibold hover:text-green-700 flex items-center gap-2"
+              >
+                View All
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </Link>
             </div>
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-ducks-green/10 rounded-full blur-[80px] -z-10" />
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+              {artists.map((artist) => (
+                <Link key={artist.id} to={`/artists/${artist.id}`}>
+                  <div className="group cursor-pointer">
+                    <div className="aspect-square rounded-2xl overflow-hidden mb-3 shadow-md group-hover:shadow-xl transition-all">
+                      <img
+                        src={artist.portfolioImages[0]}
+                        alt={artist.name}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      />
+                    </div>
+                    <h3 className="font-semibold text-sm mb-1">{artist.name}</h3>
+                    <p className="text-xs text-gray-500">{artist.specialties[0]}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* CTA Section */}
+      <section className="py-24 bg-gradient-to-r from-green-600 to-green-700 text-white">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <h2 className="text-4xl md:text-5xl font-bold mb-6">
+            Ready to Get Inked?
+          </h2>
+          <p className="text-xl mb-8 text-green-50">
+            Join thousands of first-time seekers who found confidence through TatTester
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link 
+              to="/generate" 
+              className="inline-flex items-center justify-center px-8 py-4 bg-white text-green-600 font-semibold rounded-lg hover:bg-green-50 transition-all shadow-lg"
+            >
+              Create Your First Design
+              <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </Link>
+            <Link 
+              to="/smart-match" 
+              className="inline-flex items-center justify-center px-8 py-4 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-400 transition-all border-2 border-white/20"
+            >
+              Find Your Artist
+            </Link>
           </div>
         </div>
       </section>
-
-      {/* 4. TESTIMONIAL GRID */}
-      <section className="py-24 bg-ducks-green overflow-hidden">
-        <div className="max-w-[1600px] mx-auto">
-          <div className="flex gap-4 overflow-x-auto hide-scrollbar px-6">
-            <QuoteCard text="I was stuck in the loop for 18 months. TatTester collapsed the Vision Gap in 30 seconds. No more panic." author="Samson Cirocco" />
-            <QuoteCard text="25% of my clients used to cancel due to anxiety. Now, if they've passed the TatTester simulation, they're 3.5x more likely to sit in the chair." author="Felix Young" />
-            <QuoteCard text="Life.exe is unforgiving. TatTester is the only reset button I’ve found for my sleeve planning." author="Alex Rivera" />
-            <QuoteCard text="The Samson Test filters out the noise. I know my artist is validated before the first needle drop." author="Mila Chen" />
-            <QuoteCard text="Accuracy matters. The AR body-mapping is the first time I've felt in control of my skin's ledger." author="Marcus Thorne" />
-            <div className="min-w-[400px] bg-white/5 border border-white/10 rounded-lg flex items-center justify-center p-12 text-center text-white">
-              <h3 className="text-2xl font-bold">Initialize <br /> Your Visual Patch</h3>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 5. BOTTOM CTA BAR */}
-      <footer className="bg-ducks-green py-6 border-t border-white/5">
-        <div className="text-center text-white/40 text-[8px] uppercase tracking-[0.4em] font-black">
-          TatTester // Protocol 4.2.1 // Life.exe Environment // (c) 2025
-        </div>
-      </footer>
     </div>
   );
 }
 
-function ArtistCard({ artist }) {
+function FeatureCard({ icon, title, description, badge }) {
   return (
-    <div className="min-w-[180px] group cursor-pointer relative">
-      <div className="aspect-[3/4] overflow-hidden rounded-md mb-3 shadow-sm border border-gray-100">
-        <img
-          src={artist.portfolioImages[0]}
-          alt={artist.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-        />
-        <div className="absolute bottom-10 left-3 z-10">
-          <h3 className="text-white text-sm font-bold drop-shadow-md">{artist.name}</h3>
-        </div>
-        <div className="absolute bottom-3 left-3 z-10">
-          <span className="text-ducks-green text-[10px] uppercase font-black tracking-widest bg-ducks-yellow px-2 py-0.5 rounded shadow-sm">Validated</span>
-        </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
+    <div className="group p-8 bg-white rounded-2xl border border-gray-200 hover:border-green-300 hover:shadow-xl transition-all">
+      <div className="w-16 h-16 bg-green-50 rounded-xl flex items-center justify-center text-green-600 mb-4 group-hover:bg-green-100 transition-colors">
+        {icon}
+      </div>
+      {badge && (
+        <span className="inline-block px-2 py-1 text-xs font-semibold bg-green-100 text-green-700 rounded mb-3">
+          {badge}
+        </span>
+      )}
+      <h3 className="text-xl font-bold mb-2">{title}</h3>
+      <p className="text-gray-600 leading-relaxed">{description}</p>
+    </div>
+  );
+}
+
+function StepCard({ number, title, description, link, linkText }) {
+  return (
+    <div className="relative">
+      <div className="absolute -top-4 -left-4 w-12 h-12 bg-green-600 text-white rounded-full flex items-center justify-center font-bold text-xl shadow-lg">
+        {number}
+      </div>
+      <div className="p-8 bg-white rounded-2xl border border-gray-200 shadow-sm h-full">
+        <h3 className="text-2xl font-bold mb-3">{title}</h3>
+        <p className="text-gray-600 mb-6 leading-relaxed">{description}</p>
+        <Link 
+          to={link}
+          className="text-green-600 font-semibold hover:text-green-700 flex items-center gap-2"
+        >
+          {linkText}
+        </Link>
       </div>
     </div>
   );
 }
 
-function FeatureItem({ text }) {
+function TestimonialCard({ quote, author, role }) {
   return (
-    <li className="flex items-center gap-3 group">
-      <div className="w-1.5 h-1.5 bg-ducks-green rounded-full group-hover:scale-150 transition-transform" />
-      <span className="text-sm font-semibold text-gray-700 tracking-tight">{text}</span>
-    </li>
-  );
-}
-
-function QuoteCard({ text, author }) {
-  return (
-    <div className="min-w-[320px] bg-white p-8 rounded-lg shadow-xl shadow-green-900/20 flex flex-col justify-between">
-      <p className="text-sm italic text-gray-700 leading-relaxed mb-6 font-medium">"{text}"</p>
+    <div className="p-8 bg-white rounded-2xl border border-gray-200 shadow-sm">
+      <div className="flex items-center gap-1 mb-4">
+        {[...Array(5)].map((_, i) => (
+          <svg key={i} className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+          </svg>
+        ))}
+      </div>
+      <p className="text-gray-700 mb-6 italic leading-relaxed">"{quote}"</p>
       <div>
-        <p className="font-bold text-xs uppercase tracking-widest text-ducks-green">{author}</p>
-        <p className="text-[10px] text-gray-400 mt-1 uppercase">Overthinker #0421</p>
+        <p className="font-semibold text-gray-900">{author}</p>
+        <p className="text-sm text-gray-500">{role}</p>
       </div>
     </div>
   );
