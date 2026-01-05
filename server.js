@@ -132,6 +132,7 @@ const authMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
+    res.setHeader('WWW-Authenticate', 'Bearer realm="TatTester API"');
     return res.status(401).json({
       error: 'Authorization header required',
       code: 'AUTH_REQUIRED'
@@ -141,6 +142,7 @@ const authMiddleware = (req, res, next) => {
   const token = authHeader.replace('Bearer ', '');
 
   if (token !== FRONTEND_AUTH_TOKEN) {
+    res.setHeader('WWW-Authenticate', 'Bearer realm="TatTester API"');
     return res.status(403).json({
       error: 'Invalid authorization token',
       code: 'AUTH_INVALID'

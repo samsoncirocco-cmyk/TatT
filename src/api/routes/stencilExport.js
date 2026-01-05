@@ -7,6 +7,8 @@
 
 import { Router } from 'express';
 import { validateStencilExportRequest } from '../middleware/validation.js';
+import { startTimer, endTimer } from '../../utils/performanceMonitor.js';
+import { queueStencilExport } from '../../services/emailQueueService.js';
 
 const router = Router();
 
@@ -22,21 +24,27 @@ const router = Router();
  * - format: string (optional, one of: pdf, png, svg, default: pdf)
  * - include_metadata: boolean (optional, default: true)
  * - artist_info: object (optional, { name, instagram, studio })
+ * - force_queue: boolean (optional, simulate service unavailability)
  * 
  * Response:
  * - 200: { success: true, stencil_url: string, metadata: {...} }
+ * - 202: { success: true, queued: true, queue_id: string, message: string }
  * - 400: { error: string, code: string, details: [...] }
  * - 422: { error: string, code: string }
  * - 500: { error: string, code: string }
  */
 router.post('/', validateStencilExportRequest, async (req, res) => {
+    const OP_NAME = 'Stencil Export';
+    startTimer(OP_NAME);
+
     try {
         const {
             design_id,
             dimensions,
             format = 'pdf',
             include_metadata = true,
-            artist_info = {}
+            artist_info = {},
+            force_queue = false // For testing service unavailability
         } = req.body;
 
         console.log('[API] Stencil export request:', {
@@ -46,16 +54,20 @@ router.post('/', validateStencilExportRequest, async (req, res) => {
             include_metadata
         });
 
-        // For MVP, return a mock response
-        // In production, this would:
-        // 1. Load the design from storage
-        // 2. Validate design is suitable for stencil (line quality, contrast)
-        // 3. Generate stencil with calibration markers
-        // 4. Add metadata overlay if requested
-        // 5. Export to requested format
-        // 6. Upload to storage and return URL
+        // Simulate service unavailability if force_queue is true
+        if (force_queue) {
+            console.log('[API] Service unavailable (simulated), queuing export...');
+            const queueId = queueStencilExport(req.body);
+            endTimer(OP_NAME, 10000, { queued: true });
 
-        const startTime = Date.now();
+            return res.status(202).json({
+                success: true,
+                queued: true,
+                queue_id: queueId,
+                message: 'Stencil export service is currently busy. Your request has been queued and you will receive an email when it is ready.',
+                hint: 'Estimated time: 2-5 minutes'
+            });
+        }
 
         // Mock stencil generation
         const stencilData = {
@@ -78,9 +90,6 @@ router.post('/', validateStencilExportRequest, async (req, res) => {
                 artist_info: artist_info,
                 generated_at: new Date().toISOString(),
                 version: '1.0'
-            },
-            performance: {
-                duration_ms: Date.now() - startTime
             }
         };
 
@@ -94,15 +103,31 @@ router.post('/', validateStencilExportRequest, async (req, res) => {
             };
         }
 
-        console.log(`[API] Stencil export completed in ${stencilData.performance.duration_ms}ms`);
+        const duration = endTimer(OP_NAME, 10000, { design_id });
 
         res.json({
             success: true,
-            ...stencilData
+            ...stencilData,
+            performance: {
+                duration_ms: Math.round(duration)
+            }
         });
 
     } catch (error) {
         console.error('[API] Stencil export error:', error);
+        endTimer(OP_NAME);
+
+        // Offer queuing on server-side failures (Service Unavailability)
+        if (error.code === 'ECONNREFUSED' || error.message.includes('unavailable')) {
+            const queueId = queueStencilExport(req.body);
+            return res.status(202).json({
+                success: true,
+                queued: true,
+                queue_id: queueId,
+                message: 'Stencil export service is currently unavailable. Your request has been queued and you will receive an email when it is ready.',
+                hint: 'We will notify you at user@example.com when the export is complete.'
+            });
+        }
 
         // Handle specific error types
         if (error.message.includes('unsuitable design')) {
@@ -128,15 +153,6 @@ router.post('/', validateStencilExportRequest, async (req, res) => {
                 error: 'Design not found',
                 code: 'DESIGN_NOT_FOUND',
                 message: error.message
-            });
-        }
-
-        if (error.message.includes('format not supported')) {
-            return res.status(422).json({
-                error: 'Format not supported',
-                code: 'UNSUPPORTED_FORMAT',
-                message: error.message,
-                hint: 'Supported formats: pdf, png, svg'
             });
         }
 

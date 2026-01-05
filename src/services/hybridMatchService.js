@@ -186,6 +186,9 @@ function calculateStyleScore(artist, preferences) {
  * @returns {Promise<Object>} { matches: Array, totalCandidates: number }
  */
 export async function findMatchingArtists(query, preferences = {}, maxResults = 10) {
+    const startTime = performance.now();
+    const TIMEOUT_MS = 500;
+
     // Check cache first
     const cacheKey = JSON.stringify({ query, preferences, maxResults });
     const cached = queryCache.get(cacheKey);
@@ -197,69 +200,104 @@ export async function findMatchingArtists(query, preferences = {}, maxResults = 
 
     console.log('[HybridMatch] Executing hybrid search:', { query, preferences });
 
+    // Create timeout promise
+    const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+            reject(new Error(`Query timeout: exceeded ${TIMEOUT_MS}ms limit`));
+        }, TIMEOUT_MS);
+    });
+
     try {
         // Parse query
         const { visualConcepts, keywords } = parseQuery(query);
 
-        // Execute vector and graph queries in parallel
-        const [vectorResults, graphResults] = await Promise.all([
-            executeVectorSearch(query, 20),
-            executeGraphQuery({
-                ...preferences,
-                keywords: keywords
-            })
+        // Execute with timeout
+        const result = await Promise.race([
+            (async () => {
+                const vectorStart = performance.now();
+
+                // Execute vector and graph queries in parallel
+                const [vectorResults, graphResults] = await Promise.all([
+                    executeVectorSearch(query, 20),
+                    executeGraphQuery({
+                        ...preferences,
+                        keywords: keywords
+                    })
+                ]);
+
+                const vectorTime = performance.now() - vectorStart;
+                const mergeStart = performance.now();
+
+                console.log(`[HybridMatch] Vector results: ${vectorResults.length}, Graph results: ${graphResults.length}`);
+
+                // Merge results by artist ID
+                const mergedResults = mergeResults(vectorResults, graphResults, 'id');
+
+                console.log(`[HybridMatch] Merged results: ${mergedResults.length}`);
+
+                // Calculate composite scores for each artist
+                const scoredArtists = mergedResults.map(artist => {
+                    // Gather all scoring signals
+                    const signals = {
+                        visualSimilarity: artist.visualSimilarity || 0,
+                        styleAlignment: calculateStyleScore(artist, preferences),
+                        location: calculateLocationScore(artist, preferences),
+                        budget: calculateBudgetScore(artist, preferences),
+                        randomVariety: Math.random()
+                    };
+
+                    // Calculate composite score
+                    const { score, breakdown } = calculateCompositeScore(signals, DEFAULT_WEIGHTS);
+
+                    // Generate match reasoning
+                    const reasons = generateMatchReasoning(signals, artist, preferences);
+
+                    return {
+                        ...artist,
+                        compositeScore: score,
+                        score: Math.round(score * 100), // For display (0-100)
+                        matchScore: score, // For sorting (0-1)
+                        scoreBreakdown: breakdown,
+                        reasons: reasons
+                    };
+                });
+
+                const mergeTime = performance.now() - mergeStart;
+
+                // Sort by composite score and return top N
+                const topMatches = scoredArtists
+                    .sort((a, b) => b.compositeScore - a.compositeScore)
+                    .slice(0, maxResults);
+
+                const totalTime = performance.now() - startTime;
+
+                // Log performance
+                console.log(`[PERF] Semantic Match: ${totalTime.toFixed(0)}ms (vector: ${vectorTime.toFixed(0)}ms, merge: ${mergeTime.toFixed(0)}ms)`);
+
+                // Warn if slow
+                if (totalTime > 400) {
+                    console.warn(`[PERF] Slow query detected: ${totalTime.toFixed(0)}ms - approaching ${TIMEOUT_MS}ms timeout`);
+                }
+
+                return {
+                    matches: topMatches,
+                    totalCandidates: mergedResults.length,
+                    queryInfo: {
+                        query,
+                        visualConcepts,
+                        keywords,
+                        vectorResultCount: vectorResults.length,
+                        graphResultCount: graphResults.length
+                    },
+                    performance: {
+                        totalTime: Math.round(totalTime),
+                        vectorTime: Math.round(vectorTime),
+                        mergeTime: Math.round(mergeTime)
+                    }
+                };
+            })(),
+            timeoutPromise
         ]);
-
-        console.log(`[HybridMatch] Vector results: ${vectorResults.length}, Graph results: ${graphResults.length}`);
-
-        // Merge results by artist ID
-        const mergedResults = mergeResults(vectorResults, graphResults, 'id');
-
-        console.log(`[HybridMatch] Merged results: ${mergedResults.length}`);
-
-        // Calculate composite scores for each artist
-        const scoredArtists = mergedResults.map(artist => {
-            // Gather all scoring signals
-            const signals = {
-                visualSimilarity: artist.visualSimilarity || 0,
-                styleAlignment: calculateStyleScore(artist, preferences),
-                location: calculateLocationScore(artist, preferences),
-                budget: calculateBudgetScore(artist, preferences),
-                randomVariety: Math.random()
-            };
-
-            // Calculate composite score
-            const { score, breakdown } = calculateCompositeScore(signals, DEFAULT_WEIGHTS);
-
-            // Generate match reasoning
-            const reasons = generateMatchReasoning(signals, artist, preferences);
-
-            return {
-                ...artist,
-                compositeScore: score,
-                score: Math.round(score * 100), // For display (0-100)
-                matchScore: score, // For sorting (0-1)
-                scoreBreakdown: breakdown,
-                reasons: reasons
-            };
-        });
-
-        // Sort by composite score and return top N
-        const topMatches = scoredArtists
-            .sort((a, b) => b.compositeScore - a.compositeScore)
-            .slice(0, maxResults);
-
-        const result = {
-            matches: topMatches,
-            totalCandidates: mergedResults.length,
-            queryInfo: {
-                query,
-                visualConcepts,
-                keywords,
-                vectorResultCount: vectorResults.length,
-                graphResultCount: graphResults.length
-            }
-        };
 
         // Cache the result
         queryCache.set(cacheKey, {
@@ -273,6 +311,14 @@ export async function findMatchingArtists(query, preferences = {}, maxResults = 
         return result;
 
     } catch (error) {
+        const totalTime = performance.now() - startTime;
+
+        // Check if it's a timeout error
+        if (error.message.includes('timeout')) {
+            console.error(`[HybridMatch] Query timeout after ${totalTime.toFixed(0)}ms:`, { query, preferences });
+            throw new Error(`Search timeout: Query exceeded ${TIMEOUT_MS}ms limit. Try simplifying your search.`);
+        }
+
         console.error('[HybridMatch] Error in findMatchingArtists:', error);
         throw new Error(`Hybrid matching failed: ${error.message}`);
     }
