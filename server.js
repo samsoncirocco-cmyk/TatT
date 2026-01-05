@@ -9,6 +9,12 @@ import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import neo4j from 'neo4j-driver';
 
+// API v1 Routes
+import semanticMatchRouter from './src/api/routes/semanticMatch.js';
+import arVisualizationRouter from './src/api/routes/arVisualization.js';
+import councilEnhancementRouter from './src/api/routes/councilEnhancement.js';
+import stencilExportRouter from './src/api/routes/stencilExport.js';
+
 dotenv.config();
 
 const app = express();
@@ -72,6 +78,55 @@ const apiLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Endpoint-specific rate limiters (per hour)
+const semanticMatchLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 100,
+  message: {
+    error: 'Semantic match rate limit exceeded',
+    code: 'RATE_LIMIT_EXCEEDED',
+    hint: 'Maximum 100 requests per hour. Please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const councilEnhanceLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 20,
+  message: {
+    error: 'Council enhancement rate limit exceeded',
+    code: 'RATE_LIMIT_EXCEEDED',
+    hint: 'Maximum 20 requests per hour. Please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const arVisualizeLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 50,
+  message: {
+    error: 'AR visualization rate limit exceeded',
+    code: 'RATE_LIMIT_EXCEEDED',
+    hint: 'Maximum 50 requests per hour. Please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const stencilExportLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 30,
+  message: {
+    error: 'Stencil export rate limit exceeded',
+    code: 'RATE_LIMIT_EXCEEDED',
+    hint: 'Maximum 30 requests per hour. Please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Bearer auth middleware
 const authMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -102,7 +157,21 @@ app.get('/api/health', (req, res) => {
     message: 'Proxy server is running',
     hasReplicateToken: !!REPLICATE_API_TOKEN,
     hasNeo4jConfig: !!(NEO4J_URI && NEO4J_USER && NEO4J_PASSWORD),
-    authRequired: true
+    authRequired: true,
+    api_version: 'v1',
+    endpoints: {
+      v1: {
+        semantic_match: '/api/v1/match/semantic (100 req/hr)',
+        ar_visualization: '/api/v1/ar/visualize (50 req/hr)',
+        council_enhancement: '/api/v1/council/enhance (20 req/hr)',
+        stencil_export: '/api/v1/stencil/export (30 req/hr)'
+      },
+      legacy: {
+        predictions: '/api/predictions',
+        neo4j: '/api/neo4j/query',
+        semantic_match: '/api/match/semantic (deprecated)'
+      }
+    }
   });
 });
 
@@ -160,7 +229,16 @@ app.get('/api/predictions/:id', async (req, res) => {
   }
 });
 
-// --- Semantic Matching Endpoint ---
+// --- API v1 Routes ---
+
+// Mount API v1 routes with authentication and endpoint-specific rate limiting
+app.use('/api/v1/match/semantic', authMiddleware, semanticMatchLimiter, semanticMatchRouter);
+app.use('/api/v1/ar/visualize', authMiddleware, arVisualizeLimiter, arVisualizationRouter);
+app.use('/api/v1/council/enhance', authMiddleware, councilEnhanceLimiter, councilEnhancementRouter);
+app.use('/api/v1/stencil/export', authMiddleware, stencilExportLimiter, stencilExportRouter);
+
+// --- Legacy Semantic Matching Endpoint (deprecated, use /api/v1/match/semantic) ---
+
 
 app.post('/api/match/semantic', async (req, res) => {
   try {
