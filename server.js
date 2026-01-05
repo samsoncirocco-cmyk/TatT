@@ -19,25 +19,63 @@ const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
 const REPLICATE_API_URL = 'https://api.replicate.com/v1';
 const FRONTEND_AUTH_TOKEN = process.env.FRONTEND_AUTH_TOKEN || 'dev-token-change-in-production';
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS 
-  ? process.env.ALLOWED_ORIGINS.split(',') 
+  ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
   : ['http://localhost:5173', 'http://localhost:3000'];
 
-// CORS middleware with whitelist
+// Add Vercel production URL if not already included
+const VERCEL_URL = process.env.VERCEL_URL || 'https://tat-t-3x8t.vercel.app';
+if (!ALLOWED_ORIGINS.includes(VERCEL_URL)) {
+  ALLOWED_ORIGINS.push(VERCEL_URL);
+}
+
+// CORS middleware with whitelist and proper preflight handling
 app.use(cors({
   origin: function(origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (ALLOWED_ORIGINS.indexOf(origin) === -1) {
-      const msg = `CORS policy: Origin ${origin} is not in the allowed origins list`;
-      return callback(new Error(msg), false);
+    if (!origin) {
+      console.log('[CORS] Request with no origin - allowing');
+      return callback(null, true);
     }
-    return callback(null, true);
+    
+    // Check if origin is in allowed list
+    if (ALLOWED_ORIGINS.indexOf(origin) !== -1) {
+      console.log(`[CORS] Origin ${origin} allowed (exact match)`);
+      return callback(null, true);
+    }
+    
+    // Allow Vercel preview URLs (pattern: *.vercel.app)
+    // This covers both production and preview deployments
+    if (origin.endsWith('.vercel.app')) {
+      console.log(`[CORS] Origin ${origin} allowed (Vercel domain)`);
+      return callback(null, true);
+    }
+    
+    // Origin not allowed
+    console.error(`[CORS] Origin ${origin} not allowed. Allowed origins: ${ALLOWED_ORIGINS.join(', ')}, or any *.vercel.app`);
+    const msg = `CORS policy: Origin ${origin} is not in the allowed origins list`;
+    return callback(new Error(msg), false);
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Type'],
+  maxAge: 86400 // 24 hours
 }));
 
 app.use(express.json({ limit: '10mb' }));
+
+// Explicit OPTIONS handler for preflight requests (backup to cors middleware)
+app.options('*', (req, res) => {
+  const origin = req.headers.origin;
+  if (origin && (ALLOWED_ORIGINS.includes(origin) || origin.endsWith('.vercel.app'))) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Max-Age', '86400');
+  }
+  res.sendStatus(200);
+});
 
 // Rate limiting middleware
 const apiLimiter = rateLimit({
@@ -188,6 +226,8 @@ app.listen(PORT, HOST, () => {
   console.log(`  Auth:           ${FRONTEND_AUTH_TOKEN === 'dev-token-change-in-production' ? '⚠️  Using dev token' : '✓ Configured'}`);
   console.log(`  Rate Limit:     30 req/min per IP`);
   console.log(`  Allowed Origins: ${ALLOWED_ORIGINS.join(', ')}`);
+  console.log(`  Vercel URL:     ${VERCEL_URL}`);
+  console.log(`  Vercel Previews: *.vercel.app (auto-allowed)`);
   console.log('');
   console.log(`  Replicate Token: ${REPLICATE_API_TOKEN ? '✓ Yes' : '✗ No - Add to .env'}`);
   console.log('═══════════════════════════════════════════════════');

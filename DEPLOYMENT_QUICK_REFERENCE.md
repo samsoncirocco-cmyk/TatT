@@ -28,11 +28,12 @@ VITE_DEMO_MODE=false
 #### Production (Vercel/Railway/Render)
 Add these to your hosting platform's environment variables:
 
-**Server Environment:**
+**Server Environment (Railway):**
 - `REPLICATE_API_TOKEN` = your Replicate API token
 - `FRONTEND_AUTH_TOKEN` = your generated token
 - `HOST` = `0.0.0.0` (for cloud hosting)
-- `ALLOWED_ORIGINS` = `https://your-domain.com,https://www.your-domain.com`
+- `ALLOWED_ORIGINS` = `https://tat-t-3x8t.vercel.app,https://www.tat-t-3x8t.vercel.app` (include all your frontend URLs, comma-separated)
+- `VERCEL_URL` = `https://tat-t-3x8t.vercel.app` (optional, will be auto-added if not in ALLOWED_ORIGINS)
 
 **Client Environment:**
 - `VITE_FRONTEND_AUTH_TOKEN` = same as `FRONTEND_AUTH_TOKEN`
@@ -111,8 +112,14 @@ curl -X POST http://localhost:3001/api/predictions \
    ```
 
 2. **Add Environment Variables** (Railway Dashboard)
-   - Add all server environment variables
-   - Note the generated URL
+   - Go to your Railway project → Variables tab
+   - Add all server environment variables:
+     - `REPLICATE_API_TOKEN` = your Replicate token
+     - `FRONTEND_AUTH_TOKEN` = your generated secure token
+     - `HOST` = `0.0.0.0`
+     - `ALLOWED_ORIGINS` = `https://tat-t-3x8t.vercel.app` (or comma-separated list of all frontend URLs)
+     - `VERCEL_URL` = `https://tat-t-3x8t.vercel.app` (optional)
+   - Note the generated Railway URL (e.g., `https://tatt-production.up.railway.app`)
 
 3. **Update Frontend**
    - Set `VITE_PROXY_URL` to Railway backend URL
@@ -163,10 +170,13 @@ curl -X POST https://your-api-domain.com/api/predictions \
 - ✅ Verify it matches `FRONTEND_AUTH_TOKEN` on server
 - ✅ Rebuild frontend after adding env vars
 
-### "Origin not allowed"
-- ✅ Add your domain to `ALLOWED_ORIGINS`
-- ✅ Include both `https://domain.com` and `https://www.domain.com`
-- ✅ Restart server after changing
+### "Origin not allowed" / CORS errors
+- ✅ Add your Vercel domain to Railway's `ALLOWED_ORIGINS` environment variable
+- ✅ Format: `https://tat-t-3x8t.vercel.app` (comma-separated for multiple)
+- ✅ Include both `https://domain.com` and `https://www.domain.com` if applicable
+- ✅ Railway will auto-restart after env var changes
+- ✅ Check Railway logs for CORS debug messages: `[CORS] Origin ... allowed/not allowed`
+- ✅ Verify the exact origin in browser console (must match exactly, including protocol)
 
 ### "Rate limit exceeded"
 - ✅ Normal behavior - wait 1 minute

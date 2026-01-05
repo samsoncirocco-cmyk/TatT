@@ -14,7 +14,9 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "neo4j:import": "node scripts/import-to-neo4j.js"
+    "neo4j:import": "node scripts/import-to-neo4j.js",
+    "railway:update-env": "node scripts/update-railway-env.js",
+    "railway:list": "node scripts/list-railway-projects.js"
   },
   "dependencies": {
     "@react-spring/web": "^9.7.5",
