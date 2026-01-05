@@ -280,8 +280,16 @@ async function importMentorRelationships(session, artists) {
 
   try {
     const result = await session.run(query, { relationships: mentorData });
-    const count = neo4j.integer.toNumber(result.records[0].get('relationshipCount'));
-    console.log(`  ✓ Created ${count} APPRENTICED_UNDER relationships`);
+    // Check if records exist before accessing (MATCH queries may return empty if artists don't exist)
+    const count = result.records.length > 0
+      ? neo4j.integer.toNumber(result.records[0].get('relationshipCount'))
+      : 0;
+    
+    if (count === 0 && mentorData.length > 0) {
+      console.log(`  ⚠️  No relationships created (${mentorData.length} attempted) - check if artist IDs exist in database`);
+    } else {
+      console.log(`  ✓ Created ${count} APPRENTICED_UNDER relationships`);
+    }
   } catch (error) {
     console.error('  ❌ Error importing mentor relationships:', error.message);
     throw error;
@@ -327,8 +335,16 @@ async function importInfluenceRelationships(session, artists) {
 
   try {
     const result = await session.run(query, { relationships: influenceData });
-    const count = neo4j.integer.toNumber(result.records[0].get('relationshipCount'));
-    console.log(`  ✓ Created ${count} INFLUENCED_BY relationships`);
+    // Check if records exist before accessing (MATCH queries may return empty if artists don't exist)
+    const count = result.records.length > 0
+      ? neo4j.integer.toNumber(result.records[0].get('relationshipCount'))
+      : 0;
+    
+    if (count === 0 && influenceData.length > 0) {
+      console.log(`  ⚠️  No relationships created (${influenceData.length} attempted) - check if artist IDs exist in database`);
+    } else {
+      console.log(`  ✓ Created ${count} INFLUENCED_BY relationships`);
+    }
   } catch (error) {
     console.error('  ❌ Error importing influence relationships:', error.message);
     throw error;
