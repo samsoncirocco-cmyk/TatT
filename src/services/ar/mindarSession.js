@@ -18,6 +18,8 @@ export class ARSession {
     this.videoElement = null;
     this.mindARInstance = null;
     this.isActive = false;
+    this.accuracy = 1.0;
+    this.anchors = [];
   }
 
   /**
@@ -156,8 +158,28 @@ export class ARSession {
       active: this.isActive,
       type: this.type,
       tracking: this.isTracking(),
-      hasStream: !!this.stream
+      hasStream: !!this.stream,
+      accuracy: this.accuracy,
+      anchorCount: this.anchors.length
     };
+  }
+
+  /**
+   * Update tracking accuracy based on depth data
+   * @param {number} score - Accuracy score (0-1)
+   */
+  updateAccuracy(score) {
+    this.accuracy = score;
+    console.log(`[ARSession] Tracking accuracy updated: ${(score * 100).toFixed(1)}%`);
+  }
+
+  /**
+   * Set anatomical anchors for improved stability
+   * @param {Array} points - List of {x, y, z} anchors
+   */
+  setAnatomicalAnchors(points) {
+    this.anchors = points;
+    console.log(`[ARSession] ${points.length} anatomical anchors set`);
   }
 }
 

@@ -25,6 +25,7 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",
+    "jspdf": "^4.0.0",
     "neo4j-driver": "^6.0.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

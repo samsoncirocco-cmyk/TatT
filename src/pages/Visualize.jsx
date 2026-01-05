@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import designsData from '../data/designs.json';
-import { requestCameraAccess, stopCameraStream, captureFrame, ARSessionState } from '../services/ar/arService';
+import { requestCameraAccess, stopCameraStream, captureFrame, ARSessionState, captureDepthFrame } from '../services/ar/arService';
+import { validateDepthQuality, calculateSurfaceNormal, estimateCurvature } from '../services/ar/depthMappingService';
+import { detectBodyPart, validatePlacementAccuracy } from '../utils/anatomicalMapping';
+import { safeLocalStorageGet, safeLocalStorageSet } from '../services/storageService';
 
 
 const CONFIDENCE_TIPS = [
@@ -45,6 +48,16 @@ function Visualize() {
   const [initialSize, setInitialSize] = useState(null);
   const [initialAngle, setInitialAngle] = useState(null);
 
+  // Depth and Accuracy state
+  const [depthMap, setDepthMap] = useState(null);
+  const [depthQuality, setDepthQuality] = useState(null);
+  const [placementAccuracy, setPlacementAccuracy] = useState(null);
+  const [detectedBodyPart, setDetectedBodyPart] = useState(null);
+  const [savedPlacements, setSavedPlacements] = useState([]);
+  const [isCalibrating, setIsCalibrating] = useState(false);
+  const [surfaceNormal, setSurfaceNormal] = useState({ x: 0, y: 0, z: 1 });
+  const [surfaceCurvature, setSurfaceCurvature] = useState(0);
+
   // Filter designs by category
   useEffect(() => {
     if (selectedCategory === 'All') {
@@ -77,10 +90,43 @@ function Visualize() {
       }, 5000);
 
       return () => clearInterval(interval);
+      setSavedPlacements(safeLocalStorageGet('tattester_saved_placements', []));
     } else {
       setCurrentConfidenceTip("");
     }
   }, [photo, selectedTattoo]);
+
+  // Real-time accuracy updates
+  useEffect(() => {
+    if (photo && selectedTattoo && depthMap) {
+      const updateAccuracy = () => {
+        const accuracy = validatePlacementAccuracy(
+          { position: tattooPosition, scale: tattooSize, rotation: tattooRotation },
+          depthMap
+        );
+        setPlacementAccuracy(accuracy);
+
+        // Update surface normal for perspective
+        if (photoRef.current) {
+          const rect = photoRef.current.getBoundingClientRect();
+          const imgX = (tattooPosition.x / 100) * (depthMap.length === 640 * 480 ? 640 : 1); // rough estimate
+          const imgY = (tattooPosition.y / 100) * (depthMap.length === 640 * 480 ? 480 : 1);
+          const normal = calculateSurfaceNormal(depthMap, imgX, imgY, 640);
+          setSurfaceNormal(normal);
+
+          // Curvature affects perceived size and warping
+          const curvature = estimateCurvature(depthMap,
+            { x: imgX - 20, y: imgY - 20, width: 40, height: 40 },
+            640
+          );
+          setSurfaceCurvature(curvature);
+        }
+      };
+
+      const interval = setInterval(updateAccuracy, 500);
+      return () => clearInterval(interval);
+    }
+  }, [photo, selectedTattoo, tattooPosition, tattooSize, tattooRotation, depthMap]);
 
   // Start camera with improved state management
   const startCamera = async () => {
@@ -93,17 +139,31 @@ function Visualize() {
       setShowCamera(true);
       setArState(ARSessionState.LOADING);
 
-      setTimeout(() => {
+      setTimeout(async () => {
         if (videoRef.current) {
           videoRef.current.srcObject = mediaStream;
-          videoRef.current.onloadedmetadata = () => {
+          videoRef.current.onloadedmetadata = async () => {
+            setArState(ARSessionState.CALIBRATING_DEPTH);
+            setIsCalibrating(true);
+
+            // Simulate depth calibration
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+            const depth = await captureDepthFrame(videoRef.current);
+            const quality = validateDepthQuality(depth);
+            const bodyPart = await detectBodyPart(videoRef.current, depth);
+
+            setDepthMap(depth);
+            setDepthQuality(quality);
+            setDetectedBodyPart(bodyPart);
             setArState(ARSessionState.ACTIVE);
+            setIsCalibrating(false);
           };
         }
       }, 100);
     } catch (error) {
       console.error('Error accessing camera:', error);
-      
+
       // Set appropriate error state based on error message
       if (error.message.includes('permission denied')) {
         setArState(ARSessionState.PERMISSION_DENIED);
@@ -112,15 +172,24 @@ function Visualize() {
       } else {
         setArState(ARSessionState.ERROR);
       }
+      setIsCalibrating(false);
     }
   };
 
   // Capture photo from camera using AR service
-  const capturePhoto = () => {
+  const capturePhoto = async () => {
     if (videoRef.current && canvasRef.current) {
       try {
         const photoData = captureFrame(videoRef.current, canvasRef.current);
+        const currentDepth = await captureDepthFrame(videoRef.current);
+
         setPhoto(photoData);
+        setDepthMap(currentDepth);
+
+        // Final depth quality check
+        const quality = validateDepthQuality(currentDepth);
+        setDepthQuality(quality);
+
         stopCamera();
       } catch (error) {
         console.error('Failed to capture photo:', error);
@@ -304,6 +373,40 @@ function Visualize() {
     photoImg.src = photo;
   };
 
+  // Save current placement configuration
+  const savePlacement = () => {
+    if (!selectedTattoo) return;
+
+    const newPlacement = {
+      id: Date.now(),
+      designId: selectedTattoo.id,
+      bodyPart: detectedBodyPart?.name || 'unknown',
+      position: tattooPosition,
+      rotation: tattooRotation,
+      scale: tattooSize,
+      opacity: tattooOpacity,
+      accuracy: placementAccuracy?.errorCm,
+      timestamp: new Date().toISOString()
+    };
+
+    const updated = [...savedPlacements, newPlacement];
+    setSavedPlacements(updated);
+    safeLocalStorageSet('tattester_saved_placements', updated);
+    alert('Placement saved successfully!');
+  };
+
+  // Load a saved placement
+  const loadPlacement = (placement) => {
+    const design = designsData.designs.find(d => d.id === placement.designId);
+    if (design) {
+      setSelectedTattoo(design);
+      setTattooPosition(placement.position);
+      setTattooRotation(placement.rotation);
+      setTattooSize(placement.scale);
+      setTattooOpacity(placement.opacity || 0.8);
+    }
+  };
+
   // Camera view
   if (showCamera) {
     return (
@@ -363,12 +466,27 @@ function Visualize() {
               <p className="text-sm font-medium">⏳ Loading camera...</p>
             </div>
           )}
-          {arState === ARSessionState.ACTIVE && (
-            <div className="absolute top-4 left-4 right-4 bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg z-10 animate-fade-in-up">
-              <p className="text-sm font-medium">✓ Camera ready</p>
+          {arState === ARSessionState.CALIBRATING_DEPTH && (
+            <div className="absolute top-4 left-4 right-4 bg-purple-600 text-white px-4 py-3 rounded-lg shadow-lg z-10 animate-pulse">
+              <p className="text-sm font-medium">🎯 Calibrating Anatomical Depth...</p>
+              <div className="w-full bg-purple-800 h-1.5 rounded-full mt-2 overflow-hidden">
+                <div className="bg-white h-full animate-grow-width"></div>
+              </div>
             </div>
           )}
-          
+          {arState === ARSessionState.ACTIVE && (
+            <div className="absolute top-4 left-4 right-4 flex flex-col gap-2 z-10">
+              <div className="bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg animate-fade-in-up">
+                <p className="text-sm font-medium">✓ Camera ready</p>
+              </div>
+              {detectedBodyPart && (
+                <div className="bg-white/90 backdrop-blur px-3 py-1 rounded-full self-start text-[10px] uppercase tracking-widest font-bold text-gray-900 shadow-sm border border-gray-200">
+                  Detected: {detectedBodyPart.name}
+                </div>
+              )}
+            </div>
+          )}
+
           <video
             ref={videoRef}
             autoPlay
@@ -459,6 +577,24 @@ function Visualize() {
               </div>
             )}
 
+            {/* Placement Accuracy Badge */}
+            {placementAccuracy && (
+              <div className="absolute top-4 right-4 flex flex-col items-end gap-2">
+                <div className={`px-3 py-1.5 rounded-lg backdrop-blur-md shadow-lg border ${placementAccuracy.errorCm <= 2 ? 'bg-green-500/80 border-green-400' : 'bg-yellow-500/80 border-yellow-400'
+                  } text-white`}>
+                  <div className="text-[10px] uppercase font-bold opacity-80 leading-tight">Accuracy</div>
+                  <div className="text-sm font-black italic">±{placementAccuracy.errorCm}cm</div>
+                </div>
+
+                {depthQuality && (
+                  <div className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${depthQuality.isReliable ? 'bg-blue-500/80 text-white' : 'bg-red-500/80 text-white'
+                    }`}>
+                    Depth: {depthQuality.isReliable ? 'Good' : 'Low'}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Tattoo Overlay */}
             {selectedTattoo && (
               <div
@@ -467,10 +603,13 @@ function Visualize() {
                 style={{
                   left: `${tattooPosition.x}%`,
                   top: `${tattooPosition.y}%`,
-                  transform: `translate(-50%, -50%) rotate(${tattooRotation}deg)`,
+                  transform: `translate(-50%, -50%) rotate(${tattooRotation}deg) rotateX(${surfaceNormal.y * 45}deg) rotateY(${surfaceNormal.x * 45}deg) scale(${1 - surfaceCurvature * 0.2})`,
                   width: `${tattooSize}%`,
                   opacity: tattooOpacity,
                   touchAction: 'none',
+                  perspective: '1000px',
+                  transformStyle: 'preserve-3d',
+                  filter: `blur(${surfaceCurvature * 0.5}px)` // subtle warp effect
                 }}
                 onMouseDown={handleDragStart}
                 onMouseMove={handleDragMove}
@@ -537,6 +676,34 @@ function Visualize() {
                   className="w-full h-px bg-gray-300 appearance-none cursor-pointer"
                 />
               </div>
+
+              <div className="pt-4 flex gap-3">
+                <button
+                  onClick={savePlacement}
+                  className="flex-1 py-3 bg-gray-900 text-white text-xs uppercase tracking-widest font-bold hover:bg-black transition-colors"
+                >
+                  Save Placement
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Saved Placements */}
+        {savedPlacements.length > 0 && (
+          <div className="bg-gray-50 border-t border-gray-200 p-4">
+            <h3 className="text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-3">Saved Placements</h3>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {savedPlacements.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => loadPlacement(p)}
+                  className="flex-shrink-0 px-3 py-2 bg-white border border-gray-200 rounded text-[10px] hover:border-gray-900 transition-all text-left min-w-[120px]"
+                >
+                  <p className="font-bold truncate">{p.bodyPart}</p>
+                  <p className="text-gray-400">±{p.accuracy}cm accurate</p>
+                </button>
+              ))}
             </div>
           </div>
         )}

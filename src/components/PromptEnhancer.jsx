@@ -68,11 +68,16 @@ export default function PromptEnhancer({
 
   const handleSelectPrompt = () => {
     if (showCustomEditor && customPrompt.trim()) {
-      onPromptSelected(customPrompt, enhancedPrompts?.negativePrompt);
+      onPromptSelected(
+        customPrompt,
+        enhancedPrompts?.negativePrompt,
+        enhancedPrompts?.modelSelection
+      );
     } else if (enhancedPrompts) {
       onPromptSelected(
         enhancedPrompts.prompts[selectedLevel],
-        enhancedPrompts.negativePrompt
+        enhancedPrompts.negativePrompt,
+        enhancedPrompts.modelSelection
       );
     }
   };
@@ -88,11 +93,10 @@ export default function PromptEnhancer({
       <button
         onClick={handleEnhance}
         disabled={isEnhancing || !userInput.trim()}
-        className={`w-full py-3 px-4 rounded-lg font-semibold transition-all flex items-center justify-center ${
-          isEnhancing || !userInput.trim()
-            ? 'bg-gray-400 cursor-not-allowed text-white'
-            : 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl'
-        }`}
+        className={`w-full py-3 px-4 rounded-lg font-semibold transition-all flex items-center justify-center ${isEnhancing || !userInput.trim()
+          ? 'bg-gray-400 cursor-not-allowed text-white'
+          : 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl'
+          }`}
       >
         {isEnhancing ? (
           <>
@@ -135,6 +139,34 @@ export default function PromptEnhancer({
         </div>
       )}
 
+      {/* Model Selection Display */}
+      {enhancedPrompts?.modelSelection && (
+        <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <div className="flex items-center mb-2">
+                <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                <p className="text-sm font-semibold text-blue-900">
+                  🤖 Selected Model: {enhancedPrompts.modelSelection.modelName}
+                  {enhancedPrompts.modelSelection.isFallback && (
+                    <span className="ml-2 text-xs text-orange-600">(Fallback)</span>
+                  )}
+                </p>
+              </div>
+              <p className="text-xs text-blue-700 mb-2">
+                {enhancedPrompts.modelSelection.reasoning}
+              </p>
+              <div className="flex items-center space-x-4 text-xs text-blue-600">
+                <span>⏱️ Est. Time: {enhancedPrompts.modelSelection.estimatedTime}</span>
+                <span>💰 Cost: ${enhancedPrompts.modelSelection.cost.toFixed(4)}/image</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Enhanced Prompts Display */}
       {enhancedPrompts && !showCustomEditor && (
         <div className="space-y-3">
@@ -156,19 +188,17 @@ export default function PromptEnhancer({
               <div
                 key={level}
                 onClick={() => setSelectedLevel(level)}
-                className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                  selectedLevel === level
-                    ? 'border-blue-500 bg-blue-50 shadow-md'
-                    : 'border-gray-200 hover:border-blue-300 bg-white'
-                }`}
+                className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${selectedLevel === level
+                  ? 'border-blue-500 bg-blue-50 shadow-md'
+                  : 'border-gray-200 hover:border-blue-300 bg-white'
+                  }`}
               >
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center">
-                    <div className={`w-4 h-4 rounded-full border-2 mr-2 ${
-                      selectedLevel === level
-                        ? 'border-blue-500 bg-blue-500'
-                        : 'border-gray-300'
-                    }`}>
+                    <div className={`w-4 h-4 rounded-full border-2 mr-2 ${selectedLevel === level
+                      ? 'border-blue-500 bg-blue-500'
+                      : 'border-gray-300'
+                      }`}>
                       {selectedLevel === level && (
                         <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -246,11 +276,10 @@ export default function PromptEnhancer({
           <button
             onClick={handleSelectPrompt}
             disabled={!customPrompt.trim()}
-            className={`w-full py-3 px-4 rounded-lg font-semibold transition-all ${
-              customPrompt.trim()
-                ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg'
-                : 'bg-gray-400 cursor-not-allowed text-white'
-            }`}
+            className={`w-full py-3 px-4 rounded-lg font-semibold transition-all ${customPrompt.trim()
+              ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg'
+              : 'bg-gray-400 cursor-not-allowed text-white'
+              }`}
           >
             Use Custom Prompt
           </button>

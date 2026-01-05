@@ -1,3 +1,6 @@
+import { PAPER_SIZES, validateDimensions, validateDPI, DEFAULT_DPI } from '../utils/stencilCalibration';
+import { createStencilPDF } from '../utils/pdfGenerator';
+
 /**
  * Stencil Processing Service
  *
@@ -48,6 +51,7 @@ const DEFAULT_STENCIL_SETTINGS = {
   invert: false, // Invert black/white (for certain printers)
   smoothing: false // Anti-aliasing for smoother edges
 };
+const DEFAULT_PAPER_MARGIN = 0.25; // inches
 
 /**
  * Convert image to high-contrast stencil
@@ -55,19 +59,20 @@ const DEFAULT_STENCIL_SETTINGS = {
  * @param {Object} settings - Stencil conversion settings
  * @returns {Promise<string>} Data URL of stencil image
  */
-export async function convertToStencil(imageUrl, settings = {}) {
+export async function convertToStencil(imageUrl, settings = {}, options = {}) {
   // Validate imageUrl
   if (!imageUrl) {
     throw new Error('Image URL is required');
   }
 
-  const options = { ...DEFAULT_STENCIL_SETTINGS, ...settings };
+  const stencilOptions = { ...DEFAULT_STENCIL_SETTINGS, ...settings };
+  const { onProgress } = options;
 
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
 
-    img.onload = () => {
+    img.onload = async () => {
       try {
         // Create canvas for processing
         const canvas = document.createElement('canvas');
@@ -86,31 +91,55 @@ export async function convertToStencil(imageUrl, settings = {}) {
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imageData.data;
 
-        // Process pixels: convert to grayscale + apply threshold
-        for (let i = 0; i < data.length; i += 4) {
-          // Convert to grayscale
-          const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+        const totalPixels = data.length / 4;
+        const shouldChunk = totalPixels > 2400 * 2400;
+        const chunkSize = shouldChunk ? 120000 : totalPixels;
+        let processedPixels = 0;
 
-          // Apply brightness adjustment
-          let brightness = avg + options.brightness;
+        const processChunk = async (startPixel) => {
+          const endPixel = Math.min(totalPixels, startPixel + chunkSize);
 
-          // Apply contrast
-          brightness = ((brightness - 128) * options.contrast) + 128;
+          for (let pixel = startPixel; pixel < endPixel; pixel++) {
+            const i = pixel * 4;
 
-          // Clamp values
-          brightness = Math.max(0, Math.min(255, brightness));
+            // Convert to grayscale
+            const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
 
-          // Apply threshold (binary black or white)
-          const value = brightness >= options.threshold ? 255 : 0;
+            // Apply brightness adjustment
+            let brightness = avg + stencilOptions.brightness;
 
-          // Apply inversion if needed
-          const finalValue = options.invert ? (255 - value) : value;
+            // Apply contrast
+            brightness = ((brightness - 128) * stencilOptions.contrast) + 128;
 
-          // Set RGB to same value (grayscale)
-          data[i] = finalValue;     // Red
-          data[i + 1] = finalValue; // Green
-          data[i + 2] = finalValue; // Blue
-          // Alpha stays the same (data[i + 3])
+            // Clamp values
+            brightness = Math.max(0, Math.min(255, brightness));
+
+            // Apply threshold (binary black or white)
+            const value = brightness >= stencilOptions.threshold ? 255 : 0;
+
+            // Apply inversion if needed
+            const finalValue = stencilOptions.invert ? (255 - value) : value;
+
+            // Set RGB to same value (grayscale)
+            data[i] = finalValue;     // Red
+            data[i + 1] = finalValue; // Green
+            data[i + 2] = finalValue; // Blue
+            // Alpha stays the same (data[i + 3])
+          }
+
+          processedPixels = endPixel;
+
+          if (shouldChunk && typeof onProgress === 'function') {
+            onProgress(Number((processedPixels / totalPixels).toFixed(3)));
+          }
+
+          if (shouldChunk && endPixel < totalPixels) {
+            await new Promise((resolveChunk) => setTimeout(resolveChunk, 0));
+          }
+        };
+
+        for (let startPixel = 0; startPixel < totalPixels; startPixel += chunkSize) {
+          await processChunk(startPixel);
         }
 
         // Put processed data back
@@ -191,38 +220,142 @@ export async function resizeToStencilSize(imageUrl, sizeKey) {
  * @param {string} mode - Processing mode: 'threshold' or 'edge'
  * @returns {Promise<string>} Data URL of final stencil
  */
-export async function generateStencil(imageUrl, sizeKey = 'medium', settings = {}, mode = 'threshold') {
-  try {
-    console.log('[Stencil] Generating stencil:', sizeKey, 'mode:', mode);
+async function processStencilImage(imageUrl, sizeKey, settings, mode, onProgress) {
+  const size = STENCIL_SIZES[sizeKey] || STENCIL_SIZES.medium;
+  if (!size) {
+    throw new Error(`Invalid stencil size: ${sizeKey}`);
+  }
 
-    // Step 1: Resize to target size
-    const resized = await resizeToStencilSize(imageUrl, sizeKey);
+  const progress = typeof onProgress === 'function' ? onProgress : null;
+  progress?.(0.05);
 
-    // Step 2: Convert to high-contrast stencil based on mode
-    let stencil;
-    if (mode === 'edge') {
-      // Edge detection mode - dynamically import to avoid loading unless needed
-      console.log('[Stencil] Using edge detection mode');
-      const { convertToEdgeStencil } = await import('./stencilEdgeService.js');
-      
-      const edgeSettings = {
-        lowThreshold: settings.threshold ? settings.threshold * 0.4 : 50,
-        highThreshold: settings.threshold || 150,
-        suppressNonMaximum: true
-      };
-      
-      stencil = await convertToEdgeStencil(resized, edgeSettings);
-    } else {
-      // Default threshold mode
-      stencil = await convertToStencil(resized, settings);
+  const resized = await resizeToStencilSize(imageUrl, sizeKey);
+  progress?.(0.3);
+
+  if (mode === 'edge') {
+    const { convertToEdgeStencil } = await import('./stencilEdgeService.js');
+    const edgeSettings = {
+      lowThreshold: settings.threshold ? settings.threshold * 0.4 : 50,
+      highThreshold: settings.threshold || 150,
+      suppressNonMaximum: true
+    };
+    const edgeStencil = await convertToEdgeStencil(resized, edgeSettings);
+    progress?.(1);
+    return { dataUrl: edgeStencil, size };
+  }
+
+  const stencil = await convertToStencil(resized, settings, {
+    onProgress: (value) => {
+      if (progress) {
+        const normalized = 0.3 + value * 0.65;
+        progress(Number(Math.min(1, normalized).toFixed(3)));
+      }
     }
+  });
+  progress?.(1);
+  return { dataUrl: stencil, size };
+}
 
-    console.log('[Stencil] ✓ Stencil generated successfully');
-    return stencil;
+export async function generateStencil(
+  imageUrl,
+  sizeKey = 'medium',
+  settings = {},
+  mode = 'threshold',
+  options = {}
+) {
+  const {
+    exportFormat = 'png',
+    onProgress,
+    metadata,
+    paperSize = 'letter',
+    customPaperDimensions
+  } = options;
+
+  if (exportFormat === 'pdf') {
+    return generateStencilPDF(imageUrl, sizeKey, settings, mode, {
+      metadata,
+      paperSize,
+      customPaperDimensions,
+      onProgress
+    });
+  }
+
+  try {
+    const { dataUrl } = await processStencilImage(imageUrl, sizeKey, settings, mode, onProgress);
+    return dataUrl;
   } catch (error) {
     console.error('[Stencil] Generation error:', error);
     throw error;
   }
+}
+
+export async function generateStencilPDF(
+  imageUrl,
+  sizeKey = 'medium',
+  settings = {},
+  mode = 'threshold',
+  options = {}
+) {
+  const {
+    paperSize = 'letter',
+    customPaperDimensions,
+    metadata = {},
+    onProgress
+  } = options;
+
+  const progress = typeof onProgress === 'function'
+    ? (value) => onProgress(Number(Math.min(Math.max(value, 0), 1).toFixed(3)))
+    : null;
+
+  progress?.(0.05);
+  validateDPI(DEFAULT_DPI);
+
+  const { dataUrl, size } = await processStencilImage(
+    imageUrl,
+    sizeKey,
+    settings,
+    mode,
+    (value) => {
+      if (progress) {
+        progress(value * 0.75);
+      }
+    }
+  );
+
+  const designDimensions = {
+    widthInches: size?.inches || STENCIL_SIZES.medium.inches,
+    heightInches: size?.inches || STENCIL_SIZES.medium.inches
+  };
+
+  const paperDimensions = resolvePaperDimensions(paperSize, customPaperDimensions);
+  enforcePaperFit(designDimensions, paperDimensions);
+
+  const metadataPayload = buildExportMetadata(metadata, {
+    designDimensions,
+    paperSizeKey: paperDimensions.key,
+    format: 'pdf'
+  });
+
+  progress?.(0.85);
+  const pdf = createStencilPDF(
+    dataUrl,
+    {
+      paperWidthInches: paperDimensions.widthInches,
+      paperHeightInches: paperDimensions.heightInches,
+      designWidthInches: designDimensions.widthInches,
+      designHeightInches: designDimensions.heightInches
+    },
+    metadataPayload
+  );
+
+  const blob = pdf.output('blob');
+  progress?.(1);
+
+  return {
+    blob,
+    metadata: metadataPayload,
+    filename: `${slugify(metadataPayload.design_name || 'tattoo')}-${designDimensions.widthInches.toFixed(0)}in.pdf`
+  };
 }
 
 /**
@@ -230,13 +363,93 @@ export async function generateStencil(imageUrl, sizeKey = 'medium', settings = {
  * @param {string} dataUrl - Stencil data URL
  * @param {string} filename - Download filename
  */
-export function downloadStencil(dataUrl, filename = 'tattoo-stencil.png') {
+export function downloadStencil(data, filename = 'tattoo-stencil.png') {
   const link = document.createElement('a');
-  link.href = dataUrl;
+  if (data instanceof Blob) {
+    link.href = URL.createObjectURL(data);
+  } else {
+    link.href = data;
+  }
   link.download = filename;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+
+  if (data instanceof Blob) {
+    setTimeout(() => URL.revokeObjectURL(link.href), 0);
+  }
+}
+
+function resolvePaperDimensions(paperSizeKey, customPaperDimensions = {}) {
+  if (paperSizeKey === 'custom') {
+    const validated = validateDimensions(
+      customPaperDimensions.width || 8.5,
+      customPaperDimensions.height || 11,
+      customPaperDimensions.unit || 'inches'
+    );
+
+    return {
+      key: 'custom',
+      name: 'Custom',
+      widthInches: validated.widthInches,
+      heightInches: validated.heightInches,
+      unit: 'inches'
+    };
+  }
+
+  const preset = PAPER_SIZES[paperSizeKey] || PAPER_SIZES.letter;
+
+  return {
+    key: preset.key,
+    name: preset.name,
+    widthInches: preset.widthInches,
+    heightInches: preset.heightInches,
+    unit: preset.unit
+  };
+}
+
+function enforcePaperFit(designDimensions, paperDimensions) {
+  if (!designDimensions || !paperDimensions) {
+    return;
+  }
+
+  const requiredWidth = designDimensions.widthInches + DEFAULT_PAPER_MARGIN * 2;
+  const requiredHeight = designDimensions.heightInches + DEFAULT_PAPER_MARGIN * 2;
+
+  if (requiredWidth > paperDimensions.widthInches || requiredHeight > paperDimensions.heightInches) {
+    throw new Error('Design exceeds selected paper size. Choose a larger paper or select a smaller stencil.');
+  }
+}
+
+function buildExportMetadata(userMetadata = {}, context = {}) {
+  const designDimensions = context.designDimensions || {};
+
+  const base = {
+    design_name: userMetadata.design_name || 'Tattoo Stencil',
+    design_id: userMetadata.design_id
+      || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `design-${Date.now()}`),
+    dimensions: {
+      width_inches: Number((designDimensions.widthInches || 0).toFixed(3)),
+      height_inches: Number((designDimensions.heightInches || 0).toFixed(3)),
+      unit: 'inches'
+    },
+    dpi: userMetadata.dpi || DEFAULT_DPI,
+    format: context.format || userMetadata.format || 'png',
+    paper_size: context.paperSizeKey || userMetadata.paper_size || 'letter',
+    created_at: userMetadata.created_at || new Date().toISOString(),
+    artist_notes: userMetadata.artist_notes || '',
+    artist: userMetadata.artist || 'TatTester'
+  };
+
+  return { ...userMetadata, ...base };
+}
+
+function slugify(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80) || 'tattoo';
 }
 
 /**

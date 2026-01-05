@@ -16,6 +16,12 @@
 // Import character database
 import { buildCharacterMap, getAllCharacterNames } from '../config/characterDatabase.js';
 
+// Import model selection utilities
+import {
+  selectModelWithFallback,
+  getModelPromptEnhancements
+} from '../utils/styleModelMapping.js';
+
 // Council API configuration
 const COUNCIL_API_URL = import.meta.env.VITE_COUNCIL_API_URL || 'http://localhost:8001/api';
 
@@ -138,7 +144,11 @@ export async function enhancePrompt({
   bodyPart = 'forearm',
   onDiscussionUpdate = null
 }) {
+  const startTime = performance.now();
   console.log('[CouncilService] Enhancing prompt:', { userIdea, style, bodyPart });
+
+  // Step 1: Select optimal model (async, can run in parallel with prompt enhancement)
+  const modelSelectionPromise = selectModelWithFallback(style, userIdea, bodyPart);
 
   // Demo mode: return mock response
   if (DEMO_MODE) {
@@ -148,11 +158,14 @@ export async function enhancePrompt({
         setTimeout(() => onDiscussionUpdate('Creative Director: Analyzing style and composition...'), 500);
         setTimeout(() => onDiscussionUpdate('Technical Expert: Considering placement constraints...'), 1200);
         setTimeout(() => onDiscussionUpdate('Style Specialist: Adding artistic refinements...'), 2000);
+        setTimeout(() => onDiscussionUpdate('Model Selector: Choosing optimal AI model...'), 2400);
         setTimeout(() => onDiscussionUpdate('Composition Guru: Finalizing visual balance...'), 2800);
       }
 
       // Return mock enhanced prompts after 3 seconds
-      setTimeout(() => {
+      setTimeout(async () => {
+        const modelSelection = await modelSelectionPromise;
+
         resolve({
           prompts: {
             simple: MOCK_RESPONSES.simple(userIdea, style),
@@ -160,11 +173,20 @@ export async function enhancePrompt({
             ultra: MOCK_RESPONSES.ultra(userIdea, style, bodyPart)
           },
           negativePrompt: MOCK_RESPONSES.negative(userIdea),
+          modelSelection: {
+            modelId: modelSelection.modelId,
+            modelName: modelSelection.modelName,
+            reasoning: modelSelection.reasoning,
+            estimatedTime: modelSelection.estimatedTime,
+            cost: modelSelection.cost,
+            isFallback: modelSelection.isFallback || false
+          },
           metadata: {
             userIdea,
             style,
             bodyPart,
-            generatedAt: new Date().toISOString()
+            generatedAt: new Date().toISOString(),
+            enhancementTime: performance.now() - startTime
           }
         });
       }, 3200);
@@ -173,6 +195,9 @@ export async function enhancePrompt({
 
   // Real API call to LLM Council
   try {
+    // Await model selection (started earlier)
+    const modelSelection = await modelSelectionPromise;
+
     const response = await fetch(`${COUNCIL_API_URL}/prompt-generation`, {
       method: 'POST',
       headers: {
@@ -192,22 +217,41 @@ export async function enhancePrompt({
     }
 
     const data = await response.json();
+    const enhancementTime = performance.now() - startTime;
 
     console.log('[CouncilService] Enhancement successful:', data);
+    console.log(`[CouncilService] Enhancement completed in ${enhancementTime.toFixed(0)}ms`);
+
+    // Apply model-specific prompt enhancements
+    const ultraPrompt = data.enhanced_prompts.ultra || data.enhanced_prompts.comprehensive;
+    const modelEnhancements = getModelPromptEnhancements(
+      modelSelection.modelId,
+      ultraPrompt,
+      true // Already council-enhanced
+    );
 
     return {
       prompts: {
         simple: data.enhanced_prompts.simple || data.enhanced_prompts.minimal,
         detailed: data.enhanced_prompts.detailed || data.enhanced_prompts.standard,
-        ultra: data.enhanced_prompts.ultra || data.enhanced_prompts.comprehensive
+        ultra: modelEnhancements.enhancedPrompt
       },
-      negativePrompt: data.negative_prompt || MOCK_RESPONSES.negative(userIdea),
+      negativePrompt: modelEnhancements.negativePrompt || data.negative_prompt || MOCK_RESPONSES.negative(userIdea),
+      modelSelection: {
+        modelId: modelSelection.modelId,
+        modelName: modelSelection.modelName,
+        reasoning: modelSelection.reasoning,
+        estimatedTime: modelSelection.estimatedTime,
+        cost: modelSelection.cost,
+        isFallback: modelSelection.isFallback || false
+      },
       metadata: {
         userIdea,
         style,
         bodyPart,
         generatedAt: new Date().toISOString(),
-        councilVersion: data.version || 'v1'
+        councilVersion: data.version || 'v1',
+        enhancementTime
       }
     };
 
@@ -216,6 +260,11 @@ export async function enhancePrompt({
 
     // Fallback to basic enhancement if API fails
     console.warn('[CouncilService] Falling back to basic enhancement');
+
+    // Still get model selection even in fallback
+    const modelSelection = await modelSelectionPromise;
+    const enhancementTime = performance.now() - startTime;
+
     return {
       prompts: {
         simple: MOCK_RESPONSES.simple(userIdea, style),
@@ -223,12 +272,21 @@ export async function enhancePrompt({
         ultra: MOCK_RESPONSES.ultra(userIdea, style, bodyPart)
       },
       negativePrompt: MOCK_RESPONSES.negative(userIdea),
+      modelSelection: {
+        modelId: modelSelection.modelId,
+        modelName: modelSelection.modelName,
+        reasoning: modelSelection.reasoning,
+        estimatedTime: modelSelection.estimatedTime,
+        cost: modelSelection.cost,
+        isFallback: modelSelection.isFallback || false
+      },
       metadata: {
         userIdea,
         style,
         bodyPart,
         generatedAt: new Date().toISOString(),
-        fallback: true
+        fallback: true,
+        enhancementTime
       }
     };
   }

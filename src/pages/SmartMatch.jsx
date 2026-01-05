@@ -32,6 +32,7 @@ function SmartMatch() {
   const [zipSuggestions, setZipSuggestions] = useState([]);
   const [showZipSuggestions, setShowZipSuggestions] = useState(false);
   const [zipError, setZipError] = useState('');
+  const [useSemanticSearch, setUseSemanticSearch] = useState(false);
   const navigate = useNavigate();
   const { toast, toasts, removeToast } = useToast();
 
@@ -112,8 +113,13 @@ function SmartMatch() {
       return;
     }
 
-    // Pass preferences to the swipe interface
-    navigate('/swipe', { state: { preferences } });
+    // Pass preferences and search mode to the swipe interface
+    navigate('/swipe', {
+      state: {
+        preferences,
+        useSemanticSearch
+      }
+    });
   };
 
   const handleZipSelect = (zip) => {
@@ -144,7 +150,7 @@ function SmartMatch() {
             <p className="text-sm text-gray-400 uppercase tracking-widest font-semibold mb-6">
               AI-Powered Artist Matching Engine
             </p>
-            
+
             {/* Dynamic Match Counter */}
             {(matchCount > 0 || isThinking) && (
               <div className="inline-flex items-center gap-3 px-4 py-2 bg-green-500/10 border border-green-500/20 rounded-full">
@@ -178,11 +184,10 @@ function SmartMatch() {
                   <button
                     key={style}
                     onClick={() => handleStyleChange(style)}
-                    className={`px-4 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all duration-200 ${
-                      preferences.styles.includes(style)
-                        ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/30 scale-105'
-                        : 'bg-white/5 border border-white/10 text-gray-300 hover:border-green-500/50 hover:bg-white/10'
-                    }`}
+                    className={`px-4 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all duration-200 ${preferences.styles.includes(style)
+                      ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/30 scale-105'
+                      : 'bg-white/5 border border-white/10 text-gray-300 hover:border-green-500/50 hover:bg-white/10'
+                      }`}
                   >
                     {style}
                   </button>
@@ -204,6 +209,30 @@ function SmartMatch() {
               />
             </div>
 
+            {/* Semantic Search Toggle */}
+            <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl">
+              <div className="flex-1">
+                <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 mb-1">
+                  Search Mode
+                </label>
+                <p className="text-xs text-gray-500">
+                  {useSemanticSearch
+                    ? 'Semantic: Find artists by visual style similarity'
+                    : 'Keyword: Find artists by exact tag matches'}
+                </p>
+              </div>
+              <button
+                onClick={() => setUseSemanticSearch(!useSemanticSearch)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${useSemanticSearch ? 'bg-green-500' : 'bg-gray-600'
+                  }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${useSemanticSearch ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                />
+              </button>
+            </div>
+
             {/* Location */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">
@@ -216,11 +245,10 @@ function SmartMatch() {
                   value={preferences.zipCode}
                   onChange={(e) => setPreferences({ ...preferences, zipCode: e.target.value })}
                   onFocus={() => preferences.zipCode.length >= 3 && setShowZipSuggestions(true)}
-                  className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 transition-all backdrop-blur-sm ${
-                    zipError
-                      ? 'border-red-500/50 focus:ring-red-500/50 focus:border-red-500/50'
-                      : 'border-white/10 focus:ring-green-500/50 focus:border-green-500/50'
-                  }`}
+                  className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 transition-all backdrop-blur-sm ${zipError
+                    ? 'border-red-500/50 focus:ring-red-500/50 focus:border-red-500/50'
+                    : 'border-white/10 focus:ring-green-500/50 focus:border-green-500/50'
+                    }`}
                 />
                 {zipError && (
                   <p className="mt-1 text-xs text-red-400">{zipError}</p>
@@ -301,9 +329,8 @@ function SmartMatch() {
               <button
                 onClick={handleStartSwiping}
                 disabled={isThinking}
-                className={`w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-black py-4 px-6 rounded-xl transition-all shadow-xl hover:shadow-2xl hover:shadow-green-500/30 uppercase text-xs tracking-widest disabled:opacity-50 disabled:cursor-not-allowed ${
-                  isThinking ? 'animate-pulse' : ''
-                }`}
+                className={`w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-black py-4 px-6 rounded-xl transition-all shadow-xl hover:shadow-2xl hover:shadow-green-500/30 uppercase text-xs tracking-widest disabled:opacity-50 disabled:cursor-not-allowed ${isThinking ? 'animate-pulse' : ''
+                  }`}
               >
                 {isThinking ? 'Analyzing Matches...' : 'Execute Artist Match'}
               </button>
