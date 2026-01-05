@@ -12,13 +12,13 @@
  */
 
 import { buildPrompt, validateInput } from '../config/promptTemplates.js';
-import { 
-  fetchJSON, 
-  postJSON, 
-  FetchError, 
-  ErrorCodes, 
+import {
+  fetchJSON,
+  postJSON,
+  FetchError,
+  ErrorCodes,
   getUserErrorMessage,
-  isErrorCode 
+  isErrorCode
 } from './fetchWithAbort.js';
 
 // Proxy server configuration (injected via env)
@@ -195,23 +195,28 @@ export function getAPIUsage() {
  * @param {string} userInput.subject - Subject description (e.g., "wolf and moon")
  * @param {string} userInput.bodyPart - Body part placement
  * @param {string} userInput.size - Design size (small, medium, large)
- * @param {string} userInput.aiModel - AI model to use ('sdxl' or 'tattoo')
+ * @param {string} userInput.aiModel - AI model to use (optional, will be auto-selected if not provided)
+ * @param {string} modelId - Optional explicit model ID to use (overrides userInput.aiModel)
  * @param {AbortSignal} signal - Optional abort signal to cancel polling
  * @returns {Promise<Object>} Generated design data with image URLs
  */
-export async function generateTattooDesign(userInput, signal = null) {
+export async function generateTattooDesign(userInput, modelId = null, signal = null) {
   // Validate input
   const validation = validateInput(userInput);
   if (!validation.isValid) {
     throw new Error(`Invalid input: ${validation.errors.join(', ')}`);
   }
 
-  // Get selected model or use default
-  const modelId = userInput.aiModel || DEFAULT_MODEL;
-  const model = AI_MODELS[modelId];
+  // Get selected model: explicit modelId > userInput.aiModel > default
+  const selectedModelId = modelId || userInput.aiModel || DEFAULT_MODEL;
+  let model = AI_MODELS[selectedModelId];
 
   if (!model) {
-    throw new Error(`Invalid model: ${modelId}`);
+    console.warn(`[Replicate] Invalid model: ${selectedModelId}, falling back to default`);
+    model = AI_MODELS[DEFAULT_MODEL];
+    if (!model) {
+      throw new Error(`Invalid model: ${selectedModelId} and default model not found`);
+    }
   }
 
   // Detect if this is a council-enhanced prompt
@@ -380,18 +385,19 @@ export async function generateTattooDesign(userInput, signal = null) {
  * Implements exponential backoff with retry budget cap
  *
  * @param {Object} userInput - Design parameters
+ * @param {string} modelId - Optional model ID to use
  * @param {AbortSignal} signal - Optional abort signal
  * @param {number} maxRetries - Maximum retry attempts (default: 3)
  * @returns {Promise<Object>} Generated design data
  */
-export async function generateWithRetry(userInput, signal = null, maxRetries = 3) {
+export async function generateWithRetry(userInput, modelId = null, signal = null, maxRetries = 3) {
   let lastError;
   let retryBudget = maxRetries;
 
   for (let attempt = 1; attempt <= retryBudget; attempt++) {
     try {
       console.log(`[Replicate] Generation attempt ${attempt}/${retryBudget}`);
-      return await generateTattooDesign(userInput, signal);
+      return await generateTattooDesign(userInput, modelId, signal);
     } catch (error) {
       lastError = error;
 
@@ -419,7 +425,7 @@ export async function generateWithRetry(userInput, signal = null, maxRetries = 3
       // Wait before retrying (exponential backoff)
       const waitTime = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
       console.log(`[Replicate] Retrying in ${waitTime / 1000}s... (${retryBudget - attempt} retries left)`);
-      
+
       await new Promise((resolve, reject) => {
         const timeout = setTimeout(resolve, waitTime);
         signal?.addEventListener('abort', () => {
@@ -497,7 +503,7 @@ export async function checkServiceHealth() {
         code: error.code,
         banner: {
           type: 'error',
-          message: error.code === ErrorCodes.AUTH_INVALID 
+          message: error.code === ErrorCodes.AUTH_INVALID
             ? 'Authentication failed. Check your credentials.'
             : 'Cannot connect to server. Make sure the backend is running.',
           action: error.code === ErrorCodes.NETWORK_ERROR ? 'Start server' : 'Check auth'
@@ -567,15 +573,16 @@ const rateLimiter = {
  * Generate with rate limiting
  *
  * @param {Object} userInput - Design parameters
+ * @param {string} modelId - Optional model ID to use
  * @param {AbortSignal} signal - Optional abort signal for cancellation
  * @returns {Promise<Object>} Generated design data
  */
-export async function generateWithRateLimit(userInput, signal = null) {
+export async function generateWithRateLimit(userInput, modelId = null, signal = null) {
   if (!rateLimiter.canMakeRequest()) {
     const waitTime = rateLimiter.getTimeUntilNextRequest();
     throw new Error(`Rate limit reached. Please wait ${Math.ceil(waitTime / 1000)} seconds before generating again.`);
   }
 
   rateLimiter.recordRequest();
-  return generateWithRetry(userInput, signal);
+  return generateWithRetry(userInput, modelId, signal);
 }
