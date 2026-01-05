@@ -38,14 +38,20 @@ const driver = neo4j.driver(
 
 /**
  * Add embedding_id and mentor_id properties to all Artist nodes
+ * 
+ * Note: In Neo4j, setting a property to null removes it. This function ensures
+ * the properties exist on all nodes by setting them to empty string if missing,
+ * which can later be updated to actual values. Existing values are preserved.
  */
 async function addProperties(session) {
   console.log('\n📝 Adding new properties to Artist nodes...');
 
+  // Set properties to empty string if they don't exist, preserving existing values
+  // Empty string is used instead of null because Neo4j removes null properties
   const query = `
     MATCH (a:Artist)
-    SET a.embedding_id = coalesce(a.embedding_id, null),
-        a.mentor_id = coalesce(a.mentor_id, null)
+    SET a.embedding_id = coalesce(a.embedding_id, ''),
+        a.mentor_id = coalesce(a.mentor_id, '')
     RETURN count(a) as updatedCount
   `;
 
@@ -53,6 +59,7 @@ async function addProperties(session) {
     const result = await session.run(query);
     const count = neo4j.integer.toNumber(result.records[0].get('updatedCount'));
     console.log(`  ✓ Updated ${count} Artist nodes with embedding_id and mentor_id properties`);
+    console.log(`  ℹ️  Properties set to empty string if missing (can be updated later)`);
   } catch (error) {
     console.error('  ❌ Error adding properties:', error.message);
     throw error;
@@ -102,17 +109,19 @@ async function verifyMigration(session) {
     const totalArtists = neo4j.integer.toNumber(artistCount.records[0].get('totalArtists'));
 
     // Count artists with embedding_id property (including null)
+    // Check if property exists in the node's keys, regardless of value
     const embeddingCount = await session.run(`
       MATCH (a:Artist)
-      WHERE a.embedding_id IS NOT NULL
+      WHERE 'embedding_id' IN keys(a)
       RETURN count(a) as artistsWithEmbedding
     `);
     const artistsWithEmbedding = neo4j.integer.toNumber(embeddingCount.records[0].get('artistsWithEmbedding'));
 
     // Count artists with mentor_id property (including null)
+    // Check if property exists in the node's keys, regardless of value
     const mentorCount = await session.run(`
       MATCH (a:Artist)
-      WHERE a.mentor_id IS NOT NULL
+      WHERE 'mentor_id' IN keys(a)
       RETURN count(a) as artistsWithMentor
     `);
     const artistsWithMentor = neo4j.integer.toNumber(mentorCount.records[0].get('artistsWithMentor'));
@@ -125,8 +134,8 @@ async function verifyMigration(session) {
     `);
 
     console.log(`  ✓ Total Artist nodes: ${totalArtists}`);
-    console.log(`  ✓ Artists with embedding_id: ${artistsWithEmbedding}`);
-    console.log(`  ✓ Artists with mentor_id: ${artistsWithMentor}`);
+    console.log(`  ✓ Artists with embedding_id property: ${artistsWithEmbedding} (should equal ${totalArtists} if migration succeeded)`);
+    console.log(`  ✓ Artists with mentor_id property: ${artistsWithMentor} (should equal ${totalArtists} if migration succeeded)`);
     
     if (indexCheck.records.length > 0) {
       console.log(`  ✓ Indexes created: ${indexCheck.records.length}`);
