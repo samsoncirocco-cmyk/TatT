@@ -1,7 +1,11 @@
+// Stencil utility imports commented out - files don't exist in production
+// import { PAPER_SIZES, validateDimensions, validateDPI, DEFAULT_DPI } from '../utils/stencilCalibration';
+// import { createStencilPDF } from '../utils/pdfGenerator';
+
 /**
  * Stencil Processing Service
  *
- * Converts AI-generated tattoo designs into professional stencil-ready formats
+ * Converts AI-generated tattoo designs into pro stencil-ready formats
  * optimized for thermal printers and copier transfer methods.
  *
  * Features:
@@ -55,19 +59,20 @@ const DEFAULT_STENCIL_SETTINGS = {
  * @param {Object} settings - Stencil conversion settings
  * @returns {Promise<string>} Data URL of stencil image
  */
-export async function convertToStencil(imageUrl, settings = {}) {
+export async function convertToStencil(imageUrl, settings = {}, progressOptions = {}) {
   // Validate imageUrl
   if (!imageUrl) {
     throw new Error('Image URL is required');
   }
 
   const options = { ...DEFAULT_STENCIL_SETTINGS, ...settings };
+  const { onProgress } = options;
 
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
 
-    img.onload = () => {
+    img.onload = async () => {
       try {
         // Create canvas for processing
         const canvas = document.createElement('canvas');
@@ -87,30 +92,55 @@ export async function convertToStencil(imageUrl, settings = {}) {
         const data = imageData.data;
 
         // Process pixels: convert to grayscale + apply threshold
-        for (let i = 0; i < data.length; i += 4) {
-          // Convert to grayscale
-          const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+        const totalPixels = data.length / 4;
+        const shouldChunk = totalPixels > 2400 * 2400;
+        const chunkSize = shouldChunk ? 120000 : totalPixels;
+        let processedPixels = 0;
 
-          // Apply brightness adjustment
-          let brightness = avg + options.brightness;
+        const processChunk = async (startPixel) => {
+          const endPixel = Math.min(totalPixels, startPixel + chunkSize);
 
-          // Apply contrast
-          brightness = ((brightness - 128) * options.contrast) + 128;
+          for (let pixel = startPixel; pixel < endPixel; pixel++) {
+            const i = pixel * 4;
 
-          // Clamp values
-          brightness = Math.max(0, Math.min(255, brightness));
+            // Convert to grayscale
+            const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
 
-          // Apply threshold (binary black or white)
-          const value = brightness >= options.threshold ? 255 : 0;
+            // Apply brightness adjustment
+            let brightness = avg + options.brightness;
 
-          // Apply inversion if needed
-          const finalValue = options.invert ? (255 - value) : value;
+            // Apply contrast
+            brightness = ((brightness - 128) * options.contrast) + 128;
 
-          // Set RGB to same value (grayscale)
-          data[i] = finalValue;     // Red
-          data[i + 1] = finalValue; // Green
-          data[i + 2] = finalValue; // Blue
-          // Alpha stays the same (data[i + 3])
+            // Clamp values
+            brightness = Math.max(0, Math.min(255, brightness));
+
+            // Apply threshold (binary black or white)
+            const value = brightness >= options.threshold ? 255 : 0;
+
+            // Apply inversion if needed
+            const finalValue = options.invert ? (255 - value) : value;
+
+            // Set RGB to same value (grayscale)
+            data[i] = finalValue;     // Red
+            data[i + 1] = finalValue; // Green
+            data[i + 2] = finalValue; // Blue
+            // Alpha stays the same (data[i + 3])
+          }
+
+          processedPixels = endPixel;
+
+          if (shouldChunk && typeof onProgress === 'function') {
+            onProgress(Number((processedPixels / totalPixels).toFixed(3)));
+          }
+
+          if (shouldChunk && endPixel < totalPixels) {
+            await new Promise((resolveChunk) => setTimeout(resolveChunk, 0));
+          }
+        };
+
+        for (let startPixel = 0; startPixel < totalPixels; startPixel += chunkSize) {
+          await processChunk(startPixel);
         }
 
         // Put processed data back
