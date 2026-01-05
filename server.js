@@ -64,18 +64,8 @@ app.use(cors({
 
 app.use(express.json({ limit: '10mb' }));
 
-// Explicit OPTIONS handler for preflight requests (backup to cors middleware)
-app.options('*', (req, res) => {
-  const origin = req.headers.origin;
-  if (origin && (ALLOWED_ORIGINS.includes(origin) || origin.endsWith('.vercel.app'))) {
-    res.header('Access-Control-Allow-Origin', origin);
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Max-Age', '86400');
-  }
-  res.sendStatus(200);
-});
+// Note: CORS middleware automatically handles OPTIONS preflight requests
+// No explicit OPTIONS handler needed - cors middleware covers it
 
 // Rate limiting middleware
 const apiLimiter = rateLimit({
