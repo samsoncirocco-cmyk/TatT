@@ -120,8 +120,8 @@ try {
       apprentice.mentor_id = mentor_id;
       
       // Add apprentice to mentor's apprentices list if not already there
+      mentor.apprentices = mentor.apprentices || [];
       if (!mentor.apprentices.includes(apprentice_id)) {
-        mentor.apprentices = mentor.apprentices || [];
         mentor.apprentices.push(apprentice_id);
       }
     }
