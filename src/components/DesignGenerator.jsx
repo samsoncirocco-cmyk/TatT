@@ -53,7 +53,7 @@ export default function DesignGenerator() {
   useEffect(() => {
     const usage = getAPIUsage();
     setApiUsage(usage);
-    
+
     checkServiceHealth().then(health => {
       setServiceHealth(health);
     });
@@ -139,21 +139,21 @@ export default function DesignGenerator() {
 
     } catch (err) {
       console.error('[DesignGenerator] Generation failed:', err);
-      
+
       // Don't show error toast for user-cancelled generations
       if (!err.message.includes('cancelled')) {
         setError(err.message || 'Failed to generate designs. Please try again.');
       }
     } finally {
       setIsGenerating(false);
-      
+
       // Clean up tip interval
       if (tipIntervalRef.current) {
         clearInterval(tipIntervalRef.current);
         tipIntervalRef.current = null;
       }
       setCurrentTip(null);
-      
+
       // Clean up abort controller
       abortControllerRef.current = null;
     }
@@ -208,45 +208,32 @@ export default function DesignGenerator() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
-          <h1 className="text-2xl font-bold text-gray-900">AI Tattoo Designer</h1>
-          <p className="text-sm text-gray-600 mt-1">
-            Create custom tattoo designs with AI
-          </p>
-        </div>
-      </header>
+    <div className="relative min-h-screen pt-24 px-4 pb-32">
+      {/* Ambient Glows */}
+      <div className="fixed top-20 right-0 w-[500px] h-[500px] bg-ducks-green/20 rounded-full blur-[128px] pointer-events-none -z-10" />
 
-      <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+      <main className="max-w-7xl mx-auto">
+
         {/* Service Health Banner */}
         {serviceHealth && !serviceHealth.healthy && serviceHealth.banner && (
-          <div className={`rounded-lg p-4 mb-6 ${
-            serviceHealth.banner.type === 'error' 
-              ? 'bg-error-50 border border-error-200' 
-              : 'bg-warning-50 border border-warning-200'
-          }`}>
+          <div className={`glass-panel rounded-lg p-4 mb-6 border-l-4 ${serviceHealth.banner.type === 'error'
+              ? 'border-l-red-500 bg-red-500/10'
+              : 'border-l-yellow-500 bg-yellow-500/10'
+            }`}>
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <p className={`text-sm font-medium ${
-                  serviceHealth.banner.type === 'error' ? 'text-error-900' : 'text-warning-900'
-                }`}>
+                <p className="text-sm font-medium text-white">
                   ⚠️ {serviceHealth.banner.message}
                 </p>
                 {serviceHealth.banner.action && (
-                  <p className={`text-xs mt-1 ${
-                    serviceHealth.banner.type === 'error' ? 'text-error-700' : 'text-warning-700'
-                  }`}>
+                  <p className="text-xs mt-1 text-gray-300">
                     Action: {serviceHealth.banner.action}
                   </p>
                 )}
               </div>
               <button
                 onClick={() => setServiceHealth(null)}
-                className={`ml-4 text-sm font-medium ${
-                  serviceHealth.banner.type === 'error' ? 'text-error-700 hover:text-error-900' : 'text-warning-700 hover:text-warning-900'
-                }`}
+                className="ml-4 text-sm font-medium text-gray-400 hover:text-white"
               >
                 ✕
               </button>
@@ -256,24 +243,22 @@ export default function DesignGenerator() {
 
         {/* Budget Tracker */}
         {apiUsage && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-blue-900">
-                  Budget Tracker
-                </p>
-                <p className="text-xs text-blue-700 mt-1">
-                  ${apiUsage.totalSpent.toFixed(2)} spent / ${apiUsage.remainingBudget.toFixed(2)} remaining
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-blue-700">
-                  Today: {apiUsage.todayRequests} requests
-                </p>
-                <p className="text-xs text-blue-600">
-                  ${apiUsage.todaySpent.toFixed(2)}
-                </p>
-              </div>
+          <div className="glass-panel border-ducks-green/20 rounded-lg p-4 mb-8 flex justify-between items-center bg-ducks-green/5">
+            <div>
+              <p className="text-xs font-mono uppercase tracking-widest text-ducks-green">
+                Available Credits
+              </p>
+              <p className="text-xl font-bold text-white mt-1 font-display">
+                ${apiUsage.remainingBudget.toFixed(2)}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-gray-500 mb-1">
+                Today's Requests
+              </p>
+              <span className="bg-ducks-yellow/10 text-ducks-yellow px-2 py-1 rounded-md text-sm font-bold">
+                {apiUsage.todayRequests}
+              </span>
             </div>
           </div>
         )}
@@ -326,4 +311,3 @@ export default function DesignGenerator() {
     </div>
   );
 }
-

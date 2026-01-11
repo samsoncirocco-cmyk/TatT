@@ -249,9 +249,9 @@ function SmartMatch() {
   const totalArtists = artistsData.artists?.length || 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen pt-24 pb-32 px-4 flex items-center justify-center relative overflow-hidden">
       {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-10">
+      <div className="absolute inset-0 opacity-10 pointer-events-none">
         <div className="absolute inset-0" style={{
           backgroundImage: `radial-gradient(circle at 2px 2px, white 1px, transparent 0)`,
           backgroundSize: '40px 40px'
@@ -260,27 +260,30 @@ function SmartMatch() {
 
       {/* Glassmorphic Container */}
       <div className="relative z-10 w-full max-w-2xl">
-        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl shadow-2xl overflow-hidden transition-all duration-500">
+        <div className="glass-panel border-white/10 rounded-[2.5rem] shadow-2xl overflow-hidden transition-all duration-500 relative">
+
+          {/* Ambient Glow */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-ducks-green/5 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/2" />
 
           {/* Loading Overly */}
           {isSearching && (
-            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
               <div className="w-20 h-20 relative mb-6">
-                <div className="absolute inset-0 border-4 border-green-500/20 rounded-full"></div>
+                <div className="absolute inset-0 border-4 border-ducks-green/20 rounded-full"></div>
                 <div
-                  className="absolute inset-0 border-4 border-t-green-500 rounded-full animate-spin"
+                  className="absolute inset-0 border-4 border-t-ducks-green rounded-full animate-spin"
                   style={{ animationDuration: '0.8s' }}
                 ></div>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-xs font-black text-green-400">{(searchProgress / 100 * 0.5).toFixed(1)}s</span>
+                  <span className="text-xs font-black text-ducks-green">{(searchProgress / 100 * 0.5).toFixed(1)}s</span>
                 </div>
               </div>
-              <p className="text-sm font-black uppercase tracking-[0.3em] text-green-400 animate-pulse">
+              <p className="text-sm font-black uppercase tracking-[0.3em] text-ducks-green animate-pulse">
                 Analyzing Neural Style...
               </p>
               <div className="mt-8 w-48 h-1 bg-white/10 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-green-500 transition-all duration-300"
+                  className="h-full bg-ducks-green transition-all duration-300"
                   style={{ width: `${searchProgress}%` }}
                 ></div>
               </div>
@@ -295,54 +298,54 @@ function SmartMatch() {
               onStartOver={handleStartOver}
             />
           ) : searchError ? (
-            <div className="p-12 text-center">
-              <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-500/20">
+            <div className="p-16 text-center">
+              <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-500/20 shadow-glow-red">
                 <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
-              <h2 className="text-2xl font-black mb-4 tracking-tight">Search Protocol Halted</h2>
-              <p className="text-gray-400 mb-8 italic">"{searchError}"</p>
-              <div className="flex gap-4 justify-center">
+              <h2 className="text-3xl font-display font-bold mb-4 tracking-tight text-white">Search Protocol Halted</h2>
+              <p className="text-gray-400 mb-12 italic border-l-2 border-red-500/50 pl-4 text-left max-w-sm mx-auto">"{searchError}"</p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <button
                   onClick={handleStartSwiping}
-                  className="px-8 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-all"
+                  className="px-8 py-4 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-all uppercase tracking-widest text-xs shadow-lg shadow-red-900/20"
                 >
                   Retry Search
                 </button>
                 <button
                   onClick={() => setSearchError(null)}
-                  className="px-8 py-3 bg-white/5 border border-white/10 text-white font-bold rounded-xl transition-all"
+                  className="px-8 py-4 bg-white/5 border border-white/10 text-white font-bold rounded-xl transition-all uppercase tracking-widest text-xs hover:bg-white/10"
                 >
                   Adjust Filters
                 </button>
               </div>
             </div>
           ) : (
-            <div className="p-8 md:p-12">
+            <div className="p-8 md:p-12 relative z-10">
               {/* Header */}
               <div className="text-center mb-10">
-                <h1 className="text-5xl md:text-6xl font-black mb-3 tracking-tight bg-gradient-to-r from-green-400 via-emerald-300 to-teal-400 bg-clip-text text-transparent">
-                  Neural Ink
+                <h1 className="text-5xl md:text-6xl font-display font-bold mb-3 tracking-tighter text-white">
+                  Neural <span className="text-ducks-green">Ink.</span>
                 </h1>
-                <p className="text-sm text-gray-400 uppercase tracking-widest font-semibold mb-6">
+                <p className="text-xs text-gray-400 uppercase tracking-[0.3em] font-bold mb-6">
                   AI-Powered Artist Matching Engine
                 </p>
 
                 {/* Dynamic Match Counter */}
                 {(matchCount > 0 || isThinking) && (
-                  <div className="inline-flex items-center gap-3 px-4 py-2 bg-green-500/10 border border-green-500/20 rounded-full">
+                  <div className="inline-flex items-center gap-3 px-4 py-2 bg-ducks-green/10 border border-ducks-green/20 rounded-full animate-fade-in shadow-glow-green">
                     {isThinking ? (
                       <>
-                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                        <span className="text-xs font-semibold text-green-400 uppercase tracking-wider">
+                        <div className="w-2 h-2 bg-ducks-green rounded-full animate-pulse"></div>
+                        <span className="text-[10px] font-bold text-ducks-green uppercase tracking-widest">
                           Analyzing {totalArtists}+ artists...
                         </span>
                       </>
                     ) : (
                       <>
-                        <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                        <span className="text-xs font-semibold text-green-400 uppercase tracking-wider">
+                        <div className="w-2 h-2 bg-ducks-green rounded-full"></div>
+                        <span className="text-[10px] font-bold text-ducks-green uppercase tracking-widest">
                           {matchCount} matches found
                         </span>
                       </>
@@ -354,7 +357,7 @@ function SmartMatch() {
               <div className="space-y-8">
                 {/* Styles */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 mb-4">
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-4 ml-1">
                     Select Style Filters
                   </label>
                   <div className="flex flex-wrap gap-2">
@@ -362,9 +365,9 @@ function SmartMatch() {
                       <button
                         key={style}
                         onClick={() => handleStyleChange(style)}
-                        className={`px-4 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all duration-200 ${preferences.styles.includes(style)
-                          ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/30 scale-105'
-                          : 'bg-white/5 border border-white/10 text-gray-300 hover:border-green-500/50 hover:bg-white/10'
+                        className={`px-4 py-2.5 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all duration-200 ${preferences.styles.includes(style)
+                          ? 'bg-ducks-green text-white shadow-glow-green scale-105 border border-transparent'
+                          : 'bg-white/5 border border-white/10 text-gray-400 hover:border-ducks-green/50 hover:text-white hover:bg-white/10'
                           }`}
                       >
                         {style}
@@ -375,7 +378,7 @@ function SmartMatch() {
 
                 {/* Keywords */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2 ml-1">
                     Detail Keywords
                   </label>
                   <input
@@ -383,17 +386,17 @@ function SmartMatch() {
                     placeholder="e.g. dragon, floral, geometric"
                     value={preferences.keywords}
                     onChange={(e) => setPreferences({ ...preferences, keywords: e.target.value })}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all backdrop-blur-sm"
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-4 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-ducks-green transition-all"
                   />
                 </div>
 
                 {/* Semantic Search Toggle */}
-                <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl">
+                <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl group hover:border-white/20 transition-colors">
                   <div className="flex-1">
-                    <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 mb-1">
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">
                       Search Mode
                     </label>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-[10px] text-gray-500 font-medium">
                       {useSemanticSearch
                         ? 'Semantic: Find artists by visual style similarity'
                         : 'Keyword: Find artists by exact tag matches'}
@@ -401,7 +404,7 @@ function SmartMatch() {
                   </div>
                   <button
                     onClick={() => setUseSemanticSearch(!useSemanticSearch)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${useSemanticSearch ? 'bg-green-500' : 'bg-gray-600'
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${useSemanticSearch ? 'bg-ducks-green' : 'bg-gray-700'
                       }`}
                   >
                     <span
@@ -413,7 +416,7 @@ function SmartMatch() {
 
                 {/* Location */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2 ml-1">
                     Zip/City
                   </label>
                   <div className="relative">
@@ -423,21 +426,21 @@ function SmartMatch() {
                       value={preferences.zipCode}
                       onChange={(e) => setPreferences({ ...preferences, zipCode: e.target.value })}
                       onFocus={() => preferences.zipCode.length >= 3 && setShowZipSuggestions(true)}
-                      className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 transition-all backdrop-blur-sm ${zipError
-                        ? 'border-red-500/50 focus:ring-red-500/50 focus:border-red-500/50'
-                        : 'border-white/10 focus:ring-green-500/50 focus:border-green-500/50'
+                      className={`w-full bg-black/40 border rounded-xl px-4 py-4 text-sm text-white placeholder-gray-600 focus:outline-none transition-all ${zipError
+                        ? 'border-red-500/50 focus:border-red-500'
+                        : 'border-white/10 focus:border-ducks-green'
                         }`}
                     />
                     {zipError && (
-                      <p className="mt-1 text-xs text-red-400">{zipError}</p>
+                      <p className="mt-1 text-[10px] font-bold text-red-400 pl-1">{zipError}</p>
                     )}
                     {showZipSuggestions && zipSuggestions.length > 0 && (
-                      <div className="absolute z-20 w-full mt-1 bg-gray-800/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-xl overflow-hidden">
+                      <div className="absolute z-20 w-full mt-1 bg-gray-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden">
                         {zipSuggestions.map((zip) => (
                           <button
                             key={zip}
                             onClick={() => handleZipSelect(zip)}
-                            className="w-full px-4 py-2 text-left text-sm text-white hover:bg-white/10 transition-colors"
+                            className="w-full px-4 py-3 text-left text-sm text-gray-300 hover:bg-white/10 transition-colors font-mono"
                           >
                             {zip}
                           </button>
@@ -451,10 +454,10 @@ function SmartMatch() {
                 <div>
                   <button
                     onClick={() => setShowAdvanced(!showAdvanced)}
-                    className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-green-400 transition-colors"
+                    className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:text-white transition-colors"
                   >
                     <svg
-                      className={`w-4 h-4 transition-transform duration-200 ${showAdvanced ? 'rotate-180' : ''}`}
+                      className={`w-3 h-3 transition-transform duration-200 ${showAdvanced ? 'rotate-180' : ''}`}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -470,11 +473,11 @@ function SmartMatch() {
                   <div className="space-y-6 pt-4 border-t border-white/10 animate-slide-down">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">
+                        <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2 ml-1">
                           Radius
                         </label>
                         <select
-                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all backdrop-blur-sm appearance-none"
+                          className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-ducks-green transition-all appearance-none"
                           value={preferences.distance}
                           onChange={(e) => setPreferences({ ...preferences, distance: parseInt(e.target.value) })}
                         >
@@ -485,7 +488,7 @@ function SmartMatch() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">
+                        <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2 ml-1">
                           Budget: ${preferences.budget}
                         </label>
                         <input
@@ -495,7 +498,7 @@ function SmartMatch() {
                           step="50"
                           value={preferences.budget}
                           onChange={(e) => setPreferences({ ...preferences, budget: parseInt(e.target.value, 10) })}
-                          className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-green-500"
+                          className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-ducks-green mt-3"
                         />
                       </div>
                     </div>
@@ -507,7 +510,7 @@ function SmartMatch() {
                   <button
                     onClick={handleStartSwiping}
                     disabled={isThinking || isSearching}
-                    className={`w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-black py-4 px-6 rounded-xl transition-all shadow-xl hover:shadow-2xl hover:shadow-green-500/30 uppercase text-xs tracking-widest disabled:opacity-50 disabled:cursor-not-allowed ${isThinking || isSearching ? 'animate-pulse' : ''
+                    className={`w-full bg-white text-black font-black py-4 px-6 rounded-xl transition-all shadow-xl hover:shadow-2xl hover:scale-[1.02] uppercase text-xs tracking-[0.2em] disabled:opacity-50 disabled:cursor-not-allowed ${isThinking || isSearching ? 'animate-pulse' : ''
                       }`}
                   >
                     {isSearching ? 'Executing Search...' : isThinking ? 'Analyzing Matches...' : 'Execute Artist Match'}

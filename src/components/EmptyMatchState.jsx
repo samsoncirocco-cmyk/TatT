@@ -1,11 +1,9 @@
 /**
- * Empty Match State Component
+ * Empty Match State Component (Reskinned)
  * 
  * Displays when semantic artist matching returns no results.
  * Provides actionable suggestions to help users refine their search.
  */
-
-import { useState } from 'react';
 
 function EmptyMatchState({ searchParams, onAdjustFilters, onStartOver }) {
     const { query, location, styles = [], radius = 25 } = searchParams;
@@ -16,8 +14,8 @@ function EmptyMatchState({ searchParams, onAdjustFilters, onStartOver }) {
     if (radius < 50) {
         suggestions.push({
             icon: '📍',
-            title: 'Expand your search area',
-            description: `Try increasing radius from ${radius} to 50 miles`,
+            title: 'Expand search radius',
+            description: `Broaden scan from ${radius} to 50 miles`,
             action: 'increase_radius'
         });
     }
@@ -25,8 +23,8 @@ function EmptyMatchState({ searchParams, onAdjustFilters, onStartOver }) {
     if (styles.length > 2) {
         suggestions.push({
             icon: '🎨',
-            title: 'Broaden style preferences',
-            description: `Remove some of your ${styles.length} style filters`,
+            title: 'Refine Style Params',
+            description: `Reduce complexity from ${styles.length} filters`,
             action: 'reduce_styles'
         });
     }
@@ -34,27 +32,27 @@ function EmptyMatchState({ searchParams, onAdjustFilters, onStartOver }) {
     if (location) {
         suggestions.push({
             icon: '🌎',
-            title: 'Try a different location',
-            description: 'Search in a nearby city or remove location filter',
+            title: 'Relocate Sensor',
+            description: 'Target adjacent metro areas',
             action: 'change_location'
         });
     }
 
     suggestions.push({
         icon: '🔍',
-        title: 'Refine your search',
-        description: 'Try different keywords or a simpler description',
+        title: 'Query Optimization',
+        description: 'Simplify keyword parameters',
         action: 'change_query'
     });
 
     return (
-        <div className="min-h-[400px] flex items-center justify-center p-8">
-            <div className="max-w-2xl w-full text-center">
+        <div className="min-h-[400px] flex items-center justify-center p-8 md:p-12">
+            <div className="max-w-xl w-full text-center">
                 {/* Empty State Icon */}
-                <div className="mb-6">
-                    <div className="w-24 h-24 mx-auto bg-white/5 rounded-full flex items-center justify-center border border-white/10">
+                <div className="mb-8">
+                    <div className="w-24 h-24 mx-auto bg-white/5 rounded-full flex items-center justify-center border border-white/10 shadow-glow">
                         <svg
-                            className="w-12 h-12 text-gray-400"
+                            className="w-10 h-10 text-gray-500"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -62,7 +60,7 @@ function EmptyMatchState({ searchParams, onAdjustFilters, onStartOver }) {
                             <path
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
-                                strokeWidth={2}
+                                strokeWidth={1}
                                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                             />
                         </svg>
@@ -70,62 +68,37 @@ function EmptyMatchState({ searchParams, onAdjustFilters, onStartOver }) {
                 </div>
 
                 {/* Main Message */}
-                <h2 className="text-2xl font-bold text-white mb-3">
-                    No Artists Found
+                <h2 className="text-3xl font-display font-bold text-white mb-3 tracking-tight">
+                    Void Result
                 </h2>
-                <p className="text-gray-400 mb-8">
-                    We couldn't find any artists matching your search criteria.
+                <p className="text-gray-400 mb-10 font-light max-w-sm mx-auto">
+                    Biometric scan returned 0 matching artist profiles in the current sector.
                 </p>
 
-                {/* Current Search Summary */}
-                <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-8 text-left">
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-gray-400 mb-4">
-                        Your Search
-                    </h3>
-                    <div className="space-y-2 text-sm">
-                        <div className="flex items-start gap-3">
-                            <span className="text-gray-500 min-w-[80px]">Query:</span>
-                            <span className="text-white font-medium">{query}</span>
-                        </div>
-                        {location && (
-                            <div className="flex items-start gap-3">
-                                <span className="text-gray-500 min-w-[80px]">Location:</span>
-                                <span className="text-white">{location} ({radius} miles)</span>
-                            </div>
-                        )}
-                        {styles.length > 0 && (
-                            <div className="flex items-start gap-3">
-                                <span className="text-gray-500 min-w-[80px]">Styles:</span>
-                                <span className="text-white">{styles.join(', ')}</span>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
                 {/* Suggestions */}
-                <div className="mb-8">
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-gray-400 mb-4">
-                        Try These Suggestions
+                <div className="mb-10 text-left">
+                    <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-ducks-green mb-4 ml-1">
+                        Recommended Protocols
                     </h3>
                     <div className="grid gap-3">
                         {suggestions.map((suggestion, index) => (
                             <button
                                 key={index}
                                 onClick={() => onAdjustFilters(suggestion.action)}
-                                className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-green-500/50 rounded-xl p-4 text-left transition-all group"
+                                className="glass-panel border border-white/5 hover:border-ducks-green/30 rounded-xl p-4 text-left transition-all group active:scale-[0.99]"
                             >
-                                <div className="flex items-start gap-4">
-                                    <span className="text-2xl">{suggestion.icon}</span>
+                                <div className="flex items-center gap-4">
+                                    <span className="text-xl grayscale group-hover:grayscale-0 transition-all">{suggestion.icon}</span>
                                     <div className="flex-1">
-                                        <h4 className="text-white font-semibold mb-1 group-hover:text-green-400 transition-colors">
+                                        <h4 className="text-white font-bold text-sm mb-0.5 group-hover:text-ducks-green transition-colors">
                                             {suggestion.title}
                                         </h4>
-                                        <p className="text-sm text-gray-400">
+                                        <p className="text-xs text-gray-500 font-mono">
                                             {suggestion.description}
                                         </p>
                                     </div>
                                     <svg
-                                        className="w-5 h-5 text-gray-500 group-hover:text-green-400 transition-colors"
+                                        className="w-4 h-4 text-gray-600 group-hover:text-white transition-colors"
                                         fill="none"
                                         stroke="currentColor"
                                         viewBox="0 0 24 24"
@@ -144,18 +117,18 @@ function EmptyMatchState({ searchParams, onAdjustFilters, onStartOver }) {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex gap-4 justify-center">
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
                     <button
                         onClick={() => onAdjustFilters('manual')}
-                        className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-green-500/30 uppercase text-sm tracking-wider"
+                        className="px-8 py-4 bg-white text-black font-black rounded-xl transition-all shadow-xl hover:scale-[1.02] uppercase text-xs tracking-widest"
                     >
-                        Adjust Filters
+                        Manual Override
                     </button>
                     <button
                         onClick={onStartOver}
-                        className="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold rounded-xl transition-all uppercase text-sm tracking-wider"
+                        className="px-8 py-4 bg-transparent border border-white/10 hover:bg-white/5 text-white font-bold rounded-xl transition-all uppercase text-xs tracking-widest"
                     >
-                        Start Over
+                        Reset All
                     </button>
                 </div>
             </div>

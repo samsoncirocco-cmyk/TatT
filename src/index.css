@@ -3,29 +3,71 @@
 @tailwind utilities;
 
 :root {
-  --bg-primary: #ffffff;
-  --bg-secondary: #f9fafb;
-  --text-primary: #111827;
-  --text-secondary: #4b5563;
-  --accent-green: #154733;
-  /* Oregon Duck Green */
-  --accent-yellow: #FEE123;
-  /* Oregon Duck Yellow */
-  --accent-green-hover: #0d2e21;
-  --border-light: #e5e7eb;
-  --glass-bg: rgba(255, 255, 255, 0.8);
+  /* Brand Tokens */
+  --color-ducks-green: #154733;
+  --color-ducks-yellow: #FEE123;
+  
+  /* Semantic Tokens */
+  --bg-primary: #050505;
+  --bg-secondary: #0a0a0a;
+  --bg-surface: #121212;
+  
+  --text-primary: #F9FAFB;
+  --text-secondary: #9CA3AF;
+  
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-bg: rgba(20, 20, 20, 0.6);
 }
 
-/* Base resets */
+/* Base resets & Typography */
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Outfit', sans-serif;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
+  position: relative;
 }
 
-/* Horizontal Scroll Container */
+/* Atmospheric Noise Layer */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='1'/%3E%3C/svg%3E");
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+/* Code & Tech */
+code, pre, .font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Utilities */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, #F9FAFB 0%, #9CA3AF 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
@@ -33,107 +75,4 @@ body {
 .hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
-}
-
-/* TatTester specific components */
-.btn-cocreate {
-  background-color: var(--accent-green);
-  color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  font-weight: 700;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  transition: all 0.2s;
-}
-
-.btn-cocreate:hover {
-  background-color: var(--accent-green-hover);
-  box-shadow: 0 4px 12px rgba(21, 71, 51, 0.2);
-}
-
-.btn-cocreate-yellow {
-  background-color: var(--accent-yellow);
-  color: var(--accent-green);
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  font-weight: 700;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  box-shadow: 0 4px 0px #d4bc1d;
-  transition: all 0.1s;
-}
-
-.btn-cocreate-yellow:active {
-  transform: translateY(2px);
-  box-shadow: 0 2px 0px #d4bc1d;
-}
-
-.btn-cocreate-outline {
-  border: 1px solid var(--accent-green);
-  color: var(--accent-green);
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  font-weight: 700;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-/* Responsive Grid/Carousel */
-.carousel-container {
-  display: flex;
-  overflow-x: auto;
-  gap: 1rem;
-  padding: 1rem 0;
-  scroll-snap-type: x mandatory;
-}
-
-.carousel-item {
-  flex: 0 0 auto;
-  width: 200px;
-  scroll-snap-align: start;
-}
-
-/* Problem/System tiles */
-.tile-border {
-  border: 1px solid var(--border-light);
-}
-
-/* Typography Enhancements */
-.text-label {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-secondary);
-  font-weight: 600;
-}
-
-.heading-cocreate {
-  font-family: 'Inter', sans-serif;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-/* Oregon Ducks Utilities */
-.text-ducks-green {
-  color: var(--accent-green);
-}
-
-.text-ducks-yellow {
-  color: var(--accent-yellow);
-}
-
-.bg-ducks-green {
-  background-color: var(--accent-green);
-}
-
-.bg-ducks-yellow {
-  background-color: var(--accent-yellow);
-}
-
-.border-ducks-green {
-  border-color: var(--accent-green);
 }

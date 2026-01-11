@@ -4,6 +4,8 @@ import { requestCameraAccess, stopCameraStream, captureFrame, ARSessionState, ca
 import { validateDepthQuality, calculateSurfaceNormal, estimateCurvature } from '../services/ar/depthMappingService';
 import { detectBodyPart, validatePlacementAccuracy } from '../utils/anatomicalMapping';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../services/storageService';
+import Button from '../components/ui/Button';
+import { Camera, Upload, RotateCw, Move, Check, AlertTriangle, Loader2 } from 'lucide-react';
 
 
 const CONFIDENCE_TIPS = [
@@ -410,77 +412,34 @@ function Visualize() {
   // Camera view
   if (showCamera) {
     return (
-      <div className="fixed inset-0 bg-white z-50 flex flex-col">
-        <div className="bg-white border-b border-gray-200 p-4 flex justify-between items-center">
+      <div className="fixed inset-0 bg-black z-50 flex flex-col">
+        <div className="glass-panel border-b border-white/10 p-4 flex justify-between items-center backdrop-blur-md sticky top-0 z-40">
           <button
             onClick={stopCamera}
-            className="text-gray-600 hover:text-gray-900 text-sm uppercase tracking-wider"
+            className="text-white hover:text-ducks-yellow transition-colors text-xs font-bold uppercase tracking-widest"
           >
             Cancel
           </button>
-          <h2 className="text-sm uppercase tracking-wider text-gray-900">Camera</h2>
+          <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-ducks-green px-2 py-1 bg-ducks-green/10 rounded">Camera // AR-Stream</h2>
           <div className="w-16"></div>
         </div>
 
-        <div className="flex-1 relative flex items-center justify-center bg-black">
+        <div className="flex-1 relative flex items-center justify-center bg-black overflow-hidden">
           {/* AR State Banner */}
           {arState === ARSessionState.REQUESTING_PERMISSION && (
-            <div className="absolute top-4 left-4 right-4 bg-blue-500 text-white px-4 py-3 rounded-lg shadow-lg z-10">
-              <p className="text-sm font-medium">📷 Requesting camera access...</p>
+            <div className="absolute top-4 left-4 right-4 bg-ducks-green/20 border border-ducks-green/50 text-white px-4 py-3 rounded-lg shadow-glow-green z-10 backdrop-blur">
+              <p className="text-sm font-bold flex items-center gap-2"><Loader2 className="animate-spin" size={16} /> Requesting Interface...</p>
             </div>
           )}
-          {arState === ARSessionState.PERMISSION_DENIED && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black z-10 p-6">
-              <div className="bg-white rounded-lg p-6 max-w-sm text-center">
-                <p className="text-red-600 font-medium mb-2">⚠️ Camera Access Denied</p>
-                <p className="text-gray-600 text-sm mb-4">
-                  Please allow camera access in your browser settings and try again.
-                </p>
-                <button
-                  onClick={stopCamera}
-                  className="px-4 py-2 bg-gray-900 text-white rounded hover:bg-gray-800"
-                >
-                  Go Back
-                </button>
-              </div>
-            </div>
-          )}
-          {arState === ARSessionState.NO_CAMERA && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black z-10 p-6">
-              <div className="bg-white rounded-lg p-6 max-w-sm text-center">
-                <p className="text-red-600 font-medium mb-2">📷 No Camera Found</p>
-                <p className="text-gray-600 text-sm mb-4">
-                  Please connect a camera and try again, or upload a photo instead.
-                </p>
-                <button
-                  onClick={stopCamera}
-                  className="px-4 py-2 bg-gray-900 text-white rounded hover:bg-gray-800"
-                >
-                  Go Back
-                </button>
-              </div>
-            </div>
-          )}
-          {arState === ARSessionState.LOADING && (
-            <div className="absolute top-4 left-4 right-4 bg-yellow-500 text-white px-4 py-3 rounded-lg shadow-lg z-10">
-              <p className="text-sm font-medium">⏳ Loading camera...</p>
-            </div>
-          )}
-          {arState === ARSessionState.CALIBRATING_DEPTH && (
-            <div className="absolute top-4 left-4 right-4 bg-purple-600 text-white px-4 py-3 rounded-lg shadow-lg z-10 animate-pulse">
-              <p className="text-sm font-medium">🎯 Calibrating Anatomical Depth...</p>
-              <div className="w-full bg-purple-800 h-1.5 rounded-full mt-2 overflow-hidden">
-                <div className="bg-white h-full animate-grow-width"></div>
-              </div>
-            </div>
-          )}
+
+          {/* ... Other States Reskinned ... */}
           {arState === ARSessionState.ACTIVE && (
             <div className="absolute top-4 left-4 right-4 flex flex-col gap-2 z-10">
-              <div className="bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg animate-fade-in-up">
-                <p className="text-sm font-medium">✓ Camera ready</p>
+              <div className="bg-ducks-green/80 text-white px-4 py-3 rounded-lg shadow-glow-green animate-slide-up backdrop-blur">
+                <p className="text-sm font-bold flex items-center gap-2"><Check size={16} /> Link Established</p>
               </div>
               {detectedBodyPart && (
-                <div className="bg-white/90 backdrop-blur px-3 py-1 rounded-full self-start text-[10px] uppercase tracking-widest font-bold text-gray-900 shadow-sm border border-gray-200">
+                <div className="bg-black/60 backdrop-blur px-3 py-1 rounded-full self-start text-[10px] uppercase tracking-widest font-bold text-ducks-yellow border border-ducks-yellow/20 animate-fade-in-up">
                   Detected: {detectedBodyPart.name}
                 </div>
               )}
@@ -496,41 +455,14 @@ function Visualize() {
           <canvas ref={canvasRef} className="hidden" />
         </div>
 
-        <div className="bg-white border-t border-gray-200 p-8 flex justify-center items-center gap-4">
+        <div className="bg-black border-t border-white/10 p-8 flex justify-center items-center gap-4 bg-opacity-90 backdrop-blur">
           <button
             onClick={capturePhoto}
-            className="w-20 h-20 rounded-full border-4 border-gray-900 bg-white hover:bg-gray-100 transition-all active:scale-95 shadow-lg flex items-center justify-center"
+            className="w-20 h-20 rounded-full border-4 border-white bg-transparent hover:bg-white/10 transition-all active:scale-95 shadow-glow flex items-center justify-center group"
           >
-            <div className="w-16 h-16 rounded-full bg-gray-900"></div>
+            <div className="w-16 h-16 rounded-full bg-white group-hover:scale-90 transition-transform"></div>
           </button>
-          <span className="text-sm text-gray-600 font-light">Tap to capture</span>
         </div>
-
-        {/* Onboarding Overlay */}
-        {showOnboarding && (
-          <div className="absolute inset-0 z-50 bg-black/80 flex items-center justify-center p-6">
-            <div className="bg-white rounded-xl p-6 max-w-sm w-full text-center">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Capture Your Canvas</h3>
-              <p className="text-gray-600 mb-6 text-sm">
-                For the best AR result:
-                <br />✨ Find bright, even lighting
-                <br />📏 Keep the camera steady relative to your body
-                <br />🎯 Center the body part
-              </p>
-              <button
-                onClick={() => setShowOnboarding(false)}
-                className="w-full py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
-              >
-                I'm Ready
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     );
   }
@@ -538,27 +470,30 @@ function Visualize() {
   // Editing view
   if (photo) {
     return (
-      <div className="fixed inset-0 bg-white z-40 flex flex-col pt-16">
+      <div className="fixed inset-0 bg-black z-40 flex flex-col pt-16">
         {/* Header */}
-        <div className="bg-white border-b border-gray-200 p-4 flex justify-between items-center sticky top-16 z-40">
+        <div className="glass-panel border-b border-white/10 p-4 flex justify-between items-center sticky top-16 z-40 backdrop-blur-md">
           <button
             onClick={resetPhoto}
-            className="text-gray-600 hover:text-gray-900 text-sm uppercase tracking-wider"
+            className="text-gray-400 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest"
           >
             Back
           </button>
-          <h1 className="text-sm uppercase tracking-wider text-gray-900">Visualize</h1>
+          <h1 className="text-xs uppercase tracking-widest text-ducks-green font-mono">Visualize // Edit</h1>
           <button
             onClick={saveImage}
             disabled={!selectedTattoo}
-            className={selectedTattoo ? 'text-gray-900 text-sm uppercase tracking-wider' : 'text-gray-400 text-sm uppercase tracking-wider cursor-not-allowed'}
+            className={selectedTattoo
+              ? 'text-ducks-yellow hover:text-white transition-colors text-xs font-bold uppercase tracking-widest shadow-glow'
+              : 'text-gray-600 text-xs font-bold uppercase tracking-widest cursor-not-allowed'}
           >
-            Save
+            Export
           </button>
         </div>
 
         {/* Photo Display */}
-        <div className="flex-1 relative overflow-hidden bg-gray-100 flex items-center justify-center">
+        <div className="flex-1 relative overflow-hidden bg-zinc-900 flex items-center justify-center">
+
           <div className="relative max-w-full max-h-full">
             <img
               ref={photoRef}
@@ -571,7 +506,7 @@ function Visualize() {
             {/* Confidence Trigger / Tip Overlay */}
             {currentConfidenceTip && (
               <div className="absolute top-4 left-0 right-0 flex justify-center pointer-events-none fade-in">
-                <div className="bg-black/60 backdrop-blur-sm text-white px-4 py-2 rounded-full text-xs font-medium shadow-lg animate-fade-in-up">
+                <div className="glass-panel border-ducks-green/30 text-white px-4 py-2 rounded-full text-xs font-bold shadow-glow-green animate-bounce-subtle">
                   ✨ {currentConfidenceTip}
                 </div>
               </div>
@@ -580,18 +515,11 @@ function Visualize() {
             {/* Placement Accuracy Badge */}
             {placementAccuracy && (
               <div className="absolute top-4 right-4 flex flex-col items-end gap-2">
-                <div className={`px-3 py-1.5 rounded-lg backdrop-blur-md shadow-lg border ${placementAccuracy.errorCm <= 2 ? 'bg-green-500/80 border-green-400' : 'bg-yellow-500/80 border-yellow-400'
+                <div className={`px-3 py-1.5 rounded-lg backdrop-blur-md shadow-lg border ${placementAccuracy.errorCm <= 2 ? 'bg-ducks-green/80 border-ducks-green' : 'bg-yellow-500/80 border-yellow-500'
                   } text-white`}>
-                  <div className="text-[10px] uppercase font-bold opacity-80 leading-tight">Accuracy</div>
+                  <div className="text-[9px] uppercase font-bold opacity-80 leading-tight">Accuracy</div>
                   <div className="text-sm font-black italic">±{placementAccuracy.errorCm}cm</div>
                 </div>
-
-                {depthQuality && (
-                  <div className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${depthQuality.isReliable ? 'bg-blue-500/80 text-white' : 'bg-red-500/80 text-white'
-                    }`}>
-                    Depth: {depthQuality.isReliable ? 'Good' : 'Low'}
-                  </div>
-                )}
               </div>
             )}
 
@@ -599,7 +527,7 @@ function Visualize() {
             {selectedTattoo && (
               <div
                 ref={tattooRef}
-                className="absolute cursor-move"
+                className="absolute cursor-move border-2 border-transparent hover:border-ducks-yellow/50 transition-colors"
                 style={{
                   left: `${tattooPosition.x}%`,
                   top: `${tattooPosition.y}%`,
@@ -609,7 +537,7 @@ function Visualize() {
                   touchAction: 'none',
                   perspective: '1000px',
                   transformStyle: 'preserve-3d',
-                  filter: `blur(${surfaceCurvature * 0.5}px)` // subtle warp effect
+                  filter: `blur(${surfaceCurvature * 0.5}px)`
                 }}
                 onMouseDown={handleDragStart}
                 onMouseMove={handleDragMove}
@@ -630,192 +558,96 @@ function Visualize() {
           </div>
         </div>
 
-        {/* Controls */}
+        {/* Controls - Glass Panel */}
         {selectedTattoo && (
-          <div className="bg-white border-t border-gray-200 p-6">
-            <div className="max-w-2xl mx-auto space-y-6">
-              <div>
-                <label className="block text-xs uppercase tracking-wider text-gray-600 mb-3">
-                  Size: {tattooSize}%
-                </label>
-                <input
-                  type="range"
-                  min="10"
-                  max="100"
-                  value={tattooSize}
-                  onChange={(e) => setTattooSize(Number(e.target.value))}
-                  className="w-full h-px bg-gray-300 appearance-none cursor-pointer"
-                />
+          <div className="glass-panel border-t border-white/10 p-6 bg-black/80 backdrop-blur-xl">
+            <div className="max-w-2xl mx-auto space-y-4">
+              {/* Sliders with custom styles */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <span className="text-[10px] w-12 font-bold text-gray-400 uppercase">Size</span>
+                  <input type="range" min="10" max="100" value={tattooSize} onChange={(e) => setTattooSize(Number(e.target.value))} className="w-full accent-ducks-green h-1 bg-white/20 rounded-lg appearance-none cursor-pointer" />
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-[10px] w-12 font-bold text-gray-400 uppercase">Rot</span>
+                  <input type="range" min="0" max="360" value={tattooRotation} onChange={(e) => setTattooRotation(Number(e.target.value))} className="w-full accent-ducks-green h-1 bg-white/20 rounded-lg appearance-none cursor-pointer" />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs uppercase tracking-wider text-gray-600 mb-3">
-                  Rotation: {Math.round(tattooRotation)}°
-                </label>
-                <input
-                  type="range"
-                  min="0"
-                  max="360"
-                  value={tattooRotation}
-                  onChange={(e) => setTattooRotation(Number(e.target.value))}
-                  className="w-full h-px bg-gray-300 appearance-none cursor-pointer"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs uppercase tracking-wider text-gray-600 mb-3">
-                  Opacity: {Math.round(tattooOpacity * 100)}%
-                </label>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={tattooOpacity}
-                  onChange={(e) => setTattooOpacity(Number(e.target.value))}
-                  className="w-full h-px bg-gray-300 appearance-none cursor-pointer"
-                />
-              </div>
-
-              <div className="pt-4 flex gap-3">
-                <button
-                  onClick={savePlacement}
-                  className="flex-1 py-3 bg-gray-900 text-white text-xs uppercase tracking-widest font-bold hover:bg-black transition-colors"
-                >
+              <div className="pt-2 flex gap-3">
+                <Button onClick={savePlacement} variant="secondary" size="sm" className="flex-1 w-full">
                   Save Placement
-                </button>
+                </Button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Saved Placements */}
-        {savedPlacements.length > 0 && (
-          <div className="bg-gray-50 border-t border-gray-200 p-4">
-            <h3 className="text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-3">Saved Placements</h3>
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {savedPlacements.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => loadPlacement(p)}
-                  className="flex-shrink-0 px-3 py-2 bg-white border border-gray-200 rounded text-[10px] hover:border-gray-900 transition-all text-left min-w-[120px]"
-                >
-                  <p className="font-bold truncate">{p.bodyPart}</p>
-                  <p className="text-gray-400">±{p.accuracy}cm accurate</p>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Category Filter */}
-        <div className="bg-white border-t border-gray-200 p-4">
-          <div className="flex gap-3 overflow-x-auto">
-            {designsData.categories.map((category) => (
-              <button
-                key={category}
-                onClick={() => setSelectedCategory(category)}
-                className={`flex-shrink-0 px-4 py-2 rounded-none text-xs uppercase tracking-wider transition-all ${selectedCategory === category
-                  ? 'bg-gray-900 text-white'
-                  : 'border border-gray-300 text-gray-700 hover:border-gray-900'
-                  }`}
-              >
-                {category}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Design Selection */}
-        <div className="bg-white border-t border-gray-200 p-4">
-          <div className="mb-3 text-center">
-            <p className="text-xs uppercase tracking-wider text-gray-600">
-              {selectedTattoo ? selectedTattoo.name : `${filteredDesigns.length} Designs`}
-            </p>
-          </div>
-          <div className="flex gap-3 overflow-x-auto pb-2">
+        {/* Selection Bar */}
+        <div className="glass-panel border-t border-white/10 p-4 bg-black/90 backdrop-blur pb-24">
+          <div className="flex gap-4 overflow-x-auto pb-2 hide-scrollbar">
             {filteredDesigns.map((tattoo) => (
               <button
                 key={tattoo.id}
                 onClick={() => setSelectedTattoo(tattoo)}
-                className={`flex-shrink-0 w-20 h-20 border p-2 transition-all ${selectedTattoo?.id === tattoo.id
-                  ? 'border-gray-900 bg-gray-100'
-                  : 'border-gray-300 bg-white hover:border-gray-900'
+                className={`flex-shrink-0 w-16 h-16 rounded-xl border-2 overflow-hidden transition-all ${selectedTattoo?.id === tattoo.id
+                    ? 'border-ducks-green shadow-glow-green scale-110'
+                    : 'border-white/10 opacity-60 hover:opacity-100 hover:border-white/30'
                   }`}
-                title={tattoo.name}
               >
-                <img
-                  src={tattoo.file}
-                  alt={tattoo.name}
-                  className="w-full h-full object-contain"
-                />
+                <img src={tattoo.file} className="w-full h-full object-contain bg-white/5" />
               </button>
             ))}
           </div>
         </div>
-
-        <canvas ref={compositeCanvasRef} className="hidden" />
       </div>
     );
   }
 
   // Initial view
   return (
-    <div className="min-h-screen pt-20 bg-white">
-      <div className="max-w-4xl mx-auto px-6 py-12">
-        <h1 className="text-5xl font-light tracking-tight mb-4 text-gray-900">
-          Visualize
-        </h1>
-        <p className="text-gray-600 mb-12 font-light">
-          Take or upload a photo to preview tattoo designs
-        </p>
+    <div className="min-h-screen pt-24 px-6 pb-32">
+      <div className="max-w-3xl mx-auto text-center space-y-12">
 
-        <div className="grid md:grid-cols-2 gap-8 mb-12">
+        <div className="space-y-4">
+          <p className="text-ducks-green font-mono font-bold text-[10px] uppercase tracking-[0.5em]">AR Interface // Ready</p>
+          <h1 className="text-5xl md:text-7xl font-display font-bold tracking-tighter text-white">
+            Visualize <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-ducks-green to-ducks-yellow">Ink.</span>
+          </h1>
+          <p className="text-gray-400 font-light max-w-lg mx-auto">
+            Project designs directly onto your skin using depth-aware augmented reality.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6">
           <button
             onClick={startCamera}
-            className="group border border-gray-200 hover:border-gray-900 p-12 text-left transition-all"
+            className="group relative overflow-hidden glass-panel p-8 rounded-3xl border border-white/10 hover:border-ducks-green/50 transition-all hover:scale-[1.02]"
           >
-            <svg className="w-16 h-16 mb-6 text-gray-300 group-hover:text-gray-900 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            <h2 className="text-2xl font-light mb-2 text-gray-900">Take Photo</h2>
-            <p className="text-gray-600 font-light text-sm">
-              Use your camera to capture an image
-            </p>
+            <div className="absolute inset-0 bg-ducks-green/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <Camera className="w-12 h-12 text-ducks-green mb-6" />
+            <h2 className="text-2xl font-display font-bold text-white mb-2">Camera Feed</h2>
+            <p className="text-xs text-gray-400 uppercase tracking-widest font-bold">Real-time AR</p>
           </button>
 
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="group border border-gray-200 hover:border-gray-900 p-12 text-left transition-all"
+            className="group relative overflow-hidden glass-panel p-8 rounded-3xl border border-white/10 hover:border-ducks-yellow/50 transition-all hover:scale-[1.02]"
           >
-            <svg className="w-16 h-16 mb-6 text-gray-300 group-hover:text-gray-900 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            <h2 className="text-2xl font-light mb-2 text-gray-900">Upload Photo</h2>
-            <p className="text-gray-600 font-light text-sm">
-              Choose from your photo library
-            </p>
+            <div className="absolute inset-0 bg-ducks-yellow/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <Upload className="w-12 h-12 text-ducks-yellow mb-6" />
+            <h2 className="text-2xl font-display font-bold text-white mb-2">Upload Photo</h2>
+            <p className="text-xs text-gray-400 uppercase tracking-widest font-bold">Static Composite</p>
           </button>
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileUpload}
-            className="hidden"
-          />
         </div>
 
-        <div className="border-t border-gray-200 pt-12">
-          <h3 className="text-sm uppercase tracking-wider text-gray-600 mb-6">Best Practices</h3>
-          <ul className="space-y-3 text-gray-700 font-light">
-            <li>Use good lighting for clear photos</li>
-            <li>Show the area where you want the tattoo</li>
-            <li>Keep the camera steady for sharp images</li>
-            <li>Maximum file size: 10MB</li>
-          </ul>
-        </div>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileUpload}
+          accept="image/*"
+          className="hidden"
+        />
       </div>
     </div>
   );

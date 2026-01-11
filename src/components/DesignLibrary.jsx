@@ -1,8 +1,6 @@
 /**
- * Design Library Component
- *
+ * Design Library Component (Reskinned)
  * Display and manage saved tattoo designs
- * Gallery-like view with filtering and search
  */
 
 import { useState, useEffect } from 'react';
@@ -12,10 +10,11 @@ import {
   toggleFavorite,
   getLibraryStats,
   exportLibrary,
-  getFavoriteDesigns,
   searchDesigns
 } from '../services/designLibraryService';
 import { downloadImage } from '../services/imageProcessingService';
+import Button from './ui/Button';
+import { Search, Download, Trash2, Heart, Share2, Filter, X } from 'lucide-react';
 
 export default function DesignLibrary() {
   const [designs, setDesigns] = useState([]);
@@ -65,7 +64,7 @@ export default function DesignLibrary() {
   };
 
   const handleDelete = (designId) => {
-    if (confirm('Are you sure you want to delete this design?')) {
+    if (confirm('Are you sure you want to delete this design fragments?')) {
       deleteDesign(designId);
       loadDesigns();
       if (selectedDesign?.id === designId) {
@@ -78,120 +77,112 @@ export default function DesignLibrary() {
     downloadImage(imageUrl, `tattoo-design-${designId}.png`);
   };
 
-  const handleExport = () => {
-    exportLibrary();
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen pt-24 px-4 pb-20">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Design Library</h1>
-              {stats && (
-                <p className="text-sm text-gray-600 mt-1">
-                  {stats.total} designs | {stats.favorites} favorites | {stats.remaining} slots remaining
-                </p>
-              )}
-            </div>
+      <div className="glass-panel border-b border-white/10 p-6 rounded-2xl mb-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-display font-bold text-white">Design Archive</h1>
+          {stats && (
+            <p className="text-xs font-mono text-gray-400 mt-1 uppercase tracking-wider">
+              {stats.total} Nodes Stored | {stats.favorites} Starred | <span className="text-ducks-green">{stats.remaining} Slots Free</span>
+            </p>
+          )}
+        </div>
 
-            {designs.length > 0 && (
-              <button
-                onClick={handleExport}
-                className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 border border-blue-600 rounded-lg hover:bg-blue-50 transition-all"
-              >
-                Export
-              </button>
-            )}
+        {designs.length > 0 && (
+          <Button
+            onClick={exportLibrary}
+            variant="secondary"
+            size="sm"
+            icon={Share2}
+          >
+            Export Database
+          </Button>
+        )}
+      </div>
+
+      {/* Filters and Search */}
+      {designs.length > 0 && (
+        <div className="glass-panel border border-white/5 p-2 rounded-xl mb-8 flex flex-col md:flex-row gap-4">
+          {/* Search */}
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search archives..."
+              className="w-full bg-black/40 border border-white/5 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:border-ducks-green focus:outline-none transition-colors placeholder-gray-600"
+            />
+          </div>
+
+          {/* Filter Buttons */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setFilter('all')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${filter === 'all'
+                  ? 'bg-ducks-green text-white shadow-glow-green'
+                  : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                }`}
+            >
+              All ({designs.length})
+            </button>
+            <button
+              onClick={() => setFilter('favorites')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${filter === 'favorites'
+                  ? 'bg-ducks-yellow text-black'
+                  : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                }`}
+            >
+              Favorites ({stats?.favorites || 0})
+            </button>
           </div>
         </div>
-      </header>
+      )}
 
-      <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-        {/* Filters and Search */}
-        {designs.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-            {/* Search */}
-            <div className="mb-4">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search designs..."
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            {/* Filter Buttons */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => setFilter('all')}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                  filter === 'all'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                All ({designs.length})
-              </button>
-              <button
-                onClick={() => setFilter('favorites')}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                  filter === 'favorites'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                Favorites ({stats?.favorites || 0})
-              </button>
-            </div>
-          </div>
-        )}
-
+      <main className="max-w-7xl mx-auto">
         {/* Empty State */}
         {designs.length === 0 && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
-              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-              </svg>
+          <div className="glass-panel border-dashed border-white/10 p-16 rounded-3xl text-center">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-white/5 rounded-full mb-6 text-gray-600">
+              <Filter size={32} />
             </div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              No designs yet
+            <h2 className="text-2xl font-display font-bold text-white mb-2">
+              Archive Empty
             </h2>
-            <p className="text-gray-600 mb-6">
-              Start creating designs to build your library
+            <p className="text-gray-500 mb-8 max-w-sm mx-auto">
+              The neural interface hasn't generated any permanent records yet.
             </p>
-            <a
-              href="/generate"
-              className="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-all"
+            <Button
+              onClick={() => window.location.href = '/generate'}
+              variant="primary"
+              size="lg"
             >
-              Generate Your First Design
-            </a>
+              Ignite Forge
+            </Button>
           </div>
         )}
 
         {/* No Results State */}
         {designs.length > 0 && filteredDesigns.length === 0 && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-            <p className="text-gray-600">No designs match your filters</p>
+          <div className="text-center py-16">
+            <p className="text-gray-500">No signals found matching criteria.</p>
             <button
               onClick={() => {
                 setFilter('all');
                 setSearchQuery('');
               }}
-              className="mt-4 text-blue-600 hover:text-blue-700 font-medium"
+              className="mt-4 text-ducks-green hover:text-white font-bold text-sm uppercase tracking-wider transition-colors"
             >
-              Clear filters
+              Reset Filters
             </button>
           </div>
         )}
 
         {/* Design Grid */}
         {filteredDesigns.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
             {filteredDesigns.map((design) => (
               <DesignCard
                 key={design.id}
@@ -221,43 +212,36 @@ export default function DesignLibrary() {
 
 function DesignCard({ design, onToggleFavorite, onDelete, onView }) {
   return (
-    <div className="relative group bg-white rounded-lg overflow-hidden shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+    <div className="relative group glass-panel rounded-xl overflow-hidden border border-white/5 hover:border-ducks-green/30 transition-all hover:shadow-glow-green">
       {/* Image */}
       <div
-        className="aspect-square bg-gray-100 cursor-pointer"
+        className="aspect-square bg-black cursor-pointer relative"
         onClick={() => onView(design)}
       >
         <img
           src={design.imageUrl}
           alt={design.userInput.subject}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
         />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
 
-      {/* Info */}
-      <div className="p-3">
-        <p className="text-sm font-medium text-gray-900 truncate">
+      {/* Info Hover Overlay (Desktop) / Bottom Bar (Mobile) */}
+      <div className="absolute bottom-0 left-0 w-full p-3 translate-y-full group-hover:translate-y-0 transition-transform bg-black/80 backdrop-blur-md border-t border-white/10">
+        <p className="text-xs font-bold text-white truncate">
           {design.userInput.subject}
         </p>
-        <p className="text-xs text-gray-500 mt-1">
-          {design.metadata.style}
+        <p className="text-[10px] text-gray-400 uppercase tracking-wider">
+          {design.metadata.style} // {design.metadata.bodyPart || 'Skin'}
         </p>
       </div>
 
       {/* Favorite Button */}
       <button
         onClick={() => onToggleFavorite(design.id)}
-        className="absolute top-2 right-2 w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm hover:bg-white transition-all"
+        className="absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center transition-all bg-black/50 backdrop-blur hover:bg-white hover:text-black text-gray-400"
       >
-        {design.favorite ? (
-          <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-          </svg>
-        ) : (
-          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-          </svg>
-        )}
+        <Heart size={14} className={design.favorite ? "fill-red-500 text-red-500" : ""} />
       </button>
     </div>
   );
@@ -266,78 +250,75 @@ function DesignCard({ design, onToggleFavorite, onDelete, onView }) {
 function DesignDetailModal({ design, onClose, onToggleFavorite, onDelete, onDownload }) {
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4 overflow-y-auto"
+      className="fixed inset-0 bg-black/90 backdrop-blur-lg z-50 flex items-center justify-center p-4 animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="relative bg-white rounded-lg max-w-4xl w-full my-8"
+        className="relative glass-panel rounded-3xl max-w-4xl w-full border border-white/10 overflow-hidden shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute -top-10 right-0 text-white hover:text-gray-300 transition-colors"
+          className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors z-10 bg-black/50 rounded-full p-2"
         >
-          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          <X size={20} />
         </button>
 
-        <div className="grid md:grid-cols-2 gap-6 p-6">
+        <div className="grid md:grid-cols-2">
           {/* Image */}
-          <div className="bg-gray-100 rounded-lg overflow-hidden">
+          <div className="bg-black flex items-center justify-center aspect-square md:aspect-auto">
             <img
               src={design.imageUrl}
               alt={design.userInput.subject}
-              className="w-full h-auto"
+              className="max-w-full max-h-[60vh] md:max-h-full object-contain"
             />
           </div>
 
           {/* Details */}
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+          <div className="p-8 flex flex-col h-full bg-zinc-900/50">
+            <h2 className="text-2xl font-display font-bold text-white mb-6">
               {design.userInput.subject}
             </h2>
 
             {/* Metadata */}
-            <div className="space-y-3 mb-6">
-              <DetailRow label="Style" value={design.metadata.style} />
-              <DetailRow label="Body Part" value={design.metadata.bodyPart} />
-              <DetailRow label="Size" value={design.metadata.size} />
+            <div className="space-y-4 mb-8 flex-1">
+              <DetailRow label="Style Frequency" value={design.metadata.style} />
+              <DetailRow label="Target Sector" value={design.metadata.bodyPart} />
+              <DetailRow label="Grid Size" value={design.metadata.size} />
               <DetailRow
-                label="Created"
+                label="Timestamp"
                 value={new Date(design.metadata.savedAt).toLocaleDateString()}
               />
             </div>
 
             {/* Actions */}
-            <div className="space-y-2">
-              <button
+            <div className="space-y-3 pt-6 border-t border-white/10">
+              <Button
                 onClick={() => onToggleFavorite(design.id)}
-                className={`w-full py-3 px-4 rounded-lg font-medium transition-all ${
-                  design.favorite
-                    ? 'bg-red-50 text-red-600 border-2 border-red-600'
-                    : 'bg-gray-100 text-gray-700 border-2 border-transparent hover:bg-gray-200'
-                }`}
+                variant="secondary"
+                className="w-full"
+                icon={Heart}
               >
-                {design.favorite ? '❤️ Remove from Favorites' : '🤍 Add to Favorites'}
-              </button>
+                {design.favorite ? 'Remove Favorite' : 'Mark as Favorite'}
+              </Button>
 
-              <button
+              <Button
                 onClick={() => onDownload(design.imageUrl, design.id)}
-                className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-all"
+                className="w-full"
+                icon={Download}
               >
-                Download Design
-              </button>
+                Download High-Res
+              </Button>
 
               <button
                 onClick={() => {
                   onDelete(design.id);
                   onClose();
                 }}
-                className="w-full py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-all"
+                className="w-full py-3 text-xs text-red-500 hover:text-red-400 font-bold uppercase tracking-widest transition-colors flex items-center justify-center gap-2"
               >
-                Delete Design
+                <Trash2 size={14} /> Delete Record
               </button>
             </div>
           </div>
@@ -349,9 +330,9 @@ function DesignDetailModal({ design, onClose, onToggleFavorite, onDelete, onDown
 
 function DetailRow({ label, value }) {
   return (
-    <div className="flex justify-between">
-      <span className="text-sm text-gray-600">{label}:</span>
-      <span className="text-sm font-medium text-gray-900">{value}</span>
+    <div className="flex justify-between items-center py-2 border-b border-white/5">
+      <span className="text-xs text-gray-500 uppercase tracking-wider font-bold">{label}</span>
+      <span className="text-sm font-medium text-white">{value}</span>
     </div>
   );
 }
