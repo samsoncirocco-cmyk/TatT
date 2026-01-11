@@ -1,22 +1,23 @@
 /**
- * Design Generator Component (Refactored)
- *
- * Main interface for AI tattoo design generation.
- * Decomposed into focused sub-components with proper cleanup.
+ * Design Generator Component - "The Forge"
+ * 
+ * Completely redesigned with cinematic dark aesthetic
+ * Main interface for AI tattoo design generation
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { generateWithRateLimit, getAPIUsage, AI_MODELS, checkServiceHealth, HealthStatus } from '../services/replicateService';
+import { generateWithRateLimit, getAPIUsage, AI_MODELS, checkServiceHealth } from '../services/replicateService';
 import { saveDesign } from '../services/designLibraryService';
 import { getRecommendedModel, getRandomTip } from '../config/promptTemplates';
 import { useToast } from '../hooks/useToast';
 import { ToastContainer } from './ui/Toast';
-import DesignForm from './generator/DesignForm';
+import { TATTOO_STYLES, BODY_PART_SPECS } from '../config/promptTemplates';
 import ResultsGrid from './generator/ResultsGrid';
 import GeneratorModals from './generator/GeneratorModals';
+import Button from './ui/Button';
+import { Sparkles, ChevronDown, Zap, Cpu, Palette, AlertCircle } from 'lucide-react';
 
 export default function DesignGenerator() {
-  // Toast notifications
   const { toast, toasts, removeToast } = useToast();
 
   // Form state
@@ -44,6 +45,7 @@ export default function DesignGenerator() {
   const [showTemplates, setShowTemplates] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [currentTip, setCurrentTip] = useState(null);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Refs for cleanup
   const tipIntervalRef = useRef(null);
@@ -70,7 +72,7 @@ export default function DesignGenerator() {
     }
   }, [formData.style, formData.aiModel]);
 
-  // Cleanup tip interval and abort controller on unmount
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (tipIntervalRef.current) {
@@ -84,7 +86,6 @@ export default function DesignGenerator() {
     };
   }, []);
 
-  // Handle form field changes
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
@@ -92,7 +93,6 @@ export default function DesignGenerator() {
     }));
   };
 
-  // Handle template selection
   const handleTemplateSelect = (template) => {
     setFormData(prev => ({
       ...prev,
@@ -103,9 +103,7 @@ export default function DesignGenerator() {
     setSelectedCategory(null);
   };
 
-  // Handle generate button click
   const handleGenerate = async () => {
-    // Validate input
     if (!formData.subject.trim()) {
       setError('Please describe what you want in your tattoo');
       return;
@@ -115,51 +113,33 @@ export default function DesignGenerator() {
     setError(null);
     setGeneratedDesigns(null);
 
-    // Create abort controller for cancellation
     abortControllerRef.current = new AbortController();
 
-    // Start showing tips with proper cleanup
     setCurrentTip(getRandomTip());
     tipIntervalRef.current = setInterval(() => {
       setCurrentTip(getRandomTip());
     }, 4000);
 
     try {
-      console.log('[DesignGenerator] Generating designs with:', formData);
-
       const result = await generateWithRateLimit(formData, abortControllerRef.current.signal);
-
-      console.log('[DesignGenerator] Generation successful:', result);
-
       setGeneratedDesigns(result);
-
-      // Update API usage
       const usage = getAPIUsage();
       setApiUsage(usage);
-
     } catch (err) {
-      console.error('[DesignGenerator] Generation failed:', err);
-
-      // Don't show error toast for user-cancelled generations
       if (!err.message.includes('cancelled')) {
         setError(err.message || 'Failed to generate designs. Please try again.');
       }
     } finally {
       setIsGenerating(false);
-
-      // Clean up tip interval
       if (tipIntervalRef.current) {
         clearInterval(tipIntervalRef.current);
         tipIntervalRef.current = null;
       }
       setCurrentTip(null);
-
-      // Clean up abort controller
       abortControllerRef.current = null;
     }
   };
 
-  // Handle save to library
   const handleSaveToLibrary = async (imageUrl, index) => {
     try {
       const design = saveDesign(
@@ -172,21 +152,13 @@ export default function DesignGenerator() {
       );
 
       setSavedImages(prev => new Set([...prev, imageUrl]));
-
-      console.log('[DesignGenerator] Design saved to library:', design.id);
-
       toast.success('Design saved to your library!');
-
     } catch (err) {
-      console.error('[DesignGenerator] Failed to save:', err);
       toast.error(`Failed to save design: ${err.message}`);
     }
   };
 
-  // Handle inpainting save
   const handleInpaintingSave = (newImageUrl) => {
-    console.log('[DesignGenerator] Inpainting complete, new image:', newImageUrl);
-
     if (generatedDesigns && selectedForInpainting !== null) {
       const updatedImages = [...generatedDesigns.images];
       updatedImages[selectedForInpainting] = newImageUrl;
@@ -203,76 +175,219 @@ export default function DesignGenerator() {
     }
 
     setSelectedForInpainting(null);
-
-    toast.success('Design edited successfully! Your customized design is now in the gallery.');
+    toast.success('Design edited successfully!');
   };
 
   return (
-    <div className="relative min-h-screen pt-24 px-4 pb-32">
-      {/* Ambient Glows */}
-      <div className="fixed top-20 right-0 w-[500px] h-[500px] bg-ducks-green/20 rounded-full blur-[128px] pointer-events-none -z-10" />
+    <div className="relative min-h-screen pt-16 px-4 pb-32">
+      {/* Background Effects */}
+      <div className="fixed inset-0 bg-black -z-20" />
+      <div className="fixed inset-0 bg-gradient-to-br from-blue-950/20 via-black to-black -z-10" />
+      <div className="fixed top-0 right-0 w-[600px] h-[600px] bg-ducks-green/10 rounded-full blur-[150px] pointer-events-none -z-10" />
+      <div className="fixed bottom-0 left-0 w-[500px] h-[500px] bg-blue-900/10 rounded-full blur-[120px] pointer-events-none -z-10" />
 
-      <main className="max-w-7xl mx-auto">
+      <main className="max-w-5xl mx-auto">
 
-        {/* Service Health Banner */}
+        {/* Header */}
+        <div className="text-center mb-16 pt-8">
+          <h1 className="text-7xl md:text-8xl font-display font-black tracking-tighter text-white mb-3">
+            THE FORGE
+          </h1>
+          <p className="text-xs font-mono text-ducks-green uppercase tracking-[0.3em]">
+            Neural Ink Generation Engine // v4.2
+          </p>
+        </div>
+
+        {/* Ambient Metadata */}
+        {apiUsage && (
+          <div className="flex justify-between items-center mb-8 text-xs font-mono text-gray-600">
+            <div>
+              GENERATIONS: <span className="text-white font-bold">{apiUsage.todayRequests}</span> TODAY // <span className="text-white font-bold">{apiUsage.totalRequests}</span> TOTAL
+            </div>
+            <div>
+              BUDGET REMAINING: <span className="text-ducks-green font-bold">${apiUsage.remainingBudget.toFixed(2)}</span> CREDITS
+            </div>
+          </div>
+        )}
+
+        {/* Service Health Alert */}
         {serviceHealth && !serviceHealth.healthy && serviceHealth.banner && (
-          <div className={`glass-panel rounded-lg p-4 mb-6 border-l-4 ${serviceHealth.banner.type === 'error'
-              ? 'border-l-red-500 bg-red-500/10'
-              : 'border-l-yellow-500 bg-yellow-500/10'
+          <div className={`glass-panel rounded-xl p-4 mb-8 border-l-4 flex items-start gap-3 ${serviceHealth.banner.type === 'error'
+              ? 'border-l-red-500 bg-red-500/5'
+              : 'border-l-yellow-500 bg-yellow-500/5'
             }`}>
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-white">
-                  ⚠️ {serviceHealth.banner.message}
+            <AlertCircle className="flex-shrink-0 mt-0.5" size={18} />
+            <div className="flex-1">
+              <p className="text-sm font-bold text-white mb-1">
+                {serviceHealth.banner.message}
+              </p>
+              {serviceHealth.banner.action && (
+                <p className="text-xs text-gray-400">
+                  {serviceHealth.banner.action}
                 </p>
-                {serviceHealth.banner.action && (
-                  <p className="text-xs mt-1 text-gray-300">
-                    Action: {serviceHealth.banner.action}
-                  </p>
-                )}
-              </div>
+              )}
+            </div>
+            <button
+              onClick={() => setServiceHealth(null)}
+              className="text-gray-500 hover:text-white transition-colors"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* Main Input - Cinematic */}
+        <div className="mb-12">
+          <div className="relative group">
+            <textarea
+              value={formData.subject}
+              onChange={(e) => handleInputChange('subject', e.target.value)}
+              placeholder="Describe your vision..."
+              className="w-full bg-transparent text-4xl md:text-6xl font-display font-bold text-white placeholder-white/10 border-b-2 border-white/10 focus:border-ducks-yellow focus:ring-0 outline-none transition-all resize-none py-6 leading-tight min-h-[140px]"
+              rows="2"
+            />
+            <div className="absolute bottom-2 right-2">
               <button
-                onClick={() => setServiceHealth(null)}
-                className="ml-4 text-sm font-medium text-gray-400 hover:text-white"
+                onClick={() => setShowTemplates(true)}
+                className="text-xs text-gray-600 hover:text-white transition-colors flex items-center gap-1 font-mono uppercase tracking-wider"
               >
-                ✕
+                <Palette size={12} /> Templates
               </button>
             </div>
           </div>
-        )}
+        </div>
 
-        {/* Budget Tracker */}
-        {apiUsage && (
-          <div className="glass-panel border-ducks-green/20 rounded-lg p-4 mb-8 flex justify-between items-center bg-ducks-green/5">
-            <div>
-              <p className="text-xs font-mono uppercase tracking-widest text-ducks-green">
-                Available Credits
-              </p>
-              <p className="text-xl font-bold text-white mt-1 font-display">
-                ${apiUsage.remainingBudget.toFixed(2)}
-              </p>
+        {/* Engine Selection */}
+        <div className="mb-10">
+          <p className="text-xs font-mono text-gray-600 uppercase tracking-widest mb-4">
+            Select Generation Engine
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {Object.entries(AI_MODELS).map(([key, model]) => (
+              <button
+                key={key}
+                onClick={() => handleInputChange('aiModel', key)}
+                className={`glass-panel p-6 rounded-2xl border-2 transition-all group hover:scale-[1.02] ${formData.aiModel === key
+                    ? 'border-ducks-green bg-ducks-green/5 shadow-glow-green'
+                    : 'border-white/10 hover:border-white/20'
+                  }`}
+              >
+                <div className="flex items-center justify-center mb-3">
+                  <Cpu className={`${formData.aiModel === key ? 'text-ducks-green' : 'text-gray-600'}`} size={24} />
+                </div>
+                <h3 className={`text-sm font-bold mb-1 ${formData.aiModel === key ? 'text-white' : 'text-gray-400'}`}>
+                  {model.name}
+                </h3>
+                <p className="text-[10px] text-gray-600 font-mono uppercase tracking-wider">
+                  {key === 'tattoo' ? 'Real-time Sketching' :
+                    key === 'sdxl' ? 'High-Detail Realism' :
+                      key === 'dalle' ? 'Creative & Abstract' :
+                        'Photorealistic Concepts'}
+                </p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Advanced Options - Collapsed */}
+        <div className="mb-10">
+          <button
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="flex items-center gap-2 text-xs font-mono text-gray-600 hover:text-white transition-colors uppercase tracking-widest mb-4"
+          >
+            <ChevronDown className={`transition-transform ${showAdvanced ? 'rotate-180' : ''}`} size={14} />
+            Advanced Parameters
+          </button>
+
+          {showAdvanced && (
+            <div className="glass-panel rounded-2xl p-6 border border-white/10 space-y-6 animate-slide-down">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                {/* Style Selector */}
+                <div>
+                  <label className="block text-[10px] font-mono uppercase tracking-widest text-gray-500 mb-3">
+                    Style Selector
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(TATTOO_STYLES).slice(0, 6).map(([key, style]) => (
+                      <button
+                        key={key}
+                        onClick={() => handleInputChange('style', key)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${formData.style === key
+                            ? 'bg-white text-black'
+                            : 'bg-white/5 text-gray-500 hover:bg-white/10 hover:text-white'
+                          }`}
+                      >
+                        {style.displayName}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Body Part Selector */}
+                <div>
+                  <label className="block text-[10px] font-mono uppercase tracking-widest text-gray-500 mb-3">
+                    Body Part Selector
+                  </label>
+                  <select
+                    value={formData.bodyPart}
+                    onChange={(e) => handleInputChange('bodyPart', e.target.value)}
+                    className="w-full bg-black/40 border border-white/10 text-white rounded-lg px-3 py-2 text-sm focus:border-ducks-green focus:outline-none appearance-none cursor-pointer"
+                  >
+                    {Object.entries(BODY_PART_SPECS).slice(0, 8).map(([key, spec]) => (
+                      <option key={key} value={key} className="bg-black">
+                        {spec.displayName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Size & Aspect Ratio */}
+                <div>
+                  <label className="block text-[10px] font-mono uppercase tracking-widest text-gray-500 mb-3">
+                    Size & Aspect Ratio
+                  </label>
+                  <div className="flex gap-2">
+                    <button className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-xs text-gray-400 hover:text-white transition-colors">
+                      Small
+                    </button>
+                    <button className="flex-1 px-3 py-2 bg-white text-black rounded-lg text-xs font-bold">
+                      Medium
+                    </button>
+                    <button className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-xs text-gray-400 hover:text-white transition-colors">
+                      Large
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="text-xs text-gray-500 mb-1">
-                Today's Requests
-              </p>
-              <span className="bg-ducks-yellow/10 text-ducks-yellow px-2 py-1 rounded-md text-sm font-bold">
-                {apiUsage.todayRequests}
-              </span>
-            </div>
+          )}
+        </div>
+
+        {/* Error Display */}
+        {error && (
+          <div className="mb-8 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm flex items-start gap-3">
+            <AlertCircle size={18} className="flex-shrink-0 mt-0.5" />
+            <p>{error}</p>
           </div>
         )}
 
-        {/* Design Form */}
-        <DesignForm
-          formData={formData}
-          onInputChange={handleInputChange}
-          onGenerate={handleGenerate}
-          onShowTemplates={() => setShowTemplates(true)}
-          isGenerating={isGenerating}
-          error={error}
-          currentTip={currentTip}
-        />
+        {/* Primary Action */}
+        <Button
+          onClick={handleGenerate}
+          disabled={isGenerating || !formData.subject.trim()}
+          isLoading={isGenerating}
+          className="w-full h-20 text-xl font-black tracking-wider bg-ducks-yellow text-black hover:bg-white shadow-2xl"
+          icon={isGenerating ? Zap : Sparkles}
+        >
+          {isGenerating ? (
+            <span className="flex items-center gap-3">
+              <span className="animate-pulse">{currentTip ? currentTip.text : 'Consulting Neural Network...'}</span>
+            </span>
+          ) : (
+            'IGNITE FORGE'
+          )}
+        </Button>
 
         {/* Results Grid */}
         <ResultsGrid
