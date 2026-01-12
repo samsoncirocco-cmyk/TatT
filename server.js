@@ -14,6 +14,7 @@ import semanticMatchRouter from './src/api/routes/semanticMatch.js';
 import arVisualizationRouter from './src/api/routes/arVisualization.js';
 import councilEnhancementRouter from './src/api/routes/councilEnhancement.js';
 import stencilExportRouter from './src/api/routes/stencilExport.js';
+import layerUploadRouter, { cleanupOldLayers } from './src/api/routes/layerUpload.js';
 
 dotenv.config();
 
@@ -68,6 +69,13 @@ app.use(cors({
 }));
 
 app.use(express.json({ limit: '10mb' }));
+
+// Serve static uploaded layers
+import { fileURLToPath } from 'url';
+import path from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+app.use('/uploads/layers', express.static(path.join(__dirname, 'uploads/layers')));
 
 // Rate limiting middleware
 const apiLimiter = rateLimit({
@@ -127,6 +135,18 @@ const stencilExportLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const layerUploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 200,
+  message: {
+    error: 'Layer upload rate limit exceeded',
+    code: 'RATE_LIMIT_EXCEEDED',
+    hint: 'Maximum 200 uploads per hour. Please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Bearer auth middleware
 const authMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -166,7 +186,8 @@ app.get('/api/health', (req, res) => {
         semantic_match: '/api/v1/match/semantic (100 req/hr)',
         ar_visualization: '/api/v1/ar/visualize (50 req/hr)',
         council_enhancement: '/api/v1/council/enhance (20 req/hr)',
-        stencil_export: '/api/v1/stencil/export (30 req/hr)'
+        stencil_export: '/api/v1/stencil/export (30 req/hr)',
+        layer_upload: '/api/v1/upload-layer (200 req/hr)'
       },
       legacy: {
         predictions: '/api/predictions',
@@ -238,6 +259,7 @@ app.use('/api/v1/match/semantic', authMiddleware, semanticMatchLimiter, semantic
 app.use('/api/v1/ar/visualize', authMiddleware, arVisualizeLimiter, arVisualizationRouter);
 app.use('/api/v1/council/enhance', authMiddleware, councilEnhanceLimiter, councilEnhancementRouter);
 app.use('/api/v1/stencil/export', authMiddleware, stencilExportLimiter, stencilExportRouter);
+app.use('/api/v1/upload-layer', authMiddleware, layerUploadLimiter, layerUploadRouter);
 
 // --- Legacy Semantic Matching Endpoint (deprecated, use /api/v1/match/semantic) ---
 
@@ -358,4 +380,18 @@ app.listen(PORT, HOST, () => {
   console.log(`  Replicate Token: ${REPLICATE_API_TOKEN ? '✓ Yes' : '✗ No'}`);
   console.log(`  Neo4j Config:    ${NEO4J_URI && NEO4J_USER && NEO4J_PASSWORD ? '✓ Yes' : '✗ No'}`);
   console.log('═══════════════════════════════════════════════════');
+
+  // Schedule periodic cleanup of old layer uploads (daily at 3 AM)
+  const scheduleCleanup = () => {
+    const now = new Date();
+    const tomorrow3AM = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 3, 0, 0);
+    const msUntil3AM = tomorrow3AM - now;
+
+    setTimeout(() => {
+      cleanupOldLayers();
+      setInterval(cleanupOldLayers, 24 * 60 * 60 * 1000); // Every 24 hours
+    }, msUntil3AM);
+  };
+
+  scheduleCleanup();
 });
