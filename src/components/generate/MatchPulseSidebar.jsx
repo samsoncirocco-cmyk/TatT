@@ -12,7 +12,10 @@ export default function MatchPulseSidebar({
   context = {},
   className = ''
 }) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth < 768;
+  });
   const navigate = useNavigate();
 
   const topMatches = useMemo(() => matches.slice(0, 3), [matches]);
@@ -28,11 +31,11 @@ export default function MatchPulseSidebar({
 
   return (
     <aside
-      className={`fixed bottom-6 left-4 right-4 z-30 md:static md:z-auto ${isCollapsed ? 'w-12 md:w-12' : 'w-full md:w-[300px]'} transition-all duration-300 ${className}`}
+      className={`fixed bottom-6 left-4 right-4 z-30 md:bottom-auto md:top-24 md:right-6 md:left-auto md:z-40 md:w-[320px] lg:static lg:z-auto ${isCollapsed ? 'w-12 md:w-12' : 'w-full'} transition-all duration-300 ${className}`}
       aria-live="polite"
       aria-busy={isLoading}
     >
-      <div className="glass-panel border border-white/10 rounded-3xl h-full flex flex-col">
+      <div className={`glass-panel border border-white/10 rounded-3xl h-full flex flex-col ${!isCollapsed ? 'max-h-[60vh] md:max-h-none' : ''}`}>
         <div className="flex items-center justify-between px-4 py-4 border-b border-white/10">
           {!isCollapsed && (
             <div>
@@ -55,7 +58,7 @@ export default function MatchPulseSidebar({
         </div>
 
         {!isCollapsed && (
-          <div className="flex-1 p-4 space-y-4">
+          <div className="flex-1 p-4 space-y-4 overflow-y-auto">
             {isLoading && (
               <div className="flex items-center gap-2 text-xs font-mono text-white/60">
                 <Loader2 className="animate-spin" size={14} />

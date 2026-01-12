@@ -28,11 +28,12 @@ import { useLayerManagement } from '../hooks/useLayerManagement';
 import { useArtistMatching } from '../hooks/useArtistMatching';
 import { useCanvasAspectRatio } from '../hooks/useCanvasAspectRatio';
 import { useVersionHistory } from '../hooks/useVersionHistory';
+import { useSmartPreview } from '../hooks/useSmartPreview';
 import { useToast } from '../hooks/useToast';
 import { useStorageWarning } from '../hooks/useStorageWarning';
 import * as versionService from '../services/versionService';
 import Button from '../components/ui/Button';
-import { Wand2, Zap, Download, Sparkles, Layers, CheckCircle } from 'lucide-react';
+import { Wand2, Zap, Download, Sparkles, Layers, CheckCircle, Plus } from 'lucide-react';
 import { useImageGeneration } from '../hooks/useImageGeneration';
 import TransformControls from '../components/generate/TransformControls';
 import { exportAsPNG, exportAsARAsset } from '../services/canvasService';
@@ -222,12 +223,32 @@ export default function Generate() {
         }
     });
 
+    const {
+        preview,
+        isPreviewing,
+        error: previewError
+    } = useSmartPreview({
+        userInput: {
+            subject: enhancedPrompt || promptText,
+            style: resolvedStyle,
+            bodyPart,
+            size,
+            aiModel,
+            negativePrompt
+        },
+        enabled: Boolean((enhancedPrompt || promptText).trim()),
+        debounceMs: 300
+    });
+
     // UI state
     const [isLoadingExample, setIsLoadingExample] = useState(false);
     const [showInpainting, setShowInpainting] = useState(false);
     const [restyleLayerId, setRestyleLayerId] = useState(null);
     const [restyleStyle, setRestyleStyle] = useState('');
     const [comparison, setComparison] = useState(null);
+    const [showElementModal, setShowElementModal] = useState(false);
+    const [elementPrompt, setElementPrompt] = useState('');
+    const [elementType, setElementType] = useState('subject');
 
     // Keyboard shortcuts
     const keyboardShortcuts = useKeyboardShortcuts();
@@ -245,6 +266,9 @@ export default function Generate() {
     const selectedLayer = useMemo(() => (
         layers.find(layer => layer.id === selectedLayerId) || null
     ), [layers, selectedLayerId]);
+
+    const previewImage = preview?.images?.[0] || null;
+    const showPreview = Boolean(previewImage && layers.length === 0);
 
     const matchStyle = resolvedStyle;
 
@@ -297,7 +321,9 @@ export default function Generate() {
             stencilUrl: null,
             metadata: {
                 bodyPart,
-                style: matchStyle
+                style: matchStyle,
+                generationMode: overrides.mode || null,
+                dpi: overrides.dpi || 300
             }
         };
     }, [
@@ -452,7 +478,8 @@ export default function Generate() {
                 addVersion(buildVersionPayload({
                     layers: nextLayers,
                     imageUrl: newLayer.imageUrl,
-                    arAssetUrl: arAsset?.url || null
+                    arAssetUrl: arAsset?.url || null,
+                    mode: finalize ? 'final' : 'refine'
                 }));
 
                 console.log('Generation successful:', result);
@@ -700,6 +727,35 @@ export default function Generate() {
         setRestyleStyle('');
     };
 
+    const handleAddElement = async () => {
+        if (!elementPrompt.trim()) return;
+
+        const response = await generateHighRes({
+            userInputOverride: {
+                subject: elementPrompt,
+                style: resolvedStyle,
+                bodyPart,
+                size,
+                aiModel,
+                negativePrompt
+            }
+        });
+
+        if (response?.images?.[0]) {
+            const newLayer = await addLayer(response.images[0], elementType);
+            const nextLayers = [...layers, newLayer];
+            addVersion(buildVersionPayload({
+                layers: nextLayers,
+                imageUrl: newLayer.imageUrl,
+                mode: 'element'
+            }));
+        }
+
+        setShowElementModal(false);
+        setElementPrompt('');
+        setElementType('subject');
+    };
+
     const handleInpaintSave = (imageUrl) => {
         if (!selectedLayerId || !imageUrl) return;
         updateImage(selectedLayerId, imageUrl);
@@ -809,6 +865,19 @@ export default function Generate() {
                                         onUpdateTransform={updateTransform}
                                     />
 
+                                    {showPreview && (
+                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                            <img
+                                                src={previewImage}
+                                                alt="Preview"
+                                                className="w-full h-full object-contain opacity-80"
+                                            />
+                                            <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-black/60 text-xs font-mono uppercase tracking-widest text-ducks-yellow">
+                                                Preview
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {stencilView && stencilPreview && (
                                         <img
                                             src={stencilPreview}
@@ -855,6 +924,11 @@ export default function Generate() {
                                     )}
                                     {stencilError && (
                                         <span className="text-xs text-red-400">{stencilError}</span>
+                                    )}
+                                    {isPreviewing && (
+                                        <span className="text-xs text-white/50 font-mono">
+                                            Updating preview...
+                                        </span>
                                     )}
                                 </div>
 
@@ -1016,11 +1090,16 @@ export default function Generate() {
                                             <div className="mt-4 p-3 rounded-xl border border-red-500/40 bg-red-500/10 text-xs text-red-200 flex items-center justify-between gap-3">
                                                 <span>{generationError}</span>
                                                 <button
-                                                    onClick={handleGenerate}
+                                                    onClick={() => handleGenerate(false)}
                                                     className="px-3 py-1 rounded-full bg-red-500/30 text-red-100 text-[10px] font-mono uppercase tracking-wider"
                                                 >
                                                     Retry
                                                 </button>
+                                            </div>
+                                        )}
+                                        {previewError && (
+                                            <div className="mt-4 text-[10px] text-red-300 font-mono text-center">
+                                                Preview failed. Adjust your prompt and try again.
                                             </div>
                                         )}
                                     </div>
@@ -1058,9 +1137,9 @@ export default function Generate() {
                                     onDelete={deleteLayer}
                                     onReorder={reorder}
                                     onAddLayer={() => {
-                                        // Demo: Add a placeholder layer
-                                        const demoUrl = `https://via.placeholder.com/400x600/${Math.random() > 0.5 ? '154733' : 'FEE123'}/000000?text=Layer+${layers.length + 1}`;
-                                        addLayer(demoUrl, layers.length % 3 === 0 ? 'background' : 'subject');
+                                        setShowElementModal(true);
+                                        setElementPrompt('');
+                                        setElementType('subject');
                                     }}
                                 />
                             </div>
@@ -1105,6 +1184,63 @@ export default function Generate() {
                     onClose={() => setShowInpainting(false)}
                     onSave={handleInpaintSave}
                 />
+            )}
+
+            {showElementModal && (
+                <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+                    <div className="glass-panel border border-white/10 rounded-2xl max-w-lg w-full">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+                            <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                                Add New Element
+                            </h3>
+                            <button
+                                onClick={() => setShowElementModal(false)}
+                                className="text-white/60 hover:text-white text-sm"
+                                aria-label="Close add element modal"
+                            >
+                                Close
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label htmlFor="element-prompt" className="text-xs font-mono uppercase tracking-wider text-white/60">
+                                    Element Prompt
+                                </label>
+                                <textarea
+                                    id="element-prompt"
+                                    value={elementPrompt}
+                                    onChange={(e) => setElementPrompt(e.target.value)}
+                                    placeholder="e.g., Add a koi fish, lightning bolt, ornamental frame"
+                                    className="mt-2 w-full rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-ducks-green/60"
+                                    rows={3}
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="element-type" className="text-xs font-mono uppercase tracking-wider text-white/60">
+                                    Element Type
+                                </label>
+                                <select
+                                    id="element-type"
+                                    value={elementType}
+                                    onChange={(e) => setElementType(e.target.value)}
+                                    className="mt-2 w-full rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-ducks-green/60"
+                                >
+                                    <option value="subject">Subject</option>
+                                    <option value="background">Background</option>
+                                    <option value="effect">Effect</option>
+                                </select>
+                            </div>
+                            <Button
+                                onClick={handleAddElement}
+                                disabled={!elementPrompt.trim() || isGenerating}
+                                className="w-full h-12 text-sm font-black tracking-wider bg-ducks-yellow text-black hover:bg-white disabled:opacity-60"
+                                icon={Plus}
+                            >
+                                Generate Element
+                            </Button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {restyleLayerId && (
