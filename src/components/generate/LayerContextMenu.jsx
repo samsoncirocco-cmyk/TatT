@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { RefreshCw, Copy, Trash2, Eye, EyeOff, Wand2 } from 'lucide-react';
+import { RefreshCw, Copy, Trash2, Eye, EyeOff, Wand2, Eraser } from 'lucide-react';
 
 export default function LayerContextMenu({
     x,
@@ -17,7 +17,8 @@ export default function LayerContextMenu({
     onDuplicate,
     onDelete,
     onToggleVisibility,
-    onInpaint
+    onInpaint,
+    onCleanup
 }) {
     const menuRef = useRef(null);
 
@@ -63,6 +64,16 @@ export default function LayerContextMenu({
                 onClose();
             },
             shortcut: 'I'
+        },
+        {
+            icon: Eraser,
+            label: 'Clean Up',
+            onClick: () => {
+                onCleanup(layer);
+                onClose();
+            },
+            shortcut: 'C',
+            highlight: true
         },
         {
             icon: Copy,
@@ -128,11 +139,13 @@ export default function LayerContextMenu({
                                 transition-all duration-150
                                 ${item.primary
                                     ? 'hover:bg-ducks-green/20 hover:text-ducks-yellow'
-                                    : item.danger
-                                        ? 'hover:bg-red-500/20 hover:text-red-300'
-                                        : 'hover:bg-white/10 hover:text-white'
+                                    : item.highlight
+                                        ? 'hover:bg-ducks-yellow/20 hover:text-ducks-yellow'
+                                        : item.danger
+                                            ? 'hover:bg-red-500/20 hover:text-red-300'
+                                            : 'hover:bg-white/10 hover:text-white'
                                 }
-                                ${item.primary ? 'text-ducks-green' : item.danger ? 'text-red-400/80' : 'text-white/70'}
+                                ${item.primary ? 'text-ducks-green' : item.highlight ? 'text-ducks-yellow/90' : item.danger ? 'text-red-400/80' : 'text-white/70'}
                                 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ducks-yellow focus-visible:outline-offset-[-2px]
                             `}
                             role="menuitem"
@@ -140,7 +153,7 @@ export default function LayerContextMenu({
                             <div className="flex items-center gap-3">
                                 <item.icon
                                     size={16}
-                                    className={item.primary ? 'text-ducks-green' : item.danger ? 'text-red-400' : 'text-white/60'}
+                                    className={item.primary ? 'text-ducks-green' : item.highlight ? 'text-ducks-yellow' : item.danger ? 'text-red-400' : 'text-white/60'}
                                 />
                                 <span className="text-sm font-medium tracking-wide">
                                     {item.label}

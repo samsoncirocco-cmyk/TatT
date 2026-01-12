@@ -18,6 +18,7 @@ import BlendModeSelector from '../components/generate/BlendModeSelector';
 import ErrorBoundary from '../components/ErrorBoundary';
 import StencilExport from '../components/StencilExport';
 import InpaintingEditor from '../components/InpaintingEditor';
+import CleanupTool from '../components/generate/CleanupTool';
 import VersionTimeline from '../components/generate/VersionTimeline';
 import VersionComparison from '../components/generate/VersionComparison';
 import LayerContextMenu from '../components/generate/LayerContextMenu';
@@ -35,7 +36,7 @@ import { useToast } from '../hooks/useToast';
 import { useStorageWarning } from '../hooks/useStorageWarning';
 import * as versionService from '../services/versionService';
 import Button from '../components/ui/Button';
-import { Wand2, Zap, Download, Sparkles, Layers, CheckCircle, Plus } from 'lucide-react';
+import { Wand2, Zap, Download, Sparkles, Layers, CheckCircle, Plus, Eraser } from 'lucide-react';
 import { useImageGeneration } from '../hooks/useImageGeneration';
 import TransformControls from '../components/generate/TransformControls';
 import { exportAsPNG, exportAsARAsset } from '../services/canvasService';
@@ -251,6 +252,7 @@ export default function Generate() {
     // UI state
     const [isLoadingExample, setIsLoadingExample] = useState(false);
     const [showInpainting, setShowInpainting] = useState(false);
+    const [showCleanup, setShowCleanup] = useState(false);
     const [restyleLayerId, setRestyleLayerId] = useState(null);
     const [restyleStyle, setRestyleStyle] = useState('');
     const [comparison, setComparison] = useState(null);
@@ -843,6 +845,21 @@ export default function Generate() {
         setShowInpainting(false);
     };
 
+    const handleCleanupSave = (imageUrl) => {
+        if (!selectedLayerId || !imageUrl) return;
+        updateImage(selectedLayerId, imageUrl);
+        const nextLayers = layers.map(layer =>
+            layer.id === selectedLayerId ? { ...layer, imageUrl } : layer
+        );
+        addVersion(buildVersionPayload({
+            layers: nextLayers,
+            imageUrl,
+            mode: 'cleanup'
+        }));
+        setShowCleanup(false);
+        toast?.success?.('Layer cleaned up successfully');
+    };
+
     // Context menu handlers
     const handleLayerContextMenu = (layer, x, y) => {
         setContextMenu({ layer, x, y });
@@ -1083,6 +1100,15 @@ export default function Generate() {
                                                     Inpaint
                                                 </Button>
                                                 <Button
+                                                    onClick={() => setShowCleanup(true)}
+                                                    className="h-11 text-xs font-black tracking-wider bg-ducks-yellow text-black hover:bg-white"
+                                                    icon={Eraser}
+                                                >
+                                                    Clean Up
+                                                </Button>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <Button
                                                     onClick={() => {
                                                         setRestyleLayerId(selectedLayer.id);
                                                         setRestyleStyle(matchStyle);
@@ -1092,21 +1118,12 @@ export default function Generate() {
                                                 >
                                                     Restyle
                                                 </Button>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-3">
                                                 <Button
                                                     onClick={handleExportPNG}
                                                     className="h-11 text-xs font-black tracking-wider bg-black/40 text-white hover:bg-black/60"
                                                     icon={Download}
                                                 >
                                                     Export PNG
-                                                </Button>
-                                                <Button
-                                                    onClick={handleExportARAsset}
-                                                    className="h-11 text-xs font-black tracking-wider bg-black/40 text-white hover:bg-black/60"
-                                                    icon={Download}
-                                                >
-                                                    AR Asset
                                                 </Button>
                                             </div>
                                         </div>
@@ -1311,6 +1328,14 @@ export default function Generate() {
                 />
             )}
 
+            {showCleanup && selectedLayer?.imageUrl && (
+                <CleanupTool
+                    imageUrl={selectedLayer.imageUrl}
+                    onClose={() => setShowCleanup(false)}
+                    onSave={handleCleanupSave}
+                />
+            )}
+
             {showElementModal && (
                 <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
                     <div className="glass-panel border border-white/10 rounded-2xl max-w-lg w-full">
@@ -1448,6 +1473,11 @@ export default function Generate() {
                     onInpaint={(layer) => {
                         selectLayer(layer.id);
                         setShowInpainting(true);
+                        setContextMenu(null);
+                    }}
+                    onCleanup={(layer) => {
+                        selectLayer(layer.id);
+                        setShowCleanup(true);
                         setContextMenu(null);
                     }}
                 />
