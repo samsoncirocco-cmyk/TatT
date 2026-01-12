@@ -20,6 +20,8 @@ import StencilExport from '../components/StencilExport';
 import InpaintingEditor from '../components/InpaintingEditor';
 import VersionTimeline from '../components/generate/VersionTimeline';
 import VersionComparison from '../components/generate/VersionComparison';
+import LayerContextMenu from '../components/generate/LayerContextMenu';
+import RegenerateElementModal from '../components/generate/RegenerateElementModal';
 import { ToastContainer } from '../components/ui/Toast';
 import { DEFAULT_BODY_PART } from '../constants/bodyPartAspectRatios';
 import { enhancePrompt } from '../services/councilService';
@@ -255,6 +257,8 @@ export default function Generate() {
     const [showElementModal, setShowElementModal] = useState(false);
     const [elementPrompt, setElementPrompt] = useState('');
     const [elementType, setElementType] = useState('subject');
+    const [contextMenu, setContextMenu] = useState(null);
+    const [regenerateModal, setRegenerateModal] = useState(null);
 
     // Keyboard shortcuts
     const keyboardShortcuts = useKeyboardShortcuts();
@@ -839,6 +843,54 @@ export default function Generate() {
         setShowInpainting(false);
     };
 
+    // Context menu handlers
+    const handleLayerContextMenu = (layer, x, y) => {
+        setContextMenu({ layer, x, y });
+    };
+
+    const handleDuplicateLayer = async (layer) => {
+        const newLayer = await addLayer(layer.imageUrl, layer.type);
+        const nextLayers = [...layers, newLayer];
+        addVersion(buildVersionPayload({
+            layers: nextLayers,
+            imageUrl: newLayer.imageUrl
+        }));
+        toast?.success?.(`Duplicated layer: ${layer.name}`);
+    };
+
+    const handleRegenerateElementSubmit = async (data) => {
+        try {
+            const response = await generateHighRes({
+                userInputOverride: {
+                    subject: data.prompt,
+                    style: data.useOriginalStyle ? resolvedStyle : 'default',
+                    bodyPart,
+                    size,
+                    aiModel,
+                    negativePrompt
+                }
+            });
+
+            if (response?.images?.[0]) {
+                updateImage(data.layerId, response.images[0]);
+                const nextLayers = layers.map(layer =>
+                    layer.id === data.layerId ? { ...layer, imageUrl: response.images[0] } : layer
+                );
+                addVersion(buildVersionPayload({
+                    layers: nextLayers,
+                    imageUrl: response.images[0],
+                    mode: 'regenerate'
+                }));
+
+                setRegenerateModal(null);
+                toast?.success?.('Element regenerated successfully');
+            }
+        } catch (error) {
+            console.error('[Generate] Regenerate failed:', error);
+            toast?.error?.('Failed to regenerate element');
+        }
+    };
+
     return (
         <div className="min-h-screen pt-16 px-4 pb-32">
             {/* Background Effects */}
@@ -1208,6 +1260,7 @@ export default function Generate() {
                                     onRename={rename}
                                     onDelete={deleteLayer}
                                     onReorder={reorder}
+                                    onContextMenu={handleLayerContextMenu}
                                     onAddLayer={() => {
                                         setShowElementModal(true);
                                         setElementPrompt('');
@@ -1370,6 +1423,44 @@ export default function Generate() {
                     onRestoreA={(version) => handleLoadVersion(version.id)}
                     onRestoreB={(version) => handleLoadVersion(version.id)}
                     onMerge={handleMergeVersions}
+                />
+            )}
+
+            {/* Layer Context Menu */}
+            {contextMenu && (
+                <LayerContextMenu
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    layer={contextMenu.layer}
+                    onClose={() => setContextMenu(null)}
+                    onRegenerate={(layer) => {
+                        setRegenerateModal(layer);
+                        setContextMenu(null);
+                    }}
+                    onDuplicate={handleDuplicateLayer}
+                    onDelete={(layer) => {
+                        deleteLayer(layer.id);
+                        setContextMenu(null);
+                    }}
+                    onToggleVisibility={(layer) => {
+                        toggleVisibility(layer.id);
+                    }}
+                    onInpaint={(layer) => {
+                        selectLayer(layer.id);
+                        setShowInpainting(true);
+                        setContextMenu(null);
+                    }}
+                />
+            )}
+
+            {/* Regenerate Element Modal */}
+            {regenerateModal && (
+                <RegenerateElementModal
+                    layer={regenerateModal}
+                    onClose={() => setRegenerateModal(null)}
+                    onRegenerate={handleRegenerateElementSubmit}
+                    isGenerating={isGenerating}
+                    error={generationError}
                 />
             )}
 

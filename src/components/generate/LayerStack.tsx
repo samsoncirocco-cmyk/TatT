@@ -23,6 +23,7 @@ interface LayerStackProps {
     onDelete: (layerId: string) => void;
     onReorder: (fromIndex: number, toIndex: number) => void;
     onAddLayer?: () => void;
+    onContextMenu?: (layer: Layer, x: number, y: number) => void;
 }
 
 // Sortable wrapper for LayerItem
@@ -56,7 +57,8 @@ export default function LayerStack({
     onRename,
     onDelete,
     onReorder,
-    onAddLayer
+    onAddLayer,
+    onContextMenu
 }: LayerStackProps) {
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -132,6 +134,7 @@ export default function LayerStack({
                                     onToggleVisibility={onToggleVisibility}
                                     onRename={onRename}
                                     onDelete={onDelete}
+                                    onContextMenu={onContextMenu}
                                 />
                             ))}
                         </SortableContext>

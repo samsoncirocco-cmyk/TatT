@@ -15,6 +15,7 @@ interface LayerItemProps {
     onToggleVisibility: (layerId: string) => void;
     onRename: (layerId: string, newName: string) => void;
     onDelete: (layerId: string) => void;
+    onContextMenu?: (layer: Layer, x: number, y: number) => void;
     isDragging?: boolean;
 }
 
@@ -25,6 +26,7 @@ export default function LayerItem({
     onToggleVisibility,
     onRename,
     onDelete,
+    onContextMenu,
     isDragging = false
 }: LayerItemProps) {
     const [isEditing, setIsEditing] = useState(false);
@@ -61,6 +63,12 @@ export default function LayerItem({
     return (
         <div
             onClick={() => onSelect(layer.id)}
+            onContextMenu={(e) => {
+                e.preventDefault();
+                if (onContextMenu) {
+                    onContextMenu(layer, e.clientX, e.clientY);
+                }
+            }}
             onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
