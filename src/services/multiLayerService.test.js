@@ -2,7 +2,7 @@
  * Multi-Layer Service Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
     inferLayerType,
     generateLayerName,
@@ -132,6 +132,7 @@ describe('multiLayerService', () => {
         let mockCanvas;
         let mockContext;
         let mockImage;
+        let originalFetch;
 
         beforeEach(() => {
             // Mock canvas and context
@@ -174,9 +175,29 @@ describe('multiLayerService', () => {
             global.Image = function() {
                 return mockImage;
             };
+
+            // Mock fetch for upload API
+            originalFetch = global.fetch;
+            global.fetch = vi.fn((url, options) => {
+                if (url.includes('/upload-layer')) {
+                    return Promise.resolve({
+                        ok: true,
+                        json: () => Promise.resolve({
+                            url: `/uploads/layers/${Date.now()}.png`,
+                            size: 1024,
+                            id: 'mock_id'
+                        })
+                    });
+                }
+                return originalFetch(url, options);
+            });
         });
 
-        it('should return data URLs (not object URLs) for RGB and Alpha layers', async () => {
+        afterEach(() => {
+            global.fetch = originalFetch;
+        });
+
+        it('should return server URLs (not data URLs or object URLs) for RGB and Alpha layers', async () => {
             const imageUrl = 'https://example.com/test.png';
 
             // Trigger image load
@@ -185,13 +206,29 @@ describe('multiLayerService', () => {
 
             const result = await separationPromise;
 
-            // Verify data URLs (persist across reloads)
-            expect(result.rgbUrl).toMatch(/^data:image\/png;base64,/);
-            expect(result.alphaUrl).toMatch(/^data:image\/png;base64,/);
+            // Verify server URLs (persistent and don't bloat storage)
+            expect(result.rgbUrl).toMatch(/\/uploads\/layers\/.*\.png$/);
+            expect(result.alphaUrl).toMatch(/\/uploads\/layers\/.*\.png$/);
 
-            // Verify NOT object URLs (which would be non-persistent)
+            // Verify NOT data URLs (which bloat localStorage)
+            expect(result.rgbUrl).not.toMatch(/^data:image\/png;base64,/);
+            expect(result.alphaUrl).not.toMatch(/^data:image\/png;base64,/);
+
+            // Verify NOT object URLs (which are non-persistent)
             expect(result.rgbUrl).not.toMatch(/^blob:/);
             expect(result.alphaUrl).not.toMatch(/^blob:/);
+
+            // Verify upload was called twice (RGB + Alpha)
+            expect(global.fetch).toHaveBeenCalledTimes(2);
+            expect(global.fetch).toHaveBeenCalledWith(
+                expect.stringContaining('/upload-layer'),
+                expect.objectContaining({
+                    method: 'POST',
+                    headers: expect.objectContaining({
+                        'Authorization': expect.stringContaining('Bearer')
+                    })
+                })
+            );
         });
 
         it('should return URLs that persist across simulated reloads', async () => {
@@ -202,18 +239,21 @@ describe('multiLayerService', () => {
 
             const result = await separationPromise;
 
-            // Data URLs should be self-contained and usable anywhere
-            const rgbDataUrl = result.rgbUrl;
-            const alphaDataUrl = result.alphaUrl;
+            // Server URLs are small strings that persist in localStorage
+            const rgbServerUrl = result.rgbUrl;
+            const alphaServerUrl = result.alphaUrl;
 
             // Simulate "storing" and "retrieving" (like localStorage persistence)
-            const stored = JSON.stringify({ rgbUrl: rgbDataUrl, alphaUrl: alphaDataUrl });
+            const stored = JSON.stringify({ rgbUrl: rgbServerUrl, alphaUrl: alphaServerUrl });
             const retrieved = JSON.parse(stored);
 
-            // Data URLs should still be valid after serialization
-            expect(retrieved.rgbUrl).toBe(rgbDataUrl);
-            expect(retrieved.alphaUrl).toBe(alphaDataUrl);
-            expect(retrieved.rgbUrl).toMatch(/^data:image\/png;base64,/);
+            // URLs should still be valid after serialization
+            expect(retrieved.rgbUrl).toBe(rgbServerUrl);
+            expect(retrieved.alphaUrl).toBe(alphaServerUrl);
+            expect(retrieved.rgbUrl).toMatch(/\/uploads\/layers\//);
+
+            // URLs should be small (not bloated base64)
+            expect(retrieved.rgbUrl.length).toBeLessThan(100); // Server URLs are short
         });
 
         it('should detect alpha channel presence', async () => {
