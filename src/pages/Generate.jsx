@@ -20,6 +20,7 @@ import StencilExport from '../components/StencilExport';
 import InpaintingEditor from '../components/InpaintingEditor';
 import VersionTimeline from '../components/generate/VersionTimeline';
 import VersionComparison from '../components/generate/VersionComparison';
+import { ToastContainer } from '../components/ui/Toast';
 import { DEFAULT_BODY_PART } from '../constants/bodyPartAspectRatios';
 import { enhancePrompt } from '../services/councilService';
 import useVibeChipSuggestions from '../hooks/useVibeChipSuggestions';
@@ -27,6 +28,8 @@ import { useLayerManagement } from '../hooks/useLayerManagement';
 import { useArtistMatching } from '../hooks/useArtistMatching';
 import { useCanvasAspectRatio } from '../hooks/useCanvasAspectRatio';
 import { useVersionHistory } from '../hooks/useVersionHistory';
+import { useToast } from '../hooks/useToast';
+import { useStorageWarning } from '../hooks/useStorageWarning';
 import * as versionService from '../services/versionService';
 import Button from '../components/ui/Button';
 import { Wand2, Zap, Download, Sparkles } from 'lucide-react';
@@ -195,6 +198,10 @@ export default function Generate() {
     } = useLayerManagement();
 
     const resolvedStyle = selectedChips[0] || 'Traditional';
+
+    // Toast and storage monitoring
+    const { toast, toasts, removeToast } = useToast();
+    useStorageWarning(toast);
 
     // Generation hook
     const {
@@ -1127,6 +1134,9 @@ export default function Generate() {
                 isOpen={keyboardShortcuts.isOpen}
                 onClose={keyboardShortcuts.close}
             />
+
+            {/* Toast Notifications */}
+            <ToastContainer toasts={toasts} removeToast={removeToast} />
         </div>
     );
 }
