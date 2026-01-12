@@ -5,7 +5,8 @@
 
 import { expect, afterEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
-import '@testing-library/jest-dom';
+// TODO: Fix jest-dom module resolution issue
+// import '@testing-library/jest-dom';
 
 // Cleanup after each test
 afterEach(() => {

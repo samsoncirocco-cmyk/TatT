@@ -2,12 +2,14 @@
  * Multi-Layer Service Tests
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
     inferLayerType,
     generateLayerName,
     shouldUseMultiLayer,
-    processGenerationResult
+    processGenerationResult,
+    separateRGBAChannels,
+    hasAlphaChannel
 } from './multiLayerService';
 
 describe('multiLayerService', () => {
@@ -123,6 +125,139 @@ describe('multiLayerService', () => {
 
             expect(layerSpecs).toHaveLength(1);
             expect(layerSpecs[0].type).toBe('subject');
+        });
+    });
+
+    describe('RGBA Channel Separation - Persistence', () => {
+        let mockCanvas;
+        let mockContext;
+        let mockImage;
+
+        beforeEach(() => {
+            // Mock canvas and context
+            mockContext = {
+                drawImage: vi.fn(),
+                getImageData: vi.fn(() => ({
+                    data: new Uint8ClampedArray(16), // 2x2 RGBA pixels
+                    width: 2,
+                    height: 2
+                })),
+                createImageData: vi.fn((w, h) => ({
+                    data: new Uint8ClampedArray(w * h * 4),
+                    width: w,
+                    height: h
+                })),
+                putImageData: vi.fn()
+            };
+
+            mockCanvas = {
+                width: 2,
+                height: 2,
+                getContext: vi.fn(() => mockContext),
+                toDataURL: vi.fn((format) => `data:image/png;base64,mock${format}`)
+            };
+
+            // Mock document.createElement for canvas
+            global.document = {
+                createElement: vi.fn(() => mockCanvas)
+            };
+
+            // Mock Image constructor
+            mockImage = {
+                crossOrigin: null,
+                src: null,
+                width: 2,
+                height: 2,
+                onload: null,
+                onerror: null
+            };
+            global.Image = function() {
+                return mockImage;
+            };
+        });
+
+        it('should return data URLs (not object URLs) for RGB and Alpha layers', async () => {
+            const imageUrl = 'https://example.com/test.png';
+
+            // Trigger image load
+            const separationPromise = separateRGBAChannels(imageUrl);
+            setTimeout(() => mockImage.onload?.(), 0);
+
+            const result = await separationPromise;
+
+            // Verify data URLs (persist across reloads)
+            expect(result.rgbUrl).toMatch(/^data:image\/png;base64,/);
+            expect(result.alphaUrl).toMatch(/^data:image\/png;base64,/);
+
+            // Verify NOT object URLs (which would be non-persistent)
+            expect(result.rgbUrl).not.toMatch(/^blob:/);
+            expect(result.alphaUrl).not.toMatch(/^blob:/);
+        });
+
+        it('should return URLs that persist across simulated reloads', async () => {
+            const imageUrl = 'https://example.com/test.png';
+
+            const separationPromise = separateRGBAChannels(imageUrl);
+            setTimeout(() => mockImage.onload?.(), 0);
+
+            const result = await separationPromise;
+
+            // Data URLs should be self-contained and usable anywhere
+            const rgbDataUrl = result.rgbUrl;
+            const alphaDataUrl = result.alphaUrl;
+
+            // Simulate "storing" and "retrieving" (like localStorage persistence)
+            const stored = JSON.stringify({ rgbUrl: rgbDataUrl, alphaUrl: alphaDataUrl });
+            const retrieved = JSON.parse(stored);
+
+            // Data URLs should still be valid after serialization
+            expect(retrieved.rgbUrl).toBe(rgbDataUrl);
+            expect(retrieved.alphaUrl).toBe(alphaDataUrl);
+            expect(retrieved.rgbUrl).toMatch(/^data:image\/png;base64,/);
+        });
+
+        it('should detect alpha channel presence', async () => {
+            const imageUrl = 'https://example.com/transparent.png';
+
+            // Mock image data with some transparent pixels
+            mockContext.getImageData = vi.fn(() => ({
+                data: new Uint8ClampedArray([
+                    255, 0, 0, 255,    // Red, opaque
+                    0, 255, 0, 128,    // Green, semi-transparent
+                    0, 0, 255, 0,      // Blue, fully transparent
+                    0, 0, 0, 255       // Black, opaque
+                ]),
+                width: 2,
+                height: 2
+            }));
+
+            const hasAlphaPromise = hasAlphaChannel(imageUrl);
+            setTimeout(() => mockImage.onload?.(), 0);
+
+            const result = await hasAlphaPromise;
+            expect(result).toBe(true);
+        });
+
+        it('should return false for fully opaque images', async () => {
+            const imageUrl = 'https://example.com/opaque.png';
+
+            // Mock fully opaque image data
+            mockContext.getImageData = vi.fn(() => ({
+                data: new Uint8ClampedArray([
+                    255, 0, 0, 255,    // All pixels fully opaque (alpha = 255)
+                    0, 255, 0, 255,
+                    0, 0, 255, 255,
+                    0, 0, 0, 255
+                ]),
+                width: 2,
+                height: 2
+            }));
+
+            const hasAlphaPromise = hasAlphaChannel(imageUrl);
+            setTimeout(() => mockImage.onload?.(), 0);
+
+            const result = await hasAlphaPromise;
+            expect(result).toBe(false);
         });
     });
 });
