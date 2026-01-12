@@ -126,6 +126,48 @@ async function setupVectorSchema() {
             console.log('   ✅ Trigger created\n');
         }
 
+        // Step 5: Create match function for similarity search
+        console.log('5️⃣  Creating match_portfolio_embeddings function...');
+        const matchFunctionSQL = `
+      CREATE OR REPLACE FUNCTION match_portfolio_embeddings (
+        query_embedding vector(4096),
+        match_count int
+      ) RETURNS TABLE (
+        artist_id text,
+        similarity float,
+        source_images text[],
+        model_version text,
+        created_at timestamptz
+      )
+      LANGUAGE plpgsql
+      AS $$
+      BEGIN
+        RETURN QUERY
+        SELECT
+          portfolio_embeddings.artist_id,
+          1 - (portfolio_embeddings.embedding <=> query_embedding) as similarity,
+          portfolio_embeddings.source_images,
+          portfolio_embeddings.model_version,
+          portfolio_embeddings.created_at
+        FROM portfolio_embeddings
+        ORDER BY portfolio_embeddings.embedding <=> query_embedding
+        LIMIT match_count;
+      END;
+      $$;
+    `;
+
+        const { error: funcError } = await supabase.rpc('exec_sql', {
+            sql: matchFunctionSQL
+        });
+
+        if (funcError) {
+            console.log('   ℹ️  Manual SQL required. Copy and run in SQL Editor:');
+            console.log('   ' + matchFunctionSQL.trim().replace(/\n\s+/g, '\n   '));
+            console.log('');
+        } else {
+            console.log('   ✅ Match function created\n');
+        }
+
         console.log('═══════════════════════════════════════════════════');
         console.log('✅ Setup Complete!');
         console.log('═══════════════════════════════════════════════════');
@@ -179,6 +221,33 @@ CREATE TRIGGER update_portfolio_embeddings_updated_at
 BEFORE UPDATE ON portfolio_embeddings 
 FOR EACH ROW 
 EXECUTE FUNCTION update_updated_at_column();
+    
+-- Create match function for similarity search
+CREATE OR REPLACE FUNCTION match_portfolio_embeddings (
+  query_embedding vector(4096),
+  match_count int
+) RETURNS TABLE (
+  artist_id text,
+  similarity float,
+  source_images text[],
+  model_version text,
+  created_at timestamptz
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    portfolio_embeddings.artist_id,
+    1 - (portfolio_embeddings.embedding <=> query_embedding) as similarity,
+    portfolio_embeddings.source_images,
+    portfolio_embeddings.model_version,
+    portfolio_embeddings.created_at
+  FROM portfolio_embeddings
+  ORDER BY portfolio_embeddings.embedding <=> query_embedding
+  LIMIT match_count;
+END;
+$$;
     `);
     }
 }

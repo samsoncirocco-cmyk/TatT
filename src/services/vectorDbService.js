@@ -92,7 +92,7 @@ export async function searchSimilar(queryVector, topK = VECTOR_DB_CONFIG.DEFAULT
 
     return data.map(item => ({
         id: item.artist_id,
-        score: 1 - item.similarity, // Convert distance to similarity
+        score: item.similarity, // Similarity is returned directly by RPC
         metadata: {
             source_images: item.source_images,
             model_version: item.model_version,

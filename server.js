@@ -18,11 +18,11 @@ import stencilExportRouter from './src/api/routes/stencilExport.js';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3002;
 const HOST = process.env.HOST || '127.0.0.1';
 
 // Security configuration
-const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
+const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN || process.env.VITE_REPLICATE_API_TOKEN;
 const REPLICATE_API_URL = 'https://api.replicate.com/v1';
 const NEO4J_URI = process.env.NEO4J_URI;
 const NEO4J_USER = process.env.NEO4J_USER;

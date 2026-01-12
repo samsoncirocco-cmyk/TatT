@@ -32,6 +32,7 @@ const Button = ({
         relative flex items-center justify-center gap-2 
         font-display font-bold uppercase tracking-wider rounded-xl transition-all duration-200 border
         disabled:opacity-50 disabled:cursor-not-allowed
+        focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-ducks-yellow
         ${variants[variant]} ${sizes[size]} ${className}
       `}
             disabled={disabled || isLoading}

@@ -152,6 +152,80 @@ export async function findMatchingArtists(preferences) {
 }
 
 /**
+ * Match Pulse query optimized for sidebar updates
+ * @param {Object} preferences - Match context
+ * @returns {Promise<Array>} Matched artists
+ */
+export async function findArtistMatchesForPulse(preferences) {
+  const { style, bodyPart, location, limit = 20 } = preferences;
+
+  const query = `
+    MATCH (a:Artist)
+    WHERE
+      ($style IS NULL OR any(s IN coalesce(a.styles, []) WHERE toLower(s) = toLower($style)))
+      AND ($bodyPart IS NULL OR any(bp IN coalesce(a.bodyParts, []) WHERE toLower(bp) = toLower($bodyPart)))
+      AND (
+        $location IS NULL OR
+        toLower(coalesce(a.location, '')) CONTAINS toLower($location) OR
+        toLower(coalesce(a.city, '')) CONTAINS toLower($location)
+      )
+    WITH a,
+      CASE
+        WHEN $style IS NULL THEN 0.4
+        WHEN any(s IN coalesce(a.styles, []) WHERE toLower(s) = toLower($style)) THEN 0.4
+        ELSE 0.2
+      END AS styleScore,
+      CASE
+        WHEN $bodyPart IS NULL THEN 0.2
+        WHEN any(bp IN coalesce(a.bodyParts, []) WHERE toLower(bp) = toLower($bodyPart)) THEN 0.2
+        ELSE 0.1
+      END AS bodyPartScore,
+      CASE
+        WHEN $location IS NULL THEN 0.1
+        WHEN toLower(coalesce(a.location, '')) CONTAINS toLower($location) THEN 0.1
+        ELSE 0.05
+      END AS locationScore,
+      rand() * 0.1 AS varietyScore
+    WITH a, (styleScore + bodyPartScore + locationScore + varietyScore) AS totalScore
+    RETURN
+      a.id AS id,
+      a.name AS name,
+      a.city AS city,
+      a.location AS location,
+      a.styles AS styles,
+      a.bodyParts AS bodyParts,
+      a.portfolio AS portfolio,
+      a.portfolioImages AS portfolioImages,
+      a.instagram AS instagram,
+      a.tags AS tags,
+      totalScore * 100 AS score
+    ORDER BY totalScore DESC
+    LIMIT $limit
+  `;
+
+  const results = await executeCypherQuery(query, {
+    style: style || null,
+    bodyPart: bodyPart || null,
+    location: location || null,
+    limit
+  });
+
+  return results.map(record => ({
+    id: record.id,
+    name: record.name,
+    city: record.city,
+    location: record.location,
+    styles: record.styles || [],
+    bodyParts: record.bodyParts || [],
+    portfolio: record.portfolio || [],
+    portfolioImages: record.portfolioImages || [],
+    instagram: record.instagram,
+    tags: record.tags || [],
+    score: Math.round(record.score || 0)
+  }));
+}
+
+/**
  * Generate human-readable match reasons
  * @param {Object} artist - Artist record
  * @param {Object} preferences - User preferences
@@ -204,6 +278,46 @@ export async function getArtistById(artistId) {
 
   const results = await executeCypherQuery(query, { artistId });
   return results[0]?.a || null;
+}
+
+/**
+ * Get multiple artists by ID
+ * @param {Array<string|number>} artistIds - Artist IDs
+ * @returns {Promise<Array>} Artist data
+ */
+export async function getArtistsByIds(artistIds = []) {
+  if (!artistIds.length) return [];
+
+  const query = `
+    MATCH (a:Artist)
+    WHERE a.id IN $artistIds
+    RETURN
+      a.id AS id,
+      a.name AS name,
+      a.city AS city,
+      a.location AS location,
+      a.styles AS styles,
+      a.bodyParts AS bodyParts,
+      a.portfolio AS portfolio,
+      a.portfolioImages AS portfolioImages,
+      a.instagram AS instagram,
+      a.tags AS tags
+  `;
+
+  const results = await executeCypherQuery(query, { artistIds });
+
+  return results.map(record => ({
+    id: record.id,
+    name: record.name,
+    city: record.city,
+    location: record.location,
+    styles: record.styles || [],
+    bodyParts: record.bodyParts || [],
+    portfolio: record.portfolio || [],
+    portfolioImages: record.portfolioImages || [],
+    instagram: record.instagram,
+    tags: record.tags || []
+  }));
 }
 
 /**
@@ -319,4 +433,3 @@ export async function updateArtistEmbeddingId(artistId, embeddingId) {
     return false;
   }
 }
-

@@ -30,6 +30,9 @@ import PromptEnhancer from './PromptEnhancer';
 import CouncilLoadingState from './CouncilLoadingState';
 import StencilExport from './StencilExport';
 import InpaintingEditor from './InpaintingEditor';
+import { useVersionHistory } from '../hooks/useVersionHistory';
+import VersionTimeline from './generate/VersionTimeline';
+import VersionComparison from './generate/VersionComparison';
 
 export default function DesignGeneratorWithCouncil() {
   // Toast notifications
@@ -61,6 +64,16 @@ export default function DesignGeneratorWithCouncil() {
   const [selectedForStencil, setSelectedForStencil] = useState(null);
   const [selectedForInpainting, setSelectedForInpainting] = useState(null);
   const [inpaintedImages, setInpaintedImages] = useState({});
+
+  // Version History State
+  const [sessionId] = useState(() => 'session_' + Date.now());
+  const {
+    versions,
+    currentVersion,
+    addVersion,
+    loadVersion
+  } = useVersionHistory(sessionId);
+  const [compareVersion, setCompareVersion] = useState(null);
 
   // Load API usage on mount
   useEffect(() => {
@@ -134,6 +147,24 @@ export default function DesignGeneratorWithCouncil() {
 
       setGeneratedDesigns(result);
 
+      // Auto-save version
+      if (result.images && result.images.length > 0) {
+        addVersion({
+          imageUrl: result.images[0], // Use first image as thumbnail
+          allImages: result.images,
+          metadata: {
+            prompt: enhancedPrompt || formData.subject,
+            negativePrompt: negativePrompt,
+            model: modelToUse,
+            style: formData.style,
+            bodyPart: formData.bodyPart,
+            size: formData.size,
+            ...result.metadata
+          },
+          parameters: { ...formData }
+        });
+      }
+
       // Update API usage
       const usage = getAPIUsage();
       setApiUsage(usage);
@@ -205,6 +236,54 @@ export default function DesignGeneratorWithCouncil() {
     toast.success('Design edited successfully!');
   };
 
+  // Handle Version Selection (Branching/Loading)
+  const handleVersionSelect = (version) => {
+    loadVersion(version.id);
+
+    // Restore Form State
+    if (version.parameters) {
+      setFormData(prev => ({
+        ...prev,
+        ...version.parameters
+      }));
+    }
+
+    // Restore Designs
+    if (version.allImages) {
+      setGeneratedDesigns({
+        images: version.allImages,
+        metadata: version.metadata
+      });
+    }
+
+    // Restore Prompts
+    if (version.metadata?.enhancedPrompt) {
+      setEnhancedPrompt(version.metadata.enhancedPrompt);
+    } else {
+      setEnhancedPrompt(null);
+    }
+
+    toast.success(`Loaded version ${version.versionNumber}`);
+  };
+
+  // Handle Comparison
+  const handleCompare = (version) => {
+    // If we have a current version, compare against it.
+    // If not, maybe compare against current state? 
+    // Ideally we ignore if no current version, but currentVersion should be set if we selected one.
+    // Or we compare against the *latest* if nothing selected?
+    // Let's assume we compare the clicked version against the *currently displayed* version.
+
+    if (currentVersion && currentVersion.id !== version.id) {
+      setCompareVersion(version);
+    } else {
+      // If comparing against itself or no current, maybe show toast?
+      // Actually, let's just use the current generated state as "Version B" concept if needed?
+      // For now, simple implementation: Compare selected vs current active version
+      setCompareVersion(version);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -229,7 +308,7 @@ export default function DesignGeneratorWithCouncil() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+      <main className={`max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 ${versions.length > 0 ? 'pb-60' : ''}`}>
         {/* Budget Tracker */}
         {apiUsage && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
@@ -616,6 +695,34 @@ export default function DesignGeneratorWithCouncil() {
               />
             </div>
           </div>
+        )}
+
+        {/* Version Timeline */}
+        <div className="fixed bottom-0 left-0 right-0 z-40">
+          <VersionTimeline
+            versions={versions}
+            currentVersionId={currentVersion?.id}
+            onSelectVersion={handleVersionSelect}
+            onBranch={(v) => handleVersionSelect(v)}
+            onCompare={(v) => setCompareVersion(v)}
+          />
+        </div>
+
+        {/* Version Comparison Modal */}
+        {compareVersion && currentVersion && (
+          <VersionComparison
+            versionA={currentVersion}
+            versionB={compareVersion}
+            onClose={() => setCompareVersion(null)}
+            onRestoreA={() => {
+              handleVersionSelect(currentVersion);
+              setCompareVersion(null);
+            }}
+            onRestoreB={() => {
+              handleVersionSelect(compareVersion);
+              setCompareVersion(null);
+            }}
+          />
         )}
 
         {/* Inpainting Editor Modal */}

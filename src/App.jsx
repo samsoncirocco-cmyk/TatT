@@ -20,6 +20,7 @@ import Artists from './pages/Artists';
 import ArtistProfile from './pages/ArtistProfile';
 import Journey from './pages/Journey';
 import Philosophy from './pages/Philosophy';
+import Generate from './pages/Generate';
 
 // Feature flag for council integration
 const USE_COUNCIL = import.meta.env.VITE_USE_COUNCIL === 'true';
@@ -46,7 +47,7 @@ function AppContent() {
           <Route path="/" element={<PageWrapper><HomePage /></PageWrapper>} />
           <Route path="/philosophy" element={<PageWrapper><Philosophy /></PageWrapper>} />
           <Route path="/journey" element={<PageWrapper><Journey /></PageWrapper>} />
-          <Route path="/generate" element={<PageWrapper>{USE_COUNCIL ? <DesignGeneratorWithCouncil /> : <DesignGenerator />}</PageWrapper>} />
+          <Route path="/generate" element={<PageWrapper><Generate /></PageWrapper>} />
           <Route path="/library" element={<PageWrapper><DesignLibrary /></PageWrapper>} />
           <Route path="/visualize" element={<PageWrapper><Visualize /></PageWrapper>} />
           <Route path="/smart-match" element={<PageWrapper><SmartMatch /></PageWrapper>} />

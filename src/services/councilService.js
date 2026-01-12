@@ -150,6 +150,42 @@ export async function enhancePrompt({
   // Step 1: Select optimal model (async, can run in parallel with prompt enhancement)
   const modelSelectionPromise = selectModelWithFallback(style, userIdea, bodyPart);
 
+  // Try OpenRouter first if configured
+  const USE_OPENROUTER = import.meta.env.VITE_USE_OPENROUTER === 'true';
+
+  if (USE_OPENROUTER && !DEMO_MODE) {
+    try {
+      const { enhancePromptWithOpenRouter, isOpenRouterConfigured } = await import('./openRouterCouncil.js');
+
+      if (isOpenRouterConfigured()) {
+        console.log('[CouncilService] Using OpenRouter council');
+        const result = await enhancePromptWithOpenRouter({
+          userIdea,
+          style,
+          bodyPart,
+          onDiscussionUpdate
+        });
+
+        // Add model selection to result
+        const modelSelection = await modelSelectionPromise;
+        result.modelSelection = {
+          modelId: modelSelection.modelId,
+          modelName: modelSelection.modelName,
+          reasoning: modelSelection.reasoning,
+          estimatedTime: modelSelection.estimatedTime,
+          cost: modelSelection.cost,
+          isFallback: modelSelection.isFallback || false
+        };
+
+        return result;
+      } else {
+        console.warn('[CouncilService] OpenRouter not configured, falling back to demo mode');
+      }
+    } catch (error) {
+      console.error('[CouncilService] OpenRouter failed, falling back:', error);
+    }
+  }
+
   // Demo mode: return mock response
   if (DEMO_MODE) {
     return new Promise((resolve) => {
@@ -193,7 +229,7 @@ export async function enhancePrompt({
     });
   }
 
-  // Real API call to LLM Council
+  // Real API call to LLM Council (original backend)
   try {
     // Await model selection (started earlier)
     const modelSelection = await modelSelectionPromise;
