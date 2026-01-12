@@ -38,6 +38,11 @@ import { useImageGeneration } from '../hooks/useImageGeneration';
 import TransformControls from '../components/generate/TransformControls';
 import { exportAsPNG, exportAsARAsset } from '../services/canvasService';
 import { convertToStencil } from '../services/stencilService';
+import {
+    processGenerationResult,
+    addMultipleLayers,
+    shouldUseMultiLayer
+} from '../services/multiLayerService';
 
 const TRENDING_EXAMPLES = [
     {
@@ -162,6 +167,7 @@ export default function Generate() {
     const [aiModel, setAiModel] = useState('tattoo');
     const [negativePrompt, setNegativePrompt] = useState('');
     const [enhancementLevel, setEnhancementLevel] = useState('detailed');
+    const [separateRGBA, setSeparateRGBA] = useState(false);
 
     const [sessionId, setSessionId] = useState(() => {
         const stored = sessionStorage.getItem('tattester_session_id');
@@ -473,14 +479,45 @@ export default function Generate() {
             const result = await generateHighRes({ finalize });
 
             if (result && result.images && result.images.length > 0) {
-                const newLayer = await addLayer(result.images[0], 'subject');
-                const nextLayers = [...layers, newLayer];
-                addVersion(buildVersionPayload({
-                    layers: nextLayers,
-                    imageUrl: newLayer.imageUrl,
-                    arAssetUrl: arAsset?.url || null,
-                    mode: finalize ? 'final' : 'refine'
-                }));
+                let createdLayers = [];
+
+                // Check if we should use multi-layer processing
+                if (shouldUseMultiLayer(result)) {
+                    console.log('[Generate] Using multi-layer processing for', result.images.length, 'images');
+
+                    // Process generation result into layer specifications
+                    const layerSpecs = await processGenerationResult(result, {
+                        separateAlpha: separateRGBA,  // Use user preference
+                        autoDetectAlpha: true         // Always detect alpha channel
+                    });
+
+                    // Add all layers to canvas
+                    createdLayers = await addMultipleLayers(layerSpecs, addLayer);
+
+                    // Use the last layer's image as the version thumbnail
+                    const thumbnailUrl = createdLayers[createdLayers.length - 1]?.imageUrl || result.images[0];
+                    const nextLayers = [...layers, ...createdLayers];
+
+                    addVersion(buildVersionPayload({
+                        layers: nextLayers,
+                        imageUrl: thumbnailUrl,
+                        arAssetUrl: arAsset?.url || null,
+                        mode: finalize ? 'final' : 'refine'
+                    }));
+
+                    console.log(`[Generate] Created ${createdLayers.length} layers from ${result.images.length} images`);
+                } else {
+                    // Single image - use legacy flow
+                    console.log('[Generate] Using single-layer flow');
+                    const newLayer = await addLayer(result.images[0], 'subject');
+                    const nextLayers = [...layers, newLayer];
+                    addVersion(buildVersionPayload({
+                        layers: nextLayers,
+                        imageUrl: newLayer.imageUrl,
+                        arAssetUrl: arAsset?.url || null,
+                        mode: finalize ? 'final' : 'refine'
+                    }));
+                }
 
                 console.log('Generation successful:', result);
             }
@@ -700,60 +737,93 @@ export default function Generate() {
         const promptBase = enhancedPrompt || promptText;
         const restylePrompt = [promptBase, restyleStyle].filter(Boolean).join(', ');
 
-        const response = await generateHighRes({
-            userInputOverride: {
-                subject: restylePrompt,
-                style: restyleStyle,
-                bodyPart,
-                size,
-                aiModel,
-                negativePrompt
+        try {
+            const response = await generateHighRes({
+                userInputOverride: {
+                    subject: restylePrompt,
+                    style: restyleStyle,
+                    bodyPart,
+                    size,
+                    aiModel,
+                    negativePrompt
+                }
+            });
+
+            if (response?.images?.length > 0) {
+                // For restyle, always use the first image to replace the target layer
+                // Multi-layer output from restyle would be confusing UX
+                updateImage(restyleLayerId, response.images[0]);
+                const nextLayers = layers.map(layer =>
+                    layer.id === restyleLayerId ? { ...layer, imageUrl: response.images[0] } : layer
+                );
+                addVersion(buildVersionPayload({
+                    layers: nextLayers,
+                    imageUrl: response.images[0],
+                    arAssetUrl: arAsset?.url || null
+                }));
             }
-        });
-
-        if (response?.images?.[0]) {
-            updateImage(restyleLayerId, response.images[0]);
-            const nextLayers = layers.map(layer =>
-                layer.id === restyleLayerId ? { ...layer, imageUrl: response.images[0] } : layer
-            );
-            addVersion(buildVersionPayload({
-                layers: nextLayers,
-                imageUrl: response.images[0],
-                arAssetUrl: arAsset?.url || null
-            }));
+        } catch (error) {
+            console.error('[Generate] Restyle failed:', error);
+        } finally {
+            setRestyleLayerId(null);
+            setRestyleStyle('');
         }
-
-        setRestyleLayerId(null);
-        setRestyleStyle('');
     };
 
     const handleAddElement = async () => {
         if (!elementPrompt.trim()) return;
 
-        const response = await generateHighRes({
-            userInputOverride: {
-                subject: elementPrompt,
-                style: resolvedStyle,
-                bodyPart,
-                size,
-                aiModel,
-                negativePrompt
+        try {
+            const response = await generateHighRes({
+                userInputOverride: {
+                    subject: elementPrompt,
+                    style: resolvedStyle,
+                    bodyPart,
+                    size,
+                    aiModel,
+                    negativePrompt
+                }
+            });
+
+            if (response?.images?.length > 0) {
+                let createdLayers = [];
+
+                // Check if multi-layer processing is needed
+                if (shouldUseMultiLayer(response)) {
+                    console.log('[Generate] Adding element with multi-layer processing');
+
+                    // Process into layer specs, but override all types to match user selection
+                    const layerSpecs = await processGenerationResult(response, {
+                        separateAlpha: separateRGBA,
+                        autoDetectAlpha: true
+                    });
+
+                    // Override layer types with user-selected element type
+                    layerSpecs.forEach(spec => {
+                        spec.type = elementType;
+                    });
+
+                    createdLayers = await addMultipleLayers(layerSpecs, addLayer);
+                } else {
+                    // Single layer
+                    const newLayer = await addLayer(response.images[0], elementType);
+                    createdLayers = [newLayer];
+                }
+
+                const nextLayers = [...layers, ...createdLayers];
+                addVersion(buildVersionPayload({
+                    layers: nextLayers,
+                    imageUrl: createdLayers[createdLayers.length - 1]?.imageUrl || response.images[0],
+                    mode: 'element'
+                }));
             }
-        });
-
-        if (response?.images?.[0]) {
-            const newLayer = await addLayer(response.images[0], elementType);
-            const nextLayers = [...layers, newLayer];
-            addVersion(buildVersionPayload({
-                layers: nextLayers,
-                imageUrl: newLayer.imageUrl,
-                mode: 'element'
-            }));
+        } catch (error) {
+            console.error('[Generate] Add element failed:', error);
+        } finally {
+            setShowElementModal(false);
+            setElementPrompt('');
+            setElementType('subject');
         }
-
-        setShowElementModal(false);
-        setElementPrompt('');
-        setElementType('subject');
     };
 
     const handleInpaintSave = (imageUrl) => {
@@ -1021,6 +1091,8 @@ export default function Generate() {
                                     onNegativePromptChange={setNegativePrompt}
                                     enhancementLevel={enhancementLevel}
                                     onEnhancementLevelChange={setEnhancementLevel}
+                                    separateRGBA={separateRGBA}
+                                    onSeparateRGBAChange={setSeparateRGBA}
                                 />
 
                                 {enhancedPrompt && (

@@ -30,7 +30,9 @@ export default function AdvancedOptions({
     negativePrompt = '',
     onNegativePromptChange,
     enhancementLevel = 'detailed',
-    onEnhancementLevelChange
+    onEnhancementLevelChange,
+    separateRGBA = false,
+    onSeparateRGBAChange
 }) {
     return (
         <div className="border-t border-white/5 pt-6">
@@ -139,6 +141,28 @@ export default function AdvancedOptions({
                             rows="3"
                         />
                     </div>
+
+                    {/* RGBA Separation Toggle */}
+                    {onSeparateRGBAChange && (
+                        <div>
+                            <label className="flex items-center gap-3 cursor-pointer group">
+                                <input
+                                    type="checkbox"
+                                    checked={separateRGBA}
+                                    onChange={(e) => onSeparateRGBAChange(e.target.checked)}
+                                    className="w-5 h-5 rounded border-2 border-white/20 bg-black/40 checked:bg-ducks-green checked:border-ducks-green transition-colors cursor-pointer"
+                                />
+                                <div className="flex-1">
+                                    <div className="text-sm font-bold text-white group-hover:text-ducks-green transition-colors">
+                                        Separate RGBA Channels
+                                    </div>
+                                    <div className="text-xs text-gray-500 mt-1">
+                                        Split transparent images into separate RGB and Alpha layers for advanced compositing
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
