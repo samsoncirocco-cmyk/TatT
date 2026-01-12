@@ -227,8 +227,28 @@ export function compareVersions(sessionId, versionId1, versionId2) {
 }
 
 /**
+ * Generate unique layer ID
+ * (Duplicated from canvasService to avoid circular dependency)
+ */
+function generateLayerId() {
+    return `layer_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+/**
+ * Clone layer with new ID and reset z-index
+ */
+function cloneLayerWithNewId(layer, newZIndex) {
+    return {
+        ...layer,
+        id: generateLayerId(),
+        zIndex: newZIndex
+    };
+}
+
+/**
  * Merge elements from two versions
  * Combines layers from different versions into a new version
+ * IMPORTANT: Clones all layers with new IDs to prevent duplicate ID conflicts
  */
 export function mergeVersions(sessionId, versionId1, versionId2, mergeOptions = {}) {
     const version1 = getVersionById(sessionId, versionId1);
@@ -246,10 +266,17 @@ export function mergeVersions(sessionId, versionId1, versionId2, mergeOptions = 
         parameters = version1.parameters
     } = mergeOptions;
 
-    // Combine selected layers
+    // Combine selected layers and clone with new IDs
+    const layers1 = (version1.layers || [])
+        .filter((_, idx) => layersFromVersion1.includes(idx));
+
+    const layers2 = (version2.layers || [])
+        .filter((_, idx) => layersFromVersion2.includes(idx));
+
+    // Clone all layers with new IDs and sequential z-indices
     const mergedLayers = [
-        ...(version1.layers || []).filter((_, idx) => layersFromVersion1.includes(idx)),
-        ...(version2.layers || []).filter((_, idx) => layersFromVersion2.includes(idx))
+        ...layers1.map((layer, idx) => cloneLayerWithNewId(layer, idx)),
+        ...layers2.map((layer, idx) => cloneLayerWithNewId(layer, layers1.length + idx))
     ];
 
     // Create new merged version

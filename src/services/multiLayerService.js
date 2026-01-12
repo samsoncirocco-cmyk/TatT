@@ -173,14 +173,12 @@ export async function separateRGBAChannels(imageUrl) {
             alphaData.data[i + 3] = 255;   // Full opacity
         }
 
-        // Convert to blob URLs
+        // Convert to data URLs (persist across reloads, unlike object URLs)
         ctx.putImageData(rgbData, 0, 0);
-        const rgbBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-        const rgbUrl = URL.createObjectURL(rgbBlob);
+        const rgbUrl = canvas.toDataURL('image/png');
 
         ctx.putImageData(alphaData, 0, 0);
-        const alphaBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-        const alphaUrl = URL.createObjectURL(alphaBlob);
+        const alphaUrl = canvas.toDataURL('image/png');
 
         return {
             rgbUrl,
