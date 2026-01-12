@@ -5,6 +5,48 @@
  * for advanced tattoo generation workflows.
  */
 
+const PROXY_URL = import.meta.env.VITE_PROXY_URL || 'http://127.0.0.1:3001/api';
+const AUTH_TOKEN = import.meta.env.VITE_FRONTEND_AUTH_TOKEN;
+
+/**
+ * Upload layer image to backend for persistent storage
+ *
+ * @param {string} dataUrl - Base64 data URL
+ * @param {string} filename - Filename hint
+ * @returns {Promise<string>} Persistent URL
+ */
+async function uploadLayer(dataUrl, filename) {
+    try {
+        const response = await fetch(`${PROXY_URL}/v1/upload-layer`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${AUTH_TOKEN}`
+            },
+            body: JSON.stringify({
+                imageData: dataUrl,
+                filename
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Upload failed: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        // Convert relative URL to absolute
+        const url = data.url.startsWith('http')
+            ? data.url
+            : `${PROXY_URL.replace('/api', '')}${data.url}`;
+
+        return url;
+    } catch (error) {
+        console.error('[MultiLayer] Upload failed:', error);
+        throw error;
+    }
+}
+
 /**
  * Determine layer type based on image index and metadata
  *
@@ -173,12 +215,17 @@ export async function separateRGBAChannels(imageUrl) {
             alphaData.data[i + 3] = 255;   // Full opacity
         }
 
-        // Convert to data URLs (persist across reloads, unlike object URLs)
+        // Convert to data URLs temporarily
         ctx.putImageData(rgbData, 0, 0);
-        const rgbUrl = canvas.toDataURL('image/png');
+        const rgbDataUrl = canvas.toDataURL('image/png');
 
         ctx.putImageData(alphaData, 0, 0);
-        const alphaUrl = canvas.toDataURL('image/png');
+        const alphaDataUrl = canvas.toDataURL('image/png');
+
+        // Upload to backend for persistent storage (avoids localStorage overflow)
+        const timestamp = Date.now();
+        const rgbUrl = await uploadLayer(rgbDataUrl, `rgb_${timestamp}.png`);
+        const alphaUrl = await uploadLayer(alphaDataUrl, `alpha_${timestamp}.png`);
 
         return {
             rgbUrl,
