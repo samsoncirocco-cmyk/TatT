@@ -1,8 +1,10 @@
 /**
  * Canvas Service - Layer Management
- * 
+ *
  * Core service for managing canvas layers, rendering, and operations
  */
+
+import { add300DpiMetadata } from './pngDpiService.js';
 
 /**
  * Layer data structure
@@ -374,7 +376,7 @@ function loadImage(url: string): Promise<HTMLImageElement> {
 }
 
 /**
- * Export composited layers as PNG blob
+ * Export composited layers as PNG blob with 300 DPI metadata
  */
 export async function exportAsPNG(
     layers: Layer[],
@@ -384,7 +386,7 @@ export async function exportAsPNG(
 ): Promise<Blob> {
     const canvas = await compositeLayers(layers, canvasWidth, canvasHeight);
 
-    return new Promise((resolve, reject) => {
+    const blob = await new Promise<Blob>((resolve, reject) => {
         canvas.toBlob(
             (blob) => {
                 if (blob) {
@@ -397,10 +399,13 @@ export async function exportAsPNG(
             quality
         );
     });
+
+    // Add 300 DPI metadata for professional tattoo printing
+    return add300DpiMetadata(blob);
 }
 
 /**
- * Export as AR-ready transparent PNG (optimized for AR overlay)
+ * Export as AR-ready transparent PNG with 300 DPI metadata (optimized for AR overlay)
  */
 export async function exportAsARAsset(
     layers: Layer[],
@@ -417,7 +422,7 @@ export async function exportAsARAsset(
         Math.round(canvasHeight * scaleFactor)
     );
 
-    return new Promise((resolve, reject) => {
+    const blob = await new Promise<Blob>((resolve, reject) => {
         canvas.toBlob(
             (blob) => {
                 if (blob) {
@@ -430,4 +435,7 @@ export async function exportAsARAsset(
             0.9 // Slightly compressed for AR performance
         );
     });
+
+    // Add 300 DPI metadata for professional output
+    return add300DpiMetadata(blob);
 }
