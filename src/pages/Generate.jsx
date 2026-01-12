@@ -646,6 +646,27 @@ export default function Generate() {
         }
     };
 
+    const handleMergeVersions = (versionA, versionB) => {
+        // Get layer indices for all layers from both versions
+        const layersFromVersion1 = (versionA.layers || []).map((_, idx) => idx);
+        const layersFromVersion2 = (versionB.layers || []).map((_, idx) => idx);
+
+        // Merge versions
+        const merged = versionService.mergeVersions(sessionId, versionA.id, versionB.id, {
+            layersFromVersion1,
+            layersFromVersion2,
+            prompt: versionA.prompt || promptText,
+            parameters: versionA.parameters || { bodyPart, size, aiModel }
+        });
+
+        if (merged) {
+            // Load the merged version
+            replaceLayers(merged.layers || []);
+            setComparison(null); // Close comparison modal
+            toast?.success?.(`Merged v${versionA.versionNumber} and v${versionB.versionNumber} into new version`);
+        }
+    };
+
     const handleRestyle = async () => {
         if (!restyleLayerId || !restyleStyle.trim()) return;
 
@@ -1140,6 +1161,7 @@ export default function Generate() {
                     onClose={() => setComparison(null)}
                     onRestoreA={(version) => handleLoadVersion(version.id)}
                     onRestoreB={(version) => handleLoadVersion(version.id)}
+                    onMerge={handleMergeVersions}
                 />
             )}
 

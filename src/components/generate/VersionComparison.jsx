@@ -1,11 +1,13 @@
 import React, { useEffect } from 'react';
+import { Merge } from 'lucide-react';
 
 export default function VersionComparison({
     versionA,
     versionB,
     onClose,
     onRestoreA,
-    onRestoreB
+    onRestoreB,
+    onMerge
 }) {
     // Close on Escape key
     useEffect(() => {
@@ -108,6 +110,22 @@ export default function VersionComparison({
 
                     </div>
                 </div>
+
+                {/* Footer with Merge button */}
+                {onMerge && (
+                    <div className="px-6 py-4 border-t border-white/10 bg-black/30 flex items-center justify-center">
+                        <button
+                            onClick={() => onMerge(versionA, versionB)}
+                            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-ducks-green text-white font-bold tracking-wider hover:bg-ducks-green/90 transition-colors"
+                        >
+                            <Merge size={18} />
+                            MERGE LAYERS FROM BOTH VERSIONS
+                        </button>
+                        <p className="ml-4 text-xs text-white/40">
+                            Combines all layers from both versions into a new design
+                        </p>
+                    </div>
+                )}
 
             </div>
         </div>
