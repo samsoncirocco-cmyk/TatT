@@ -32,7 +32,7 @@ import { useToast } from '../hooks/useToast';
 import { useStorageWarning } from '../hooks/useStorageWarning';
 import * as versionService from '../services/versionService';
 import Button from '../components/ui/Button';
-import { Wand2, Zap, Download, Sparkles } from 'lucide-react';
+import { Wand2, Zap, Download, Sparkles, Layers, CheckCircle } from 'lucide-react';
 import { useImageGeneration } from '../hooks/useImageGeneration';
 import TransformControls from '../components/generate/TransformControls';
 import { exportAsPNG, exportAsARAsset } from '../services/canvasService';
@@ -440,11 +440,11 @@ export default function Generate() {
         }
     };
 
-    const handleGenerate = async () => {
+    const handleGenerate = async (finalize = false) => {
         if (!promptText.trim() && !enhancedPrompt?.trim()) return;
 
         try {
-            const result = await generateHighRes();
+            const result = await generateHighRes({ finalize });
 
             if (result && result.images && result.images.length > 0) {
                 const newLayer = await addLayer(result.images[0], 'subject');
@@ -948,14 +948,28 @@ export default function Generate() {
                                 )}
 
                                 {(enhancedPrompt || promptText.trim()) && (
-                                    <div className="mt-6">
-                                        <Button
-                                            onClick={handleGenerate}
-                                            className="w-full h-20 text-xl font-black tracking-wider bg-ducks-yellow text-black hover:bg-white shadow-2xl"
-                                            icon={Zap}
-                                        >
-                                            GENERATE DESIGN
-                                        </Button>
+                                    <div className="mt-6 space-y-3">
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <Button
+                                                onClick={() => handleGenerate(false)}
+                                                disabled={isGenerating}
+                                                className="h-16 text-base font-black tracking-wider bg-white/10 text-white hover:bg-white/20 border border-white/20"
+                                                icon={Layers}
+                                            >
+                                                REFINE
+                                            </Button>
+                                            <Button
+                                                onClick={() => handleGenerate(true)}
+                                                disabled={isGenerating}
+                                                className="h-16 text-base font-black tracking-wider bg-ducks-yellow text-black hover:bg-white shadow-2xl"
+                                                icon={CheckCircle}
+                                            >
+                                                FINALIZE
+                                            </Button>
+                                        </div>
+                                        <p className="text-[10px] text-white/40 font-mono text-center">
+                                            Refine: Quick iteration (50 steps) • Finalize: Max quality (60+ steps, 300 DPI)
+                                        </p>
                                         {isGenerating && (
                                             <div className="mt-4 space-y-2">
                                                 <div className="flex items-center justify-between text-xs text-white/60 font-mono">
