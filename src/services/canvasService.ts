@@ -5,6 +5,7 @@
  */
 
 import { add300DpiMetadata } from './pngDpiService.js';
+import { generateLayerId as generateLayerIdUtil } from '../lib/layerUtils.js';
 
 /**
  * Layer data structure
@@ -28,11 +29,9 @@ export interface Layer {
 }
 
 /**
- * Generate unique layer ID
+ * Generate unique layer ID (re-exported from shared utility)
  */
-export function generateLayerId(): string {
-    return `layer_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-}
+export const generateLayerId = generateLayerIdUtil;
 
 /**
  * Generate auto layer name based on type and existing layers

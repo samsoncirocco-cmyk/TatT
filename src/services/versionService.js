@@ -6,6 +6,7 @@
  */
 
 import { safeLocalStorageGet, safeLocalStorageSet } from './storageService.js';
+import { generateLayerId } from '../lib/layerUtils.js';
 
 const VERSION_STORAGE_KEY_PREFIX = 'tattester_version_history_';
 const MAX_VERSIONS_PER_DESIGN = 50;
@@ -224,14 +225,6 @@ export function compareVersions(sessionId, versionId1, versionId2) {
         similarityScore,
         timeDifference: new Date(version2.timestamp).getTime() - new Date(version1.timestamp).getTime()
     };
-}
-
-/**
- * Generate unique layer ID
- * (Duplicated from canvasService to avoid circular dependency)
- */
-function generateLayerId() {
-    return `layer_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
 /**
