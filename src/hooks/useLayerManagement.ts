@@ -46,6 +46,9 @@ export function useLayerManagement() {
     useEffect(() => {
         if (layers.length > 0) {
             sessionStorage.setItem(STORAGE_KEY, JSON.stringify(layers));
+        } else {
+            // Clear storage when all layers are deleted to prevent stale resurrection
+            sessionStorage.removeItem(STORAGE_KEY);
         }
     }, [layers]);
 
