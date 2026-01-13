@@ -51,7 +51,7 @@ ensureUploadDir();
  */
 router.post('/', async (req, res) => {
     try {
-        const { imageData, filename } = req.body;
+        const { imageData } = req.body;
 
         if (!imageData) {
             return res.status(400).json({
@@ -77,11 +77,13 @@ router.post('/', async (req, res) => {
             base64Data = imageData;
         }
 
-        // Generate unique filename
+        // Generate unique filename (ignore client-provided filename for safety)
         const hash = crypto.createHash('sha256').update(base64Data).digest('hex');
         const fileId = `${hash.substring(0, 16)}_${Date.now()}`;
         const extension = mimeType.split('/')[1] || 'png';
-        const generatedFilename = filename || `layer_${fileId}.${extension}`;
+        const allowedExtensions = new Set(['png', 'jpg', 'jpeg', 'webp']);
+        const safeExtension = allowedExtensions.has(extension) ? extension : 'png';
+        const generatedFilename = `layer_${fileId}.${safeExtension}`;
 
         // Convert base64 to buffer
         const buffer = Buffer.from(base64Data, 'base64');

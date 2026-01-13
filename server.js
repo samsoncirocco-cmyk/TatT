@@ -68,7 +68,7 @@ app.use(cors({
   maxAge: 86400 // 24 hours
 }));
 
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '25mb' }));
 
 // Serve static uploaded layers
 import { fileURLToPath } from 'url';
