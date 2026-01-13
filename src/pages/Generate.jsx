@@ -220,7 +220,8 @@ export default function Generate() {
         currentVersionId,
         addVersion,
         loadVersion,
-        removeVersion
+        removeVersion,
+        clearHistory
     } = useVersionHistory(sessionId);
 
     const {
@@ -573,7 +574,7 @@ export default function Generate() {
 
     const handleLoadExample = async (example) => {
         setIsLoadingExample(true);
-        resetSession();
+        clearHistory();
         clearLayers();
         setBodyPart(example.bodyPart);
         setPromptText(example.prompt || '');
