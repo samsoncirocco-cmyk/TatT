@@ -99,6 +99,48 @@ export const TATTOO_STYLES = {
   }
 };
 
+const STYLE_ALIASES = {
+  'american traditional': 'traditional',
+  'traditional': 'traditional',
+  'neo-traditional': 'neoTraditional',
+  'neo traditional': 'neoTraditional',
+  'neotraditional': 'neoTraditional',
+  'irezumi': 'japanese',
+  'japanese': 'japanese',
+  'fine-line': 'minimalist',
+  'fine line': 'minimalist',
+  'minimalist': 'minimalist',
+  'watercolor': 'watercolor',
+  'blackwork': 'blackwork',
+  'realism': 'realism',
+  'photorealistic': 'realism',
+  'anime': 'anime',
+  'manga': 'anime',
+  'new school': 'newSchool',
+  'geometric anime': 'geometricAnime',
+  'chibi': 'chibi'
+};
+
+export function normalizeStyleKey(style) {
+  if (!style) return null;
+  if (TATTOO_STYLES[style]) return style;
+
+  const normalized = style.toString().trim().toLowerCase();
+  const keyMatch = Object.keys(TATTOO_STYLES).find(
+    key => key.toLowerCase() === normalized
+  );
+  if (keyMatch) return keyMatch;
+
+  const aliasMatch = STYLE_ALIASES[normalized];
+  if (aliasMatch) return aliasMatch;
+
+  const displayMatch = Object.entries(TATTOO_STYLES).find(([, config]) => (
+    config.displayName.toLowerCase() === normalized ||
+    config.name.toLowerCase() === normalized
+  ));
+  return displayMatch ? displayMatch[0] : null;
+}
+
 /**
  * Body part size multipliers for optimal design composition
  * Helps adjust prompts based on placement location
@@ -187,9 +229,10 @@ export const SIZE_SPECS = {
  */
 export function buildPrompt(userInput) {
   const { style, subject, bodyPart, size } = userInput;
+  const normalizedStyle = normalizeStyleKey(style);
 
   // Get style template
-  const styleConfig = TATTOO_STYLES[style];
+  const styleConfig = normalizedStyle ? TATTOO_STYLES[normalizedStyle] : null;
   if (!styleConfig) {
     throw new Error(`Invalid style: ${style}`);
   }
@@ -235,7 +278,8 @@ export function validateInput(userInput) {
     errors.push('Subject description is required');
   }
 
-  if (!userInput.style || !TATTOO_STYLES[userInput.style]) {
+  const normalizedStyle = normalizeStyleKey(userInput.style);
+  if (!normalizedStyle || !TATTOO_STYLES[normalizedStyle]) {
     errors.push('Valid tattoo style must be selected');
   }
 

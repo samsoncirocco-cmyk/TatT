@@ -38,6 +38,7 @@ import * as versionService from '../services/versionService';
 import Button from '../components/ui/Button';
 import { Wand2, Zap, Download, Sparkles, Layers, CheckCircle, Plus, Eraser } from 'lucide-react';
 import { useImageGeneration } from '../hooks/useImageGeneration';
+import { normalizeStyleKey } from '../config/promptTemplates';
 import TransformControls from '../components/generate/TransformControls';
 import { exportAsPNG, exportAsARAsset } from '../services/canvasService';
 import { convertToStencil } from '../services/stencilService';
@@ -208,6 +209,16 @@ export default function Generate() {
     } = useLayerManagement();
 
     const resolvedStyle = selectedChips[0] || 'Traditional';
+    const normalizedStyle = normalizeStyleKey(resolvedStyle) || 'traditional';
+
+    const generationInput = useMemo(() => ({
+        subject: enhancedPrompt || promptText,
+        style: normalizedStyle,
+        bodyPart,
+        size,
+        aiModel,
+        negativePrompt
+    }), [enhancedPrompt, promptText, normalizedStyle, bodyPart, size, aiModel, negativePrompt]);
 
     // Toast and storage monitoring
     const { toast, toasts, removeToast } = useToast();
@@ -222,14 +233,7 @@ export default function Generate() {
         queueLength,
         arAsset
     } = useImageGeneration({
-        userInput: {
-            subject: enhancedPrompt || promptText,
-            style: resolvedStyle,
-            bodyPart: bodyPart,
-            size,
-            aiModel,
-            negativePrompt
-        }
+        userInput: generationInput
     });
 
     const {
@@ -237,14 +241,7 @@ export default function Generate() {
         isPreviewing,
         error: previewError
     } = useSmartPreview({
-        userInput: {
-            subject: enhancedPrompt || promptText,
-            style: resolvedStyle,
-            bodyPart,
-            size,
-            aiModel,
-            negativePrompt
-        },
+        userInput: generationInput,
         enabled: Boolean((enhancedPrompt || promptText).trim()),
         debounceMs: 300
     });
@@ -783,7 +780,7 @@ export default function Generate() {
             const response = await generateHighRes({
                 userInputOverride: {
                     subject: elementPrompt,
-                    style: resolvedStyle,
+                    style: normalizedStyle,
                     bodyPart,
                     size,
                     aiModel,
@@ -880,7 +877,7 @@ export default function Generate() {
             const response = await generateHighRes({
                 userInputOverride: {
                     subject: data.prompt,
-                    style: data.useOriginalStyle ? resolvedStyle : 'default',
+                    style: data.useOriginalStyle ? normalizedStyle : 'default',
                     bodyPart,
                     size,
                     aiModel,

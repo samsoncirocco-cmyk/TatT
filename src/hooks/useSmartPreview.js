@@ -39,6 +39,7 @@ export function useSmartPreview({ userInput, enabled = true, debounceMs = 300 } 
 
   const debounceRef = useRef(null);
   const abortRef = useRef(null);
+  const lastRequestedSignatureRef = useRef('');
 
   const inputSignature = useMemo(() => {
     if (!userInput) return '';
@@ -68,6 +69,10 @@ export function useSmartPreview({ userInput, enabled = true, debounceMs = 300 } 
       return null;
     }
 
+    if (inputSignature && lastRequestedSignatureRef.current === inputSignature) {
+      return preview;
+    }
+
     if (abortRef.current) {
       abortRef.current.abort();
     }
@@ -77,6 +82,7 @@ export function useSmartPreview({ userInput, enabled = true, debounceMs = 300 } 
 
     setIsPreviewing(true);
     setError(null);
+    lastRequestedSignatureRef.current = inputSignature;
 
     try {
       const result = await generatePreviewDesign(userInput, { signal: controller.signal });
@@ -101,7 +107,7 @@ export function useSmartPreview({ userInput, enabled = true, debounceMs = 300 } 
       setIsPreviewing(false);
       abortRef.current = null;
     }
-  }, [enabled, userInput, storePreview]);
+  }, [enabled, userInput, storePreview, inputSignature, preview]);
 
   useEffect(() => {
     if (!enabled || !userInput || !userInput.subject?.trim()) {
