@@ -6,6 +6,7 @@ Scope: Trending gallery render, Vibe chips suggestions, Version timeline UI, Lay
 - URL: http://127.0.0.1:4173/generate (Vite preview)
 - Browser: Playwright Chromium (headless)
 - Viewport: 1440x900
+- Proxy: http://127.0.0.1:3001/api (auth token injected via build)
 
 ## Results
 - Trending gallery render: PASS
@@ -18,14 +19,13 @@ Scope: Trending gallery render, Vibe chips suggestions, Version timeline UI, Lay
   - Selecting "Cyberpunk Gohan" loads 2 layers and updates prompt text.
 - Element refinement right-click menu: PASS
   - Context menu opens with "Regenerate Element" entry.
-- Low-res preview mode: PARTIAL
-  - Preview badge appears, but preview request failed in headless run (likely missing API config).
+- Low-res preview mode: PASS
+  - Preview badge appears and preview image renders.
 
 ## Notes
 - Screenshot evidence captured locally (not committed):
   - /tmp/generate_initial.png
   - /tmp/generate_after_click.png
-- Sample trending image URL returned HTTP 404 (replicate.delivery); if this is persistent, example cards will show broken images.
 
 ## Follow-ups
 - Backend-assisted check: verify SmartPreview low-res watermark -> refine -> finalize flow end-to-end.
