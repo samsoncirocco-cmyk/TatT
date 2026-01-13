@@ -179,7 +179,9 @@ async function importArtists(session, artists) {
       bookingAvailable: artist.bookingAvailable,
       portfolioImages: artist.portfolioImages,
       styles: artist.styles,
-      tags: artist.tags
+      tags: artist.tags,
+      embedding_id: artist.embedding_id || null,
+      mentor_id: artist.mentor_id || null
     }));
 
     const query = `
@@ -201,7 +203,9 @@ async function importArtists(session, artists) {
           a.bio = artist.bio,
           a.yearsExperience = artist.yearsExperience,
           a.bookingAvailable = artist.bookingAvailable,
-          a.portfolioImages = artist.portfolioImages
+          a.portfolioImages = artist.portfolioImages,
+          a.embedding_id = artist.embedding_id,
+          a.mentor_id = artist.mentor_id
 
       // Link to City
       WITH a, artist
@@ -234,6 +238,120 @@ async function importArtists(session, artists) {
 }
 
 /**
+ * Import mentor/apprentice relationships (APPRENTICED_UNDER)
+ * Creates relationships from artist.mentor_id with start_year and end_year properties
+ */
+async function importMentorRelationships(session, artists) {
+  console.log('\n👥 Importing mentor/apprentice relationships...');
+
+  // Filter artists that have a mentor_id
+  const mentorData = artists
+    .filter(artist => artist.mentor_id != null)
+    .map(artist => {
+      // Estimate apprenticeship years based on yearsExperience
+      const currentYear = new Date().getFullYear();
+      const apprenticeStartYear = currentYear - artist.yearsExperience;
+      const apprenticeshipDuration = Math.min(artist.yearsExperience, 4); // Cap at 4 years
+      const startYear = apprenticeStartYear;
+      const endYear = startYear + apprenticeshipDuration;
+
+      return {
+        apprentice_id: artist.id,
+        mentor_id: artist.mentor_id,
+        startYear,
+        endYear
+      };
+    });
+
+  if (mentorData.length === 0) {
+    console.log('  ⚠️  No mentor relationships to import');
+    return;
+  }
+
+  const query = `
+    UNWIND $relationships AS rel
+    MATCH (apprentice:Artist {id: rel.apprentice_id})
+    MATCH (mentor:Artist {id: rel.mentor_id})
+    MERGE (apprentice)-[r:APPRENTICED_UNDER]->(mentor)
+    SET r.start_year = rel.startYear,
+        r.end_year = rel.endYear
+    RETURN count(r) as relationshipCount
+  `;
+
+  try {
+    const result = await session.run(query, { relationships: mentorData });
+    // Check if records exist before accessing (MATCH queries may return empty if artists don't exist)
+    const count = result.records.length > 0
+      ? neo4j.integer.toNumber(result.records[0].get('relationshipCount'))
+      : 0;
+    
+    if (count === 0 && mentorData.length > 0) {
+      console.log(`  ⚠️  No relationships created (${mentorData.length} attempted) - check if artist IDs exist in database`);
+    } else {
+      console.log(`  ✓ Created ${count} APPRENTICED_UNDER relationships`);
+    }
+  } catch (error) {
+    console.error('  ❌ Error importing mentor relationships:', error.message);
+    throw error;
+  }
+}
+
+/**
+ * Import influence relationships (INFLUENCED_BY)
+ * Creates relationships from artist.influenced_by array with influence_type and strength properties
+ */
+async function importInfluenceRelationships(session, artists) {
+  console.log('\n🎨 Importing influence relationships...');
+
+  // Flatten influence data from all artists
+  const influenceData = [];
+  artists.forEach(artist => {
+    if (artist.influenced_by && Array.isArray(artist.influenced_by) && artist.influenced_by.length > 0) {
+      artist.influenced_by.forEach(influence => {
+        influenceData.push({
+          artist_id: artist.id,
+          influenced_by_id: influence.artist_id,
+          influence_type: influence.influence_type,
+          strength: influence.strength
+        });
+      });
+    }
+  });
+
+  if (influenceData.length === 0) {
+    console.log('  ⚠️  No influence relationships to import');
+    return;
+  }
+
+  const query = `
+    UNWIND $relationships AS rel
+    MATCH (artist:Artist {id: rel.artist_id})
+    MATCH (influencer:Artist {id: rel.influenced_by_id})
+    MERGE (artist)-[r:INFLUENCED_BY]->(influencer)
+    SET r.influence_type = rel.influence_type,
+        r.strength = rel.strength
+    RETURN count(r) as relationshipCount
+  `;
+
+  try {
+    const result = await session.run(query, { relationships: influenceData });
+    // Check if records exist before accessing (MATCH queries may return empty if artists don't exist)
+    const count = result.records.length > 0
+      ? neo4j.integer.toNumber(result.records[0].get('relationshipCount'))
+      : 0;
+    
+    if (count === 0 && influenceData.length > 0) {
+      console.log(`  ⚠️  No relationships created (${influenceData.length} attempted) - check if artist IDs exist in database`);
+    } else {
+      console.log(`  ✓ Created ${count} INFLUENCED_BY relationships`);
+    }
+  } catch (error) {
+    console.error('  ❌ Error importing influence relationships:', error.message);
+    throw error;
+  }
+}
+
+/**
  * Verify the import by running some sample queries
  */
 async function verifyImport(session) {
@@ -259,13 +377,17 @@ async function verifyImport(session) {
     MATCH ()-[r:LOCATED_IN]->() WITH count(r) as located
     MATCH ()-[r:SPECIALIZES_IN]->() WITH located, count(r) as specializes
     MATCH ()-[r:TAGGED_WITH]->() WITH located, specializes, count(r) as tagged
-    RETURN located, specializes, tagged
+    MATCH ()-[r:APPRENTICED_UNDER]->() WITH located, specializes, tagged, count(r) as apprenticed
+    MATCH ()-[r:INFLUENCED_BY]->() WITH located, specializes, tagged, apprenticed, count(r) as influenced
+    RETURN located, specializes, tagged, apprenticed, influenced
   `);
 
   const relRecord = relationships.records[0];
   console.log(`  ✓ LOCATED_IN relationships: ${neo4j.integer.toNumber(relRecord.get('located'))}`);
   console.log(`  ✓ SPECIALIZES_IN relationships: ${neo4j.integer.toNumber(relRecord.get('specializes'))}`);
   console.log(`  ✓ TAGGED_WITH relationships: ${neo4j.integer.toNumber(relRecord.get('tagged'))}`);
+  console.log(`  ✓ APPRENTICED_UNDER relationships: ${neo4j.integer.toNumber(relRecord.get('apprenticed'))}`);
+  console.log(`  ✓ INFLUENCED_BY relationships: ${neo4j.integer.toNumber(relRecord.get('influenced'))}`);
 
   // Sample query: Find artists in Phoenix who specialize in Traditional
   const sampleQuery = await session.run(`
@@ -330,6 +452,12 @@ async function main() {
 
     // Import artists with relationships
     await importArtists(session, artistsData.artists);
+
+    // Import mentor/apprentice relationships
+    await importMentorRelationships(session, artistsData.artists);
+
+    // Import influence relationships
+    await importInfluenceRelationships(session, artistsData.artists);
 
     // Verify the import
     await verifyImport(session);

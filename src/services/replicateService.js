@@ -12,13 +12,13 @@
  */
 
 import { buildPrompt, validateInput } from '../config/promptTemplates.js';
-import { 
-  fetchJSON, 
-  postJSON, 
-  FetchError, 
-  ErrorCodes, 
+import {
+  fetchJSON,
+  postJSON,
+  FetchError,
+  ErrorCodes,
   getUserErrorMessage,
-  isErrorCode 
+  isErrorCode
 } from './fetchWithAbort.js';
 
 // Proxy server configuration (injected via env)
@@ -47,6 +47,7 @@ export const AI_MODELS = {
     version: 'anotherjesse/amy-tattoo-test-1:0e345aaf74965ae98fb83ca9c65376ee42da5c7837d88c648ddc5d3cba1f35dc',
     description: 'Fine-tuned for traditional tattoo flash art',
     cost: 0.003,
+    supportsRGBA: true,
     params: {
       num_outputs: 4,
       width: 1024,
@@ -64,6 +65,7 @@ export const AI_MODELS = {
     version: 'lucataco/sdxl-niji-se:9e0521b45e1774fc3288ec9ffa964d064c9d905e1ca50f37549084b021d7449c',
     description: 'Vibrant anime style, perfect for DBZ-inspired tattoos',
     cost: 0.03, // ~$0.12 / 4 images (based on p50 estimate)
+    supportsRGBA: false,
     params: {
       num_outputs: 4,
       width: 1024,
@@ -79,6 +81,7 @@ export const AI_MODELS = {
     version: 'lucataco/dreamshaper-xl-turbo:0a1710e0187b01a255302738ca0158ff02a22f4638679533e111082f9dd1b615',
     description: 'Fast anime/manga generation, versatile style',
     cost: 0.001, // ~$0.0039 / 4 images (extremely cheap!)
+    supportsRGBA: true,
     params: {
       num_outputs: 4,
       width: 1024,
@@ -94,6 +97,7 @@ export const AI_MODELS = {
     version: 'stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b',
     description: 'General-purpose, versatile for any subject',
     cost: 0.0055,
+    supportsRGBA: true,
     params: {
       num_outputs: 4,
       width: 1024,
@@ -113,6 +117,7 @@ export const AI_MODELS = {
     description: 'Google\'s latest model, photorealistic quality',
     cost: 0.02, // Approximate Vertex AI pricing
     provider: 'vertex-ai', // Special flag for Vertex AI models
+    supportsRGBA: false,
     params: {
       num_outputs: 4,
       width: 1024,
@@ -126,6 +131,21 @@ export const AI_MODELS = {
 
 // Default model
 const DEFAULT_MODEL = 'sdxl';
+const PREVIEW_MODEL = 'dreamshaper';
+
+const PREVIEW_OVERRIDES = {
+  num_outputs: 1,
+  width: 512,
+  height: 512,
+  num_inference_steps: 4,
+  guidance_scale: 2
+};
+
+const HIGH_RES_OVERRIDES = {
+  num_outputs: 1,
+  width: 1024,
+  height: 1024
+};
 
 // Budget tracking (stored in localStorage for MVP)
 const BUDGET_STORAGE_KEY = 'tattester_api_usage';
@@ -195,23 +215,28 @@ export function getAPIUsage() {
  * @param {string} userInput.subject - Subject description (e.g., "wolf and moon")
  * @param {string} userInput.bodyPart - Body part placement
  * @param {string} userInput.size - Design size (small, medium, large)
- * @param {string} userInput.aiModel - AI model to use ('sdxl' or 'tattoo')
+ * @param {string} userInput.aiModel - AI model to use (optional, will be auto-selected if not provided)
+ * @param {string} modelId - Optional explicit model ID to use (overrides userInput.aiModel)
  * @param {AbortSignal} signal - Optional abort signal to cancel polling
  * @returns {Promise<Object>} Generated design data with image URLs
  */
-export async function generateTattooDesign(userInput, signal = null) {
+export async function generateTattooDesign(userInput, modelId = null, signal = null, options = {}) {
   // Validate input
   const validation = validateInput(userInput);
   if (!validation.isValid) {
     throw new Error(`Invalid input: ${validation.errors.join(', ')}`);
   }
 
-  // Get selected model or use default
-  const modelId = userInput.aiModel || DEFAULT_MODEL;
-  const model = AI_MODELS[modelId];
+  // Get selected model: explicit modelId > userInput.aiModel > default
+  const selectedModelId = modelId || userInput.aiModel || DEFAULT_MODEL;
+  let model = AI_MODELS[selectedModelId];
 
   if (!model) {
-    throw new Error(`Invalid model: ${modelId}`);
+    console.warn(`[Replicate] Invalid model: ${selectedModelId}, falling back to default`);
+    model = AI_MODELS[DEFAULT_MODEL];
+    if (!model) {
+      throw new Error(`Invalid model: ${selectedModelId} and default model not found`);
+    }
   }
 
   // Detect if this is a council-enhanced prompt
@@ -243,6 +268,11 @@ export async function generateTattooDesign(userInput, signal = null) {
     }
   }
 
+  const inputOverrides = options.inputOverrides || {};
+  const outputFormat = options.outputFormat || 'png';
+  const enableRGBA = options.enableRGBA === true;
+  const rgbaEnabled = enableRGBA && model.supportsRGBA;
+
   console.log('[Replicate] Using model:', model.name);
   console.log('[Replicate] Generating tattoo design with prompt:', finalPrompt);
 
@@ -253,15 +283,30 @@ export async function generateTattooDesign(userInput, signal = null) {
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 3000));
 
+    const demoImages = inputOverrides.num_outputs === 1
+      ? [MOCK_IMAGES[0]]
+      : MOCK_IMAGES;
+
     const output = {
       success: true,
-      images: MOCK_IMAGES,
+      images: demoImages,
       metadata: {
         generatedAt: new Date().toISOString(),
         prompt: finalPrompt,
         negativePrompt: negativePrompt,
         demoMode: true,
-        councilEnhanced: isCouncilEnhanced
+        councilEnhanced: isCouncilEnhanced,
+        mode: options.mode || 'standard',
+        modelId: model.id,
+        modelName: model.name,
+        outputFormat,
+        rgbaReady: rgbaEnabled,
+        dpi: options.dpi || null,
+        preview: options.mode === 'preview',
+        parameters: {
+          ...model.params,
+          ...inputOverrides
+        }
       },
       userInput
     };
@@ -280,13 +325,21 @@ export async function generateTattooDesign(userInput, signal = null) {
     }
 
     // Step 1: Create prediction via proxy server
+    const predictionInput = {
+      ...model.params,
+      ...inputOverrides,
+      prompt: finalPrompt,
+      negative_prompt: negativePrompt
+    };
+
+    if (rgbaEnabled) {
+      predictionInput.output_format = outputFormat;
+      predictionInput.output_quality = 100;
+    }
+
     const prediction = await postJSON(`${PROXY_URL}/predictions`, {
       version: model.version,
-      input: {
-        ...model.params,
-        prompt: finalPrompt,
-        negative_prompt: negativePrompt
-      }
+      input: predictionInput
     });
 
     console.log('[Replicate] Prediction created:', prediction.id);
@@ -333,7 +386,8 @@ export async function generateTattooDesign(userInput, signal = null) {
     }
 
     // Track API usage with actual model cost
-    const generationCost = model.cost * model.params.num_outputs;
+    const resolvedOutputs = predictionInput.num_outputs || model.params.num_outputs || 1;
+    const generationCost = model.cost * resolvedOutputs;
     trackAPIUsage(generationCost);
 
     // Format response
@@ -344,7 +398,15 @@ export async function generateTattooDesign(userInput, signal = null) {
         generatedAt: new Date().toISOString(),
         prompt: finalPrompt,
         negativePrompt: negativePrompt,
-        councilEnhanced: isCouncilEnhanced
+        councilEnhanced: isCouncilEnhanced,
+        mode: options.mode || 'standard',
+        modelId: model.id,
+        modelName: model.name,
+        outputFormat,
+        rgbaReady: rgbaEnabled,
+        dpi: options.dpi || null,
+        preview: options.mode === 'preview',
+        parameters: predictionInput
       },
       userInput
     };
@@ -380,18 +442,19 @@ export async function generateTattooDesign(userInput, signal = null) {
  * Implements exponential backoff with retry budget cap
  *
  * @param {Object} userInput - Design parameters
+ * @param {string} modelId - Optional model ID to use
  * @param {AbortSignal} signal - Optional abort signal
  * @param {number} maxRetries - Maximum retry attempts (default: 3)
  * @returns {Promise<Object>} Generated design data
  */
-export async function generateWithRetry(userInput, signal = null, maxRetries = 3) {
+export async function generateWithRetry(userInput, modelId = null, signal = null, maxRetries = 3, options = {}) {
   let lastError;
   let retryBudget = maxRetries;
 
   for (let attempt = 1; attempt <= retryBudget; attempt++) {
     try {
       console.log(`[Replicate] Generation attempt ${attempt}/${retryBudget}`);
-      return await generateTattooDesign(userInput, signal);
+      return await generateTattooDesign(userInput, modelId, signal, options);
     } catch (error) {
       lastError = error;
 
@@ -419,7 +482,7 @@ export async function generateWithRetry(userInput, signal = null, maxRetries = 3
       // Wait before retrying (exponential backoff)
       const waitTime = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
       console.log(`[Replicate] Retrying in ${waitTime / 1000}s... (${retryBudget - attempt} retries left)`);
-      
+
       await new Promise((resolve, reject) => {
         const timeout = setTimeout(resolve, waitTime);
         signal?.addEventListener('abort', () => {
@@ -497,7 +560,7 @@ export async function checkServiceHealth() {
         code: error.code,
         banner: {
           type: 'error',
-          message: error.code === ErrorCodes.AUTH_INVALID 
+          message: error.code === ErrorCodes.AUTH_INVALID
             ? 'Authentication failed. Check your credentials.'
             : 'Cannot connect to server. Make sure the backend is running.',
           action: error.code === ErrorCodes.NETWORK_ERROR ? 'Start server' : 'Check auth'
@@ -567,15 +630,56 @@ const rateLimiter = {
  * Generate with rate limiting
  *
  * @param {Object} userInput - Design parameters
+ * @param {string} modelId - Optional model ID to use
  * @param {AbortSignal} signal - Optional abort signal for cancellation
  * @returns {Promise<Object>} Generated design data
  */
-export async function generateWithRateLimit(userInput, signal = null) {
+export async function generateWithRateLimit(userInput, modelId = null, signal = null, options = {}) {
   if (!rateLimiter.canMakeRequest()) {
     const waitTime = rateLimiter.getTimeUntilNextRequest();
     throw new Error(`Rate limit reached. Please wait ${Math.ceil(waitTime / 1000)} seconds before generating again.`);
   }
 
   rateLimiter.recordRequest();
-  return generateWithRetry(userInput, signal);
+  return generateWithRetry(userInput, modelId, signal, 3, options);
+}
+
+/**
+ * Generate a low-res preview using the turbo model
+ * Returns a single image optimized for fast feedback.
+ */
+export async function generatePreviewDesign(userInput, options = {}) {
+  return generateWithRateLimit(userInput, options.modelId || PREVIEW_MODEL, options.signal || null, {
+    mode: 'preview',
+    dpi: 72,
+    outputFormat: 'png',
+    enableRGBA: true,
+    inputOverrides: {
+      ...PREVIEW_OVERRIDES,
+      ...(options.inputOverrides || {})
+    }
+  });
+}
+
+/**
+ * Generate a high-res design with 300 DPI metadata
+ * Supports RGBA output when the model allows it.
+ */
+export async function generateHighResDesign(userInput, options = {}) {
+  const modelId = options.modelId || userInput.aiModel || DEFAULT_MODEL;
+  const model = AI_MODELS[modelId] || AI_MODELS[DEFAULT_MODEL];
+  const baseSteps = model?.params?.num_inference_steps || 50;
+  const targetSteps = options.finalize ? Math.max(baseSteps, 60) : baseSteps;
+
+  return generateWithRateLimit(userInput, modelId, options.signal || null, {
+    mode: options.finalize ? 'final' : 'refine',
+    dpi: 300,
+    outputFormat: 'png',
+    enableRGBA: options.enableRGBA !== false,
+    inputOverrides: {
+      ...HIGH_RES_OVERRIDES,
+      num_inference_steps: targetSteps,
+      ...(options.inputOverrides || {})
+    }
+  });
 }

@@ -9,6 +9,16 @@ const NEO4J_ENABLED = import.meta.env.VITE_NEO4J_ENABLED === 'true';
 const NEO4J_ENDPOINT = import.meta.env.VITE_NEO4J_ENDPOINT || 'http://localhost:3001/api/neo4j/query';
 
 /**
+ * Relationship type constants
+ */
+export const INFLUENCE_TYPES = {
+  STYLE: 'style_influence',
+  TECHNIQUE: 'technique_influence',
+  PHILOSOPHY: 'philosophy_influence',
+  COMPOSITION: 'composition_influence'
+};
+
+/**
  * Execute a read-only Cypher query via proxy
  * @param {string} query - Cypher query string
  * @param {Object} params - Query parameters
@@ -110,6 +120,8 @@ export async function findMatchingArtists(preferences) {
       a.hourlyRate AS hourlyRate,
       a.portfolio AS portfolio,
       a.instagram AS instagram,
+      a.embedding_id AS embedding_id,
+      a.tags AS tags,
       totalScore * 100 AS score
     ORDER BY totalScore DESC
     LIMIT 20
@@ -131,9 +143,85 @@ export async function findMatchingArtists(preferences) {
     hourlyRate: record.hourlyRate,
     portfolio: record.portfolio,
     instagram: record.instagram,
+    embedding_id: record.embedding_id,
+    tags: record.tags,
     score: Math.round(record.score),
     matchScore: record.score / 100,
     reasons: generateMatchReasons(record, preferences)
+  }));
+}
+
+/**
+ * Match Pulse query optimized for sidebar updates
+ * @param {Object} preferences - Match context
+ * @returns {Promise<Array>} Matched artists
+ */
+export async function findArtistMatchesForPulse(preferences) {
+  const { style, bodyPart, location, limit = 20 } = preferences;
+
+  const query = `
+    MATCH (a:Artist)
+    WHERE
+      ($style IS NULL OR any(s IN coalesce(a.styles, []) WHERE toLower(s) = toLower($style)))
+      AND ($bodyPart IS NULL OR any(bp IN coalesce(a.bodyParts, []) WHERE toLower(bp) = toLower($bodyPart)))
+      AND (
+        $location IS NULL OR
+        toLower(coalesce(a.location, '')) CONTAINS toLower($location) OR
+        toLower(coalesce(a.city, '')) CONTAINS toLower($location)
+      )
+    WITH a,
+      CASE
+        WHEN $style IS NULL THEN 0.4
+        WHEN any(s IN coalesce(a.styles, []) WHERE toLower(s) = toLower($style)) THEN 0.4
+        ELSE 0.2
+      END AS styleScore,
+      CASE
+        WHEN $bodyPart IS NULL THEN 0.2
+        WHEN any(bp IN coalesce(a.bodyParts, []) WHERE toLower(bp) = toLower($bodyPart)) THEN 0.2
+        ELSE 0.1
+      END AS bodyPartScore,
+      CASE
+        WHEN $location IS NULL THEN 0.1
+        WHEN toLower(coalesce(a.location, '')) CONTAINS toLower($location) THEN 0.1
+        ELSE 0.05
+      END AS locationScore,
+      rand() * 0.1 AS varietyScore
+    WITH a, (styleScore + bodyPartScore + locationScore + varietyScore) AS totalScore
+    RETURN
+      a.id AS id,
+      a.name AS name,
+      a.city AS city,
+      a.location AS location,
+      a.styles AS styles,
+      a.bodyParts AS bodyParts,
+      a.portfolio AS portfolio,
+      a.portfolioImages AS portfolioImages,
+      a.instagram AS instagram,
+      a.tags AS tags,
+      totalScore * 100 AS score
+    ORDER BY totalScore DESC
+    LIMIT $limit
+  `;
+
+  const results = await executeCypherQuery(query, {
+    style: style || null,
+    bodyPart: bodyPart || null,
+    location: location || null,
+    limit
+  });
+
+  return results.map(record => ({
+    id: record.id,
+    name: record.name,
+    city: record.city,
+    location: record.location,
+    styles: record.styles || [],
+    bodyParts: record.bodyParts || [],
+    portfolio: record.portfolio || [],
+    portfolioImages: record.portfolioImages || [],
+    instagram: record.instagram,
+    tags: record.tags || [],
+    score: Math.round(record.score || 0)
   }));
 }
 
@@ -148,7 +236,7 @@ function generateMatchReasons(artist, preferences) {
 
   // Style matches
   if (preferences.styles && artist.styles) {
-    const matchingStyles = preferences.styles.filter(s => 
+    const matchingStyles = preferences.styles.filter(s =>
       artist.styles.includes(s)
     );
     if (matchingStyles.length > 0) {
@@ -192,3 +280,156 @@ export async function getArtistById(artistId) {
   return results[0]?.a || null;
 }
 
+/**
+ * Get multiple artists by ID
+ * @param {Array<string|number>} artistIds - Artist IDs
+ * @returns {Promise<Array>} Artist data
+ */
+export async function getArtistsByIds(artistIds = []) {
+  if (!artistIds.length) return [];
+
+  const query = `
+    MATCH (a:Artist)
+    WHERE a.id IN $artistIds
+    RETURN
+      a.id AS id,
+      a.name AS name,
+      a.city AS city,
+      a.location AS location,
+      a.styles AS styles,
+      a.bodyParts AS bodyParts,
+      a.portfolio AS portfolio,
+      a.portfolioImages AS portfolioImages,
+      a.instagram AS instagram,
+      a.tags AS tags
+  `;
+
+  const results = await executeCypherQuery(query, { artistIds });
+
+  return results.map(record => ({
+    id: record.id,
+    name: record.name,
+    city: record.city,
+    location: record.location,
+    styles: record.styles || [],
+    bodyParts: record.bodyParts || [],
+    portfolio: record.portfolio || [],
+    portfolioImages: record.portfolioImages || [],
+    instagram: record.instagram,
+    tags: record.tags || []
+  }));
+}
+
+/**
+ * Get artist genealogy (mentor chain and apprentices)
+ * @param {string} artistId - Artist ID
+ * @returns {Promise<Object>} Genealogy data with mentor chain and apprentices
+ */
+export async function getArtistGenealogy(artistId) {
+  const query = `
+    MATCH (a:Artist {id: $artistId})
+    
+    // Get direct mentor
+    OPTIONAL MATCH (a)-[r:APPRENTICED_UNDER]->(directMentor:Artist)
+    WITH a, 
+         CASE WHEN directMentor IS NOT NULL THEN {
+           id: directMentor.id,
+           name: directMentor.name,
+           startYear: r.start_year,
+           endYear: r.end_year
+         } ELSE null END as directMentor
+    
+    // Get all mentors in chain (up to 5 levels deep)
+    OPTIONAL MATCH path = (a)-[:APPRENTICED_UNDER*1..5]->(mentor:Artist)
+    WITH a, directMentor, collect(DISTINCT { id: mentor.id, name: mentor.name }) as mentorChain
+    
+    // Get direct apprentices
+    OPTIONAL MATCH (apprentice:Artist)-[apprRel:APPRENTICED_UNDER]->(a)
+    WITH a, directMentor, mentorChain,
+         collect(DISTINCT {
+           id: apprentice.id,
+           name: apprentice.name,
+           yearsExperience: apprentice.yearsExperience,
+           startYear: apprRel.start_year,
+           endYear: apprRel.end_year
+         }) as apprentices
+    
+    RETURN {
+      artist: {
+        id: a.id,
+        name: a.name
+      },
+      directMentor: directMentor,
+      mentorChain: mentorChain,
+      apprentices: apprentices
+    } as genealogy
+  `;
+
+  const results = await executeCypherQuery(query, { artistId });
+  return results[0]?.genealogy || null;
+}
+
+/**
+ * Get artists influenced by a specific artist
+ * @param {string} artistId - Artist ID (the influencer)
+ * @returns {Promise<Array>} List of artists influenced by this artist
+ */
+export async function getInfluencedArtists(artistId) {
+  const query = `
+    MATCH (influencer:Artist {id: $artistId})
+    MATCH (artist:Artist)-[r:INFLUENCED_BY]->(influencer)
+    RETURN {
+      id: artist.id,
+      name: artist.name,
+      influence_type: r.influence_type,
+      strength: r.strength
+    } as influencedArtist
+    ORDER BY r.strength DESC
+  `;
+
+  const results = await executeCypherQuery(query, { artistId });
+  return results.map(record => record.influencedArtist);
+}
+
+/**
+ * Find artists by embedding IDs (batch lookup)
+ * @param {Array<string>} embeddingIds - Array of embedding IDs
+ * @returns {Promise<Array>} Artists with matching embedding IDs
+ */
+export async function findArtistsByEmbeddingIds(embeddingIds) {
+  if (!Array.isArray(embeddingIds) || embeddingIds.length === 0) {
+    return [];
+  }
+
+  const query = `
+    MATCH (a:Artist)
+    WHERE a.embedding_id IN $embeddingIds
+    RETURN a
+    ORDER BY a.name
+  `;
+
+  const results = await executeCypherQuery(query, { embeddingIds });
+  return results.map(record => record.a);
+}
+
+/**
+ * Update artist embedding ID (link artist to vector embedding)
+ * @param {string} artistId - Artist ID
+ * @param {string} embeddingId - Embedding ID
+ * @returns {Promise<boolean>} Success status
+ */
+export async function updateArtistEmbeddingId(artistId, embeddingId) {
+  const query = `
+    MATCH (a:Artist {id: $artistId})
+    SET a.embedding_id = $embeddingId
+    RETURN a.embedding_id as embeddingId
+  `;
+
+  try {
+    const results = await executeCypherQuery(query, { artistId, embeddingId });
+    return results.length > 0;
+  } catch (error) {
+    console.warn('[Neo4j] Failed to update artist embedding ID:', error.message);
+    return false;
+  }
+}

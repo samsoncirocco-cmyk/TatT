@@ -30,6 +30,9 @@ import PromptEnhancer from './PromptEnhancer';
 import CouncilLoadingState from './CouncilLoadingState';
 import StencilExport from './StencilExport';
 import InpaintingEditor from './InpaintingEditor';
+import { useVersionHistory } from '../hooks/useVersionHistory';
+import VersionTimeline from './generate/VersionTimeline';
+import VersionComparison from './generate/VersionComparison';
 
 export default function DesignGeneratorWithCouncil() {
   // Toast notifications
@@ -62,6 +65,16 @@ export default function DesignGeneratorWithCouncil() {
   const [selectedForInpainting, setSelectedForInpainting] = useState(null);
   const [inpaintedImages, setInpaintedImages] = useState({});
 
+  // Version History State
+  const [sessionId] = useState(() => 'session_' + Date.now());
+  const {
+    versions,
+    currentVersion,
+    addVersion,
+    loadVersion
+  } = useVersionHistory(sessionId);
+  const [compareVersion, setCompareVersion] = useState(null);
+
   // Load API usage on mount
   useEffect(() => {
     const usage = getAPIUsage();
@@ -83,10 +96,20 @@ export default function DesignGeneratorWithCouncil() {
   };
 
   // Handle prompt enhancement selection
-  const handlePromptSelected = (prompt, negative) => {
-    console.log('[DesignGenerator] Prompt enhanced:', { prompt, negative });
+  const handlePromptSelected = (prompt, negative, modelSelection) => {
+    console.log('[DesignGenerator] Prompt enhanced:', { prompt, negative, modelSelection });
     setEnhancedPrompt(prompt);
     setNegativePrompt(negative);
+
+    // Store model selection for use during generation
+    if (modelSelection) {
+      setFormData(prev => ({
+        ...prev,
+        selectedModel: modelSelection.modelId
+      }));
+      console.log('[DesignGenerator] Selected model:', modelSelection.modelName);
+    }
+
     setShowEnhancer(false);
   };
 
@@ -110,16 +133,37 @@ export default function DesignGeneratorWithCouncil() {
       });
 
       // Call Replicate API with enhanced prompt (if available)
+      // Use council-selected model if available, otherwise use user's manual selection
+      const modelToUse = formData.selectedModel || formData.aiModel;
+
       const result = await generateWithRateLimit({
         ...formData,
         // Override subject with enhanced prompt if available
         subject: enhancedPrompt || formData.subject,
         negativePrompt: negativePrompt
-      });
+      }, modelToUse);
 
       console.log('[DesignGenerator] Generation successful:', result);
 
       setGeneratedDesigns(result);
+
+      // Auto-save version
+      if (result.images && result.images.length > 0) {
+        addVersion({
+          imageUrl: result.images[0], // Use first image as thumbnail
+          allImages: result.images,
+          metadata: {
+            prompt: enhancedPrompt || formData.subject,
+            negativePrompt: negativePrompt,
+            model: modelToUse,
+            style: formData.style,
+            bodyPart: formData.bodyPart,
+            size: formData.size,
+            ...result.metadata
+          },
+          parameters: { ...formData }
+        });
+      }
 
       // Update API usage
       const usage = getAPIUsage();
@@ -192,6 +236,54 @@ export default function DesignGeneratorWithCouncil() {
     toast.success('Design edited successfully!');
   };
 
+  // Handle Version Selection (Branching/Loading)
+  const handleVersionSelect = (version) => {
+    loadVersion(version.id);
+
+    // Restore Form State
+    if (version.parameters) {
+      setFormData(prev => ({
+        ...prev,
+        ...version.parameters
+      }));
+    }
+
+    // Restore Designs
+    if (version.allImages) {
+      setGeneratedDesigns({
+        images: version.allImages,
+        metadata: version.metadata
+      });
+    }
+
+    // Restore Prompts
+    if (version.metadata?.enhancedPrompt) {
+      setEnhancedPrompt(version.metadata.enhancedPrompt);
+    } else {
+      setEnhancedPrompt(null);
+    }
+
+    toast.success(`Loaded version ${version.versionNumber}`);
+  };
+
+  // Handle Comparison
+  const handleCompare = (version) => {
+    // If we have a current version, compare against it.
+    // If not, maybe compare against current state? 
+    // Ideally we ignore if no current version, but currentVersion should be set if we selected one.
+    // Or we compare against the *latest* if nothing selected?
+    // Let's assume we compare the clicked version against the *currently displayed* version.
+
+    if (currentVersion && currentVersion.id !== version.id) {
+      setCompareVersion(version);
+    } else {
+      // If comparing against itself or no current, maybe show toast?
+      // Actually, let's just use the current generated state as "Version B" concept if needed?
+      // For now, simple implementation: Compare selected vs current active version
+      setCompareVersion(version);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -216,7 +308,7 @@ export default function DesignGeneratorWithCouncil() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+      <main className={`max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 ${versions.length > 0 ? 'pb-60' : ''}`}>
         {/* Budget Tracker */}
         {apiUsage && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
@@ -251,21 +343,18 @@ export default function DesignGeneratorWithCouncil() {
                 <button
                   key={key}
                   onClick={() => handleInputChange('aiModel', key)}
-                  className={`p-3 border rounded-lg text-left transition-all ${
-                    formData.aiModel === key
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
-                  }`}
+                  className={`p-3 border rounded-lg text-left transition-all ${formData.aiModel === key
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                    }`}
                 >
                   <div className="font-medium text-sm">{model.name}</div>
-                  <div className={`text-xs mt-1 ${
-                    formData.aiModel === key ? 'text-blue-100' : 'text-gray-500'
-                  }`}>
+                  <div className={`text-xs mt-1 ${formData.aiModel === key ? 'text-blue-100' : 'text-gray-500'
+                    }`}>
                     {model.description}
                   </div>
-                  <div className={`text-xs mt-1 font-medium ${
-                    formData.aiModel === key ? 'text-blue-200' : 'text-gray-600'
-                  }`}>
+                  <div className={`text-xs mt-1 font-medium ${formData.aiModel === key ? 'text-blue-200' : 'text-gray-600'
+                    }`}>
                     ${(model.cost * model.params.num_outputs).toFixed(4)} per request
                   </div>
                 </button>
@@ -385,11 +474,10 @@ export default function DesignGeneratorWithCouncil() {
               <button
                 onClick={() => setShowEnhancer(true)}
                 disabled={!formData.subject.trim()}
-                className={`w-full py-3 px-4 rounded-lg font-semibold transition-all flex items-center justify-center ${
-                  formData.subject.trim()
-                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl'
-                    : 'bg-gray-400 cursor-not-allowed text-white'
-                }`}
+                className={`w-full py-3 px-4 rounded-lg font-semibold transition-all flex items-center justify-center ${formData.subject.trim()
+                  ? 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl'
+                  : 'bg-gray-400 cursor-not-allowed text-white'
+                  }`}
               >
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -402,11 +490,10 @@ export default function DesignGeneratorWithCouncil() {
             <button
               onClick={handleGenerate}
               disabled={isGenerating || (!formData.subject.trim() && !enhancedPrompt)}
-              className={`w-full py-4 rounded-lg font-semibold text-white transition-all ${
-                isGenerating || (!formData.subject.trim() && !enhancedPrompt)
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700 active:scale-98'
-              }`}
+              className={`w-full py-4 rounded-lg font-semibold text-white transition-all ${isGenerating || (!formData.subject.trim() && !enhancedPrompt)
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700 active:scale-98'
+                }`}
             >
               {isGenerating ? (
                 <CouncilLoadingState message="Generating your tattoo designs..." />
@@ -519,11 +606,10 @@ export default function DesignGeneratorWithCouncil() {
                           handleSaveToLibrary(imageUrl, index);
                         }}
                         disabled={savedImages.has(imageUrl)}
-                        className={`w-full py-2 px-4 rounded-lg font-medium transition-all ${
-                          savedImages.has(imageUrl)
-                            ? 'bg-green-500 text-white cursor-default'
-                            : 'bg-white text-gray-900 hover:bg-gray-100'
-                        }`}
+                        className={`w-full py-2 px-4 rounded-lg font-medium transition-all ${savedImages.has(imageUrl)
+                          ? 'bg-green-500 text-white cursor-default'
+                          : 'bg-white text-gray-900 hover:bg-gray-100'
+                          }`}
                       >
                         {savedImages.has(imageUrl) ? '✓ Saved' : 'Save to Library'}
                       </button>
@@ -609,6 +695,34 @@ export default function DesignGeneratorWithCouncil() {
               />
             </div>
           </div>
+        )}
+
+        {/* Version Timeline */}
+        <div className="fixed bottom-0 left-0 right-0 z-40">
+          <VersionTimeline
+            versions={versions}
+            currentVersionId={currentVersion?.id}
+            onSelectVersion={handleVersionSelect}
+            onBranch={(v) => handleVersionSelect(v)}
+            onCompare={(v) => setCompareVersion(v)}
+          />
+        </div>
+
+        {/* Version Comparison Modal */}
+        {compareVersion && currentVersion && (
+          <VersionComparison
+            versionA={currentVersion}
+            versionB={compareVersion}
+            onClose={() => setCompareVersion(null)}
+            onRestoreA={() => {
+              handleVersionSelect(currentVersion);
+              setCompareVersion(null);
+            }}
+            onRestoreB={() => {
+              handleVersionSelect(compareVersion);
+              setCompareVersion(null);
+            }}
+          />
         )}
 
         {/* Inpainting Editor Modal */}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import artistsData from '../data/artists.json';
+import { Search, MapPin, Palette } from 'lucide-react';
 
 function Artists() {
   const navigate = useNavigate();
@@ -42,49 +43,54 @@ function Artists() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-gray-900 pb-24 border-t border-gray-100">
+    <div className="min-h-screen pt-24 pb-32 px-4 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="pt-32 pb-12 px-6 max-w-7xl mx-auto">
-        <p className="text-ducks-green font-black text-[10px] uppercase tracking-[0.4em] mb-4">Registry // Alpha 0.1</p>
-        <h1 className="text-5xl font-black tracking-tighter mb-4 italic">The <span className="text-ducks-green">Validated.</span></h1>
-        <p className="text-gray-500 max-w-xl text-sm font-medium leading-relaxed">
+      <div className="mb-12">
+        <p className="text-ducks-green font-mono font-bold text-[10px] uppercase tracking-[0.4em] mb-4">Registry // Alpha 0.1</p>
+        <h1 className="text-5xl md:text-7xl font-display font-bold tracking-tighter mb-4 italic text-white">The <span className="text-ducks-green">Validated.</span></h1>
+        <p className="text-gray-400 max-w-xl text-sm font-light leading-relaxed">
           Every artist in the TatTester registry has passed the Samson Test for visual integrity and anatomical precision.
         </p>
       </div>
 
-      {/* Minimal Filters - Sticky */}
-      <div className="border-y border-gray-100 bg-white/80 backdrop-blur-md sticky top-16 z-40">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="flex flex-col md:flex-row gap-8 items-end">
-            <div className="flex-1 w-full">
-              <label className="block text-[9px] font-black uppercase tracking-widest text-ducks-green mb-2">Search Registry</label>
-              <input
-                type="text"
-                placeholder="Artist name or studio..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full border-b-2 border-gray-100 pb-2 focus:border-ducks-green outline-none bg-transparent text-sm font-bold transition-colors"
-              />
-            </div>
-            <div className="w-full md:w-48">
-              <label className="block text-[9px] font-black uppercase tracking-widest text-ducks-green mb-2">Style Filter</label>
+      {/* Filters - Sticky Glass Bar */}
+      <div className="sticky top-4 z-40 mb-12">
+        <div className="glass-panel rounded-2xl p-4 shadow-hard backdrop-blur-xl border border-white/10 flex flex-col md:flex-row gap-4 items-center">
+
+          {/* Search */}
+          <div className="relative flex-1 w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+            <input
+              type="text"
+              placeholder="Search registry..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-black/40 border border-white/5 rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:border-ducks-green focus:outline-none transition-colors"
+            />
+          </div>
+
+          {/* Filters */}
+          <div className="flex gap-4 w-full md:w-auto">
+            <div className="relative w-full md:w-48">
+              <Palette className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
               <select
                 value={selectedStyle}
                 onChange={(e) => setSelectedStyle(e.target.value)}
-                className="w-full border-b-2 border-gray-100 pb-2 focus:border-ducks-green outline-none bg-transparent uppercase text-[10px] font-black tracking-wider transition-colors"
+                className="w-full bg-black/40 border border-white/5 rounded-xl pl-10 pr-8 py-3 text-sm text-white focus:border-ducks-green focus:outline-none appearance-none cursor-pointer"
               >
-                <option value="All Styles">All Profiles</option>
+                <option value="All Styles">All Styles</option>
                 {artistsData.styles.map(style => (
                   <option key={style} value={style}>{style}</option>
                 ))}
               </select>
             </div>
-            <div className="w-full md:w-48">
-              <label className="block text-[9px] font-black uppercase tracking-widest text-ducks-green mb-2">Location</label>
+
+            <div className="relative w-full md:w-48">
+              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
               <select
                 value={selectedLocation}
                 onChange={(e) => setSelectedLocation(e.target.value)}
-                className="w-full border-b-2 border-gray-100 pb-2 focus:border-ducks-green outline-none bg-transparent uppercase text-[10px] font-black tracking-wider transition-colors"
+                className="w-full bg-black/40 border border-white/5 rounded-xl pl-10 pr-8 py-3 text-sm text-white focus:border-ducks-green focus:outline-none appearance-none cursor-pointer"
               >
                 <option value="All Locations">Global Hubs</option>
                 {artistsData.cities.map(city => (
@@ -93,76 +99,68 @@ function Artists() {
               </select>
             </div>
           </div>
-
-          {/* Results count */}
-          <div className="mt-6 flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-ducks-green animate-pulse"></div>
-            <div className="text-[9px] text-gray-400 uppercase tracking-widest font-black">
-              {filteredArtists.length}{' '}
-              {filteredArtists.length === 1 ? 'Record' : 'Records'} Found
-            </div>
-          </div>
         </div>
       </div>
 
       {/* Gallery Grid */}
-      <div className="max-w-7xl mx-auto px-6 py-16">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-12">
-          {filteredArtists.map((artist) => (
-            <div
-              key={artist.id}
-              onClick={() => handleArtistClick(artist.id)}
-              className="group cursor-pointer"
-            >
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        {filteredArtists.map((artist, index) => (
+          <div
+            key={artist.id}
+            onClick={() => handleArtistClick(artist.id)}
+            className="group cursor-pointer"
+          >
+            {/* Card Container */}
+            <div className="glass-panel p-3 rounded-3xl border border-white/5 hover:border-ducks-green/30 transition-all duration-300 hover:shadow-glow-green">
+
               {/* Image */}
-              <div className="aspect-[4/5] overflow-hidden bg-gray-50 rounded-3xl mb-6 relative">
+              <div className="aspect-[4/5] overflow-hidden rounded-2xl mb-4 relative bg-black">
                 <img
                   src={artist.portfolioImages[0]}
                   alt={artist.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-90 group-hover:opacity-100"
                 />
-                <div className="absolute top-6 right-6 bg-white/90 backdrop-blur px-3 py-1 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                  <p className="text-[8px] font-black uppercase tracking-widest text-ducks-green">View Profile</p>
+                <div className="absolute top-4 right-4 bg-black/60 backdrop-blur px-2 py-1 rounded-lg text-[10px] font-mono text-ducks-yellow border border-ducks-yellow/20">
+                  {artist.rating} ★
                 </div>
               </div>
 
-              {/* Info */}
-              <div className="px-2">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="text-xl font-black tracking-tighter text-gray-900 group-hover:text-ducks-green transition-colors">{artist.name}</h3>
-                  <span className="text-[10px] bg-gray-50 px-2 py-0.5 rounded font-black text-gray-400 tracking-tighter uppercase">{artist.rating}★</span>
+              {/* Metadata */}
+              <div className="px-2 pb-2">
+                <div className="flex justify-between items-end mb-1">
+                  <h3 className="text-lg font-display font-bold text-white group-hover:text-ducks-green transition-colors">{artist.name}</h3>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wider">{artist.shopName}</p>
                 </div>
-                <p className="text-xs text-gray-500 font-bold mb-3 uppercase tracking-widest">{artist.shopName}</p>
-                <div className="flex flex-wrap gap-2">
-                  {artist.styles?.slice(0, 2).map(style => (
-                    <span key={style} className="text-[9px] border border-gray-100 px-2 py-0.5 rounded text-gray-400 uppercase font-black tracking-widest">{style}</span>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {artist.styles?.slice(0, 3).map(style => (
+                    <span key={style} className="text-[9px] bg-white/5 px-2 py-1 rounded text-gray-400 border border-white/5 group-hover:border-white/10 transition-colors">
+                      {style}
+                    </span>
                   ))}
                 </div>
               </div>
             </div>
-          ))}
-        </div>
-
-        {/* Empty State */}
-        {filteredArtists.length === 0 && (
-          <div className="text-center py-32 border-2 border-dashed border-gray-100 rounded-[3rem]">
-            <h3 className="text-3xl font-black mb-4 tracking-tighter italic">No Matches in Database.</h3>
-            <p className="text-gray-400 mb-8 max-w-xs mx-auto text-sm font-medium">
-              The selection criteria resulted in zero valid nodes. Adjust your search parameters to re-initialize.
-            </p>
-            <button
-              onClick={() => {
-                setSearchQuery('');
-                setSelectedStyle('All Styles');
-                setSelectedLocation('All Locations');
-              }}
-              className="btn-cocreate text-[10px]"
-            >
-              Clear Records
-            </button>
           </div>
-        )}
+        ))}
       </div>
+
+      {/* Empty State */}
+      {filteredArtists.length === 0 && (
+        <div className="text-center py-32 rounded-[3rem] border border-white/5 bg-white/5">
+          <h3 className="text-2xl font-bold mb-4 text-white">No Matches Found</h3>
+          <p className="text-gray-400 mb-8">Try adjusting your style or location filters.</p>
+          <button
+            onClick={() => {
+              setSearchQuery('');
+              setSelectedStyle('All Styles');
+              setSelectedLocation('All Locations');
+            }}
+            className="text-ducks-green hover:text-white transition-colors text-sm font-bold uppercase tracking-wider"
+          >
+            Reset Filters
+          </button>
+        </div>
+      )}
     </div>
   );
 }

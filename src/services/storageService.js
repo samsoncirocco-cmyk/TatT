@@ -11,7 +11,8 @@
 const STORAGE_KEYS = {
   DESIGNS: 'tattester_design_library',
   API_USAGE: 'tattester_api_usage',
-  USER_PREFS: 'tattester_user_preferences'
+  USER_PREFS: 'tattester_user_preferences',
+  PLACEMENTS: 'tattester_saved_placements'
 };
 
 const LIMITS = {
@@ -53,7 +54,7 @@ export function purgeExpiredDesigns() {
     const active = designs.filter(design => {
       const savedAt = new Date(design.metadata.savedAt).getTime();
       const age = now - savedAt;
-      
+
       // Keep favorites and recent designs
       return design.favorite || age < expiryMs;
     });
@@ -114,22 +115,22 @@ export function safeLocalStorageSet(key, value) {
     if (error.name === 'QuotaExceededError') {
       console.error('[Storage] localStorage quota exceeded. Attempting cleanup...');
       purgeExpiredDesigns();
-      
+
       // Try again after cleanup
       try {
         localStorage.setItem(key, JSON.stringify(value));
         return { success: true, recovered: true };
       } catch (retryError) {
-        return { 
-          success: false, 
+        return {
+          success: false,
           error: 'Storage quota exceeded. Please delete some designs.',
           code: 'QUOTA_EXCEEDED'
         };
       }
     }
 
-    return { 
-      success: false, 
+    return {
+      success: false,
       error: error.message,
       code: 'STORAGE_ERROR'
     };
@@ -160,7 +161,7 @@ export function clearIndexedDBStore(dbName, storeName) {
 
     request.onsuccess = (event) => {
       const db = event.target.result;
-      
+
       if (!db.objectStoreNames.contains(storeName)) {
         resolve(0);
         return;
@@ -185,7 +186,7 @@ export function clearIndexedDBStore(dbName, storeName) {
  */
 export async function getStorageStats() {
   const quota = await checkStorageQuota();
-  
+
   const localStorageSize = Object.keys(localStorage).reduce((total, key) => {
     return total + (localStorage.getItem(key)?.length || 0);
   }, 0);
@@ -208,7 +209,7 @@ export async function getStorageStats() {
  */
 export function prepareForBackendMigration() {
   const designs = safeLocalStorageGet(STORAGE_KEYS.DESIGNS, []);
-  
+
   return designs.map(design => ({
     // Keep only essential data
     id: design.id,

@@ -200,20 +200,20 @@ export default function InpaintingEditor({ imageUrl, onClose, onSave }) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-90 z-50 overflow-y-auto">
       <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full">
+        <div className="glass-panel border border-white/10 rounded-2xl shadow-xl max-w-5xl w-full text-white">
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between p-6 border-b border-white/10">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">
+              <h2 className="text-2xl font-bold text-white">
                 Edit Your Design
               </h2>
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-sm text-white/60 mt-1">
                 Paint over areas you want to change, then describe what you'd like instead
               </p>
             </div>
             <button
               onClick={onClose}
-              className="text-gray-500 hover:text-gray-700 transition-colors"
+              className="text-white/60 hover:text-white transition-colors"
             >
               <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -226,7 +226,7 @@ export default function InpaintingEditor({ imageUrl, onClose, onSave }) {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Canvas Area */}
               <div className="space-y-4">
-                <div className="bg-gray-100 rounded-lg p-4">
+                <div className="bg-black/30 rounded-lg p-4">
                   <div className="relative" style={{ maxWidth: '100%', aspectRatio: `${canvasSize.width}/${canvasSize.height}` }}>
                     {/* Image Canvas (background) */}
                     <canvas
@@ -256,17 +256,17 @@ export default function InpaintingEditor({ imageUrl, onClose, onSave }) {
 
                     {/* Loading overlay */}
                     {!imageLoaded && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-gray-200 rounded-lg">
-                        <div className="text-gray-600">Loading image...</div>
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
+                        <div className="text-white/60">Loading image...</div>
                       </div>
                     )}
                   </div>
                 </div>
 
                 {/* Brush Controls */}
-                <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                <div className="bg-black/30 rounded-lg p-4 space-y-3">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-white/70 mb-2">
                       Brush Size: {brushSize}px
                     </label>
                     <input
@@ -275,14 +275,14 @@ export default function InpaintingEditor({ imageUrl, onClose, onSave }) {
                       max="100"
                       value={brushSize}
                       onChange={(e) => setBrushSize(Number(e.target.value))}
-                      className="w-full"
+                      className="w-full accent-ducks-green"
                     />
                   </div>
 
                   <div className="flex gap-2">
                     <button
                       onClick={clearMask}
-                      className="flex-1 py-2 px-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                      className="flex-1 py-2 px-4 bg-white/10 text-white/70 rounded-lg hover:bg-white/20 transition-colors font-medium"
                     >
                       Clear Mask
                     </button>
@@ -294,17 +294,17 @@ export default function InpaintingEditor({ imageUrl, onClose, onSave }) {
               <div className="space-y-4">
                 {/* Prompt Input */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-white/70 mb-2">
                     What should replace the painted area?
                   </label>
                   <textarea
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     placeholder="e.g., add cherry blossoms, change to a dragon, remove background..."
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    className="w-full px-4 py-3 border border-white/10 rounded-lg bg-black/40 text-white focus:ring-2 focus:ring-ducks-green focus:border-transparent resize-none"
                     rows={3}
                   />
-                  <p className="mt-1 text-xs text-gray-500">
+                  <p className="mt-1 text-xs text-white/50">
                     Be specific about what you want in the painted area
                   </p>
                 </div>
@@ -312,30 +312,30 @@ export default function InpaintingEditor({ imageUrl, onClose, onSave }) {
                 {/* Advanced Options Toggle */}
                 <button
                   onClick={() => setShowAdvanced(!showAdvanced)}
-                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  className="text-sm text-ducks-green hover:text-white font-medium"
                 >
                   {showAdvanced ? '▼' : '▶'} Advanced Options
                 </button>
 
                 {showAdvanced && (
-                  <div className="space-y-3 bg-gray-50 rounded-lg p-4">
+                  <div className="space-y-3 bg-black/30 rounded-lg p-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-white/70 mb-2">
                         Negative Prompt
                       </label>
                       <textarea
                         value={negativePrompt}
                         onChange={(e) => setNegativePrompt(e.target.value)}
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                        className="w-full px-3 py-2 text-sm border border-white/10 rounded-lg bg-black/40 text-white focus:ring-2 focus:ring-ducks-green focus:border-transparent resize-none"
                         rows={2}
                       />
-                      <p className="mt-1 text-xs text-gray-500">
+                      <p className="mt-1 text-xs text-white/50">
                         What to avoid in the generation
                       </p>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-white/70 mb-2">
                         Guidance Scale: {guidanceScale}
                       </label>
                       <input
@@ -345,9 +345,9 @@ export default function InpaintingEditor({ imageUrl, onClose, onSave }) {
                         step="0.5"
                         value={guidanceScale}
                         onChange={(e) => setGuidanceScale(Number(e.target.value))}
-                        className="w-full"
+                        className="w-full accent-ducks-green"
                       />
-                      <p className="mt-1 text-xs text-gray-500">
+                      <p className="mt-1 text-xs text-white/50">
                         How closely to follow your prompt (7-8 recommended)
                       </p>
                     </div>
@@ -355,19 +355,19 @@ export default function InpaintingEditor({ imageUrl, onClose, onSave }) {
                 )}
 
                 {/* Cost Estimate */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <p className="text-sm text-blue-900">
+                <div className="bg-ducks-green/10 border border-ducks-green/30 rounded-lg p-3">
+                  <p className="text-sm text-ducks-green/90">
                     Estimated cost: <span className="font-medium">{costEstimate.formatted}</span>
                   </p>
-                  <p className="text-xs text-blue-700 mt-1">
+                  <p className="text-xs text-ducks-green/60 mt-1">
                     Processing time: ~10-20 seconds
                   </p>
                 </div>
 
                 {/* Error Message */}
                 {error && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                    <p className="text-sm text-red-800">{error}</p>
+                  <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+                    <p className="text-sm text-red-200">{error}</p>
                   </div>
                 )}
 
@@ -378,8 +378,8 @@ export default function InpaintingEditor({ imageUrl, onClose, onSave }) {
                     disabled={isProcessing || !prompt.trim() || !imageLoaded}
                     className={`w-full py-4 rounded-lg font-semibold text-white transition-all ${
                       isProcessing || !prompt.trim() || !imageLoaded
-                        ? 'bg-gray-400 cursor-not-allowed'
-                        : 'bg-blue-600 hover:bg-blue-700 active:scale-98'
+                        ? 'bg-white/20 cursor-not-allowed'
+                        : 'bg-ducks-yellow text-black hover:bg-white active:scale-98'
                     }`}
                   >
                     {isProcessing ? (
@@ -398,24 +398,24 @@ export default function InpaintingEditor({ imageUrl, onClose, onSave }) {
                   <button
                     onClick={onClose}
                     disabled={isProcessing}
-                    className="w-full py-3 rounded-lg font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full py-3 rounded-lg font-medium text-white/70 bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Cancel
                   </button>
                 </div>
 
                 {/* Instructions */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-2">
+                <div className="bg-black/30 rounded-lg p-4">
+                  <h3 className="text-sm font-semibold text-white mb-2">
                     How to use:
                   </h3>
-                  <ol className="text-sm text-gray-700 space-y-1 list-decimal list-inside">
+                  <ol className="text-sm text-white/70 space-y-1 list-decimal list-inside">
                     <li>Paint over the area you want to modify (shown in red)</li>
                     <li>Describe what you want in that area</li>
                     <li>Click "Generate Edited Design"</li>
                     <li>Wait ~10-20 seconds for AI processing</li>
                   </ol>
-                  <p className="text-xs text-gray-500 mt-3">
+                  <p className="text-xs text-white/50 mt-3">
                     Tip: Be specific in your prompt for best results. You can paint multiple areas before generating.
                   </p>
                 </div>

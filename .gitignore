@@ -34,3 +34,6 @@ uploads/
 
 # Secrets
 google-credentials.json
+
+# Claude/Codex skills
+.claude/skills/
