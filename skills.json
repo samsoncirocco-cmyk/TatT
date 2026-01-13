@@ -1,0 +1,51 @@
+{
+  "skills": [
+    {
+      "name": "react-shadcn-ui",
+      "repo": "local",
+      "scope": "project",
+      "description": "React, Tailwind, shadcn/ui components - Custom TatT skill"
+    },
+    {
+      "name": "stripe-connect",
+      "repo": "local",
+      "scope": "project",
+      "description": "Stripe Connect integration - Custom TatT skill"
+    },
+    {
+      "name": "neo4j-cypher",
+      "repo": "local",
+      "scope": "project",
+      "description": "Neo4j Cypher queries - Custom TatT skill"
+    },
+    {
+      "name": "threejs-webxr",
+      "repo": "local",
+      "scope": "project",
+      "description": "Three.js WebXR - Custom TatT skill"
+    },
+    {
+      "name": "fabricjs-canvas",
+      "repo": "local",
+      "scope": "project",
+      "description": "Fabric.js canvas editor - Custom TatT skill"
+    },
+    {
+      "name": "playwright-testing",
+      "repo": "local",
+      "scope": "project",
+      "description": "Playwright E2E testing - Custom TatT skill"
+    },
+    {
+      "name": "mcp-builder",
+      "repo": "skillsmp/mcp-builder",
+      "scope": "global",
+      "description": "MCP servers (if available on SkillsMP)"
+    }
+  ],
+  "metadata": {
+    "project": "TatT",
+    "lastUpdated": "2026-01-11",
+    "version": "1.0.0"
+  }
+}

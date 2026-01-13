@@ -30,7 +30,7 @@ export async function requestCameraAccess(constraints = {}) {
     return stream;
   } catch (error) {
     console.error('[AR] Camera access denied:', error);
-    
+
     // Provide user-friendly error messages
     if (error.name === 'NotAllowedError') {
       throw new Error('Camera permission denied. Please allow camera access in your browser settings.');
@@ -50,7 +50,7 @@ export async function requestCameraAccess(constraints = {}) {
  */
 export function stopCameraStream(stream) {
   if (!stream) return;
-  
+
   stream.getTracks().forEach(track => {
     track.stop();
     console.log('[AR] Camera track stopped:', track.kind);
@@ -71,7 +71,7 @@ export function attachStreamToVideo(videoElement, stream) {
     }
 
     videoElement.srcObject = stream;
-    
+
     videoElement.onloadedmetadata = () => {
       console.log('[AR] Video metadata loaded');
       resolve();
@@ -110,8 +110,41 @@ export function captureFrame(videoElement, canvasElement) {
   // Convert to data URL
   const dataUrl = canvasElement.toDataURL('image/png');
   console.log('[AR] Frame captured');
-  
+
   return dataUrl;
+}
+
+/**
+ * Capture depth frame from video element
+ * @param {HTMLVideoElement} videoElement - Video source
+ * @returns {Promise<Float32Array>} Raw depth map
+ */
+export async function captureDepthFrame(videoElement) {
+  if (!videoElement) {
+    throw new Error('Video element required');
+  }
+
+  // Import depth service dynamically to avoid circular dependencies if any
+  const { getDepthMap } = await import('./depthMappingService');
+  return getDepthMap(videoElement);
+}
+
+/**
+ * Check if device supports depth sensing
+ * @returns {Promise<Object>} Depth capabilities
+ */
+export async function getDepthSensorCapabilities() {
+  // Most browsers don't expose this directly yet without WebXR
+  // We check for userMedia constraints that might indicate depth support
+  const supportsDepth = 'mediaDevices' in navigator &&
+    'getSupportedConstraints' in navigator.mediaDevices &&
+    navigator.mediaDevices.getSupportedConstraints().depth;
+
+  return {
+    isSupported: !!supportsDepth,
+    type: supportsDepth ? 'hardware' : 'monocular_fallback',
+    resolution: '640x480' // Estimated for fallback
+  };
 }
 
 /**
@@ -152,6 +185,7 @@ export const ARSessionState = {
   NO_CAMERA: 'no_camera',
   LOADING: 'loading',
   ACTIVE: 'active',
+  CALIBRATING_DEPTH: 'calibrating_depth',
   ERROR: 'error'
 };
 

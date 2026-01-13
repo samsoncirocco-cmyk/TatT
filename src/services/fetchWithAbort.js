@@ -74,9 +74,11 @@ export async function fetchWithAbort(url, options = {}) {
   try {
     // Inject auth header if needed
     const headers = { ...fetchOptions.headers };
-    
+
     if (includeAuth) {
-      const authToken = import.meta.env.VITE_FRONTEND_AUTH_TOKEN;
+      const authToken = typeof import.meta.env !== 'undefined'
+        ? import.meta.env.VITE_FRONTEND_AUTH_TOKEN
+        : process.env.VITE_FRONTEND_AUTH_TOKEN;
       if (authToken) {
         headers['Authorization'] = `Bearer ${authToken}`;
       }
@@ -213,26 +215,26 @@ export function getUserErrorMessage(error) {
   switch (error.code) {
     case ErrorCodes.NETWORK_ERROR:
       return 'Cannot connect to server. Please check your connection and ensure the backend is running.';
-    
+
     case ErrorCodes.AUTH_REQUIRED:
     case ErrorCodes.AUTH_INVALID:
       return 'Authentication failed. Please check your configuration.';
-    
+
     case ErrorCodes.RATE_LIMIT:
       return 'Too many requests. Please wait a moment and try again.';
-    
+
     case ErrorCodes.CORS_ERROR:
       return 'Access denied. Your origin is not allowed.';
-    
+
     case ErrorCodes.SERVER_ERROR:
       return 'Server error. Please try again later.';
-    
+
     case ErrorCodes.TIMEOUT:
       return 'Request timed out. Please try again.';
-    
+
     case ErrorCodes.ABORTED:
       return 'Request was cancelled.';
-    
+
     default:
       return error.message || 'An error occurred';
   }

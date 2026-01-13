@@ -6,10 +6,13 @@
  */
 
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Home, Sparkles, Camera, Users, Folder } from 'lucide-react';
+
 import DesignGenerator from './components/DesignGenerator';
 import DesignGeneratorWithCouncil from './components/DesignGeneratorWithCouncil';
 import DesignLibrary from './components/DesignLibrary';
-import Home from './components/Home';
+import HomePage from './components/Home';
 import Visualize from './pages/Visualize';
 import SmartMatch from './pages/SmartMatch';
 import SwipeMatch from './pages/SwipeMatch';
@@ -17,86 +20,92 @@ import Artists from './pages/Artists';
 import ArtistProfile from './pages/ArtistProfile';
 import Journey from './pages/Journey';
 import Philosophy from './pages/Philosophy';
+import Generate from './pages/Generate';
 
 // Feature flag for council integration
 const USE_COUNCIL = import.meta.env.VITE_USE_COUNCIL === 'true';
 
+const PageWrapper = ({ children }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -10 }}
+    transition={{ duration: 0.3, ease: 'easeOut' }}
+    className="w-full min-h-screen pb-24"
+  >
+    {children}
+  </motion.div>
+);
+
+function AppContent() {
+  const location = useLocation();
+
+  return (
+    <div className="min-h-screen bg-transparent text-gray-100 font-sans selection:bg-ducks-green selection:text-ducks-yellow">
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
+          <Route path="/" element={<PageWrapper><HomePage /></PageWrapper>} />
+          <Route path="/philosophy" element={<PageWrapper><Philosophy /></PageWrapper>} />
+          <Route path="/journey" element={<PageWrapper><Journey /></PageWrapper>} />
+          <Route path="/generate" element={<PageWrapper><Generate /></PageWrapper>} />
+          <Route path="/library" element={<PageWrapper><DesignLibrary /></PageWrapper>} />
+          <Route path="/visualize" element={<PageWrapper><Visualize /></PageWrapper>} />
+          <Route path="/smart-match" element={<PageWrapper><SmartMatch /></PageWrapper>} />
+          <Route path="/swipe" element={<PageWrapper><SwipeMatch /></PageWrapper>} />
+          <Route path="/artists" element={<PageWrapper><Artists /></PageWrapper>} />
+          <Route path="/artists/:id" element={<PageWrapper><ArtistProfile /></PageWrapper>} />
+        </Routes>
+      </AnimatePresence>
+
+      {/* Floating Dock Navigation */}
+      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+        <div className="glass-panel px-6 py-3 rounded-2xl flex items-center gap-6 shadow-hard backdrop-blur-xl border border-white/10">
+          <NavLink to="/" icon={Home} />
+          <NavLink to="/generate" icon={Sparkles} />
+          <div className="w-12 h-12 flex items-center justify-center -mt-8 bg-ducks-yellow rounded-full shadow-glow transform transition hover:scale-105 active:scale-95">
+            <Link to="/visualize" className="text-ducks-green">
+              <Camera size={24} />
+            </Link>
+          </div>
+          <NavLink to="/artists" icon={Users} />
+          <NavLink to="/library" icon={Folder} />
+        </div>
+      </nav>
+    </div>
+  );
+}
+
 function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-white text-gray-900">
-
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/philosophy" element={<Philosophy />} />
-          <Route path="/journey" element={<Journey />} />
-          <Route path="/generate" element={USE_COUNCIL ? <DesignGeneratorWithCouncil /> : <DesignGenerator />} />
-          <Route path="/library" element={<DesignLibrary />} />
-          <Route path="/visualize" element={<Visualize />} />
-          <Route path="/smart-match" element={<SmartMatch />} />
-          <Route path="/swipe" element={<SwipeMatch />} />
-          <Route path="/artists" element={<Artists />} />
-          <Route path="/artists/:id" element={<ArtistProfile />} />
-        </Routes>
-
-        {/* Mobile Navigation */}
-        <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-lg border-t border-gray-100 z-40">
-          <div className="max-w-7xl mx-auto px-4">
-            <div className="grid grid-cols-5 gap-1">
-              <NavLink to="/" icon="home" label="Home" />
-              <NavLink to="/generate" icon="sparkles" label="Forge" />
-              <NavLink to="/visualize" icon="camera" label="AR" />
-              <NavLink to="/artists" icon="users" label="Artists" />
-              <NavLink to="/library" icon="folder" label="Library" />
-            </div>
-          </div>
-        </nav>
-
-        {/* Bottom spacer for fixed nav */}
-        <div className="h-20" />
-      </div>
+      <AppContent />
     </Router>
   );
 }
 
 // Navigation Link Component
-function NavLink({ to, icon, label }) {
+function NavLink({ to, icon: Icon }) {
   const location = useLocation();
   // Fix: Use startsWith for nested routes like /artists/:id
-  const isActive = location.pathname === to || 
+  const isActive = location.pathname === to ||
     (to !== '/' && location.pathname.startsWith(to));
-
-  const icons = {
-    home: (
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-    ),
-    sparkles: (
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-    ),
-    camera: (
-      <>
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-      </>
-    ),
-    users: (
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-    ),
-    folder: (
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-    )
-  };
 
   return (
     <Link
       to={to}
-      className={`flex flex-col items-center justify-center py-3 transition-colors ${isActive ? 'text-ducks-green' : 'text-gray-400 hover:text-gray-600'
-        }`}
+      className="relative group p-2 flex flex-col items-center justify-center transition-all duration-300"
     >
-      <svg className={`w-6 h-6 mb-1 ${isActive ? 'drop-shadow-[0_0_8px_rgba(21,71,51,0.3)]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        {icons[icon]}
-      </svg>
-      <span className="text-[10px] font-bold uppercase tracking-widest">{label}</span>
+      <div className={`transition-all duration-300 ${isActive ? 'text-ducks-yellow -translate-y-1' : 'text-gray-400 group-hover:text-white'}`}>
+        <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
+      </div>
+
+      {/* Active Dot indicator */}
+      {isActive && (
+        <motion.div
+          layoutId="nav-dot"
+          className="absolute -bottom-2 w-1 h-1 bg-ducks-yellow rounded-full shadow-glow"
+        />
+      )}
     </Link>
   );
 }
