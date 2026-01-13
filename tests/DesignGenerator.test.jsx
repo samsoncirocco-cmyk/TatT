@@ -61,6 +61,14 @@ vi.mock('../src/services/designLibraryService', () => ({
   }))
 }));
 
+vi.mock('../src/config/promptTemplates', async () => {
+  const actual = await vi.importActual('../src/config/promptTemplates');
+  return {
+    ...actual,
+    getRandomTip: () => ({ text: 'Testing tip', category: 'tip' })
+  };
+});
+
 // Wrapper component for router context
 function TestWrapper({ children }) {
   return <BrowserRouter>{children}</BrowserRouter>;
@@ -79,9 +87,9 @@ describe('DesignGenerator Component', () => {
         </TestWrapper>
       );
 
-      expect(screen.getByText('AI Tattoo Designer')).toBeInTheDocument();
-      expect(screen.getByPlaceholderText(/e.g., a wolf howling/i)).toBeInTheDocument();
-      expect(screen.getByText('Generate Design')).toBeInTheDocument();
+      expect(screen.getByText(/the forge/i)).toBeTruthy();
+      expect(screen.getByPlaceholderText(/describe your vision/i)).toBeTruthy();
+      expect(screen.getByText(/ignite forge/i)).toBeTruthy();
     });
 
     it('should display budget tracker', () => {
@@ -91,8 +99,8 @@ describe('DesignGenerator Component', () => {
         </TestWrapper>
       );
 
-      expect(screen.getByText('Budget Tracker')).toBeInTheDocument();
-      expect(screen.getByText(/\$0.50 spent/i)).toBeInTheDocument();
+      expect(screen.getByText(/budget remaining/i)).toBeTruthy();
+      expect(screen.getByText(/\$499\.50/i)).toBeTruthy();
     });
 
     it('should disable generate button when subject is empty', () => {
@@ -102,8 +110,8 @@ describe('DesignGenerator Component', () => {
         </TestWrapper>
       );
 
-      const generateButton = screen.getByText('Generate Design');
-      expect(generateButton).toBeDisabled();
+      const generateButton = screen.getByText(/ignite forge/i).closest('button');
+      expect(generateButton?.disabled).toBe(true);
     });
   });
 
@@ -115,11 +123,11 @@ describe('DesignGenerator Component', () => {
         </TestWrapper>
       );
 
-      const subjectInput = screen.getByPlaceholderText(/e.g., a wolf howling/i);
+      const subjectInput = screen.getByPlaceholderText(/describe your vision/i);
       fireEvent.change(subjectInput, { target: { value: 'dragon' } });
 
-      const generateButton = screen.getByText('Generate Design');
-      expect(generateButton).not.toBeDisabled();
+      const generateButton = screen.getByText(/ignite forge/i).closest('button');
+      expect(generateButton?.disabled).toBe(false);
     });
 
     it('should update form data when inputs change', () => {
@@ -129,7 +137,7 @@ describe('DesignGenerator Component', () => {
         </TestWrapper>
       );
 
-      const subjectInput = screen.getByPlaceholderText(/e.g., a wolf howling/i);
+      const subjectInput = screen.getByPlaceholderText(/describe your vision/i);
       fireEvent.change(subjectInput, { target: { value: 'phoenix rising' } });
 
       expect(subjectInput.value).toBe('phoenix rising');
@@ -139,8 +147,11 @@ describe('DesignGenerator Component', () => {
   describe('Generation Flow', () => {
     it('should show loading state during generation', async () => {
       // Mock a delayed response
+      let resolveGeneration;
       replicateService.generateWithRateLimit.mockImplementation(
-        () => new Promise(resolve => setTimeout(resolve, 100))
+        () => new Promise(resolve => {
+          resolveGeneration = resolve;
+        })
       );
 
       render(
@@ -149,15 +160,17 @@ describe('DesignGenerator Component', () => {
         </TestWrapper>
       );
 
-      const subjectInput = screen.getByPlaceholderText(/e.g., a wolf howling/i);
+      const subjectInput = screen.getByPlaceholderText(/describe your vision/i);
       fireEvent.change(subjectInput, { target: { value: 'dragon' } });
 
-      const generateButton = screen.getByText('Generate Design');
+      const generateButton = screen.getByText(/ignite forge/i);
       fireEvent.click(generateButton);
 
       await waitFor(() => {
-        expect(screen.getByText(/Consulting with AI tattoo artist/i)).toBeInTheDocument();
+        expect(screen.getByText(/testing tip/i)).toBeTruthy();
       });
+
+      resolveGeneration({ success: true, images: [], metadata: {}, userInput: {} });
     });
 
     it('should display generated designs on success', async () => {
@@ -191,15 +204,15 @@ describe('DesignGenerator Component', () => {
         </TestWrapper>
       );
 
-      const subjectInput = screen.getByPlaceholderText(/e.g., a wolf howling/i);
+      const subjectInput = screen.getByPlaceholderText(/describe your vision/i);
       fireEvent.change(subjectInput, { target: { value: 'dragon' } });
 
-      const generateButton = screen.getByText('Generate Design');
+      const generateButton = screen.getByText(/ignite forge/i);
       fireEvent.click(generateButton);
 
       await waitFor(() => {
-        expect(screen.getByText('Your Designs')).toBeInTheDocument();
-        expect(screen.getByText('4 variations')).toBeInTheDocument();
+        expect(screen.getByText(/forged concepts/i)).toBeTruthy();
+        expect(screen.getByText(/4 variants/i)).toBeTruthy();
       });
     });
 
@@ -214,14 +227,14 @@ describe('DesignGenerator Component', () => {
         </TestWrapper>
       );
 
-      const subjectInput = screen.getByPlaceholderText(/e.g., a wolf howling/i);
+      const subjectInput = screen.getByPlaceholderText(/describe your vision/i);
       fireEvent.change(subjectInput, { target: { value: 'dragon' } });
 
-      const generateButton = screen.getByText('Generate Design');
+      const generateButton = screen.getByText(/ignite forge/i);
       fireEvent.click(generateButton);
 
       await waitFor(() => {
-        expect(screen.getByText(/Rate limit exceeded/i)).toBeInTheDocument();
+        expect(screen.getByText(/Rate limit exceeded/i)).toBeTruthy();
       });
     });
   });
@@ -256,14 +269,14 @@ describe('DesignGenerator Component', () => {
       );
 
       // Generate designs first
-      const subjectInput = screen.getByPlaceholderText(/e.g., a wolf howling/i);
+      const subjectInput = screen.getByPlaceholderText(/describe your vision/i);
       fireEvent.change(subjectInput, { target: { value: 'dragon' } });
 
-      const generateButton = screen.getByText('Generate Design');
+      const generateButton = screen.getByText(/ignite forge/i);
       fireEvent.click(generateButton);
 
       await waitFor(() => {
-        expect(screen.getByText('Your Designs')).toBeInTheDocument();
+        expect(screen.getByText(/forged concepts/i)).toBeTruthy();
       });
 
       // Note: Save button interaction would require hovering over image
@@ -272,4 +285,3 @@ describe('DesignGenerator Component', () => {
     });
   });
 });
-
