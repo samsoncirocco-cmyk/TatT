@@ -186,12 +186,22 @@ export async function generateThumbnail(imageUrl: string, size: number = 64): Pr
     return new Promise((resolve, reject) => {
         const img = new Image();
         img.crossOrigin = 'anonymous';
+        let timeoutId: number | null = null;
+
+        const cleanup = () => {
+            img.onload = null;
+            img.onerror = null;
+            if (timeoutId !== null) {
+                window.clearTimeout(timeoutId);
+            }
+        };
 
         img.onload = () => {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
 
             if (!ctx) {
+                cleanup();
                 reject(new Error('Failed to get canvas context'));
                 return;
             }
@@ -215,10 +225,18 @@ export async function generateThumbnail(imageUrl: string, size: number = 64): Pr
             const y = (size - thumbHeight) / 2;
 
             ctx.drawImage(img, x, y, thumbWidth, thumbHeight);
+            cleanup();
             resolve(canvas.toDataURL());
         };
 
-        img.onerror = () => reject(new Error('Failed to load image'));
+        img.onerror = () => {
+            cleanup();
+            reject(new Error('Failed to load image'));
+        };
+        timeoutId = window.setTimeout(() => {
+            cleanup();
+            reject(new Error('Thumbnail generation timed out'));
+        }, 8000);
         img.src = imageUrl;
     });
 }
