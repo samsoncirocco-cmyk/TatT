@@ -29,11 +29,6 @@ export function useCanvasAspectRatio(
         padding = 40,
     } = options;
 
-    const [dimensions, setDimensions] = useState<CanvasDimensions>(() => {
-        const config = BODY_PART_CONFIGS[bodyPart];
-        return calculateDimensions(config.aspectRatio, maxWidth, maxHeight, padding);
-    });
-
     const calculateDimensions = useCallback(
         (aspectRatio: number, maxW: number, maxH: number, pad: number): CanvasDimensions => {
             // Get viewport dimensions
@@ -66,6 +61,11 @@ export function useCanvasAspectRatio(
         },
         []
     );
+
+    const [dimensions, setDimensions] = useState<CanvasDimensions>(() => {
+        const config = BODY_PART_CONFIGS[bodyPart];
+        return calculateDimensions(config.aspectRatio, maxWidth, maxHeight, padding);
+    });
 
     // Update dimensions when body part changes
     useEffect(() => {
