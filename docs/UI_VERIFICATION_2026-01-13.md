@@ -25,6 +25,7 @@ Scope: Trending gallery render, Vibe chips suggestions, Version timeline UI, Lay
 - Screenshot evidence captured locally (not committed):
   - /tmp/generate_initial.png
   - /tmp/generate_after_click.png
+- Sample trending image URL returned HTTP 404 (replicate.delivery); if this is persistent, example cards will show broken images.
 
 ## Follow-ups
 - Backend-assisted check: verify SmartPreview low-res watermark -> refine -> finalize flow end-to-end.
