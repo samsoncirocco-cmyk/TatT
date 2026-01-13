@@ -57,11 +57,11 @@ const TRENDING_EXAMPLES = [
         prompt: 'Cyberpunk Gohan in a neon rainstorm with electric aura',
         layers: [
             {
-                imageUrl: 'https://replicate.delivery/czjl/OAumTJvdtXaeLiQumdkjD7jju51vsyhnVfi5wldFfXNlyqprA/out-0.png',
+                imageUrl: '/images/trending/cyberpunk-gohan-bg.svg',
                 type: 'background'
             },
             {
-                imageUrl: 'https://replicate.delivery/czjl/lYeP23W6shTf00JafdGfBoegdC8xvUHfcu6tW3yL5LpoUWNdF/out-1.png',
+                imageUrl: '/images/trending/cyberpunk-gohan-subject.svg',
                 type: 'subject'
             }
         ]
@@ -74,11 +74,11 @@ const TRENDING_EXAMPLES = [
         prompt: 'Fine-line peonies with soft shading and airy spacing',
         layers: [
             {
-                imageUrl: 'https://replicate.delivery/czjl/6g9AaNGStorfKSigYIwegRINxNm8ofQUNutAQ8qscTgkyqprA/out-2.png',
+                imageUrl: '/images/trending/fine-line-peonies-subject.svg',
                 type: 'subject'
             },
             {
-                imageUrl: 'https://replicate.delivery/czjl/rfeJyinHStsMfoVhJtLHCHfwEuoH3L2wOiO4a4W7iSoe5z2TA/out-0.png',
+                imageUrl: '/images/trending/fine-line-peonies-bg.svg',
                 type: 'background'
             }
         ]
@@ -91,11 +91,11 @@ const TRENDING_EXAMPLES = [
         prompt: 'A coiling dragon with lightning and storm clouds',
         layers: [
             {
-                imageUrl: 'https://replicate.delivery/czjl/ARB5YiaRQZaoOp5qCs7FejWBwzb3kGpwVNQAxbNqj1Ufa10VA/out-0.png',
+                imageUrl: '/images/trending/dragon-storm-subject.svg',
                 type: 'subject'
             },
             {
-                imageUrl: 'https://replicate.delivery/czjl/gkz5hfI91LUBcSPBVVR3ms1SQXfM4vl0nNQsbzD8rBWVRVqrA/out-1.png',
+                imageUrl: '/images/trending/dragon-storm-bg.svg',
                 type: 'effect'
             }
         ]
@@ -108,11 +108,11 @@ const TRENDING_EXAMPLES = [
         prompt: 'Neo-traditional owl with botanical accents',
         layers: [
             {
-                imageUrl: 'https://replicate.delivery/czjl/RHcvkMuztQ6oHt0O1fOpvXstxgfnXxkEWwZKOUl9EQOdx2TA/out-2.png',
+                imageUrl: '/images/trending/neo-trad-owl-subject.svg',
                 type: 'subject'
             },
             {
-                imageUrl: 'https://replicate.delivery/czjl/HGruec7PlX3wNaEKuo9WU6Cdo9g0LVQfOE6Vw2vBPVLj1qprA/out-0.png',
+                imageUrl: '/images/trending/neo-trad-owl-bg.svg',
                 type: 'background'
             }
         ]
@@ -125,11 +125,11 @@ const TRENDING_EXAMPLES = [
         prompt: 'Blackwork serpent with geometric halo',
         layers: [
             {
-                imageUrl: 'https://replicate.delivery/czjl/uIgR4XfJdlUtPqinaO1adfJoUU9Jb2pUOmXbGiGx6R2Z1qprA/out-1.png',
+                imageUrl: '/images/trending/blackwork-serpent-subject.svg',
                 type: 'subject'
             },
             {
-                imageUrl: 'https://replicate.delivery/czjl/c4U86xgeEqULG6xLLMEtETP3yEVytcE87O0DFm9vymfw1qprA/out-2.png',
+                imageUrl: '/images/trending/blackwork-serpent-bg.svg',
                 type: 'effect'
             }
         ]
@@ -142,11 +142,45 @@ const TRENDING_EXAMPLES = [
         prompt: 'Japanese crane with waves and maple leaves',
         layers: [
             {
-                imageUrl: 'https://replicate.delivery/czjl/OgzsNpXOluadKhDXSvHsEWM4ukvx7g3IYXYd1GLeK1Yy1qprA/out-0.png',
+                imageUrl: '/images/trending/japanese-crane-subject.svg',
                 type: 'subject'
             },
             {
-                imageUrl: 'https://replicate.delivery/czjl/cXoNeAJ4H3WaRCm06hFYpNwwkZTE1lvoA6CwEnSTTtZP1qprA/out-1.png',
+                imageUrl: '/images/trending/japanese-crane-bg.svg',
+                type: 'background'
+            }
+        ]
+    },
+    {
+        id: 'phoenix-crest',
+        title: 'Phoenix Crest',
+        description: 'Rising flame silhouette',
+        bodyPart: 'calf',
+        prompt: 'Phoenix crest with ember trails and clean contours',
+        layers: [
+            {
+                imageUrl: '/images/trending/phoenix-crest-subject.svg',
+                type: 'subject'
+            },
+            {
+                imageUrl: '/images/trending/phoenix-crest-bg.svg',
+                type: 'background'
+            }
+        ]
+    },
+    {
+        id: 'ornamental-crown',
+        title: 'Ornamental Crown',
+        description: 'Symmetry with filigree accents',
+        bodyPart: 'sternum',
+        prompt: 'Ornamental crown with filigree and gemstone inlays',
+        layers: [
+            {
+                imageUrl: '/images/trending/ornamental-crown-subject.svg',
+                type: 'subject'
+            },
+            {
+                imageUrl: '/images/trending/ornamental-crown-bg.svg',
                 type: 'background'
             }
         ]
