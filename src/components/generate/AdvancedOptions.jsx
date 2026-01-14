@@ -23,6 +23,7 @@ const ENHANCEMENT_LEVELS = [
 export default function AdvancedOptions({
     isExpanded,
     onToggle,
+    hideToggle = false,
     size = 'medium',
     onSizeChange,
     aiModel = 'tattoo',
@@ -37,16 +38,18 @@ export default function AdvancedOptions({
     return (
         <div className="border-t border-white/5 pt-6">
             {/* Toggle Button */}
-            <button
-                onClick={onToggle}
-                className="flex items-center gap-2 text-xs font-mono text-gray-600 hover:text-white transition-colors uppercase tracking-widest mb-4"
-            >
-                <ChevronDown
-                    className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
-                    size={14}
-                />
-                Advanced Parameters
-            </button>
+            {!hideToggle && (
+                <button
+                    onClick={onToggle}
+                    className="flex items-center gap-2 text-xs font-mono text-gray-600 hover:text-white transition-colors uppercase tracking-widest mb-4"
+                >
+                    <ChevronDown
+                        className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
+                        size={14}
+                    />
+                    Advanced Parameters
+                </button>
+            )}
 
             {/* Expanded Panel */}
             {isExpanded && (

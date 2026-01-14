@@ -226,6 +226,11 @@ export function ForgeCanvas({
                         aspectRatio: `${aspectRatio}`,
                     }}
                 >
+                    <div className="absolute inset-0 pointer-events-none">
+                        <div className="absolute inset-0 forge-grid opacity-40" />
+                        <div className="absolute inset-0 forge-scan opacity-30" />
+                    </div>
+
                     {/* Silhouette overlay */}
                     <CanvasSilhouette bodyPart={bodyPart} opacity={0.12} />
 
