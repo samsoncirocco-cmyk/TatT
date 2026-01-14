@@ -23,6 +23,7 @@ import VersionTimeline from '../components/generate/VersionTimeline';
 import VersionComparison from '../components/generate/VersionComparison';
 import LayerContextMenu from '../components/generate/LayerContextMenu';
 import RegenerateElementModal from '../components/generate/RegenerateElementModal';
+import ForgeGuide from '../components/generate/ForgeGuide';
 import { ToastContainer } from '../components/ui/Toast';
 import { DEFAULT_BODY_PART } from '../constants/bodyPartAspectRatios';
 import { enhancePrompt } from '../services/councilService';
@@ -206,6 +207,11 @@ export default function Generate() {
     const [negativePrompt, setNegativePrompt] = useState('');
     const [enhancementLevel, setEnhancementLevel] = useState('detailed');
     const [separateRGBA, setSeparateRGBA] = useState(false);
+    const [showGuide, setShowGuide] = useState(() => {
+        if (typeof window === 'undefined') return true;
+        return localStorage.getItem('tattester_forge_guide_dismissed') !== 'true';
+    });
+    const [guideStepIndex, setGuideStepIndex] = useState(0);
 
     const [sessionId, setSessionId] = useState(() => {
         const stored = sessionStorage.getItem('tattester_session_id');
@@ -571,6 +577,54 @@ export default function Generate() {
         setEnhancedPrompt(null);
         setSelectedChips([]);
     };
+
+    const guideSteps = useMemo(() => ([
+        {
+            title: 'Pick a launch point',
+            description: 'Start with a trending composition or press “Start from Scratch” to begin clean.',
+            targetId: 'forge-trending',
+            targetLabel: 'Trending'
+        },
+        {
+            title: 'Choose placement',
+            description: 'Select the body placement so the canvas matches the correct aspect ratio.',
+            targetId: 'forge-placement',
+            targetLabel: 'Placement'
+        },
+        {
+            title: 'Describe the vision',
+            description: 'Write the core prompt and tap vibe chips to shape style, elements, and mood.',
+            targetId: 'forge-prompt',
+            targetLabel: 'Prompt'
+        },
+        {
+            title: 'Refine or finalize',
+            description: 'Use Refine for quick iterations, Finalize for high-res output.',
+            targetId: 'forge-actions',
+            targetLabel: 'Actions'
+        },
+        {
+            title: 'Review results',
+            description: 'Track versions, compare options, and see artist matches update in real time.',
+            targetId: 'forge-review',
+            targetLabel: 'Review'
+        }
+    ]), []);
+
+    const handleGuideClose = useCallback(() => {
+        setShowGuide(false);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('tattester_forge_guide_dismissed', 'true');
+        }
+    }, []);
+
+    const handleGuideJump = useCallback((targetId) => {
+        if (!targetId) return;
+        const target = document.getElementById(targetId);
+        if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, []);
 
     const handleLoadExample = async (example) => {
         setIsLoadingExample(true);
@@ -955,10 +1009,28 @@ export default function Generate() {
                 <p className="text-xs font-mono text-ducks-green uppercase tracking-[0.3em]" aria-label="Version 4.2 Neural Ink Generation Engine">
                     Neural Ink Generation Engine // v4.2
                 </p>
+                <div className="mt-6 flex items-center justify-center gap-3">
+                    <button
+                        onClick={() => {
+                            setGuideStepIndex(0);
+                            setShowGuide(true);
+                        }}
+                        className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-mono uppercase tracking-widest text-white/70 hover:text-white hover:border-white/40"
+                    >
+                        Guided Tour
+                    </button>
+                    <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-white/30">
+                        Learn the flow in 60 seconds
+                    </span>
+                </div>
             </div>
 
             <div className="max-w-[1800px] mx-auto space-y-10" role="main">
-                <section className="glass-panel rounded-3xl border border-white/10 p-6" aria-label="Trending design examples">
+                <section
+                    id="forge-trending"
+                    className="glass-panel rounded-3xl border border-white/10 p-6"
+                    aria-label="Trending design examples"
+                >
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                         <div>
                             <p className="text-xs font-mono uppercase tracking-[0.3em] text-ducks-green">
@@ -1013,7 +1085,10 @@ export default function Generate() {
 
                     {/* Left Sidebar - Body Part Selector */}
                     <div className="xl:col-span-2">
-                        <div className="glass-panel rounded-2xl p-4 border border-white/10 sticky top-24">
+                        <div
+                            id="forge-placement"
+                            className="glass-panel rounded-2xl p-4 border border-white/10 sticky top-24"
+                        >
                             <BodyPartSelector
                                 selectedBodyPart={bodyPart}
                                 onSelect={handleBodyPartChange}
@@ -1164,7 +1239,21 @@ export default function Generate() {
                             </div>
 
                             {/* Prompt Interface */}
-                            <div className="glass-panel rounded-3xl p-8 border border-white/10">
+                            <div id="forge-prompt" className="glass-panel rounded-3xl p-8 border border-white/10">
+                                <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-white/60">
+                                    <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                                        <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-ducks-green">Step 1</p>
+                                        <p className="mt-2 text-sm text-white/80">Describe the idea in one sentence.</p>
+                                    </div>
+                                    <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                                        <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-ducks-green">Step 2</p>
+                                        <p className="mt-2 text-sm text-white/80">Add vibe chips to steer style and mood.</p>
+                                    </div>
+                                    <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                                        <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-ducks-green">Step 3</p>
+                                        <p className="mt-2 text-sm text-white/80">Refine for speed, Finalize for quality.</p>
+                                    </div>
+                                </div>
                                 <PromptInterface
                                     value={promptText}
                                     onChange={setPromptText}
@@ -1216,7 +1305,7 @@ export default function Generate() {
                                 )}
 
                                 {(enhancedPrompt || promptText.trim()) && (
-                                    <div className="mt-6 space-y-3">
+                                    <div id="forge-actions" className="mt-6 space-y-3">
                                         <div className="grid grid-cols-2 gap-3">
                                             <Button
                                                 onClick={() => handleGenerate(false)}
@@ -1279,14 +1368,16 @@ export default function Generate() {
                                 )}
                             </div>
 
-                            <VersionTimeline
-                                versions={timeline}
-                                currentVersionId={currentVersionId}
-                                onLoadVersion={handleLoadVersion}
-                                onBranchVersion={handleBranchVersion}
-                                onCompareVersions={handleCompareVersions}
-                                onDeleteVersion={removeVersion}
-                            />
+                            <div id="forge-review">
+                                <VersionTimeline
+                                    versions={timeline}
+                                    currentVersionId={currentVersionId}
+                                    onLoadVersion={handleLoadVersion}
+                                    onBranchVersion={handleBranchVersion}
+                                    onCompareVersions={handleCompareVersions}
+                                    onDeleteVersion={removeVersion}
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -1470,6 +1561,23 @@ export default function Generate() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {showGuide && (
+                <ForgeGuide
+                    steps={guideSteps}
+                    stepIndex={guideStepIndex}
+                    onNext={() => {
+                        if (guideStepIndex >= guideSteps.length - 1) {
+                            handleGuideClose();
+                        } else {
+                            setGuideStepIndex((prev) => prev + 1);
+                        }
+                    }}
+                    onPrev={() => setGuideStepIndex((prev) => Math.max(0, prev - 1))}
+                    onClose={handleGuideClose}
+                    onJump={handleGuideJump}
+                />
             )}
 
             {comparison && (
