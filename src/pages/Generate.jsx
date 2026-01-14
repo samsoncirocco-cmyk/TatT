@@ -1025,7 +1025,7 @@ export default function Generate() {
                 </div>
             </div>
 
-            <div className="max-w-[1600px] mx-auto space-y-10" role="main">
+            <div className="max-w-[1560px] mx-auto space-y-10" role="main">
                 <section
                     id="forge-trending"
                     className="glass-panel rounded-3xl border border-white/10 p-6"
@@ -1033,14 +1033,14 @@ export default function Generate() {
                 >
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                         <div>
-                            <p className="text-xs font-mono uppercase tracking-[0.3em] text-ducks-green">
+                            <p className="text-[11px] font-mono uppercase tracking-[0.4em] text-ducks-green/70">
                                 Trending Now
                             </p>
-                            <h2 className="text-3xl font-display font-bold text-white mt-2">
-                                Start with a proven composition
+                            <h2 className="text-2xl md:text-3xl font-display font-bold text-white mt-2">
+                                Inspiration library
                             </h2>
                             <p className="text-sm text-white/50 mt-2 max-w-xl">
-                                Load a curated example and refine it. Or start fresh with a blank canvas.
+                                Start from a curated concept or begin with a blank canvas.
                             </p>
                         </div>
                         <Button
@@ -1058,7 +1058,7 @@ export default function Generate() {
                             <button
                                 key={example.id}
                                 onClick={() => handleLoadExample(example)}
-                                className="group text-left rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all overflow-hidden focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-ducks-yellow"
+                                className="group text-left rounded-2xl border border-white/10 bg-black/40 hover:bg-black/60 transition-all overflow-hidden focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-ducks-yellow"
                                 disabled={isLoadingExample}
                             >
                                 <div className="relative h-36 overflow-hidden">
@@ -1084,7 +1084,7 @@ export default function Generate() {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
                     {/* Left Sidebar - Body Part Selector */}
-                    <div className="lg:col-span-3 xl:col-span-2">
+                    <div className="lg:col-span-3 xl:col-span-3 2xl:col-span-2">
                         <div
                             id="forge-placement"
                             className="glass-panel rounded-2xl p-4 border border-white/10 sticky top-24"
@@ -1098,7 +1098,7 @@ export default function Generate() {
                     </div>
 
                     {/* Center - Canvas */}
-                    <div className="lg:col-span-9 xl:col-span-10 2xl:col-span-6">
+                    <div className="lg:col-span-9 xl:col-span-9 2xl:col-span-7">
                         <div className="space-y-6">
                             {/* Canvas */}
                             <div className="glass-panel rounded-3xl p-6 border border-white/10">
@@ -1240,28 +1240,47 @@ export default function Generate() {
 
                             {/* Prompt Interface */}
                             <div id="forge-prompt" className="glass-panel rounded-3xl p-8 border border-white/10">
-                                <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-white/60">
-                                    <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                                        <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-ducks-green">Step 1</p>
-                                        <p className="mt-2 text-sm text-white/80">Describe the idea in one sentence.</p>
+                                <div className="mb-6">
+                                    <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-[0.3em] text-white/50">
+                                        <span>Placement</span>
+                                        <span>Prompt</span>
+                                        <span>Generate</span>
                                     </div>
-                                    <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                                        <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-ducks-green">Step 2</p>
-                                        <p className="mt-2 text-sm text-white/80">Add vibe chips to steer style and mood.</p>
-                                    </div>
-                                    <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                                        <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-ducks-green">Step 3</p>
-                                        <p className="mt-2 text-sm text-white/80">Refine for speed, Finalize for quality.</p>
+                                    <div className="mt-3 h-2 rounded-full bg-white/10 overflow-hidden">
+                                        <div
+                                            className="h-full bg-ducks-green transition-all duration-500"
+                                            style={{
+                                                width: `${Math.round(([
+                                                    bodyPart ? 1 : 0,
+                                                    promptText.trim() || enhancedPrompt?.trim() ? 1 : 0,
+                                                    layers.length > 0 ? 1 : 0
+                                                ].reduce((sum, value) => sum + value, 0) / 3) * 100)}%`
+                                            }}
+                                        />
                                     </div>
                                 </div>
                                 <PromptInterface
                                     value={promptText}
                                     onChange={setPromptText}
-                                    onEnhance={handleEnhance}
-                                    isEnhancing={isEnhancing}
                                     selectedChips={selectedChips}
-                                    onChipSelect={handleChipSelect}
                                 />
+
+                                <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+                                    <Button
+                                        onClick={handleEnhance}
+                                        disabled={isEnhancing || !promptText.trim()}
+                                        className="h-12 px-5 text-xs font-black tracking-wider bg-gradient-to-r from-white/10 to-white/5 text-white hover:bg-white/20 border border-white/20"
+                                        icon={Sparkles}
+                                    >
+                                        Enhance with AI Council
+                                    </Button>
+                                    <button
+                                        onClick={() => setShowAdvanced(!showAdvanced)}
+                                        className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-mono uppercase tracking-widest text-white/60 hover:text-white hover:border-white/40"
+                                    >
+                                        Advanced Parameters
+                                    </button>
+                                </div>
 
                                 <VibeChips
                                     suggestions={suggestions}
@@ -1273,6 +1292,7 @@ export default function Generate() {
                                 <AdvancedOptions
                                     isExpanded={showAdvanced}
                                     onToggle={() => setShowAdvanced(!showAdvanced)}
+                                    hideToggle
                                     size={size}
                                     onSizeChange={setSize}
                                     aiModel={aiModel}
@@ -1382,7 +1402,7 @@ export default function Generate() {
                     </div>
 
                     {/* Right Sidebar - Match Pulse + Layer Stack */}
-                    <div className="lg:col-span-12 xl:col-span-12 2xl:col-span-4">
+                    <div className="lg:col-span-12 xl:col-span-12 2xl:col-span-3">
                         <div className="space-y-6 2xl:sticky 2xl:top-24">
                             <MatchPulseSidebar
                                 matches={matches}
