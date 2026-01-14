@@ -33,7 +33,7 @@
     "express-rate-limit": "^8.2.1",
     "framer-motion": "^12.25.0",
     "jspdf": "^4.0.0",
-    "konva": "^10.0.12",
+    "konva": "^9.3.22",
     "lucide-react": "^0.562.0",
     "neo4j-driver": "^6.0.1",
     "react": "^18.2.0",
