@@ -14,10 +14,10 @@
 import { useEffect, useState } from 'react';
 
 const COUNCIL_MEMBERS = [
-  { name: 'Creative Director', color: 'from-purple-500 to-pink-500', icon: '🎨' },
-  { name: 'Technical Expert', color: 'from-blue-500 to-cyan-500', icon: '⚙️' },
-  { name: 'Style Specialist', color: 'from-green-500 to-emerald-500', icon: '✨' },
-  { name: 'Composition Guru', color: 'from-orange-500 to-red-500', icon: '📐' }
+  { name: 'Creative Director', color: 'from-purple-500 to-pink-500', icon: 'CD' },
+  { name: 'Technical Expert', color: 'from-blue-500 to-cyan-500', icon: 'TE' },
+  { name: 'Style Specialist', color: 'from-green-500 to-emerald-500', icon: 'SS' },
+  { name: 'Composition Guru', color: 'from-orange-500 to-red-500', icon: 'CG' }
 ];
 
 const DISCUSSION_PHASES = [
@@ -74,7 +74,7 @@ export default function CouncilLoadingState({ message = 'AI Council Enhancing...
               >
                 <div className={`
                   w-16 h-16 rounded-full bg-gradient-to-br ${member.color}
-                  flex items-center justify-center text-2xl
+                  flex items-center justify-center text-[10px] font-mono uppercase tracking-[0.2em]
                   transition-all duration-500
                   ${isActive ? 'shadow-lg ring-4 ring-white ring-opacity-50' : 'shadow-md'}
                 `}>
@@ -143,7 +143,7 @@ export default function CouncilLoadingState({ message = 'AI Council Enhancing...
       {/* Fun Fact */}
       <div className="text-center">
         <p className="text-xs text-gray-500 italic">
-          💡 The council is analyzing style, composition, and artistic details to create the perfect prompt
+          The council is analyzing style, composition, and artistic details to create the perfect prompt
         </p>
       </div>
     </div>

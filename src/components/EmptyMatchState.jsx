@@ -13,7 +13,7 @@ function EmptyMatchState({ searchParams, onAdjustFilters, onStartOver }) {
     // Generate contextual suggestions
     if (radius < 50) {
         suggestions.push({
-            icon: '📍',
+            icon: 'RAD',
             title: 'Expand search radius',
             description: `Broaden scan from ${radius} to 50 miles`,
             action: 'increase_radius'
@@ -22,7 +22,7 @@ function EmptyMatchState({ searchParams, onAdjustFilters, onStartOver }) {
 
     if (styles.length > 2) {
         suggestions.push({
-            icon: '🎨',
+            icon: 'STYLE',
             title: 'Refine Style Params',
             description: `Reduce complexity from ${styles.length} filters`,
             action: 'reduce_styles'
@@ -31,7 +31,7 @@ function EmptyMatchState({ searchParams, onAdjustFilters, onStartOver }) {
 
     if (location) {
         suggestions.push({
-            icon: '🌎',
+            icon: 'AREA',
             title: 'Relocate Sensor',
             description: 'Target adjacent metro areas',
             action: 'change_location'
@@ -39,7 +39,7 @@ function EmptyMatchState({ searchParams, onAdjustFilters, onStartOver }) {
     }
 
     suggestions.push({
-        icon: '🔍',
+        icon: 'QUERY',
         title: 'Query Optimization',
         description: 'Simplify keyword parameters',
         action: 'change_query'
@@ -88,7 +88,9 @@ function EmptyMatchState({ searchParams, onAdjustFilters, onStartOver }) {
                                 className="glass-panel border border-white/5 hover:border-ducks-green/30 rounded-xl p-4 text-left transition-all group active:scale-[0.99]"
                             >
                                 <div className="flex items-center gap-4">
-                                    <span className="text-xl grayscale group-hover:grayscale-0 transition-all">{suggestion.icon}</span>
+                                    <span className="rounded-full border border-white/10 bg-black/40 px-2 py-1 text-[10px] font-mono uppercase tracking-[0.3em] text-white/60">
+                                        {suggestion.icon}
+                                    </span>
                                     <div className="flex-1">
                                         <h4 className="text-white font-bold text-sm mb-0.5 group-hover:text-ducks-green transition-colors">
                                             {suggestion.title}

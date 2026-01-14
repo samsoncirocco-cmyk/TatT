@@ -406,7 +406,6 @@ export default function StencilExport({ imageUrl, designName = 'tattoo', designI
                 }`}
               >
                 Edge Detection
-                <span className="ml-1 text-xs">✨</span>
               </button>
             </div>
             <p className="text-xs text-gray-500 mt-1">

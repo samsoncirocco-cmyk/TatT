@@ -1025,7 +1025,7 @@ export default function Generate() {
                 </div>
             </div>
 
-            <div className="max-w-[1800px] mx-auto space-y-10" role="main">
+            <div className="max-w-[1600px] mx-auto space-y-10" role="main">
                 <section
                     id="forge-trending"
                     className="glass-panel rounded-3xl border border-white/10 p-6"
@@ -1081,10 +1081,10 @@ export default function Generate() {
                     </div>
                 </section>
 
-                <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
                     {/* Left Sidebar - Body Part Selector */}
-                    <div className="xl:col-span-2">
+                    <div className="lg:col-span-3 xl:col-span-2">
                         <div
                             id="forge-placement"
                             className="glass-panel rounded-2xl p-4 border border-white/10 sticky top-24"
@@ -1098,7 +1098,7 @@ export default function Generate() {
                     </div>
 
                     {/* Center - Canvas */}
-                    <div className="xl:col-span-6">
+                    <div className="lg:col-span-9 xl:col-span-10 2xl:col-span-6">
                         <div className="space-y-6">
                             {/* Canvas */}
                             <div className="glass-panel rounded-3xl p-6 border border-white/10">
@@ -1288,9 +1288,9 @@ export default function Generate() {
                                 {enhancedPrompt && (
                                     <div className="mt-6 p-6 bg-purple-500/10 border border-purple-500/30 rounded-2xl">
                                         <div className="flex items-center justify-between mb-3">
-                                            <h4 className="text-sm font-bold text-purple-400 uppercase tracking-wider">
-                                                ✨ AI Enhanced Prompt ({enhancementLevel})
-                                            </h4>
+                                        <h4 className="text-sm font-bold text-purple-400 uppercase tracking-wider">
+                                            AI Enhanced Prompt ({enhancementLevel})
+                                        </h4>
                                             <button
                                                 onClick={() => setEnhancedPrompt(null)}
                                                 className="text-xs text-gray-500 hover:text-white transition-colors"
@@ -1382,8 +1382,8 @@ export default function Generate() {
                     </div>
 
                     {/* Right Sidebar - Match Pulse + Layer Stack */}
-                    <div className="xl:col-span-4">
-                        <div className="sticky top-24 space-y-6">
+                    <div className="lg:col-span-12 xl:col-span-12 2xl:col-span-4">
+                        <div className="space-y-6 2xl:sticky 2xl:top-24">
                             <MatchPulseSidebar
                                 matches={matches}
                                 totalMatches={totalMatches}

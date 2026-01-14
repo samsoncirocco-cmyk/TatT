@@ -71,7 +71,7 @@ export function BodyPartSelector({
                             )}
 
                             {/* Icon */}
-                            <div className="text-4xl mb-2 transition-transform group-hover:scale-110">
+                            <div className="mb-2 inline-flex items-center justify-center rounded-full border border-white/10 bg-black/40 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.3em] text-white/70 transition-transform group-hover:scale-105">
                                 {part.icon}
                             </div>
 
@@ -103,7 +103,9 @@ export function BodyPartSelector({
                     className="mt-6 p-4 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl"
                 >
                     <div className="flex items-start gap-3">
-                        <div className="text-2xl">{BODY_PART_CONFIGS[selectedBodyPart].icon}</div>
+                        <div className="inline-flex items-center justify-center rounded-full border border-white/10 bg-black/40 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.3em] text-white/70">
+                            {BODY_PART_CONFIGS[selectedBodyPart].icon}
+                        </div>
                         <div className="flex-1">
                             <div className="font-display font-semibold text-white mb-1">
                                 {BODY_PART_CONFIGS[selectedBodyPart].label}

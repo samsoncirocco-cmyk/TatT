@@ -54,12 +54,6 @@ export default function LayerItem({
         effect: 'text-purple-400'
     };
 
-    const typeIcons = {
-        subject: '🎨',
-        background: '🌄',
-        effect: '✨'
-    };
-
     return (
         <div
             onClick={() => onSelect(layer.id)}
@@ -130,7 +124,7 @@ export default function LayerItem({
                 )}
                 <div className="flex items-center gap-2 mt-1">
                     <span className={`text-[10px] font-mono uppercase tracking-wider ${typeColors[layer.type]}`}>
-                        {typeIcons[layer.type]} {layer.type}
+                        {layer.type}
                     </span>
                     <span className="text-[10px] text-gray-600 font-mono">
                         z:{layer.zIndex}
