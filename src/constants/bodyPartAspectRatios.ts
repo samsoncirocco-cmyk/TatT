@@ -21,7 +21,7 @@ export interface BodyPartConfig {
     height: number;      // relative height for aspect ratio calculation
     silhouette: string;  // Silhouette component identifier
     description: string;
-    icon: string;        // Emoji or icon identifier
+    icon: string;        // Short text identifier
     category: 'arm' | 'torso' | 'leg';
 }
 
@@ -34,7 +34,7 @@ export const BODY_PART_CONFIGS: Record<BodyPart, BodyPartConfig> = {
         height: 3,
         silhouette: 'ForearmSilhouette',
         description: 'Vertical placement, ideal for sleeves and bands',
-        icon: '💪',
+        icon: 'FA',
         category: 'arm',
     },
     chest: {
@@ -45,7 +45,7 @@ export const BODY_PART_CONFIGS: Record<BodyPart, BodyPartConfig> = {
         height: 5,
         silhouette: 'ChestSilhouette',
         description: 'Square-ish canvas, great for centered designs',
-        icon: '🫀',
+        icon: 'CH',
         category: 'torso',
     },
     back: {
@@ -56,7 +56,7 @@ export const BODY_PART_CONFIGS: Record<BodyPart, BodyPartConfig> = {
         height: 4,
         silhouette: 'BackSilhouette',
         description: 'Portrait orientation, large canvas area',
-        icon: '🔙',
+        icon: 'BK',
         category: 'torso',
     },
     thigh: {
@@ -67,7 +67,7 @@ export const BODY_PART_CONFIGS: Record<BodyPart, BodyPartConfig> = {
         height: 3,
         silhouette: 'ThighSilhouette',
         description: 'Portrait design, medium-large placement',
-        icon: '🦵',
+        icon: 'TH',
         category: 'leg',
     },
     shoulder: {
@@ -78,7 +78,7 @@ export const BODY_PART_CONFIGS: Record<BodyPart, BodyPartConfig> = {
         height: 1,
         silhouette: 'ShoulderSilhouette',
         description: 'Square canvas, circular designs work well',
-        icon: '💪',
+        icon: 'SH',
         category: 'arm',
     },
     'full-sleeve': {
@@ -89,7 +89,7 @@ export const BODY_PART_CONFIGS: Record<BodyPart, BodyPartConfig> = {
         height: 4,
         silhouette: 'FullSleeveSilhouette',
         description: 'Long vertical canvas, from shoulder to wrist',
-        icon: '🎨',
+        icon: 'FS',
         category: 'arm',
     },
     ribs: {
@@ -100,7 +100,7 @@ export const BODY_PART_CONFIGS: Record<BodyPart, BodyPartConfig> = {
         height: 3,
         silhouette: 'RibsSilhouette',
         description: 'Side placement, portrait orientation',
-        icon: '🫁',
+        icon: 'RB',
         category: 'torso',
     },
     calf: {
@@ -111,7 +111,7 @@ export const BODY_PART_CONFIGS: Record<BodyPart, BodyPartConfig> = {
         height: 2.5,
         silhouette: 'CalfSilhouette',
         description: 'Lower leg, vertical placement',
-        icon: '🦿',
+        icon: 'CF',
         category: 'leg',
     },
 };

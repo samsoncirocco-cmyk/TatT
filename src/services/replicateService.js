@@ -278,7 +278,7 @@ export async function generateTattooDesign(userInput, modelId = null, signal = n
 
   // DEMO MODE: Return mock data without API calls
   if (DEMO_MODE) {
-    console.log('[Replicate] 🎨 DEMO MODE - Using mock images');
+    console.log('[Replicate] DEMO MODE - Using mock images');
 
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 3000));

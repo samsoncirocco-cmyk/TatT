@@ -442,7 +442,7 @@ export default function DesignGeneratorWithCouncil() {
             <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
               <div className="flex items-start justify-between mb-2">
                 <p className="text-sm font-semibold text-purple-900">
-                  ✨ AI Enhanced Prompt:
+                  AI Enhanced Prompt:
                 </p>
                 <button
                   onClick={() => {
@@ -482,7 +482,7 @@ export default function DesignGeneratorWithCouncil() {
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
-                ✨ Enhance with AI Council
+                Enhance with AI Council
               </button>
             )}
 
@@ -504,7 +504,7 @@ export default function DesignGeneratorWithCouncil() {
 
             <p className="text-xs text-center text-gray-500">
               {enhancedPrompt
-                ? '✨ Using AI-enhanced prompt for better results'
+                ? 'Using AI-enhanced prompt for better results'
                 : 'Tip: Enhance your prompt with AI Council for better designs!'
               }
             </p>
@@ -567,7 +567,7 @@ export default function DesignGeneratorWithCouncil() {
                 <div className="col-span-2">
                   <span className="text-gray-600">Prompt:</span>
                   <span className="ml-2 font-medium text-gray-900">
-                    {enhancedPrompt ? '✨ AI Enhanced' : generatedDesigns.metadata.subject}
+                    {enhancedPrompt ? 'AI Enhanced' : generatedDesigns.metadata.subject}
                   </span>
                 </div>
               </div>
@@ -598,7 +598,7 @@ export default function DesignGeneratorWithCouncil() {
                         }}
                         className="w-full py-2 px-4 rounded-lg font-medium bg-purple-600 text-white hover:bg-purple-700 transition-all"
                       >
-                        ✏️ Edit Design
+                        Edit Design
                       </button>
                       <button
                         onClick={(e) => {
@@ -631,12 +631,12 @@ export default function DesignGeneratorWithCouncil() {
                     </div>
                     {enhancedPrompt && (
                       <div className="bg-purple-600 text-white text-xs font-medium px-2 py-1 rounded">
-                        ✨ AI Enhanced
+                        AI Enhanced
                       </div>
                     )}
                     {inpaintedImages[index] && (
                       <div className="bg-blue-600 text-white text-xs font-medium px-2 py-1 rounded">
-                        ✏️ Edited
+                        Edited
                       </div>
                     )}
                   </div>

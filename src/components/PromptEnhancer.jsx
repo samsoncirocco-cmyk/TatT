@@ -111,7 +111,7 @@ export default function PromptEnhancer({
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
-            ✨ Enhance with AI Council
+            Enhance with AI Council
           </>
         )}
       </button>
@@ -127,7 +127,7 @@ export default function PromptEnhancer({
       {councilDiscussion.length > 0 && (
         <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
           <p className="text-xs font-semibold text-purple-900 mb-2">
-            💬 Council Discussion:
+            Council Discussion:
           </p>
           <div className="space-y-1 max-h-32 overflow-y-auto">
             {councilDiscussion.map((message, idx) => (
@@ -149,7 +149,7 @@ export default function PromptEnhancer({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
                 <p className="text-sm font-semibold text-blue-900">
-                  🤖 Selected Model: {enhancedPrompts.modelSelection.modelName}
+                  Selected Model: {enhancedPrompts.modelSelection.modelName}
                   {enhancedPrompts.modelSelection.isFallback && (
                     <span className="ml-2 text-xs text-orange-600">(Fallback)</span>
                   )}
@@ -159,8 +159,8 @@ export default function PromptEnhancer({
                 {enhancedPrompts.modelSelection.reasoning}
               </p>
               <div className="flex items-center space-x-4 text-xs text-blue-600">
-                <span>⏱️ Est. Time: {enhancedPrompts.modelSelection.estimatedTime}</span>
-                <span>💰 Cost: ${enhancedPrompts.modelSelection.cost.toFixed(4)}/image</span>
+                <span>Est. Time: {enhancedPrompts.modelSelection.estimatedTime}</span>
+                <span>Cost: ${enhancedPrompts.modelSelection.cost.toFixed(4)}/image</span>
               </div>
             </div>
           </div>
@@ -178,7 +178,7 @@ export default function PromptEnhancer({
               onClick={handleCustomEdit}
               className="text-sm text-blue-600 hover:text-blue-700 font-medium"
             >
-              ✏️ Custom Edit
+              Custom Edit
             </button>
           </div>
 
@@ -224,7 +224,7 @@ export default function PromptEnhancer({
           {enhancedPrompts.negativePrompt && (
             <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
               <p className="text-xs font-semibold text-gray-700 mb-1">
-                🚫 Negative Prompt (what to avoid):
+                Negative Prompt (what to avoid):
               </p>
               <p className="text-xs text-gray-600 italic">
                 {enhancedPrompts.negativePrompt}
@@ -247,7 +247,7 @@ export default function PromptEnhancer({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-gray-700">
-              ✏️ Custom Prompt Editor
+              Custom Prompt Editor
             </p>
             <button
               onClick={() => {
@@ -289,7 +289,7 @@ export default function PromptEnhancer({
       {/* Info Box */}
       <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
         <p className="text-xs text-blue-800">
-          <strong>💡 How it works:</strong> The AI Council discusses your idea and generates
+          <strong>How it works:</strong> The AI Council discusses your idea and generates
           prompts optimized for tattoo design. Choose from Simple, Detailed, or Ultra levels,
           or create your own custom prompt.
         </p>

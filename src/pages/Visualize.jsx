@@ -507,7 +507,7 @@ function Visualize() {
             {currentConfidenceTip && (
               <div className="absolute top-4 left-0 right-0 flex justify-center pointer-events-none fade-in">
                 <div className="glass-panel border-ducks-green/30 text-white px-4 py-2 rounded-full text-xs font-bold shadow-glow-green animate-bounce-subtle">
-                  ✨ {currentConfidenceTip}
+                  {currentConfidenceTip}
                 </div>
               </div>
             )}

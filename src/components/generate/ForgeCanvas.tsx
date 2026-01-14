@@ -258,9 +258,11 @@ export function ForgeCanvas({
                     {layers.length === 0 && (
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                             <div className="text-center space-y-4 px-8">
-                                <div className="text-6xl opacity-20">🎨</div>
+                                <div className="text-[10px] font-mono uppercase tracking-[0.4em] text-white/30">
+                                    Canvas Ready
+                                </div>
                                 <p className="text-white/40 font-sans text-sm">
-                                    Canvas ready for design
+                                    Add a prompt or load a composition to begin.
                                 </p>
                                 <p className="text-white/20 font-mono text-xs">
                                     {width} × {height}px

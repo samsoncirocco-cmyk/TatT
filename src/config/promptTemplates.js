@@ -306,7 +306,7 @@ export const PROMPT_TEMPLATE_CATEGORIES = {
   meaningfulSymbols: {
     name: 'Meaningful Symbols',
     description: 'Classic tattoo symbols with deep personal meaning',
-    icon: '✨',
+    icon: 'MS',
     templates: [
       {
         id: 'phoenix-rebirth',
@@ -334,7 +334,7 @@ export const PROMPT_TEMPLATE_CATEGORIES = {
   characterMashups: {
     name: 'Character Mashups',
     description: 'Multiple characters in one unified design',
-    icon: '⚔️',
+    icon: 'CM',
     templates: [
       {
         id: 'gojo-vs-sukuna',
@@ -355,7 +355,7 @@ export const PROMPT_TEMPLATE_CATEGORIES = {
   fineLineMinimalist: {
     name: 'Fine Line & Minimalist',
     description: 'Simple, elegant designs with clean lines',
-    icon: '━',
+    icon: 'FL',
     templates: [
       {
         id: 'mountain-line',
@@ -376,7 +376,7 @@ export const PROMPT_TEMPLATE_CATEGORIES = {
   natureAnimals: {
     name: 'Nature & Animals',
     description: 'Wildlife and natural elements',
-    icon: '🐺',
+    icon: 'NA',
     templates: [
       {
         id: 'wolf-moon',
