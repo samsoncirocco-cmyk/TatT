@@ -100,7 +100,23 @@ export function useSmartPreview({ userInput, enabled = true, debounceMs = 300 } 
       return previewResult;
     } catch (err) {
       if (!err.message?.includes('cancelled')) {
-        setError(err.message || 'Preview generation failed.');
+        // Provide actionable error messages based on error type
+        let errorMessage = err.message || 'Preview generation failed.';
+        
+        if (err.message?.includes('too long')) {
+          errorMessage = 'Prompt too long. Simplify your design description or disable council enhancement.';
+        } else if (err.message?.includes('authentication') || err.message?.includes('auth')) {
+          errorMessage = 'Authentication failed. Check your configuration and restart.';
+        } else if (err.message?.includes('timeout')) {
+          errorMessage = 'Server took too long to respond. Try again in a moment.';
+        } else if (err.message?.includes('rate limit') || err.message?.includes('429')) {
+          errorMessage = 'Too many requests. Please wait before trying again.';
+        } else if (err.message?.includes('cancelled')) {
+          return null;
+        }
+        
+        console.error('[SmartPreview] Generation error:', err);
+        setError(errorMessage);
       }
       return null;
     } finally {
