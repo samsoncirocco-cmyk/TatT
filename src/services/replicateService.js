@@ -151,6 +151,81 @@ const HIGH_RES_OVERRIDES = {
 const BUDGET_STORAGE_KEY = 'tattester_api_usage';
 
 /**
+ * Estimate token count for a prompt string
+ * Uses simple approximation: ~1.3 tokens per word (GPT-2 tokenizer)
+ * More accurate than character count for prompt validation
+ * 
+ * @param {string} text - Text to estimate tokens for
+ * @returns {number} Estimated token count
+ */
+export function estimateTokenCount(text) {
+  if (!text || typeof text !== 'string') return 0;
+  // Split on whitespace and estimate 1.3 tokens per word
+  const words = text.trim().split(/\s+/).length;
+  return Math.ceil(words * 1.3);
+}
+
+/**
+ * Validate prompt length doesn't exceed model capabilities
+ * SDXL can handle 500 tokens, but 450+ starts affecting quality
+ * 
+ * @param {string} prompt - Prompt to validate
+ * @param {number} maxTokens - Maximum allowed tokens (default: 450)
+ * @throws {Error} If prompt exceeds max tokens
+ */
+export function validatePromptLength(prompt, maxTokens = 450) {
+  const tokens = estimateTokenCount(prompt);
+  
+  if (tokens > maxTokens) {
+    throw new Error(
+      `Prompt too long (${tokens} tokens, max ${maxTokens}). ` +
+      `Try removing details or using a simpler subject. ` +
+      `(Council enhancement may have added ${tokens - 100} tokens.)`
+    );
+  }
+  
+  if (tokens > 400) {
+    console.warn(`[Replicate] Prompt is getting long (${tokens} tokens). Quality may decrease.`);
+  }
+}
+
+/**
+ * Get aspect ratio guidance for prompt based on body placement
+ * Helps SDXL generate images in correct proportions
+ * 
+ * @param {string} bodyPart - Body part for placement
+ * @param {number} aspectRatio - Optional explicit aspect ratio
+ * @returns {string} Prompt guidance text
+ */
+export function getAspectRatioGuidance(bodyPart, aspectRatio = null) {
+  const ratioGuide = {
+    forearm: 'tall vertical composition, portrait aspect ratio (1:3), optimized for forearm placement',
+    calf: 'tall vertical composition, portrait aspect ratio (1:2.5), optimized for calf placement',
+    thigh: 'tall vertical composition, portrait aspect ratio (1:2), optimized for thigh placement',
+    bicep: 'medium vertical composition, portrait aspect ratio (1:1.5), circular flow for arm',
+    chest: 'square composition, centered design, portrait aspect ratio (1:1), focal point in center',
+    back: 'large full composition, wide landscape orientation (2:3), flowing design for back',
+    shoulder: 'square to slightly vertical, portrait aspect ratio (1:1.2), shoulder-focused placement',
+    spine: 'tall vertical composition, portrait aspect ratio (1:4), line-based design for spine',
+    ankle: 'compact vertical composition, portrait aspect ratio (1:1.5), small focused design',
+    wrist: 'very compact horizontal composition, landscape aspect ratio (3:1), delicate fine work',
+    neck: 'small focused composition, square aspect ratio (1:1), placement above chest',
+    hand: 'small detailed composition, square aspect ratio (1:1), intricate fine line work'
+  };
+
+  let guidance = ratioGuide[bodyPart] || 'balanced composition, square aspect ratio (1:1)';
+  
+  // Override with explicit aspect ratio if provided
+  if (aspectRatio) {
+    const width = 1024;
+    const height = Math.round(width / aspectRatio);
+    guidance += ` (${width}x${height}px)`;
+  }
+  
+  return guidance;
+}
+
+/**
  * Track API usage for budget monitoring
  * In production, this would be server-side
  */
@@ -256,6 +331,14 @@ export async function generateTattooDesign(userInput, modelId = null, signal = n
     console.log('[Replicate] Using council-enhanced prompt (skipping template)');
     finalPrompt = userInput.subject;
     negativePrompt = userInput.negativePrompt || 'blurry, low quality, distorted, watermark, text, signature, cartoon, childish, unrealistic anatomy, multiple people, cluttered background, oversaturated, low contrast, pixelated, amateur, messy linework';
+    
+    // CRITICAL: Validate token count for council-enhanced prompts
+    try {
+      validatePromptLength(finalPrompt);
+    } catch (validationError) {
+      console.error('[Replicate] Prompt validation failed:', validationError.message);
+      throw validationError;
+    }
   } else {
     // Build optimized prompt using templates
     const promptConfig = buildPrompt(userInput);
@@ -265,6 +348,19 @@ export async function generateTattooDesign(userInput, modelId = null, signal = n
     // Add model-specific prompt prefix if needed
     if (model.promptPrefix) {
       finalPrompt = `${model.promptPrefix} ${finalPrompt}`;
+    }
+    
+    // Add aspect ratio guidance to prompt
+    const bodyPart = userInput.bodyPart || 'chest';
+    const aspectRatioGuidance = getAspectRatioGuidance(bodyPart, userInput.placement?.aspectRatio);
+    finalPrompt += ` [${aspectRatioGuidance}]`;
+    
+    // Validate token count
+    try {
+      validatePromptLength(finalPrompt);
+    } catch (validationError) {
+      console.error('[Replicate] Prompt validation failed:', validationError.message);
+      throw validationError;
     }
   }
 
@@ -439,50 +535,103 @@ export async function generateTattooDesign(userInput, modelId = null, signal = n
 
 /**
  * Retry logic for failed generations
- * Implements exponential backoff with retry budget cap
+ * Implements intelligent retry strategy:
+ * - Retries ONLY on transient/network errors
+ * - Fails immediately on permanent errors (auth, validation, etc.)
+ * - Uses exponential backoff: 2s, 4s, 8s, 16s, 16s...
  *
  * @param {Object} userInput - Design parameters
  * @param {string} modelId - Optional model ID to use
  * @param {AbortSignal} signal - Optional abort signal
- * @param {number} maxRetries - Maximum retry attempts (default: 3)
+ * @param {number} maxRetries - Maximum retry attempts (default: 5)
  * @returns {Promise<Object>} Generated design data
  */
-export async function generateWithRetry(userInput, modelId = null, signal = null, maxRetries = 3, options = {}) {
+export async function generateWithRetry(userInput, modelId = null, signal = null, maxRetries = 5, options = {}) {
   let lastError;
-  let retryBudget = maxRetries;
+  
+  // Determine if an error is transient (should retry) or permanent (should fail immediately)
+  function isTransientError(error) {
+    const msg = error.message.toLowerCase();
+    return msg.includes('timeout') ||
+           msg.includes('503') ||
+           msg.includes('429') || // rate limit
+           msg.includes('rate limit') ||
+           msg.includes('connection') ||
+           msg.includes('econnreset') ||
+           msg.includes('enotfound') ||
+           msg.includes('temporarily unavailable');
+  }
+  
+  function isPermanentError(error) {
+    const msg = error.message.toLowerCase();
+    return msg.includes('invalid input') ||
+           msg.includes('invalid model') ||
+           msg.includes('insufficient credits') ||
+           msg.includes('not configured') ||
+           msg.includes('400'); // Bad request
+  }
 
-  for (let attempt = 1; attempt <= retryBudget; attempt++) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`[Replicate] Generation attempt ${attempt}/${retryBudget}`);
+      console.log(`[Replicate] Generation attempt ${attempt}/${maxRetries}`);
       return await generateTattooDesign(userInput, modelId, signal, options);
     } catch (error) {
       lastError = error;
 
-      // Don't retry on cancellation
+      // Always fail on user cancellation
       if (error.message.includes('cancelled') || signal?.aborted) {
-        console.log('[Replicate] Retry aborted by user');
+        console.log('[Replicate] Generation cancelled by user');
         throw error;
       }
 
-      // Don't retry on authentication or validation errors
-      if (
-        error.message.includes('authentication') ||
-        error.message.includes('Invalid input') ||
-        error.message.includes('not configured')
-      ) {
+      // Fail immediately on permanent errors (don't waste retries)
+      if (isPermanentError(error)) {
+        console.error('[Replicate] Permanent error - will not retry:', error.message);
         throw error;
+      }
+
+      // Special handling for authentication errors:
+      // First attempt: likely missing/wrong token config
+      // Subsequent attempts: might be temporary auth service issue
+      if (error.message.includes('authentication') || error.message.includes('auth')) {
+        if (attempt === 1) {
+          console.error('[Replicate] Authentication error on first attempt - configuration issue');
+          throw new Error(
+            'Authentication failed: Check VITE_FRONTEND_AUTH_TOKEN in .env.local and restart dev server. ' +
+            'Make sure both client and server have the same token configured.'
+          );
+        } else {
+          console.log('[Replicate] Retrying after transient auth error...');
+          // Fall through to retry logic
+        }
       }
 
       // Check if retry budget exhausted
-      if (attempt >= retryBudget) {
-        console.error(`[Replicate] Retry budget exhausted (${retryBudget} attempts)`);
-        throw new Error(`Failed after ${retryBudget} attempts: ${error.message}`);
+      if (attempt >= maxRetries) {
+        console.error(`[Replicate] Retry budget exhausted (${maxRetries} attempts)`);
+        
+        // Provide context-specific error messages
+        let finalMessage = `Failed to generate design after ${maxRetries} attempts: ${error.message}`;
+        
+        if (lastError.message.includes('token') || lastError.message.includes('auth')) {
+          finalMessage += '\n\nAuth error: Verify VITE_FRONTEND_AUTH_TOKEN configuration and server status.';
+        }
+        if (lastError.message.includes('timeout') || lastError.message.includes('429')) {
+          finalMessage += '\n\nServer is busy. Please wait a moment and try again.';
+        }
+        
+        throw new Error(finalMessage);
       }
 
-      // Wait before retrying (exponential backoff)
-      const waitTime = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
-      console.log(`[Replicate] Retrying in ${waitTime / 1000}s... (${retryBudget - attempt} retries left)`);
+      // Transient error - retry with exponential backoff
+      if (!isTransientError(error)) {
+        console.log('[Replicate] Error may be transient, will retry:', error.message);
+      }
+      
+      const waitTime = Math.min(Math.pow(2, attempt) * 1000, 16000); // 2s, 4s, 8s, 16s, 16s...
+      console.log(`[Replicate] Retrying in ${waitTime / 1000}s... (${maxRetries - attempt} retries left)`);
 
+      // Wait with abort support
       await new Promise((resolve, reject) => {
         const timeout = setTimeout(resolve, waitTime);
         signal?.addEventListener('abort', () => {
