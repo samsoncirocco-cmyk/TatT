@@ -33,64 +33,146 @@ const DEMO_MODE = import.meta.env.VITE_COUNCIL_DEMO_MODE === 'true';
 const CHARACTER_MAP = buildCharacterMap();
 const CHARACTER_NAMES = getAllCharacterNames();
 
+/**
+ * Detect if the user is requesting stencil-style artwork
+ * @param {string} userIdea - The user's design description
+ * @param {string} negativePrompt - Optional negative prompt
+ * @returns {boolean} True if stencil keywords are detected
+ */
 function detectStencilMode(userIdea = '', negativePrompt = '') {
-  const combined = `${userIdea} ${negativePrompt}`.toLowerCase();
-  return (COUNCIL_SKILL_PACK.stencilKeywords || []).some(keyword => combined.includes(keyword));
+  try {
+    const combined = `${userIdea} ${negativePrompt}`.toLowerCase();
+    return (COUNCIL_SKILL_PACK.stencilKeywords || []).some(keyword => combined.includes(keyword));
+  } catch (error) {
+    console.warn('[CouncilService] Error detecting stencil mode:', error);
+    return false;
+  }
 }
 
+/**
+ * Detect character names in the provided text
+ * @param {string} text - Text to search for character names
+ * @returns {string[]} Array of detected character names
+ */
 function detectCharacters(text = '') {
-  return CHARACTER_NAMES.filter(name =>
-    new RegExp(`\\b${name}\\b`, 'i').test(text)
-  );
+  try {
+    return CHARACTER_NAMES.filter(name =>
+      new RegExp(`\\b${name}\\b`, 'i').test(text)
+    );
+  } catch (error) {
+    console.warn('[CouncilService] Error detecting characters:', error);
+    return [];
+  }
 }
 
+/**
+ * Add a token to a prompt if it's not already present (case-insensitive check)
+ * @param {string} prompt - The base prompt
+ * @param {string} token - The token to add if missing
+ * @returns {string} Prompt with token added (if not already present)
+ */
 function addIfMissing(prompt, token) {
-  if (!token) return prompt;
-  const promptLower = prompt.toLowerCase();
-  const tokenLower = token.toLowerCase();
-  if (promptLower.includes(tokenLower)) {
+  if (!token || !prompt) return prompt;
+
+  try {
+    const promptLower = prompt.toLowerCase();
+    const tokenLower = token.toLowerCase();
+
+    if (promptLower.includes(tokenLower)) {
+      return prompt;
+    }
+
+    return `${prompt}, ${token}`;
+  } catch (error) {
+    console.warn('[CouncilService] Error in addIfMissing:', error);
     return prompt;
   }
-  return `${prompt}, ${token}`;
 }
 
+/**
+ * Apply Council Skill Pack hardening rules to prompts
+ * Adds anatomical flow, aesthetic anchors, positional anchoring for multi-character prompts,
+ * and stencil-specific negative shielding
+ *
+ * @param {Object} prompts - Object containing simple, detailed, and ultra prompts
+ * @param {string} negativePrompt - The negative prompt to harden
+ * @param {Object} context - Context object with bodyPart, isStencilMode, and characterMatches
+ * @param {string} context.bodyPart - Target body part for anatomical flow
+ * @param {boolean} context.isStencilMode - Whether stencil mode is active
+ * @param {string[]} context.characterMatches - Array of detected character names
+ * @returns {Object} Object with hardened prompts and negativePrompt
+ */
 function applyCouncilSkillPack(prompts, negativePrompt, context) {
-  const flowToken = COUNCIL_SKILL_PACK.anatomicalFlow[context.bodyPart] || '';
-  const spatialKeywords = COUNCIL_SKILL_PACK.spatialKeywords || [];
+  try {
+    // Validate inputs
+    if (!prompts || typeof prompts !== 'object') {
+      console.warn('[CouncilService] Invalid prompts object, skipping skill pack application');
+      return { prompts: prompts || {}, negativePrompt: negativePrompt || '' };
+    }
 
-  const hardenedPrompts = Object.entries(prompts || {}).reduce((acc, [level, prompt]) => {
-    let hardened = prompt;
+    if (!context || typeof context !== 'object') {
+      console.warn('[CouncilService] Invalid context object, using defaults');
+      context = { bodyPart: 'forearm', isStencilMode: false, characterMatches: [] };
+    }
 
-    hardened = addIfMissing(hardened, flowToken);
-    hardened = addIfMissing(hardened, COUNCIL_SKILL_PACK.aestheticAnchors);
+    const flowToken = COUNCIL_SKILL_PACK.anatomicalFlow[context.bodyPart] || '';
+    const spatialKeywords = COUNCIL_SKILL_PACK.spatialKeywords || [];
 
-    const promptCharacters = detectCharacters(hardened);
-    const characters = promptCharacters.length > 0 ? promptCharacters : context.characterMatches;
-    if (characters.length >= 2) {
-      const lower = hardened.toLowerCase();
-      const hasPositioning = spatialKeywords.some(keyword => lower.includes(keyword));
-      if (!hasPositioning) {
-        hardened = `${characters[0]} on the left, ${characters[1]} on the right, ${hardened}`;
-        console.log('[CouncilService] Forced positional anchoring for layer-safety');
+    // Harden each prompt level
+    const hardenedPrompts = Object.entries(prompts).reduce((acc, [level, prompt]) => {
+      if (typeof prompt !== 'string') {
+        console.warn(`[CouncilService] Invalid prompt at level ${level}, skipping`);
+        acc[level] = prompt;
+        return acc;
+      }
+
+      let hardened = prompt;
+
+      // Add anatomical flow
+      hardened = addIfMissing(hardened, flowToken);
+
+      // Add aesthetic anchors
+      hardened = addIfMissing(hardened, COUNCIL_SKILL_PACK.aestheticAnchors);
+
+      // Handle multi-character positional anchoring
+      const promptCharacters = detectCharacters(hardened);
+      const characters = promptCharacters.length > 0 ? promptCharacters : (context.characterMatches || []);
+
+      if (characters.length >= 2) {
+        const lower = hardened.toLowerCase();
+        const hasPositioning = spatialKeywords.some(keyword => lower.includes(keyword));
+
+        if (!hasPositioning) {
+          hardened = `${characters[0]} on the left, ${characters[1]} on the right, ${hardened}`;
+          console.log('[CouncilService] Forced positional anchoring for layer-safety');
+        }
+      }
+
+      acc[level] = hardened;
+      return acc;
+    }, {});
+
+    // Harden negative prompt for stencil mode
+    let hardenedNegative = negativePrompt || '';
+
+    if (context.isStencilMode) {
+      const shield = COUNCIL_SKILL_PACK.negativeShield;
+      const lower = hardenedNegative.toLowerCase();
+
+      // Only add shield if not already present
+      if (!lower.includes('shading') || !lower.includes('gradients')) {
+        hardenedNegative = hardenedNegative
+          ? `${shield}, ${hardenedNegative}`
+          : shield;
       }
     }
 
-    acc[level] = hardened;
-    return acc;
-  }, {});
-
-  let hardenedNegative = negativePrompt || '';
-  if (context.isStencilMode) {
-    const shield = COUNCIL_SKILL_PACK.negativeShield;
-    const lower = hardenedNegative.toLowerCase();
-    if (!lower.includes('shading') || !lower.includes('gradients')) {
-      hardenedNegative = hardenedNegative
-        ? `${shield}, ${hardenedNegative}`
-        : shield;
-    }
+    return { prompts: hardenedPrompts, negativePrompt: hardenedNegative };
+  } catch (error) {
+    console.error('[CouncilService] Error applying skill pack:', error);
+    // Return original values on error
+    return { prompts: prompts || {}, negativePrompt: negativePrompt || '' };
   }
-
-  return { prompts: hardenedPrompts, negativePrompt: hardenedNegative };
 }
 
 /**
