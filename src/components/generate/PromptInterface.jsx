@@ -37,7 +37,7 @@ export default function PromptInterface({
                     ref={textareaRef}
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
-                    placeholder="Try: \"A samurai cat on a surfboard\" or \"Gohan fighting Cell in the rain\""
+                    placeholder='Try: "A samurai cat on a surfboard" or "Gohan fighting Cell in the rain"'
                     maxLength={maxLength}
                     className="w-full bg-transparent text-3xl md:text-5xl font-display font-bold text-white placeholder-white/10 border-b-2 border-white/10 focus:border-ducks-yellow focus:ring-0 outline-none transition-all resize-none py-6 leading-tight min-h-[120px]"
                     rows="2"
