@@ -24,6 +24,7 @@ import { useState, useEffect } from 'react';
 import { generateWithRateLimit, getAPIUsage, AI_MODELS } from '../services/replicateService';
 import { saveDesign } from '../services/designLibraryService';
 import { TATTOO_STYLES, BODY_PART_SPECS, SIZE_SPECS } from '../config/promptTemplates';
+import { COUNCIL_SKILL_PACK } from '../config/councilSkillPack';
 import { useToast } from '../hooks/useToast';
 import { ToastContainer } from './ui/Toast';
 import PromptEnhancer from './PromptEnhancer';
@@ -74,6 +75,10 @@ export default function DesignGeneratorWithCouncil() {
     loadVersion
   } = useVersionHistory(sessionId);
   const [compareVersion, setCompareVersion] = useState(null);
+
+  const isStencilMode = Boolean(selectedForStencil) || (COUNCIL_SKILL_PACK.stencilKeywords || []).some(keyword =>
+    formData.subject.toLowerCase().includes(keyword)
+  );
 
   // Load API usage on mount
   useEffect(() => {
@@ -336,7 +341,7 @@ export default function DesignGeneratorWithCouncil() {
           {/* AI Model Selector */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              AI Model
+              The Artist's Hand
             </label>
             <div className="grid grid-cols-2 gap-3">
               {Object.entries(AI_MODELS).map(([key, model]) => (
@@ -533,6 +538,7 @@ export default function DesignGeneratorWithCouncil() {
               onPromptSelected={handlePromptSelected}
               style={formData.style}
               bodyPart={formData.bodyPart}
+              isStencilMode={isStencilMode}
             />
           </div>
         )}
