@@ -31,13 +31,13 @@ export default function VibeChips({
         <div className="space-y-6 animate-fade-in">
             <div className="border-t border-white/5 pt-6">
                 <h3 className="text-xs font-mono uppercase tracking-widest text-gray-600 mb-4">
-                    Suggested Vibes
+                    Studio Suggestions
                 </h3>
 
                 {isLoading && (
                     <div className="flex items-center gap-2 text-sm text-gray-500">
                         <div className="w-4 h-4 border-2 border-gray-600 border-t-ducks-green rounded-full animate-spin" />
-                        Analyzing your vision...
+                        Thinking about your idea...
                     </div>
                 )}
 

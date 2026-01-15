@@ -1,9 +1,11 @@
 /**
  * OpenRouter Council Service
- * 
+ *
  * Uses OpenRouter API to power the LLM Council with real models
  * Supports multiple models for diverse "council member" perspectives
  */
+
+import { COUNCIL_SKILL_PACK } from '../config/councilSkillPack';
 
 const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
@@ -26,6 +28,22 @@ const COUNCIL_MEMBERS = {
         focus: 'Style authenticity and cultural accuracy'
     }
 };
+
+function buildCouncilSystemPrompt({ bodyPart, isStencilMode }) {
+    const flowToken = COUNCIL_SKILL_PACK.anatomicalFlow[bodyPart] || '';
+    const stencilRule = isStencilMode
+        ? 'STENCIL INTEGRITY: prioritize binary line-art and avoid gradients or soft shading.'
+        : 'STENCIL INTEGRITY: only apply stencil rules when requested.';
+
+    return [
+        'You are a Senior Tattoo Architect on the TatT AI Council.',
+        'Your goal is to produce elite, tattoo-ready prompts.',
+        `POSITIONAL ANCHORING: ${COUNCIL_SKILL_PACK.positionalInstructions}`,
+        `ANATOMICAL FLOW: ${flowToken || 'Use body-part appropriate flow guidance.'}`,
+        `AESTHETIC ANCHORS: ${COUNCIL_SKILL_PACK.aestheticAnchors}`,
+        stencilRule
+    ].join('\n');
+}
 
 /**
  * Call OpenRouter API with a specific model
@@ -70,9 +88,13 @@ export async function enhancePromptWithOpenRouter({
     userIdea,
     style = 'traditional',
     bodyPart = 'forearm',
-    onDiscussionUpdate = null
+    onDiscussionUpdate = null,
+    isStencilMode = false
 }) {
     const startTime = performance.now();
+    const councilSystemPrompt = buildCouncilSystemPrompt({ bodyPart, isStencilMode });
+    const flowToken = COUNCIL_SKILL_PACK.anatomicalFlow[bodyPart] || '';
+    const stencilHint = isStencilMode ? 'Stencil mode: prioritize clean, high-contrast linework.' : '';
 
     try {
         // Step 1: Creative Director - Generate base enhanced prompt
@@ -82,10 +104,12 @@ export async function enhancePromptWithOpenRouter({
 
         const creativePrompt = await callOpenRouter(
             COUNCIL_MEMBERS.creative.model,
-            `You are a Creative Director specializing in tattoo design. Your role is to enhance user ideas into vivid, artistic prompts for AI image generation.`,
+            `${councilSystemPrompt}\nYou are a Creative Director specializing in tattoo design. Your role is to enhance user ideas into vivid, artistic prompts for AI image generation.`,
             `Enhance this tattoo idea into a detailed prompt for ${style} style tattoo on ${bodyPart}:
       
 User idea: "${userIdea}"
+Flow guidance: "${flowToken}"
+${stencilHint}
 
 Generate THREE versions:
 1. SIMPLE (1 sentence): Clean, minimal enhancement
@@ -110,7 +134,7 @@ Return as JSON:
 
         const technicalPrompt = await callOpenRouter(
             COUNCIL_MEMBERS.technical.model,
-            `You are a Technical Expert in tattoo design. Your role is to ensure prompts are technically feasible and optimized for actual tattooing.`,
+            `${councilSystemPrompt}\nYou are a Technical Expert in tattoo design. Your role is to ensure prompts are technically feasible and optimized for actual tattooing.`,
             `Review and refine this DETAILED prompt for technical accuracy:
 
 "${creativeResult.detailed}"
@@ -131,7 +155,7 @@ Return the refined prompt as plain text (not JSON).`
 
         const stylePrompt = await callOpenRouter(
             COUNCIL_MEMBERS.style.model,
-            `You are a Style Specialist with deep knowledge of tattoo styles and cultural traditions. Your role is to ensure style authenticity.`,
+            `${councilSystemPrompt}\nYou are a Style Specialist with deep knowledge of tattoo styles and cultural traditions. Your role is to ensure style authenticity.`,
             `Review this ULTRA prompt for ${style} style authenticity:
 
 "${creativeResult.ultra}"
@@ -148,7 +172,7 @@ Return the enhanced prompt as plain text (not JSON).`
         // Step 4: Generate negative prompt
         const negativePrompt = await callOpenRouter(
             COUNCIL_MEMBERS.technical.model,
-            `You are a Technical Expert. Generate a negative prompt (things to avoid) for tattoo image generation.`,
+            `${councilSystemPrompt}\nYou are a Technical Expert. Generate a negative prompt (things to avoid) for tattoo image generation.`,
             `For this tattoo idea: "${userIdea}"
 
 Generate a negative prompt listing things to AVOID in the image generation. Focus on:

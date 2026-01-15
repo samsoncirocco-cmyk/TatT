@@ -314,14 +314,14 @@ export default function InpaintingEditor({ imageUrl, onClose, onSave }) {
                   onClick={() => setShowAdvanced(!showAdvanced)}
                   className="text-sm text-ducks-green hover:text-white font-medium"
                 >
-                  {showAdvanced ? '▼' : '▶'} Advanced Options
+                  {showAdvanced ? '▼' : '▶'} Tattoo Fine-Tuning
                 </button>
 
                 {showAdvanced && (
                   <div className="space-y-3 bg-black/30 rounded-lg p-4">
                     <div>
                       <label className="block text-sm font-medium text-white/70 mb-2">
-                        Negative Prompt
+                        The "No-Go" List
                       </label>
                       <textarea
                         value={negativePrompt}

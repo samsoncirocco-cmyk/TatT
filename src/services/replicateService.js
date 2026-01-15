@@ -43,9 +43,9 @@ const MOCK_IMAGES = [
 export const AI_MODELS = {
   tattoo: {
     id: 'tattoo',
-    name: 'Tattoo Flash Art',
+    name: 'Classic Flash',
     version: 'anotherjesse/amy-tattoo-test-1:0e345aaf74965ae98fb83ca9c65376ee42da5c7837d88c648ddc5d3cba1f35dc',
-    description: 'Fine-tuned for traditional tattoo flash art',
+    description: 'Old-school bold lines and solid colors.',
     cost: 0.003,
     supportsRGBA: true,
     params: {
@@ -61,9 +61,9 @@ export const AI_MODELS = {
   },
   animeXL: {
     id: 'animeXL',
-    name: 'Anime XL (Niji SE)',
+    name: 'Animated Ink',
     version: 'lucataco/sdxl-niji-se:9e0521b45e1774fc3288ec9ffa964d064c9d905e1ca50f37549084b021d7449c',
-    description: 'Vibrant anime style, perfect for DBZ-inspired tattoos',
+    description: 'Bright, vibrant, and energetic character styles.',
     cost: 0.03, // ~$0.12 / 4 images (based on p50 estimate)
     supportsRGBA: false,
     params: {
@@ -77,9 +77,9 @@ export const AI_MODELS = {
   },
   dreamshaper: {
     id: 'dreamshaper',
-    name: 'DreamShaper XL Turbo',
+    name: 'Speed Sketch',
     version: 'lucataco/dreamshaper-xl-turbo:0a1710e0187b01a255302738ca0158ff02a22f4638679533e111082f9dd1b615',
-    description: 'Fast anime/manga generation, versatile style',
+    description: 'The fastest way to see your ideas come to life.',
     cost: 0.001, // ~$0.0039 / 4 images (extremely cheap!)
     supportsRGBA: true,
     params: {
@@ -93,9 +93,9 @@ export const AI_MODELS = {
   },
   sdxl: {
     id: 'sdxl',
-    name: 'SDXL (General Purpose)',
+    name: 'Studio Grade',
     version: 'stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b',
-    description: 'General-purpose, versatile for any subject',
+    description: 'Our most versatile engine for any custom idea.',
     cost: 0.0055,
     supportsRGBA: true,
     params: {
@@ -112,9 +112,9 @@ export const AI_MODELS = {
   },
   imagen3: {
     id: 'imagen3',
-    name: 'Imagen 3 (Google)',
+    name: 'Hyper-Realism',
     version: 'google/imagen-3',
-    description: 'Google\'s latest model, photorealistic quality',
+    description: 'Unbelievable detail that looks like a photo.',
     cost: 0.02, // Approximate Vertex AI pricing
     provider: 'vertex-ai', // Special flag for Vertex AI models
     supportsRGBA: false,

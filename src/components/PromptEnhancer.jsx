@@ -20,8 +20,14 @@ export default function PromptEnhancer({
   userInput,
   onPromptSelected,
   style = 'traditional',
-  bodyPart = 'forearm'
+  bodyPart = 'forearm',
+  isStencilMode = null
 }) {
+  const levelLabels = {
+    simple: 'Clean & Bold',
+    detailed: 'Intricate Details',
+    ultra: 'Professional Masterpiece'
+  };
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [enhancedPrompts, setEnhancedPrompts] = useState(null);
   const [selectedLevel, setSelectedLevel] = useState('detailed');
@@ -48,6 +54,7 @@ export default function PromptEnhancer({
         userIdea: userInput,
         style,
         bodyPart,
+        isStencilMode,
         onDiscussionUpdate: (message) => {
           setCouncilDiscussion(prev => [...prev, message]);
         }
@@ -205,8 +212,8 @@ export default function PromptEnhancer({
                         </svg>
                       )}
                     </div>
-                    <span className="font-semibold text-sm capitalize text-gray-900">
-                      {level}
+                    <span className="font-semibold text-sm text-gray-900">
+                      {levelLabels[level] || level}
                     </span>
                   </div>
                   <span className="text-xs text-gray-500">
@@ -224,7 +231,7 @@ export default function PromptEnhancer({
           {enhancedPrompts.negativePrompt && (
             <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
               <p className="text-xs font-semibold text-gray-700 mb-1">
-                Negative Prompt (what to avoid):
+                The "No-Go" List (what to avoid):
               </p>
               <p className="text-xs text-gray-600 italic">
                 {enhancedPrompts.negativePrompt}
@@ -237,7 +244,7 @@ export default function PromptEnhancer({
             onClick={handleSelectPrompt}
             className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg"
           >
-            Use {selectedLevel.charAt(0).toUpperCase() + selectedLevel.slice(1)} Prompt
+            Use {levelLabels[selectedLevel] || selectedLevel} Prompt
           </button>
         </div>
       )}
