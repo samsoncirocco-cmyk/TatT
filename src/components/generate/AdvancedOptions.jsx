@@ -15,9 +15,9 @@ const SIZE_OPTIONS = [
 ];
 
 const ENHANCEMENT_LEVELS = [
-    { value: 'simple', label: 'Simple', description: 'Clean, minimal enhancement' },
-    { value: 'detailed', label: 'Detailed', description: 'Rich artistic details (recommended)' },
-    { value: 'ultra', label: 'Ultra', description: 'Photorealistic composition guide' }
+    { value: 'simple', label: 'Clean & Bold', description: 'Clear lines and simple shapes' },
+    { value: 'detailed', label: 'Intricate Details', description: 'More texture and storytelling (recommended)' },
+    { value: 'ultra', label: 'Professional Masterpiece', description: 'Gallery-level detail and composition' }
 ];
 
 export default function AdvancedOptions({
@@ -47,7 +47,7 @@ export default function AdvancedOptions({
                         className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
                         size={14}
                     />
-                    Advanced Parameters
+                    Tattoo Fine-Tuning
                 </button>
             )}
 
@@ -80,7 +80,7 @@ export default function AdvancedOptions({
                     {/* AI Model Selection */}
                     <div>
                         <label className="block text-[10px] font-mono uppercase tracking-widest text-gray-500 mb-3">
-                            AI Model
+                            The Artist's Hand
                         </label>
                         <div className="flex flex-wrap gap-2">
                             {Object.entries(AI_MODELS).map(([key, model]) => (
@@ -102,7 +102,7 @@ export default function AdvancedOptions({
                     {/* Enhancement Level */}
                     <div>
                         <label className="block text-[10px] font-mono uppercase tracking-widest text-gray-500 mb-3">
-                            Enhancement Level
+                            Detail Intensity
                         </label>
                         <div className="space-y-2">
                             {ENHANCEMENT_LEVELS.map((level) => (
@@ -134,18 +134,18 @@ export default function AdvancedOptions({
                     {/* Negative Prompt */}
                     <div>
                         <label className="block text-[10px] font-mono uppercase tracking-widest text-gray-500 mb-3">
-                            Negative Prompt (Optional)
+                            The "No-Go" List (Optional)
                         </label>
                         <textarea
                             value={negativePrompt}
                             onChange={(e) => onNegativePromptChange(e.target.value)}
-                            placeholder="Elements to avoid... (e.g., blurry, low quality, distorted)"
+                            placeholder="Things to avoid... (e.g., blurry, messy lines, too much shading)"
                             className="w-full bg-black/40 border border-white/10 text-white rounded-lg px-4 py-3 text-sm focus:border-ducks-green focus:outline-none resize-none placeholder-gray-600"
                             rows="3"
                         />
                     </div>
 
-                    {/* RGBA Separation Toggle */}
+                    {/* Layer Cutout Toggle */}
                     {onSeparateRGBAChange && (
                         <div>
                             <label className="flex items-center gap-3 cursor-pointer group">
@@ -157,10 +157,10 @@ export default function AdvancedOptions({
                                 />
                                 <div className="flex-1">
                                     <div className="text-sm font-bold text-white group-hover:text-ducks-green transition-colors">
-                                        Separate RGBA Channels
+                                        Sticker Mode (Cutouts)
                                     </div>
                                     <div className="text-xs text-gray-500 mt-1">
-                                        Split transparent images into separate RGB and Alpha layers for advanced compositing
+                                        Removes the background so you can move each part like a sticker
                                     </div>
                                 </div>
                             </label>

@@ -501,7 +501,8 @@ export default function Generate() {
             const result = await enhancePrompt({
                 userIdea: fullPrompt,
                 style: matchStyle,
-                bodyPart: bodyPart
+                bodyPart: bodyPart,
+                isStencilMode: stencilView
             });
 
             setEnhancedPrompt(result.prompts[enhancementLevel]);
@@ -1278,7 +1279,7 @@ export default function Generate() {
                                         onClick={() => setShowAdvanced(!showAdvanced)}
                                         className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-mono uppercase tracking-widest text-white/60 hover:text-white hover:border-white/40"
                                     >
-                                        Advanced Parameters
+                                        Tattoo Fine-Tuning
                                     </button>
                                 </div>
 

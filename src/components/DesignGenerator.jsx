@@ -260,7 +260,7 @@ export default function DesignGenerator() {
         {/* Engine Selection */}
         <div className="mb-10">
           <p className="text-xs font-mono text-gray-600 uppercase tracking-widest mb-4">
-            Select Generation Engine
+            Choose The Artist's Hand
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {Object.entries(AI_MODELS).map(([key, model]) => (
@@ -296,7 +296,7 @@ export default function DesignGenerator() {
             className="flex items-center gap-2 text-xs font-mono text-gray-600 hover:text-white transition-colors uppercase tracking-widest mb-4"
           >
             <ChevronDown className={`transition-transform ${showAdvanced ? 'rotate-180' : ''}`} size={14} />
-            Advanced Parameters
+            Tattoo Fine-Tuning
           </button>
 
           {showAdvanced && (
