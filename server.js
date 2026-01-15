@@ -15,6 +15,11 @@ import arVisualizationRouter from './src/api/routes/arVisualization.js';
 import councilEnhancementRouter from './src/api/routes/councilEnhancement.js';
 import stencilExportRouter from './src/api/routes/stencilExport.js';
 import layerUploadRouter, { cleanupOldLayers } from './src/api/routes/layerUpload.js';
+import imagenGenerateRouter from './src/api/routes/generate.js';
+import layersDecomposeRouter from './src/api/routes/layersDecompose.js';
+import embeddingsGenerateRouter from './src/api/routes/embeddingsGenerate.js';
+import matchUpdateRouter from './src/api/routes/matchUpdate.js';
+import storageRouter from './src/api/routes/storage.js';
 
 dotenv.config();
 
@@ -147,6 +152,66 @@ const layerUploadLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const layerDecomposeLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 60,
+  message: {
+    error: 'Layer decomposition rate limit exceeded',
+    code: 'RATE_LIMIT_EXCEEDED',
+    hint: 'Maximum 60 requests per hour.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const embeddingsGenerateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 200,
+  message: {
+    error: 'Embedding generation rate limit exceeded',
+    code: 'RATE_LIMIT_EXCEEDED',
+    hint: 'Maximum 200 requests per hour.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const matchUpdateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 300,
+  message: {
+    error: 'Match update rate limit exceeded',
+    code: 'RATE_LIMIT_EXCEEDED',
+    hint: 'Maximum 300 requests per hour.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const storageLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 300,
+  message: {
+    error: 'Storage rate limit exceeded',
+    code: 'RATE_LIMIT_EXCEEDED',
+    hint: 'Maximum 300 requests per hour.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const imagenGenerateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 60,
+  message: {
+    error: 'Imagen generation rate limit exceeded',
+    code: 'RATE_LIMIT_EXCEEDED',
+    hint: 'Maximum 60 requests per hour. Please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Bearer auth middleware
 const authMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -178,6 +243,8 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     message: 'Proxy server is running',
     hasReplicateToken: !!REPLICATE_API_TOKEN,
+    hasVertexConfig: !!process.env.VERTEX_PROJECT_ID,
+    hasGcsConfig: !!process.env.GCS_BUCKET,
     hasNeo4jConfig: !!(NEO4J_URI && NEO4J_USER && NEO4J_PASSWORD),
     authRequired: true,
     api_version: 'v1',
@@ -187,7 +254,12 @@ app.get('/api/health', (req, res) => {
         ar_visualization: '/api/v1/ar/visualize (50 req/hr)',
         council_enhancement: '/api/v1/council/enhance (20 req/hr)',
         stencil_export: '/api/v1/stencil/export (30 req/hr)',
-        layer_upload: '/api/v1/upload-layer (200 req/hr)'
+        layer_upload: '/api/v1/upload-layer (200 req/hr)',
+        layer_decompose: '/api/v1/layers/decompose (60 req/hr)',
+        embeddings_generate: '/api/v1/embeddings/generate (200 req/hr)',
+        match_update: '/api/v1/match/update (300 req/hr)',
+        storage: '/api/v1/storage (300 req/hr)',
+        imagen_generate: '/api/v1/generate (60 req/hr)'
       },
       legacy: {
         predictions: '/api/predictions',
@@ -260,6 +332,11 @@ app.use('/api/v1/ar/visualize', authMiddleware, arVisualizeLimiter, arVisualizat
 app.use('/api/v1/council/enhance', authMiddleware, councilEnhanceLimiter, councilEnhancementRouter);
 app.use('/api/v1/stencil/export', authMiddleware, stencilExportLimiter, stencilExportRouter);
 app.use('/api/v1/upload-layer', authMiddleware, layerUploadLimiter, layerUploadRouter);
+app.use('/api/v1/generate', authMiddleware, imagenGenerateLimiter, imagenGenerateRouter);
+app.use('/api/v1/layers/decompose', authMiddleware, layerDecomposeLimiter, layersDecomposeRouter);
+app.use('/api/v1/embeddings/generate', authMiddleware, embeddingsGenerateLimiter, embeddingsGenerateRouter);
+app.use('/api/v1/match/update', authMiddleware, matchUpdateLimiter, matchUpdateRouter);
+app.use('/api/v1/storage', authMiddleware, storageLimiter, storageRouter);
 
 // --- Legacy Semantic Matching Endpoint (deprecated, use /api/v1/match/semantic) ---
 

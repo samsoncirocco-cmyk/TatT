@@ -20,9 +20,11 @@ import {
   getUserErrorMessage,
   isErrorCode
 } from './fetchWithAbort.js';
+import { routeGeneration } from './generationRouter.js';
 
 // Proxy server configuration (injected via env)
-const PROXY_URL = import.meta.env.VITE_PROXY_URL;
+const PROXY_URL = import.meta.env.VITE_PROXY_URL || 'http://127.0.0.1:3002/api';
+const VERTEX_GENERATE_URL = PROXY_URL ? `${PROXY_URL}/v1/generate` : null;
 
 if (!PROXY_URL) {
   console.error('[Replicate] VITE_PROXY_URL not configured. Set it in your .env file.');
@@ -113,9 +115,9 @@ export const AI_MODELS = {
   imagen3: {
     id: 'imagen3',
     name: 'Hyper-Realism',
-    version: 'google/imagen-3',
+    version: 'imagegeneration@006',
     description: 'Unbelievable detail that looks like a photo.',
-    cost: 0.02, // Approximate Vertex AI pricing
+    cost: 0.03, // Approximate Vertex AI pricing
     provider: 'vertex-ai', // Special flag for Vertex AI models
     supportsRGBA: false,
     params: {
@@ -130,7 +132,7 @@ export const AI_MODELS = {
 };
 
 // Default model
-const DEFAULT_MODEL = 'sdxl';
+const DEFAULT_MODEL = 'imagen3';
 const PREVIEW_MODEL = 'dreamshaper';
 
 const PREVIEW_OVERRIDES = {
@@ -368,6 +370,7 @@ export async function generateTattooDesign(userInput, modelId = null, signal = n
   const outputFormat = options.outputFormat || 'png';
   const enableRGBA = options.enableRGBA === true;
   const rgbaEnabled = enableRGBA && model.supportsRGBA;
+  const allowFallback = options.allowFallback !== false;
 
   console.log('[Replicate] Using model:', model.name);
   console.log('[Replicate] Generating tattoo design with prompt:', finalPrompt);
@@ -412,6 +415,62 @@ export async function generateTattooDesign(userInput, modelId = null, signal = n
   }
 
   try {
+    if (model.provider === 'vertex-ai') {
+      if (!VERTEX_GENERATE_URL) {
+        throw new FetchError(
+          'Proxy URL not configured. Set VITE_PROXY_URL in your .env file.',
+          ErrorCodes.NETWORK_ERROR
+        );
+      }
+
+      const resolvedOutputs = inputOverrides.num_outputs || model.params.num_outputs || 1;
+      const resolvedWidth = inputOverrides.width || model.params.width;
+      const resolvedHeight = inputOverrides.height || model.params.height;
+      const vertexPayload = {
+        prompt: finalPrompt,
+        negativePrompt,
+        style: userInput.style,
+        bodyPart: userInput.bodyPart,
+        size: userInput.size,
+        width: resolvedWidth,
+        height: resolvedHeight,
+        sampleCount: resolvedOutputs,
+        aspectRatio: inputOverrides.aspect_ratio || model.params.aspect_ratio || '1:1',
+        outputFormat,
+        safetyFilterLevel: model.params.safety_filter_level,
+        personGeneration: model.params.person_generation,
+        seed: inputOverrides.seed
+      };
+
+      const vertexResponse = await postJSON(VERTEX_GENERATE_URL, vertexPayload, { signal });
+
+      const generationCost = vertexResponse?.cost?.total ?? model.cost * resolvedOutputs;
+      trackAPIUsage(generationCost);
+
+      return {
+        success: true,
+        images: vertexResponse.images || [],
+        metadata: {
+          generatedAt: new Date().toISOString(),
+          prompt: finalPrompt,
+          negativePrompt: negativePrompt,
+          councilEnhanced: isCouncilEnhanced,
+          mode: options.mode || 'standard',
+          modelId: model.id,
+          modelName: model.name,
+          outputFormat,
+          rgbaReady: rgbaEnabled,
+          dpi: options.dpi || null,
+          preview: options.mode === 'preview',
+          parameters: vertexPayload,
+          provider: 'vertex-ai',
+          usage: vertexResponse.usage || null,
+          cost: vertexResponse.cost || null
+        },
+        userInput
+      };
+    }
+
     // Check if proxy URL is configured
     if (!PROXY_URL) {
       throw new FetchError(
@@ -513,6 +572,22 @@ export async function generateTattooDesign(userInput, modelId = null, signal = n
 
   } catch (error) {
     console.error('[Replicate] Generation error:', error);
+
+    if (model.provider === 'vertex-ai' && allowFallback) {
+      const shouldFallback = !(error instanceof FetchError) || [
+        ErrorCodes.SERVER_ERROR,
+        ErrorCodes.NETWORK_ERROR,
+        ErrorCodes.TIMEOUT
+      ].includes(error.code);
+
+      if (shouldFallback) {
+        console.warn('[Replicate] Vertex generation failed, falling back to Replicate');
+        return generateTattooDesign(userInput, DEFAULT_MODEL === 'imagen3' ? 'sdxl' : DEFAULT_MODEL, signal, {
+          ...options,
+          allowFallback: false
+        });
+      }
+    }
 
     // Handle FetchError instances with user-friendly messages
     if (error instanceof FetchError) {
@@ -735,7 +810,8 @@ export async function checkServiceHealth() {
  * Get estimated cost for a generation request
  */
 export function getEstimatedCost(numVariations = 4) {
-  const costPerImage = 0.0055;
+  const model = AI_MODELS[DEFAULT_MODEL] || AI_MODELS.sdxl;
+  const costPerImage = model?.cost || 0.0055;
   return {
     perImage: costPerImage,
     total: costPerImage * numVariations,
@@ -790,7 +866,50 @@ export async function generateWithRateLimit(userInput, modelId = null, signal = 
   }
 
   rateLimiter.recordRequest();
+  if (options.fallbackChain && options.fallbackChain.length > 0) {
+    return generateWithFallbackChain(userInput, modelId, signal, 3, options);
+  }
   return generateWithRetry(userInput, modelId, signal, 3, options);
+}
+
+async function generateWithFallbackChain(userInput, modelId, signal, maxRetries, options) {
+  const fallbackChain = options.fallbackChain || [];
+  const modelsToTry = [modelId, ...fallbackChain].filter(Boolean);
+  let lastError;
+
+  for (let i = 0; i < modelsToTry.length; i += 1) {
+    const candidate = modelsToTry[i];
+    try {
+      console.log(`[Replicate] Using model: ${candidate}`);
+      return await generateWithRetry(userInput, candidate, signal, maxRetries, {
+        ...options,
+        fallbackChain: null
+      });
+    } catch (error) {
+      lastError = error;
+      const message = error?.message || '';
+
+      if (message.includes('cancelled') || signal?.aborted) {
+        throw error;
+      }
+
+      if (
+        message.includes('authentication') ||
+        message.includes('Invalid input') ||
+        message.includes('not configured')
+      ) {
+        throw error;
+      }
+
+      if (i < modelsToTry.length - 1) {
+        console.warn(`[Replicate] Model ${candidate} failed. Trying fallback...`);
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw lastError;
 }
 
 /**
@@ -798,15 +917,29 @@ export async function generateWithRateLimit(userInput, modelId = null, signal = 
  * Returns a single image optimized for fast feedback.
  */
 export async function generatePreviewDesign(userInput, options = {}) {
-  return generateWithRateLimit(userInput, options.modelId || PREVIEW_MODEL, options.signal || null, {
+  const hasExplicitModel = Boolean(options.modelId || userInput.aiModel);
+  const routing = hasExplicitModel ? null : routeGeneration(userInput, { mode: 'preview' });
+  const resolvedModelId = options.modelId || userInput.aiModel || routing?.modelId || PREVIEW_MODEL;
+  const resolvedInput = routing
+    ? { ...userInput, negativePrompt: routing.negativePrompt }
+    : userInput;
+
+  const inputOverrides = {
+    ...PREVIEW_OVERRIDES,
+    ...(options.inputOverrides || {})
+  };
+
+  if (routing?.aspectRatio) {
+    inputOverrides.aspect_ratio = routing.aspectRatio;
+  }
+
+  return generateWithRateLimit(resolvedInput, resolvedModelId, options.signal || null, {
     mode: 'preview',
     dpi: 72,
     outputFormat: 'png',
     enableRGBA: true,
-    inputOverrides: {
-      ...PREVIEW_OVERRIDES,
-      ...(options.inputOverrides || {})
-    }
+    inputOverrides,
+    fallbackChain: routing?.fallbackChain || null
   });
 }
 
@@ -815,20 +948,31 @@ export async function generatePreviewDesign(userInput, options = {}) {
  * Supports RGBA output when the model allows it.
  */
 export async function generateHighResDesign(userInput, options = {}) {
-  const modelId = options.modelId || userInput.aiModel || DEFAULT_MODEL;
+  const hasExplicitModel = Boolean(options.modelId || userInput.aiModel);
+  const routing = hasExplicitModel ? null : routeGeneration(userInput, { mode: options.finalize ? 'final' : 'refine' });
+  const modelId = options.modelId || userInput.aiModel || routing?.modelId || DEFAULT_MODEL;
+  const resolvedInput = routing
+    ? { ...userInput, negativePrompt: routing.negativePrompt }
+    : userInput;
   const model = AI_MODELS[modelId] || AI_MODELS[DEFAULT_MODEL];
   const baseSteps = model?.params?.num_inference_steps || 50;
   const targetSteps = options.finalize ? Math.max(baseSteps, 60) : baseSteps;
+  const inputOverrides = {
+    ...HIGH_RES_OVERRIDES,
+    num_inference_steps: targetSteps,
+    ...(options.inputOverrides || {})
+  };
 
-  return generateWithRateLimit(userInput, modelId, options.signal || null, {
+  if (routing?.aspectRatio) {
+    inputOverrides.aspect_ratio = routing.aspectRatio;
+  }
+
+  return generateWithRateLimit(resolvedInput, modelId, options.signal || null, {
     mode: options.finalize ? 'final' : 'refine',
     dpi: 300,
     outputFormat: 'png',
     enableRGBA: options.enableRGBA !== false,
-    inputOverrides: {
-      ...HIGH_RES_OVERRIDES,
-      num_inference_steps: targetSteps,
-      ...(options.inputOverrides || {})
-    }
+    inputOverrides,
+    fallbackChain: routing?.fallbackChain || null
   });
 }

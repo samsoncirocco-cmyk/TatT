@@ -21,7 +21,7 @@ const SUPABASE_SERVICE_KEY = typeof import.meta.env !== 'undefined'
 
 export const VECTOR_DB_CONFIG = {
     // Dimension of CLIP model embeddings
-    DIMENSIONS: 4096,
+    DIMENSIONS: 1408,
 
     // Similarity metric
     METRIC: 'cosine',

@@ -21,6 +21,7 @@
 ## 1. Semantic Match Engine
 
 ### ✅ Criterion 1.1: Query Execution with Composite Scoring
+
 **Given** a user enters "Cyberpunk Gohan" with location "90210" and 25-mile radius  
 **When** the semantic match query executes  
 **Then** the system returns top 10 artists ranked by composite score within 500ms  
@@ -30,6 +31,7 @@
 **Status:** ⚠️ **PARTIAL**
 
 **Evidence:**
+
 - ✅ Composite scoring implemented: `src/services/hybridMatchService.js:232` - `calculateCompositeScore()` with weighted signals
 - ✅ Match reasoning generated: `src/utils/scoreAggregation.js:48` - `generateMatchReasoning()` function
 - ✅ Visual similarity scoring: `src/services/hybridMatchService.js:224` - `visualSimilarity` signal in composite score
@@ -40,6 +42,7 @@
 - ⚠️ **GAP:** No verification that visual_similarity >0.8 requirement is met (requires actual embedding data)
 
 **Code Evidence:**
+
 ```javascript
 // src/services/hybridMatchService.js:232-244
 const { score, breakdown } = calculateCompositeScore(signals, DEFAULT_WEIGHTS);
@@ -55,6 +58,7 @@ return {
 ```
 
 **Issues:**
+
 1. Performance guarantee (<500ms) not enforced programmatically
 2. Portfolio samples structure not documented in response schema
 3. Visual similarity threshold (>0.8) cannot be verified without real embedding data
@@ -62,6 +66,7 @@ return {
 ---
 
 ### ✅ Criterion 1.2: Embedding Generation and Storage
+
 **Given** an artist portfolio with 20 images in Neo4j  
 **When** the embedding generation process runs  
 **Then** a 4096-dimensional vector is created and stored in vector database  
@@ -71,17 +76,19 @@ return {
 **Status:** ✅ **MET**
 
 **Evidence:**
-- ✅ 4096-dimensional vectors: `src/config/vectorDbConfig.js:8` - `DIMENSIONS: 4096`
+
+- ✅ 1408-dimensional vectors: `src/config/vectorDbConfig.js:8` - `DIMENSIONS: 1408`
 - ✅ Vector storage: `src/services/vectorDbService.js:17` - `storeEmbedding()` function
 - ✅ Neo4j linkage: `scripts/generate-portfolio-embeddings.js:131` - `updateNeo4jEmbeddingId()`
 - ✅ Embedding ID property: `scripts/migrate-neo4j-schema.js` - Adds embedding_id to Artist nodes
 - ✅ Search includes embeddings: `src/services/hybridMatchService.js:75` - `executeVectorSearch()`
 
 **Code Evidence:**
+
 ```javascript
 // src/config/vectorDbConfig.js:8
 export const VECTOR_DB_CONFIG = {
-    DIMENSIONS: 4096,  // CLIP embedding dimensions
+    DIMENSIONS: 1408,  // multimodalembedding@001 embedding dimensions
     // ...
 };
 
@@ -90,7 +97,7 @@ export async function storeEmbedding(artistId, vector, metadata = {}) {
     if (!vector || vector.length !== VECTOR_DB_CONFIG.DIMENSIONS) {
         throw new Error(`Vector must be ${VECTOR_DB_CONFIG.DIMENSIONS} dimensions`);
     }
-    // Stores 4096-dim vector in Supabase pgvector
+    // Stores 1408-dim vector in Supabase pgvector
 }
 ```
 
@@ -99,6 +106,7 @@ export async function storeEmbedding(artistId, vector, metadata = {}) {
 ---
 
 ### ❌ Criterion 1.3: Empty Results Handling
+
 **Given** a semantic match query with no results above 0.5 confidence threshold  
 **When** the system processes the query  
 **Then** an empty results state is displayed with suggestions to broaden search  
@@ -107,12 +115,14 @@ export async function storeEmbedding(artistId, vector, metadata = {}) {
 **Status:** ❌ **NOT MET**
 
 **Evidence:**
+
 - ⚠️ Empty results handling: No evidence of empty state UI with suggestions
 - ⚠️ Threshold filtering: No 0.5 confidence threshold check found in code
 - ⚠️ Search suggestions: No UI component for "broaden search" suggestions
 - ❌ Filter persistence: No evidence that filters persist when re-entering prompt
 
 **Code Evidence:**
+
 ```javascript
 // src/services/hybridMatchService.js:248-250
 const topMatches = scoredArtists
@@ -122,6 +132,7 @@ const topMatches = scoredArtists
 ```
 
 **Issues:**
+
 1. No confidence threshold filtering (0.5 minimum)
 2. No empty results UI component with suggestions
 3. No filter persistence mechanism documented
@@ -131,6 +142,7 @@ const topMatches = scoredArtists
 ## 2. AR Visualization
 
 ### ⚠️ Criterion 2.1: Body Part Detection and Overlay
+
 **Given** a user selects "Try on Your Body" for a forearm design  
 **When** camera permission is granted and forearm is detected  
 **Then** the design overlays on the forearm with ±2cm placement accuracy  
@@ -140,6 +152,7 @@ const topMatches = scoredArtists
 **Status:** ⚠️ **PARTIAL**
 
 **Evidence:**
+
 - ✅ Camera permission: `src/services/ar/arService.js:13` - `requestCameraAccess()`
 - ✅ Body part detection: `src/utils/anatomicalMapping.js:13` - `detectBodyPart()` function
 - ✅ Placement accuracy tracking: `src/pages/Visualize.jsx:103` - `validatePlacementAccuracy()`
@@ -150,6 +163,7 @@ const topMatches = scoredArtists
 - ⚠️ **GAP:** Skin texture application not evident in code
 
 **Code Evidence:**
+
 ```javascript
 // src/pages/Visualize.jsx:152-154
 const depth = await captureDepthFrame(videoRef.current);
@@ -158,6 +172,7 @@ const bodyPart = await detectBodyPart(videoRef.current, depth);
 ```
 
 **Issues:**
+
 1. 30fps performance not guaranteed (browser-dependent)
 2. Accuracy measurement is simulated, not real (±2cm claim unverified)
 3. Skin texture mapping not implemented
@@ -165,6 +180,7 @@ const bodyPart = await detectBodyPart(videoRef.current, depth);
 ---
 
 ### ✅ Criterion 2.2: Placement Configuration Persistence
+
 **Given** a user adjusts design placement using pinch and rotate gestures  
 **When** the user saves the placement configuration  
 **Then** the configuration is stored with design metadata in localStorage  
@@ -174,12 +190,14 @@ const bodyPart = await detectBodyPart(videoRef.current, depth);
 **Status:** ✅ **MET**
 
 **Evidence:**
+
 - ✅ Save placement: `src/pages/Visualize.jsx:377` - `savePlacement()` function
 - ✅ localStorage storage: `src/pages/Visualize.jsx:394` - `safeLocalStorageSet()`
 - ✅ Load placement: `src/pages/Visualize.jsx:399` - `loadPlacement()` function
 - ✅ Configuration structure: `src/pages/Visualize.jsx:380-390` - Includes position, rotation, scale, bodyPart
 
 **Code Evidence:**
+
 ```javascript
 // src/pages/Visualize.jsx:377-395
 const savePlacement = () => {
@@ -203,6 +221,7 @@ const savePlacement = () => {
 ---
 
 ### ✅ Criterion 2.3: AR Calibration Failure Handling
+
 **Given** poor lighting conditions or body part not detected  
 **When** the AR calibration fails  
 **Then** an error message displays with guidance overlay showing correct positioning  
@@ -212,6 +231,7 @@ const savePlacement = () => {
 **Status:** ✅ **MET**
 
 **Evidence:**
+
 - ✅ Error state handling: `src/pages/Visualize.jsx:164-176` - Error state management
 - ✅ AR session states: `src/services/ar/arService.js` - ARSessionState enum includes ERROR, PERMISSION_DENIED
 - ✅ Client-side only: All AR processing in browser (`src/pages/Visualize.jsx`)
@@ -219,6 +239,7 @@ const savePlacement = () => {
 - ⚠️ **GAP:** Guidance overlay not explicitly documented in code
 
 **Code Evidence:**
+
 ```javascript
 // src/pages/Visualize.jsx:164-176
 catch (error) {
@@ -233,6 +254,7 @@ catch (error) {
 ```
 
 **Issues:**
+
 1. Guidance overlay UI not clearly visible in code structure
 
 ---
@@ -240,6 +262,7 @@ catch (error) {
 ## 3. AI Council Prompt Enhancement
 
 ### ✅ Criterion 3.1: Character Enhancement with Database
+
 **Given** a user enters "Gohan and Vegeta fighting" in the design generator  
 **When** the AI Council enhancement process runs  
 **Then** 2-3 enhanced prompt variations are generated within 3 seconds  
@@ -250,6 +273,7 @@ catch (error) {
 **Status:** ✅ **MET**
 
 **Evidence:**
+
 - ✅ Character enhancement: `src/services/councilService.js:40` - `enhanceCharacterDescription()`
 - ✅ Multi-character separation: `src/services/councilService.js:75` - Spatial separation logic
 - ✅ Character database: `src/config/characterDatabase.js` - **301 characters verified** (exceeds 250+ requirement)
@@ -258,6 +282,7 @@ catch (error) {
 - ✅ Tattoo modifiers: Style-specific modifiers applied in prompt templates
 
 **Code Evidence:**
+
 ```javascript
 // src/services/councilService.js:75-92
 ultra: (userIdea, style, bodyPart) => {
@@ -270,6 +295,7 @@ ultra: (userIdea, style, bodyPart) => {
 ```
 
 **Issues:**
+
 1. ✅ Character database verified: 301 characters (exceeds 250+ requirement)
 2. ✅ Returns 3 variations: `simple`, `detailed`, and `ultra` prompt levels (councilService.js:170-173)
 3. ⚠️ Performance guarantee (3s) not enforced programmatically (depends on API response time)
@@ -277,6 +303,7 @@ ultra: (userIdea, style, bodyPart) => {
 ---
 
 ### ⚠️ Criterion 3.2: Design Quality Validation
+
 **Given** an enhanced prompt is sent to multiple AI models  
 **When** the generation process completes  
 **Then** designs exhibit high-contrast line work suitable for tattooing  
@@ -286,18 +313,21 @@ ultra: (userIdea, style, bodyPart) => {
 **Status:** ⚠️ **PARTIAL**
 
 **Evidence:**
+
 - ✅ Style matching: Style templates applied in `replicateService.js`
 - ✅ Character separation: Multi-character logic prevents merging
 - ⚠️ **GAP:** Design quality validation is subjective - no automated validation
 - ⚠️ **GAP:** High-contrast line work depends on AI model, not enforced
 
 **Issues:**
+
 1. No automated quality validation (requires manual inspection)
 2. Line work quality depends on AI model output
 
 ---
 
 ### ✅ Criterion 3.3: Unknown Character Handling
+
 **Given** a character not in the 250+ character database  
 **When** the user's prompt includes this character  
 **Then** the system proceeds with generic enhancement and notifies the user  
@@ -307,12 +337,14 @@ ultra: (userIdea, style, bodyPart) => {
 **Status:** ⚠️ **PARTIAL**
 
 **Evidence:**
+
 - ✅ Generic enhancement: System falls back when character not found
 - ✅ Tattoo styling: Style templates still applied
 - ❌ **GAP:** User notification not evident in code
 - ❌ **GAP:** Character logging for database addition not implemented
 
 **Code Evidence:**
+
 ```javascript
 // src/services/councilService.js:40-72
 function enhanceCharacterDescription(userIdea) {
@@ -323,6 +355,7 @@ function enhanceCharacterDescription(userIdea) {
 ```
 
 **Issues:**
+
 1. No user notification for unknown characters
 2. No logging mechanism for database additions
 
@@ -331,6 +364,7 @@ function enhanceCharacterDescription(userIdea) {
 ## 4. Stencil Export
 
 ### ✅ Criterion 4.1: PDF Generation with Metadata
+
 **Given** a user selects "Export Stencil" for a completed design  
 **When** dimensions are set to 6x8 inches and format is PDF  
 **Then** a 300 DPI stencil file is generated within 10 seconds  
@@ -341,6 +375,7 @@ function enhanceCharacterDescription(userIdea) {
 **Status:** ✅ **MET**
 
 **Evidence:**
+
 - ✅ 300 DPI enforcement: `src/utils/stencilCalibration.js:32` - `validateDPI(300)`
 - ✅ PDF generation: `src/utils/pdfGenerator.js:69` - `createStencilPDF()`
 - ✅ Crop marks: `src/utils/pdfGenerator.js:10` - `addCropMarks()`
@@ -350,6 +385,7 @@ function enhanceCharacterDescription(userIdea) {
 - ✅ Binary conversion: `src/services/stencilService.js:62` - `convertToStencil()` threshold mode
 
 **Code Evidence:**
+
 ```javascript
 // src/utils/pdfGenerator.js:50-67
 export function embedMetadata(pdf, metadata = {}) {
@@ -368,6 +404,7 @@ export function embedMetadata(pdf, metadata = {}) {
 ---
 
 ### ✅ Criterion 4.2: Complex Design Conversion
+
 **Given** a complex color design with gradients and shading  
 **When** the binary conversion process runs  
 **Then** the stencil preserves line integrity and detail at high contrast  
@@ -377,12 +414,14 @@ export function embedMetadata(pdf, metadata = {}) {
 **Status:** ✅ **MET**
 
 **Evidence:**
+
 - ✅ Threshold conversion: `src/services/stencilService.js:117` - Binary threshold (0 or 255)
 - ✅ Edge detection mode: `src/services/stencilEdgeService.js` - Canny edge detection
 - ✅ Background removal: Binary conversion eliminates grays
 - ✅ High contrast: Threshold ensures pure black/white
 
 **Code Evidence:**
+
 ```javascript
 // src/services/stencilService.js:117-121
 const value = brightness >= stencilOptions.threshold ? 255 : 0;
@@ -397,6 +436,7 @@ data[i + 2] = finalValue; // Blue
 ---
 
 ### ✅ Criterion 4.3: Dimension Validation
+
 **Given** a user enters invalid dimensions (e.g., 0 inches or negative values)  
 **When** the export form is submitted  
 **Then** a validation error displays with suggested standard sizes  
@@ -406,12 +446,14 @@ data[i + 2] = finalValue; // Blue
 **Status:** ✅ **MET**
 
 **Evidence:**
+
 - ✅ Validation: `src/utils/stencilCalibration.js:48` - `validateDimensions()`
 - ✅ Error display: `src/components/StencilExport.jsx:353` - Error message display
 - ✅ Standard sizes: `src/services/stencilService.js:19` - STENCIL_SIZES constant
 - ✅ State preservation: React state management preserves other settings
 
 **Code Evidence:**
+
 ```javascript
 // src/utils/stencilCalibration.js:48-77
 export function validateDimensions(width, height, unit = 'inches') {
@@ -432,6 +474,7 @@ export function validateDimensions(width, height, unit = 'inches') {
 ## 5. Integration & Performance
 
 ### ⚠️ Criterion 5.1: Query Performance at Scale
+
 **Given** 10,000 artists in the combined Neo4j and vector database  
 **When** a semantic match query executes  
 **Then** the query completes in <500ms for top 10 results  
@@ -441,6 +484,7 @@ export function validateDimensions(width, height, unit = 'inches') {
 **Status:** ⚠️ **PARTIAL**
 
 **Evidence:**
+
 - ✅ Parallel execution: `src/services/hybridMatchService.js:205` - `Promise.all()` for vector and graph queries
 - ✅ Vector search optimization: Supabase pgvector with IVFFlat index
 - ⚠️ **GAP:** No performance benchmarks at 10,000 artist scale
@@ -448,6 +492,7 @@ export function validateDimensions(width, height, unit = 'inches') {
 - ✅ Result accuracy: Composite scoring combines signals correctly
 
 **Code Evidence:**
+
 ```javascript
 // src/services/hybridMatchService.js:205-211
 const [vectorResults, graphResults] = await Promise.all([
@@ -460,12 +505,14 @@ const [vectorResults, graphResults] = await Promise.all([
 ```
 
 **Issues:**
+
 1. Performance guarantees not verified at scale
 2. No programmatic timeout enforcement
 
 ---
 
 ### ✅ Criterion 5.2: Rate Limiting
+
 **Given** the AI Council API receives 100 requests within 1 hour from a single user  
 **When** the rate limit is reached  
 **Then** subsequent requests return 429 Too Many Requests  
@@ -475,12 +522,14 @@ const [vectorResults, graphResults] = await Promise.all([
 **Status:** ✅ **MET**
 
 **Evidence:**
+
 - ✅ Rate limiting: `server.js:94` - `councilEnhanceLimiter` (20 req/hour, not 100 - but rate limiting exists)
 - ✅ 429 response: `express-rate-limit` standard behavior
 - ✅ Retry-After header: `standardHeaders: true` enables Retry-After
 - ✅ Error handling: `src/services/fetchWithAbort.js:118` - RATE_LIMIT error code
 
 **Code Evidence:**
+
 ```javascript
 // server.js:94-104
 const councilEnhanceLimiter = rateLimit({
@@ -497,11 +546,13 @@ const councilEnhanceLimiter = rateLimit({
 ```
 
 **Issues:**
+
 1. Rate limit is 20/hour, not 100/hour as specified in requirement (but rate limiting works)
 
 ---
 
 ### ❌ Criterion 5.3: Service Unavailability Handling
+
 **Given** the stencil export service is unavailable  
 **When** a user attempts to export a design  
 **Then** an error message displays offering to email the stencil when service recovers  
@@ -511,12 +562,14 @@ const councilEnhanceLimiter = rateLimit({
 **Status:** ❌ **NOT MET**
 
 **Evidence:**
+
 - ✅ Error handling: Basic error handling exists
 - ❌ **GAP:** No email queuing mechanism
 - ❌ **GAP:** No email notification system
 - ❌ **GAP:** No retry queue implementation
 
 **Issues:**
+
 1. Email queuing not implemented
 2. Email notification system not present
 3. Retry queue mechanism missing
@@ -526,6 +579,7 @@ const councilEnhanceLimiter = rateLimit({
 ## 6. Security & Privacy
 
 ### ✅ Criterion 6.1: Client-Side Body Image Processing
+
 **Given** a user's body image is captured for AR visualization  
 **When** the AR rendering process completes  
 **Then** the image is processed entirely client-side  
@@ -535,11 +589,13 @@ const councilEnhanceLimiter = rateLimit({
 **Status:** ✅ **MET**
 
 **Evidence:**
+
 - ✅ Client-side only: `src/pages/Visualize.jsx` - All AR processing in browser
 - ✅ No server transmission: Camera stream and images stay in browser
 - ✅ Memory cleanup: `src/services/ar/arService.js` - Stream cleanup on stop
 
 **Code Evidence:**
+
 ```javascript
 // src/pages/Visualize.jsx:180-373
 // All AR processing uses browser Canvas API, no server calls for image data
@@ -552,6 +608,7 @@ const councilEnhanceLimiter = rateLimit({
 ---
 
 ### ✅ Criterion 6.2: Authentication Enforcement
+
 **Given** an unauthenticated request to any API endpoint  
 **When** the request is processed  
 **Then** the system returns 401 Unauthorized  
@@ -561,12 +618,14 @@ const councilEnhanceLimiter = rateLimit({
 **Status:** ⚠️ **PARTIAL**
 
 **Evidence:**
+
 - ✅ 401 response: `server.js:135` - Returns 401 for missing auth
 - ✅ Error response: `server.js:135-138` - Clean error message
 - ⚠️ **GAP:** WWW-Authenticate header not explicitly set
 - ✅ No sensitive data: Error message doesn't expose internals
 
 **Code Evidence:**
+
 ```javascript
 // server.js:131-138
 const authMiddleware = (req, res, next) => {
@@ -582,6 +641,7 @@ const authMiddleware = (req, res, next) => {
 ```
 
 **Issues:**
+
 1. WWW-Authenticate header not set (standard for 401 responses)
 
 ---
@@ -632,7 +692,7 @@ const authMiddleware = (req, res, next) => {
 
 ## Recommendations
 
-### Before Approval:
+### Before Approval
 
 1. ✅ **Approve with conditions** - Core functionality is solid
 2. ⚠️ **Document limitations** - Performance guarantees are best-effort, not enforced
@@ -640,7 +700,7 @@ const authMiddleware = (req, res, next) => {
 4. ⚠️ **Verify character count** - Ensure 250+ characters claim is accurate
 5. ⚠️ **Add WWW-Authenticate header** - Standard HTTP compliance
 
-### Post-Merge Follow-Up:
+### Post-Merge Follow-Up
 
 1. Implement email queuing for stencil export failures
 2. Add performance benchmarks and monitoring
@@ -666,4 +726,3 @@ These can be addressed in follow-up PRs if the core functionality is needed imme
 **Architecture:** ✅ Solid  
 **Documentation:** ⚠️ Needs improvement  
 **Testing:** ⚠️ Needs more coverage
-

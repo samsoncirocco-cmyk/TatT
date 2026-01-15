@@ -79,7 +79,8 @@ export function useArtistMatching({ context, debounceMs = 2000 } = {}) {
     } finally {
       setIsLoading(false);
     }
-  }, [context]);
+  }, [contextSignature, context]); // Use contextSignature instead of context
+
 
   useEffect(() => {
     loadFromSession();
@@ -104,7 +105,8 @@ export function useArtistMatching({ context, debounceMs = 2000 } = {}) {
         clearTimeout(debounceRef.current);
       }
     };
-  }, [contextSignature, debounceMs, refreshMatches]);
+  }, [contextSignature, debounceMs]); // refreshMatches is stable, don't include it
+
 
   useEffect(() => {
     if (!error) return;

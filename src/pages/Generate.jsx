@@ -29,7 +29,7 @@ import { DEFAULT_BODY_PART } from '../constants/bodyPartAspectRatios';
 import { enhancePrompt } from '../services/councilService';
 import useVibeChipSuggestions from '../hooks/useVibeChipSuggestions';
 import { useLayerManagement } from '../hooks/useLayerManagement';
-import { useArtistMatching } from '../hooks/useArtistMatching';
+import { useRealtimeMatchPulse } from '../hooks/useRealtimeMatchPulse';
 import { useCanvasAspectRatio } from '../hooks/useCanvasAspectRatio';
 import { useVersionHistory } from '../hooks/useVersionHistory';
 import { useSmartPreview } from '../hooks/useSmartPreview';
@@ -41,8 +41,10 @@ import { Wand2, Zap, Download, Sparkles, Layers, CheckCircle, Plus, Eraser } fro
 import { useImageGeneration } from '../hooks/useImageGeneration';
 import { normalizeStyleKey } from '../config/promptTemplates';
 import TransformControls from '../components/generate/TransformControls';
+import { useTransformShortcuts } from '../hooks/useTransformShortcuts';
 import { exportAsPNG, exportAsARAsset } from '../services/canvasService';
 import { convertToStencil } from '../services/stencilService';
+import { decomposeLayers } from '../services/layerDecompositionService';
 import {
     processGenerationResult,
     addMultipleLayers,
@@ -247,7 +249,10 @@ export default function Generate() {
         clearLayers,
         replaceLayers,
         updateImage,
-        updateBlendMode
+        updateBlendMode,
+        duplicateLayer,
+        undo,
+        redo
     } = useLayerManagement();
 
     const resolvedStyle = selectedChips[0] || style || 'traditional';
@@ -331,12 +336,30 @@ export default function Generate() {
         embeddingVector: null
     }), [bodyPart, layers.length, matchStyle]);
 
+    const currentDesign = useMemo(() => ({
+        id: sessionId,
+        prompt: enhancedPrompt || promptText,
+        style: matchStyle,
+        bodyPart,
+        imageUrl: layers[layers.length - 1]?.imageUrl || null,
+        location: null,
+        budget: null,
+        embeddingVector: null
+    }), [sessionId, enhancedPrompt, promptText, matchStyle, bodyPart, layers]);
+
     const {
         matches,
         totalMatches,
         isLoading: isMatching,
         error: matchError
-    } = useArtistMatching({ context: matchContext, debounceMs: 2000 });
+    } = useRealtimeMatchPulse({
+        userId: sessionId,
+        context: matchContext,
+        currentDesign,
+        debounceMs: 2000
+    });
+
+
 
     const timeline = useMemo(() => (
         versionService.getVersionTimeline(sessionId)
@@ -417,49 +440,15 @@ export default function Generate() {
         }));
     }, [promptText, selectedChips, enhancementLevel, enhancedPrompt]);
 
-    // Keyboard shortcuts
-    useEffect(() => {
-        const handleKeyDown = (e) => {
-            // Ignore if typing in an input
-            if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) {
-                return;
-            }
-
-            if (!selectedLayerId) return;
-
-            const layer = layers.find(l => l.id === selectedLayerId);
-            if (!layer) return;
-
-            const MOVE_STEP = e.shiftKey ? 10 : 1;
-
-            switch (e.key) {
-                case 'ArrowUp':
-                    e.preventDefault();
-                    updateTransform(selectedLayerId, { y: layer.transform.y - MOVE_STEP });
-                    break;
-                case 'ArrowDown':
-                    e.preventDefault();
-                    updateTransform(selectedLayerId, { y: layer.transform.y + MOVE_STEP });
-                    break;
-                case 'ArrowLeft':
-                    e.preventDefault();
-                    updateTransform(selectedLayerId, { x: layer.transform.x - MOVE_STEP });
-                    break;
-                case 'ArrowRight':
-                    e.preventDefault();
-                    updateTransform(selectedLayerId, { x: layer.transform.x + MOVE_STEP });
-                    break;
-                case 'Delete':
-                case 'Backspace':
-                    e.preventDefault();
-                    deleteLayer(selectedLayerId);
-                    break;
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [selectedLayerId, layers, updateTransform, deleteLayer]);
+    useTransformShortcuts({
+        selectedLayerId,
+        layers,
+        updateTransform,
+        deleteLayer,
+        duplicateLayer,
+        undo,
+        redo
+    });
 
     const handleBodyPartChange = (newPart) => {
         if (enhancedPrompt) {
@@ -555,11 +544,30 @@ export default function Generate() {
                 } else {
                     // Single image - use legacy flow
                     console.log('[Generate] Using single-layer flow');
-                    const newLayer = await addLayer(result.images[0], 'subject');
-                    const nextLayers = [...layers, newLayer];
+                    let nextLayers = [];
+                    try {
+                        const decomposition = await decomposeLayers(result.images[0], sessionId, sessionId);
+                        if (Array.isArray(decomposition.layers) && decomposition.layers.length > 0) {
+                            const maxZ = layers.reduce((max, layer) => Math.max(max, layer.zIndex || 0), -1) + 1;
+                            const normalized = decomposition.layers.map((layer, index) => ({
+                                ...layer,
+                                zIndex: maxZ + index
+                            }));
+                            nextLayers = [...layers, ...normalized];
+                            replaceLayers(nextLayers);
+                        }
+                    } catch (error) {
+                        console.warn('[Generate] Decomposition failed, falling back to single layer:', error);
+                    }
+
+                    if (nextLayers.length === 0) {
+                        const newLayer = await addLayer(result.images[0], 'subject');
+                        nextLayers = [...layers, newLayer];
+                    }
+
                     addVersion(buildVersionPayload({
                         layers: nextLayers,
-                        imageUrl: newLayer.imageUrl,
+                        imageUrl: nextLayers[nextLayers.length - 1]?.imageUrl || result.images[0],
                         arAssetUrl: arAsset?.url || null,
                         mode: finalize ? 'final' : 'refine'
                     }));
@@ -710,7 +718,8 @@ export default function Generate() {
             active = false;
             clearTimeout(timer);
         };
-    }, [stencilView, sortedLayers, canvasWidth, canvasHeight]);
+    }, [stencilView, layers.length, canvasWidth, canvasHeight]);
+
 
     useEffect(() => {
         return () => {
@@ -1046,8 +1055,9 @@ export default function Generate() {
                             </p>
                         </div>
                         <Button
+                            variant="primary"
+                            size="lg"
                             onClick={handleStartFromScratch}
-                            className="h-12 px-6 text-sm font-black tracking-wider bg-white text-black hover:bg-ducks-yellow"
                             disabled={isLoadingExample}
                             aria-label="Start a new design from scratch"
                         >
@@ -1148,21 +1158,23 @@ export default function Generate() {
 
                                 <div className="mt-4 flex flex-wrap items-center gap-3">
                                     <Button
+                                        variant="primary"
+                                        size="md"
                                         onClick={handleToggleStencil}
-                                        className="h-10 px-4 text-xs font-black tracking-wider bg-white text-black hover:bg-ducks-yellow"
                                         disabled={isStencilProcessing}
                                         aria-label="Toggle stencil view"
                                     >
                                         {stencilView ? 'Exit Stencil View' : 'Stencil View'}
                                     </Button>
                                     <Button
+                                        variant="outline"
+                                        size="md"
                                         onClick={async () => {
                                             if (!stencilSourceUrl) {
                                                 await createStencilSource();
                                             }
                                             setShowStencilExport(true);
                                         }}
-                                        className="h-10 px-4 text-xs font-black tracking-wider bg-black/40 text-white hover:bg-black/60"
                                         aria-label="Export stencil"
                                     >
                                         Export Stencil
@@ -1202,15 +1214,17 @@ export default function Generate() {
                                             </p>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <Button
+                                                    variant="primary"
+                                                    size="md"
                                                     onClick={() => setShowInpainting(true)}
-                                                    className="h-11 text-xs font-black tracking-wider bg-white text-black hover:bg-ducks-yellow"
                                                     icon={Wand2}
                                                 >
                                                     Inpaint
                                                 </Button>
                                                 <Button
+                                                    variant="secondary"
+                                                    size="md"
                                                     onClick={() => setShowCleanup(true)}
-                                                    className="h-11 text-xs font-black tracking-wider bg-ducks-yellow text-black hover:bg-white"
                                                     icon={Eraser}
                                                 >
                                                     Clean Up
@@ -1218,18 +1232,20 @@ export default function Generate() {
                                             </div>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <Button
+                                                    variant="outline"
+                                                    size="md"
                                                     onClick={() => {
                                                         setRestyleLayerId(selectedLayer.id);
                                                         setRestyleStyle(matchStyle);
                                                     }}
-                                                    className="h-11 text-xs font-black tracking-wider bg-black/40 text-white hover:bg-black/60"
                                                     icon={Sparkles}
                                                 >
                                                     Restyle
                                                 </Button>
                                                 <Button
+                                                    variant="outline"
+                                                    size="md"
                                                     onClick={handleExportPNG}
-                                                    className="h-11 text-xs font-black tracking-wider bg-black/40 text-white hover:bg-black/60"
                                                     icon={Download}
                                                 >
                                                     Export PNG
@@ -1269,9 +1285,10 @@ export default function Generate() {
 
                                 <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
                                     <Button
+                                        variant="outline"
+                                        size="lg"
                                         onClick={handleEnhance}
                                         disabled={isEnhancing || !promptText.trim()}
-                                        className="h-12 px-5 text-xs font-black tracking-wider bg-gradient-to-r from-white/10 to-white/5 text-white hover:bg-white/20 border border-white/20"
                                         icon={Sparkles}
                                     >
                                         Enhance with AI Council
@@ -1310,11 +1327,11 @@ export default function Generate() {
                                 />
 
                                 {enhancedPrompt && (
-                                    <div className="mt-6 p-6 bg-purple-500/10 border border-purple-500/30 rounded-2xl">
+                                    <div className="mt-6 p-6 bg-ducks-green/10 border border-ducks-green/30 rounded-2xl">
                                         <div className="flex items-center justify-between mb-3">
-                                        <h4 className="text-sm font-bold text-purple-400 uppercase tracking-wider">
-                                            AI Enhanced Prompt ({enhancementLevel})
-                                        </h4>
+                                            <h4 className="text-sm font-bold text-ducks-green uppercase tracking-wider">
+                                                AI Enhanced Prompt ({enhancementLevel})
+                                            </h4>
                                             <button
                                                 onClick={() => setEnhancedPrompt(null)}
                                                 className="text-xs text-gray-500 hover:text-white transition-colors"
@@ -1332,18 +1349,22 @@ export default function Generate() {
                                     <div id="forge-actions" className="mt-6 space-y-3">
                                         <div className="grid grid-cols-2 gap-3">
                                             <Button
+                                                variant="outline"
+                                                size="lg"
                                                 onClick={() => handleGenerate(false)}
                                                 disabled={isGenerating}
-                                                className="h-16 text-base font-black tracking-wider bg-white/10 text-white hover:bg-white/20 border border-white/20"
                                                 icon={Layers}
+                                                className="h-16 text-base"
                                             >
                                                 REFINE
                                             </Button>
                                             <Button
+                                                variant="primary"
+                                                size="lg"
                                                 onClick={() => handleGenerate(true)}
                                                 disabled={isGenerating}
-                                                className="h-16 text-base font-black tracking-wider bg-ducks-yellow text-black hover:bg-white shadow-2xl"
                                                 icon={CheckCircle}
+                                                className="h-16 text-base"
                                             >
                                                 FINALIZE
                                             </Button>
@@ -1415,6 +1436,7 @@ export default function Generate() {
                                 error={matchError}
                                 context={matchContext}
                             />
+
                             <div className="glass-panel rounded-2xl border border-white/10 h-[360px] md:h-[calc(100vh-28rem)]">
                                 <LayerStack
                                     layers={layers}
@@ -1528,10 +1550,12 @@ export default function Generate() {
                                 </select>
                             </div>
                             <Button
+                                variant="primary"
+                                size="lg"
                                 onClick={handleAddElement}
                                 disabled={!elementPrompt.trim() || isGenerating}
-                                className="w-full h-12 text-sm font-black tracking-wider bg-ducks-yellow text-black hover:bg-white disabled:opacity-60"
                                 icon={Plus}
+                                className="w-full"
                             >
                                 Generate Element
                             </Button>
@@ -1575,10 +1599,12 @@ export default function Generate() {
                                 </p>
                             </div>
                             <Button
+                                variant="primary"
+                                size="lg"
                                 onClick={handleRestyle}
                                 disabled={!restyleStyle.trim() || isGenerating}
-                                className="w-full h-12 text-sm font-black tracking-wider bg-ducks-yellow text-black hover:bg-white disabled:opacity-60"
                                 icon={Sparkles}
+                                className="w-full"
                             >
                                 Apply Restyle
                             </Button>

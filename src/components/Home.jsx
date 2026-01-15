@@ -45,8 +45,11 @@ function Home() {
             System v2.0 // Life.exe
           </motion.div>
 
-          <motion.h1 variants={item} className="text-6xl md:text-8xl font-display font-bold leading-tight tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-white/60">
-            TACTILE<br />SCAR TISSUE
+          <motion.h1 variants={item} className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-display font-black leading-[0.95] tracking-tighter text-white">
+            TACTILE<br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-gray-400">
+              SCAR TISSUE
+            </span>
           </motion.h1>
 
           <motion.p variants={item} className="text-xl md:text-2xl text-gray-400 font-light max-w-2xl mx-auto">
@@ -94,11 +97,11 @@ function Home() {
           </Card>
 
           <Card hover className="text-left group cursor-pointer" onClick={() => navigate('/artists')}>
-            <div className="w-12 h-12 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-400 mb-4 group-hover:scale-110 transition-transform">
+            <div className="w-12 h-12 rounded-full bg-ducks-yellow/10 flex items-center justify-center text-ducks-yellow mb-4 group-hover:scale-110 transition-transform">
               <Zap size={24} />
             </div>
-            <h3 className="text-lg font-bold text-white mb-2">Neural Link</h3>
-            <p className="text-sm text-gray-400">Connect with artists who align with your aesthetic frequency.</p>
+            <h3 className="text-lg font-bold text-white mb-2">Artist Match</h3>
+            <p className="text-sm text-gray-400">Connect with artists who align with your aesthetic vision.</p>
           </Card>
         </motion.div>
 

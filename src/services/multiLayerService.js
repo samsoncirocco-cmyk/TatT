@@ -5,7 +5,7 @@
  * for advanced tattoo generation workflows.
  */
 
-const PROXY_URL = import.meta.env.VITE_PROXY_URL || 'http://127.0.0.1:3001/api';
+const PROXY_URL = import.meta.env.VITE_PROXY_URL || 'http://127.0.0.1:3002/api';
 const AUTH_TOKEN = import.meta.env.VITE_FRONTEND_AUTH_TOKEN;
 
 /**

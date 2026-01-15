@@ -2,6 +2,10 @@
   "mcpServers": {
     "supabase": {
       "url": "https://mcp.supabase.com/mcp"
+    },
+    "braingrid": {
+      "url": "https://mcp.braingrid.ai/mcp",
+      "transport": "httpStream"
     }
   }
 }

@@ -23,7 +23,7 @@ This feature implements a **hybrid query engine** that combines Neo4j graph trav
 3. **Vector DB Service** (`src/services/vectorDbService.js`)
    - Manages Supabase pgvector operations
    - Performs cosine similarity searches
-   - Stores and retrieves 4096-dimensional CLIP embeddings
+   - Stores and retrieves 1408-dimensional multimodalembedding@001 embeddings
 
 4. **Neo4j Service** (`src/services/neo4jService.js`)
    - Extended to include `embedding_id` in artist nodes
@@ -68,6 +68,7 @@ compositeScore =
 ### Example
 
 Artist with perfect style match but distant location:
+
 - Visual Similarity: 1.0 → 0.40
 - Style Alignment: 1.0 → 0.25
 - Location: 0.2 → 0.03
@@ -143,6 +144,7 @@ The SmartMatch page now includes a **Search Mode** toggle:
 - **Semantic Search**: Uses hybrid vector-graph matching via `/api/match/semantic`
 
 When semantic search is enabled:
+
 1. User query is converted to CLIP embedding
 2. Vector search finds visually similar artists
 3. Graph query finds artists matching filters
@@ -175,6 +177,7 @@ node tests/manual-hybrid-test.js
 ```
 
 Tests cover:
+
 - Score normalization
 - Weighted averaging
 - Composite scoring
@@ -185,15 +188,18 @@ Tests cover:
 ### Test Cases from Requirements
 
 ✅ **Test 1**: Semantic query without keyword match
-- Query: "Cyberpunk Gohan" 
+
+- Query: "Cyberpunk Gohan"
 - Artist has no "Cyberpunk" tag but similar visual style
 - Expected: Artist appears with visual_similarity >0.8
 
 ✅ **Test 2**: Composite scoring accuracy
+
 - Perfect style (1.0), distant location (0.2)
 - Expected: Final score ≈ 0.68-0.78
 
 ✅ **Test 3**: Query performance
+
 - 10,000 artists in database
 - Expected: <500ms response time
 

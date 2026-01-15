@@ -2,6 +2,7 @@
  * Match Service
  *
  * Combines Neo4j and Supabase vector results using Reciprocal Rank Fusion (RRF).
+ * Falls back to demo matching when services aren't available.
  */
 
 import { searchSimilar } from './vectorDbService.js';
@@ -10,6 +11,7 @@ import {
   getArtistsByIds,
   isNeo4jEnabled
 } from './neo4jService.js';
+import { findMatchingArtistsForDemo } from './demoMatchService.js';
 
 const RRF_K = 60;
 
@@ -62,7 +64,7 @@ function computeMatchScore(artist, context, rrfScore = 0) {
 }
 
 function buildArtistCard(artist, context, rrfScore) {
-  const thumbnail = artist.portfolioImages?.[0] || artist.portfolio?.[0] || artist.thumbnail;
+  const thumbnail = artist.portfolioImages?.[0] || artist.portfolio?.[0] || artist.thumbnail || artist.profileImage;
   return {
     ...artist,
     thumbnail,
@@ -73,6 +75,7 @@ function buildArtistCard(artist, context, rrfScore) {
 
 /**
  * Hybrid search using Neo4j and Supabase embeddings + RRF.
+ * Falls back to demo matching if services aren't available.
  */
 export async function getHybridArtistMatches(context, options = {}) {
   const {
@@ -80,15 +83,18 @@ export async function getHybridArtistMatches(context, options = {}) {
     limit = 20
   } = options;
 
-  const neo4jMatches = isNeo4jEnabled()
+  // Try Neo4j first
+  const neo4jEnabled = isNeo4jEnabled();
+  const neo4jMatches = neo4jEnabled
     ? await findArtistMatchesForPulse({
-        style: context.style,
-        bodyPart: context.bodyPart,
-        location: context.location,
-        limit
-      })
+      style: context.style,
+      bodyPart: context.bodyPart,
+      location: context.location,
+      limit
+    })
     : [];
 
+  // Try Supabase vector search
   let supabaseMatches = [];
   if (embeddingVector && Array.isArray(embeddingVector)) {
     try {
@@ -97,6 +103,35 @@ export async function getHybridArtistMatches(context, options = {}) {
       console.warn('[MatchService] Supabase vector search failed:', error);
     }
   }
+
+  // If both services failed or returned no results, use demo matching
+  if (neo4jMatches.length === 0 && supabaseMatches.length === 0) {
+    console.log('[MatchService] Using demo matching fallback');
+    try {
+      const demoMatches = await findMatchingArtistsForDemo(
+        {
+          style: context.style,
+          bodyPart: context.bodyPart
+        },
+        {
+          location: context.location
+        }
+      );
+
+      return {
+        total: demoMatches.length,
+        matches: demoMatches.map(artist => ({
+          ...artist,
+          matchScore: Math.round((artist.score || 0) * 100),
+          thumbnail: artist.portfolioImages?.[0] || artist.profileImage
+        }))
+      };
+    } catch (error) {
+      console.error('[MatchService] Demo matching failed:', error);
+      return { total: 0, matches: [] };
+    }
+  }
+
 
   const rrfScores = reciprocalRankFusion([neo4jMatches, supabaseMatches]);
 
