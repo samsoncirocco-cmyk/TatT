@@ -1,0 +1,24 @@
+[
+    {
+        "origin": [
+            "http://localhost:5173",
+            "http://localhost:3000",
+            "https://tatt-tester.vercel.app",
+            "https://*.vercel.app"
+        ],
+        "method": [
+            "GET",
+            "POST",
+            "PUT",
+            "DELETE",
+            "OPTIONS"
+        ],
+        "responseHeader": [
+            "Content-Type",
+            "Content-Length",
+            "Content-Disposition",
+            "X-Goog-Resumable"
+        ],
+        "maxAgeSeconds": 3600
+    }
+]

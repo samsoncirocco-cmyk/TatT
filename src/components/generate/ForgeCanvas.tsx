@@ -5,19 +5,24 @@
  */
 
 import { useRef, useEffect, useState } from 'react';
-import { Stage, Layer as KonvaLayer, Image as KonvaImage, Transformer } from 'react-konva';
+import { Stage, Layer as KonvaLayer, Image as KonvaImage, Circle } from 'react-konva';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BodyPart } from '../../constants/bodyPartAspectRatios';
 import { useCanvasAspectRatio } from '../../hooks/useCanvasAspectRatio';
 import { CanvasSilhouette } from './CanvasSilhouette';
 import { Layer, getCompositeOperation } from '../../services/canvasService';
+import TransformHandles from '../Forge/TransformHandles';
 
 interface ForgeCanvasProps {
     bodyPart: BodyPart;
     layers?: Layer[];
     selectedLayerId?: string | null;
     onSelectLayer?: (layerId: string | null) => void;
-    onUpdateTransform?: (layerId: string, transform: Partial<Layer['transform']>) => void;
+    onUpdateTransform?: (
+        layerId: string,
+        transform: Partial<Layer['transform']>,
+        options?: { recordHistory?: boolean }
+    ) => void;
     className?: string;
 }
 
@@ -56,6 +61,32 @@ function useImage(url: string): HTMLImageElement | null {
     return image;
 }
 
+function useShiftKey() {
+    const [isPressed, setIsPressed] = useState(false);
+
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Shift') {
+                setIsPressed(true);
+            }
+        };
+        const handleKeyUp = (event: KeyboardEvent) => {
+            if (event.key === 'Shift') {
+                setIsPressed(false);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('keyup', handleKeyUp);
+        };
+    }, []);
+
+    return isPressed;
+}
+
 /**
  * Konva Image component with layer data and Transformer
  */
@@ -72,11 +103,17 @@ function LayerImage({
     canvasHeight: number;
     isSelected: boolean;
     onSelect: () => void;
-    onUpdateTransform?: (layerId: string, transform: Partial<Layer['transform']>) => void;
+    onUpdateTransform?: (
+        layerId: string,
+        transform: Partial<Layer['transform']>,
+        options?: { recordHistory?: boolean }
+    ) => void;
 }) {
     const image = useImage(layer.imageUrl);
+    const keepRatio = useShiftKey();
     const shapeRef = useRef<any>(null);
-    const trRef = useRef<any>(null);
+    const rafRef = useRef<number | null>(null);
+    const pendingTransformRef = useRef<Partial<Layer['transform']> | null>(null);
 
     // Initial positioning logic (only on first load if x/y are 0)
     // We don't want to override saved transform
@@ -98,13 +135,31 @@ function LayerImage({
     // Center offset
     const baseX = (canvasWidth - baseWidth) / 2;
     const baseY = (canvasHeight - baseHeight) / 2;
+    const displayWidth = baseWidth * Math.abs(layer.transform.scaleX);
+    const displayHeight = baseHeight * Math.abs(layer.transform.scaleY);
+    const centerX = baseX + layer.transform.x + displayWidth / 2;
+    const centerY = baseY + layer.transform.y + displayHeight / 2;
 
     useEffect(() => {
-        if (isSelected && trRef.current && shapeRef.current) {
-            trRef.current.nodes([shapeRef.current]);
-            trRef.current.getLayer().batchDraw();
-        }
-    }, [isSelected]);
+        return () => {
+            if (rafRef.current !== null) {
+                window.cancelAnimationFrame(rafRef.current);
+            }
+        };
+    }, []);
+
+    const scheduleTransformUpdate = (nextTransform: Partial<Layer['transform']>) => {
+        if (!onUpdateTransform) return;
+        pendingTransformRef.current = nextTransform;
+        if (rafRef.current !== null) return;
+
+        rafRef.current = window.requestAnimationFrame(() => {
+            rafRef.current = null;
+            if (!pendingTransformRef.current) return;
+            onUpdateTransform(layer.id, pendingTransformRef.current, { recordHistory: false });
+            pendingTransformRef.current = null;
+        });
+    };
 
     if (!image || !layer.visible) return null;
 
@@ -140,6 +195,12 @@ function LayerImage({
                         });
                     }
                 }}
+                onDragMove={(e) => {
+                    scheduleTransformUpdate({
+                        x: e.target.x() - baseX,
+                        y: e.target.y() - baseY
+                    });
+                }}
 
                 // Transform End
                 onTransformEnd={(e) => {
@@ -166,25 +227,43 @@ function LayerImage({
                         rotation: node.rotation()
                     });
                 }}
+                onTransform={() => {
+                    const node = shapeRef.current;
+                    if (!node) return;
+                    scheduleTransformUpdate({
+                        x: node.x() - baseX,
+                        y: node.y() - baseY,
+                        scaleX: node.scaleX(),
+                        scaleY: node.scaleY(),
+                        rotation: node.rotation()
+                    });
+                }}
             />
             {isSelected && (
-                <Transformer
-                    ref={trRef}
-                    boundBoxFunc={(oldBox, newBox) => {
-                        // Limit minimum size
-                        if (newBox.width < 5 || newBox.height < 5) {
-                            return oldBox;
-                        }
-                        return newBox;
+                <Circle
+                    x={centerX}
+                    y={centerY}
+                    radius={9}
+                    fill="#0B1220"
+                    stroke="#D1FAE5"
+                    strokeWidth={2}
+                    draggable
+                    onDragMove={(e) => {
+                        scheduleTransformUpdate({
+                            x: e.target.x() - baseX - displayWidth / 2,
+                            y: e.target.y() - baseY - displayHeight / 2
+                        });
                     }}
-                    anchorStroke="#154733"
-                    anchorFill="#D1FAE5"
-                    anchorSize={10}
-                    borderStroke="#154733"
-                    borderDash={[4, 4]}
-                    rotationSnaps={[0, 90, 180, 270]}
+                    onDragEnd={(e) => {
+                        if (!onUpdateTransform) return;
+                        onUpdateTransform(layer.id, {
+                            x: e.target.x() - baseX - displayWidth / 2,
+                            y: e.target.y() - baseY - displayHeight / 2
+                        });
+                    }}
                 />
             )}
+            <TransformHandles shapeRef={shapeRef} isSelected={isSelected} keepRatio={keepRatio} />
         </>
     );
 }

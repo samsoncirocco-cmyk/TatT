@@ -34,9 +34,23 @@ uploads/
 
 # Secrets
 google-credentials.json
+gcp-service-account-key.json
+firebase-admin-key.json
+tatt-pro-*.json
 
 # Claude/Codex skills
 .claude/skills/
 .vercel
 .env*.local
 .env.railway
+
+# Auto Claude data directory
+.auto-claude/
+
+# Auto Claude generated files
+.auto-claude-security.json
+.auto-claude-status
+.claude_settings.json
+.worktrees/
+.security-key
+logs/security/

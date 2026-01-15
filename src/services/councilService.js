@@ -298,7 +298,49 @@ export async function enhancePrompt({
   // Step 1: Select optimal model (async, can run in parallel with prompt enhancement)
   const modelSelectionPromise = selectModelWithFallback(style, userIdea, bodyPart);
 
-  // Try OpenRouter first if configured
+  // Try Vertex AI first (FREE, 60 RPM, 1M token context)
+  const USE_VERTEX_AI = import.meta.env.VITE_VERTEX_AI_ENABLED !== 'false'; // Enabled by default
+
+  if (USE_VERTEX_AI && !DEMO_MODE) {
+    try {
+      const { enhancePromptWithVertexAI, isVertexAIConfigured } = await import('./vertexAICouncil.js');
+
+      if (isVertexAIConfigured()) {
+        console.log('[CouncilService] Using Vertex AI Gemini council (FREE!)');
+        const result = await enhancePromptWithVertexAI({
+          userIdea,
+          style,
+          bodyPart,
+          onDiscussionUpdate,
+          isStencilMode: resolvedStencilMode
+        });
+
+        // Add model selection to result
+        const modelSelection = await modelSelectionPromise;
+        result.modelSelection = {
+          modelId: modelSelection.modelId,
+          modelName: modelSelection.modelName,
+          reasoning: modelSelection.reasoning,
+          estimatedTime: modelSelection.estimatedTime,
+          cost: 0, // FREE!
+          isFallback: modelSelection.isFallback || false
+        };
+
+        const hardened = applyCouncilSkillPack(
+          result.prompts,
+          result.negativePrompt,
+          { bodyPart, isStencilMode: resolvedStencilMode, characterMatches }
+        );
+        return { ...result, ...hardened };
+      } else {
+        console.warn('[CouncilService] Vertex AI not configured, trying fallback');
+      }
+    } catch (error) {
+      console.error('[CouncilService] Vertex AI failed, trying fallback:', error);
+    }
+  }
+
+  // Try OpenRouter as fallback if configured
   const USE_OPENROUTER = import.meta.env.VITE_USE_OPENROUTER === 'true';
 
   if (USE_OPENROUTER && !DEMO_MODE) {

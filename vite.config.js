@@ -6,11 +6,19 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
-    open: true
+    open: true,
+    watch: {
+      ignored: [
+        '**/Library/**',
+        '**/Library/**/QuickLook/**',
+        '**/Library/Application Support/FileProvider/**',
+        '**/Library/CloudStorage/**',
+        '**/Library/Mobile Documents/**'
+      ]
+    }
   },
   build: {
     outDir: 'dist',
     sourcemap: true
   }
 })
-

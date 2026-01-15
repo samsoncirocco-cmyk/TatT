@@ -7,14 +7,16 @@ Successfully migrated vector database integration from Pinecone to **Supabase pg
 ## ✅ What Was Implemented
 
 ### 1. **Configuration Files**
+
 - `src/config/vectorDbConfig.js` - Supabase pgvector configuration
-  - 4096-dimensional embeddings
+  - 1408-dimensional embeddings
   - Cosine similarity metric
   - Supabase client initialization
 
 ### 2. **Service Layer**
+
 - `src/services/vectorDbService.js` - Complete CRUD operations
-  - `storeEmbedding()` - Store 4096-dim vectors
+  - `storeEmbedding()` - Store 1408-dim vectors
   - `searchSimilar()` - Cosine similarity search
   - `getEmbedding()` - Retrieve by artist ID
   - `deleteEmbedding()` - Remove embeddings
@@ -22,6 +24,7 @@ Successfully migrated vector database integration from Pinecone to **Supabase pg
   - `getEmbeddingStats()` - Database statistics
 
 ### 3. **Database Schema Scripts**
+
 - `scripts/setup-supabase-vector-schema.js` - Automated schema setup
   - Enables pgvector extension
   - Creates `portfolio_embeddings` table
@@ -30,6 +33,7 @@ Successfully migrated vector database integration from Pinecone to **Supabase pg
   - Creates `match_portfolio_embeddings()` RPC function
 
 ### 4. **Embedding Generation**
+
 - `scripts/generate-portfolio-embeddings.js` - Batch processing
   - Reads from `artists.json`
   - Generates CLIP embeddings via Replicate
@@ -39,12 +43,14 @@ Successfully migrated vector database integration from Pinecone to **Supabase pg
   - Saves progress incrementally
 
 ### 5. **Testing**
+
 - `scripts/test-vector-db.js` - Integration tests
   - Store/retrieve verification
   - Vector dimension validation
   - Statistics retrieval
 
 ### 6. **Documentation**
+
 - Updated `.env.example` with Supabase configuration
 - Removed Pinecone-specific environment variables
 - Simplified server.js (removed vector proxy endpoints)
@@ -80,7 +86,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 CREATE TABLE IF NOT EXISTS portfolio_embeddings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   artist_id TEXT NOT NULL UNIQUE,
-  embedding vector(4096) NOT NULL,
+  embedding vector(1408) NOT NULL,
   source_images TEXT[] NOT NULL,
   model_version TEXT NOT NULL DEFAULT 'clip-vit-base-patch32',
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -111,7 +117,7 @@ EXECUTE FUNCTION update_updated_at_column();
 
 -- Create similarity search function
 CREATE OR REPLACE FUNCTION match_portfolio_embeddings(
-  query_embedding vector(4096),
+  query_embedding vector(1408),
   match_count int DEFAULT 10
 )
 RETURNS TABLE (
@@ -145,6 +151,7 @@ node scripts/test-vector-db.js
 ```
 
 Expected output:
+
 - ✅ Stored test embedding
 - ✅ Retrieved matching vector
 - ✅ Statistics showing total embeddings
@@ -156,6 +163,7 @@ node scripts/generate-portfolio-embeddings.js
 ```
 
 This will:
+
 1. Read all artists from `src/data/artists.json`
 2. Generate CLIP embeddings for portfolio images
 3. Store in Supabase `portfolio_embeddings` table
@@ -165,10 +173,11 @@ This will:
 ## 🔍 How It Works
 
 ### Vector Storage
+
 ```javascript
 import { storeEmbedding } from './src/services/vectorDbService.js';
 
-const vector = new Array(4096).fill(0.1); // Your CLIP embedding
+const vector = new Array(1408).fill(0.1); // Your multimodal embedding
 await storeEmbedding('artist_123', vector, {
   source_images: ['url1.jpg', 'url2.jpg'],
   model_version: 'clip-vit-base-patch32'
@@ -176,10 +185,11 @@ await storeEmbedding('artist_123', vector, {
 ```
 
 ### Similarity Search
+
 ```javascript
 import { searchSimilar } from './src/services/vectorDbService.js';
 
-const queryVector = new Array(4096).fill(0.2); // Query embedding
+const queryVector = new Array(1408).fill(0.2); // Query embedding
 const results = await searchSimilar(queryVector, 10); // Top 10 matches
 
 results.forEach(match => {
@@ -188,11 +198,12 @@ results.forEach(match => {
 ```
 
 ### Retrieve Specific Embedding
+
 ```javascript
 import { getEmbedding } from './src/services/vectorDbService.js';
 
 const embedding = await getEmbedding('artist_123');
-console.log(embedding.values); // 4096-dimensional vector
+console.log(embedding.values); // 1408-dimensional vector
 console.log(embedding.metadata.source_images);
 ```
 
@@ -204,13 +215,14 @@ console.log(embedding.metadata.source_images);
 |--------|------|-------------|
 | `id` | UUID | Primary key |
 | `artist_id` | TEXT | Unique artist identifier (links to Neo4j) |
-| `embedding` | vector(4096) | CLIP embedding vector |
+| `embedding` | vector(1408) | multimodalembedding@001 embedding vector |
 | `source_images` | TEXT[] | Portfolio image URLs used |
 | `model_version` | TEXT | CLIP model version |
 | `created_at` | TIMESTAMPTZ | Creation timestamp |
 | `updated_at` | TIMESTAMPTZ | Last update timestamp |
 
 ### Indexes
+
 - **IVFFlat Index** on `embedding` column for fast cosine similarity search
 - **Unique Index** on `artist_id` for fast lookups
 
@@ -231,6 +243,7 @@ RETURN a
 ```
 
 This enables hybrid queries combining:
+
 - **Graph traversal** (Neo4j): Artist genealogy, influences
 - **Semantic similarity** (Supabase pgvector): Visual style matching
 
@@ -264,19 +277,24 @@ This enables hybrid queries combining:
 ## 🔧 Troubleshooting
 
 ### "relation portfolio_embeddings does not exist"
+
 Run the schema setup script or manual SQL from Step 2.
 
 ### "pgvector extension not found"
+
 Enable in Supabase dashboard: Database → Extensions → Search for "vector" → Enable
 
 ### Slow similarity search
+
 Ensure IVFFlat index is created. Check with:
+
 ```sql
 SELECT indexname FROM pg_indexes WHERE tablename = 'portfolio_embeddings';
 ```
 
 ### SUPABASE_SERVICE_KEY not found
-Get from: https://supabase.com/dashboard/project/yfcmysjmoehcyszvkxsr/settings/api
+
+Get from: <https://supabase.com/dashboard/project/yfcmysjmoehcyszvkxsr/settings/api>
 
 ## 📚 Resources
 
