@@ -21,6 +21,7 @@ import {
   selectModelWithFallback,
   getModelPromptEnhancements
 } from '../utils/styleModelMapping.js';
+import { COUNCIL_SKILL_PACK } from '../config/councilSkillPack';
 
 // Council API configuration
 const COUNCIL_API_URL = import.meta.env.VITE_COUNCIL_API_URL || 'http://localhost:8001/api';
@@ -31,6 +32,148 @@ const DEMO_MODE = import.meta.env.VITE_COUNCIL_DEMO_MODE === 'true';
 // Build character lookup map on service initialization (one-time cost)
 const CHARACTER_MAP = buildCharacterMap();
 const CHARACTER_NAMES = getAllCharacterNames();
+
+/**
+ * Detect if the user is requesting stencil-style artwork
+ * @param {string} userIdea - The user's design description
+ * @param {string} negativePrompt - Optional negative prompt
+ * @returns {boolean} True if stencil keywords are detected
+ */
+function detectStencilMode(userIdea = '', negativePrompt = '') {
+  try {
+    const combined = `${userIdea} ${negativePrompt}`.toLowerCase();
+    return (COUNCIL_SKILL_PACK.stencilKeywords || []).some(keyword => combined.includes(keyword));
+  } catch (error) {
+    console.warn('[CouncilService] Error detecting stencil mode:', error);
+    return false;
+  }
+}
+
+/**
+ * Detect character names in the provided text
+ * @param {string} text - Text to search for character names
+ * @returns {string[]} Array of detected character names
+ */
+function detectCharacters(text = '') {
+  try {
+    return CHARACTER_NAMES.filter(name =>
+      new RegExp(`\\b${name}\\b`, 'i').test(text)
+    );
+  } catch (error) {
+    console.warn('[CouncilService] Error detecting characters:', error);
+    return [];
+  }
+}
+
+/**
+ * Add a token to a prompt if it's not already present (case-insensitive check)
+ * @param {string} prompt - The base prompt
+ * @param {string} token - The token to add if missing
+ * @returns {string} Prompt with token added (if not already present)
+ */
+function addIfMissing(prompt, token) {
+  if (!token || !prompt) return prompt;
+
+  try {
+    const promptLower = prompt.toLowerCase();
+    const tokenLower = token.toLowerCase();
+
+    if (promptLower.includes(tokenLower)) {
+      return prompt;
+    }
+
+    return `${prompt}, ${token}`;
+  } catch (error) {
+    console.warn('[CouncilService] Error in addIfMissing:', error);
+    return prompt;
+  }
+}
+
+/**
+ * Apply Council Skill Pack hardening rules to prompts
+ * Adds anatomical flow, aesthetic anchors, positional anchoring for multi-character prompts,
+ * and stencil-specific negative shielding
+ *
+ * @param {Object} prompts - Object containing simple, detailed, and ultra prompts
+ * @param {string} negativePrompt - The negative prompt to harden
+ * @param {Object} context - Context object with bodyPart, isStencilMode, and characterMatches
+ * @param {string} context.bodyPart - Target body part for anatomical flow
+ * @param {boolean} context.isStencilMode - Whether stencil mode is active
+ * @param {string[]} context.characterMatches - Array of detected character names
+ * @returns {Object} Object with hardened prompts and negativePrompt
+ */
+function applyCouncilSkillPack(prompts, negativePrompt, context) {
+  try {
+    // Validate inputs
+    if (!prompts || typeof prompts !== 'object') {
+      console.warn('[CouncilService] Invalid prompts object, skipping skill pack application');
+      return { prompts: prompts || {}, negativePrompt: negativePrompt || '' };
+    }
+
+    if (!context || typeof context !== 'object') {
+      console.warn('[CouncilService] Invalid context object, using defaults');
+      context = { bodyPart: 'forearm', isStencilMode: false, characterMatches: [] };
+    }
+
+    const flowToken = COUNCIL_SKILL_PACK.anatomicalFlow[context.bodyPart] || '';
+    const spatialKeywords = COUNCIL_SKILL_PACK.spatialKeywords || [];
+
+    // Harden each prompt level
+    const hardenedPrompts = Object.entries(prompts).reduce((acc, [level, prompt]) => {
+      if (typeof prompt !== 'string') {
+        console.warn(`[CouncilService] Invalid prompt at level ${level}, skipping`);
+        acc[level] = prompt;
+        return acc;
+      }
+
+      let hardened = prompt;
+
+      // Add anatomical flow
+      hardened = addIfMissing(hardened, flowToken);
+
+      // Add aesthetic anchors
+      hardened = addIfMissing(hardened, COUNCIL_SKILL_PACK.aestheticAnchors);
+
+      // Handle multi-character positional anchoring
+      const promptCharacters = detectCharacters(hardened);
+      const characters = promptCharacters.length > 0 ? promptCharacters : (context.characterMatches || []);
+
+      if (characters.length >= 2) {
+        const lower = hardened.toLowerCase();
+        const hasPositioning = spatialKeywords.some(keyword => lower.includes(keyword));
+
+        if (!hasPositioning) {
+          hardened = `${characters[0]} on the left, ${characters[1]} on the right, ${hardened}`;
+          console.log('[CouncilService] Forced positional anchoring for layer-safety');
+        }
+      }
+
+      acc[level] = hardened;
+      return acc;
+    }, {});
+
+    // Harden negative prompt for stencil mode
+    let hardenedNegative = negativePrompt || '';
+
+    if (context.isStencilMode) {
+      const shield = COUNCIL_SKILL_PACK.negativeShield;
+      const lower = hardenedNegative.toLowerCase();
+
+      // Only add shield if not already present
+      if (!lower.includes('shading') || !lower.includes('gradients')) {
+        hardenedNegative = hardenedNegative
+          ? `${shield}, ${hardenedNegative}`
+          : shield;
+      }
+    }
+
+    return { prompts: hardenedPrompts, negativePrompt: hardenedNegative };
+  } catch (error) {
+    console.error('[CouncilService] Error applying skill pack:', error);
+    // Return original values on error
+    return { prompts: prompts || {}, negativePrompt: negativePrompt || '' };
+  }
+}
 
 /**
  * Enhance character descriptions with specific details from database
@@ -142,10 +285,15 @@ export async function enhancePrompt({
   userIdea,
   style = 'traditional',
   bodyPart = 'forearm',
-  onDiscussionUpdate = null
+  onDiscussionUpdate = null,
+  isStencilMode = null
 }) {
   const startTime = performance.now();
   console.log('[CouncilService] Enhancing prompt:', { userIdea, style, bodyPart });
+  const characterMatches = detectCharacters(userIdea);
+  const resolvedStencilMode = isStencilMode === null
+    ? detectStencilMode(userIdea)
+    : Boolean(isStencilMode);
 
   // Step 1: Select optimal model (async, can run in parallel with prompt enhancement)
   const modelSelectionPromise = selectModelWithFallback(style, userIdea, bodyPart);
@@ -163,7 +311,8 @@ export async function enhancePrompt({
           userIdea,
           style,
           bodyPart,
-          onDiscussionUpdate
+          onDiscussionUpdate,
+          isStencilMode: resolvedStencilMode
         });
 
         // Add model selection to result
@@ -177,7 +326,12 @@ export async function enhancePrompt({
           isFallback: modelSelection.isFallback || false
         };
 
-        return result;
+        const hardened = applyCouncilSkillPack(
+          result.prompts,
+          result.negativePrompt,
+          { bodyPart, isStencilMode: resolvedStencilMode, characterMatches }
+        );
+        return { ...result, ...hardened };
       } else {
         console.warn('[CouncilService] OpenRouter not configured, falling back to demo mode');
       }
@@ -201,14 +355,21 @@ export async function enhancePrompt({
       // Return mock enhanced prompts after 3 seconds
       setTimeout(async () => {
         const modelSelection = await modelSelectionPromise;
+        const prompts = {
+          simple: MOCK_RESPONSES.simple(userIdea, style),
+          detailed: MOCK_RESPONSES.detailed(userIdea, style),
+          ultra: MOCK_RESPONSES.ultra(userIdea, style, bodyPart)
+        };
+        const negativePrompt = MOCK_RESPONSES.negative(userIdea);
+        const hardened = applyCouncilSkillPack(
+          prompts,
+          negativePrompt,
+          { bodyPart, isStencilMode: resolvedStencilMode, characterMatches }
+        );
 
         resolve({
-          prompts: {
-            simple: MOCK_RESPONSES.simple(userIdea, style),
-            detailed: MOCK_RESPONSES.detailed(userIdea, style),
-            ultra: MOCK_RESPONSES.ultra(userIdea, style, bodyPart)
-          },
-          negativePrompt: MOCK_RESPONSES.negative(userIdea),
+          prompts: hardened.prompts,
+          negativePrompt: hardened.negativePrompt,
           modelSelection: {
             modelId: modelSelection.modelId,
             modelName: modelSelection.modelName,
@@ -266,13 +427,21 @@ export async function enhancePrompt({
       true // Already council-enhanced
     );
 
+    const prompts = {
+      simple: data.enhanced_prompts.simple || data.enhanced_prompts.minimal,
+      detailed: data.enhanced_prompts.detailed || data.enhanced_prompts.standard,
+      ultra: modelEnhancements.enhancedPrompt
+    };
+    const negativePrompt = modelEnhancements.negativePrompt || data.negative_prompt || MOCK_RESPONSES.negative(userIdea);
+    const hardened = applyCouncilSkillPack(
+      prompts,
+      negativePrompt,
+      { bodyPart, isStencilMode: resolvedStencilMode, characterMatches }
+    );
+
     return {
-      prompts: {
-        simple: data.enhanced_prompts.simple || data.enhanced_prompts.minimal,
-        detailed: data.enhanced_prompts.detailed || data.enhanced_prompts.standard,
-        ultra: modelEnhancements.enhancedPrompt
-      },
-      negativePrompt: modelEnhancements.negativePrompt || data.negative_prompt || MOCK_RESPONSES.negative(userIdea),
+      prompts: hardened.prompts,
+      negativePrompt: hardened.negativePrompt,
       modelSelection: {
         modelId: modelSelection.modelId,
         modelName: modelSelection.modelName,
@@ -301,13 +470,21 @@ export async function enhancePrompt({
     const modelSelection = await modelSelectionPromise;
     const enhancementTime = performance.now() - startTime;
 
+    const prompts = {
+      simple: MOCK_RESPONSES.simple(userIdea, style),
+      detailed: MOCK_RESPONSES.detailed(userIdea, style),
+      ultra: MOCK_RESPONSES.ultra(userIdea, style, bodyPart)
+    };
+    const negativePrompt = MOCK_RESPONSES.negative(userIdea);
+    const hardened = applyCouncilSkillPack(
+      prompts,
+      negativePrompt,
+      { bodyPart, isStencilMode: resolvedStencilMode, characterMatches }
+    );
+
     return {
-      prompts: {
-        simple: MOCK_RESPONSES.simple(userIdea, style),
-        detailed: MOCK_RESPONSES.detailed(userIdea, style),
-        ultra: MOCK_RESPONSES.ultra(userIdea, style, bodyPart)
-      },
-      negativePrompt: MOCK_RESPONSES.negative(userIdea),
+      prompts: hardened.prompts,
+      negativePrompt: hardened.negativePrompt,
       modelSelection: {
         modelId: modelSelection.modelId,
         modelName: modelSelection.modelName,
