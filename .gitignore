@@ -39,3 +39,4 @@ google-credentials.json
 .claude/skills/
 .vercel
 .env*.local
+.env.railway
