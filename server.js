@@ -31,7 +31,7 @@ const NEO4J_PASSWORD = process.env.NEO4J_PASSWORD;
 const FRONTEND_AUTH_TOKEN = process.env.FRONTEND_AUTH_TOKEN || 'dev-token-change-in-production';
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
-  : ['http://localhost:5173', 'http://localhost:3000'];
+  : ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:3001'];
 
 // Add Vercel production URL if not already included
 const VERCEL_URL = process.env.VERCEL_URL || 'https://tat-t-3x8t.vercel.app';

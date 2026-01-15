@@ -202,6 +202,7 @@ export default function Generate() {
 
     // Advanced options state
     const [showAdvanced, setShowAdvanced] = useState(false);
+    const [style, setStyle] = useState('traditional');
     const [size, setSize] = useState('medium');
     const [aiModel, setAiModel] = useState('tattoo');
     const [negativePrompt, setNegativePrompt] = useState('');
@@ -249,17 +250,17 @@ export default function Generate() {
         updateBlendMode
     } = useLayerManagement();
 
-    const resolvedStyle = selectedChips[0] || 'Traditional';
-    const normalizedStyle = normalizeStyleKey(resolvedStyle) || 'traditional';
+    const resolvedStyle = selectedChips[0] || style || 'traditional';
+    const normalizedStyle = normalizeStyleKey(resolvedStyle) || style || 'traditional';
 
     const generationInput = useMemo(() => ({
         subject: enhancedPrompt || promptText,
-        style: normalizedStyle,
+        style: normalizedStyle || style,
         bodyPart,
         size,
         aiModel,
         negativePrompt
-    }), [enhancedPrompt, promptText, normalizedStyle, bodyPart, size, aiModel, negativePrompt]);
+    }), [enhancedPrompt, promptText, normalizedStyle, style, bodyPart, size, aiModel, negativePrompt]);
 
     // Toast and storage monitoring
     const { toast, toasts, removeToast } = useToast();
@@ -1294,6 +1295,8 @@ export default function Generate() {
                                     isExpanded={showAdvanced}
                                     onToggle={() => setShowAdvanced(!showAdvanced)}
                                     hideToggle
+                                    style={style}
+                                    onStyleChange={setStyle}
                                     size={size}
                                     onSizeChange={setSize}
                                     aiModel={aiModel}

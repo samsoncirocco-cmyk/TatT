@@ -6,6 +6,7 @@
 
 import { ChevronDown } from 'lucide-react';
 import { AI_MODELS } from '../../services/replicateService';
+import { TATTOO_STYLES } from '../../config/promptTemplates';
 
 const SIZE_OPTIONS = [
     { value: 'small', label: 'Small', description: '2-3 inches' },
@@ -24,6 +25,8 @@ export default function AdvancedOptions({
     isExpanded,
     onToggle,
     hideToggle = false,
+    style = 'traditional',
+    onStyleChange,
     size = 'medium',
     onSizeChange,
     aiModel = 'tattoo',
@@ -72,6 +75,29 @@ export default function AdvancedOptions({
                                 >
                                     <div>{option.label}</div>
                                     <div className="text-[10px] font-normal opacity-70">{option.description}</div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Tattoo Style Selection */}
+                    <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-widest text-gray-500 mb-3">
+                            Tattoo Style
+                        </label>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                            {Object.entries(TATTOO_STYLES).map(([key, styleObj]) => (
+                                <button
+                                    key={key}
+                                    onClick={() => onStyleChange(key)}
+                                    className={`p-3 rounded-lg text-left transition-all ${style === key
+                                            ? 'bg-ducks-green/20 border-2 border-ducks-green text-white'
+                                            : 'bg-white/5 border border-white/10 text-gray-400 hover:border-white/30'
+                                        }`}
+                                    title={styleObj.description}
+                                >
+                                    <div className="font-bold text-sm">{styleObj.displayName}</div>
+                                    <div className="text-[10px] opacity-60">{styleObj.description}</div>
                                 </button>
                             ))}
                         </div>
