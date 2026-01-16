@@ -31,44 +31,90 @@ function reciprocalRankFusion(rankLists, k = RRF_K) {
   return scores;
 }
 
-function normalizeScore(value) {
+function normalizePercent(value) {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-function computeMatchScore(artist, context, rrfScore = 0) {
+function stableHashScore(input) {
+  if (!input) return 0.5;
+  let hash = 0;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = ((hash << 5) - hash) + input.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash % 100) / 100;
+}
+
+function computeMatchBreakdown(artist, context, supabaseScore = 0) {
   const style = context.style?.toLowerCase();
-  const bodyPart = context.bodyPart?.toLowerCase();
   const location = context.location?.toLowerCase();
-  const layerCount = context.layerCount || 0;
+  const budget = context.budget;
 
   const styles = (artist.styles || []).map(s => s.toLowerCase());
-  const bodyParts = (artist.bodyParts || artist.specialties || []).map(bp => bp.toLowerCase());
   const artistLocation = (artist.location || artist.city || '').toLowerCase();
 
+  const visual = Number.isFinite(supabaseScore) ? Math.max(0, Math.min(1, supabaseScore)) : 0.5;
   const styleScore = style ? (styles.includes(style) ? 1 : 0.4) : 0.6;
-  const bodyPartScore = bodyPart ? (bodyParts.includes(bodyPart) ? 1 : 0.5) : 0.6;
   const locationScore = location
     ? (artistLocation.includes(location) ? 1 : 0.5)
     : 0.6;
-  const complexityScore = layerCount ? Math.min(layerCount / 10, 1) : 0.5;
+  const hourlyRate = artist.hourlyRate || artist.rate;
+  const budgetScore = budget && hourlyRate
+    ? (hourlyRate <= budget ? 1 : 0.4)
+    : 0.6;
+  const varietyScore = stableHashScore(artist.id || artist.name);
 
-  const weighted = (
-    styleScore * 0.4 +
-    complexityScore * 0.2 +
-    bodyPartScore * 0.2 +
-    locationScore * 0.2
-  );
-
-  const rrfBoost = Math.min(rrfScore * 120, 20);
-  return normalizeScore(weighted * 80 + rrfBoost);
+  return {
+    visual,
+    style: styleScore,
+    location: locationScore,
+    budget: budgetScore,
+    variety: varietyScore
+  };
 }
 
-function buildArtistCard(artist, context, rrfScore) {
+function computeMatchScoreFromBreakdown(breakdown) {
+  const weighted = (
+    breakdown.visual * 0.4 +
+    breakdown.style * 0.25 +
+    breakdown.location * 0.2 +
+    breakdown.budget * 0.1 +
+    breakdown.variety * 0.05
+  );
+
+  return normalizePercent(weighted * 100);
+}
+
+function buildReasoning(artist, breakdown, context) {
+  const parts = [];
+  parts.push(`Strong visual match (${normalizePercent(breakdown.visual * 100)}%)`);
+
+  if (context.style && (artist.styles || []).length) {
+    parts.push(`specializes in ${context.style}`);
+  }
+
+  if (artist.distance != null) {
+    parts.push(`${Math.round(artist.distance)} miles away`);
+  } else if (artist.location || artist.city) {
+    parts.push(`based in ${artist.location || artist.city}`);
+  }
+
+  if (context.budget && (artist.hourlyRate || artist.rate)) {
+    parts.push(`rate ${artist.hourlyRate || artist.rate} fits budget`);
+  }
+
+  return parts.join(', ');
+}
+
+function buildArtistCard(artist, context, rrfScore, supabaseScore) {
   const thumbnail = artist.portfolioImages?.[0] || artist.portfolio?.[0] || artist.thumbnail || artist.profileImage;
+  const breakdown = computeMatchBreakdown(artist, context, supabaseScore);
   return {
     ...artist,
     thumbnail,
-    matchScore: computeMatchScore(artist, context, rrfScore),
+    matchScore: computeMatchScoreFromBreakdown(breakdown),
+    breakdown,
+    reasoning: buildReasoning(artist, breakdown, context),
     rrfScore
   };
 }
@@ -134,6 +180,12 @@ export async function getHybridArtistMatches(context, options = {}) {
 
 
   const rrfScores = reciprocalRankFusion([neo4jMatches, supabaseMatches]);
+  const supabaseScoreMap = new Map();
+  supabaseMatches.forEach((item) => {
+    if (item?.id) {
+      supabaseScoreMap.set(item.id, item.score || 0);
+    }
+  });
 
   const artistMap = new Map();
   neo4jMatches.forEach((artist) => {
@@ -156,7 +208,12 @@ export async function getHybridArtistMatches(context, options = {}) {
   }
 
   const merged = Array.from(artistMap.values()).map((artist) =>
-    buildArtistCard(artist, context, rrfScores.get(artist.id) || 0)
+    buildArtistCard(
+      artist,
+      context,
+      rrfScores.get(artist.id) || 0,
+      supabaseScoreMap.get(artist.id) || 0
+    )
   );
 
   merged.sort((a, b) => b.matchScore - a.matchScore);

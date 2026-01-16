@@ -9,7 +9,7 @@
  * This enables professional-level customization without starting from scratch.
  */
 
-const PROXY_URL = import.meta.env.VITE_PROXY_URL || 'http://localhost:3001/api';
+const PROXY_URL = '/api';
 
 // Inpainting model configuration
 export const INPAINTING_MODEL = {

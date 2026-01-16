@@ -24,10 +24,10 @@ import {
 import { COUNCIL_SKILL_PACK } from '../config/councilSkillPack';
 
 // Council API configuration
-const COUNCIL_API_URL = import.meta.env.VITE_COUNCIL_API_URL || 'http://localhost:8001/api';
+const COUNCIL_API_URL = process.env.NEXT_PUBLIC_COUNCIL_API_URL || 'http://localhost:8001/api';
 
 // Demo mode for testing without council backend
-const DEMO_MODE = import.meta.env.VITE_COUNCIL_DEMO_MODE === 'true';
+const DEMO_MODE = process.env.NEXT_PUBLIC_COUNCIL_DEMO_MODE === 'true';
 
 // Build character lookup map on service initialization (one-time cost)
 const CHARACTER_MAP = buildCharacterMap();
@@ -299,7 +299,7 @@ export async function enhancePrompt({
   const modelSelectionPromise = selectModelWithFallback(style, userIdea, bodyPart);
 
   // Try Vertex AI first (FREE, 60 RPM, 1M token context)
-  const USE_VERTEX_AI = import.meta.env.VITE_VERTEX_AI_ENABLED !== 'false'; // Enabled by default
+  const USE_VERTEX_AI = process.env.NEXT_PUBLIC_VERTEX_AI_ENABLED !== 'false'; // Enabled by default
 
   if (USE_VERTEX_AI && !DEMO_MODE) {
     try {
@@ -341,7 +341,7 @@ export async function enhancePrompt({
   }
 
   // Try OpenRouter as fallback if configured
-  const USE_OPENROUTER = import.meta.env.VITE_USE_OPENROUTER === 'true';
+  const USE_OPENROUTER = process.env.NEXT_PUBLIC_USE_OPENROUTER === 'true';
 
   if (USE_OPENROUTER && !DEMO_MODE) {
     try {

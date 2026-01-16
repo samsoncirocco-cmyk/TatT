@@ -27,12 +27,13 @@ export function useLayerManagement() {
     const selectLayer = useForgeStore((store) => store.selectLayer);
     const clearLayers = useForgeStore((store) => store.clearLayers);
     const replaceLayers = useForgeStore((store) => store.replaceLayers);
+    const clearHistory = useForgeStore((store) => store.clearHistory);
     const undo = useForgeStore((store) => store.undo);
     const redo = useForgeStore((store) => store.redo);
 
     const sortedLayers = useMemo(() => getLayersByZIndex(layers), [layers]);
 
-    return {
+    return useMemo(() => ({
         layers,
         sortedLayers,
         selectedLayerId,
@@ -52,9 +53,33 @@ export function useLayerManagement() {
         selectLayer,
         clearLayers,
         replaceLayers,
+        clearHistory,
         undo,
         redo
-    } as {
+    }), [
+        layers,
+        sortedLayers,
+        selectedLayerId,
+        addLayer,
+        deleteLayer,
+        reorder,
+        toggleVisibility,
+        updateTransform,
+        flipHorizontal,
+        flipVertical,
+        rename,
+        updateImage,
+        updateBlendMode,
+        moveToFront,
+        moveToBack,
+        duplicateLayer,
+        selectLayer,
+        clearLayers,
+        replaceLayers,
+        clearHistory,
+        undo,
+        redo
+    ]) as {
         layers: Layer[];
         sortedLayers: Layer[];
         selectedLayerId: string | null;
@@ -78,6 +103,7 @@ export function useLayerManagement() {
         selectLayer: (layerId: string | null) => void;
         clearLayers: () => void;
         replaceLayers: (nextLayers: Layer[]) => void;
+        clearHistory: () => void;
         undo: () => void;
         redo: () => void;
     };

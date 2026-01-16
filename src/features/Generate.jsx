@@ -1,0 +1,1733 @@
+/**
+ * Generate Page - Enhanced with Layer Management
+ * 
+ * Integrates prompt interface, vibe chips, and canvas layer management
+ */
+
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { BodyPartSelector } from '../components/generate/BodyPartSelector';
+import { ForgeCanvas } from '../components/generate/ForgeCanvas';
+import { BodyPartWarningModal } from '../components/generate/BodyPartWarningModal';
+import PromptInterface from '../components/generate/PromptInterface';
+import VibeChips from '../components/generate/VibeChips';
+import AdvancedOptions from '../components/generate/AdvancedOptions';
+import LayerStack from '../components/generate/LayerStack';
+import MatchPulse from '../components/Match/MatchPulse';
+import KeyboardShortcutsModal, { useKeyboardShortcuts } from '../components/KeyboardShortcutsModal';
+import BlendModeSelector from '../components/generate/BlendModeSelector';
+import ErrorBoundary from '../components/ErrorBoundary';
+import StencilExport from '../components/StencilExport';
+import InpaintingEditor from '../components/InpaintingEditor';
+import CleanupTool from '../components/generate/CleanupTool';
+import VersionTimeline from '../components/generate/VersionTimeline';
+import VersionComparison from '../components/generate/VersionComparison';
+import LayerContextMenu from '../components/generate/LayerContextMenu';
+import RegenerateElementModal from '../components/generate/RegenerateElementModal';
+import ForgeGuide from '../components/generate/ForgeGuide';
+import { ToastContainer } from '../components/ui/Toast';
+import { DEFAULT_BODY_PART } from '../constants/bodyPartAspectRatios';
+import { enhancePrompt } from '../services/councilService';
+import useVibeChipSuggestions from '../hooks/useVibeChipSuggestions';
+import { useLayerManagement } from '../hooks/useLayerManagement';
+import { useRealtimeMatchPulse } from '../hooks/useRealtimeMatchPulse';
+import { useCanvasAspectRatio } from '../hooks/useCanvasAspectRatio';
+import { useVersionHistory } from '../hooks/useVersionHistory';
+import { useSmartPreview } from '../hooks/useSmartPreview';
+import { useToast } from '../hooks/useToast';
+import { useStorageWarning } from '../hooks/useStorageWarning';
+import * as versionService from '../services/versionService';
+import Button from '../components/ui/Button';
+import { Wand2, Zap, Download, Sparkles, Layers, CheckCircle, Plus, Eraser } from 'lucide-react';
+import { useImageGeneration } from '../hooks/useImageGeneration';
+import { normalizeStyleKey } from '../config/promptTemplates';
+import TransformControls from '../components/generate/TransformControls';
+import { useTransformShortcuts } from '../hooks/useTransformShortcuts';
+import { exportAsPNG, exportAsARAsset } from '../services/canvasService';
+import { convertToStencil } from '../services/stencilService';
+import { decomposeLayers } from '../services/layerDecompositionService';
+import { useForgeStore } from '../stores/useForgeStore';
+import {
+    processGenerationResult,
+    addMultipleLayers,
+    shouldUseMultiLayer
+} from '../services/multiLayerService';
+
+const TRENDING_EXAMPLES = [
+    {
+        id: 'cyberpunk-gohan',
+        title: 'Cyberpunk Gohan',
+        description: 'Neon energy, bold anime contrasts',
+        bodyPart: 'forearm',
+        prompt: 'Cyberpunk Gohan in a neon rainstorm with electric aura',
+        layers: [
+            {
+                imageUrl: '/images/trending/cyberpunk-gohan-bg.svg',
+                type: 'background'
+            },
+            {
+                imageUrl: '/images/trending/cyberpunk-gohan-subject.svg',
+                type: 'subject'
+            }
+        ]
+    },
+    {
+        id: 'fine-line-peonies',
+        title: 'Fine-line Peonies',
+        description: 'Delicate florals with clean linework',
+        bodyPart: 'thigh',
+        prompt: 'Fine-line peonies with soft shading and airy spacing',
+        layers: [
+            {
+                imageUrl: '/images/trending/fine-line-peonies-subject.svg',
+                type: 'subject'
+            },
+            {
+                imageUrl: '/images/trending/fine-line-peonies-bg.svg',
+                type: 'background'
+            }
+        ]
+    },
+    {
+        id: 'dragon-storm',
+        title: 'Dragon Storm',
+        description: 'High energy with lightning accents',
+        bodyPart: 'back',
+        prompt: 'A coiling dragon with lightning and storm clouds',
+        layers: [
+            {
+                imageUrl: '/images/trending/dragon-storm-subject.svg',
+                type: 'subject'
+            },
+            {
+                imageUrl: '/images/trending/dragon-storm-bg.svg',
+                type: 'effect'
+            }
+        ]
+    },
+    {
+        id: 'neo-trad-owl',
+        title: 'Neo-Trad Owl',
+        description: 'Warm gradients with bold lines',
+        bodyPart: 'shoulder',
+        prompt: 'Neo-traditional owl with botanical accents',
+        layers: [
+            {
+                imageUrl: '/images/trending/neo-trad-owl-subject.svg',
+                type: 'subject'
+            },
+            {
+                imageUrl: '/images/trending/neo-trad-owl-bg.svg',
+                type: 'background'
+            }
+        ]
+    },
+    {
+        id: 'blackwork-serpent',
+        title: 'Blackwork Serpent',
+        description: 'Bold ink, high contrast textures',
+        bodyPart: 'ribs',
+        prompt: 'Blackwork serpent with geometric halo',
+        layers: [
+            {
+                imageUrl: '/images/trending/blackwork-serpent-subject.svg',
+                type: 'subject'
+            },
+            {
+                imageUrl: '/images/trending/blackwork-serpent-bg.svg',
+                type: 'effect'
+            }
+        ]
+    },
+    {
+        id: 'japanese-crane',
+        title: 'Japanese Crane',
+        description: 'Classic Irezumi balance',
+        bodyPart: 'chest',
+        prompt: 'Japanese crane with waves and maple leaves',
+        layers: [
+            {
+                imageUrl: '/images/trending/japanese-crane-subject.svg',
+                type: 'subject'
+            },
+            {
+                imageUrl: '/images/trending/japanese-crane-bg.svg',
+                type: 'background'
+            }
+        ]
+    },
+    {
+        id: 'phoenix-crest',
+        title: 'Phoenix Crest',
+        description: 'Rising flame silhouette',
+        bodyPart: 'calf',
+        prompt: 'Phoenix crest with ember trails and clean contours',
+        layers: [
+            {
+                imageUrl: '/images/trending/phoenix-crest-subject.svg',
+                type: 'subject'
+            },
+            {
+                imageUrl: '/images/trending/phoenix-crest-bg.svg',
+                type: 'background'
+            }
+        ]
+    },
+    {
+        id: 'ornamental-crown',
+        title: 'Ornamental Crown',
+        description: 'Symmetry with filigree accents',
+        bodyPart: 'sternum',
+        prompt: 'Ornamental crown with filigree and gemstone inlays',
+        layers: [
+            {
+                imageUrl: '/images/trending/ornamental-crown-subject.svg',
+                type: 'subject'
+            },
+            {
+                imageUrl: '/images/trending/ornamental-crown-bg.svg',
+                type: 'background'
+            }
+        ]
+    }
+];
+
+export default function Generate() {
+    // Body part state
+    const [bodyPart, setBodyPart] = useState(DEFAULT_BODY_PART);
+    const [showWarning, setShowWarning] = useState(false);
+    const [pendingBodyPart, setPendingBodyPart] = useState(null);
+
+    // Prompt state
+    const [promptText, setPromptText] = useState('');
+    const [selectedChips, setSelectedChips] = useState([]);
+    const [enhancedPrompt, setEnhancedPrompt] = useState(null);
+    const [isEnhancing, setIsEnhancing] = useState(false);
+
+    // Advanced options state
+    const [showAdvanced, setShowAdvanced] = useState(false);
+    const [size, setSize] = useState('medium');
+    const [aiModel, setAiModel] = useState('tattoo');
+    const [negativePrompt, setNegativePrompt] = useState('');
+    const [enhancementLevel, setEnhancementLevel] = useState('detailed');
+    const [separateRGBA, setSeparateRGBA] = useState(false);
+    const [showGuide, setShowGuide] = useState(() => {
+        if (typeof window === 'undefined') return true;
+        return localStorage.getItem('tattester_forge_guide_dismissed') !== 'true';
+    });
+    const [guideStepIndex, setGuideStepIndex] = useState(0);
+
+    const [sessionId, setSessionId] = useState(() => {
+        const stored = sessionStorage.getItem('tattester_session_id');
+        if (stored) return stored;
+        const created = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        sessionStorage.setItem('tattester_session_id', created);
+        return created;
+    });
+
+    const {
+        versions,
+        currentVersionId,
+        addVersion,
+        loadVersion,
+        removeVersion,
+        clearHistory
+    } = useVersionHistory(sessionId);
+
+    const {
+        layers,
+        sortedLayers,
+        selectedLayerId,
+        addLayer,
+        deleteLayer,
+        reorder,
+        toggleVisibility,
+        rename,
+        selectLayer,
+        updateTransform,
+        flipHorizontal,
+        flipVertical,
+        clearLayers,
+        replaceLayers,
+        updateImage,
+        updateBlendMode,
+        duplicateLayer,
+        clearHistory: clearLayerHistory,
+        undo,
+        redo
+    } = useLayerManagement();
+
+    const resolvedStyle = selectedChips[0] || 'Traditional';
+    const normalizedStyle = normalizeStyleKey(resolvedStyle) || 'traditional';
+
+    const generationInput = useMemo(() => ({
+        subject: enhancedPrompt || promptText,
+        style: normalizedStyle,
+        bodyPart,
+        size,
+        aiModel,
+        negativePrompt
+    }), [enhancedPrompt, promptText, normalizedStyle, bodyPart, size, aiModel, negativePrompt]);
+
+    // Toast and storage monitoring
+    const { toast, toasts, removeToast } = useToast();
+    useStorageWarning(toast);
+
+    // Generation hook
+    const {
+        generateHighRes,
+        isGenerating,
+        error: generationError,
+        progress,
+        queueLength,
+        arAsset
+    } = useImageGeneration({
+        userInput: generationInput
+    });
+
+    const {
+        preview,
+        isPreviewing,
+        error: previewError
+    } = useSmartPreview({
+        userInput: generationInput,
+        enabled: Boolean((enhancedPrompt || promptText).trim()),
+        debounceMs: 300
+    });
+
+    // UI state
+    const [isLoadingExample, setIsLoadingExample] = useState(false);
+    const [showInpainting, setShowInpainting] = useState(false);
+    const [showCleanup, setShowCleanup] = useState(false);
+    const [restyleLayerId, setRestyleLayerId] = useState(null);
+    const [restyleStyle, setRestyleStyle] = useState('');
+    const [comparison, setComparison] = useState(null);
+    const [showElementModal, setShowElementModal] = useState(false);
+    const [elementPrompt, setElementPrompt] = useState('');
+    const [elementType, setElementType] = useState('subject');
+    const [contextMenu, setContextMenu] = useState(null);
+    const [regenerateModal, setRegenerateModal] = useState(null);
+
+    // Keyboard shortcuts
+    const keyboardShortcuts = useKeyboardShortcuts();
+    const [stencilView, setStencilView] = useState(false);
+    const [stencilPreview, setStencilPreview] = useState(null);
+    const [isStencilProcessing, setIsStencilProcessing] = useState(false);
+    const [stencilError, setStencilError] = useState(null);
+    const [stencilSourceUrl, setStencilSourceUrl] = useState(null);
+    const [showStencilExport, setShowStencilExport] = useState(false);
+
+    // Vibe chip suggestions
+    const { suggestions, isLoading: isSuggestionsLoading } = useVibeChipSuggestions(promptText);
+    const { width: canvasWidth, height: canvasHeight } = useCanvasAspectRatio(bodyPart);
+
+    const selectedLayer = useMemo(() => (
+        layers.find(layer => layer.id === selectedLayerId) || null
+    ), [layers, selectedLayerId]);
+
+    const previewImage = preview?.images?.[0] || null;
+    const showPreview = Boolean(previewImage && layers.length === 0);
+
+    const matchStyle = resolvedStyle;
+
+    const matchContext = useMemo(() => ({
+        style: matchStyle,
+        bodyPart,
+        layerCount: layers.length,
+        location: null,
+        embeddingVector: null
+    }), [bodyPart, layers.length, matchStyle]);
+
+    const currentDesign = useMemo(() => ({
+        id: sessionId,
+        prompt: enhancedPrompt || promptText,
+        style: matchStyle,
+        bodyPart,
+        imageUrl: layers[layers.length - 1]?.imageUrl || null,
+        location: null,
+        budget: null,
+        embeddingVector: null
+    }), [sessionId, enhancedPrompt, promptText, matchStyle, bodyPart, layers]);
+
+    const {
+        matches,
+        totalMatches,
+        isLoading: isMatching,
+        error: matchError
+    } = useRealtimeMatchPulse({
+        userId: sessionId,
+        context: matchContext,
+        currentDesign,
+        debounceMs: 2000
+    });
+
+    const historyPastCount = useForgeStore((state) => state.history.past.length);
+    const historyFutureCount = useForgeStore((state) => state.history.future.length);
+
+
+
+    const timeline = useMemo(() => (
+        versionService.getVersionTimeline(sessionId)
+    ), [sessionId, versions]);
+
+    const createSessionId = useCallback(() => (
+        `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+    ), []);
+
+    const resetSession = useCallback(() => {
+        const newSessionId = createSessionId();
+        sessionStorage.setItem('tattester_session_id', newSessionId);
+        setSessionId(newSessionId);
+        setComparison(null);
+    }, [createSessionId]);
+
+    const buildVersionPayload = useCallback((overrides = {}) => {
+        const resolvedLayers = overrides.layers || sortedLayers;
+        return {
+            prompt: promptText,
+            enhancedPrompt,
+            parameters: {
+                size,
+                aiModel,
+                negativePrompt,
+                enhancementLevel,
+                bodyPart,
+                vibeChips: selectedChips
+            },
+            layers: resolvedLayers,
+            imageUrl: overrides.imageUrl || resolvedLayers[resolvedLayers.length - 1]?.imageUrl || null,
+            arAssetUrl: overrides.arAssetUrl || arAsset?.url || null,
+            stencilUrl: null,
+            metadata: {
+                bodyPart,
+                style: matchStyle,
+                generationMode: overrides.mode || null,
+                dpi: overrides.dpi || 300
+            }
+        };
+    }, [
+        arAsset,
+        bodyPart,
+        enhancedPrompt,
+        enhancementLevel,
+        matchStyle,
+        negativePrompt,
+        promptText,
+        selectedChips,
+        size,
+        aiModel,
+        sortedLayers
+    ]);
+
+    // Load from session storage on mount
+    useEffect(() => {
+        const savedState = sessionStorage.getItem('promptState');
+        if (savedState) {
+            try {
+                const state = JSON.parse(savedState);
+                if (state.promptText) setPromptText(state.promptText);
+                if (state.selectedChips) setSelectedChips(state.selectedChips);
+                if (state.enhancementLevel) setEnhancementLevel(state.enhancementLevel);
+                if (state.enhancedPrompt) setEnhancedPrompt(state.enhancedPrompt);
+            } catch (e) {
+                console.error('Failed to load saved state:', e);
+            }
+        }
+    }, []);
+
+    // Save to session storage on changes
+    useEffect(() => {
+        sessionStorage.setItem('promptState', JSON.stringify({
+            promptText,
+            selectedChips,
+            enhancementLevel,
+            enhancedPrompt
+        }));
+    }, [promptText, selectedChips, enhancementLevel, enhancedPrompt]);
+
+    useTransformShortcuts({
+        selectedLayerId,
+        layers,
+        updateTransform,
+        deleteLayer,
+        duplicateLayer,
+        undo,
+        redo
+    });
+
+    const handleBodyPartChange = (newPart) => {
+        if (enhancedPrompt) {
+            setPendingBodyPart(newPart);
+            setShowWarning(true);
+        } else {
+            setBodyPart(newPart);
+        }
+    };
+
+    const handleConfirmBodyPartChange = () => {
+        if (pendingBodyPart) {
+            setBodyPart(pendingBodyPart);
+            setEnhancedPrompt(null);
+            setPendingBodyPart(null);
+        }
+        setShowWarning(false);
+    };
+
+    const handleCancelBodyPartChange = () => {
+        setPendingBodyPart(null);
+        setShowWarning(false);
+    };
+
+    const handleChipSelect = (chip) => {
+        setSelectedChips(prev => {
+            if (prev.includes(chip)) {
+                return prev.filter(c => c !== chip);
+            } else {
+                return [...prev, chip];
+            }
+        });
+    };
+
+    const handleEnhance = async () => {
+        setIsEnhancing(true);
+        try {
+            const fullPrompt = [promptText, ...selectedChips].join(', ');
+
+            const result = await enhancePrompt({
+                userIdea: fullPrompt,
+                style: matchStyle,
+                bodyPart: bodyPart,
+                isStencilMode: stencilView
+            });
+
+            setEnhancedPrompt(result.prompts[enhancementLevel]);
+
+            if (!negativePrompt && result.negativePrompt) {
+                setNegativePrompt(result.negativePrompt);
+            }
+        } catch (error) {
+            console.error('Enhancement failed:', error);
+        } finally {
+            setIsEnhancing(false);
+        }
+    };
+
+    const handleGenerate = async (finalize = false) => {
+        if (!promptText.trim() && !enhancedPrompt?.trim()) return;
+
+        try {
+            const result = await generateHighRes({ finalize });
+
+            if (result && result.images && result.images.length > 0) {
+                let createdLayers = [];
+
+                // Check if we should use multi-layer processing
+                if (shouldUseMultiLayer(result)) {
+                    console.log('[Generate] Using multi-layer processing for', result.images.length, 'images');
+
+                    // Process generation result into layer specifications
+                    const layerSpecs = await processGenerationResult(result, {
+                        separateAlpha: separateRGBA,  // Use user preference
+                        autoDetectAlpha: true         // Always detect alpha channel
+                    });
+
+                    // Add all layers to canvas
+                    createdLayers = await addMultipleLayers(layerSpecs, addLayer);
+
+                    // Use the last layer's image as the version thumbnail
+                    const thumbnailUrl = createdLayers[createdLayers.length - 1]?.imageUrl || result.images[0];
+                    const nextLayers = [...layers, ...createdLayers];
+
+                    addVersion(buildVersionPayload({
+                        layers: nextLayers,
+                        imageUrl: thumbnailUrl,
+                        arAssetUrl: arAsset?.url || null,
+                        mode: finalize ? 'final' : 'refine'
+                    }));
+
+                    console.log(`[Generate] Created ${createdLayers.length} layers from ${result.images.length} images`);
+                } else {
+                    // Single image - use legacy flow
+                    console.log('[Generate] Using single-layer flow');
+                    let nextLayers = [];
+                    try {
+                        const decomposition = await decomposeLayers(result.images[0], sessionId, sessionId);
+                        if (Array.isArray(decomposition.layers) && decomposition.layers.length > 0) {
+                            const maxZ = layers.reduce((max, layer) => Math.max(max, layer.zIndex || 0), -1) + 1;
+                            const normalized = decomposition.layers.map((layer, index) => ({
+                                ...layer,
+                                zIndex: maxZ + index
+                            }));
+                            nextLayers = [...layers, ...normalized];
+                            replaceLayers(nextLayers);
+                        }
+                    } catch (error) {
+                        console.warn('[Generate] Decomposition failed, falling back to single layer:', error);
+                    }
+
+                    if (nextLayers.length === 0) {
+                        const newLayer = await addLayer(result.images[0], 'subject');
+                        nextLayers = [...layers, newLayer];
+                    }
+
+                    addVersion(buildVersionPayload({
+                        layers: nextLayers,
+                        imageUrl: nextLayers[nextLayers.length - 1]?.imageUrl || result.images[0],
+                        arAssetUrl: arAsset?.url || null,
+                        mode: finalize ? 'final' : 'refine'
+                    }));
+                }
+
+                console.log('Generation successful:', result);
+            }
+        } catch (error) {
+            console.error('Generation failed:', error);
+        }
+    };
+
+    const handleStartFromScratch = () => {
+        resetSession();
+        clearLayers();
+        setPromptText('');
+        setEnhancedPrompt(null);
+        setSelectedChips([]);
+    };
+
+    const guideSteps = useMemo(() => ([
+        {
+            title: 'Pick a launch point',
+            description: 'Start with a trending composition or press “Start from Scratch” to begin clean.',
+            targetId: 'forge-trending',
+            targetLabel: 'Trending'
+        },
+        {
+            title: 'Choose placement',
+            description: 'Select the body placement so the canvas matches the correct aspect ratio.',
+            targetId: 'forge-placement',
+            targetLabel: 'Placement'
+        },
+        {
+            title: 'Describe the vision',
+            description: 'Write the core prompt and tap vibe chips to shape style, elements, and mood.',
+            targetId: 'forge-prompt',
+            targetLabel: 'Prompt'
+        },
+        {
+            title: 'Refine or finalize',
+            description: 'Use Refine for quick iterations, Finalize for high-res output.',
+            targetId: 'forge-actions',
+            targetLabel: 'Actions'
+        },
+        {
+            title: 'Review results',
+            description: 'Track versions, compare options, and see artist matches update in real time.',
+            targetId: 'forge-review',
+            targetLabel: 'Review'
+        }
+    ]), []);
+
+    const handleGuideClose = useCallback(() => {
+        setShowGuide(false);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('tattester_forge_guide_dismissed', 'true');
+        }
+    }, []);
+
+    const handleGuideJump = useCallback((targetId) => {
+        if (!targetId) return;
+        const target = document.getElementById(targetId);
+        if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, []);
+
+    const handleLoadExample = async (example) => {
+        setIsLoadingExample(true);
+        clearHistory();
+        clearLayers();
+        setBodyPart(example.bodyPart);
+        setPromptText(example.prompt || '');
+        setEnhancedPrompt(null);
+        setSelectedChips([]);
+
+        try {
+            const loadedLayers = [];
+            for (const layer of example.layers) {
+                const newLayer = await addLayer(layer.imageUrl, layer.type);
+                loadedLayers.push(newLayer);
+            }
+
+            addVersion(buildVersionPayload({
+                layers: loadedLayers,
+                imageUrl: loadedLayers[loadedLayers.length - 1]?.imageUrl || null
+            }));
+        } finally {
+            setIsLoadingExample(false);
+        }
+    };
+
+    const createStencilSource = async () => {
+        const compositeBlob = await exportAsPNG(sortedLayers, canvasWidth, canvasHeight, 1.0);
+        const compositeUrl = URL.createObjectURL(compositeBlob);
+        if (stencilSourceUrl) {
+            URL.revokeObjectURL(stencilSourceUrl);
+        }
+        setStencilSourceUrl(compositeUrl);
+        return compositeUrl;
+    };
+
+    const handleToggleStencil = async () => {
+        if (!stencilView) {
+            setIsStencilProcessing(true);
+            setStencilError(null);
+            try {
+                const compositeUrl = await createStencilSource();
+                const stencil = await convertToStencil(compositeUrl, { invert: true });
+                setStencilPreview(stencil);
+            } catch (error) {
+                console.error('Stencil generation failed:', error);
+                setStencilError('Failed to generate stencil preview.');
+            } finally {
+                setIsStencilProcessing(false);
+            }
+        }
+        setStencilView(!stencilView);
+    };
+
+    useEffect(() => {
+        if (!stencilView) return;
+        let active = true;
+
+        const timer = setTimeout(async () => {
+            setIsStencilProcessing(true);
+            setStencilError(null);
+            try {
+                const compositeUrl = await createStencilSource();
+                const stencil = await convertToStencil(compositeUrl, { invert: true });
+                if (active) {
+                    setStencilPreview(stencil);
+                }
+            } catch (error) {
+                if (active) {
+                    console.error('Stencil generation failed:', error);
+                    setStencilError('Failed to refresh stencil preview.');
+                }
+            } finally {
+                if (active) {
+                    setIsStencilProcessing(false);
+                }
+            }
+        }, 300);
+
+        return () => {
+            active = false;
+            clearTimeout(timer);
+        };
+    }, [stencilView, layers.length, canvasWidth, canvasHeight]);
+
+
+    useEffect(() => {
+        return () => {
+            if (stencilSourceUrl) {
+                URL.revokeObjectURL(stencilSourceUrl);
+            }
+        };
+    }, [stencilSourceUrl]);
+
+    const handleExportPNG = async () => {
+        try {
+            const blob = await exportAsPNG(sortedLayers, canvasWidth, canvasHeight);
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `tattoo-design-${Date.now()}.png`;
+            link.click();
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Export failed:', error);
+            alert('Failed to export design. Please try again.');
+        }
+    };
+
+    const handleExportARAsset = async () => {
+        try {
+            const blob = await exportAsARAsset(sortedLayers, canvasWidth, canvasHeight);
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `tattoo-ar-asset-${Date.now()}.png`;
+            link.click();
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('AR export failed:', error);
+            alert('Failed to export AR asset. Please try again.');
+        }
+    };
+
+    const handleBlendModeChange = (layerId, blendMode) => {
+        updateBlendMode(layerId, blendMode);
+    };
+
+    const handleLoadVersion = (versionId) => {
+        const version = loadVersion(versionId);
+        if (!version) return;
+
+        replaceLayers(version.layers || []);
+        if (version.prompt !== undefined) setPromptText(version.prompt || '');
+        if (version.enhancedPrompt !== undefined) setEnhancedPrompt(version.enhancedPrompt || null);
+        if (version.parameters?.bodyPart) setBodyPart(version.parameters.bodyPart);
+        if (version.parameters?.size) setSize(version.parameters.size);
+        if (version.parameters?.aiModel) setAiModel(version.parameters.aiModel);
+        if (version.parameters?.negativePrompt !== undefined) {
+            setNegativePrompt(version.parameters.negativePrompt || '');
+        }
+        if (version.parameters?.enhancementLevel) setEnhancementLevel(version.parameters.enhancementLevel);
+        if (Array.isArray(version.parameters?.vibeChips)) {
+            setSelectedChips(version.parameters.vibeChips);
+        }
+    };
+
+    const handleBranchVersion = (versionId) => {
+        const branch = versionService.branchFromVersion(sessionId, versionId);
+        if (!branch) return;
+
+        sessionStorage.setItem('tattester_session_id', branch.sessionId);
+        setSessionId(branch.sessionId);
+        replaceLayers(branch.version.layers || []);
+        if (branch.version.prompt !== undefined) setPromptText(branch.version.prompt || '');
+        if (branch.version.enhancedPrompt !== undefined) setEnhancedPrompt(branch.version.enhancedPrompt || null);
+        if (branch.version.parameters?.bodyPart) setBodyPart(branch.version.parameters.bodyPart);
+        if (branch.version.parameters?.size) setSize(branch.version.parameters.size);
+        if (branch.version.parameters?.aiModel) setAiModel(branch.version.parameters.aiModel);
+        if (branch.version.parameters?.negativePrompt !== undefined) {
+            setNegativePrompt(branch.version.parameters.negativePrompt || '');
+        }
+        if (branch.version.parameters?.enhancementLevel) setEnhancementLevel(branch.version.parameters.enhancementLevel);
+        if (Array.isArray(branch.version.parameters?.vibeChips)) {
+            setSelectedChips(branch.version.parameters.vibeChips);
+        }
+    };
+
+    const handleCompareVersions = ({ first, second }) => {
+        const compare = versionService.compareVersions(sessionId, first, second);
+        if (compare) {
+            setComparison({
+                versionA: compare.version1,
+                versionB: compare.version2
+            });
+        }
+    };
+
+    const handleMergeVersions = (versionA, versionB) => {
+        // Get layer indices for all layers from both versions
+        const layersFromVersion1 = (versionA.layers || []).map((_, idx) => idx);
+        const layersFromVersion2 = (versionB.layers || []).map((_, idx) => idx);
+
+        // Merge versions
+        const merged = versionService.mergeVersions(sessionId, versionA.id, versionB.id, {
+            layersFromVersion1,
+            layersFromVersion2,
+            prompt: versionA.prompt || promptText,
+            parameters: versionA.parameters || { bodyPart, size, aiModel }
+        });
+
+        if (merged) {
+            // Load the merged version
+            replaceLayers(merged.layers || []);
+            setComparison(null); // Close comparison modal
+            toast?.success?.(`Merged v${versionA.versionNumber} and v${versionB.versionNumber} into new version`);
+        }
+    };
+
+    const handleRestyle = async () => {
+        if (!restyleLayerId || !restyleStyle.trim()) return;
+
+        const promptBase = enhancedPrompt || promptText;
+        const restylePrompt = [promptBase, restyleStyle].filter(Boolean).join(', ');
+
+        try {
+            const response = await generateHighRes({
+                userInputOverride: {
+                    subject: restylePrompt,
+                    style: restyleStyle,
+                    bodyPart,
+                    size,
+                    aiModel,
+                    negativePrompt
+                }
+            });
+
+            if (response?.images?.length > 0) {
+                // For restyle, always use the first image to replace the target layer
+                // Multi-layer output from restyle would be confusing UX
+                updateImage(restyleLayerId, response.images[0]);
+                const nextLayers = layers.map(layer =>
+                    layer.id === restyleLayerId ? { ...layer, imageUrl: response.images[0] } : layer
+                );
+                addVersion(buildVersionPayload({
+                    layers: nextLayers,
+                    imageUrl: response.images[0],
+                    arAssetUrl: arAsset?.url || null
+                }));
+            }
+        } catch (error) {
+            console.error('[Generate] Restyle failed:', error);
+        } finally {
+            setRestyleLayerId(null);
+            setRestyleStyle('');
+        }
+    };
+
+    const handleAddElement = async () => {
+        if (!elementPrompt.trim()) return;
+
+        try {
+            const response = await generateHighRes({
+                userInputOverride: {
+                    subject: elementPrompt,
+                    style: normalizedStyle,
+                    bodyPart,
+                    size,
+                    aiModel,
+                    negativePrompt
+                }
+            });
+
+            if (response?.images?.length > 0) {
+                let createdLayers = [];
+
+                // Check if multi-layer processing is needed
+                if (shouldUseMultiLayer(response)) {
+                    console.log('[Generate] Adding element with multi-layer processing');
+
+                    // Process into layer specs, but override all types to match user selection
+                    const layerSpecs = await processGenerationResult(response, {
+                        separateAlpha: separateRGBA,
+                        autoDetectAlpha: true
+                    });
+
+                    // Override layer types with user-selected element type
+                    layerSpecs.forEach(spec => {
+                        spec.type = elementType;
+                    });
+
+                    createdLayers = await addMultipleLayers(layerSpecs, addLayer);
+                } else {
+                    // Single layer
+                    const newLayer = await addLayer(response.images[0], elementType);
+                    createdLayers = [newLayer];
+                }
+
+                const nextLayers = [...layers, ...createdLayers];
+                addVersion(buildVersionPayload({
+                    layers: nextLayers,
+                    imageUrl: createdLayers[createdLayers.length - 1]?.imageUrl || response.images[0],
+                    mode: 'element'
+                }));
+            }
+        } catch (error) {
+            console.error('[Generate] Add element failed:', error);
+        } finally {
+            setShowElementModal(false);
+            setElementPrompt('');
+            setElementType('subject');
+        }
+    };
+
+    const handleInpaintSave = (imageUrl) => {
+        if (!selectedLayerId || !imageUrl) return;
+        updateImage(selectedLayerId, imageUrl);
+        const nextLayers = layers.map(layer =>
+            layer.id === selectedLayerId ? { ...layer, imageUrl } : layer
+        );
+        addVersion(buildVersionPayload({
+            layers: nextLayers,
+            imageUrl
+        }));
+        setShowInpainting(false);
+    };
+
+    const handleCleanupSave = (imageUrl) => {
+        if (!selectedLayerId || !imageUrl) return;
+        updateImage(selectedLayerId, imageUrl);
+        const nextLayers = layers.map(layer =>
+            layer.id === selectedLayerId ? { ...layer, imageUrl } : layer
+        );
+        addVersion(buildVersionPayload({
+            layers: nextLayers,
+            imageUrl,
+            mode: 'cleanup'
+        }));
+        setShowCleanup(false);
+        toast?.success?.('Layer cleaned up successfully');
+    };
+
+    // Context menu handlers
+    const handleLayerContextMenu = (layer, x, y) => {
+        setContextMenu({ layer, x, y });
+    };
+
+    const handleDuplicateLayer = async (layer) => {
+        const newLayer = await addLayer(layer.imageUrl, layer.type);
+        const nextLayers = [...layers, newLayer];
+        addVersion(buildVersionPayload({
+            layers: nextLayers,
+            imageUrl: newLayer.imageUrl
+        }));
+        toast?.success?.(`Duplicated layer: ${layer.name}`);
+    };
+
+    const handleRegenerateElementSubmit = async (data) => {
+        try {
+            const response = await generateHighRes({
+                userInputOverride: {
+                    subject: data.prompt,
+                    style: data.useOriginalStyle ? normalizedStyle : 'default',
+                    bodyPart,
+                    size,
+                    aiModel,
+                    negativePrompt
+                }
+            });
+
+            if (response?.images?.[0]) {
+                updateImage(data.layerId, response.images[0]);
+                const nextLayers = layers.map(layer =>
+                    layer.id === data.layerId ? { ...layer, imageUrl: response.images[0] } : layer
+                );
+                addVersion(buildVersionPayload({
+                    layers: nextLayers,
+                    imageUrl: response.images[0],
+                    mode: 'regenerate'
+                }));
+
+                setRegenerateModal(null);
+                toast?.success?.('Element regenerated successfully');
+            }
+        } catch (error) {
+            console.error('[Generate] Regenerate failed:', error);
+            toast?.error?.('Failed to regenerate element');
+        }
+    };
+
+    return (
+        <div className="min-h-screen pt-16 px-4 pb-32">
+            {/* Background Effects */}
+            <div className="fixed inset-0 bg-black -z-20" />
+            <div className="fixed inset-0 bg-gradient-to-br from-blue-950/20 via-black to-black -z-10" />
+            <div className="fixed top-0 right-0 w-[600px] h-[600px] bg-ducks-green/10 rounded-full blur-[150px] pointer-events-none -z-10" />
+
+            {/* Header */}
+            <div className="text-center mb-12 pt-8" role="banner">
+                <h1 className="text-6xl md:text-7xl font-display font-black tracking-tighter text-white mb-3">
+                    THE FORGE
+                </h1>
+                <p className="text-xs font-mono text-ducks-green uppercase tracking-[0.3em]" aria-label="Version 4.2 Neural Ink Generation Engine">
+                    Neural Ink Generation Engine // v4.2
+                </p>
+                <div className="mt-6 flex items-center justify-center gap-3">
+                    <button
+                        onClick={() => {
+                            setGuideStepIndex(0);
+                            setShowGuide(true);
+                        }}
+                        className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-mono uppercase tracking-widest text-white/70 hover:text-white hover:border-white/40"
+                    >
+                        Guided Tour
+                    </button>
+                    <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-white/30">
+                        Learn the flow in 60 seconds
+                    </span>
+                </div>
+            </div>
+
+            <div className="max-w-[1560px] mx-auto space-y-10" role="main">
+                <section
+                    id="forge-trending"
+                    className="glass-panel rounded-3xl border border-white/10 p-6"
+                    aria-label="Trending design examples"
+                >
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                        <div>
+                            <p className="text-[11px] font-mono uppercase tracking-[0.4em] text-ducks-green/70">
+                                Trending Now
+                            </p>
+                            <h2 className="text-2xl md:text-3xl font-display font-bold text-white mt-2">
+                                Inspiration library
+                            </h2>
+                            <p className="text-sm text-white/50 mt-2 max-w-xl">
+                                Start from a curated concept or begin with a blank canvas.
+                            </p>
+                        </div>
+                        <Button
+                            variant="primary"
+                            size="lg"
+                            onClick={handleStartFromScratch}
+                            disabled={isLoadingExample}
+                            aria-label="Start a new design from scratch"
+                        >
+                            Start from Scratch
+                        </Button>
+                    </div>
+
+                    <div className="mt-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                        {TRENDING_EXAMPLES.map((example) => (
+                            <button
+                                key={example.id}
+                                onClick={() => handleLoadExample(example)}
+                                className="group text-left rounded-2xl border border-white/10 bg-black/40 hover:bg-black/60 transition-all overflow-hidden focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-ducks-yellow"
+                                disabled={isLoadingExample}
+                            >
+                                <div className="relative h-36 overflow-hidden">
+                                    <img
+                                        src={example.layers[0]?.imageUrl}
+                                        alt={example.title}
+                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-transparent" />
+                                    <span className="absolute bottom-3 left-3 text-xs font-mono uppercase tracking-widest text-white/70">
+                                        {example.bodyPart}
+                                    </span>
+                                </div>
+                                <div className="p-4 space-y-2">
+                                    <h3 className="text-lg font-bold text-white">{example.title}</h3>
+                                    <p className="text-xs text-white/60">{example.description}</p>
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                </section>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+                    {/* Left Sidebar - Body Part Selector */}
+                    <div className="lg:col-span-3 xl:col-span-3 2xl:col-span-2">
+                        <div
+                            id="forge-placement"
+                            className="glass-panel rounded-2xl p-4 border border-white/10 sticky top-24"
+                        >
+                            <BodyPartSelector
+                                selectedBodyPart={bodyPart}
+                                onSelect={handleBodyPartChange}
+                                disabled={false}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Center - Canvas */}
+                    <div className="lg:col-span-9 xl:col-span-9 2xl:col-span-7">
+                        <div className="space-y-6">
+                            {/* Canvas */}
+                            <div className="glass-panel rounded-3xl p-6 border border-white/10">
+                                <div className="relative group">
+                                    <ForgeCanvas
+                                        bodyPart={bodyPart}
+                                        layers={sortedLayers}
+                                        selectedLayerId={selectedLayerId}
+                                        onSelectLayer={selectLayer}
+                                        onUpdateTransform={updateTransform}
+                                    />
+
+                                    {showPreview && (
+                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                            <img
+                                                src={previewImage}
+                                                alt="Preview"
+                                                className="w-full h-full object-contain opacity-80"
+                                            />
+                                            <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-black/60 text-xs font-mono uppercase tracking-widest text-ducks-yellow">
+                                                Preview
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {stencilView && stencilPreview && (
+                                        <img
+                                            src={stencilPreview}
+                                            alt="Stencil preview"
+                                            className="absolute inset-0 w-full h-full object-contain mix-blend-screen pointer-events-none"
+                                        />
+                                    )}
+
+                                    {/* Transform Controls Toolbar */}
+                                    {selectedLayerId && (
+                                        <div className="absolute top-4 left-1/2 -translate-x-1/2">
+                                            <TransformControls
+                                                onFlipHorizontal={() => flipHorizontal(selectedLayerId)}
+                                                onFlipVertical={() => flipVertical(selectedLayerId)}
+                                                onResetRotation={() => updateTransform(selectedLayerId, { rotation: 0 })}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="mt-4 flex flex-wrap items-center gap-3">
+                                    <Button
+                                        variant="primary"
+                                        size="md"
+                                        onClick={handleToggleStencil}
+                                        disabled={isStencilProcessing}
+                                        aria-label="Toggle stencil view"
+                                    >
+                                        {stencilView ? 'Exit Stencil View' : 'Stencil View'}
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="md"
+                                        onClick={async () => {
+                                            if (!stencilSourceUrl) {
+                                                await createStencilSource();
+                                            }
+                                            setShowStencilExport(true);
+                                        }}
+                                        aria-label="Export stencil"
+                                    >
+                                        Export Stencil
+                                    </Button>
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={undo}
+                                            disabled={historyPastCount === 0}
+                                            aria-label="Undo"
+                                        >
+                                            Undo
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={redo}
+                                            disabled={historyFutureCount === 0}
+                                            aria-label="Redo"
+                                        >
+                                            Redo
+                                        </Button>
+                                        <span className="text-[10px] font-mono uppercase tracking-wider text-white/60">
+                                            {historyPastCount} changes
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={clearHistory}
+                                            disabled={historyPastCount === 0 && historyFutureCount === 0}
+                                            className="text-[10px] font-mono uppercase tracking-wider text-white/40 hover:text-white/80 disabled:opacity-40"
+                                        >
+                                            Clear History
+                                        </button>
+                                    </div>
+                                    {isStencilProcessing && (
+                                        <span className="text-xs text-white/60 font-mono">Generating stencil...</span>
+                                    )}
+                                    {stencilError && (
+                                        <span className="text-xs text-red-400">{stencilError}</span>
+                                    )}
+                                    {isPreviewing && (
+                                        <span className="text-xs text-white/50 font-mono">
+                                            Updating preview...
+                                        </span>
+                                    )}
+                                </div>
+
+                                {selectedLayer && (
+                                    <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="bg-black/30 border border-white/10 rounded-2xl p-4">
+                                            <p className="text-xs font-mono uppercase tracking-[0.3em] text-ducks-green">
+                                                Layer Blend
+                                            </p>
+                                            <p className="text-sm text-white/70 mt-2">
+                                                {selectedLayer.name}
+                                            </p>
+                                            <div className="mt-3">
+                                                <BlendModeSelector
+                                                    value={selectedLayer.blendMode}
+                                                    onChange={(value) => handleBlendModeChange(selectedLayer.id, value)}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="bg-black/30 border border-white/10 rounded-2xl p-4 space-y-3">
+                                            <p className="text-xs font-mono uppercase tracking-[0.3em] text-ducks-green">
+                                                Layer Actions
+                                            </p>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <Button
+                                                    variant="primary"
+                                                    size="md"
+                                                    onClick={() => setShowInpainting(true)}
+                                                    icon={Wand2}
+                                                >
+                                                    Inpaint
+                                                </Button>
+                                                <Button
+                                                    variant="secondary"
+                                                    size="md"
+                                                    onClick={() => setShowCleanup(true)}
+                                                    icon={Eraser}
+                                                >
+                                                    Clean Up
+                                                </Button>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <Button
+                                                    variant="outline"
+                                                    size="md"
+                                                    onClick={() => {
+                                                        setRestyleLayerId(selectedLayer.id);
+                                                        setRestyleStyle(matchStyle);
+                                                    }}
+                                                    icon={Sparkles}
+                                                >
+                                                    Restyle
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="md"
+                                                    onClick={handleExportPNG}
+                                                    icon={Download}
+                                                >
+                                                    Export PNG
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Prompt Interface */}
+                            <div id="forge-prompt" className="glass-panel rounded-3xl p-8 border border-white/10">
+                                <div className="mb-6">
+                                    <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-[0.3em] text-white/50">
+                                        <span>Placement</span>
+                                        <span>Prompt</span>
+                                        <span>Generate</span>
+                                    </div>
+                                    <div className="mt-3 h-2 rounded-full bg-white/10 overflow-hidden">
+                                        <div
+                                            className="h-full bg-ducks-green transition-all duration-500"
+                                            style={{
+                                                width: `${Math.round(([
+                                                    bodyPart ? 1 : 0,
+                                                    promptText.trim() || enhancedPrompt?.trim() ? 1 : 0,
+                                                    layers.length > 0 ? 1 : 0
+                                                ].reduce((sum, value) => sum + value, 0) / 3) * 100)}%`
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                                <PromptInterface
+                                    value={promptText}
+                                    onChange={setPromptText}
+                                    selectedChips={selectedChips}
+                                />
+
+                                <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+                                    <Button
+                                        variant="outline"
+                                        size="lg"
+                                        onClick={handleEnhance}
+                                        disabled={isEnhancing || !promptText.trim()}
+                                        icon={Sparkles}
+                                    >
+                                        Enhance with AI Council
+                                    </Button>
+                                    <button
+                                        onClick={() => setShowAdvanced(!showAdvanced)}
+                                        className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-mono uppercase tracking-widest text-white/60 hover:text-white hover:border-white/40"
+                                    >
+                                        Tattoo Fine-Tuning
+                                    </button>
+                                </div>
+
+                                <VibeChips
+                                    suggestions={suggestions}
+                                    selectedChips={selectedChips}
+                                    onChipSelect={handleChipSelect}
+                                    isLoading={isSuggestionsLoading}
+                                />
+
+                                <AdvancedOptions
+                                    isExpanded={showAdvanced}
+                                    onToggle={() => setShowAdvanced(!showAdvanced)}
+                                    hideToggle
+                                    size={size}
+                                    onSizeChange={setSize}
+                                    aiModel={aiModel}
+                                    onModelChange={setAiModel}
+                                    negativePrompt={negativePrompt}
+                                    onNegativePromptChange={setNegativePrompt}
+                                    enhancementLevel={enhancementLevel}
+                                    onEnhancementLevelChange={setEnhancementLevel}
+                                    separateRGBA={separateRGBA}
+                                    onSeparateRGBAChange={setSeparateRGBA}
+                                />
+
+                                {enhancedPrompt && (
+                                    <div className="mt-6 p-6 bg-ducks-green/10 border border-ducks-green/30 rounded-2xl">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h4 className="text-sm font-bold text-ducks-green uppercase tracking-wider">
+                                                AI Enhanced Prompt ({enhancementLevel})
+                                            </h4>
+                                            <button
+                                                onClick={() => setEnhancedPrompt(null)}
+                                                className="text-xs text-gray-500 hover:text-white transition-colors"
+                                            >
+                                                Clear
+                                            </button>
+                                        </div>
+                                        <p className="text-sm text-gray-300 leading-relaxed">
+                                            {enhancedPrompt}
+                                        </p>
+                                    </div>
+                                )}
+
+                                {(enhancedPrompt || promptText.trim()) && (
+                                    <div id="forge-actions" className="mt-6 space-y-3">
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <Button
+                                                variant="outline"
+                                                size="lg"
+                                                onClick={() => handleGenerate(false)}
+                                                disabled={isGenerating}
+                                                icon={Layers}
+                                                className="h-16 text-base"
+                                            >
+                                                REFINE
+                                            </Button>
+                                            <Button
+                                                variant="primary"
+                                                size="lg"
+                                                onClick={() => handleGenerate(true)}
+                                                disabled={isGenerating}
+                                                icon={CheckCircle}
+                                                className="h-16 text-base"
+                                            >
+                                                FINALIZE
+                                            </Button>
+                                        </div>
+                                        <p className="text-[10px] text-white/40 font-mono text-center">
+                                            Refine: Quick iteration (50 steps) • Finalize: Max quality (60+ steps, 300 DPI)
+                                        </p>
+                                        {isGenerating && (
+                                            <div className="mt-4 space-y-2">
+                                                <div className="flex items-center justify-between text-xs text-white/60 font-mono">
+                                                    <span>Rendering high-res...</span>
+                                                    <span>
+                                                        {progress?.etaSeconds !== null ? `~${progress.etaSeconds}s` : 'estimating...'}
+                                                    </span>
+                                                </div>
+                                                <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-ducks-green transition-all"
+                                                        style={{ width: `${Math.round((progress?.percent || 0) * 100)}%` }}
+                                                    />
+                                                </div>
+                                                {queueLength > 0 && (
+                                                    <div className="text-[10px] text-white/40 font-mono">
+                                                        Queue: {queueLength} request{queueLength > 1 ? 's' : ''} waiting
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                        {generationError && (
+                                            <div className="mt-4 p-3 rounded-xl border border-red-500/40 bg-red-500/10 text-xs text-red-200 flex items-center justify-between gap-3">
+                                                <span>{generationError}</span>
+                                                <button
+                                                    onClick={() => handleGenerate(false)}
+                                                    className="px-3 py-1 rounded-full bg-red-500/30 text-red-100 text-[10px] font-mono uppercase tracking-wider"
+                                                >
+                                                    Retry
+                                                </button>
+                                            </div>
+                                        )}
+                                        {previewError && (
+                                            <div className="mt-4 text-[10px] text-red-300 font-mono text-center">
+                                                Preview failed. Adjust your prompt and try again.
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div id="forge-review">
+                                <VersionTimeline
+                                    versions={timeline}
+                                    currentVersionId={currentVersionId}
+                                    onLoadVersion={handleLoadVersion}
+                                    onBranchVersion={handleBranchVersion}
+                                    onCompareVersions={handleCompareVersions}
+                                    onDeleteVersion={removeVersion}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Sidebar - Match Pulse + Layer Stack */}
+                    <div className="lg:col-span-12 xl:col-span-12 2xl:col-span-3">
+                        <div className="space-y-6 2xl:sticky 2xl:top-24">
+                            <MatchPulse />
+
+                            <div className="glass-panel rounded-2xl border border-white/10 h-[360px] md:h-[calc(100vh-28rem)]">
+                                <LayerStack
+                                    layers={layers}
+                                    selectedLayerId={selectedLayerId}
+                                    onSelectLayer={selectLayer}
+                                    onToggleVisibility={toggleVisibility}
+                                    onRename={rename}
+                                    onDelete={deleteLayer}
+                                    onReorder={reorder}
+                                    onContextMenu={handleLayerContextMenu}
+                                    onAddLayer={() => {
+                                        setShowElementModal(true);
+                                        setElementPrompt('');
+                                        setElementType('subject');
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Warning Modal */}
+            <BodyPartWarningModal
+                isOpen={showWarning}
+                currentBodyPart={bodyPart}
+                newBodyPart={pendingBodyPart || DEFAULT_BODY_PART}
+                onCancel={handleCancelBodyPartChange}
+                onConfirm={handleConfirmBodyPartChange}
+            />
+
+            {showStencilExport && stencilSourceUrl && (
+                <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+                    <div className="glass-panel border border-white/10 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="flex items-center justify-between p-4 border-b border-white/10">
+                            <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                                Stencil Export
+                            </h3>
+                            <button
+                                onClick={() => setShowStencilExport(false)}
+                                className="text-white/60 hover:text-white text-sm"
+                            >
+                                Close
+                            </button>
+                        </div>
+                        <div className="p-6">
+                            <StencilExport imageUrl={stencilSourceUrl} designName={promptText || 'tattoo'} />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showInpainting && selectedLayer?.imageUrl && (
+                <InpaintingEditor
+                    imageUrl={selectedLayer.imageUrl}
+                    onClose={() => setShowInpainting(false)}
+                    onSave={handleInpaintSave}
+                />
+            )}
+
+            {showCleanup && selectedLayer?.imageUrl && (
+                <CleanupTool
+                    imageUrl={selectedLayer.imageUrl}
+                    onClose={() => setShowCleanup(false)}
+                    onSave={handleCleanupSave}
+                />
+            )}
+
+            {showElementModal && (
+                <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+                    <div className="glass-panel border border-white/10 rounded-2xl max-w-lg w-full">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+                            <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                                Add New Element
+                            </h3>
+                            <button
+                                onClick={() => setShowElementModal(false)}
+                                className="text-white/60 hover:text-white text-sm"
+                                aria-label="Close add element modal"
+                            >
+                                Close
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label htmlFor="element-prompt" className="text-xs font-mono uppercase tracking-wider text-white/60">
+                                    Element Prompt
+                                </label>
+                                <textarea
+                                    id="element-prompt"
+                                    value={elementPrompt}
+                                    onChange={(e) => setElementPrompt(e.target.value)}
+                                    placeholder="e.g., Add a koi fish, lightning bolt, ornamental frame"
+                                    className="mt-2 w-full rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-ducks-green/60"
+                                    rows={3}
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="element-type" className="text-xs font-mono uppercase tracking-wider text-white/60">
+                                    Element Type
+                                </label>
+                                <select
+                                    id="element-type"
+                                    value={elementType}
+                                    onChange={(e) => setElementType(e.target.value)}
+                                    className="mt-2 w-full rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-ducks-green/60"
+                                >
+                                    <option value="subject">Subject</option>
+                                    <option value="background">Background</option>
+                                    <option value="effect">Effect</option>
+                                </select>
+                            </div>
+                            <Button
+                                variant="primary"
+                                size="lg"
+                                onClick={handleAddElement}
+                                disabled={!elementPrompt.trim() || isGenerating}
+                                icon={Plus}
+                                className="w-full"
+                            >
+                                Generate Element
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {restyleLayerId && (
+                <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+                    <div className="glass-panel border border-white/10 rounded-2xl max-w-lg w-full">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+                            <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                                Restyle Layer
+                            </h3>
+                            <button
+                                onClick={() => {
+                                    setRestyleLayerId(null);
+                                    setRestyleStyle('');
+                                }}
+                                className="text-white/60 hover:text-white text-sm"
+                            >
+                                Close
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label htmlFor="restyle-style" className="text-xs font-mono uppercase tracking-wider text-white/60">
+                                    New Style
+                                </label>
+                                <input
+                                    id="restyle-style"
+                                    type="text"
+                                    value={restyleStyle}
+                                    onChange={(e) => setRestyleStyle(e.target.value)}
+                                    placeholder="e.g., Fine-line, Blackwork, Neo-traditional"
+                                    className="mt-2 w-full rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-ducks-green/60"
+                                />
+                                <p className="mt-2 text-xs text-white/50">
+                                    We&apos;ll regenerate the selected layer using the new style while keeping your core prompt.
+                                </p>
+                            </div>
+                            <Button
+                                variant="primary"
+                                size="lg"
+                                onClick={handleRestyle}
+                                disabled={!restyleStyle.trim() || isGenerating}
+                                icon={Sparkles}
+                                className="w-full"
+                            >
+                                Apply Restyle
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showGuide && (
+                <ForgeGuide
+                    steps={guideSteps}
+                    stepIndex={guideStepIndex}
+                    onNext={() => {
+                        if (guideStepIndex >= guideSteps.length - 1) {
+                            handleGuideClose();
+                        } else {
+                            setGuideStepIndex((prev) => prev + 1);
+                        }
+                    }}
+                    onPrev={() => setGuideStepIndex((prev) => Math.max(0, prev - 1))}
+                    onClose={handleGuideClose}
+                    onJump={handleGuideJump}
+                />
+            )}
+
+            {comparison && (
+                <VersionComparison
+                    versionA={comparison.versionA}
+                    versionB={comparison.versionB}
+                    onClose={() => setComparison(null)}
+                    onRestoreA={(version) => handleLoadVersion(version.id)}
+                    onRestoreB={(version) => handleLoadVersion(version.id)}
+                    onMerge={handleMergeVersions}
+                />
+            )}
+
+            {/* Layer Context Menu */}
+            {contextMenu && (
+                <LayerContextMenu
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    layer={contextMenu.layer}
+                    onClose={() => setContextMenu(null)}
+                    onRegenerate={(layer) => {
+                        setRegenerateModal(layer);
+                        setContextMenu(null);
+                    }}
+                    onDuplicate={handleDuplicateLayer}
+                    onDelete={(layer) => {
+                        deleteLayer(layer.id);
+                        setContextMenu(null);
+                    }}
+                    onToggleVisibility={(layer) => {
+                        toggleVisibility(layer.id);
+                    }}
+                    onInpaint={(layer) => {
+                        selectLayer(layer.id);
+                        setShowInpainting(true);
+                        setContextMenu(null);
+                    }}
+                    onCleanup={(layer) => {
+                        selectLayer(layer.id);
+                        setShowCleanup(true);
+                        setContextMenu(null);
+                    }}
+                />
+            )}
+
+            {/* Regenerate Element Modal */}
+            {regenerateModal && (
+                <RegenerateElementModal
+                    layer={regenerateModal}
+                    onClose={() => setRegenerateModal(null)}
+                    onRegenerate={handleRegenerateElementSubmit}
+                    isGenerating={isGenerating}
+                    error={generationError}
+                />
+            )}
+
+            {/* Keyboard Shortcuts Modal */}
+            <KeyboardShortcutsModal
+                isOpen={keyboardShortcuts.isOpen}
+                onClose={keyboardShortcuts.close}
+            />
+
+            {/* Toast Notifications */}
+            <ToastContainer toasts={toasts} removeToast={removeToast} />
+        </div>
+    );
+}
+
+// Wrap the entire component in ErrorBoundary for robustness
+export function GenerateWithErrorBoundary(props) {
+    return (
+        <ErrorBoundary>
+            <Generate {...props} />
+        </ErrorBoundary>
+    );
+}

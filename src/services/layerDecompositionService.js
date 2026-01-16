@@ -4,8 +4,8 @@
  * Calls backend API to decompose an image into RGBA layers.
  */
 
-const PROXY_URL = import.meta.env.VITE_PROXY_URL || 'http://127.0.0.1:3002/api';
-const AUTH_TOKEN = import.meta.env.VITE_FRONTEND_AUTH_TOKEN;
+const PROXY_URL = '/api';
+const AUTH_TOKEN = process.env.NEXT_PUBLIC_FRONTEND_AUTH_TOKEN || 'dev-token-change-in-production';
 
 export async function decomposeLayers(imageUrl, designId, userId) {
   const response = await fetch(`${PROXY_URL}/v1/layers/decompose`, {
