@@ -13,27 +13,35 @@ import { initializeApp } from 'firebase/app';
 // Detect environment
 const isBrowser = typeof window !== 'undefined';
 
-// Get environment variables (works in both Node.js and browser)
+// Get environment variables
 function getEnv(key) {
+    const nextKey = `NEXT_PUBLIC_${key.replace(/^VITE_/, '')}`;
     if (isBrowser) {
-        // Browser: use import.meta.env
-        return import.meta?.env?.[key];
+        return process.env[nextKey] || process.env[key];
     } else {
-        // Node.js: use process.env
-        return process.env[key];
+        return process.env[key] || process.env[nextKey];
     }
 }
 
 // Client-side Firebase configuration
 const firebaseConfig = {
-    apiKey: getEnv('VITE_FIREBASE_API_KEY'),
-    authDomain: getEnv('VITE_FIREBASE_AUTH_DOMAIN'),
-    databaseURL: getEnv('VITE_FIREBASE_DATABASE_URL') || getEnv('FIREBASE_DATABASE_URL'),
-    projectId: getEnv('VITE_FIREBASE_PROJECT_ID') || getEnv('GCP_PROJECT_ID'),
-    storageBucket: getEnv('VITE_FIREBASE_STORAGE_BUCKET'),
-    messagingSenderId: getEnv('VITE_FIREBASE_MESSAGING_SENDER_ID'),
-    appId: getEnv('VITE_FIREBASE_APP_ID')
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL || process.env.FIREBASE_DATABASE_URL,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.GCP_PROJECT_ID,
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
+
+if (isBrowser) {
+    console.log('[Firebase] Configuration:', {
+        authDomain: firebaseConfig.authDomain,
+        databaseURL: firebaseConfig.databaseURL,
+        projectId: firebaseConfig.projectId
+    });
+}
 
 // Initialize Firebase client
 let clientApp;
@@ -52,38 +60,47 @@ if (firebaseConfig.databaseURL) {
     console.warn('[Firebase] Skipping client initialization - no database URL configured');
 }
 
-// Initialize Firebase Admin (server-side only)
+// Initialize Firebase Admin (server-side only, lazy)
 let adminDatabase;
+let adminInitPromise = null;
 
-if (!isBrowser) {
-    try {
-        // Dynamic import for server-side only
-        const admin = await import('firebase-admin');
+async function ensureAdminDatabase() {
+    if (isBrowser) return null;
+    if (adminDatabase) return adminDatabase;
+    if (adminInitPromise) return adminInitPromise;
 
-        if (!admin.default.apps.length) {
-            const credPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-            const dbUrl = process.env.FIREBASE_DATABASE_URL;
+    adminInitPromise = (async () => {
+        try {
+            const admin = await import('firebase-admin');
 
-            if (!dbUrl) {
-                console.warn('[Firebase] Admin skipped - no FIREBASE_DATABASE_URL');
-            } else if (credPath) {
-                const { readFileSync, existsSync } = await import('fs');
+            if (!admin.default.apps.length) {
+                const credPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+                const dbUrl = process.env.FIREBASE_DATABASE_URL;
 
-                if (existsSync(credPath)) {
-                    const serviceAccount = JSON.parse(readFileSync(credPath, 'utf8'));
+                if (!dbUrl) {
+                    console.warn('[Firebase] Admin skipped - no FIREBASE_DATABASE_URL');
+                    return null;
+                }
 
-                    admin.default.initializeApp({
-                        credential: admin.default.credential.cert(serviceAccount),
-                        databaseURL: dbUrl
-                    });
+                if (credPath) {
+                    const { readFileSync, existsSync } = await import('fs');
 
-                    adminDatabase = admin.default.database();
-                    console.log('[Firebase] Admin initialized with service account');
-                } else {
+                    if (existsSync(credPath)) {
+                        const serviceAccount = JSON.parse(readFileSync(credPath, 'utf8'));
+
+                        admin.default.initializeApp({
+                            credential: admin.default.credential.cert(serviceAccount),
+                            databaseURL: dbUrl
+                        });
+
+                        adminDatabase = admin.default.database();
+                        console.log('[Firebase] Admin initialized with service account');
+                        return adminDatabase;
+                    }
+
                     console.warn('[Firebase] Service account file not found:', credPath);
                 }
-            } else {
-                // Try application default credentials
+
                 admin.default.initializeApp({
                     credential: admin.default.credential.applicationDefault(),
                     databaseURL: dbUrl
@@ -91,13 +108,20 @@ if (!isBrowser) {
 
                 adminDatabase = admin.default.database();
                 console.log('[Firebase] Admin initialized with default credentials');
+                return adminDatabase;
             }
-        } else {
+
             adminDatabase = admin.default.database();
+            return adminDatabase;
+        } catch (error) {
+            console.warn('[Firebase] Admin initialization skipped:', error.message);
+            return null;
+        } finally {
+            adminInitPromise = null;
         }
-    } catch (error) {
-        console.warn('[Firebase] Admin initialization skipped:', error.message);
-    }
+    })();
+
+    return adminInitPromise;
 }
 
 /**
@@ -109,13 +133,13 @@ if (!isBrowser) {
  */
 export function subscribeToMatches(userId, callback) {
     if (!clientDatabase) {
-        console.error('[Firebase] Client database not initialized');
+        console.warn('[Firebase] Client database not initialized');
         return () => { };
     }
 
     const matchRef = ref(clientDatabase, `matches/${userId}/current`);
 
-    const unsubscribe = onValue(matchRef, (snapshot) => {
+    onValue(matchRef, (snapshot) => {
         const data = snapshot.val();
         callback(data);
     }, (error) => {
@@ -142,7 +166,7 @@ export function subscribeToMatches(userId, callback) {
  * @returns {Promise<boolean>} True if update successful
  */
 export async function updateMatches(userId, matchData) {
-    const db = adminDatabase || clientDatabase;
+    const db = adminDatabase || await ensureAdminDatabase() || clientDatabase;
 
     if (!db) {
         throw new Error('[Firebase] Database not initialized');
@@ -175,7 +199,7 @@ export async function updateMatches(userId, matchData) {
  * @returns {Promise<Object|null>} Match data or null
  */
 export async function getMatches(userId) {
-    const db = adminDatabase || clientDatabase;
+    const db = adminDatabase || await ensureAdminDatabase() || clientDatabase;
 
     if (!db) {
         throw new Error('[Firebase] Database not initialized');
@@ -200,7 +224,7 @@ export async function getMatches(userId) {
  * @returns {Promise<boolean>} True if cleared successfully
  */
 export async function clearMatches(userId) {
-    const db = adminDatabase || clientDatabase;
+    const db = adminDatabase || await ensureAdminDatabase() || clientDatabase;
 
     if (!db) {
         throw new Error('[Firebase] Database not initialized');
@@ -279,7 +303,7 @@ export async function checkFirebaseHealth() {
     }
 }
 
-export default {
+const firebaseService = {
     subscribeToMatches,
     updateMatches,
     getMatches,
@@ -287,3 +311,5 @@ export default {
     createDebouncedMatchUpdate,
     checkFirebaseHealth
 };
+
+export default firebaseService;

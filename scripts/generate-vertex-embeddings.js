@@ -4,7 +4,7 @@
  * Processes artists and generates multimodal embeddings for their
  * portfolio images using Vertex AI, then stores them in Supabase.
  * 
- * Usage: node scripts/generate-vertex-embeddings.js [--limit=N]
+ * Usage: node scripts/generate-vertex-embeddings.js [--limit=N] [--force]
  */
 
 import fs from 'fs';
@@ -14,14 +14,15 @@ import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
 import { generateEmbedding } from '../src/services/vertex-ai-service.js';
 
-dotenv.config({ path: '.env.local' });
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Load .env.local from project root
+dotenv.config({ path: path.join(__dirname, '../.env.local') });
+
 // Configuration
 const ARTISTS_FILE = path.join(__dirname, '../src/data/artists.json');
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const MAX_IMAGES_PER_ARTIST = 3; // Average embeddings from multiple images
 const ARTIST_DELAY_MS = 2000; // Rate limiting
@@ -31,6 +32,7 @@ const DEBUG = process.env.DEBUG_EMBEDDINGS === 'true';
 const args = process.argv.slice(2);
 const limitMatch = args.find(arg => arg.startsWith('--limit='));
 const limit = limitMatch ? parseInt(limitMatch.split('=')[1], 10) : null;
+const force = args.includes('--force');
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -57,22 +59,29 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 async function storeEmbeddingInSupabase(artistId, vector, sourceImages) {
     const { data, error } = await supabase
         .from('portfolio_embeddings')
-        .upsert({
+        .delete()
+        .eq('artist_id', artistId);
+
+    if (error) {
+        throw new Error(`Supabase delete error: ${error.message}`);
+    }
+
+    const { data: insertData, error: insertError } = await supabase
+        .from('portfolio_embeddings')
+        .insert({
             artist_id: artistId,
             embedding: vector,
             source_images: sourceImages,
             model_version: 'vertex-multimodal-v1'
-        }, {
-            onConflict: 'artist_id'
         })
         .select()
         .single();
 
-    if (error) {
-        throw new Error(`Supabase error: ${error.message}`);
+    if (insertError) {
+        throw new Error(`Supabase insert error: ${insertError.message}`);
     }
 
-    return data;
+    return insertData;
 }
 
 /**
@@ -108,7 +117,7 @@ async function main() {
         console.log('='.repeat(60));
         console.log();
         console.log(`Total artists: ${allArtists.length}`);
-        console.log(`Processing: ${artists.length}${limit ? ` (limited)` : ''}`);
+        console.log(`Processing: ${artists.length}${limit ? ` (limited)` : ''}${force ? ' (force)' : ''}`);
         console.log(`Max images per artist: ${MAX_IMAGES_PER_ARTIST}`);
         console.log();
 
@@ -125,16 +134,18 @@ async function main() {
             try {
                 // Check if already has embedding
                 const hasEmbedding = await hasExistingEmbedding(artistId);
-                if (hasEmbedding) {
+                if (hasEmbedding && !force) {
                     console.log(`  ⏭️  Already has embedding, skipping`);
                     skipped++;
                     continue;
                 }
 
-                // Get portfolio images
-                const images = artist.portfolioImages || [];
+                // Get portfolio images (prefer local files under /portfolio/)
+                const images = (artist.portfolioImages || []).filter((img) =>
+                    typeof img === 'string' && img.startsWith('/portfolio/')
+                );
                 if (images.length === 0) {
-                    console.warn(`  ⚠️  No portfolio images, skipping`);
+                    console.warn(`  ⚠️  No local portfolio images, skipping`);
                     skipped++;
                     continue;
                 }
@@ -147,9 +158,29 @@ async function main() {
                 const vectors = [];
                 for (let j = 0; j < imagesToProcess.length; j++) {
                     const imageUrl = imagesToProcess[j];
+
+                    // Resolve local file path to Data URL
+                    let processedUrl = imageUrl;
+                    if (imageUrl.startsWith('/')) {
+                        // Assuming it's in public/
+                        const localPath = path.join(process.cwd(), 'public', imageUrl);
+                        if (fs.existsSync(localPath)) {
+                            // Convert to Data URL here to avoid fetch issues with local paths in service
+                            const buffer = fs.readFileSync(localPath);
+                            const base64 = buffer.toString('base64');
+                            const ext = path.extname(localPath).substring(1); // 'png'
+                            processedUrl = `data:image/${ext};base64,${base64}`;
+
+                            if (DEBUG) console.log(`      ✓ Resolved local file: ${localPath} (${base64.length} chars)`);
+                        } else {
+                            console.warn(`      ⚠️ Local file not found: ${localPath}`);
+                            continue;
+                        }
+                    }
+
                     try {
                         console.log(`    - Image ${j + 1}/${imagesToProcess.length}...`);
-                        const embedding = await generateEmbedding([imageUrl]);
+                        const embedding = await generateEmbedding([processedUrl]);
                         vectors.push(embedding);
 
                         if (DEBUG) {

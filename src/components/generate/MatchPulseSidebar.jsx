@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import ArtistMatchCard from './ArtistMatchCard';
 import Button from '../ui/Button';
 
@@ -16,17 +16,20 @@ export default function MatchPulseSidebar({
     if (typeof window === 'undefined') return false;
     return window.innerWidth < 768;
   });
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const topMatches = useMemo(() => matches.slice(0, 3), [matches]);
 
   const handleViewAll = () => {
-    navigate('/artists', {
-      state: {
-        matchContext: context,
-        matches
+    try {
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('tatt_match_context', JSON.stringify(context || {}));
+        sessionStorage.setItem('tatt_match_results', JSON.stringify(matches || []));
       }
-    });
+    } catch (error) {
+      console.warn('[MatchPulse] Failed to cache match context:', error);
+    }
+    router.push('/artists');
   };
 
   return (

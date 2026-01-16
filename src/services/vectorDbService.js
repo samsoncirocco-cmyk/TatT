@@ -10,7 +10,7 @@ import { VECTOR_DB_CONFIG, createVectorDbClient } from '../config/vectorDbConfig
 /**
  * Store a vector embedding for an artist
  * @param {string} artistId - Unique artist identifier
- * @param {Array<number>} vector - 4096-dimensional embedding vector
+ * @param {Array<number>} vector - Embedding vector (dimension defined in VECTOR_DB_CONFIG)
  * @param {Object} metadata - Additional metadata (source_images, model_version)
  * @returns {Promise<Object>} Stored embedding record
  */

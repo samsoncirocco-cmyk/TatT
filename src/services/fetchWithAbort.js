@@ -76,32 +76,11 @@ export async function fetchWithAbort(url, options = {}) {
     const headers = { ...fetchOptions.headers };
 
     if (includeAuth) {
-      // Try multiple sources for auth token (in order of preference)
-      let authToken = null;
-      
-      // Source 1: Vite environment variable (client-side)
-      if (typeof import.meta.env !== 'undefined') {
-        authToken = import.meta.env.VITE_FRONTEND_AUTH_TOKEN;
-      }
-      
-      // Source 2: Process environment (Node.js/server-side)
-      if (!authToken && typeof process !== 'undefined' && process.env) {
-        authToken = process.env.VITE_FRONTEND_AUTH_TOKEN;
-      }
-      
-      // Source 3: Session storage (fallback for runtime token updates)
-      if (!authToken && typeof sessionStorage !== 'undefined') {
-        authToken = sessionStorage.getItem('authToken');
-      }
-      
+      const authToken = typeof import.meta.env !== 'undefined'
+        ? import.meta.env.VITE_FRONTEND_AUTH_TOKEN
+        : process.env.VITE_FRONTEND_AUTH_TOKEN;
       if (authToken) {
         headers['Authorization'] = `Bearer ${authToken}`;
-      } else {
-        // Log warning but don't fail - server will handle missing auth
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('[fetchWithAbort] VITE_FRONTEND_AUTH_TOKEN not configured. Requests will be sent without auth header.');
-          console.warn('[fetchWithAbort] Set VITE_FRONTEND_AUTH_TOKEN in .env.local and restart dev server.');
-        }
       }
     }
 
@@ -134,12 +113,8 @@ export async function fetchWithAbort(url, options = {}) {
       // Map status codes to error codes
       if (response.status === 401) {
         errorCode = ErrorCodes.AUTH_REQUIRED;
-        errorMessage = 'Authentication required. Check VITE_FRONTEND_AUTH_TOKEN in .env.local.';
       } else if (response.status === 403) {
         errorCode = errorData?.code === 'CORS_ERROR' ? ErrorCodes.CORS_ERROR : ErrorCodes.AUTH_INVALID;
-        if (errorCode === ErrorCodes.AUTH_INVALID) {
-          errorMessage = 'Invalid authentication token. Update environment and restart.';
-        }
       } else if (response.status === 429) {
         errorCode = ErrorCodes.RATE_LIMIT;
       } else if (response.status >= 500) {

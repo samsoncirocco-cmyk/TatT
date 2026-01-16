@@ -1,9 +1,8 @@
 import crypto from 'crypto';
 import aiplatform from '@google-cloud/aiplatform';
-import storage from '@google-cloud/storage';
+import { Storage } from '@google-cloud/storage';
 
 const { PredictionServiceClient, helpers } = aiplatform;
-const { Storage } = storage;
 
 const VERTEX_PROJECT_ID = process.env.VERTEX_PROJECT_ID;
 const VERTEX_LOCATION = process.env.VERTEX_LOCATION || 'us-central1';

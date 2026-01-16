@@ -1,12 +1,19 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { subscribeToMatches } from '../services/firebase-match-service';
 import { requestMatchUpdate } from '../services/matchUpdateService';
+import { useMatchStore } from '../store/useMatchStore';
 
 export function useRealtimeMatchPulse({ userId, context, currentDesign, debounceMs = 2000 } = {}) {
-  const [matches, setMatches] = useState([]);
-  const [totalMatches, setTotalMatches] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const {
+    matches,
+    isLoading,
+    error,
+    setMatches,
+    setLoading,
+    setError
+  } = useMatchStore();
+
+  const totalMatches = matches.length;
 
   const debounceRef = useRef(null);
 
@@ -27,18 +34,20 @@ export function useRealtimeMatchPulse({ userId, context, currentDesign, debounce
     const unsubscribe = subscribeToMatches(userId, (matchData) => {
       if (matchData?.artists) {
         setMatches(matchData.artists);
-        setTotalMatches(matchData.artists.length);
-        setIsLoading(false);
+        setLoading(false);
+        setError(null);
+      } else if (matchData === null) {
+        setLoading(false);
       }
     });
 
     return () => unsubscribe();
-  }, [userId]);
+  }, [userId, setMatches, setLoading, setError]);
 
   useEffect(() => {
     if (!userId || !contextSignature || !currentDesign) return;
 
-    setIsLoading(true);
+    setLoading(true);
     setError(null);
 
     if (debounceRef.current) {
@@ -60,13 +69,12 @@ export function useRealtimeMatchPulse({ userId, context, currentDesign, debounce
 
         if (response?.artists) {
           setMatches(response.artists);
-          setTotalMatches(response.artists.length);
         }
       } catch (err) {
         console.error('[MatchPulse] Update failed:', err);
         setError('Match data temporarily unavailable');
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     }, debounceMs);
 
@@ -75,7 +83,7 @@ export function useRealtimeMatchPulse({ userId, context, currentDesign, debounce
         clearTimeout(debounceRef.current);
       }
     };
-  }, [userId, contextSignature, currentDesign, debounceMs]);
+  }, [userId, contextSignature, currentDesign, debounceMs, setMatches, setLoading, setError]);
 
   return {
     matches,

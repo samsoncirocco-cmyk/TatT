@@ -67,6 +67,7 @@ interface ForgeState {
     selectLayer: (layerId: string | null) => void;
     clearLayers: () => void;
     replaceLayers: (nextLayers: Layer[]) => void;
+    clearHistory: () => void;
 
     undo: () => void;
     redo: () => void;
@@ -199,6 +200,10 @@ const baseStore = (set: any, get: any): ForgeState => {
                 selectedLayerId: null,
                 history: { past: [], future: [] }
             });
+        },
+
+        clearHistory: () => {
+            set({ history: { past: [], future: [] } });
         },
 
         undo: () => {

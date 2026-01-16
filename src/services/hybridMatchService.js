@@ -6,7 +6,8 @@
  */
 
 import { searchSimilar } from './vectorDbService.js';
-import { findMatchingArtists, findArtistsByEmbeddingIds } from './neo4jService.js';
+import { VECTOR_DB_CONFIG } from '../config/vectorDbConfig.js';
+import { findMatchingArtists as findGraphArtists, findArtistsByEmbeddingIds } from './neo4jService.js';
 import {
     calculateCompositeScore,
     generateMatchReasoning,
@@ -14,6 +15,9 @@ import {
     DEFAULT_WEIGHTS
 } from '../utils/scoreAggregation.js';
 import { fetchWithAbort } from './fetchWithAbort.js';
+// ... (omitting lines for brevity in prompt, but tool needs exact context if I don't use chunks)
+// Wait, replace_file_content is single chunk. I need to replace the import usage too.
+// I will use multi_replace_file_content for safety.
 
 // Simple in-memory cache for query results (5 minute TTL)
 const queryCache = new Map();
@@ -46,12 +50,12 @@ function parseQuery(query) {
  * For now, returns a mock embedding for testing
  * 
  * @param {string} query - Query text
- * @returns {Promise<Array<number>>} 4096-dimensional embedding
+ * @returns {Promise<Array<number>>} Query embedding (dimension aligned with vector DB)
  */
 async function generateQueryEmbedding(query) {
-    // TODO: Implement actual CLIP text embedding generation
-    // For now, return a random embedding for testing
-    console.warn('[HybridMatch] Using mock embedding - implement CLIP text encoder in production');
+    // TODO: Implement actual text embedding generation (Vertex text or CLIP text encoder)
+    // For now, return a deterministic mock embedding aligned with vector DB dimensions.
+    console.warn('[HybridMatch] Using mock embedding - implement text encoder in production');
 
     // Generate a deterministic "embedding" based on query hash
     // This ensures same query gets same embedding
@@ -59,7 +63,8 @@ async function generateQueryEmbedding(query) {
         return ((acc << 5) - acc) + char.charCodeAt(0);
     }, 0);
 
-    const embedding = new Array(4096).fill(0).map((_, i) => {
+    const dimension = VECTOR_DB_CONFIG.DIMENSIONS || 1408;
+    const embedding = new Array(dimension).fill(0).map((_, i) => {
         return Math.sin(hash * (i + 1) * 0.001) * 0.5 + 0.5;
     });
 
@@ -98,7 +103,7 @@ async function executeVectorSearch(query, topK = 20) {
  */
 async function executeGraphQuery(preferences) {
     try {
-        const results = await findMatchingArtists(preferences);
+        const results = await findGraphArtists(preferences);
 
         return results.map(artist => ({
             ...artist,

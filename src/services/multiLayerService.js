@@ -5,8 +5,8 @@
  * for advanced tattoo generation workflows.
  */
 
-const PROXY_URL = import.meta.env.VITE_PROXY_URL || 'http://127.0.0.1:3002/api';
-const AUTH_TOKEN = import.meta.env.VITE_FRONTEND_AUTH_TOKEN;
+const PROXY_URL = '/api';
+const AUTH_TOKEN = process.env.NEXT_PUBLIC_FRONTEND_AUTH_TOKEN || 'dev-token-change-in-production';
 
 /**
  * Upload layer image to backend for persistent storage
@@ -38,7 +38,7 @@ async function uploadLayer(dataUrl, filename) {
         // Convert relative URL to absolute
         const url = data.url.startsWith('http')
             ? data.url
-            : `${PROXY_URL.replace('/api', '')}${data.url}`;
+            : data.url;
 
         return url;
     } catch (error) {

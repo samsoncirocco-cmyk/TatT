@@ -5,8 +5,8 @@
  * Provides a feature-flagged alternative to JS-based matching.
  */
 
-const NEO4J_ENABLED = import.meta.env.VITE_NEO4J_ENABLED === 'true';
-const NEO4J_ENDPOINT = import.meta.env.VITE_NEO4J_ENDPOINT || 'http://localhost:3001/api/neo4j/query';
+const NEO4J_ENABLED = process.env.NEXT_PUBLIC_NEO4J_ENABLED === 'true';
+const NEO4J_ENDPOINT = process.env.NEXT_PUBLIC_NEO4J_ENDPOINT || '/api/neo4j/query';
 
 /**
  * Relationship type constants
@@ -34,7 +34,7 @@ async function executeCypherQuery(query, params = {}) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_FRONTEND_AUTH_TOKEN || 'dev-token-change-in-production'}`
+        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_FRONTEND_AUTH_TOKEN || 'dev-token-change-in-production'}`
       },
       body: JSON.stringify({ query, params })
     });
