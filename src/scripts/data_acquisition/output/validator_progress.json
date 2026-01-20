@@ -299,7 +299,27 @@
     "trueloveart",
     "aregularguy",
     "jimmyshy",
-    "juliocasagrande"
+    "juliocasagrande",
+    "rockylee183",
+    "cooltrev",
+    "vinse_one",
+    "aregularguy",
+    "jimmyshy",
+    "juliocasagrande",
+    "rockylee183",
+    "cooltrev",
+    "vinse_one",
+    "p",
+    "p",
+    "p",
+    "p",
+    "p",
+    "p",
+    "p",
+    "p",
+    "p",
+    "p",
+    "p"
   ],
   "verifiedArtists": [
     {
@@ -4635,14 +4655,307 @@
       "verified": true,
       "verified_at": "2026-01-20T21:47:48.821Z",
       "source": "crawled_verified"
+    },
+    {
+      "id": "artist_ez9372gtn",
+      "handle": "cooltrev",
+      "name": "cooltrev",
+      "shop": "Liberty Tattoo Seattle",
+      "city": "Seattle, WA",
+      "styles": [
+        "Blackwork"
+      ],
+      "quality_score": 0.91,
+      "portfolio_size": 48,
+      "engagement_score": 0.7034147992155384,
+      "verified": true,
+      "verified_at": "2026-01-20T21:47:51.826Z",
+      "source": "crawled_verified"
+    },
+    {
+      "id": "artist_o2lxoghop",
+      "handle": "vinse_one",
+      "name": "vinse_one",
+      "shop": "Liberty Tattoo Seattle",
+      "city": "Seattle, WA",
+      "styles": [
+        "Dotwork"
+      ],
+      "quality_score": 0.81,
+      "portfolio_size": 16,
+      "engagement_score": 0.5566136381729714,
+      "verified": true,
+      "verified_at": "2026-01-20T21:47:53.329Z",
+      "source": "crawled_verified"
+    },
+    {
+      "id": "artist_yan5xts5o",
+      "handle": "jimmyshy",
+      "name": "jimmyshy",
+      "shop": "Liberty Tattoo Seattle",
+      "city": "Seattle, WA",
+      "styles": [
+        "Japanese (Irezumi)",
+        "Watercolor"
+      ],
+      "quality_score": 0.79,
+      "portfolio_size": 47,
+      "engagement_score": 0.827779126142471,
+      "verified": true,
+      "verified_at": "2026-01-20T21:47:56.334Z",
+      "source": "crawled_verified"
+    },
+    {
+      "id": "artist_c0bfy9j2m",
+      "handle": "juliocasagrande",
+      "name": "juliocasagrande",
+      "shop": "Liberty Tattoo Seattle",
+      "city": "Seattle, WA",
+      "styles": [
+        "Neo-traditional"
+      ],
+      "quality_score": 0.77,
+      "portfolio_size": 21,
+      "engagement_score": 0.7335657672629474,
+      "verified": true,
+      "verified_at": "2026-01-20T21:47:57.843Z",
+      "source": "crawled_verified"
+    },
+    {
+      "id": "artist_yvpmtcl5v",
+      "handle": "rockylee183",
+      "name": "rockylee183",
+      "shop": "Liberty Tattoo Seattle",
+      "city": "Seattle, WA",
+      "styles": [
+        "Dotwork"
+      ],
+      "quality_score": 0.83,
+      "portfolio_size": 59,
+      "engagement_score": 0.9514792133217926,
+      "verified": true,
+      "verified_at": "2026-01-20T21:47:59.345Z",
+      "source": "crawled_verified"
+    },
+    {
+      "id": "artist_flkwoqmw9",
+      "handle": "cooltrev",
+      "name": "cooltrev",
+      "shop": "Liberty Tattoo Seattle",
+      "city": "Seattle, WA",
+      "styles": [
+        "Fine Line",
+        "Geometric"
+      ],
+      "quality_score": 0.87,
+      "portfolio_size": 16,
+      "engagement_score": 0.740187234818767,
+      "verified": true,
+      "verified_at": "2026-01-20T21:48:00.848Z",
+      "source": "crawled_verified"
+    },
+    {
+      "id": "artist_s8orkm2rz",
+      "handle": "vinse_one",
+      "name": "vinse_one",
+      "shop": "Liberty Tattoo Seattle",
+      "city": "Seattle, WA",
+      "styles": [
+        "Realism"
+      ],
+      "quality_score": 0.84,
+      "portfolio_size": 52,
+      "engagement_score": 0.6845266773885091,
+      "verified": true,
+      "verified_at": "2026-01-20T21:48:02.350Z",
+      "source": "crawled_verified"
+    },
+    {
+      "id": "artist_u9n158hkl",
+      "handle": "p",
+      "name": "p",
+      "shop": "Tribe Tattoo",
+      "city": "Denver, CO",
+      "styles": [
+        "American Traditional"
+      ],
+      "quality_score": 0.75,
+      "portfolio_size": 31,
+      "engagement_score": 0.6464662047481831,
+      "verified": true,
+      "verified_at": "2026-01-20T21:48:03.854Z",
+      "source": "crawled_verified"
+    },
+    {
+      "id": "artist_u99y9au67",
+      "handle": "p",
+      "name": "p",
+      "shop": "Tribe Tattoo",
+      "city": "Denver, CO",
+      "styles": [
+        "American Traditional"
+      ],
+      "quality_score": 0.84,
+      "portfolio_size": 32,
+      "engagement_score": 0.7703280221600552,
+      "verified": true,
+      "verified_at": "2026-01-20T21:48:05.391Z",
+      "source": "crawled_verified"
+    },
+    {
+      "id": "artist_npv3su5ww",
+      "handle": "p",
+      "name": "p",
+      "shop": "Tribe Tattoo",
+      "city": "Denver, CO",
+      "styles": [
+        "Realism",
+        "American Traditional"
+      ],
+      "quality_score": 0.78,
+      "portfolio_size": 58,
+      "engagement_score": 0.616543883228216,
+      "verified": true,
+      "verified_at": "2026-01-20T21:48:06.896Z",
+      "source": "crawled_verified"
+    },
+    {
+      "id": "artist_v114df0il",
+      "handle": "p",
+      "name": "p",
+      "shop": "Tribe Tattoo",
+      "city": "Denver, CO",
+      "styles": [
+        "American Traditional",
+        "Neo-traditional"
+      ],
+      "quality_score": 0.77,
+      "portfolio_size": 45,
+      "engagement_score": 0.7667636956081898,
+      "verified": true,
+      "verified_at": "2026-01-20T21:48:08.401Z",
+      "source": "crawled_verified"
+    },
+    {
+      "id": "artist_zuy7n3k7q",
+      "handle": "p",
+      "name": "p",
+      "shop": "Tribe Tattoo",
+      "city": "Denver, CO",
+      "styles": [
+        "Cyber Sigilism",
+        "Realism"
+      ],
+      "quality_score": 0.92,
+      "portfolio_size": 54,
+      "engagement_score": 0.508404692042671,
+      "verified": true,
+      "verified_at": "2026-01-20T21:48:09.927Z",
+      "source": "crawled_verified"
+    },
+    {
+      "id": "artist_fgugt4ekg",
+      "handle": "p",
+      "name": "p",
+      "shop": "Tribe Tattoo",
+      "city": "Denver, CO",
+      "styles": [
+        "Blackwork"
+      ],
+      "quality_score": 0.93,
+      "portfolio_size": 47,
+      "engagement_score": 0.9661126093481333,
+      "verified": true,
+      "verified_at": "2026-01-20T21:48:11.431Z",
+      "source": "crawled_verified"
+    },
+    {
+      "id": "artist_u6q2vwzgh",
+      "handle": "p",
+      "name": "p",
+      "shop": "Tribe Tattoo",
+      "city": "Denver, CO",
+      "styles": [
+        "American Traditional"
+      ],
+      "quality_score": 0.89,
+      "portfolio_size": 26,
+      "engagement_score": 0.7249232376896104,
+      "verified": true,
+      "verified_at": "2026-01-20T21:48:12.934Z",
+      "source": "crawled_verified"
+    },
+    {
+      "id": "artist_9b1hjvynn",
+      "handle": "p",
+      "name": "p",
+      "shop": "Tribe Tattoo",
+      "city": "Denver, CO",
+      "styles": [
+        "Fine Line"
+      ],
+      "quality_score": 0.82,
+      "portfolio_size": 15,
+      "engagement_score": 0.6419026305051629,
+      "verified": true,
+      "verified_at": "2026-01-20T21:48:14.436Z",
+      "source": "crawled_verified"
+    },
+    {
+      "id": "artist_rdihdfwbz",
+      "handle": "p",
+      "name": "p",
+      "shop": "Tribe Tattoo",
+      "city": "Denver, CO",
+      "styles": [
+        "Watercolor"
+      ],
+      "quality_score": 0.84,
+      "portfolio_size": 19,
+      "engagement_score": 0.9555450515615,
+      "verified": true,
+      "verified_at": "2026-01-20T21:48:15.939Z",
+      "source": "crawled_verified"
+    },
+    {
+      "id": "artist_bxv7mn8l0",
+      "handle": "p",
+      "name": "p",
+      "shop": "Tribe Tattoo",
+      "city": "Denver, CO",
+      "styles": [
+        "Illustrative"
+      ],
+      "quality_score": 0.79,
+      "portfolio_size": 17,
+      "engagement_score": 0.5445138886517462,
+      "verified": true,
+      "verified_at": "2026-01-20T21:48:17.441Z",
+      "source": "crawled_verified"
+    },
+    {
+      "id": "artist_6yyt4zwkb",
+      "handle": "p",
+      "name": "p",
+      "shop": "Tribe Tattoo",
+      "city": "Denver, CO",
+      "styles": [
+        "Watercolor"
+      ],
+      "quality_score": 0.81,
+      "portfolio_size": 10,
+      "engagement_score": 0.6337540762757082,
+      "verified": true,
+      "verified_at": "2026-01-20T21:48:18.945Z",
+      "source": "crawled_verified"
     }
   ],
   "stats": {
-    "processed": 300,
-    "verified": 264,
-    "rejected": 36,
+    "processed": 320,
+    "verified": 282,
+    "rejected": 38,
     "errors": 0,
     "startTime": 1768945218139
   },
-  "lastUpdate": "2026-01-20T21:47:49.823Z"
+  "lastUpdate": "2026-01-20T21:48:19.947Z"
 }
