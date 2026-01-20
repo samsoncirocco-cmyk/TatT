@@ -1,23 +1,66 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import artistsData from '../data/artists.json';
+import { getArtistById } from '../services/neo4jService';
 import { getAllDesigns } from '../services/designLibraryService';
 import Button from '../components/ui/Button';
+import GraphInsight from '../components/GraphInsight';
 import { ArrowLeft, Instagram } from 'lucide-react';
 
 function ArtistProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const artist = artistsData.artists.find(a => a.id === parseInt(id));
 
+  const [artist, setArtist] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
   const [showQuoteModal, setShowQuoteModal] = useState(false);
   const [selectedDesign, setSelectedDesign] = useState(null);
   const [savedDesigns, setSavedDesigns] = useState([]);
 
-  // If artist not found, redirect to artists page
-  if (!artist) {
-    setTimeout(() => navigate('/artists'), 0);
+  // Fetch artist from Neo4j
+  useEffect(() => {
+    async function loadArtist() {
+      try {
+        setLoading(true);
+        const artistData = await getArtistById(id);
+
+        if (!artistData) {
+          navigate('/artists');
+          return;
+        }
+
+        // Transform Neo4j data to match component expectations
+        const transformedArtist = {
+          id: artistData.id,
+          name: artistData.name || artistData.handle,
+          shopName: artistData.shop || 'Independent Artist',
+          city: artistData.city || 'Location TBD',
+          styles: artistData.styles || [],
+          rating: artistData.quality_score ? (artistData.quality_score * 5).toFixed(1) : '4.8',
+          instagram: artistData.handle,
+          portfolioImages: artistData.portfolio || [
+            // Fallback: Use Instagram profile as placeholder
+            `https://via.placeholder.com/800x1000/1a1a1a/00ff88?text=${encodeURIComponent(artistData.handle)}`
+          ],
+          bio: artistData.bio || `Professional tattoo artist specializing in ${(artistData.styles || ['custom']).slice(0, 2).join(' and ')} work.`,
+          yearsExperience: artistData.yearsExperience || 5,
+          hourlyRate: artistData.hourlyRate || 150
+        };
+
+        setArtist(transformedArtist);
+      } catch (error) {
+        console.error('Error loading artist:', error);
+        navigate('/artists');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadArtist();
+  }, [id, navigate]);
+
+  // If loading, show spinner
+  if (loading || !artist) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-4 border-ducks-green border-t-transparent"></div>
@@ -118,6 +161,11 @@ function ArtistProfile() {
               <p className="text-gray-300 leading-relaxed font-light text-lg">
                 "{artist.bio}"
               </p>
+            </div>
+
+            {/* Genealogy Graph - Pitch Feature */}
+            <div className="mb-12">
+              <GraphInsight artist={artist} />
             </div>
 
             <div className="space-y-4 mt-auto">

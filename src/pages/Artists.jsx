@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import artistsData from '../data/artists.json';
+import neo4jService from '../services/neo4jService';
 import { Search, MapPin, Palette } from 'lucide-react';
 
 function Artists() {
@@ -8,11 +8,53 @@ function Artists() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStyle, setSelectedStyle] = useState('All Styles');
   const [selectedLocation, setSelectedLocation] = useState('All Locations');
-  const [filteredArtists, setFilteredArtists] = useState(artistsData.artists);
+  const [allArtists, setAllArtists] = useState([]);
+  const [filteredArtists, setFilteredArtists] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Load all artists from Neo4j on mount
+  useEffect(() => {
+    async function loadArtists() {
+      try {
+        setLoading(true);
+        // Fetch all artists (limit to 1000 for performance)
+        const artists = await neo4jService.findMatchingArtists({
+          styles: [],
+          location: null,
+          budget: null,
+          keywords: []
+        });
+
+        // Transform Neo4j data to match component expectations
+        const transformedArtists = artists.map(artist => ({
+          id: artist.id,
+          name: artist.name || artist.instagram?.replace('@', ''),
+          shopName: 'Verified Artist', // Can be enhanced with shop data
+          location: artist.city || 'Location TBD',
+          styles: artist.styles || [],
+          rating: artist.score ? (artist.score / 20).toFixed(1) : '4.8',
+          instagram: artist.instagram,
+          portfolioImages: artist.portfolio || []
+        }));
+
+        setAllArtists(transformedArtists);
+        setFilteredArtists(transformedArtists);
+      } catch (error) {
+        console.error('Error loading artists:', error);
+        // Fallback to empty array on error
+        setAllArtists([]);
+        setFilteredArtists([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadArtists();
+  }, []);
 
   // Filter artists based on search and filters
   useEffect(() => {
-    let results = artistsData.artists;
+    let results = allArtists;
 
     // Filter by search query (name or shop)
     if (searchQuery.trim()) {
@@ -36,7 +78,7 @@ function Artists() {
     }
 
     setFilteredArtists(results);
-  }, [searchQuery, selectedStyle, selectedLocation]);
+  }, [searchQuery, selectedStyle, selectedLocation, allArtists]);
 
   const handleArtistClick = (artistId) => {
     navigate(`/artists/${artistId}`);
