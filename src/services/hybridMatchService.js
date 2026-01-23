@@ -269,15 +269,20 @@ export async function findMatchingArtists(query, preferences = {}, maxResults = 
 
                 const mergeTime = performance.now() - mergeStart;
 
-                // Sort by composite score and return top N
+                // Sort by composite score and apply confidence threshold
+                const CONFIDENCE_THRESHOLD = 0.5;
                 const topMatches = scoredArtists
+                    .filter(artist => artist.compositeScore >= CONFIDENCE_THRESHOLD)
                     .sort((a, b) => b.compositeScore - a.compositeScore)
                     .slice(0, maxResults);
+
+                const belowThresholdCount = scoredArtists.length - topMatches.length;
 
                 const totalTime = performance.now() - startTime;
 
                 // Log performance
-                console.log(`[PERF] Semantic Match: ${totalTime.toFixed(0)}ms (vector: ${vectorTime.toFixed(0)}ms, merge: ${mergeTime.toFixed(0)}ms)`);
+                console.log(`[PERF] Semantic Match: ${totalTime.toFixed(0)}ms (vector: ${vectorTime.toFixed(0)}ms, merge: ${mergeTime.toFixed(0)}ms)`, 
+                    `- ${topMatches.length} matches above threshold (${CONFIDENCE_THRESHOLD}), ${belowThresholdCount} below`);
 
                 // Warn if slow
                 if (totalTime > 400) {
