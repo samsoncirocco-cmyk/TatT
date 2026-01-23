@@ -11,8 +11,8 @@ import { enhancePromptWithGemini } from './vertex-ai-service.js';
  * Check if Vertex AI is configured
  */
 export function isVertexAIConfigured() {
-    const projectId = import.meta.env.VITE_VERTEX_AI_PROJECT_ID || import.meta.env.VITE_GCP_PROJECT_ID;
-    const credPath = import.meta.env.GOOGLE_APPLICATION_CREDENTIALS;
+    const projectId = process.env.NEXT_PUBLIC_VERTEX_AI_PROJECT_ID || process.env.GCP_PROJECT_ID;
+    const credPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
 
     return Boolean(projectId && (credPath || typeof window !== 'undefined'));
 }

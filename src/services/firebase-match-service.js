@@ -13,16 +13,6 @@ import { initializeApp } from 'firebase/app';
 // Detect environment
 const isBrowser = typeof window !== 'undefined';
 
-// Get environment variables
-function getEnv(key) {
-    const nextKey = `NEXT_PUBLIC_${key.replace(/^VITE_/, '')}`;
-    if (isBrowser) {
-        return process.env[nextKey] || process.env[key];
-    } else {
-        return process.env[key] || process.env[nextKey];
-    }
-}
-
 // Client-side Firebase configuration
 const firebaseConfig = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -292,7 +282,7 @@ export async function checkFirebaseHealth() {
         return {
             healthy: true,
             connected: snapshot.exists(),
-            database: getEnv('FIREBASE_DATABASE_URL') || getEnv('VITE_FIREBASE_DATABASE_URL')
+            database: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL || process.env.FIREBASE_DATABASE_URL
         };
 
     } catch (error) {

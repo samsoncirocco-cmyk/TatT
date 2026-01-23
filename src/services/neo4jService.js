@@ -26,7 +26,7 @@ export const INFLUENCE_TYPES = {
  */
 async function executeCypherQuery(query, params = {}) {
   if (!NEO4J_ENABLED) {
-    throw new Error('Neo4j integration is not enabled. Set VITE_NEO4J_ENABLED=true');
+    throw new Error('Neo4j integration is not enabled. Set NEXT_PUBLIC_NEO4J_ENABLED=true in your environment variables');
   }
 
   try {
