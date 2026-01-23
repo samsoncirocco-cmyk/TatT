@@ -76,9 +76,7 @@ export async function fetchWithAbort(url, options = {}) {
     const headers = { ...fetchOptions.headers };
 
     if (includeAuth) {
-      const authToken = typeof import.meta.env !== 'undefined'
-        ? import.meta.env.VITE_FRONTEND_AUTH_TOKEN
-        : process.env.VITE_FRONTEND_AUTH_TOKEN;
+      const authToken = process.env.NEXT_PUBLIC_FRONTEND_AUTH_TOKEN;
       if (authToken) {
         headers['Authorization'] = `Bearer ${authToken}`;
       }

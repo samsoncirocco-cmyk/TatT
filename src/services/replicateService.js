@@ -320,7 +320,7 @@ export async function generateTattooDesign(userInput, modelId = null, signal = n
     if (model.provider === 'vertex-ai') {
       if (!VERTEX_GENERATE_URL) {
         throw new FetchError(
-          'Proxy URL not configured. Set VITE_PROXY_URL in your .env file.',
+          'Proxy URL not configured. This service requires Next.js API routes.',
           ErrorCodes.NETWORK_ERROR
         );
       }
@@ -376,7 +376,7 @@ export async function generateTattooDesign(userInput, modelId = null, signal = n
     // Check if proxy URL is configured
     if (!PROXY_URL) {
       throw new FetchError(
-        'Proxy URL not configured. Set VITE_PROXY_URL in your .env file.',
+        'Proxy URL not configured. This service requires Next.js API routes.',
         ErrorCodes.NETWORK_ERROR
       );
     }
@@ -591,7 +591,7 @@ export async function checkServiceHealth() {
       return {
         status: HealthStatus.NOT_CONFIGURED,
         healthy: false,
-        error: 'Proxy URL not configured. Set VITE_PROXY_URL in your .env file.',
+        error: 'Proxy URL not configured. This service requires Next.js API routes.',
         code: ErrorCodes.NETWORK_ERROR,
         banner: {
           type: 'error',

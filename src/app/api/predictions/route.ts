@@ -5,7 +5,7 @@ export const runtime = 'edge';
 const REPLICATE_API_URL = 'https://api.replicate.com/v1';
 
 export async function POST(req: NextRequest) {
-    const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN || process.env.VITE_REPLICATE_API_TOKEN;
+    const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
 
     if (!REPLICATE_API_TOKEN) {
         return NextResponse.json({ error: 'REPLICATE_API_TOKEN not configured' }, { status: 500 });

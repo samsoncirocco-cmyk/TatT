@@ -1,7 +1,7 @@
 import { getGcpAccessToken } from '@/lib/google-auth-edge';
 
-const PROJECT_ID = process.env.GCP_PROJECT_ID || process.env.VITE_VERTEX_AI_PROJECT_ID || 'tatt-pro';
-const REGION = process.env.GCP_REGION || process.env.VITE_VERTEX_AI_REGION || 'us-central1';
+const PROJECT_ID = process.env.GCP_PROJECT_ID || 'tatt-pro';
+const REGION = process.env.GCP_REGION || 'us-central1';
 
 const MODELS = {
     gemini: 'gemini-2.0-flash-exp',

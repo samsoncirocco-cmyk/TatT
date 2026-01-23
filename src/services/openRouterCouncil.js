@@ -7,7 +7,7 @@
 
 import { COUNCIL_SKILL_PACK } from '../config/councilSkillPack';
 
-const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 // Council "members" - different models for different perspectives
@@ -50,7 +50,7 @@ function buildCouncilSystemPrompt({ bodyPart, isStencilMode }) {
  */
 async function callOpenRouter(model, systemPrompt, userPrompt) {
     if (!OPENROUTER_API_KEY) {
-        throw new Error('VITE_OPENROUTER_API_KEY not configured');
+        throw new Error('OPENROUTER_API_KEY not configured in environment variables');
     }
 
     const response = await fetch(OPENROUTER_API_URL, {

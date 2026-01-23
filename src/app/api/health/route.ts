@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'edge';
 
 export async function GET(req: NextRequest) {
-    const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN || process.env.VITE_REPLICATE_API_TOKEN;
+    const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
     const NEO4J_URI = process.env.NEO4J_URI;
     const NEO4J_USER = process.env.NEO4J_USERNAME || process.env.NEO4J_USER;
     const NEO4J_PASSWORD = process.env.NEO4J_PASSWORD;

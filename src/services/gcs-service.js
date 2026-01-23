@@ -18,7 +18,7 @@ const storage = new Storage({
 
 const bucketName = process.env.GCS_BUCKET_NAME || process.env.GCS_BUCKET || 'tatt-pro-assets';
 const bucket = storage.bucket(bucketName);
-const signedUrlExpiry = parseInt(process.env.VITE_GCS_SIGNED_URL_EXPIRY || '3600', 10);
+const signedUrlExpiry = parseInt(process.env.GCS_SIGNED_URL_EXPIRY || '3600', 10);
 
 /**
  * Upload file to Google Cloud Storage
