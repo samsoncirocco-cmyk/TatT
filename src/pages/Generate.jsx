@@ -26,6 +26,7 @@ import RegenerateElementModal from '../components/generate/RegenerateElementModa
 import ForgeGuide from '../components/generate/ForgeGuide';
 import HolyGrailLayout from '../components/layouts/HolyGrailLayout';
 import { ToastContainer } from '../components/ui/Toast';
+import Input from '../components/ui/Input';
 import { DEFAULT_BODY_PART } from '../constants/bodyPartAspectRatios';
 import { ENABLE_STUDIO_LAYOUT } from '../constants/featureFlags';
 import { enhancePrompt } from '../services/councilService';
@@ -1594,16 +1595,13 @@ export default function Generate() {
                         </div>
                         <div className="p-6 space-y-4">
                             <div>
-                                <label htmlFor="restyle-style" className="text-xs font-mono uppercase tracking-wider text-white/60">
-                                    New Style
-                                </label>
-                                <input
+                                <Input
                                     id="restyle-style"
                                     type="text"
+                                    label="New Style"
                                     value={restyleStyle}
                                     onChange={(e) => setRestyleStyle(e.target.value)}
                                     placeholder="e.g., Fine-line, Blackwork, Neo-traditional"
-                                    className="mt-2 w-full rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-ducks-green/60"
                                 />
                                 <p className="mt-2 text-xs text-white/50">
                                     We'll regenerate the selected layer using the new style while keeping your core prompt.
