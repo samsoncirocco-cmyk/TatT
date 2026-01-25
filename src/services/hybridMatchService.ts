@@ -1,34 +1,102 @@
 /**
  * Hybrid Vector-Graph Matching Service
- * 
+ *
  * Combines Neo4j graph traversal with vector similarity search
  * to enable semantic artist discovery beyond keyword matching.
  */
 
-import { searchSimilar } from './vectorDbService.js';
-import { VECTOR_DB_CONFIG } from '../config/vectorDbConfig.js';
-import { findMatchingArtists as findGraphArtists, findArtistsByEmbeddingIds } from './neo4jService.js';
+import { searchSimilar } from './vectorDbService';
+import { VECTOR_DB_CONFIG } from '../config/vectorDbConfig';
+import { findMatchingArtists as findGraphArtists, findArtistsByEmbeddingIds } from './neo4jService';
 import {
     calculateCompositeScore,
     generateMatchReasoning,
     mergeResults,
     DEFAULT_WEIGHTS
-} from '../utils/scoreAggregation.js';
-import { fetchWithAbort } from './fetchWithAbort.js';
-// ... (omitting lines for brevity in prompt, but tool needs exact context if I don't use chunks)
-// Wait, replace_file_content is single chunk. I need to replace the import usage too.
-// I will use multi_replace_file_content for safety.
+} from '../utils/scoreAggregation';
+import { fetchWithAbort } from './fetchWithAbort';
+
+// Type Definitions
+export interface QueryPreferences {
+    location?: string | null;
+    styles?: string[];
+    budget?: number | null;
+    keywords?: string[];
+    distance?: number;
+}
+
+export interface VectorSearchResult {
+    id: string | number;
+    visualSimilarity: number;
+    source: 'vector';
+}
+
+export interface GraphSearchResult {
+    id: string | number;
+    graphScore: number;
+    source: 'graph';
+    [key: string]: any;
+}
+
+export interface ScoreSignals {
+    visualSimilarity: number;
+    styleAlignment: number;
+    location: number;
+    budget: number;
+    randomVariety: number;
+}
+
+export interface MatchedArtist {
+    id: string | number;
+    name?: string;
+    city?: string;
+    styles?: string[];
+    hourlyRate?: number;
+    compositeScore: number;
+    score: number;
+    matchScore: number;
+    scoreBreakdown: Record<string, number>;
+    reasons: string[];
+    visualSimilarity?: number;
+    source?: 'vector' | 'graph';
+    [key: string]: any;
+}
+
+export interface MatchResult {
+    matches: MatchedArtist[];
+    totalCandidates: number;
+    queryInfo: {
+        query: string;
+        visualConcepts: string[];
+        keywords: string[];
+        vectorResultCount: number;
+        graphResultCount: number;
+    };
+    performance: {
+        totalTime: number;
+        vectorTime: number;
+        mergeTime: number;
+    };
+}
+
+interface ParsedQuery {
+    visualConcepts: string[];
+    keywords: string[];
+}
+
+interface CacheEntry {
+    data: MatchResult;
+    timestamp: number;
+}
 
 // Simple in-memory cache for query results (5 minute TTL)
-const queryCache = new Map();
+const queryCache = new Map<string, CacheEntry>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 /**
  * Parse user query to extract visual concepts and keywords
- * @param {string} query - User's search query
- * @returns {Object} { visualConcepts: Array, keywords: Array }
  */
-function parseQuery(query) {
+function parseQuery(query: string): ParsedQuery {
     if (!query || typeof query !== 'string') {
         return { visualConcepts: [], keywords: [] };
     }
@@ -48,11 +116,8 @@ function parseQuery(query) {
  * Generate embedding for query text
  * Note: This is a placeholder - in production, would call CLIP model
  * For now, returns a mock embedding for testing
- * 
- * @param {string} query - Query text
- * @returns {Promise<Array<number>>} Query embedding (dimension aligned with vector DB)
  */
-async function generateQueryEmbedding(query) {
+async function generateQueryEmbedding(query: string): Promise<number[]> {
     // TODO: Implement actual text embedding generation (Vertex text or CLIP text encoder)
     // For now, return a deterministic mock embedding aligned with vector DB dimensions.
     console.warn('[HybridMatch] Using mock embedding - implement text encoder in production');
@@ -73,11 +138,8 @@ async function generateQueryEmbedding(query) {
 
 /**
  * Execute vector similarity search
- * @param {string} query - Search query
- * @param {number} topK - Number of results
- * @returns {Promise<Array>} Vector search results
  */
-async function executeVectorSearch(query, topK = 20) {
+async function executeVectorSearch(query: string, topK: number = 20): Promise<VectorSearchResult[]> {
     try {
         // Generate query embedding
         const queryEmbedding = await generateQueryEmbedding(query);
@@ -88,41 +150,38 @@ async function executeVectorSearch(query, topK = 20) {
         return results.map(result => ({
             id: result.id,
             visualSimilarity: result.score,
-            source: 'vector'
+            source: 'vector' as const
         }));
     } catch (error) {
-        console.error('[HybridMatch] Vector search failed:', error);
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('[HybridMatch] Vector search failed:', message);
         return [];
     }
 }
 
 /**
  * Execute graph query for artist matching
- * @param {Object} preferences - User preferences
- * @returns {Promise<Array>} Graph query results
  */
-async function executeGraphQuery(preferences) {
+async function executeGraphQuery(preferences: QueryPreferences): Promise<GraphSearchResult[]> {
     try {
         const results = await findGraphArtists(preferences);
 
-        return results.map(artist => ({
+        return results.map((artist: any) => ({
             ...artist,
             graphScore: artist.matchScore || 0,
-            source: 'graph'
+            source: 'graph' as const
         }));
     } catch (error) {
-        console.error('[HybridMatch] Graph query failed:', error);
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('[HybridMatch] Graph query failed:', message);
         return [];
     }
 }
 
 /**
  * Calculate location score
- * @param {Object} artist - Artist data
- * @param {Object} preferences - User preferences
- * @returns {number} Location score (0-1)
  */
-function calculateLocationScore(artist, preferences) {
+function calculateLocationScore(artist: MatchedArtist, preferences: QueryPreferences): number {
     if (!preferences.location || !artist.city) {
         return 0.5; // Neutral if no location data
     }
@@ -141,11 +200,8 @@ function calculateLocationScore(artist, preferences) {
 
 /**
  * Calculate budget score
- * @param {Object} artist - Artist data
- * @param {Object} preferences - User preferences
- * @returns {number} Budget score (0-1)
  */
-function calculateBudgetScore(artist, preferences) {
+function calculateBudgetScore(artist: MatchedArtist, preferences: QueryPreferences): number {
     if (!preferences.budget || !artist.hourlyRate) {
         return 0.5; // Neutral if no budget data
     }
@@ -164,17 +220,14 @@ function calculateBudgetScore(artist, preferences) {
 
 /**
  * Calculate style alignment score
- * @param {Object} artist - Artist data
- * @param {Object} preferences - User preferences
- * @returns {number} Style alignment score (0-1)
  */
-function calculateStyleScore(artist, preferences) {
+function calculateStyleScore(artist: MatchedArtist, preferences: QueryPreferences): number {
     if (!preferences.styles || preferences.styles.length === 0 || !artist.styles) {
         return 0.5; // Neutral if no style preferences
     }
 
     const matchingStyles = artist.styles.filter(style =>
-        preferences.styles.some(prefStyle =>
+        preferences.styles!.some(prefStyle =>
             prefStyle.toLowerCase() === style.toLowerCase()
         )
     );
@@ -184,13 +237,12 @@ function calculateStyleScore(artist, preferences) {
 
 /**
  * Find matching artists using hybrid vector-graph approach
- * 
- * @param {string} query - User's search query (e.g., "Cyberpunk Gohan")
- * @param {Object} preferences - User preferences (location, styles, budget, etc.)
- * @param {number} maxResults - Maximum number of results to return
- * @returns {Promise<Object>} { matches: Array, totalCandidates: number }
  */
-export async function findMatchingArtists(query, preferences = {}, maxResults = 10) {
+export async function findMatchingArtists(
+    query: string,
+    preferences: QueryPreferences = {},
+    maxResults: number = 10
+): Promise<MatchResult> {
     const startTime = performance.now();
     const TIMEOUT_MS = 500;
 
@@ -206,7 +258,7 @@ export async function findMatchingArtists(query, preferences = {}, maxResults = 
     console.log('[HybridMatch] Executing hybrid search:', { query, preferences });
 
     // Create timeout promise
-    const timeoutPromise = new Promise((_, reject) => {
+    const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => {
             reject(new Error(`Query timeout: exceeded ${TIMEOUT_MS}ms limit`));
         }, TIMEOUT_MS);
@@ -218,7 +270,7 @@ export async function findMatchingArtists(query, preferences = {}, maxResults = 
 
         // Execute with timeout
         const result = await Promise.race([
-            (async () => {
+            (async (): Promise<MatchResult> => {
                 const vectorStart = performance.now();
 
                 // Execute vector and graph queries in parallel
@@ -241,9 +293,9 @@ export async function findMatchingArtists(query, preferences = {}, maxResults = 
                 console.log(`[HybridMatch] Merged results: ${mergedResults.length}`);
 
                 // Calculate composite scores for each artist
-                const scoredArtists = mergedResults.map(artist => {
+                const scoredArtists = mergedResults.map((artist: any): MatchedArtist => {
                     // Gather all scoring signals
-                    const signals = {
+                    const signals: ScoreSignals = {
                         visualSimilarity: artist.visualSimilarity || 0,
                         styleAlignment: calculateStyleScore(artist, preferences),
                         location: calculateLocationScore(artist, preferences),
@@ -317,22 +369,23 @@ export async function findMatchingArtists(query, preferences = {}, maxResults = 
 
     } catch (error) {
         const totalTime = performance.now() - startTime;
+        const message = error instanceof Error ? error.message : 'Unknown error';
 
         // Check if it's a timeout error
-        if (error.message.includes('timeout')) {
+        if (message.includes('timeout')) {
             console.error(`[HybridMatch] Query timeout after ${totalTime.toFixed(0)}ms:`, { query, preferences });
             throw new Error(`Search timeout: Query exceeded ${TIMEOUT_MS}ms limit. Try simplifying your search.`);
         }
 
-        console.error('[HybridMatch] Error in findMatchingArtists:', error);
-        throw new Error(`Hybrid matching failed: ${error.message}`);
+        console.error('[HybridMatch] Error in findMatchingArtists:', message);
+        throw new Error(`Hybrid matching failed: ${message}`);
     }
 }
 
 /**
  * Clean up expired cache entries
  */
-function cleanCache() {
+function cleanCache(): void {
     const now = Date.now();
     for (const [key, value] of queryCache.entries()) {
         if (now - value.timestamp > CACHE_TTL) {
@@ -344,16 +397,15 @@ function cleanCache() {
 /**
  * Clear the query cache (useful for testing or manual refresh)
  */
-export function clearCache() {
+export function clearCache(): void {
     queryCache.clear();
     console.log('[HybridMatch] Cache cleared');
 }
 
 /**
  * Get cache statistics
- * @returns {Object} Cache stats
  */
-export function getCacheStats() {
+export function getCacheStats(): { size: number; ttl: number; entries: string[] } {
     return {
         size: queryCache.size,
         ttl: CACHE_TTL,

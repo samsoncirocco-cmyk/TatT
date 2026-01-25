@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
 import crypto from 'crypto';
-// @ts-ignore
-import { uploadToGCS } from '@/services/gcs-service.js';
+import { uploadToGCS, type GCSUploadResult } from '@/services/gcs-service';
 
 export const runtime = 'nodejs';
 

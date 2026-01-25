@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
-// @ts-ignore
-import { findMatchingArtists } from '@/services/hybridMatchService.js';
+import { findMatchingArtists, type MatchResult } from '@/services/hybridMatchService';
 
 // Edge runtime compatible (Neo4j driver is accessed via HTTP proxy service)
 export const runtime = 'edge';
@@ -32,7 +31,7 @@ export async function POST(req: NextRequest) {
 
         // Execute hybrid matching
         const startTime = Date.now();
-        const result = await findMatchingArtists(query, preferences, max_results) as any;
+        const result: MatchResult = await findMatchingArtists(query, preferences, max_results);
         const duration = Date.now() - startTime;
 
         console.log(`[API] Semantic match completed in ${duration}ms, found ${result.matches.length} matches`);
@@ -47,8 +46,9 @@ export async function POST(req: NextRequest) {
             }
         });
 
-    } catch (error: any) {
-        console.error('[API] Semantic match error:', error);
-        return NextResponse.json({ error: 'Semantic matching failed', details: error.message }, { status: 500 });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('[API] Semantic match error:', message);
+        return NextResponse.json({ error: 'Semantic matching failed', details: message }, { status: 500 });
     }
 }
