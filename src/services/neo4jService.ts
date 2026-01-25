@@ -1,12 +1,20 @@
 /**
  * Neo4j Service
- * 
+ *
  * Handles Neo4j database queries for artist matching.
  * Provides a feature-flagged alternative to JS-based matching.
  */
 
+// ============================================================================
+// Configuration
+// ============================================================================
+
 const NEO4J_ENABLED = process.env.NEXT_PUBLIC_NEO4J_ENABLED === 'true';
 const NEO4J_ENDPOINT = process.env.NEXT_PUBLIC_NEO4J_ENDPOINT || '/api/neo4j/query';
+
+// ============================================================================
+// Constants
+// ============================================================================
 
 /**
  * Relationship type constants
@@ -16,15 +24,98 @@ export const INFLUENCE_TYPES = {
   TECHNIQUE: 'technique_influence',
   PHILOSOPHY: 'philosophy_influence',
   COMPOSITION: 'composition_influence'
-};
+} as const;
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface MatchPreferences {
+  styles?: string[];
+  location?: string;
+  budget?: number;
+  keywords?: string[];
+  style?: string;
+  bodyPart?: string;
+  limit?: number;
+}
+
+export interface Artist {
+  id: string | number;
+  name: string;
+  city?: string;
+  location?: string;
+  styles?: string[];
+  bodyParts?: string[];
+  hourlyRate?: number;
+  portfolio?: string[];
+  portfolioImages?: string[];
+  instagram?: string;
+  embedding_id?: string;
+  tags?: string[];
+  yearsExperience?: number;
+}
+
+export interface MatchedArtist extends Artist {
+  score: number;
+  matchScore?: number;
+  reasons?: string[];
+}
+
+export interface PulsePreferences {
+  style?: string;
+  bodyPart?: string;
+  location?: string;
+  limit?: number;
+}
+
+export interface MentorInfo {
+  id: string;
+  name: string;
+  startYear?: number;
+  endYear?: number;
+}
+
+export interface ApprenticeInfo {
+  id: string;
+  name: string;
+  yearsExperience?: number;
+  startYear?: number;
+  endYear?: number;
+}
+
+export interface ArtistGenealogy {
+  artist: {
+    id: string;
+    name: string;
+  };
+  directMentor: MentorInfo | null;
+  mentorChain: Array<{ id: string; name: string }>;
+  apprentices: ApprenticeInfo[];
+}
+
+export interface InfluencedArtist {
+  id: string;
+  name: string;
+  influence_type: string;
+  strength: number;
+}
+
+interface CypherQueryParams {
+  [key: string]: unknown;
+}
+
+// ============================================================================
+// Internal Functions
+// ============================================================================
 
 /**
  * Execute a read-only Cypher query via proxy
- * @param {string} query - Cypher query string
- * @param {Object} params - Query parameters
- * @returns {Promise<Array>} Query results
+ * @param query - Cypher query string
+ * @param params - Query parameters
+ * @returns Query results
  */
-async function executeCypherQuery(query, params = {}) {
+async function executeCypherQuery(query: string, params: CypherQueryParams = {}): Promise<any[]> {
   if (!NEO4J_ENABLED) {
     throw new Error('Neo4j integration is not enabled. Set VITE_NEO4J_ENABLED=true');
   }
@@ -53,41 +144,77 @@ async function executeCypherQuery(query, params = {}) {
 }
 
 /**
- * Find matching artists using Neo4j Cypher
- * @param {Object} preferences - User preferences
- * @returns {Promise<Array>} Matched artists with scores
+ * Generate human-readable match reasons
+ * @param artist - Artist record
+ * @param preferences - User preferences
+ * @returns Match reasons
  */
-export async function findMatchingArtists(preferences) {
+function generateMatchReasons(artist: any, preferences: MatchPreferences): string[] {
+  const reasons: string[] = [];
+
+  // Style matches
+  if (preferences.styles && artist.styles) {
+    const matchingStyles = preferences.styles.filter(s =>
+      artist.styles.includes(s)
+    );
+    if (matchingStyles.length > 0) {
+      reasons.push(`Specializes in ${matchingStyles.join(', ')}`);
+    }
+  }
+
+  // Location match
+  if (preferences.location && artist.city === preferences.location) {
+    reasons.push(`Located in ${artist.city}`);
+  }
+
+  // Budget fit
+  if (preferences.budget && artist.hourlyRate && artist.hourlyRate <= preferences.budget) {
+    reasons.push('Within your budget');
+  }
+
+  return reasons.length > 0 ? reasons : ['Explore this artist'];
+}
+
+// ============================================================================
+// Public API
+// ============================================================================
+
+/**
+ * Find matching artists using Neo4j Cypher
+ * @param preferences - User preferences
+ * @returns Matched artists with scores
+ */
+export async function findMatchingArtists(preferences: MatchPreferences): Promise<MatchedArtist[]> {
   const { styles = [], location, budget, keywords = [] } = preferences;
 
   // Cypher query for artist matching
   // This leverages Neo4j's graph capabilities for efficient matching
   const query = `
     MATCH (a:Artist)
-    WHERE 
+    WHERE
       // Style matching
       (size($styles) = 0 OR any(style IN $styles WHERE style IN a.styles))
-      
+
       // Location matching (city-based for now)
       AND ($location IS NULL OR a.city = $location OR a.city CONTAINS $location)
-      
+
       // Budget matching (optional filter)
       AND ($budget IS NULL OR a.hourlyRate <= $budget * 1.5)
-    
+
     // Calculate match score using Cypher
     WITH a,
       // Style overlap score (40%)
-      CASE 
+      CASE
         WHEN size($styles) = 0 THEN 0.4
         ELSE size([style IN $styles WHERE style IN a.styles]) * 0.4 / size($styles)
       END AS styleScore,
-      
+
       // Keyword match score (25%)
       CASE
         WHEN size($keywords) = 0 THEN 0.125
         ELSE size([kw IN $keywords WHERE any(tag IN a.tags WHERE toLower(tag) CONTAINS toLower(kw))]) * 0.25 / size($keywords)
       END AS keywordScore,
-      
+
       // Location score (15%)
       CASE
         WHEN $location IS NULL THEN 0.075
@@ -95,7 +222,7 @@ export async function findMatchingArtists(preferences) {
         WHEN a.city CONTAINS $location THEN 0.1
         ELSE 0.05
       END AS locationScore,
-      
+
       // Budget score (10%)
       CASE
         WHEN $budget IS NULL THEN 0.05
@@ -103,16 +230,16 @@ export async function findMatchingArtists(preferences) {
         WHEN a.hourlyRate <= $budget * 1.5 THEN 0.05
         ELSE 0.02
       END AS budgetScore,
-      
+
       // Random variety (10%)
       rand() * 0.1 AS randomScore
-    
+
     // Calculate total score
-    WITH a, 
+    WITH a,
       (styleScore + keywordScore + locationScore + budgetScore + randomScore) AS totalScore
-    
+
     // Return top matches
-    RETURN 
+    RETURN
       a.id AS id,
       a.name AS name,
       a.city AS city,
@@ -153,10 +280,10 @@ export async function findMatchingArtists(preferences) {
 
 /**
  * Match Pulse query optimized for sidebar updates
- * @param {Object} preferences - Match context
- * @returns {Promise<Array>} Matched artists
+ * @param preferences - Match context
+ * @returns Matched artists
  */
-export async function findArtistMatchesForPulse(preferences) {
+export async function findArtistMatchesForPulse(preferences: PulsePreferences): Promise<Artist[]> {
   const { style, bodyPart, location, limit = 20 } = preferences;
 
   const query = `
@@ -226,51 +353,19 @@ export async function findArtistMatchesForPulse(preferences) {
 }
 
 /**
- * Generate human-readable match reasons
- * @param {Object} artist - Artist record
- * @param {Object} preferences - User preferences
- * @returns {Array<string>} Match reasons
- */
-function generateMatchReasons(artist, preferences) {
-  const reasons = [];
-
-  // Style matches
-  if (preferences.styles && artist.styles) {
-    const matchingStyles = preferences.styles.filter(s =>
-      artist.styles.includes(s)
-    );
-    if (matchingStyles.length > 0) {
-      reasons.push(`Specializes in ${matchingStyles.join(', ')}`);
-    }
-  }
-
-  // Location match
-  if (preferences.location && artist.city === preferences.location) {
-    reasons.push(`Located in ${artist.city}`);
-  }
-
-  // Budget fit
-  if (preferences.budget && artist.hourlyRate <= preferences.budget) {
-    reasons.push('Within your budget');
-  }
-
-  return reasons.length > 0 ? reasons : ['Explore this artist'];
-}
-
-/**
  * Check if Neo4j integration is enabled
- * @returns {boolean} True if Neo4j is enabled
+ * @returns True if Neo4j is enabled
  */
-export function isNeo4jEnabled() {
+export function isNeo4jEnabled(): boolean {
   return NEO4J_ENABLED;
 }
 
 /**
  * Get artist by ID from Neo4j
- * @param {string} artistId - Artist ID
- * @returns {Promise<Object>} Artist data
+ * @param artistId - Artist ID
+ * @returns Artist data
  */
-export async function getArtistById(artistId) {
+export async function getArtistById(artistId: string): Promise<Artist | null> {
   const query = `
     MATCH (a:Artist {id: $artistId})
     RETURN a
@@ -282,10 +377,10 @@ export async function getArtistById(artistId) {
 
 /**
  * Get multiple artists by ID
- * @param {Array<string|number>} artistIds - Artist IDs
- * @returns {Promise<Array>} Artist data
+ * @param artistIds - Artist IDs
+ * @returns Artist data
  */
-export async function getArtistsByIds(artistIds = []) {
+export async function getArtistsByIds(artistIds: Array<string | number> = []): Promise<Artist[]> {
   if (!artistIds.length) return [];
 
   const query = `
@@ -322,27 +417,27 @@ export async function getArtistsByIds(artistIds = []) {
 
 /**
  * Get artist genealogy (mentor chain and apprentices)
- * @param {string} artistId - Artist ID
- * @returns {Promise<Object>} Genealogy data with mentor chain and apprentices
+ * @param artistId - Artist ID
+ * @returns Genealogy data with mentor chain and apprentices
  */
-export async function getArtistGenealogy(artistId) {
+export async function getArtistGenealogy(artistId: string): Promise<ArtistGenealogy | null> {
   const query = `
     MATCH (a:Artist {id: $artistId})
-    
+
     // Get direct mentor
     OPTIONAL MATCH (a)-[r:APPRENTICED_UNDER]->(directMentor:Artist)
-    WITH a, 
+    WITH a,
          CASE WHEN directMentor IS NOT NULL THEN {
            id: directMentor.id,
            name: directMentor.name,
            startYear: r.start_year,
            endYear: r.end_year
          } ELSE null END as directMentor
-    
+
     // Get all mentors in chain (up to 5 levels deep)
     OPTIONAL MATCH path = (a)-[:APPRENTICED_UNDER*1..5]->(mentor:Artist)
     WITH a, directMentor, collect(DISTINCT { id: mentor.id, name: mentor.name }) as mentorChain
-    
+
     // Get direct apprentices
     OPTIONAL MATCH (apprentice:Artist)-[apprRel:APPRENTICED_UNDER]->(a)
     WITH a, directMentor, mentorChain,
@@ -353,7 +448,7 @@ export async function getArtistGenealogy(artistId) {
            startYear: apprRel.start_year,
            endYear: apprRel.end_year
          }) as apprentices
-    
+
     RETURN {
       artist: {
         id: a.id,
@@ -371,10 +466,10 @@ export async function getArtistGenealogy(artistId) {
 
 /**
  * Get artists influenced by a specific artist
- * @param {string} artistId - Artist ID (the influencer)
- * @returns {Promise<Array>} List of artists influenced by this artist
+ * @param artistId - Artist ID (the influencer)
+ * @returns List of artists influenced by this artist
  */
-export async function getInfluencedArtists(artistId) {
+export async function getInfluencedArtists(artistId: string): Promise<InfluencedArtist[]> {
   const query = `
     MATCH (influencer:Artist {id: $artistId})
     MATCH (artist:Artist)-[r:INFLUENCED_BY]->(influencer)
@@ -393,10 +488,10 @@ export async function getInfluencedArtists(artistId) {
 
 /**
  * Find artists by embedding IDs (batch lookup)
- * @param {Array<string>} embeddingIds - Array of embedding IDs
- * @returns {Promise<Array>} Artists with matching embedding IDs
+ * @param embeddingIds - Array of embedding IDs
+ * @returns Artists with matching embedding IDs
  */
-export async function findArtistsByEmbeddingIds(embeddingIds) {
+export async function findArtistsByEmbeddingIds(embeddingIds: string[]): Promise<Artist[]> {
   if (!Array.isArray(embeddingIds) || embeddingIds.length === 0) {
     return [];
   }
@@ -414,11 +509,11 @@ export async function findArtistsByEmbeddingIds(embeddingIds) {
 
 /**
  * Update artist embedding ID (link artist to vector embedding)
- * @param {string} artistId - Artist ID
- * @param {string} embeddingId - Embedding ID
- * @returns {Promise<boolean>} Success status
+ * @param artistId - Artist ID
+ * @param embeddingId - Embedding ID
+ * @returns Success status
  */
-export async function updateArtistEmbeddingId(artistId, embeddingId) {
+export async function updateArtistEmbeddingId(artistId: string, embeddingId: string): Promise<boolean> {
   const query = `
     MATCH (a:Artist {id: $artistId})
     SET a.embedding_id = $embeddingId
@@ -429,7 +524,7 @@ export async function updateArtistEmbeddingId(artistId, embeddingId) {
     const results = await executeCypherQuery(query, { artistId, embeddingId });
     return results.length > 0;
   } catch (error) {
-    console.warn('[Neo4j] Failed to update artist embedding ID:', error.message);
+    console.warn('[Neo4j] Failed to update artist embedding ID:', (error as Error).message);
     return false;
   }
 }
