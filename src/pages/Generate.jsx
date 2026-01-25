@@ -1037,7 +1037,7 @@ export default function Generate() {
         <div className={ENABLE_STUDIO_LAYOUT ? '' : 'lg:col-span-3 xl:col-span-3 2xl:col-span-2'}>
             <div
                 id="forge-placement"
-                className="glass-panel rounded-2xl p-4 border border-white/10 sticky top-24"
+                className="studio-glass rounded-2xl p-4 border border-white/10 sticky top-24"
             >
                 <BodyPartSelector
                     selectedBodyPart={bodyPart}
@@ -1051,7 +1051,7 @@ export default function Generate() {
     const centerPanel = (
         <div className={`${ENABLE_STUDIO_LAYOUT ? '' : 'lg:col-span-9 xl:col-span-9 2xl:col-span-7'} flex flex-col gap-6`}>
             {/* Canvas */}
-            <div className="glass-panel rounded-3xl p-6 border border-white/10">
+            <div className="studio-glass rounded-3xl p-6 border border-white/10">
                 <div className="relative group w-full h-full">
                     <ForgeCanvas
                         bodyPart={bodyPart}
@@ -1198,7 +1198,7 @@ export default function Generate() {
             </div>
 
             {/* Prompt Interface */}
-            <div id="forge-prompt" className="glass-panel rounded-3xl p-8 border border-white/10">
+            <div id="forge-prompt" className="studio-glass rounded-3xl p-8 border border-white/10">
                 <div className="mb-6">
                     <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-[0.3em] text-white/50">
                         <span>Placement</span>
@@ -1370,7 +1370,7 @@ export default function Generate() {
                 context={matchContext}
             />
 
-            <div className="glass-panel rounded-2xl border border-white/10 h-[360px] md:h-[calc(100vh-28rem)]">
+            <div className="studio-glass rounded-2xl border border-white/10 h-[360px] md:h-[calc(100vh-28rem)]">
                 <LayerStack
                     layers={layers}
                     selectedLayerId={selectedLayerId}
@@ -1406,9 +1406,9 @@ export default function Generate() {
     return (
         <div className="min-h-screen pt-16 px-4 pb-32">
             {/* Background Effects */}
-            <div className="fixed inset-0 bg-black -z-20" />
-            <div className="fixed inset-0 bg-gradient-to-br from-blue-950/20 via-black to-black -z-10" />
-            <div className="fixed top-0 right-0 w-[600px] h-[600px] bg-[rgba(0,255,65,0.12)] rounded-full blur-[150px] pointer-events-none -z-10" />
+            <div className="fixed inset-0 bg-studio-bg -z-20" />
+            <div className="fixed inset-0 bg-gradient-to-br from-black via-[#0A0A0B] to-black -z-10" />
+            <div className="fixed top-0 right-0 w-[600px] h-[600px] bg-[rgba(255,62,0,0.12)] rounded-full blur-[150px] pointer-events-none -z-10" />
 
             {/* Header */}
             <div className="text-center mb-12 pt-8" role="banner">
@@ -1437,7 +1437,7 @@ export default function Generate() {
             <div className="max-w-[1560px] mx-auto space-y-10" role="main">
                 <section
                     id="forge-trending"
-                    className="glass-panel rounded-3xl border border-white/10 p-6"
+                    className="studio-glass rounded-3xl border border-white/10 p-6"
                     aria-label="Trending design examples"
                 >
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
@@ -1521,7 +1521,7 @@ export default function Generate() {
 
             {showStencilExport && stencilSourceUrl && (
                 <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-                    <div className="glass-panel border border-white/10 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+                    <div className="studio-glass border border-white/10 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
                         <div className="flex items-center justify-between p-4 border-b border-white/10">
                             <h3 className="text-sm font-bold text-white uppercase tracking-wider">
                                 Stencil Export
@@ -1558,7 +1558,7 @@ export default function Generate() {
 
             {showElementModal && (
                 <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-                    <div className="glass-panel border border-white/10 rounded-2xl max-w-lg w-full">
+                    <div className="studio-glass border border-white/10 rounded-2xl max-w-lg w-full">
                         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
                             <h3 className="text-sm font-bold text-white uppercase tracking-wider">
                                 Add New Element
@@ -1617,7 +1617,7 @@ export default function Generate() {
 
             {restyleLayerId && (
                 <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-                    <div className="glass-panel border border-white/10 rounded-2xl max-w-lg w-full">
+                    <div className="studio-glass border border-white/10 rounded-2xl max-w-lg w-full">
                         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
                             <h3 className="text-sm font-bold text-white uppercase tracking-wider">
                                 Restyle Layer
