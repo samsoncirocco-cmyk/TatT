@@ -102,18 +102,18 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }) {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <div className="glass-panel rounded-3xl border border-white/10 max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="studio-glass rounded-3xl border border-white/10 max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-white/10">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-ducks-green/20 flex items-center justify-center">
-                            <Keyboard className="w-5 h-5 text-ducks-green" />
+                        <div className="w-10 h-10 rounded-full bg-[rgba(0,255,65,0.2)] flex items-center justify-center">
+                            <Keyboard className="w-5 h-5 text-studio-neon" />
                         </div>
                         <div>
                             <h2 className="text-2xl font-display font-black text-white">
                                 Keyboard Shortcuts
                             </h2>
-                            <p className="text-xs font-mono text-ducks-green uppercase tracking-wider">
+                            <p className="text-xs font-mono text-studio-neon uppercase tracking-wider">
                                 Master The Forge
                             </p>
                         </div>
@@ -133,7 +133,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }) {
                         {SHORTCUTS.map((category, idx) => (
                             <div key={idx} className="space-y-4">
                                 {/* Category Title */}
-                                <h3 className="text-sm font-bold text-ducks-green uppercase tracking-wider">
+                                <h3 className="text-sm font-bold text-studio-neon uppercase tracking-wider">
                                     {category.category}
                                 </h3>
 
@@ -178,7 +178,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }) {
                         </p>
                         <button
                             onClick={onClose}
-                            className="px-4 py-2 bg-ducks-yellow text-black font-black text-sm rounded-xl hover:bg-white transition-colors"
+                            className="px-4 py-2 bg-studio-accent text-white font-black text-sm rounded-xl hover:bg-[rgba(255,62,0,0.9)] transition-colors"
                         >
                             Got it
                         </button>

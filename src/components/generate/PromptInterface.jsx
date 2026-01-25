@@ -39,7 +39,7 @@ export default function PromptInterface({
                     onChange={(e) => onChange(e.target.value)}
                     placeholder='Try: "A samurai cat on a surfboard" or "Gohan fighting Cell in the rain"'
                     maxLength={maxLength}
-                    className="w-full bg-transparent text-3xl md:text-5xl font-display font-bold text-white placeholder-white/10 border-b-2 border-white/10 focus:border-ducks-yellow focus:ring-0 outline-none transition-all resize-none py-6 leading-tight min-h-[120px]"
+                    className="w-full bg-transparent text-3xl md:text-5xl font-display font-bold text-white placeholder-white/10 border-b-2 border-white/10 focus:border-studio-accent focus:ring-0 outline-none transition-all resize-none py-6 leading-tight min-h-[120px]"
                     rows="2"
                 />
 
@@ -59,7 +59,7 @@ export default function PromptInterface({
                     {selectedChips.map((chip, index) => (
                         <span
                             key={index}
-                            className="text-xs bg-ducks-green/10 text-ducks-green border border-ducks-green/30 px-2 py-1 rounded-lg font-medium"
+                            className="text-xs bg-[rgba(0,255,65,0.1)] text-studio-neon border border-[rgba(0,255,65,0.3)] px-2 py-1 rounded-lg font-medium"
                         >
                             {chip}
                         </span>
