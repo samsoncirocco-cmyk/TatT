@@ -7,8 +7,13 @@
   --color-ducks-green: #154733;
   --color-ducks-yellow: #FEE123;
 
+  /* Studio Tokens */
+  --studio-bg: #0A0A0B;
+  --studio-accent: #FF3E00;
+  --studio-neon: #00FF41;
+
   /* Background System */
-  --bg-primary: #000000;
+  --bg-primary: var(--studio-bg);
   --bg-secondary: #0A0A0A;
   --bg-surface: #141414;
   --bg-elevated: #1A1A1A;
@@ -79,7 +84,7 @@ body::before {
 
 /* Headings */
 h1, h2, h3, h4, h5, h6 {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Oxanium', sans-serif;
   font-weight: 700;
   letter-spacing: -0.03em;
 }
@@ -137,6 +142,14 @@ code, pre, .font-mono {
     linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
   background-size: 28px 28px;
+  mix-blend-mode: screen;
+}
+
+.blueprint-grid {
+  background-image:
+    linear-gradient(to right, rgba(0, 255, 65, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 255, 65, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
   mix-blend-mode: screen;
 }
 
