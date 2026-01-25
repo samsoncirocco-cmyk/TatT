@@ -14,20 +14,83 @@
  * Perfect for MVP before implementing backend.
  */
 
-import { 
-  safeLocalStorageGet, 
-  safeLocalStorageSet, 
-  validateDesign, 
-  purgeExpiredDesigns 
+import {
+  safeLocalStorageGet,
+  safeLocalStorageSet,
+  validateDesign,
+  purgeExpiredDesigns,
+  type Design
 } from './storageService.js';
+
+// ============================================================================
+// Constants
+// ============================================================================
 
 const LIBRARY_STORAGE_KEY = 'tattester_design_library';
 const MAX_DESIGNS = 50; // Limit to prevent localStorage overflow
 
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface DesignInput {
+  style?: string;
+  subject?: string;
+  bodyPart?: string;
+  size?: string;
+  [key: string]: unknown;
+}
+
+export interface DesignMetadata {
+  savedAt?: string;
+  updatedAt?: string;
+  prompt?: string;
+  [key: string]: unknown;
+}
+
+export interface DesignUpdate {
+  favorite?: boolean;
+  notes?: string;
+  tags?: string[];
+  metadata?: DesignMetadata;
+  [key: string]: unknown;
+}
+
+export interface LibraryStats {
+  total: number;
+  favorites: number;
+  byStyle: Record<string, number>;
+  byBodyPart: Record<string, number>;
+  capacity: number;
+  remaining: number;
+}
+
+export interface ExportData {
+  version: string;
+  exportedAt: string;
+  designs: Design[];
+}
+
+export interface ImportResult {
+  imported: number;
+  total: number;
+}
+
+// ============================================================================
+// Internal Functions
+// ============================================================================
+
+/**
+ * Generate unique ID
+ */
+function generateId(): string {
+  return `design_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
 /**
  * Design schema
  */
-function createDesign(imageUrl, metadata, userInput) {
+function createDesign(imageUrl: string, metadata: DesignMetadata, userInput: DesignInput): Design {
   return {
     id: generateId(),
     imageUrl,
@@ -42,22 +105,19 @@ function createDesign(imageUrl, metadata, userInput) {
   };
 }
 
-/**
- * Generate unique ID
- */
-function generateId() {
-  return `design_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-}
+// ============================================================================
+// Public API
+// ============================================================================
 
 /**
  * Get all designs from library
  */
-export function getAllDesigns() {
+export function getAllDesigns(): Design[] {
   try {
     // Auto-purge expired designs on read
     purgeExpiredDesigns();
-    
-    const designs = safeLocalStorageGet(LIBRARY_STORAGE_KEY, []);
+
+    const designs = safeLocalStorageGet<Design[]>(LIBRARY_STORAGE_KEY, []);
     return Array.isArray(designs) ? designs : [];
   } catch (error) {
     console.error('[DesignLibrary] Error loading designs:', error);
@@ -68,12 +128,12 @@ export function getAllDesigns() {
 /**
  * Save design to library
  *
- * @param {string} imageUrl - URL or base64 of the image
- * @param {Object} metadata - Design metadata from generation
- * @param {Object} userInput - Original user input
- * @returns {Object} Saved design object
+ * @param imageUrl - URL or base64 of the image
+ * @param metadata - Design metadata from generation
+ * @param userInput - Original user input
+ * @returns Saved design object
  */
-export function saveDesign(imageUrl, metadata, userInput) {
+export function saveDesign(imageUrl: string, metadata: DesignMetadata, userInput: DesignInput): Design {
   try {
     const designs = getAllDesigns();
 
@@ -102,7 +162,7 @@ export function saveDesign(imageUrl, metadata, userInput) {
 
     // Save to localStorage with safety checks
     const result = safeLocalStorageSet(LIBRARY_STORAGE_KEY, designs);
-    
+
     if (!result.success) {
       throw new Error(result.error || 'Failed to save design');
     }
@@ -119,7 +179,7 @@ export function saveDesign(imageUrl, metadata, userInput) {
 /**
  * Get design by ID
  */
-export function getDesignById(designId) {
+export function getDesignById(designId: string): Design | undefined {
   const designs = getAllDesigns();
   return designs.find(d => d.id === designId);
 }
@@ -127,7 +187,7 @@ export function getDesignById(designId) {
 /**
  * Update design
  */
-export function updateDesign(designId, updates) {
+export function updateDesign(designId: string, updates: DesignUpdate): Design {
   try {
     const designs = getAllDesigns();
     const index = designs.findIndex(d => d.id === designId);
@@ -149,7 +209,7 @@ export function updateDesign(designId, updates) {
     };
 
     const result = safeLocalStorageSet(LIBRARY_STORAGE_KEY, designs);
-    
+
     if (!result.success) {
       throw new Error(result.error || 'Failed to update design');
     }
@@ -164,13 +224,13 @@ export function updateDesign(designId, updates) {
 /**
  * Delete design
  */
-export function deleteDesign(designId) {
+export function deleteDesign(designId: string): boolean {
   try {
     const designs = getAllDesigns();
     const filtered = designs.filter(d => d.id !== designId);
 
     const result = safeLocalStorageSet(LIBRARY_STORAGE_KEY, filtered);
-    
+
     if (!result.success) {
       throw new Error(result.error || 'Failed to delete design');
     }
@@ -187,7 +247,7 @@ export function deleteDesign(designId) {
 /**
  * Toggle favorite status
  */
-export function toggleFavorite(designId) {
+export function toggleFavorite(designId: string): Design {
   const design = getDesignById(designId);
   if (!design) throw new Error('Design not found');
 
@@ -199,18 +259,18 @@ export function toggleFavorite(designId) {
 /**
  * Add note to design
  */
-export function addNote(designId, note) {
+export function addNote(designId: string, note: string): Design {
   return updateDesign(designId, { notes: note });
 }
 
 /**
  * Add tags to design
  */
-export function addTags(designId, tags) {
+export function addTags(designId: string, tags: string[]): Design {
   const design = getDesignById(designId);
   if (!design) throw new Error('Design not found');
 
-  const uniqueTags = [...new Set([...design.tags, ...tags])];
+  const uniqueTags = [...new Set([...design.tags || [], ...tags])];
 
   return updateDesign(designId, { tags: uniqueTags });
 }
@@ -218,15 +278,15 @@ export function addTags(designId, tags) {
 /**
  * Get designs by style
  */
-export function getDesignsByStyle(style) {
+export function getDesignsByStyle(style: string): Design[] {
   const designs = getAllDesigns();
-  return designs.filter(d => d.userInput.style === style);
+  return designs.filter(d => d.userInput?.style === style);
 }
 
 /**
  * Get favorite designs
  */
-export function getFavoriteDesigns() {
+export function getFavoriteDesigns(): Design[] {
   const designs = getAllDesigns();
   return designs.filter(d => d.favorite);
 }
@@ -234,7 +294,7 @@ export function getFavoriteDesigns() {
 /**
  * Get recent designs
  */
-export function getRecentDesigns(limit = 10) {
+export function getRecentDesigns(limit: number = 10): Design[] {
   const designs = getAllDesigns();
   return designs.slice(0, limit);
 }
@@ -242,17 +302,17 @@ export function getRecentDesigns(limit = 10) {
 /**
  * Search designs
  */
-export function searchDesigns(query) {
+export function searchDesigns(query: string): Design[] {
   const designs = getAllDesigns();
   const lowerQuery = query.toLowerCase();
 
   return designs.filter(d => {
     const searchableText = [
-      d.userInput.subject,
-      d.userInput.style,
-      d.userInput.bodyPart,
+      d.userInput?.subject,
+      d.userInput?.style,
+      d.userInput?.bodyPart,
       d.notes,
-      ...d.tags
+      ...(d.tags || [])
     ].join(' ').toLowerCase();
 
     return searchableText.includes(lowerQuery);
@@ -262,21 +322,25 @@ export function searchDesigns(query) {
 /**
  * Get library statistics
  */
-export function getLibraryStats() {
+export function getLibraryStats(): LibraryStats {
   const designs = getAllDesigns();
 
-  const styleCount = {};
-  const bodyPartCount = {};
+  const styleCount: Record<string, number> = {};
+  const bodyPartCount: Record<string, number> = {};
   let favoriteCount = 0;
 
   designs.forEach(d => {
     // Count by style
-    const style = d.userInput.style;
-    styleCount[style] = (styleCount[style] || 0) + 1;
+    const style = d.userInput?.style;
+    if (style) {
+      styleCount[style] = (styleCount[style] || 0) + 1;
+    }
 
     // Count by body part
-    const bodyPart = d.userInput.bodyPart;
-    bodyPartCount[bodyPart] = (bodyPartCount[bodyPart] || 0) + 1;
+    const bodyPart = d.userInput?.bodyPart;
+    if (bodyPart) {
+      bodyPartCount[bodyPart] = (bodyPartCount[bodyPart] || 0) + 1;
+    }
 
     // Count favorites
     if (d.favorite) favoriteCount++;
@@ -295,9 +359,9 @@ export function getLibraryStats() {
 /**
  * Export library as JSON
  */
-export function exportLibrary() {
+export function exportLibrary(): void {
   const designs = getAllDesigns();
-  const exportData = {
+  const exportData: ExportData = {
     version: '1.0',
     exportedAt: new Date().toISOString(),
     designs
@@ -320,13 +384,18 @@ export function exportLibrary() {
 /**
  * Import library from JSON
  */
-export function importLibrary(file) {
+export function importLibrary(file: File): Promise<ImportResult> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 
     reader.onload = (event) => {
       try {
-        const importData = JSON.parse(event.target.result);
+        const result = event.target?.result;
+        if (typeof result !== 'string') {
+          throw new Error('Invalid file content');
+        }
+
+        const importData: ExportData = JSON.parse(result);
 
         if (!importData.designs || !Array.isArray(importData.designs)) {
           throw new Error('Invalid library format');
@@ -343,10 +412,10 @@ export function importLibrary(file) {
           )
           .slice(0, MAX_DESIGNS);
 
-        const result = safeLocalStorageSet(LIBRARY_STORAGE_KEY, uniqueDesigns);
-        
-        if (!result.success) {
-          throw new Error(result.error || 'Failed to import library');
+        const saveResult = safeLocalStorageSet(LIBRARY_STORAGE_KEY, uniqueDesigns);
+
+        if (!saveResult.success) {
+          throw new Error(saveResult.error || 'Failed to import library');
         }
 
         resolve({
@@ -366,7 +435,7 @@ export function importLibrary(file) {
 /**
  * Clear entire library
  */
-export function clearLibrary() {
+export function clearLibrary(): boolean {
   if (confirm('Are you sure you want to delete all saved designs? This cannot be undone.')) {
     localStorage.removeItem(LIBRARY_STORAGE_KEY);
     return true;
