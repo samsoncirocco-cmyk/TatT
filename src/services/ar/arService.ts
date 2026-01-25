@@ -1,17 +1,64 @@
 /**
  * AR Service
- * 
+ *
  * Abstracts AR functionality (camera access, stream management, capture).
  * Prepares for MindAR integration while maintaining fallback to simple overlay.
  */
 
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface CameraConstraints {
+  video?: MediaTrackConstraints | boolean;
+  audio?: MediaTrackConstraints | boolean;
+}
+
+export interface DepthCapabilities {
+  isSupported: boolean;
+  type: 'hardware' | 'monocular_fallback';
+  resolution: string;
+}
+
+export type ARSessionStateType =
+  | 'idle'
+  | 'requesting_permission'
+  | 'permission_denied'
+  | 'no_camera'
+  | 'loading'
+  | 'active'
+  | 'calibrating_depth'
+  | 'error';
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+/**
+ * AR Session State
+ */
+export const ARSessionState = {
+  IDLE: 'idle' as const,
+  REQUESTING_PERMISSION: 'requesting_permission' as const,
+  PERMISSION_DENIED: 'permission_denied' as const,
+  NO_CAMERA: 'no_camera' as const,
+  LOADING: 'loading' as const,
+  ACTIVE: 'active' as const,
+  CALIBRATING_DEPTH: 'calibrating_depth' as const,
+  ERROR: 'error' as const
+};
+
+// ============================================================================
+// Public API
+// ============================================================================
+
 /**
  * Request camera access with specified constraints
- * @param {Object} constraints - MediaStream constraints
- * @returns {Promise<MediaStream>} Camera stream
+ * @param constraints - MediaStream constraints
+ * @returns Camera stream
  */
-export async function requestCameraAccess(constraints = {}) {
-  const defaultConstraints = {
+export async function requestCameraAccess(constraints: CameraConstraints = {}): Promise<MediaStream> {
+  const defaultConstraints: MediaStreamConstraints = {
     video: {
       facingMode: 'environment',
       width: { ideal: 1920 },
@@ -19,7 +66,7 @@ export async function requestCameraAccess(constraints = {}) {
     }
   };
 
-  const finalConstraints = {
+  const finalConstraints: MediaStreamConstraints = {
     ...defaultConstraints,
     ...constraints
   };
@@ -29,26 +76,27 @@ export async function requestCameraAccess(constraints = {}) {
     console.log('[AR] Camera access granted');
     return stream;
   } catch (error) {
+    const err = error as DOMException;
     console.error('[AR] Camera access denied:', error);
 
     // Provide user-friendly error messages
-    if (error.name === 'NotAllowedError') {
+    if (err.name === 'NotAllowedError') {
       throw new Error('Camera permission denied. Please allow camera access in your browser settings.');
-    } else if (error.name === 'NotFoundError') {
+    } else if (err.name === 'NotFoundError') {
       throw new Error('No camera found. Please connect a camera and try again.');
-    } else if (error.name === 'NotReadableError') {
+    } else if (err.name === 'NotReadableError') {
       throw new Error('Camera is already in use by another application.');
     } else {
-      throw new Error(`Failed to access camera: ${error.message}`);
+      throw new Error(`Failed to access camera: ${err.message}`);
     }
   }
 }
 
 /**
  * Stop all tracks in a media stream
- * @param {MediaStream} stream - Stream to stop
+ * @param stream - Stream to stop
  */
-export function stopCameraStream(stream) {
+export function stopCameraStream(stream: MediaStream | null | undefined): void {
   if (!stream) return;
 
   stream.getTracks().forEach(track => {
@@ -59,11 +107,11 @@ export function stopCameraStream(stream) {
 
 /**
  * Attach stream to video element
- * @param {HTMLVideoElement} videoElement - Video element
- * @param {MediaStream} stream - Camera stream
- * @returns {Promise<void>} Resolves when video is ready
+ * @param videoElement - Video element
+ * @param stream - Camera stream
+ * @returns Resolves when video is ready
  */
-export function attachStreamToVideo(videoElement, stream) {
+export function attachStreamToVideo(videoElement: HTMLVideoElement, stream: MediaStream): Promise<void> {
   return new Promise((resolve, reject) => {
     if (!videoElement) {
       reject(new Error('Video element is required'));
@@ -77,8 +125,8 @@ export function attachStreamToVideo(videoElement, stream) {
       resolve();
     };
 
-    videoElement.onerror = (error) => {
-      console.error('[AR] Video error:', error);
+    videoElement.onerror = () => {
+      console.error('[AR] Video error');
       reject(new Error('Failed to load video stream'));
     };
   });
@@ -86,11 +134,11 @@ export function attachStreamToVideo(videoElement, stream) {
 
 /**
  * Capture frame from video element to canvas
- * @param {HTMLVideoElement} videoElement - Video source
- * @param {HTMLCanvasElement} canvasElement - Canvas target
- * @returns {string} Data URL of captured frame
+ * @param videoElement - Video source
+ * @param canvasElement - Canvas target
+ * @returns Data URL of captured frame
  */
-export function captureFrame(videoElement, canvasElement) {
+export function captureFrame(videoElement: HTMLVideoElement, canvasElement: HTMLCanvasElement): string {
   if (!videoElement || !canvasElement) {
     throw new Error('Video and canvas elements are required');
   }
@@ -116,29 +164,29 @@ export function captureFrame(videoElement, canvasElement) {
 
 /**
  * Capture depth frame from video element
- * @param {HTMLVideoElement} videoElement - Video source
- * @returns {Promise<Float32Array>} Raw depth map
+ * @param videoElement - Video source
+ * @returns Raw depth map
  */
-export async function captureDepthFrame(videoElement) {
+export async function captureDepthFrame(videoElement: HTMLVideoElement): Promise<Float32Array> {
   if (!videoElement) {
     throw new Error('Video element required');
   }
 
   // Import depth service dynamically to avoid circular dependencies if any
-  const { getDepthMap } = await import('./depthMappingService');
+  const { getDepthMap } = await import('./depthMappingService.js');
   return getDepthMap(videoElement);
 }
 
 /**
  * Check if device supports depth sensing
- * @returns {Promise<Object>} Depth capabilities
+ * @returns Depth capabilities
  */
-export async function getDepthSensorCapabilities() {
+export async function getDepthSensorCapabilities(): Promise<DepthCapabilities> {
   // Most browsers don't expose this directly yet without WebXR
   // We check for userMedia constraints that might indicate depth support
   const supportsDepth = 'mediaDevices' in navigator &&
     'getSupportedConstraints' in navigator.mediaDevices &&
-    navigator.mediaDevices.getSupportedConstraints().depth;
+    (navigator.mediaDevices.getSupportedConstraints() as any).depth;
 
   return {
     isSupported: !!supportsDepth,
@@ -149,17 +197,17 @@ export async function getDepthSensorCapabilities() {
 
 /**
  * Check if device supports camera access
- * @returns {boolean} True if camera API is available
+ * @returns True if camera API is available
  */
-export function isCameraSupported() {
+export function isCameraSupported(): boolean {
   return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
 }
 
 /**
  * Get available camera devices
- * @returns {Promise<Array>} List of video input devices
+ * @returns List of video input devices
  */
-export async function getAvailableCameras() {
+export async function getAvailableCameras(): Promise<MediaDeviceInfo[]> {
   if (!isCameraSupported()) {
     return [];
   }
@@ -174,18 +222,3 @@ export async function getAvailableCameras() {
     return [];
   }
 }
-
-/**
- * AR Session State
- */
-export const ARSessionState = {
-  IDLE: 'idle',
-  REQUESTING_PERMISSION: 'requesting_permission',
-  PERMISSION_DENIED: 'permission_denied',
-  NO_CAMERA: 'no_camera',
-  LOADING: 'loading',
-  ACTIVE: 'active',
-  CALIBRATING_DEPTH: 'calibrating_depth',
-  ERROR: 'error'
-};
-
