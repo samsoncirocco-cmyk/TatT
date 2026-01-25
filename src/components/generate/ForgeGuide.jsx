@@ -34,7 +34,7 @@ export default function ForgeGuide({
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-mono uppercase tracking-[0.3em] text-ducks-green">
+            <p className="text-xs font-mono uppercase tracking-[0.3em] text-studio-neon">
               Forge Guide
             </p>
             <h2
@@ -64,10 +64,10 @@ export default function ForgeGuide({
           <span className="rounded-full border border-white/10 px-3 py-1">
             Step {stepIndex + 1} of {steps.length}
           </span>
-          {step.targetLabel && (
+            {step.targetLabel && (
             <button
               onClick={() => onJump?.(step.targetId)}
-              className="rounded-full border border-ducks-green/40 px-3 py-1 text-ducks-green hover:text-white hover:border-white/40 transition-colors"
+              className="rounded-full border border-[rgba(0,255,65,0.4)] px-3 py-1 text-studio-neon hover:text-white hover:border-white/40 transition-colors"
             >
               Jump to {step.targetLabel}
             </button>
@@ -78,7 +78,8 @@ export default function ForgeGuide({
           <Button
             onClick={onPrev}
             disabled={stepIndex === 0}
-            className="h-11 px-4 text-xs font-black tracking-wider bg-white/10 text-white hover:bg-white/20 border border-white/10 disabled:opacity-40"
+            variant="outline"
+            className="h-11 px-4 text-xs tracking-wider disabled:opacity-40"
             icon={ArrowLeft}
           >
             Back
@@ -92,7 +93,8 @@ export default function ForgeGuide({
             </button>
             <Button
               onClick={onNext}
-              className="h-11 px-4 text-xs font-black tracking-wider bg-ducks-yellow text-black hover:bg-white"
+              variant="primary"
+              className="h-11 px-4 text-xs tracking-wider"
               icon={ArrowRight}
             >
               {stepIndex === steps.length - 1 ? 'Finish' : 'Next'}

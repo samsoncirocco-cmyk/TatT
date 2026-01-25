@@ -22,7 +22,7 @@ export default function VersionComparison({
 
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="glass-panel border border-white/10 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col" role="dialog" aria-modal="true" aria-label="Version comparison">
+            <div className="studio-glass border border-white/10 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col" role="dialog" aria-modal="true" aria-label="Version comparison">
 
                 {/* Header */}
                 <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-black/30">
@@ -46,7 +46,7 @@ export default function VersionComparison({
                         <div className="flex flex-col h-full">
                             <div className="mb-3 flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                    <span className="bg-blue-500/20 text-blue-200 text-xs font-bold px-2 py-0.5 rounded">
+                                    <span className="bg-[rgba(255,62,0,0.2)] text-studio-accent text-xs font-bold px-2 py-0.5 rounded">
                                         v{versionA.versionNumber}
                                     </span>
                                     <span className="text-sm text-white/50">
@@ -55,7 +55,7 @@ export default function VersionComparison({
                                 </div>
                                 <button
                                     onClick={() => onRestoreA(versionA)}
-                                    className="text-sm text-blue-200 hover:text-white font-medium"
+                                    className="text-sm text-studio-accent hover:text-white font-medium"
                                 >
                                     Restore This
                                 </button>
@@ -79,7 +79,7 @@ export default function VersionComparison({
                         <div className="flex flex-col h-full">
                             <div className="mb-3 flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                    <span className="bg-purple-500/20 text-purple-200 text-xs font-bold px-2 py-0.5 rounded">
+                                    <span className="bg-[rgba(0,255,65,0.2)] text-studio-neon text-xs font-bold px-2 py-0.5 rounded">
                                         v{versionB.versionNumber}
                                     </span>
                                     <span className="text-sm text-white/50">
@@ -88,7 +88,7 @@ export default function VersionComparison({
                                 </div>
                                 <button
                                     onClick={() => onRestoreB(versionB)}
-                                    className="text-sm text-purple-200 hover:text-white font-medium"
+                                    className="text-sm text-studio-neon hover:text-white font-medium"
                                 >
                                     Restore This
                                 </button>
@@ -116,7 +116,7 @@ export default function VersionComparison({
                     <div className="px-6 py-4 border-t border-white/10 bg-black/30 flex items-center justify-center">
                         <button
                             onClick={() => onMerge(versionA, versionB)}
-                            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-ducks-green text-white font-bold tracking-wider hover:bg-ducks-green/90 transition-colors"
+                            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-studio-neon text-black font-bold tracking-wider hover:bg-[rgba(0,255,65,0.9)] transition-colors"
                         >
                             <Merge size={18} />
                             MERGE LAYERS FROM BOTH VERSIONS

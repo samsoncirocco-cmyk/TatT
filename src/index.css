@@ -68,6 +68,24 @@ body {
   min-height: 100vh;
 }
 
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  opacity: 0.03;
+  background-image:
+    linear-gradient(to right, rgba(0, 255, 65, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 255, 65, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+#root {
+  position: relative;
+  z-index: 20;
+}
+
 /* Atmospheric Noise Layer */
 body::before {
   content: "";
@@ -100,13 +118,6 @@ code, pre, .font-mono {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--glass-border);
-}
-
-.studio-glass {
-  background: rgba(10, 10, 11, 0.7);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .surface-panel {
@@ -149,14 +160,6 @@ code, pre, .font-mono {
     linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
   background-size: 28px 28px;
-  mix-blend-mode: screen;
-}
-
-.blueprint-grid {
-  background-image:
-    linear-gradient(to right, rgba(0, 255, 65, 0.03) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0, 255, 65, 0.03) 1px, transparent 1px);
-  background-size: 40px 40px;
   mix-blend-mode: screen;
 }
 

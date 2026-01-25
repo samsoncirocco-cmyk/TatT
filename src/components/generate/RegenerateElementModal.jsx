@@ -56,13 +56,13 @@ export default function RegenerateElementModal({
 
     return (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-            <div className="glass-panel border border-white/10 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="studio-glass border border-white/10 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
 
                 {/* Header */}
                 <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-white/10 bg-black/40 backdrop-blur-xl">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-ducks-green/20 border border-ducks-green/40 flex items-center justify-center">
-                            <RefreshCw size={20} className="text-ducks-green" />
+                        <div className="w-10 h-10 rounded-full bg-[rgba(0,255,65,0.2)] border border-[rgba(0,255,65,0.4)] flex items-center justify-center">
+                            <RefreshCw size={20} className="text-studio-neon" />
                         </div>
                         <div>
                             <h3 className="text-lg font-bold text-white uppercase tracking-wider">
@@ -88,7 +88,7 @@ export default function RegenerateElementModal({
 
                     {/* Current Layer Preview */}
                     <div className="bg-black/30 border border-white/10 rounded-xl p-4">
-                        <p className="text-xs font-mono uppercase tracking-[0.3em] text-ducks-green mb-3">
+                        <p className="text-xs font-mono uppercase tracking-[0.3em] text-studio-neon mb-3">
                             Current Element
                         </p>
                         <div className="flex items-start gap-4">
@@ -111,7 +111,7 @@ export default function RegenerateElementModal({
                                     </span>
                                     <span className={`
                                         px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider
-                                        ${layer.blendMode === 'normal' ? 'bg-white/10 text-white/60' : 'bg-ducks-yellow/20 text-ducks-yellow'}
+                                        ${layer.blendMode === 'normal' ? 'bg-white/10 text-white/60' : 'bg-[rgba(255,62,0,0.2)] text-studio-accent'}
                                     `}>
                                         {layer.blendMode}
                                     </span>
@@ -126,7 +126,7 @@ export default function RegenerateElementModal({
                     {/* Element Prompt */}
                     <div>
                         <label htmlFor="element-prompt" className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-white/60 mb-2">
-                            <Sparkles size={14} className="text-ducks-green" />
+                            <Sparkles size={14} className="text-studio-neon" />
                             Element Description
                         </label>
                         <textarea
@@ -134,7 +134,7 @@ export default function RegenerateElementModal({
                             value={elementPrompt}
                             onChange={(e) => setElementPrompt(e.target.value)}
                             placeholder="e.g., fierce dragon, lightning bolt, ornamental frame"
-                            className="w-full rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-ducks-green/60 transition-all"
+                            className="w-full rounded-xl bg-[var(--studio-bg)] border border-white/[0.05] px-4 py-3 text-sm text-white font-mono placeholder-white/30 focus:outline-none focus:border-studio-neon focus:shadow-[0_0_12px_rgba(0,255,65,0.3)] transition-all"
                             rows={2}
                             disabled={isGenerating}
                         />
@@ -153,7 +153,7 @@ export default function RegenerateElementModal({
                             value={adjustments}
                             onChange={(e) => setAdjustments(e.target.value)}
                             placeholder="e.g., more detail, darker colors, add texture, simplify, sharper lines"
-                            className="w-full rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-ducks-green/60 transition-all"
+                            className="w-full rounded-xl bg-[var(--studio-bg)] border border-white/[0.05] px-4 py-3 text-sm text-white font-mono placeholder-white/30 focus:outline-none focus:border-studio-neon focus:shadow-[0_0_12px_rgba(0,255,65,0.3)] transition-all"
                             rows={2}
                             disabled={isGenerating}
                         />
@@ -170,10 +170,10 @@ export default function RegenerateElementModal({
                                 checked={useOriginalStyle}
                                 onChange={(e) => setUseOriginalStyle(e.target.checked)}
                                 disabled={isGenerating}
-                                className="w-4 h-4 rounded border-white/20 bg-black/40 text-ducks-green focus:ring-2 focus:ring-ducks-green/60 focus:ring-offset-0 transition-all"
+                                className="w-4 h-4 rounded border-white/20 bg-black/40 text-studio-neon focus:ring-2 focus:ring-[rgba(0,255,65,0.4)] focus:ring-offset-0 transition-all"
                             />
                             <div className="flex-1">
-                                <span className="text-sm text-white font-medium group-hover:text-ducks-green transition-colors">
+                                <span className="text-sm text-white font-medium group-hover:text-studio-neon transition-colors">
                                     Preserve original design style
                                 </span>
                                 <p className="text-[10px] text-white/50 mt-0.5">
@@ -195,11 +195,11 @@ export default function RegenerateElementModal({
                     )}
 
                     {/* Info Box */}
-                    <div className="bg-ducks-green/10 border border-ducks-green/30 rounded-xl p-4">
+                    <div className="bg-[rgba(0,255,65,0.1)] border border-[rgba(0,255,65,0.3)] rounded-xl p-4">
                         <div className="flex items-start gap-3">
-                            <Sparkles size={16} className="text-ducks-green flex-shrink-0 mt-0.5" />
+                            <Sparkles size={16} className="text-studio-neon flex-shrink-0 mt-0.5" />
                             <div className="text-[11px] text-white/70 space-y-1">
-                                <p className="font-medium text-ducks-green">Smart Regeneration</p>
+                                <p className="font-medium text-studio-neon">Smart Regeneration</p>
                                 <p>The AI will regenerate this element while preserving layer position, transforms, and blend mode. Your version history will be updated automatically.</p>
                             </div>
                         </div>
@@ -210,14 +210,16 @@ export default function RegenerateElementModal({
                         <Button
                             onClick={onClose}
                             disabled={isGenerating}
-                            className="flex-1 h-12 text-sm font-black tracking-wider bg-white/5 border border-white/10 text-white hover:bg-white/10"
+                            variant="outline"
+                            className="flex-1 h-12 text-sm tracking-wider"
                         >
                             Cancel
                         </Button>
                         <Button
                             onClick={handleSubmit}
                             disabled={!elementPrompt.trim() || isGenerating}
-                            className="flex-1 h-12 text-sm font-black tracking-wider bg-ducks-green text-white hover:bg-ducks-green/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                            variant="primary"
+                            className="flex-1 h-12 text-sm tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
                             icon={RefreshCw}
                         >
                             {isGenerating ? 'REGENERATING...' : 'REGENERATE ELEMENT'}

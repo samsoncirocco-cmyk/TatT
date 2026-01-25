@@ -89,7 +89,7 @@ export default function StencilViewToggle({
                     disabled={isGenerating || !compositeImageUrl}
                     className={`flex-1 h-12 px-4 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
                         isStencilView
-                            ? 'bg-ducks-green text-black'
+                            ? 'bg-studio-neon text-black'
                             : 'bg-white/10 text-white hover:bg-white/20'
                     } disabled:opacity-50 disabled:cursor-not-allowed`}
                     aria-label={isStencilView ? 'Exit stencil view' : 'Enter stencil view'}
@@ -109,7 +109,7 @@ export default function StencilViewToggle({
                         </button>
                         <button
                             onClick={handleDownload}
-                            className="h-12 px-4 rounded-xl font-bold text-sm bg-ducks-yellow text-black hover:bg-white transition-colors flex items-center gap-2"
+                            className="h-12 px-4 rounded-xl font-bold text-sm bg-studio-accent text-white hover:bg-[rgba(255,62,0,0.9)] transition-colors flex items-center gap-2"
                             aria-label="Download stencil"
                         >
                             <Download className="w-4 h-4" />
@@ -196,7 +196,7 @@ export default function StencilViewToggle({
                     <button
                         onClick={handleRegenerate}
                         disabled={isGenerating}
-                        className="w-full h-10 px-4 rounded-xl font-bold text-sm bg-ducks-yellow text-black hover:bg-white transition-colors disabled:opacity-50"
+                        className="w-full h-10 px-4 rounded-xl font-bold text-sm bg-studio-accent text-white hover:bg-[rgba(255,62,0,0.9)] transition-colors disabled:opacity-50"
                     >
                         {isGenerating ? 'Regenerating...' : 'Apply Changes'}
                     </button>
@@ -205,9 +205,9 @@ export default function StencilViewToggle({
 
             {/* Preview Badge */}
             {isStencilView && (
-                <div className="inline-flex items-center gap-2 px-3 py-1 bg-ducks-green/20 border border-ducks-green/30 rounded-full">
-                    <div className="w-2 h-2 rounded-full bg-ducks-green animate-pulse" />
-                    <span className="text-xs font-mono text-ducks-green uppercase tracking-wider">
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-[rgba(0,255,65,0.2)] border border-[rgba(0,255,65,0.3)] rounded-full">
+                    <div className="w-2 h-2 rounded-full bg-studio-neon animate-pulse" />
+                    <span className="text-xs font-mono text-studio-neon uppercase tracking-wider">
                         Stencil Mode
                     </span>
                 </div>

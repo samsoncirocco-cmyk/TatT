@@ -5,18 +5,20 @@ type HolyGrailLayoutProps = {
     center: ReactNode;
     right: ReactNode;
     className?: string;
+    columnsClassName?: string;
 };
 
 export default function HolyGrailLayout({
     left,
     center,
     right,
-    className = ''
+    className = '',
+    columnsClassName = 'grid-cols-[280px_minmax(0,1fr)_320px]'
 }: HolyGrailLayoutProps) {
     return (
         <div
             className={`
-                grid grid-cols-[280px_minmax(0,1fr)_320px] gap-6
+                grid ${columnsClassName} gap-6
                 w-full items-start
                 ${className}
             `}

@@ -26,7 +26,7 @@ export default function ArtistMatchCard({ artist }) {
               </p>
             ) : null}
           </div>
-          <div className="text-xs font-mono text-ducks-yellow" aria-label={`Match score ${Math.round(matchScore)} percent`}>
+          <div className="text-xs font-mono text-studio-accent" aria-label={`Match score ${Math.round(matchScore)} percent`}>
             {Math.round(matchScore)}%
           </div>
         </div>

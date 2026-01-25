@@ -117,10 +117,10 @@ export default function LayerContextMenu({
             aria-label="Layer actions menu"
         >
             {/* Context Menu Panel */}
-            <div className="glass-panel border border-white/10 rounded-xl shadow-2xl min-w-[220px] overflow-hidden backdrop-blur-xl">
+            <div className="studio-glass border border-white/10 rounded-xl shadow-2xl min-w-[220px] overflow-hidden backdrop-blur-xl">
                 {/* Layer Info Header */}
                 <div className="px-4 py-3 border-b border-white/10 bg-black/30">
-                    <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-ducks-green">
+                    <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-studio-neon">
                         Layer Actions
                     </p>
                     <p className="text-xs text-white/70 mt-1 truncate font-medium">
@@ -138,22 +138,22 @@ export default function LayerContextMenu({
                                 w-full px-4 py-2.5 flex items-center justify-between gap-3
                                 transition-all duration-150
                                 ${item.primary
-                                    ? 'hover:bg-ducks-green/20 hover:text-ducks-yellow'
+                                    ? 'hover:bg-[rgba(0,255,65,0.15)] hover:text-studio-neon'
                                     : item.highlight
-                                        ? 'hover:bg-ducks-yellow/20 hover:text-ducks-yellow'
+                                        ? 'hover:bg-[rgba(255,62,0,0.15)] hover:text-studio-accent'
                                         : item.danger
                                             ? 'hover:bg-red-500/20 hover:text-red-300'
                                             : 'hover:bg-white/10 hover:text-white'
                                 }
-                                ${item.primary ? 'text-ducks-green' : item.highlight ? 'text-ducks-yellow/90' : item.danger ? 'text-red-400/80' : 'text-white/70'}
-                                focus-visible:outline focus-visible:outline-2 focus-visible:outline-ducks-yellow focus-visible:outline-offset-[-2px]
+                                ${item.primary ? 'text-studio-neon' : item.highlight ? 'text-studio-accent' : item.danger ? 'text-red-400/80' : 'text-white/70'}
+                                focus-visible:outline focus-visible:outline-2 focus-visible:outline-studio-accent focus-visible:outline-offset-[-2px]
                             `}
                             role="menuitem"
                         >
                             <div className="flex items-center gap-3">
                                 <item.icon
                                     size={16}
-                                    className={item.primary ? 'text-ducks-green' : item.highlight ? 'text-ducks-yellow' : item.danger ? 'text-red-400' : 'text-white/60'}
+                                    className={item.primary ? 'text-studio-neon' : item.highlight ? 'text-studio-accent' : item.danger ? 'text-red-400' : 'text-white/60'}
                                 />
                                 <span className="text-sm font-medium tracking-wide">
                                     {item.label}

@@ -1,9 +1,42 @@
 import { useState, useCallback, useEffect } from 'react';
 import * as versionService from '../services/versionService';
 
-export function useVersionHistory(sessionId) {
-    const [versions, setVersions] = useState([]);
-    const [currentVersionId, setCurrentVersionId] = useState(null);
+// Types
+export interface DesignVersion {
+    id: string;
+    timestamp: string;
+    prompt?: string;
+    enhancedPrompt?: string;
+    parameters?: Record<string, any>;
+    layers?: any[];
+    imageUrl?: string;
+    branchedFrom?: {
+        sessionId: string;
+        versionId: string;
+        versionNumber: number;
+    };
+    mergedFrom?: {
+        version1: string;
+        version2: string;
+        mergeOptions?: Record<string, any>;
+    };
+    isFavorite?: boolean;
+    [key: string]: any;
+}
+
+interface VersionHistoryReturn {
+    versions: DesignVersion[];
+    currentVersionId: string | null;
+    addVersion: (data: Partial<DesignVersion>) => DesignVersion | undefined;
+    removeVersion: (versionId: string) => void;
+    loadVersion: (versionId: string) => DesignVersion | null;
+    clearHistory: () => void;
+    currentVersion: DesignVersion | null;
+}
+
+export function useVersionHistory(sessionId?: string): VersionHistoryReturn {
+    const [versions, setVersions] = useState<DesignVersion[]>([]);
+    const [currentVersionId, setCurrentVersionId] = useState<string | null>(null);
 
     // Load versions on mount or session change
     useEffect(() => {
@@ -22,7 +55,7 @@ export function useVersionHistory(sessionId) {
         }
     }, [sessionId]);
 
-    const addVersion = useCallback((data) => {
+    const addVersion = useCallback((data: Partial<DesignVersion>) => {
         if (!sessionId) return;
         const newVersion = versionService.addVersion(sessionId, data);
         if (newVersion) {
@@ -32,7 +65,7 @@ export function useVersionHistory(sessionId) {
         }
     }, [sessionId]);
 
-    const removeVersion = useCallback((versionId) => {
+    const removeVersion = useCallback((versionId: string) => {
         if (!sessionId) return;
         const updated = versionService.deleteVersion(sessionId, versionId);
         setVersions(updated);
@@ -42,7 +75,7 @@ export function useVersionHistory(sessionId) {
         }
     }, [sessionId, currentVersionId]);
 
-    const loadVersion = useCallback((versionId) => {
+    const loadVersion = useCallback((versionId: string) => {
         const version = versions.find(v => v.id === versionId);
         if (version) {
             setCurrentVersionId(versionId);

@@ -80,14 +80,14 @@ export default function BlendModeSelector({ value = 'normal', onChange, disabled
                     />
 
                     {/* Menu */}
-                    <div className="absolute top-full left-0 right-0 mt-2 z-20 bg-black border border-white/10 rounded-xl shadow-xl overflow-hidden">
+                    <div className="absolute top-full left-0 right-0 mt-2 z-20 bg-black/90 border border-white/10 rounded-xl shadow-xl overflow-hidden">
                         {BLEND_MODES.map((mode) => (
                             <button
                                 key={mode.value}
                                 onClick={() => handleSelect(mode)}
                                 className={`w-full px-4 py-3 text-left transition-colors ${
                                     mode.value === value
-                                        ? 'bg-ducks-green/20 border-l-2 border-ducks-green'
+                                        ? 'bg-[rgba(0,255,65,0.12)] border-l-2 border-studio-neon'
                                         : 'hover:bg-white/10'
                                 }`}
                             >
@@ -97,7 +97,7 @@ export default function BlendModeSelector({ value = 'normal', onChange, disabled
                                     </span>
                                     {mode.value === value && (
                                         <svg
-                                            className="w-4 h-4 text-ducks-green"
+                                            className="w-4 h-4 text-studio-neon"
                                             fill="currentColor"
                                             viewBox="0 0 20 20"
                                         >

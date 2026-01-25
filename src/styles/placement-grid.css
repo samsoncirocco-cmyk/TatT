@@ -1,0 +1,25 @@
+.placement-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.placement-zone {
+  fill: rgba(0, 255, 65, 0.02);
+  stroke: rgba(255, 255, 255, 0.18);
+  stroke-width: 1;
+  cursor: pointer;
+  transition: fill 0.2s ease, stroke 0.2s ease, filter 0.2s ease;
+}
+
+.placement-zone:hover {
+  fill: rgba(0, 255, 65, 0.08);
+  stroke: rgba(0, 255, 65, 0.4);
+}
+
+.placement-zone.is-active {
+  fill: rgba(0, 255, 65, 0.12);
+  stroke: rgba(0, 255, 65, 0.9);
+  filter: drop-shadow(0 0 12px rgba(0, 255, 65, 0.6));
+  animation: neon-pulse 2s infinite;
+}

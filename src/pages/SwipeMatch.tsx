@@ -5,38 +5,70 @@ import { calculateMatches, trackSwipe } from '../utils/matching';
 import artistsData from '../data/artists.json';
 import Button from '../components/ui/Button';
 
+// Types
+interface Artist {
+  id: string;
+  name: string;
+  shopName?: string;
+  portfolioImages: string[];
+  score?: number;
+  reasons?: string[];
+  [key: string]: any;
+}
+
+interface Preferences {
+  styles: string[];
+  keywords: string;
+  budget: number;
+  distance: number;
+  location: string;
+}
+
+interface LocationState {
+  preferences?: Preferences;
+  useSemanticSearch?: boolean;
+  initialMatches?: Artist[];
+}
+
+type SwipeDirection = 'left' | 'right' | 'up' | 'down';
+
 function SwipeMatch() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [artists, setArtists] = useState([]);
+  const [artists, setArtists] = useState<Artist[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [likedArtists, setLikedArtists] = useState([]);
-  const [error, setError] = useState(null);
+  const [likedArtists, setLikedArtists] = useState<Artist[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     try {
       // Mock data loading if no state preferences for dev/preview
       // In prod, strict redirect would be here
-      if (!location.state || !location.state.preferences) {
+      const state = location.state as LocationState;
+
+      if (!state || !state.preferences) {
         // Fallback for development preview if direct access
-        const allArtists = artistsData.artists || [];
+        const allArtists = (artistsData.artists as unknown as Artist[]) || [];
         if (allArtists.length > 0) {
-          setArtists(allArtists.slice(0, 10)); // Show top 10
+          setArtists(allArtists.slice(0, 10) as any as Artist[]); // Show top 10
           setCurrentIndex(Math.min(9, allArtists.length - 1));
           setIsLoading(false);
           return;
         }
       }
 
-      const preferences = location.state?.preferences;
+      const preferences = state?.preferences;
       if (!artistsData || !artistsData.artists) {
         setError('Artist data registry offline.');
         setIsLoading(false);
         return;
       }
 
-      const matchedArtists = preferences ? calculateMatches(preferences, artistsData.artists) : artistsData.artists;
+      const matchedArtists: Artist[] = preferences
+        ? calculateMatches(preferences, artistsData.artists as any[]) as any as Artist[]
+        : (artistsData.artists as any as Artist[]);
+
       if (matchedArtists.length === 0) {
         setError('No artists found matching your biometric intent.');
         setIsLoading(false);
@@ -52,11 +84,11 @@ function SwipeMatch() {
     }
   }, [location.state, navigate]);
 
-  const swiped = (direction, artist) => {
+  const swiped = (direction: SwipeDirection, artist: Artist) => {
     if (direction === 'right') {
       setLikedArtists((prev) => [...prev, artist]);
     }
-    trackSwipe('user-123', artist.id, direction, artist.score || 85);
+    trackSwipe(artist.id, direction, 'user-123');
     setCurrentIndex((prev) => prev - 1);
   };
 
@@ -85,6 +117,7 @@ function SwipeMatch() {
               onClick={() => navigate('/smart-match')}
               variant="secondary"
               className="w-full text-xs"
+              icon={undefined}
             >
               Adjust Biometric Intent
             </Button>
@@ -105,7 +138,7 @@ function SwipeMatch() {
         {artists.map((artist, index) => (
           <TinderCard
             key={artist.id}
-            onSwipe={(dir) => swiped(dir, artist)}
+            onSwipe={(dir) => swiped(dir as SwipeDirection, artist)}
             preventSwipe={['up', 'down']}
             className="absolute w-full h-full"
           >
@@ -179,6 +212,7 @@ function SwipeMatch() {
             variant="primary"
             size="lg"
             className="w-full"
+            icon={undefined}
           >
             Access My Matches
           </Button>

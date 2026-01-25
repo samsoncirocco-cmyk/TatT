@@ -1,13 +1,31 @@
 /**
  * useVibeChipSuggestions Hook
- * 
+ *
  * Generate Vibe Chip suggestions based on user input with keyword matching
  */
 
 import { useState, useEffect, useRef } from 'react';
 
+// Types
+interface VibeSuggestions {
+  style: string[];
+  element: string[];
+  mood: string[];
+}
+
+interface KeywordMapping {
+  style?: string[];
+  element?: string[];
+  mood?: string[];
+}
+
+interface UseVibeChipSuggestionsReturn {
+  suggestions: VibeSuggestions;
+  isLoading: boolean;
+}
+
 // Keyword mapping for chip suggestions
-const KEYWORD_MAP = {
+const KEYWORD_MAP: Record<string, KeywordMapping> = {
     // Style triggers
     'dragon': { style: ['Irezumi', 'Traditional'] },
     'flower': { style: ['Watercolor', 'Fine-line'] },
@@ -53,12 +71,19 @@ const KEYWORD_MAP = {
 };
 
 // Cache for performance
-const suggestionCache = new Map();
+const suggestionCache = new Map<string, VibeSuggestions>();
 
-export default function useVibeChipSuggestions(promptText, debounceMs = 300) {
-    const [suggestions, setSuggestions] = useState({ style: [], element: [], mood: [] });
+export default function useVibeChipSuggestions(
+  promptText: string,
+  debounceMs: number = 300
+): UseVibeChipSuggestionsReturn {
+    const [suggestions, setSuggestions] = useState<VibeSuggestions>({
+      style: [],
+      element: [],
+      mood: []
+    });
     const [isLoading, setIsLoading] = useState(false);
-    const debounceTimerRef = useRef(null);
+    const debounceTimerRef = useRef<number | null>(null);
 
     useEffect(() => {
         // Clear previous timer
@@ -76,7 +101,7 @@ export default function useVibeChipSuggestions(promptText, debounceMs = 300) {
         setIsLoading(true);
 
         // Debounce the suggestion generation
-        debounceTimerRef.current = setTimeout(() => {
+        debounceTimerRef.current = window.setTimeout(() => {
             const newSuggestions = generateSuggestions(promptText);
             setSuggestions(newSuggestions);
             setIsLoading(false);
@@ -95,20 +120,20 @@ export default function useVibeChipSuggestions(promptText, debounceMs = 300) {
 /**
  * Generate suggestions based on keyword matching
  */
-function generateSuggestions(promptText) {
+function generateSuggestions(promptText: string): VibeSuggestions {
     // Check cache first
     const cacheKey = promptText.toLowerCase().trim();
     if (suggestionCache.has(cacheKey)) {
-        return suggestionCache.get(cacheKey);
+        return suggestionCache.get(cacheKey)!;
     }
 
     const lowerText = promptText.toLowerCase();
     const words = lowerText.split(/\s+/);
 
     const matchedSuggestions = {
-        style: new Set(),
-        element: new Set(),
-        mood: new Set()
+        style: new Set<string>(),
+        element: new Set<string>(),
+        mood: new Set<string>()
     };
 
     // Check each word against keyword map
@@ -131,7 +156,7 @@ function generateSuggestions(promptText) {
     });
 
     // Convert sets to arrays and limit to 3 per category
-    const result = {
+    const result: VibeSuggestions = {
         style: Array.from(matchedSuggestions.style).slice(0, 3),
         element: Array.from(matchedSuggestions.element).slice(0, 3),
         mood: Array.from(matchedSuggestions.mood).slice(0, 3)
@@ -143,7 +168,9 @@ function generateSuggestions(promptText) {
     // Limit cache size to prevent memory issues
     if (suggestionCache.size > 100) {
         const firstKey = suggestionCache.keys().next().value;
-        suggestionCache.delete(firstKey);
+        if (firstKey) {
+            suggestionCache.delete(firstKey);
+        }
     }
 
     return result;
