@@ -8,9 +8,9 @@ const Card = ({
     ...props
 }) => {
     const variants = {
-        default: 'bg-[#0A0A0A] border-white/8',
-        glass: 'glass-panel',
-        elevated: 'bg-[#141414] border-white/10 shadow-[0_8px_24px_-4px_rgba(0,0,0,0.5)]'
+        default: 'bg-[var(--bg-surface)] border-white/[0.05]',
+        glass: 'studio-glass',
+        elevated: 'bg-[var(--bg-elevated)] border-white/[0.08] shadow-[0_10px_28px_-6px_rgba(0,0,0,0.55)]'
     };
 
     return (
@@ -30,7 +30,7 @@ const Card = ({
             {...props}
         >
             {/* Subtle top highlight */}
-            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/8 to-transparent" />
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
             {/* Content with proper z-index */}
             <div className="relative z-10">

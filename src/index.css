@@ -102,6 +102,13 @@ code, pre, .font-mono {
   border: 1px solid var(--glass-border);
 }
 
+.studio-glass {
+  background: rgba(10, 10, 11, 0.7);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
 .surface-panel {
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
