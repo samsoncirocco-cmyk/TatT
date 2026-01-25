@@ -3,29 +3,29 @@ import { Loader2 } from 'lucide-react';
 
 const variants = {
     primary: `
-        bg-ducks-yellow text-black font-black
-        border border-ducks-yellow
-        hover:bg-white hover:border-white
-        active:bg-ducks-yellow/90
-        shadow-[0_4px_14px_0_rgba(254,225,35,0.3)]
-        hover:shadow-[0_6px_20px_0_rgba(254,225,35,0.4)]
+        bg-studio-accent text-white font-bold
+        border border-studio-accent/80
+        hover:bg-studio-accent/90 hover:border-studio-accent
+        active:bg-studio-accent/80
+        shadow-[0_6px_18px_0_rgba(255,62,0,0.35)]
+        hover:shadow-[0_8px_24px_0_rgba(255,62,0,0.45)]
     `,
     secondary: `
-        bg-ducks-green text-white font-bold
-        border border-ducks-green
-        hover:bg-ducks-green/90 hover:border-ducks-green/90
-        active:bg-ducks-green/80
-        shadow-[0_4px_14px_0_rgba(21,71,51,0.3)]
-        hover:shadow-[0_6px_20px_0_rgba(21,71,51,0.4)]
+        bg-studio-neon text-black font-bold
+        border border-studio-neon/70
+        hover:bg-studio-neon/90 hover:border-studio-neon
+        active:bg-studio-neon/80
+        shadow-[0_6px_18px_0_rgba(0,255,65,0.3)]
+        hover:shadow-[0_8px_24px_0_rgba(0,255,65,0.45)]
     `,
     outline: `
         bg-transparent text-white font-bold
-        border border-white/20
-        hover:bg-white/10 hover:border-white/40
+        border border-white/15
+        hover:bg-white/10 hover:border-white/30
         active:bg-white/5
     `,
     ghost: `
-        bg-transparent text-gray-400 font-medium
+        bg-transparent text-white/60 font-medium
         border border-transparent
         hover:text-white hover:bg-white/5
         active:bg-white/10
@@ -63,7 +63,7 @@ const Button = ({
                 font-display uppercase tracking-wider rounded-xl
                 transition-all duration-200
                 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none
-                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ducks-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-black
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-neon focus-visible:ring-offset-2 focus-visible:ring-offset-studio-bg
                 ${variants[variant]} ${sizes[size]} ${className}
             `}
             disabled={disabled || isLoading}
