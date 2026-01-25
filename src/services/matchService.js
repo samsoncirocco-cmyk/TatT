@@ -10,7 +10,7 @@ import {
   findArtistMatchesForPulse,
   getArtistsByIds,
   isNeo4jEnabled
-} from './neo4jService.js';
+} from './neo4jService';
 import { findMatchingArtistsForDemo } from './demoMatchService.js';
 
 const RRF_K = 60;

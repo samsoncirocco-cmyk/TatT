@@ -6,8 +6,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import startCrypto from 'crypto';
 import os from 'os';
-// @ts-ignore
-import { uploadLayer, uploadLayerThumbnail } from '@/services/gcs-service.js';
+import { uploadLayer, uploadLayerThumbnail, type GCSUploadResult } from '@/services/gcs-service';
 import { generateMask } from '@/lib/segmentation';
 
 export const runtime = 'nodejs';

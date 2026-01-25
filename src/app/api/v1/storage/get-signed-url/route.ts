@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
-// @ts-ignore
-import { getSignedUrl } from '@/services/gcs-service.js';
+import { getSignedUrl } from '@/services/gcs-service';
 
 export const runtime = 'nodejs';
 
@@ -25,8 +24,9 @@ export async function POST(req: NextRequest) {
             action
         });
 
-    } catch (error: any) {
-        console.error('[Storage] Signed URL failed:', error);
-        return NextResponse.json({ error: 'Signed URL failed', message: error.message }, { status: 500 });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('[Storage] Signed URL failed:', message);
+        return NextResponse.json({ error: 'Signed URL failed', message }, { status: 500 });
     }
 }
