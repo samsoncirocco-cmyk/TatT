@@ -41,7 +41,7 @@ export default function AdvancedOptions({
             {!hideToggle && (
                 <button
                     onClick={onToggle}
-                    className="flex items-center gap-2 text-xs font-mono text-gray-600 hover:text-white transition-colors uppercase tracking-widest mb-4"
+                    className="flex items-center gap-2 text-xs font-mono text-white/40 hover:text-white transition-colors uppercase tracking-widest mb-4"
                 >
                     <ChevronDown
                         className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
@@ -53,11 +53,11 @@ export default function AdvancedOptions({
 
             {/* Expanded Panel */}
             {isExpanded && (
-                <div className="glass-panel rounded-2xl p-6 border border-white/10 space-y-6 animate-slide-down">
+                <div className="studio-glass rounded-2xl p-6 border border-white/10 space-y-6 animate-slide-down">
 
                     {/* Size Selection */}
                     <div>
-                        <label className="block text-[10px] font-mono uppercase tracking-widest text-gray-500 mb-3">
+                        <label className="block text-[10px] font-mono uppercase tracking-widest text-white/40 mb-3">
                             Size
                         </label>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -66,8 +66,8 @@ export default function AdvancedOptions({
                                     key={option.value}
                                     onClick={() => onSizeChange(option.value)}
                                     className={`p-3 rounded-lg text-sm font-bold transition-all ${size === option.value
-                                            ? 'bg-white text-black'
-                                            : 'bg-white/5 text-gray-500 hover:bg-white/10 hover:text-white'
+                                            ? 'bg-studio-accent text-white'
+                                            : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white'
                                         }`}
                                 >
                                     <div>{option.label}</div>
@@ -79,7 +79,7 @@ export default function AdvancedOptions({
 
                     {/* AI Model Selection */}
                     <div>
-                        <label className="block text-[10px] font-mono uppercase tracking-widest text-gray-500 mb-3">
+                        <label className="block text-[10px] font-mono uppercase tracking-widest text-white/40 mb-3">
                             The Artist's Hand
                         </label>
                         <div className="flex flex-wrap gap-2">
@@ -88,8 +88,8 @@ export default function AdvancedOptions({
                                     key={key}
                                     onClick={() => onModelChange(key)}
                                     className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${aiModel === key
-                                            ? 'bg-ducks-green text-white border-2 border-ducks-green'
-                                            : 'bg-white/5 text-gray-500 border border-white/10 hover:border-white/30'
+                                            ? 'bg-[rgba(0,255,65,0.15)] text-white border-2 border-studio-neon'
+                                            : 'bg-white/5 text-white/50 border border-white/10 hover:border-white/30'
                                         }`}
                                     title={model.description}
                                 >
@@ -101,7 +101,7 @@ export default function AdvancedOptions({
 
                     {/* Enhancement Level */}
                     <div>
-                        <label className="block text-[10px] font-mono uppercase tracking-widest text-gray-500 mb-3">
+                        <label className="block text-[10px] font-mono uppercase tracking-widest text-white/40 mb-3">
                             Detail Intensity
                         </label>
                         <div className="space-y-2">
@@ -110,15 +110,15 @@ export default function AdvancedOptions({
                                     key={level.value}
                                     onClick={() => onEnhancementLevelChange(level.value)}
                                     className={`w-full p-3 rounded-lg text-left transition-all ${enhancementLevel === level.value
-                                            ? 'bg-purple-500/10 border-2 border-purple-500 text-white'
-                                            : 'bg-white/5 border border-white/10 text-gray-400 hover:border-white/30'
+                                            ? 'bg-[rgba(255,62,0,0.12)] border-2 border-studio-accent text-white'
+                                            : 'bg-white/5 border border-white/10 text-white/50 hover:border-white/30'
                                         }`}
                                 >
                                     <div className="flex items-center gap-3">
-                                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${enhancementLevel === level.value ? 'border-purple-500' : 'border-gray-600'
+                                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${enhancementLevel === level.value ? 'border-studio-accent' : 'border-white/40'
                                             }`}>
                                             {enhancementLevel === level.value && (
-                                                <div className="w-2 h-2 bg-purple-500 rounded-full" />
+                                                <div className="w-2 h-2 bg-studio-accent rounded-full" />
                                             )}
                                         </div>
                                         <div className="flex-1">
@@ -133,14 +133,14 @@ export default function AdvancedOptions({
 
                     {/* Negative Prompt */}
                     <div>
-                        <label className="block text-[10px] font-mono uppercase tracking-widest text-gray-500 mb-3">
+                        <label className="block text-[10px] font-mono uppercase tracking-widest text-white/40 mb-3">
                             The "No-Go" List (Optional)
                         </label>
                         <textarea
                             value={negativePrompt}
                             onChange={(e) => onNegativePromptChange(e.target.value)}
                             placeholder="Things to avoid... (e.g., blurry, messy lines, too much shading)"
-                            className="w-full bg-black/40 border border-white/10 text-white rounded-lg px-4 py-3 text-sm focus:border-ducks-green focus:outline-none resize-none placeholder-gray-600"
+                            className="w-full bg-[var(--studio-bg)] border border-white/[0.05] text-white rounded-lg px-4 py-3 text-sm font-mono focus:border-studio-neon focus:shadow-[0_0_12px_rgba(0,255,65,0.3)] focus:outline-none resize-none placeholder-white/30"
                             rows="3"
                         />
                     </div>
@@ -153,13 +153,13 @@ export default function AdvancedOptions({
                                     type="checkbox"
                                     checked={separateRGBA}
                                     onChange={(e) => onSeparateRGBAChange(e.target.checked)}
-                                    className="w-5 h-5 rounded border-2 border-white/20 bg-black/40 checked:bg-ducks-green checked:border-ducks-green transition-colors cursor-pointer"
+                                    className="w-5 h-5 rounded border-2 border-white/20 bg-black/40 checked:bg-studio-neon checked:border-studio-neon transition-colors cursor-pointer"
                                 />
                                 <div className="flex-1">
-                                    <div className="text-sm font-bold text-white group-hover:text-ducks-green transition-colors">
+                                    <div className="text-sm font-bold text-white group-hover:text-studio-neon transition-colors">
                                         Sticker Mode (Cutouts)
                                     </div>
-                                    <div className="text-xs text-gray-500 mt-1">
+                                    <div className="text-xs text-white/40 mt-1">
                                         Removes the background so you can move each part like a sticker
                                     </div>
                                 </div>

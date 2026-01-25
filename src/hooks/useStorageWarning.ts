@@ -6,14 +6,21 @@
 
 import { useEffect, useCallback, useRef } from 'react';
 import { checkStorageQuota, purgeExpiredDesigns } from '../services/storageService';
+import type { ToastFunction } from '../contexts/ToastContext';
 
 const WARNING_THRESHOLD = 80; // Show warning at 80% usage
 const CRITICAL_THRESHOLD = 95; // Show critical warning at 95%
 const CHECK_INTERVAL = 30000; // Check every 30 seconds
 
-export function useStorageWarning(toast) {
-  const lastWarningRef = useRef(null);
-  const checkIntervalRef = useRef(null);
+type WarningLevel = 'warning' | 'critical' | null;
+
+interface UseStorageWarningReturn {
+  checkNow: () => Promise<void>;
+}
+
+export function useStorageWarning(toast?: ToastFunction): UseStorageWarningReturn {
+  const lastWarningRef = useRef<WarningLevel>(null);
+  const checkIntervalRef = useRef<number | null>(null);
 
   const checkAndWarn = useCallback(async () => {
     try {
@@ -68,7 +75,7 @@ export function useStorageWarning(toast) {
     checkAndWarn();
 
     // Set up periodic checks
-    checkIntervalRef.current = setInterval(checkAndWarn, CHECK_INTERVAL);
+    checkIntervalRef.current = window.setInterval(checkAndWarn, CHECK_INTERVAL);
 
     return () => {
       if (checkIntervalRef.current) {

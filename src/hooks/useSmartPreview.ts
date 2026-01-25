@@ -4,7 +4,50 @@ import { createAbortController } from '../services/fetchWithAbort';
 
 const PREVIEW_STORAGE_KEY = 'tattester_generation_session';
 
-function safeStorageGet(key, fallback) {
+// Types
+interface UserInput {
+  subject?: string;
+  style?: string;
+  bodyPart?: string;
+  size?: string;
+  [key: string]: any;
+}
+
+interface PreviewMetadata {
+  generationId?: string;
+  [key: string]: any;
+}
+
+interface PreviewResult {
+  images?: string[];
+  metadata?: PreviewMetadata;
+  userInput?: UserInput;
+}
+
+interface StoredPreviewEntry {
+  id: string;
+  mode: string;
+  images: string[];
+  metadata: PreviewMetadata;
+  userInput: UserInput;
+  createdAt: string;
+}
+
+interface UseSmartPreviewParams {
+  userInput?: UserInput;
+  enabled?: boolean;
+  debounceMs?: number;
+}
+
+interface UseSmartPreviewReturn {
+  preview: PreviewResult | null;
+  isPreviewing: boolean;
+  error: string | null;
+  lastUpdatedAt: string | null;
+  requestPreview: () => Promise<PreviewResult | null>;
+}
+
+function safeStorageGet(key: string, fallback: StoredPreviewEntry[]): StoredPreviewEntry[] {
   try {
     const stored = localStorage.getItem(key);
     return stored ? JSON.parse(stored) : fallback;
@@ -14,7 +57,7 @@ function safeStorageGet(key, fallback) {
   }
 }
 
-function safeStorageSet(key, value) {
+function safeStorageSet(key: string, value: StoredPreviewEntry[]): boolean {
   try {
     localStorage.setItem(key, JSON.stringify(value));
     return true;
@@ -24,22 +67,26 @@ function safeStorageSet(key, value) {
   }
 }
 
-function createId() {
+function createId(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
   }
   return `preview-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 }
 
-export function useSmartPreview({ userInput, enabled = true, debounceMs = 300 } = {}) {
-  const [preview, setPreview] = useState(null);
+export function useSmartPreview({
+  userInput,
+  enabled = true,
+  debounceMs = 300
+}: UseSmartPreviewParams = {}): UseSmartPreviewReturn {
+  const [preview, setPreview] = useState<PreviewResult | null>(null);
   const [isPreviewing, setIsPreviewing] = useState(false);
-  const [error, setError] = useState(null);
-  const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
 
-  const debounceRef = useRef(null);
-  const abortRef = useRef(null);
-  const lastRequestedSignatureRef = useRef('');
+  const debounceRef = useRef<number | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const lastRequestedSignatureRef = useRef<string>('');
 
   const inputSignature = useMemo(() => {
     if (!userInput) return '';
@@ -50,21 +97,21 @@ export function useSmartPreview({ userInput, enabled = true, debounceMs = 300 } 
     }
   }, [userInput]);
 
-  const storePreview = useCallback((result, previewId) => {
+  const storePreview = useCallback((result: PreviewResult, previewId: string) => {
     const existing = safeStorageGet(PREVIEW_STORAGE_KEY, []);
-    const entry = {
+    const entry: StoredPreviewEntry = {
       id: previewId,
       mode: 'preview',
       images: result.images || [],
       metadata: result.metadata || {},
-      userInput: result.userInput || userInput,
+      userInput: result.userInput || userInput || {},
       createdAt: new Date().toISOString()
     };
     const updated = [...existing, entry].slice(-50);
     safeStorageSet(PREVIEW_STORAGE_KEY, updated);
   }, [userInput]);
 
-  const requestPreview = useCallback(async () => {
+  const requestPreview = useCallback(async (): Promise<PreviewResult | null> => {
     if (!enabled || !userInput || !userInput.subject?.trim()) {
       return null;
     }
@@ -87,7 +134,7 @@ export function useSmartPreview({ userInput, enabled = true, debounceMs = 300 } 
     try {
       const result = await generatePreviewDesign(userInput, { signal: controller.signal });
       const previewId = createId();
-      const previewResult = {
+      const previewResult: PreviewResult = {
         ...result,
         metadata: {
           ...result.metadata,
@@ -98,7 +145,7 @@ export function useSmartPreview({ userInput, enabled = true, debounceMs = 300 } 
       setLastUpdatedAt(new Date().toISOString());
       storePreview(previewResult, previewId);
       return previewResult;
-    } catch (err) {
+    } catch (err: any) {
       if (!err.message?.includes('cancelled')) {
         setError(err.message || 'Preview generation failed.');
       }
@@ -121,7 +168,7 @@ export function useSmartPreview({ userInput, enabled = true, debounceMs = 300 } 
       clearTimeout(debounceRef.current);
     }
 
-    debounceRef.current = setTimeout(() => {
+    debounceRef.current = window.setTimeout(() => {
       requestPreview();
     }, debounceMs);
 

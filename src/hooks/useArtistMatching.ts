@@ -1,9 +1,51 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getHybridArtistMatches } from '../services/matchService.js';
 
+// Types
+export interface MatchContext {
+  style?: string;
+  bodyPart?: string;
+  layerCount?: number;
+  location?: string;
+  embeddingVector?: number[] | null;
+  [key: string]: any;
+}
+
+export interface ArtistMatch {
+  id: string;
+  name: string;
+  score: number;
+  location?: string;
+  styles?: string[];
+  portfolioImages?: string[];
+  breakdown?: Record<string, number>;
+  reasoning?: string;
+  [key: string]: any;
+}
+
+export interface CachedMatchData {
+  matches: ArtistMatch[];
+  total: number;
+  updatedAt: string;
+}
+
+export interface UseArtistMatchingOptions {
+  context?: MatchContext;
+  debounceMs?: number;
+}
+
+export interface UseArtistMatchingReturn {
+  matches: ArtistMatch[];
+  totalMatches: number;
+  isLoading: boolean;
+  error: string | null;
+  lastUpdated: string | null;
+  refreshMatches: () => Promise<void>;
+}
+
 const MATCH_STORAGE_KEY = 'tatt_match_pulse';
 
-function safeSessionGet(key, fallback) {
+function safeSessionGet<T>(key: string, fallback: T): T {
   try {
     const stored = sessionStorage.getItem(key);
     return stored ? JSON.parse(stored) : fallback;
@@ -13,7 +55,7 @@ function safeSessionGet(key, fallback) {
   }
 }
 
-function safeSessionSet(key, value) {
+function safeSessionSet(key: string, value: any): void {
   try {
     sessionStorage.setItem(key, JSON.stringify(value));
   } catch (error) {
@@ -21,15 +63,17 @@ function safeSessionSet(key, value) {
   }
 }
 
-export function useArtistMatching({ context, debounceMs = 2000 } = {}) {
-  const [matches, setMatches] = useState([]);
-  const [totalMatches, setTotalMatches] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [lastUpdated, setLastUpdated] = useState(null);
+export function useArtistMatching(
+  { context, debounceMs = 2000 }: UseArtistMatchingOptions = {}
+): UseArtistMatchingReturn {
+  const [matches, setMatches] = useState<ArtistMatch[]>([]);
+  const [totalMatches, setTotalMatches] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
-  const debounceRef = useRef(null);
-  const lastSignatureRef = useRef('');
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSignatureRef = useRef<string>('');
 
   const contextSignature = useMemo(() => {
     if (!context) return '';
@@ -43,7 +87,7 @@ export function useArtistMatching({ context, debounceMs = 2000 } = {}) {
   }, [context]);
 
   const loadFromSession = useCallback(() => {
-    const cached = safeSessionGet(MATCH_STORAGE_KEY, null);
+    const cached = safeSessionGet<CachedMatchData | null>(MATCH_STORAGE_KEY, null);
     if (cached?.matches) {
       setMatches(cached.matches);
       setTotalMatches(cached.total || cached.matches.length);
@@ -73,14 +117,13 @@ export function useArtistMatching({ context, debounceMs = 2000 } = {}) {
         total: result.total || 0,
         updatedAt: new Date().toISOString()
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error('[MatchPulse] Matching failed:', err);
       setError('Match data temporarily unavailable');
     } finally {
       setIsLoading(false);
     }
-  }, [contextSignature, context]); // Use contextSignature instead of context
-
+  }, [contextSignature, context]);
 
   useEffect(() => {
     loadFromSession();
@@ -105,8 +148,7 @@ export function useArtistMatching({ context, debounceMs = 2000 } = {}) {
         clearTimeout(debounceRef.current);
       }
     };
-  }, [contextSignature, debounceMs]); // refreshMatches is stable, don't include it
-
+  }, [contextSignature, debounceMs, refreshMatches]);
 
   useEffect(() => {
     if (!error) return;

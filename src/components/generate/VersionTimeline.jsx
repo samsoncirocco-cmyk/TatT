@@ -30,10 +30,10 @@ export default function VersionTimeline({
   }, [canCompare, selectedIds]);
 
   return (
-    <div className="glass-panel rounded-3xl border border-white/10 p-4">
+    <div className="studio-glass rounded-3xl border border-white/10 p-4">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <p className="text-xs font-mono uppercase tracking-[0.3em] text-ducks-green">
+          <p className="text-xs font-mono uppercase tracking-[0.3em] text-studio-neon">
             Version Timeline
           </p>
           <p className="text-sm text-white/70">Auto-saved checkpoints</p>
@@ -61,7 +61,7 @@ export default function VersionTimeline({
               key={version.id}
               className={`min-w-[140px] rounded-xl border p-2 ${
                 currentVersionId === version.id
-                  ? 'border-ducks-green bg-ducks-green/10'
+                  ? 'border-studio-neon bg-[rgba(0,255,65,0.12)]'
                   : 'border-white/10 bg-white/5'
               }`}
             >

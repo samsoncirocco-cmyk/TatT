@@ -49,9 +49,9 @@ export default function LayerItem({
     };
 
     const typeColors = {
-        subject: 'text-ducks-yellow',
-        background: 'text-blue-400',
-        effect: 'text-purple-400'
+        subject: 'text-studio-accent',
+        background: 'text-white/60',
+        effect: 'text-studio-neon'
     };
 
     return (
@@ -71,24 +71,24 @@ export default function LayerItem({
             }}
             role="button"
             tabIndex={0}
-            className={`
+        className={`
         group relative flex items-center gap-3 p-3 rounded-lg transition-all cursor-pointer
         ${isSelected
-                    ? 'bg-ducks-green/20 border-2 border-ducks-green shadow-glow-green'
+                    ? 'bg-[rgba(0,255,65,0.12)] border-2 border-studio-neon shadow-[0_0_18px_rgba(0,255,65,0.35)]'
                     : 'bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20'
                 }
         ${isDragging ? 'opacity-50 scale-95' : ''}
         ${!layer.visible ? 'opacity-60' : ''}
-        focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-ducks-yellow
+        focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-studio-accent
       `}
         >
             {/* Drag Handle */}
-            <div className="cursor-grab active:cursor-grabbing text-gray-600 hover:text-white transition-colors">
+            <div className="cursor-grab active:cursor-grabbing text-white/40 hover:text-white transition-colors">
                 <GripVertical size={16} />
             </div>
 
             {/* Thumbnail */}
-            <div className="w-12 h-12 rounded-lg overflow-hidden bg-black/40 border border-white/10 flex-shrink-0">
+            <div className="w-12 h-12 rounded-lg overflow-hidden bg-black/50 border border-white/10 flex-shrink-0">
                 {layer.thumbnail ? (
                     <img
                         src={layer.thumbnail}
@@ -96,7 +96,7 @@ export default function LayerItem({
                         className="w-full h-full object-cover"
                     />
                 ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-600">
+                    <div className="w-full h-full flex items-center justify-center text-white/40">
                         <ImageIcon size={20} />
                     </div>
                 )}
@@ -111,7 +111,7 @@ export default function LayerItem({
                         onChange={(e) => setEditName(e.target.value)}
                         onBlur={handleNameSubmit}
                         onKeyDown={handleKeyDown}
-                        className="w-full bg-black/40 border border-ducks-green rounded px-2 py-1 text-sm text-white focus:outline-none"
+                        className="w-full bg-black/50 border border-studio-neon rounded px-2 py-1 text-sm text-white focus:outline-none"
                         autoFocus
                     />
                 ) : (
@@ -126,7 +126,7 @@ export default function LayerItem({
                     <span className={`text-[10px] font-mono uppercase tracking-wider ${typeColors[layer.type]}`}>
                         {layer.type}
                     </span>
-                    <span className="text-[10px] text-gray-600 font-mono">
+                    <span className="text-[10px] text-white/40 font-mono">
                         z:{layer.zIndex}
                     </span>
                 </div>
@@ -145,9 +145,9 @@ export default function LayerItem({
                     aria-label={layer.visible ? 'Hide layer' : 'Show layer'}
                 >
                     {layer.visible ? (
-                        <Eye size={16} className="text-gray-400 hover:text-white" />
+                        <Eye size={16} className="text-white/50 hover:text-white" />
                     ) : (
-                        <EyeOff size={16} className="text-gray-600" />
+                        <EyeOff size={16} className="text-white/30" />
                     )}
                 </button>
 

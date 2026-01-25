@@ -1,10 +1,24 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../hooks/useToast';
 import { ToastContainer } from '../components/ui/Toast';
 import artistsData from '../data/artists.json';
 import { calculateMatches } from '../utils/matching';
 import EmptyMatchState from '../components/EmptyMatchState';
+
+// Types
+interface Preferences {
+  styles: string[];
+  keywords: string;
+  budget: number;
+  distance: number;
+  zipCode: string;
+}
+
+interface SemanticSearchResponse {
+  matches: any[];
+  message?: string;
+}
 
 const stylesOptions = [
   'Anime',
@@ -20,7 +34,7 @@ const stylesOptions = [
 ];
 
 function SmartMatch() {
-  const [preferences, setPreferences] = useState({
+  const [preferences, setPreferences] = useState<Preferences>({
     styles: [],
     keywords: '',
     budget: 1000,
@@ -30,24 +44,24 @@ function SmartMatch() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [matchCount, setMatchCount] = useState(0);
-  const [zipSuggestions, setZipSuggestions] = useState([]);
+  const [zipSuggestions, setZipSuggestions] = useState<string[]>([]);
   const [showZipSuggestions, setShowZipSuggestions] = useState(false);
   const [zipError, setZipError] = useState('');
   const [useSemanticSearch, setUseSemanticSearch] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-  const [searchError, setSearchError] = useState(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [searchProgress, setSearchProgress] = useState(0);
   const [showEmptyState, setShowEmptyState] = useState(false);
 
   const navigate = useNavigate();
   const { toast, toasts, removeToast } = useToast();
-  const searchTimerRef = useRef(null);
+  const searchTimerRef = useRef<number | null>(null);
 
   // Calculate match count in real-time
   useEffect(() => {
     if (preferences.styles.length > 0 || preferences.keywords.trim() || preferences.zipCode.trim()) {
       setIsThinking(true);
-      const timer = setTimeout(() => {
+      const timer = window.setTimeout(() => {
         try {
           const matches = calculateMatches(
             {
@@ -96,7 +110,7 @@ function SmartMatch() {
     }
   }, [preferences.zipCode]);
 
-  const handleStyleChange = (style) => {
+  const handleStyleChange = (style: string) => {
     setPreferences((prev) => ({
       ...prev,
       styles: prev.styles.includes(style)
@@ -134,7 +148,7 @@ function SmartMatch() {
     }, 50);
 
     try {
-      let matchedArtists = [];
+      let matchedArtists: any[] = [];
 
       if (useSemanticSearch) {
         // Semantic search via API
@@ -155,11 +169,11 @@ function SmartMatch() {
         });
 
         if (!response.ok) {
-          const errorData = await response.json();
+          const errorData: SemanticSearchResponse = await response.json();
           throw new Error(errorData.message || 'Semantic search protocol failed.');
         }
 
-        const data = await response.json();
+        const data: SemanticSearchResponse = await response.json();
         matchedArtists = data.matches;
       } else {
         // Keyword search locally
@@ -198,11 +212,11 @@ function SmartMatch() {
         });
       }, 500);
 
-    } catch (err) {
+    } catch (err: any) {
       clearInterval(progressInterval);
       console.error('[SmartMatch] Search error:', err);
 
-      const errorMessage = err.message.includes('timeout')
+      const errorMessage = err.message?.includes('timeout')
         ? 'Search taking longer than expected (500ms limit reached).'
         : err.message || 'System error: selection protocol failed.';
 
@@ -212,7 +226,7 @@ function SmartMatch() {
     }
   };
 
-  const handleAdjustFilters = (action) => {
+  const handleAdjustFilters = (action: string) => {
     setShowEmptyState(false);
     setSearchError(null);
 
@@ -241,7 +255,7 @@ function SmartMatch() {
     setSearchError(null);
   };
 
-  const handleZipSelect = (zip) => {
+  const handleZipSelect = (zip: string) => {
     setPreferences({ ...preferences, zipCode: zip });
     setShowZipSuggestions(false);
   };
@@ -265,7 +279,7 @@ function SmartMatch() {
           {/* Ambient Glow */}
           <div className="absolute top-0 right-0 w-96 h-96 bg-ducks-green/5 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/2" />
 
-          {/* Loading Overly */}
+          {/* Loading Overlay */}
           {isSearching && (
             <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
               <div className="w-20 h-20 relative mb-6">
@@ -385,7 +399,7 @@ function SmartMatch() {
                     type="text"
                     placeholder="e.g. dragon, floral, geometric"
                     value={preferences.keywords}
-                    onChange={(e) => setPreferences({ ...preferences, keywords: e.target.value })}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setPreferences({ ...preferences, keywords: e.target.value })}
                     className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-4 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-ducks-green transition-all"
                   />
                 </div>
@@ -424,7 +438,7 @@ function SmartMatch() {
                       type="text"
                       placeholder="e.g. 78701"
                       value={preferences.zipCode}
-                      onChange={(e) => setPreferences({ ...preferences, zipCode: e.target.value })}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => setPreferences({ ...preferences, zipCode: e.target.value })}
                       onFocus={() => preferences.zipCode.length >= 3 && setShowZipSuggestions(true)}
                       className={`w-full bg-black/40 border rounded-xl px-4 py-4 text-sm text-white placeholder-gray-600 focus:outline-none transition-all ${zipError
                         ? 'border-red-500/50 focus:border-red-500'
@@ -479,7 +493,7 @@ function SmartMatch() {
                         <select
                           className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-ducks-green transition-all appearance-none"
                           value={preferences.distance}
-                          onChange={(e) => setPreferences({ ...preferences, distance: parseInt(e.target.value) })}
+                          onChange={(e: ChangeEvent<HTMLSelectElement>) => setPreferences({ ...preferences, distance: parseInt(e.target.value) })}
                         >
                           <option value="10">10 miles</option>
                           <option value="25">25 miles</option>
@@ -497,7 +511,7 @@ function SmartMatch() {
                           max="2000"
                           step="50"
                           value={preferences.budget}
-                          onChange={(e) => setPreferences({ ...preferences, budget: parseInt(e.target.value, 10) })}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) => setPreferences({ ...preferences, budget: parseInt(e.target.value, 10) })}
                           className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-ducks-green mt-3"
                         />
                       </div>

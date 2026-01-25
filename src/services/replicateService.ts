@@ -22,6 +22,220 @@ import {
 } from './fetchWithAbort.js';
 import { routeGeneration } from './generationRouter.js';
 
+// ============================================================================
+// Type Definitions
+// ============================================================================
+
+// Types for external dependencies
+export interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+}
+
+export interface PromptConfig {
+  prompt: string;
+  negativePrompt: string;
+  styleInfo: {
+    name: string;
+    description: string;
+  };
+  metadata: {
+    subject: string;
+    style: string;
+    bodyPart: string;
+    size: string;
+  };
+}
+
+export interface GenerationRoute {
+  modelId: string;
+  provider: 'replicate' | 'vertex-ai';
+  aspectRatio: string;
+  negativePrompt: string;
+  fallbackChain: string[];
+  reasoning: string;
+}
+
+export type ModelProvider = 'replicate' | 'vertex-ai';
+
+export interface ModelParams {
+  num_outputs?: number;
+  width?: number;
+  height?: number;
+  scheduler?: string;
+  num_inference_steps?: number;
+  guidance_scale?: number;
+  lora_scale?: number;
+  prompt_strength?: number;
+  refine?: string;
+  high_noise_frac?: number;
+  aspect_ratio?: string;
+  safety_filter_level?: string;
+  person_generation?: string;
+  output_format?: string;
+  output_quality?: number;
+}
+
+export interface AIModel {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  cost: number;
+  provider?: ModelProvider;
+  supportsRGBA: boolean;
+  params: ModelParams;
+  promptPrefix?: string;
+}
+
+export type AIModelId = 'tattoo' | 'animeXL' | 'dreamshaper' | 'sdxl' | 'imagen3';
+
+export type AIModels = Record<AIModelId, AIModel>;
+
+export interface UserInput {
+  subject?: string;
+  style?: string;
+  bodyPart?: string;
+  size?: string;
+  vibes?: string[];
+  aiModel?: string;
+  negativePrompt?: string;
+  [key: string]: any;
+}
+
+export interface GenerationMetadata {
+  generatedAt: string;
+  prompt: string;
+  negativePrompt: string;
+  councilEnhanced: boolean;
+  mode: string;
+  modelId: string;
+  modelName: string;
+  outputFormat: string;
+  rgbaReady: boolean;
+  dpi: number | null;
+  preview: boolean;
+  parameters: ModelParams | VertexPayload;
+  demoMode?: boolean;
+  provider?: string;
+  usage?: any;
+  cost?: any;
+}
+
+export interface GenerationResult {
+  success: boolean;
+  images: string[];
+  metadata: GenerationMetadata;
+  userInput: UserInput;
+}
+
+export interface GenerationOptions {
+  mode?: string;
+  dpi?: number | null;
+  outputFormat?: string;
+  enableRGBA?: boolean;
+  inputOverrides?: Record<string, any>;
+  allowFallback?: boolean;
+  fallbackChain?: string[] | null;
+  modelId?: string;
+  signal?: AbortSignal | null;
+  finalize?: boolean;
+}
+
+export interface PreviewOptions {
+  modelId?: string;
+  signal?: AbortSignal | null;
+  inputOverrides?: Record<string, any>;
+}
+
+export interface HighResOptions {
+  modelId?: string;
+  signal?: AbortSignal | null;
+  inputOverrides?: Record<string, any>;
+  finalize?: boolean;
+  enableRGBA?: boolean;
+}
+
+export interface PredictionInput extends ModelParams {
+  prompt: string;
+  negative_prompt: string;
+}
+
+export interface Prediction {
+  id: string;
+  status: 'starting' | 'processing' | 'succeeded' | 'failed' | 'canceled';
+  output?: string | string[];
+  error?: string;
+}
+
+export interface VertexPayload {
+  prompt: string;
+  negativePrompt: string;
+  style?: string;
+  bodyPart?: string;
+  size?: string;
+  width: number;
+  height: number;
+  sampleCount: number;
+  aspectRatio: string;
+  outputFormat: string;
+  safetyFilterLevel?: string;
+  personGeneration?: string;
+  seed?: number;
+}
+
+export interface VertexResponse {
+  images: string[];
+  cost?: {
+    total: number;
+  };
+  usage?: any;
+}
+
+export interface APIUsageRequest {
+  timestamp: string;
+  cost: number;
+}
+
+export interface APIUsageStats {
+  total: number;
+  requests: APIUsageRequest[];
+}
+
+export interface APIUsage {
+  totalSpent: number;
+  totalRequests: number;
+  todaySpent: number;
+  todayRequests: number;
+  remainingBudget: number;
+}
+
+export interface CostEstimate {
+  perImage: number;
+  total: number;
+  formatted: string;
+}
+
+export interface BannerInfo {
+  type: 'error' | 'warning' | 'info';
+  message: string;
+  action: string;
+}
+
+export interface HealthCheckResult {
+  status: string;
+  healthy: boolean;
+  error?: string;
+  code?: string;
+  message?: string;
+  authRequired?: boolean;
+  banner?: BannerInfo;
+}
+
+// ============================================================================
+// Constants
+// ============================================================================
+
 // Proxy server configuration (injected via env)
 // Use Next.js relative API path
 const PROXY_URL = '/api';
@@ -32,7 +246,7 @@ const VERTEX_GENERATE_URL = '/api/v1/generate';
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
 // Mock tattoo images for demo mode (using placeholder service)
-const MOCK_IMAGES = [
+const MOCK_IMAGES: string[] = [
   'https://images.unsplash.com/photo-1565058379802-bbe93b2f703f?w=1024&h=1024&fit=crop', // Tattoo 1
   'https://images.unsplash.com/photo-1598371839696-5c5bb00bdc28?w=1024&h=1024&fit=crop', // Tattoo 2
   'https://images.unsplash.com/photo-1611501275019-9b5cda994e8d?w=1024&h=1024&fit=crop', // Tattoo 3
@@ -40,7 +254,7 @@ const MOCK_IMAGES = [
 ];
 
 // Model configuration
-export const AI_MODELS = {
+export const AI_MODELS: AIModels = {
   tattoo: {
     id: 'tattoo',
     name: 'Classic Flash',
@@ -130,10 +344,10 @@ export const AI_MODELS = {
 };
 
 // Default model
-const DEFAULT_MODEL = 'imagen3';
-const PREVIEW_MODEL = 'dreamshaper';
+const DEFAULT_MODEL: AIModelId = 'imagen3';
+const PREVIEW_MODEL: AIModelId = 'dreamshaper';
 
-const PREVIEW_OVERRIDES = {
+const PREVIEW_OVERRIDES: Partial<ModelParams> = {
   num_outputs: 1,
   width: 512,
   height: 512,
@@ -141,7 +355,7 @@ const PREVIEW_OVERRIDES = {
   guidance_scale: 2
 };
 
-const HIGH_RES_OVERRIDES = {
+const HIGH_RES_OVERRIDES: Partial<ModelParams> = {
   num_outputs: 1,
   width: 1024,
   height: 1024
@@ -150,13 +364,19 @@ const HIGH_RES_OVERRIDES = {
 // Budget tracking (stored in localStorage for MVP)
 const BUDGET_STORAGE_KEY = 'tattester_api_usage';
 
+// ============================================================================
+// Budget Tracking Functions
+// ============================================================================
+
 /**
  * Track API usage for budget monitoring
  * In production, this would be server-side
  */
-function trackAPIUsage(requestCost = 0.022) {
+function trackAPIUsage(requestCost: number = 0.022): APIUsageStats | null {
   try {
-    const usage = JSON.parse(localStorage.getItem(BUDGET_STORAGE_KEY) || '{"total": 0, "requests": []}');
+    const usage: APIUsageStats = JSON.parse(
+      localStorage.getItem(BUDGET_STORAGE_KEY) || '{"total": 0, "requests": []}'
+    );
 
     usage.total += requestCost;
     usage.requests.push({
@@ -183,9 +403,11 @@ function trackAPIUsage(requestCost = 0.022) {
 /**
  * Get current API usage statistics
  */
-export function getAPIUsage() {
+export function getAPIUsage(): APIUsage | null {
   try {
-    const usage = JSON.parse(localStorage.getItem(BUDGET_STORAGE_KEY) || '{"total": 0, "requests": []}');
+    const usage: APIUsageStats = JSON.parse(
+      localStorage.getItem(BUDGET_STORAGE_KEY) || '{"total": 0, "requests": []}'
+    );
 
     const today = new Date().toISOString().split('T')[0];
     const todayRequests = usage.requests.filter(req =>
@@ -207,29 +429,34 @@ export function getAPIUsage() {
   }
 }
 
+// ============================================================================
+// Core Generation Functions
+// ============================================================================
+
 /**
  * Generate tattoo designs using Replicate AI models
  *
- * @param {Object} userInput - User's design parameters
- * @param {string} userInput.style - Tattoo style (traditional, neoTraditional, etc.)
- * @param {string} userInput.subject - Subject description (e.g., "wolf and moon")
- * @param {string} userInput.bodyPart - Body part placement
- * @param {string} userInput.size - Design size (small, medium, large)
- * @param {string} userInput.aiModel - AI model to use (optional, will be auto-selected if not provided)
- * @param {string} modelId - Optional explicit model ID to use (overrides userInput.aiModel)
- * @param {AbortSignal} signal - Optional abort signal to cancel polling
- * @returns {Promise<Object>} Generated design data with image URLs
+ * @param userInput - User's design parameters
+ * @param modelId - Optional explicit model ID to use (overrides userInput.aiModel)
+ * @param signal - Optional abort signal to cancel polling
+ * @param options - Generation options
+ * @returns Generated design data with image URLs
  */
-export async function generateTattooDesign(userInput, modelId = null, signal = null, options = {}) {
+export async function generateTattooDesign(
+  userInput: UserInput,
+  modelId: string | null = null,
+  signal: AbortSignal | null = null,
+  options: GenerationOptions = {}
+): Promise<GenerationResult> {
   // Validate input
-  const validation = validateInput(userInput);
+  const validation = validateInput(userInput) as ValidationResult;
   if (!validation.isValid) {
     throw new Error(`Invalid input: ${validation.errors.join(', ')}`);
   }
 
   // Get selected model: explicit modelId > userInput.aiModel > default
   const selectedModelId = modelId || userInput.aiModel || DEFAULT_MODEL;
-  let model = AI_MODELS[selectedModelId];
+  let model = AI_MODELS[selectedModelId as AIModelId];
 
   if (!model) {
     console.warn(`[Replicate] Invalid model: ${selectedModelId}, falling back to default`);
@@ -241,24 +468,24 @@ export async function generateTattooDesign(userInput, modelId = null, signal = n
 
   // Detect if this is a council-enhanced prompt
   // Council prompts are already complete and should not be wrapped in templates
-  const isCouncilEnhanced = userInput.subject && (
+  const isCouncilEnhanced: boolean = Boolean(userInput.subject && (
     userInput.subject.includes('masterfully composed') ||
     userInput.subject.includes('Character details:') ||
     userInput.subject.includes('photorealistic') ||
     userInput.subject.length > 500 // Long prompts are likely council-enhanced
-  );
+  ));
 
-  let finalPrompt;
-  let negativePrompt;
+  let finalPrompt: string;
+  let negativePrompt: string;
 
   if (isCouncilEnhanced) {
     // Use the enhanced prompt directly without template wrapping
     console.log('[Replicate] Using council-enhanced prompt (skipping template)');
-    finalPrompt = userInput.subject;
+    finalPrompt = userInput.subject || '';
     negativePrompt = userInput.negativePrompt || 'blurry, low quality, distorted, watermark, text, signature, cartoon, childish, unrealistic anatomy, multiple people, cluttered background, oversaturated, low contrast, pixelated, amateur, messy linework';
   } else {
     // Build optimized prompt using templates
-    const promptConfig = buildPrompt(userInput);
+    const promptConfig = buildPrompt(userInput as any) as PromptConfig;
     finalPrompt = promptConfig.prompt;
     negativePrompt = promptConfig.negativePrompt;
 
@@ -288,7 +515,7 @@ export async function generateTattooDesign(userInput, modelId = null, signal = n
       ? [MOCK_IMAGES[0]]
       : MOCK_IMAGES;
 
-    const output = {
+    const output: GenerationResult = {
       success: true,
       images: demoImages,
       metadata: {
@@ -328,14 +555,14 @@ export async function generateTattooDesign(userInput, modelId = null, signal = n
       const resolvedOutputs = inputOverrides.num_outputs || model.params.num_outputs || 1;
       const resolvedWidth = inputOverrides.width || model.params.width;
       const resolvedHeight = inputOverrides.height || model.params.height;
-      const vertexPayload = {
+      const vertexPayload: VertexPayload = {
         prompt: finalPrompt,
         negativePrompt,
         style: userInput.style,
         bodyPart: userInput.bodyPart,
         size: userInput.size,
-        width: resolvedWidth,
-        height: resolvedHeight,
+        width: resolvedWidth!,
+        height: resolvedHeight!,
         sampleCount: resolvedOutputs,
         aspectRatio: inputOverrides.aspect_ratio || model.params.aspect_ratio || '1:1',
         outputFormat,
@@ -344,7 +571,7 @@ export async function generateTattooDesign(userInput, modelId = null, signal = n
         seed: inputOverrides.seed
       };
 
-      const vertexResponse = await postJSON(VERTEX_GENERATE_URL, vertexPayload, { signal });
+      const vertexResponse = await postJSON(VERTEX_GENERATE_URL, vertexPayload, { signal }) as VertexResponse;
 
       const generationCost = vertexResponse?.cost?.total ?? model.cost * resolvedOutputs;
       trackAPIUsage(generationCost);
@@ -382,7 +609,7 @@ export async function generateTattooDesign(userInput, modelId = null, signal = n
     }
 
     // Step 1: Create prediction via proxy server
-    const predictionInput = {
+    const predictionInput: PredictionInput = {
       ...model.params,
       ...inputOverrides,
       prompt: finalPrompt,
@@ -397,7 +624,7 @@ export async function generateTattooDesign(userInput, modelId = null, signal = n
     const prediction = await postJSON(`${PROXY_URL}/predictions`, {
       version: model.version,
       input: predictionInput
-    });
+    }) as Prediction;
 
     console.log('[Replicate] Prediction created:', prediction.id);
 
@@ -414,7 +641,7 @@ export async function generateTattooDesign(userInput, modelId = null, signal = n
       }
 
       // Abortable wait
-      await new Promise((resolve, reject) => {
+      await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(resolve, 2000);
         signal?.addEventListener('abort', () => {
           clearTimeout(timeout);
@@ -428,7 +655,7 @@ export async function generateTattooDesign(userInput, modelId = null, signal = n
         throw new Error('Generation cancelled');
       }
 
-      result = await fetchJSON(`${PROXY_URL}/predictions/${prediction.id}`, { signal });
+      result = await fetchJSON(`${PROXY_URL}/predictions/${prediction.id}`, { signal }) as Prediction;
       attempts++;
 
       console.log(`[Replicate] Status: ${result.status} (attempt ${attempts}/${maxAttempts})`);
@@ -448,9 +675,9 @@ export async function generateTattooDesign(userInput, modelId = null, signal = n
     trackAPIUsage(generationCost);
 
     // Format response
-    const output = {
+    const output: GenerationResult = {
       success: true,
-      images: Array.isArray(result.output) ? result.output : [result.output],
+      images: Array.isArray(result.output) ? result.output : [result.output!],
       metadata: {
         generatedAt: new Date().toISOString(),
         prompt: finalPrompt,
@@ -498,15 +725,16 @@ export async function generateTattooDesign(userInput, modelId = null, signal = n
     }
 
     // Handle specific error types from Replicate API
-    if (error.message.includes('authentication') || error.message.includes('401')) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes('authentication') || errorMessage.includes('401')) {
       throw new Error('Invalid Replicate API token. Please check your server configuration.');
     }
 
-    if (error.message.includes('insufficient credits')) {
+    if (errorMessage.includes('insufficient credits')) {
       throw new Error('Insufficient Replicate credits. Please add credits to your account.');
     }
 
-    throw new Error(`Failed to generate design: ${error.message}`);
+    throw new Error(`Failed to generate design: ${errorMessage}`);
   }
 }
 
@@ -514,14 +742,21 @@ export async function generateTattooDesign(userInput, modelId = null, signal = n
  * Retry logic for failed generations
  * Implements exponential backoff with retry budget cap
  *
- * @param {Object} userInput - Design parameters
- * @param {string} modelId - Optional model ID to use
- * @param {AbortSignal} signal - Optional abort signal
- * @param {number} maxRetries - Maximum retry attempts (default: 3)
- * @returns {Promise<Object>} Generated design data
+ * @param userInput - Design parameters
+ * @param modelId - Optional model ID to use
+ * @param signal - Optional abort signal
+ * @param maxRetries - Maximum retry attempts (default: 3)
+ * @param options - Generation options
+ * @returns Generated design data
  */
-export async function generateWithRetry(userInput, modelId = null, signal = null, maxRetries = 3, options = {}) {
-  let lastError;
+export async function generateWithRetry(
+  userInput: UserInput,
+  modelId: string | null = null,
+  signal: AbortSignal | null = null,
+  maxRetries: number = 3,
+  options: GenerationOptions = {}
+): Promise<GenerationResult> {
+  let lastError: Error | unknown;
   let retryBudget = maxRetries;
 
   for (let attempt = 1; attempt <= retryBudget; attempt++) {
@@ -531,17 +766,19 @@ export async function generateWithRetry(userInput, modelId = null, signal = null
     } catch (error) {
       lastError = error;
 
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
       // Don't retry on cancellation
-      if (error.message.includes('cancelled') || signal?.aborted) {
+      if (errorMessage.includes('cancelled') || signal?.aborted) {
         console.log('[Replicate] Retry aborted by user');
         throw error;
       }
 
       // Don't retry on authentication or validation errors
       if (
-        error.message.includes('authentication') ||
-        error.message.includes('Invalid input') ||
-        error.message.includes('not configured')
+        errorMessage.includes('authentication') ||
+        errorMessage.includes('Invalid input') ||
+        errorMessage.includes('not configured')
       ) {
         throw error;
       }
@@ -549,14 +786,14 @@ export async function generateWithRetry(userInput, modelId = null, signal = null
       // Check if retry budget exhausted
       if (attempt >= retryBudget) {
         console.error(`[Replicate] Retry budget exhausted (${retryBudget} attempts)`);
-        throw new Error(`Failed after ${retryBudget} attempts: ${error.message}`);
+        throw new Error(`Failed after ${retryBudget} attempts: ${errorMessage}`);
       }
 
       // Wait before retrying (exponential backoff)
       const waitTime = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
       console.log(`[Replicate] Retrying in ${waitTime / 1000}s... (${retryBudget - attempt} retries left)`);
 
-      await new Promise((resolve, reject) => {
+      await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(resolve, waitTime);
         signal?.addEventListener('abort', () => {
           clearTimeout(timeout);
@@ -569,6 +806,10 @@ export async function generateWithRetry(userInput, modelId = null, signal = null
   throw lastError;
 }
 
+// ============================================================================
+// Health Check Functions
+// ============================================================================
+
 /**
  * Health check result types
  */
@@ -577,15 +818,17 @@ export const HealthStatus = {
   UNAVAILABLE: 'unavailable',
   AUTH_REQUIRED: 'auth_required',
   NOT_CONFIGURED: 'not_configured'
-};
+} as const;
+
+export type HealthStatusType = typeof HealthStatus[keyof typeof HealthStatus];
 
 /**
  * Check if Replicate service is configured and accessible
  * Returns typed health status for UI banner display
  *
- * @returns {Promise<Object>} Health status with banner message
+ * @returns Health status with banner message
  */
-export async function checkServiceHealth() {
+export async function checkServiceHealth(): Promise<HealthCheckResult> {
   try {
     if (!PROXY_URL) {
       return {
@@ -602,7 +845,7 @@ export async function checkServiceHealth() {
     }
 
     // Check if proxy server is running (health endpoint doesn't require auth)
-    const data = await fetchJSON(`${PROXY_URL}/health`, { includeAuth: false });
+    const data = await fetchJSON(`${PROXY_URL}/health`, { includeAuth: false }) as { hasToken: boolean; authRequired: boolean };
 
     if (!data.hasToken) {
       return {
@@ -655,10 +898,14 @@ export async function checkServiceHealth() {
   }
 }
 
+// ============================================================================
+// Cost Estimation Functions
+// ============================================================================
+
 /**
  * Get estimated cost for a generation request
  */
-export function getEstimatedCost(numVariations = 4) {
+export function getEstimatedCost(numVariations: number = 4): CostEstimate {
   const model = AI_MODELS[DEFAULT_MODEL] || AI_MODELS.sdxl;
   const costPerImage = model?.cost || 0.0055;
   return {
@@ -668,15 +915,19 @@ export function getEstimatedCost(numVariations = 4) {
   };
 }
 
+// ============================================================================
+// Rate Limiting
+// ============================================================================
+
 /**
  * Rate limiter for budget control
  * Prevents too many requests in short time period
  */
 const rateLimiter = {
-  requests: [],
+  requests: [] as number[],
   maxRequestsPerMinute: 60, // Increased to 60 (Replicate's limit with billing)
 
-  canMakeRequest() {
+  canMakeRequest(): boolean {
     const now = Date.now();
     const oneMinuteAgo = now - 60000;
 
@@ -686,11 +937,11 @@ const rateLimiter = {
     return this.requests.length < this.maxRequestsPerMinute;
   },
 
-  recordRequest() {
+  recordRequest(): void {
     this.requests.push(Date.now());
   },
 
-  getTimeUntilNextRequest() {
+  getTimeUntilNextRequest(): number {
     if (this.canMakeRequest()) return 0;
 
     const oldestRequest = Math.min(...this.requests);
@@ -703,12 +954,18 @@ const rateLimiter = {
 /**
  * Generate with rate limiting
  *
- * @param {Object} userInput - Design parameters
- * @param {string} modelId - Optional model ID to use
- * @param {AbortSignal} signal - Optional abort signal for cancellation
- * @returns {Promise<Object>} Generated design data
+ * @param userInput - Design parameters
+ * @param modelId - Optional model ID to use
+ * @param signal - Optional abort signal for cancellation
+ * @param options - Generation options
+ * @returns Generated design data
  */
-export async function generateWithRateLimit(userInput, modelId = null, signal = null, options = {}) {
+export async function generateWithRateLimit(
+  userInput: UserInput,
+  modelId: string | null = null,
+  signal: AbortSignal | null = null,
+  options: GenerationOptions = {}
+): Promise<GenerationResult> {
   if (!rateLimiter.canMakeRequest()) {
     const waitTime = rateLimiter.getTimeUntilNextRequest();
     throw new Error(`Rate limit reached. Please wait ${Math.ceil(waitTime / 1000)} seconds before generating again.`);
@@ -721,10 +978,16 @@ export async function generateWithRateLimit(userInput, modelId = null, signal = 
   return generateWithRetry(userInput, modelId, signal, 3, options);
 }
 
-async function generateWithFallbackChain(userInput, modelId, signal, maxRetries, options) {
+async function generateWithFallbackChain(
+  userInput: UserInput,
+  modelId: string | null,
+  signal: AbortSignal | null,
+  maxRetries: number,
+  options: GenerationOptions
+): Promise<GenerationResult> {
   const fallbackChain = options.fallbackChain || [];
-  const modelsToTry = [modelId, ...fallbackChain].filter(Boolean);
-  let lastError;
+  const modelsToTry = [modelId, ...fallbackChain].filter(Boolean) as string[];
+  let lastError: Error | unknown;
 
   for (let i = 0; i < modelsToTry.length; i += 1) {
     const candidate = modelsToTry[i];
@@ -736,7 +999,7 @@ async function generateWithFallbackChain(userInput, modelId, signal, maxRetries,
       });
     } catch (error) {
       lastError = error;
-      const message = error?.message || '';
+      const message = error instanceof Error ? error.message : '';
 
       if (message.includes('cancelled') || signal?.aborted) {
         throw error;
@@ -761,19 +1024,26 @@ async function generateWithFallbackChain(userInput, modelId, signal, maxRetries,
   throw lastError;
 }
 
+// ============================================================================
+// Convenience Functions
+// ============================================================================
+
 /**
  * Generate a low-res preview using the turbo model
  * Returns a single image optimized for fast feedback.
  */
-export async function generatePreviewDesign(userInput, options = {}) {
+export async function generatePreviewDesign(
+  userInput: UserInput,
+  options: PreviewOptions = {}
+): Promise<GenerationResult> {
   const hasExplicitModel = Boolean(options.modelId || userInput.aiModel);
-  const routing = hasExplicitModel ? null : routeGeneration(userInput, { mode: 'preview' });
+  const routing = hasExplicitModel ? null : routeGeneration(userInput, { mode: 'preview' }) as GenerationRoute | null;
   const resolvedModelId = options.modelId || userInput.aiModel || routing?.modelId || PREVIEW_MODEL;
   const resolvedInput = routing
     ? { ...userInput, negativePrompt: routing.negativePrompt }
     : userInput;
 
-  const inputOverrides = {
+  const inputOverrides: any = {
     ...PREVIEW_OVERRIDES,
     ...(options.inputOverrides || {})
   };
@@ -796,17 +1066,20 @@ export async function generatePreviewDesign(userInput, options = {}) {
  * Generate a high-res design with 300 DPI metadata
  * Supports RGBA output when the model allows it.
  */
-export async function generateHighResDesign(userInput, options = {}) {
+export async function generateHighResDesign(
+  userInput: UserInput,
+  options: HighResOptions = {}
+): Promise<GenerationResult> {
   const hasExplicitModel = Boolean(options.modelId || userInput.aiModel);
-  const routing = hasExplicitModel ? null : routeGeneration(userInput, { mode: options.finalize ? 'final' : 'refine' });
+  const routing = hasExplicitModel ? null : routeGeneration(userInput, { mode: options.finalize ? 'final' : 'refine' }) as GenerationRoute | null;
   const modelId = options.modelId || userInput.aiModel || routing?.modelId || DEFAULT_MODEL;
   const resolvedInput = routing
     ? { ...userInput, negativePrompt: routing.negativePrompt }
     : userInput;
-  const model = AI_MODELS[modelId] || AI_MODELS[DEFAULT_MODEL];
+  const model = AI_MODELS[modelId as AIModelId] || AI_MODELS[DEFAULT_MODEL];
   const baseSteps = model?.params?.num_inference_steps || 50;
   const targetSteps = options.finalize ? Math.max(baseSteps, 60) : baseSteps;
-  const inputOverrides = {
+  const inputOverrides: any = {
     ...HIGH_RES_OVERRIDES,
     num_inference_steps: targetSteps,
     ...(options.inputOverrides || {})

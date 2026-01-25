@@ -30,13 +30,13 @@ export default function VibeChips({
     return (
         <div className="space-y-6 animate-fade-in">
             <div className="border-t border-white/5 pt-6">
-                <h3 className="text-xs font-mono uppercase tracking-widest text-gray-600 mb-4">
+                <h3 className="text-xs font-mono uppercase tracking-widest text-white/40 mb-4">
                     Studio Suggestions
                 </h3>
 
                 {isLoading && (
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <div className="w-4 h-4 border-2 border-gray-600 border-t-ducks-green rounded-full animate-spin" />
+                    <div className="flex items-center gap-2 text-sm text-white/50">
+                        <div className="w-4 h-4 border-2 border-white/20 border-t-studio-neon rounded-full animate-spin" />
                         Thinking about your idea...
                     </div>
                 )}
@@ -82,7 +82,7 @@ export default function VibeChips({
 function ChipCategory({ title, chips, selectedChips, onChipClick }) {
     return (
         <div>
-            <p className="text-[10px] font-mono uppercase tracking-wider text-gray-600 mb-2">
+            <p className="text-[10px] font-mono uppercase tracking-wider text-white/40 mb-2">
                 {title}
             </p>
             <div className="flex flex-wrap gap-2">
@@ -95,8 +95,8 @@ function ChipCategory({ title, chips, selectedChips, onChipClick }) {
                             className={`
                 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200
                 ${isSelected
-                                    ? 'bg-ducks-green/10 text-ducks-green border-2 border-ducks-green shadow-glow-green'
-                                    : 'bg-white/5 text-gray-400 border border-white/10 hover:border-white/30 hover:bg-white/10'
+                                    ? 'bg-[rgba(0,255,65,0.12)] text-studio-neon border-2 border-studio-neon shadow-[0_0_18px_rgba(0,255,65,0.3)]'
+                                    : 'bg-white/5 text-white/50 border border-white/10 hover:border-white/30 hover:bg-white/10'
                                 }
               `}
                         >

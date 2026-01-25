@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { BodyPart } from '../../constants/bodyPartAspectRatios';
 import { useCanvasAspectRatio } from '../../hooks/useCanvasAspectRatio';
 import { CanvasSilhouette } from './CanvasSilhouette';
+import CanvasMetadata from './CanvasMetadata';
 import { Layer, getCompositeOperation } from '../../services/canvasService';
 import TransformHandles from '../Forge/TransformHandles';
 
@@ -23,6 +24,8 @@ interface ForgeCanvasProps {
         transform: Partial<Layer['transform']>,
         options?: { recordHistory?: boolean }
     ) => void;
+    layerCount?: number;
+    seed?: string | number | null;
     className?: string;
 }
 
@@ -274,6 +277,8 @@ export function ForgeCanvas({
     selectedLayerId = null,
     onSelectLayer,
     onUpdateTransform,
+    layerCount = layers.length,
+    seed = null,
     className = ''
 }: ForgeCanvasProps) {
     const stageRef = useRef<any>(null);
@@ -284,6 +289,7 @@ export function ForgeCanvas({
         maxHeight: containerSize.height || 900,
         padding: 0
     });
+    const gridSize = Math.max(24, Math.round(Math.min(width, height) / 20));
 
     useEffect(() => {
         const element = containerRef.current;
@@ -330,8 +336,11 @@ export function ForgeCanvas({
                     }}
                 >
                     <div className="absolute inset-0 pointer-events-none">
-                        <div className="absolute inset-0 forge-grid opacity-40" />
-                        <div className="absolute inset-0 forge-scan opacity-30" />
+                        <div
+                            className="absolute inset-0 blueprint-grid opacity-70"
+                            style={{ backgroundSize: `${gridSize}px ${gridSize}px` }}
+                        />
+                        <div className="absolute inset-0 forge-scan opacity-20" />
                     </div>
 
                     {/* Silhouette overlay */}
@@ -389,6 +398,14 @@ export function ForgeCanvas({
                             {layers.filter(l => l.visible).length}/{layers.length} visible
                         </div>
                     )}
+
+                    <CanvasMetadata
+                        width={width}
+                        height={height}
+                        layerCount={layerCount}
+                        bodyPart={bodyPart}
+                        seed={seed}
+                    />
                 </motion.div>
             </AnimatePresence>
         </div>

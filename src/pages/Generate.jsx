@@ -8,7 +8,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { BodyPartSelector } from '../components/generate/BodyPartSelector';
 import { ForgeCanvas } from '../components/generate/ForgeCanvas';
 import { BodyPartWarningModal } from '../components/generate/BodyPartWarningModal';
-import PromptInterface from '../components/generate/PromptInterface';
+import NeuralPromptEditor from '../components/generate/NeuralPromptEditor';
 import VibeChips from '../components/generate/VibeChips';
 import AdvancedOptions from '../components/generate/AdvancedOptions';
 import LayerStack from '../components/generate/LayerStack';
@@ -25,6 +25,7 @@ import LayerContextMenu from '../components/generate/LayerContextMenu';
 import RegenerateElementModal from '../components/generate/RegenerateElementModal';
 import ForgeGuide from '../components/generate/ForgeGuide';
 import HolyGrailLayout from '../components/layouts/HolyGrailLayout';
+import CollapsibleSidebar from '../components/layouts/CollapsibleSidebar';
 import { ToastContainer } from '../components/ui/Toast';
 import Input from '../components/ui/Input';
 import { DEFAULT_BODY_PART } from '../constants/bodyPartAspectRatios';
@@ -308,6 +309,11 @@ export default function Generate() {
     const [elementType, setElementType] = useState('subject');
     const [contextMenu, setContextMenu] = useState(null);
     const [regenerateModal, setRegenerateModal] = useState(null);
+    const [lastSeed, setLastSeed] = useState(null);
+    const [isRightCollapsed, setIsRightCollapsed] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        return localStorage.getItem('tattester_right_sidebar_collapsed') === 'true';
+    });
 
     // Keyboard shortcuts
     const keyboardShortcuts = useKeyboardShortcuts();
@@ -338,6 +344,22 @@ export default function Generate() {
         location: null,
         embeddingVector: null
     }), [bodyPart, layers.length, matchStyle]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        localStorage.setItem('tattester_right_sidebar_collapsed', String(isRightCollapsed));
+    }, [isRightCollapsed]);
+
+    useEffect(() => {
+        const handler = (event) => {
+            if ((event.ctrlKey || event.metaKey) && event.key === ']') {
+                event.preventDefault();
+                setIsRightCollapsed((prev) => !prev);
+            }
+        };
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    }, []);
 
     const currentDesign = useMemo(() => ({
         id: sessionId,
@@ -517,6 +539,9 @@ export default function Generate() {
             const result = await generateHighRes({ finalize });
 
             if (result && result.images && result.images.length > 0) {
+                if (result.metadata?.seed) {
+                    setLastSeed(result.metadata.seed);
+                }
                 let createdLayers = [];
 
                 // Check if we should use multi-layer processing
@@ -1034,6 +1059,8 @@ export default function Generate() {
                         selectedLayerId={selectedLayerId}
                         onSelectLayer={selectLayer}
                         onUpdateTransform={updateTransform}
+                        layerCount={layers.length}
+                        seed={lastSeed}
                         className="w-full h-full"
                     />
 
@@ -1044,7 +1071,7 @@ export default function Generate() {
                                 alt="Preview"
                                 className="w-full h-full object-contain opacity-80"
                             />
-                            <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-black/60 text-xs font-mono uppercase tracking-widest text-ducks-yellow">
+                            <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-black/60 text-xs font-mono uppercase tracking-widest text-studio-accent">
                                 Preview
                             </div>
                         </div>
@@ -1109,7 +1136,7 @@ export default function Generate() {
                 {selectedLayer && (
                     <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="bg-black/30 border border-white/10 rounded-2xl p-4">
-                            <p className="text-xs font-mono uppercase tracking-[0.3em] text-ducks-green">
+                            <p className="text-xs font-mono uppercase tracking-[0.3em] text-studio-neon">
                                 Layer Blend
                             </p>
                             <p className="text-sm text-white/70 mt-2">
@@ -1123,7 +1150,7 @@ export default function Generate() {
                             </div>
                         </div>
                         <div className="bg-black/30 border border-white/10 rounded-2xl p-4 space-y-3">
-                            <p className="text-xs font-mono uppercase tracking-[0.3em] text-ducks-green">
+                            <p className="text-xs font-mono uppercase tracking-[0.3em] text-studio-neon">
                                 Layer Actions
                             </p>
                             <div className="grid grid-cols-2 gap-3">
@@ -1180,7 +1207,7 @@ export default function Generate() {
                     </div>
                     <div className="mt-3 h-2 rounded-full bg-white/10 overflow-hidden">
                         <div
-                            className="h-full bg-ducks-green transition-all duration-500"
+                            className="h-full bg-studio-neon transition-all duration-500"
                             style={{
                                 width: `${Math.round(([
                                     bodyPart ? 1 : 0,
@@ -1191,22 +1218,15 @@ export default function Generate() {
                         />
                     </div>
                 </div>
-                <PromptInterface
+                <NeuralPromptEditor
                     value={promptText}
                     onChange={setPromptText}
                     selectedChips={selectedChips}
+                    onEnhance={handleEnhance}
+                    isEnhancing={isEnhancing}
                 />
 
-                <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-                    <Button
-                        variant="outline"
-                        size="lg"
-                        onClick={handleEnhance}
-                        disabled={isEnhancing || !promptText.trim()}
-                        icon={Sparkles}
-                    >
-                        Enhance with AI Council
-                    </Button>
+                <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
                     <button
                         onClick={() => setShowAdvanced(!showAdvanced)}
                         className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-mono uppercase tracking-widest text-white/60 hover:text-white hover:border-white/40"
@@ -1241,9 +1261,9 @@ export default function Generate() {
                 />
 
                 {enhancedPrompt && (
-                    <div className="mt-6 p-6 bg-ducks-green/10 border border-ducks-green/30 rounded-2xl">
+                    <div className="mt-6 p-6 bg-[rgba(0,255,65,0.1)] border border-[rgba(0,255,65,0.3)] rounded-2xl">
                         <div className="flex items-center justify-between mb-3">
-                            <h4 className="text-sm font-bold text-ducks-green uppercase tracking-wider">
+                            <h4 className="text-sm font-bold text-studio-neon uppercase tracking-wider">
                                 AI Enhanced Prompt ({enhancementLevel})
                             </h4>
                             <button
@@ -1296,7 +1316,7 @@ export default function Generate() {
                                 </div>
                                 <div className="h-2 rounded-full bg-white/10 overflow-hidden">
                                     <div
-                                        className="h-full bg-ducks-green transition-all"
+                                        className="h-full bg-studio-neon transition-all"
                                         style={{ width: `${Math.round((progress?.percent || 0) * 100)}%` }}
                                     />
                                 </div>
@@ -1340,35 +1360,46 @@ export default function Generate() {
         </div>
     );
 
-    const rightPanel = (
-        <div className={ENABLE_STUDIO_LAYOUT ? '' : 'lg:col-span-12 xl:col-span-12 2xl:col-span-3'}>
-            <div className="space-y-6 2xl:sticky 2xl:top-24">
-                <MatchPulseSidebar
-                    matches={matches}
-                    totalMatches={totalMatches}
-                    isLoading={isMatching}
-                    error={matchError}
-                    context={matchContext}
-                />
+    const rightPanelContent = (
+        <div className="space-y-6 2xl:sticky 2xl:top-24">
+            <MatchPulseSidebar
+                matches={matches}
+                totalMatches={totalMatches}
+                isLoading={isMatching}
+                error={matchError}
+                context={matchContext}
+            />
 
-                <div className="glass-panel rounded-2xl border border-white/10 h-[360px] md:h-[calc(100vh-28rem)]">
-                    <LayerStack
-                        layers={layers}
-                        selectedLayerId={selectedLayerId}
-                        onSelectLayer={selectLayer}
-                        onToggleVisibility={toggleVisibility}
-                        onRename={rename}
-                        onDelete={deleteLayer}
-                        onReorder={reorder}
-                        onContextMenu={handleLayerContextMenu}
-                        onAddLayer={() => {
-                            setShowElementModal(true);
-                            setElementPrompt('');
-                            setElementType('subject');
-                        }}
-                    />
-                </div>
+            <div className="glass-panel rounded-2xl border border-white/10 h-[360px] md:h-[calc(100vh-28rem)]">
+                <LayerStack
+                    layers={layers}
+                    selectedLayerId={selectedLayerId}
+                    onSelectLayer={selectLayer}
+                    onToggleVisibility={toggleVisibility}
+                    onRename={rename}
+                    onDelete={deleteLayer}
+                    onReorder={reorder}
+                    onContextMenu={handleLayerContextMenu}
+                    onAddLayer={() => {
+                        setShowElementModal(true);
+                        setElementPrompt('');
+                        setElementType('subject');
+                    }}
+                />
             </div>
+        </div>
+    );
+
+    const rightPanel = ENABLE_STUDIO_LAYOUT ? (
+        <CollapsibleSidebar
+            isCollapsed={isRightCollapsed}
+            onToggle={() => setIsRightCollapsed((prev) => !prev)}
+        >
+            {rightPanelContent}
+        </CollapsibleSidebar>
+    ) : (
+        <div className="lg:col-span-12 xl:col-span-12 2xl:col-span-3">
+            {rightPanelContent}
         </div>
     );
 
@@ -1377,14 +1408,14 @@ export default function Generate() {
             {/* Background Effects */}
             <div className="fixed inset-0 bg-black -z-20" />
             <div className="fixed inset-0 bg-gradient-to-br from-blue-950/20 via-black to-black -z-10" />
-            <div className="fixed top-0 right-0 w-[600px] h-[600px] bg-ducks-green/10 rounded-full blur-[150px] pointer-events-none -z-10" />
+            <div className="fixed top-0 right-0 w-[600px] h-[600px] bg-[rgba(0,255,65,0.12)] rounded-full blur-[150px] pointer-events-none -z-10" />
 
             {/* Header */}
             <div className="text-center mb-12 pt-8" role="banner">
                 <h1 className="text-6xl md:text-7xl font-display font-black tracking-tighter text-white mb-3">
                     THE FORGE
                 </h1>
-                <p className="text-xs font-mono text-ducks-green uppercase tracking-[0.3em]" aria-label="Version 4.2 Neural Ink Generation Engine">
+                <p className="text-xs font-mono text-studio-neon uppercase tracking-[0.3em]" aria-label="Version 4.2 Neural Ink Generation Engine">
                     Neural Ink Generation Engine // v4.2
                 </p>
                 <div className="mt-6 flex items-center justify-center gap-3">
@@ -1411,7 +1442,7 @@ export default function Generate() {
                 >
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                         <div>
-                            <p className="text-[11px] font-mono uppercase tracking-[0.4em] text-ducks-green/70">
+                            <p className="text-[11px] font-mono uppercase tracking-[0.4em] text-studio-neon opacity-70">
                                 Trending Now
                             </p>
                             <h2 className="text-2xl md:text-3xl font-display font-bold text-white mt-2">
@@ -1437,7 +1468,7 @@ export default function Generate() {
                             <button
                                 key={example.id}
                                 onClick={() => handleLoadExample(example)}
-                                className="group text-left rounded-2xl border border-white/10 bg-black/40 hover:bg-black/60 transition-all overflow-hidden focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-ducks-yellow"
+                                className="group text-left rounded-2xl border border-white/10 bg-black/40 hover:bg-black/60 transition-all overflow-hidden focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-studio-accent"
                                 disabled={isLoadingExample}
                             >
                                 <div className="relative h-36 overflow-hidden">
@@ -1461,7 +1492,15 @@ export default function Generate() {
                 </section>
 
                 {ENABLE_STUDIO_LAYOUT ? (
-                    <HolyGrailLayout left={leftPanel} center={centerPanel} right={rightPanel} />
+                    <HolyGrailLayout
+                        left={leftPanel}
+                        center={centerPanel}
+                        right={rightPanel}
+                        columnsClassName={isRightCollapsed
+                            ? 'grid-cols-[280px_minmax(0,1fr)_40px]'
+                            : 'grid-cols-[280px_minmax(0,1fr)_320px]'
+                        }
+                    />
                 ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                         {leftPanel}
@@ -1542,7 +1581,7 @@ export default function Generate() {
                                     value={elementPrompt}
                                     onChange={(e) => setElementPrompt(e.target.value)}
                                     placeholder="e.g., Add a koi fish, lightning bolt, ornamental frame"
-                                    className="mt-2 w-full rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-ducks-green/60"
+                                    className="mt-2 w-full rounded-xl bg-[var(--studio-bg)] border border-white/[0.05] px-4 py-3 text-sm text-white font-mono focus:outline-none focus:border-studio-neon focus:shadow-[0_0_14px_rgba(0,255,65,0.35)]"
                                     rows={3}
                                 />
                             </div>
@@ -1554,7 +1593,7 @@ export default function Generate() {
                                     id="element-type"
                                     value={elementType}
                                     onChange={(e) => setElementType(e.target.value)}
-                                    className="mt-2 w-full rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-ducks-green/60"
+                                    className="mt-2 w-full rounded-xl bg-[var(--studio-bg)] border border-white/[0.05] px-4 py-3 text-sm text-white font-mono focus:outline-none focus:border-studio-neon focus:shadow-[0_0_14px_rgba(0,255,65,0.35)]"
                                 >
                                     <option value="subject">Subject</option>
                                     <option value="background">Background</option>

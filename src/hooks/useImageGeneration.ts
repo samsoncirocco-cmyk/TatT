@@ -3,9 +3,79 @@ import { generateHighResDesign } from '../services/replicateService';
 import { createAbortController } from '../services/fetchWithAbort';
 import { optimizeForAR } from '../services/imageProcessingService';
 
+// Types
+export type ProgressStatus = 'idle' | 'running' | 'completed' | 'error';
+export type GenerationMode = 'refine' | 'final';
+
+export interface GenerationProgress {
+  status: ProgressStatus;
+  percent: number;
+  etaSeconds: number | null;
+}
+
+export interface UserInput {
+  subject?: string;
+  style?: string;
+  bodyPart?: string;
+  vibes?: string[];
+  negativePrompt?: string;
+  aiModel?: string;
+  [key: string]: any;
+}
+
+export interface GenerationResult {
+  images?: string[];
+  metadata?: Record<string, any>;
+  userInput?: UserInput | null;
+  [key: string]: any;
+}
+
+export interface ARAsset {
+  url: string;
+  size: number;
+  sourceId: string;
+}
+
+export interface SessionEntry {
+  id: string;
+  parentId: string | null;
+  mode: GenerationMode;
+  images: string[];
+  metadata: Record<string, any>;
+  userInput: UserInput | null;
+  createdAt: string;
+}
+
+export interface GenerateHighResOptions {
+  finalize?: boolean;
+  parentId?: string | null;
+  userInputOverride?: UserInput | null;
+}
+
+export interface UseImageGenerationOptions {
+  userInput?: UserInput;
+}
+
+export interface UseImageGenerationReturn {
+  result: GenerationResult | null;
+  arAsset: ARAsset | null;
+  isGenerating: boolean;
+  error: string | null;
+  progress: GenerationProgress;
+  queueLength: number;
+  generateHighRes: (options?: GenerateHighResOptions) => Promise<GenerationResult | null>;
+  cancelCurrent: () => void;
+}
+
+interface QueueTask<T> {
+  task: () => Promise<T>;
+  resolve: (value: T) => void;
+  reject: (error: any) => void;
+}
+
 const GENERATION_STORAGE_KEY = 'tattester_generation_session';
 
-function safeStorageGet(key, fallback) {
+function safeStorageGet<T>(key: string, fallback: T): T {
   try {
     const stored = localStorage.getItem(key);
     return stored ? JSON.parse(stored) : fallback;
@@ -15,7 +85,7 @@ function safeStorageGet(key, fallback) {
   }
 }
 
-function safeStorageSet(key, value) {
+function safeStorageSet(key: string, value: any): boolean {
   try {
     localStorage.setItem(key, JSON.stringify(value));
     return true;
@@ -25,14 +95,18 @@ function safeStorageSet(key, value) {
   }
 }
 
-function createId(prefix = 'gen') {
+function createId(prefix: string = 'gen'): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
   }
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 }
 
-function buildSessionEntry(result, mode, parentId) {
+function buildSessionEntry(
+  result: GenerationResult,
+  mode: GenerationMode,
+  parentId: string | null
+): SessionEntry {
   return {
     id: createId(mode),
     parentId: parentId || null,
@@ -44,30 +118,32 @@ function buildSessionEntry(result, mode, parentId) {
   };
 }
 
-export function useImageGeneration({ userInput } = {}) {
-  const [result, setResult] = useState(null);
-  const [arAsset, setArAsset] = useState(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [error, setError] = useState(null);
-  const [queueLength, setQueueLength] = useState(0);
-  const [progress, setProgress] = useState({
+export function useImageGeneration(
+  { userInput }: UseImageGenerationOptions = {}
+): UseImageGenerationReturn {
+  const [result, setResult] = useState<GenerationResult | null>(null);
+  const [arAsset, setArAsset] = useState<ARAsset | null>(null);
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [queueLength, setQueueLength] = useState<number>(0);
+  const [progress, setProgress] = useState<GenerationProgress>({
     status: 'idle',
     percent: 0,
     etaSeconds: null
   });
 
-  const queueRef = useRef([]);
-  const processingRef = useRef(false);
-  const abortRef = useRef(null);
-  const progressTimerRef = useRef(null);
+  const queueRef = useRef<QueueTask<GenerationResult | null>[]>([]);
+  const processingRef = useRef<boolean>(false);
+  const abortRef = useRef<AbortController | null>(null);
+  const progressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const storeResult = useCallback((entry) => {
-    const existing = safeStorageGet(GENERATION_STORAGE_KEY, []);
+  const storeResult = useCallback((entry: SessionEntry) => {
+    const existing = safeStorageGet<SessionEntry[]>(GENERATION_STORAGE_KEY, []);
     const updated = [...existing, entry].slice(-50);
     safeStorageSet(GENERATION_STORAGE_KEY, updated);
   }, []);
 
-  const startProgressTimer = useCallback((expectedSeconds) => {
+  const startProgressTimer = useCallback((expectedSeconds: number) => {
     const startTime = Date.now();
     setProgress({
       status: 'running',
@@ -91,7 +167,7 @@ export function useImageGeneration({ userInput } = {}) {
     }, 1000);
   }, []);
 
-  const stopProgressTimer = useCallback((status = 'idle') => {
+  const stopProgressTimer = useCallback((status: ProgressStatus = 'idle') => {
     if (progressTimerRef.current) {
       clearInterval(progressTimerRef.current);
       progressTimerRef.current = null;
@@ -125,9 +201,9 @@ export function useImageGeneration({ userInput } = {}) {
     }
   }, []);
 
-  const enqueue = useCallback((task) => {
+  const enqueue = useCallback(<T,>(task: () => Promise<T>): Promise<T> => {
     return new Promise((resolve, reject) => {
-      queueRef.current.push({ task, resolve, reject });
+      queueRef.current.push({ task, resolve, reject } as any);
       setQueueLength(queueRef.current.length);
       processQueue();
     });
@@ -139,7 +215,10 @@ export function useImageGeneration({ userInput } = {}) {
     }
   }, []);
 
-  const generateHighRes = useCallback(async ({ finalize = false, parentId = null, userInputOverride = null } = {}) => {
+  const generateHighRes = useCallback(async (
+    options: GenerateHighResOptions = {}
+  ): Promise<GenerationResult | null> => {
+    const { finalize = false, parentId = null, userInputOverride = null } = options;
     const resolvedInput = userInputOverride || userInput;
     if (!resolvedInput || !resolvedInput.subject?.trim()) {
       setError('Please provide a prompt before generating.');
@@ -171,20 +250,20 @@ export function useImageGeneration({ userInput } = {}) {
 
         if (response.images?.length) {
           optimizeForAR(response.images[0])
-            .then((asset) => {
+            .then((asset: any) => {
               setArAsset({
                 url: asset.url,
                 size: asset.size,
                 sourceId: entry.id
               });
             })
-            .catch((assetError) => {
+            .catch((assetError: Error) => {
               console.warn('[ImageGeneration] AR optimization failed:', assetError);
             });
         }
 
         return response;
-      } catch (err) {
+      } catch (err: any) {
         if (!err.message?.includes('cancelled')) {
           setError(err.message || 'High-res generation failed.');
         }

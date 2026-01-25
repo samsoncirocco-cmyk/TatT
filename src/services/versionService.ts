@@ -7,6 +7,7 @@
 
 import { safeLocalStorageGet, safeLocalStorageSet } from './storageService.js';
 import { generateLayerId } from '../lib/layerUtils.js';
+import type { DesignVersion } from '../hooks/useVersionHistory';
 
 const VERSION_STORAGE_KEY_PREFIX = 'tattester_version_history_';
 const MAX_VERSIONS_PER_DESIGN = 50;
@@ -14,26 +15,25 @@ const MAX_VERSIONS_PER_DESIGN = 50;
 /**
  * Generate a unique version ID
  */
-function generateVersionId() {
+function generateVersionId(): string {
     return `v_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
 /**
  * Create a version object
  */
-function createVersion(data) {
+function createVersion(data: Partial<DesignVersion>): DesignVersion {
     return {
         id: generateVersionId(),
         timestamp: new Date().toISOString(),
         ...data
-    };
+    } as DesignVersion;
 }
 
 /**
  * Get all versions for a specific design session
- * @param {string} sessionId - Unique identifier for the current design session
  */
-export function getVersions(sessionId) {
+export function getVersions(sessionId: string): DesignVersion[] {
     if (!sessionId) return [];
 
     // Chance to purge old histories (1 in 10 calls to avoid slight perf hit every time)
@@ -42,13 +42,13 @@ export function getVersions(sessionId) {
     }
 
     const key = `${VERSION_STORAGE_KEY_PREFIX}${sessionId}`;
-    return safeLocalStorageGet(key, []);
+    return safeLocalStorageGet<DesignVersion[]>(key, []);
 }
 
 /**
  * Purge version histories older than 90 days
  */
-function purgeOldHistories() {
+function purgeOldHistories(): void {
     const now = Date.now();
     const expiryMs = 90 * 24 * 60 * 60 * 1000; // 90 days
 
@@ -57,7 +57,8 @@ function purgeOldHistories() {
             if (key.startsWith(VERSION_STORAGE_KEY_PREFIX)) {
                 try {
                     const rawFn = localStorage.getItem(key);
-                    const versions = JSON.parse(rawFn);
+                    if (!rawFn) return;
+                    const versions = JSON.parse(rawFn) as DesignVersion[];
 
                     if (Array.isArray(versions) && versions.length > 0) {
                         // Check timestamp of the most recent version
@@ -84,10 +85,11 @@ function purgeOldHistories() {
 
 /**
  * Add a new version to the history
- * @param {string} sessionId - The session ID
- * @param {Object} versionData - Data to save (image, prompt, params, etc.)
  */
-export function addVersion(sessionId, versionData) {
+export function addVersion(
+    sessionId: string,
+    versionData: Partial<DesignVersion>
+): DesignVersion | null {
     if (!sessionId) {
         console.warn('[VersionService] No session ID provided for saving version.');
         return null;
@@ -100,16 +102,12 @@ export function addVersion(sessionId, versionData) {
             ...versionData
         });
 
-        // Add to end of array (chronological) 
-        // Wait, typically timelines are newest first or oldest first? 
-        // Let's do chronological (append) so 1, 2, 3...
+        // Add to end of array (chronological)
         versions.push(newVersion);
 
-        // Enforce limit (remove oldest non-favorite/non-protected if we had favorites, 
-        // but typically versions are just raw history. Removing the very first one (oldest).)
+        // Enforce limit (remove oldest)
         if (versions.length > MAX_VERSIONS_PER_DESIGN) {
             versions.shift(); // Remove oldest
-            // Re-number remaining versions? No, keep original numbers to avoid confusion.
         }
 
         const key = `${VERSION_STORAGE_KEY_PREFIX}${sessionId}`;
@@ -130,7 +128,7 @@ export function addVersion(sessionId, versionData) {
 /**
  * Delete a specific version
  */
-export function deleteVersion(sessionId, versionId) {
+export function deleteVersion(sessionId: string, versionId: string): DesignVersion[] {
     const versions = getVersions(sessionId);
     const updatedVersions = versions.filter(v => v.id !== versionId);
 
@@ -142,7 +140,7 @@ export function deleteVersion(sessionId, versionId) {
 /**
  * Clear all versions for a session
  */
-export function clearSessionHistory(sessionId) {
+export function clearSessionHistory(sessionId: string): void {
     const key = `${VERSION_STORAGE_KEY_PREFIX}${sessionId}`;
     localStorage.removeItem(key);
 }

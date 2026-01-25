@@ -1,9 +1,47 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { subscribeToMatches } from '../services/firebase-match-service';
 import { requestMatchUpdate } from '../services/matchUpdateService';
-import { useMatchStore } from '../store/useMatchStore';
+import { useMatchStore, ArtistMatch } from '../store/useMatchStore';
 
-export function useRealtimeMatchPulse({ userId, context, currentDesign, debounceMs = 2000 } = {}) {
+// Types
+interface DesignContext {
+  style?: string;
+  bodyPart?: string;
+  layerCount?: number;
+  location?: string;
+  embeddingVector?: number[] | null;
+}
+
+interface CurrentDesign {
+  id: string;
+  prompt: string;
+  style?: string;
+  bodyPart?: string;
+  location?: string;
+  budget?: number;
+  embeddingVector?: number[] | null;
+}
+
+interface UseRealtimeMatchPulseParams {
+  userId?: string;
+  context?: DesignContext;
+  currentDesign?: CurrentDesign;
+  debounceMs?: number;
+}
+
+interface UseRealtimeMatchPulseReturn {
+  matches: ArtistMatch[];
+  totalMatches: number;
+  isLoading: boolean;
+  error: string | null;
+}
+
+export function useRealtimeMatchPulse({
+  userId,
+  context,
+  currentDesign,
+  debounceMs = 2000
+}: UseRealtimeMatchPulseParams = {}): UseRealtimeMatchPulseReturn {
   const {
     matches,
     isLoading,
@@ -15,7 +53,7 @@ export function useRealtimeMatchPulse({ userId, context, currentDesign, debounce
 
   const totalMatches = matches.length;
 
-  const debounceRef = useRef(null);
+  const debounceRef = useRef<number | null>(null);
 
   const contextSignature = useMemo(() => {
     if (!context) return '';
@@ -31,7 +69,7 @@ export function useRealtimeMatchPulse({ userId, context, currentDesign, debounce
   useEffect(() => {
     if (!userId) return;
 
-    const unsubscribe = subscribeToMatches(userId, (matchData) => {
+    const unsubscribe = subscribeToMatches(userId, (matchData: any) => {
       if (matchData?.artists) {
         setMatches(matchData.artists);
         setLoading(false);
@@ -54,7 +92,7 @@ export function useRealtimeMatchPulse({ userId, context, currentDesign, debounce
       clearTimeout(debounceRef.current);
     }
 
-    debounceRef.current = setTimeout(async () => {
+    debounceRef.current = window.setTimeout(async () => {
       try {
         const response = await requestMatchUpdate({
           userId,

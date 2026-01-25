@@ -4,17 +4,17 @@ import { Loader2 } from 'lucide-react';
 const variants = {
     primary: `
         bg-studio-accent text-white font-bold
-        border border-studio-accent/80
-        hover:bg-studio-accent/90 hover:border-studio-accent
-        active:bg-studio-accent/80
+        border border-[rgba(255,62,0,0.8)]
+        hover:bg-[rgba(255,62,0,0.9)] hover:border-studio-accent
+        active:bg-[rgba(255,62,0,0.8)]
         shadow-[0_6px_18px_0_rgba(255,62,0,0.35)]
         hover:shadow-[0_8px_24px_0_rgba(255,62,0,0.45)]
     `,
     secondary: `
         bg-studio-neon text-black font-bold
-        border border-studio-neon/70
-        hover:bg-studio-neon/90 hover:border-studio-neon
-        active:bg-studio-neon/80
+        border border-[rgba(0,255,65,0.7)]
+        hover:bg-[rgba(0,255,65,0.9)] hover:border-studio-neon
+        active:bg-[rgba(0,255,65,0.8)]
         shadow-[0_6px_18px_0_rgba(0,255,65,0.3)]
         hover:shadow-[0_8px_24px_0_rgba(0,255,65,0.45)]
     `,

@@ -85,6 +85,7 @@ export default {
         'slide-down': 'slideDown 0.3s ease-out',
         'scale-in': 'scaleIn 0.2s ease-out',
         'pulse-glow': 'pulseGlow 2s infinite',
+        'neon-pulse': 'neonPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       },
       keyframes: {
         fadeIn: {
@@ -106,6 +107,10 @@ export default {
         pulseGlow: {
           '0%, 100%': { opacity: '1', filter: 'brightness(1)' },
           '50%': { opacity: '0.8', filter: 'brightness(1.2)' },
+        },
+        neonPulse: {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.7' },
         }
       },
     },

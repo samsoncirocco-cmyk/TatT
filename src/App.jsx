@@ -9,6 +9,7 @@ import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react
 import { AnimatePresence, motion } from 'framer-motion';
 import { Home, Sparkles, Camera, Users, Folder } from 'lucide-react';
 
+import { ToastProvider } from './contexts/ToastContext';
 import DesignGenerator from './components/DesignGenerator';
 import DesignGeneratorWithCouncil from './components/DesignGeneratorWithCouncil';
 import DesignLibrary from './components/DesignLibrary';
@@ -41,7 +42,7 @@ function AppContent() {
   const location = useLocation();
 
   return (
-    <div className="min-h-screen bg-transparent text-gray-100 font-sans selection:bg-ducks-green selection:text-ducks-yellow">
+    <div className="min-h-screen bg-transparent text-white font-sans selection:bg-studio-neon selection:text-studio-bg">
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
           <Route path="/" element={<PageWrapper><HomePage /></PageWrapper>} />
@@ -59,11 +60,11 @@ function AppContent() {
 
       {/* Floating Dock Navigation */}
       <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
-        <div className="glass-panel px-6 py-3 rounded-2xl flex items-center gap-6 shadow-hard backdrop-blur-xl border border-white/10">
+        <div className="studio-glass px-6 py-3 rounded-2xl flex items-center gap-6 shadow-hard backdrop-blur-xl border border-white/10">
           <NavLink to="/" icon={Home} />
           <NavLink to="/generate" icon={Sparkles} />
-          <div className="w-12 h-12 flex items-center justify-center -mt-8 bg-ducks-yellow rounded-full shadow-glow transform transition hover:scale-105 active:scale-95">
-            <Link to="/visualize" className="text-ducks-green">
+          <div className="w-12 h-12 flex items-center justify-center -mt-8 bg-studio-accent rounded-full shadow-[0_8px_24px_rgba(255,62,0,0.5)] transform transition hover:scale-105 active:scale-95">
+            <Link to="/visualize" className="text-white">
               <Camera size={24} />
             </Link>
           </div>
@@ -77,9 +78,11 @@ function AppContent() {
 
 function App() {
   return (
-    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <AppContent />
-    </Router>
+    <ToastProvider>
+      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <AppContent />
+      </Router>
+    </ToastProvider>
   );
 }
 
@@ -95,7 +98,7 @@ function NavLink({ to, icon: Icon }) {
       to={to}
       className="relative group p-2 flex flex-col items-center justify-center transition-all duration-300"
     >
-      <div className={`transition-all duration-300 ${isActive ? 'text-ducks-yellow -translate-y-1' : 'text-gray-400 group-hover:text-white'}`}>
+      <div className={`transition-all duration-300 ${isActive ? 'text-studio-accent -translate-y-1' : 'text-white/60 group-hover:text-white'}`}>
         <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
       </div>
 
@@ -103,7 +106,7 @@ function NavLink({ to, icon: Icon }) {
       {isActive && (
         <motion.div
           layoutId="nav-dot"
-          className="absolute -bottom-2 w-1 h-1 bg-ducks-yellow rounded-full shadow-glow"
+          className="absolute -bottom-2 w-1 h-1 bg-studio-accent rounded-full shadow-[0_0_10px_rgba(255,62,0,0.6)]"
         />
       )}
     </Link>

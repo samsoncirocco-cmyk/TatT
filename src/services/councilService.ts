@@ -23,6 +23,193 @@ import {
 } from '../utils/styleModelMapping.js';
 import { COUNCIL_SKILL_PACK } from '../config/councilSkillPack';
 
+// ============================================================================
+// TYPE DEFINITIONS
+// ============================================================================
+
+/**
+ * Prompt detail levels
+ */
+export type PromptLevel = 'simple' | 'detailed' | 'ultra';
+
+/**
+ * Enhanced prompts at different detail levels
+ */
+export interface EnhancedPrompts {
+  simple: string;
+  detailed: string;
+  ultra: string;
+}
+
+/**
+ * Model selection result
+ */
+export interface ModelSelection {
+  modelId: string;
+  modelName: string;
+  reasoning: string;
+  estimatedTime: number;
+  cost: number;
+  isFallback: boolean;
+}
+
+/**
+ * Enhancement metadata
+ */
+export interface EnhancementMetadata {
+  userIdea: string;
+  style: string;
+  bodyPart: string;
+  generatedAt: string;
+  councilVersion?: string;
+  fallback?: boolean;
+  enhancementTime: number;
+}
+
+/**
+ * Complete enhancement result
+ */
+export interface EnhancementResult {
+  prompts: EnhancedPrompts;
+  negativePrompt: string;
+  modelSelection: ModelSelection;
+  metadata: EnhancementMetadata;
+}
+
+/**
+ * Options for prompt enhancement
+ */
+export interface EnhancePromptOptions {
+  userIdea: string;
+  style?: string;
+  bodyPart?: string;
+  onDiscussionUpdate?: ((message: string) => void) | null;
+  isStencilMode?: boolean | null;
+}
+
+/**
+ * Context for Council Skill Pack hardening
+ */
+interface SkillPackContext {
+  bodyPart: string;
+  isStencilMode: boolean;
+  characterMatches: string[];
+}
+
+/**
+ * Anatomical flow mapping type
+ */
+type AnatomicalFlowMap = {
+  [key: string]: string;
+}
+
+/**
+ * Hardened prompts result
+ */
+interface HardenedPromptsResult {
+  prompts: EnhancedPrompts;
+  negativePrompt: string;
+}
+
+/**
+ * Refinement result
+ */
+export interface RefinementResult {
+  refinedPrompt: string;
+  suggestions: string[];
+}
+
+/**
+ * Options for prompt refinement
+ */
+export interface RefinePromptOptions {
+  currentPrompt: string;
+  refinementRequest: string;
+}
+
+/**
+ * Style recommendations
+ */
+export interface StyleRecommendations {
+  keyCharacteristics: string[];
+  commonElements: string[];
+  promptTips: string[];
+}
+
+/**
+ * Prompt validation result
+ */
+export interface ValidationResult {
+  score: number;
+  isValid: boolean;
+  suggestions: string[];
+}
+
+/**
+ * Council API response for prompt generation
+ */
+interface CouncilApiResponse {
+  enhanced_prompts: {
+    simple?: string;
+    minimal?: string;
+    detailed?: string;
+    standard?: string;
+    ultra?: string;
+    comprehensive?: string;
+  };
+  negative_prompt?: string;
+  version?: string;
+}
+
+/**
+ * Character match data
+ */
+interface CharacterMatch {
+  name: string;
+  description: string;
+}
+
+/**
+ * Vertex AI/OpenRouter council result (without modelSelection)
+ */
+interface PartialEnhancementResult {
+  prompts: EnhancedPrompts;
+  negativePrompt: string;
+  metadata: {
+    userIdea: string;
+    style: string;
+    bodyPart: string;
+    generatedAt: string;
+    enhancementTime: number;
+    councilMembers?: any[];
+    provider?: string;
+  };
+}
+
+/**
+ * Model selection from styleModelMapping
+ */
+interface ModelSelectionResult {
+  modelId: string;
+  modelName: string;
+  reasoning: string;
+  estimatedTime: number;
+  cost: number;
+  isFallback?: boolean;
+}
+
+/**
+ * Model prompt enhancements result
+ */
+interface ModelEnhancements {
+  enhancedPrompt: string;
+  negativePrompt: string;
+}
+
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
 // Council API configuration
 const COUNCIL_API_URL = process.env.NEXT_PUBLIC_COUNCIL_API_URL || 'http://localhost:8001/api';
 
@@ -33,13 +220,17 @@ const DEMO_MODE = process.env.NEXT_PUBLIC_COUNCIL_DEMO_MODE === 'true';
 const CHARACTER_MAP = buildCharacterMap();
 const CHARACTER_NAMES = getAllCharacterNames();
 
+// ============================================================================
+// DETECTION UTILITIES
+// ============================================================================
+
 /**
  * Detect if the user is requesting stencil-style artwork
- * @param {string} userIdea - The user's design description
- * @param {string} negativePrompt - Optional negative prompt
- * @returns {boolean} True if stencil keywords are detected
+ * @param userIdea - The user's design description
+ * @param negativePrompt - Optional negative prompt
+ * @returns True if stencil keywords are detected
  */
-function detectStencilMode(userIdea = '', negativePrompt = '') {
+function detectStencilMode(userIdea: string = '', negativePrompt: string = ''): boolean {
   try {
     const combined = `${userIdea} ${negativePrompt}`.toLowerCase();
     return (COUNCIL_SKILL_PACK.stencilKeywords || []).some(keyword => combined.includes(keyword));
@@ -51,10 +242,10 @@ function detectStencilMode(userIdea = '', negativePrompt = '') {
 
 /**
  * Detect character names in the provided text
- * @param {string} text - Text to search for character names
- * @returns {string[]} Array of detected character names
+ * @param text - Text to search for character names
+ * @returns Array of detected character names
  */
-function detectCharacters(text = '') {
+function detectCharacters(text: string = ''): string[] {
   try {
     return CHARACTER_NAMES.filter(name =>
       new RegExp(`\\b${name}\\b`, 'i').test(text)
@@ -67,11 +258,11 @@ function detectCharacters(text = '') {
 
 /**
  * Add a token to a prompt if it's not already present (case-insensitive check)
- * @param {string} prompt - The base prompt
- * @param {string} token - The token to add if missing
- * @returns {string} Prompt with token added (if not already present)
+ * @param prompt - The base prompt
+ * @param token - The token to add if missing
+ * @returns Prompt with token added (if not already present)
  */
-function addIfMissing(prompt, token) {
+function addIfMissing(prompt: string, token: string): string {
   if (!token || !prompt) return prompt;
 
   try {
@@ -89,25 +280,30 @@ function addIfMissing(prompt, token) {
   }
 }
 
+// ============================================================================
+// SKILL PACK HARDENING
+// ============================================================================
+
 /**
  * Apply Council Skill Pack hardening rules to prompts
  * Adds anatomical flow, aesthetic anchors, positional anchoring for multi-character prompts,
  * and stencil-specific negative shielding
  *
- * @param {Object} prompts - Object containing simple, detailed, and ultra prompts
- * @param {string} negativePrompt - The negative prompt to harden
- * @param {Object} context - Context object with bodyPart, isStencilMode, and characterMatches
- * @param {string} context.bodyPart - Target body part for anatomical flow
- * @param {boolean} context.isStencilMode - Whether stencil mode is active
- * @param {string[]} context.characterMatches - Array of detected character names
- * @returns {Object} Object with hardened prompts and negativePrompt
+ * @param prompts - Object containing simple, detailed, and ultra prompts
+ * @param negativePrompt - The negative prompt to harden
+ * @param context - Context object with bodyPart, isStencilMode, and characterMatches
+ * @returns Object with hardened prompts and negativePrompt
  */
-function applyCouncilSkillPack(prompts, negativePrompt, context) {
+function applyCouncilSkillPack(
+  prompts: EnhancedPrompts,
+  negativePrompt: string,
+  context: SkillPackContext
+): HardenedPromptsResult {
   try {
     // Validate inputs
     if (!prompts || typeof prompts !== 'object') {
       console.warn('[CouncilService] Invalid prompts object, skipping skill pack application');
-      return { prompts: prompts || {}, negativePrompt: negativePrompt || '' };
+      return { prompts: prompts || {} as EnhancedPrompts, negativePrompt: negativePrompt || '' };
     }
 
     if (!context || typeof context !== 'object') {
@@ -115,14 +311,15 @@ function applyCouncilSkillPack(prompts, negativePrompt, context) {
       context = { bodyPart: 'forearm', isStencilMode: false, characterMatches: [] };
     }
 
-    const flowToken = COUNCIL_SKILL_PACK.anatomicalFlow[context.bodyPart] || '';
+    const anatomicalFlow = COUNCIL_SKILL_PACK.anatomicalFlow as AnatomicalFlowMap;
+    const flowToken = anatomicalFlow[context.bodyPart] || '';
     const spatialKeywords = COUNCIL_SKILL_PACK.spatialKeywords || [];
 
     // Harden each prompt level
     const hardenedPrompts = Object.entries(prompts).reduce((acc, [level, prompt]) => {
       if (typeof prompt !== 'string') {
         console.warn(`[CouncilService] Invalid prompt at level ${level}, skipping`);
-        acc[level] = prompt;
+        acc[level as PromptLevel] = prompt;
         return acc;
       }
 
@@ -148,9 +345,9 @@ function applyCouncilSkillPack(prompts, negativePrompt, context) {
         }
       }
 
-      acc[level] = hardened;
+      acc[level as PromptLevel] = hardened;
       return acc;
-    }, {});
+    }, {} as EnhancedPrompts);
 
     // Harden negative prompt for stencil mode
     let hardenedNegative = negativePrompt || '';
@@ -171,26 +368,31 @@ function applyCouncilSkillPack(prompts, negativePrompt, context) {
   } catch (error) {
     console.error('[CouncilService] Error applying skill pack:', error);
     // Return original values on error
-    return { prompts: prompts || {}, negativePrompt: negativePrompt || '' };
+    return { prompts: prompts || {} as EnhancedPrompts, negativePrompt: negativePrompt || '' };
   }
 }
 
+// ============================================================================
+// CHARACTER ENHANCEMENT
+// ============================================================================
+
 /**
  * Enhance character descriptions with specific details from database
- * @param {string} userIdea - Raw user input
- * @returns {string} Enhanced description with character details
+ * @param userIdea - Raw user input
+ * @returns Enhanced description with character details
  */
-function enhanceCharacterDescription(userIdea) {
+function enhanceCharacterDescription(userIdea: string): string {
   // Find all character names mentioned in the user's idea
-  const sortedNames = Object.keys(CHARACTER_MAP).sort((a, b) => b.length - a.length);
-  const matchedCharacters = [];
+  const characterMap = CHARACTER_MAP as Record<string, string>;
+  const sortedNames = Object.keys(characterMap).sort((a, b) => b.length - a.length);
+  const matchedCharacters: CharacterMatch[] = [];
 
   for (const characterName of sortedNames) {
     const regex = new RegExp(`\\b${characterName}\\b`, 'gi');
     if (regex.test(userIdea)) {
       matchedCharacters.push({
         name: characterName,
-        description: CHARACTER_MAP[characterName]
+        description: characterMap[characterName]
       });
     }
   }
@@ -208,20 +410,24 @@ function enhanceCharacterDescription(userIdea) {
   let enhanced = userIdea;
   for (const characterName of sortedNames) {
     const regex = new RegExp(`\\b${characterName}\\b`, 'gi');
-    enhanced = enhanced.replace(regex, CHARACTER_MAP[characterName]);
+    enhanced = enhanced.replace(regex, characterMap[characterName]);
   }
 
   return enhanced;
 }
 
+// ============================================================================
+// MOCK RESPONSES (DEMO MODE)
+// ============================================================================
+
 /**
  * Mock council responses for demo mode
  */
 const MOCK_RESPONSES = {
-  simple: (userIdea, style) =>
+  simple: (userIdea: string, style: string): string =>
     `A ${style} style tattoo of ${userIdea} with clean lines and bold composition`,
 
-  detailed: (userIdea, style) => {
+  detailed: (userIdea: string, style: string): string => {
     // Check if user input contains any known character names
     const hasCharacters = CHARACTER_NAMES.some(name =>
       new RegExp(`\\b${name}\\b`, 'i').test(userIdea)
@@ -231,7 +437,7 @@ const MOCK_RESPONSES = {
     return `A ${style} style tattoo featuring ${enhanced}, rendered with intricate detail and expert shading. ${hasCharacters ? 'Characters depicted with distinctive features, dynamic poses, and recognizable costumes/attributes. ' : ''}The composition emphasizes dynamic movement and visual balance, with careful attention to linework quality and traditional ${style} aesthetic principles. Designed for optimal placement and visual impact.`;
   },
 
-  ultra: (userIdea, style, bodyPart) => {
+  ultra: (userIdea: string, style: string, bodyPart: string): string => {
     // Enhanced character description logic using centralized database
     const hasCharacters = CHARACTER_NAMES.some(name =>
       new RegExp(`\\b${name}\\b`, 'i').test(userIdea)
@@ -255,7 +461,7 @@ const MOCK_RESPONSES = {
     return `A photorealistic ${style} style tattoo of ${userIdea}, masterfully composed for ${bodyPart} placement. The design features hyper-detailed linework with gradient shading from deep blacks to subtle grays, creating dimensional depth and texture. Artistic elements include: dramatic contrast between positive and negative space, flowing composition that wraps naturally around body contours, and carefully balanced visual weight. The style authentically captures traditional ${style} techniques with bold outlines, selective color placement, and atmospheric background elements. Lighting and perspective create a three-dimensional effect, with focal points strategically positioned for maximum visual impact. The overall aesthetic balances intricate character detail with clean, readable forms suitable for professional tattooing.`;
   },
 
-  negative: (userIdea = '') => {
+  negative: (userIdea: string = ''): string => {
     // For multi-character scenes, don't use "multiple people" in negative prompt
     // Instead focus on preventing merged/conjoined bodies
     const characterMatches = CHARACTER_NAMES.filter(name =>
@@ -271,15 +477,15 @@ const MOCK_RESPONSES = {
   }
 };
 
+// ============================================================================
+// PUBLIC API FUNCTIONS
+// ============================================================================
+
 /**
  * Enhance a user's tattoo idea using the LLM Council
  *
- * @param {Object} options - Enhancement options
- * @param {string} options.userIdea - The user's basic tattoo idea
- * @param {string} options.style - Tattoo style (traditional, japanese, etc.)
- * @param {string} options.bodyPart - Body placement (forearm, shoulder, etc.)
- * @param {Function} options.onDiscussionUpdate - Optional callback for real-time discussion updates
- * @returns {Promise<Object>} Enhanced prompts at multiple detail levels
+ * @param options - Enhancement options
+ * @returns Enhanced prompts at multiple detail levels
  */
 export async function enhancePrompt({
   userIdea,
@@ -287,7 +493,7 @@ export async function enhancePrompt({
   bodyPart = 'forearm',
   onDiscussionUpdate = null,
   isStencilMode = null
-}) {
+}: EnhancePromptOptions): Promise<EnhancementResult> {
   const startTime = performance.now();
   console.log('[CouncilService] Enhancing prompt:', { userIdea, style, bodyPart });
   const characterMatches = detectCharacters(userIdea);
@@ -311,27 +517,31 @@ export async function enhancePrompt({
           userIdea,
           style,
           bodyPart,
-          onDiscussionUpdate,
+          onDiscussionUpdate: onDiscussionUpdate ?? null,
           isStencilMode: resolvedStencilMode
-        });
+        } as any) as PartialEnhancementResult;
 
         // Add model selection to result
-        const modelSelection = await modelSelectionPromise;
-        result.modelSelection = {
-          modelId: modelSelection.modelId,
-          modelName: modelSelection.modelName,
-          reasoning: modelSelection.reasoning,
-          estimatedTime: modelSelection.estimatedTime,
-          cost: 0, // FREE!
-          isFallback: modelSelection.isFallback || false
-        };
+        const modelSelection = await modelSelectionPromise as ModelSelectionResult;
 
         const hardened = applyCouncilSkillPack(
           result.prompts,
           result.negativePrompt,
           { bodyPart, isStencilMode: resolvedStencilMode, characterMatches }
         );
-        return { ...result, ...hardened };
+
+        return {
+          ...result,
+          ...hardened,
+          modelSelection: {
+            modelId: modelSelection.modelId,
+            modelName: modelSelection.modelName,
+            reasoning: modelSelection.reasoning,
+            estimatedTime: modelSelection.estimatedTime,
+            cost: 0, // FREE!
+            isFallback: modelSelection.isFallback || false
+          }
+        };
       } else {
         console.warn('[CouncilService] Vertex AI not configured, trying fallback');
       }
@@ -353,27 +563,31 @@ export async function enhancePrompt({
           userIdea,
           style,
           bodyPart,
-          onDiscussionUpdate,
+          onDiscussionUpdate: onDiscussionUpdate ?? null,
           isStencilMode: resolvedStencilMode
-        });
+        } as any) as PartialEnhancementResult;
 
         // Add model selection to result
-        const modelSelection = await modelSelectionPromise;
-        result.modelSelection = {
-          modelId: modelSelection.modelId,
-          modelName: modelSelection.modelName,
-          reasoning: modelSelection.reasoning,
-          estimatedTime: modelSelection.estimatedTime,
-          cost: modelSelection.cost,
-          isFallback: modelSelection.isFallback || false
-        };
+        const modelSelection = await modelSelectionPromise as ModelSelectionResult;
 
         const hardened = applyCouncilSkillPack(
           result.prompts,
           result.negativePrompt,
           { bodyPart, isStencilMode: resolvedStencilMode, characterMatches }
         );
-        return { ...result, ...hardened };
+
+        return {
+          ...result,
+          ...hardened,
+          modelSelection: {
+            modelId: modelSelection.modelId,
+            modelName: modelSelection.modelName,
+            reasoning: modelSelection.reasoning,
+            estimatedTime: modelSelection.estimatedTime,
+            cost: modelSelection.cost,
+            isFallback: modelSelection.isFallback || false
+          }
+        };
       } else {
         console.warn('[CouncilService] OpenRouter not configured, falling back to demo mode');
       }
@@ -396,8 +610,8 @@ export async function enhancePrompt({
 
       // Return mock enhanced prompts after 3 seconds
       setTimeout(async () => {
-        const modelSelection = await modelSelectionPromise;
-        const prompts = {
+        const modelSelection = await modelSelectionPromise as ModelSelectionResult;
+        const prompts: EnhancedPrompts = {
           simple: MOCK_RESPONSES.simple(userIdea, style),
           detailed: MOCK_RESPONSES.detailed(userIdea, style),
           ultra: MOCK_RESPONSES.ultra(userIdea, style, bodyPart)
@@ -435,7 +649,7 @@ export async function enhancePrompt({
   // Real API call to LLM Council (original backend)
   try {
     // Await model selection (started earlier)
-    const modelSelection = await modelSelectionPromise;
+    const modelSelection = await modelSelectionPromise as ModelSelectionResult;
 
     const response = await fetch(`${COUNCIL_API_URL}/prompt-generation`, {
       method: 'POST',
@@ -447,7 +661,7 @@ export async function enhancePrompt({
         style_preference: style,
         body_part: bodyPart,
         detail_level: 'all', // Request all levels
-        onDiscussionUpdate: onDiscussionUpdate ? 'stream' : 'none'
+        discussion_mode: onDiscussionUpdate ? 'stream' : 'none'
       })
     });
 
@@ -455,23 +669,23 @@ export async function enhancePrompt({
       throw new Error(`Council API error: ${response.status} ${response.statusText}`);
     }
 
-    const data = await response.json();
+    const data: CouncilApiResponse = await response.json();
     const enhancementTime = performance.now() - startTime;
 
     console.log('[CouncilService] Enhancement successful:', data);
     console.log(`[CouncilService] Enhancement completed in ${enhancementTime.toFixed(0)}ms`);
 
     // Apply model-specific prompt enhancements
-    const ultraPrompt = data.enhanced_prompts.ultra || data.enhanced_prompts.comprehensive;
+    const ultraPrompt = data.enhanced_prompts.ultra || data.enhanced_prompts.comprehensive || '';
     const modelEnhancements = getModelPromptEnhancements(
       modelSelection.modelId,
       ultraPrompt,
       true // Already council-enhanced
-    );
+    ) as ModelEnhancements;
 
-    const prompts = {
-      simple: data.enhanced_prompts.simple || data.enhanced_prompts.minimal,
-      detailed: data.enhanced_prompts.detailed || data.enhanced_prompts.standard,
+    const prompts: EnhancedPrompts = {
+      simple: data.enhanced_prompts.simple || data.enhanced_prompts.minimal || '',
+      detailed: data.enhanced_prompts.detailed || data.enhanced_prompts.standard || '',
       ultra: modelEnhancements.enhancedPrompt
     };
     const negativePrompt = modelEnhancements.negativePrompt || data.negative_prompt || MOCK_RESPONSES.negative(userIdea);
@@ -509,10 +723,10 @@ export async function enhancePrompt({
     console.warn('[CouncilService] Falling back to basic enhancement');
 
     // Still get model selection even in fallback
-    const modelSelection = await modelSelectionPromise;
+    const modelSelection = await modelSelectionPromise as ModelSelectionResult;
     const enhancementTime = performance.now() - startTime;
 
-    const prompts = {
+    const prompts: EnhancedPrompts = {
       simple: MOCK_RESPONSES.simple(userIdea, style),
       detailed: MOCK_RESPONSES.detailed(userIdea, style),
       ultra: MOCK_RESPONSES.ultra(userIdea, style, bodyPart)
@@ -550,12 +764,10 @@ export async function enhancePrompt({
 /**
  * Refine an existing prompt using council feedback
  *
- * @param {Object} options - Refinement options
- * @param {string} options.currentPrompt - Current prompt to refine
- * @param {string} options.refinementRequest - How to refine (e.g., "make it more feminine")
- * @returns {Promise<Object>} Refined prompt and suggestions
+ * @param options - Refinement options
+ * @returns Refined prompt and suggestions
  */
-export async function refinePrompt({ currentPrompt, refinementRequest }) {
+export async function refinePrompt({ currentPrompt, refinementRequest }: RefinePromptOptions): Promise<RefinementResult> {
   console.log('[CouncilService] Refining prompt:', { currentPrompt, refinementRequest });
 
   if (DEMO_MODE) {
@@ -600,10 +812,10 @@ export async function refinePrompt({ currentPrompt, refinementRequest }) {
 /**
  * Get style-specific recommendations from the council
  *
- * @param {string} style - Tattoo style to get recommendations for
- * @returns {Promise<Object>} Style recommendations and guidelines
+ * @param style - Tattoo style to get recommendations for
+ * @returns Style recommendations and guidelines
  */
-export async function getStyleRecommendations(style) {
+export async function getStyleRecommendations(style: string): Promise<StyleRecommendations | null> {
   console.log('[CouncilService] Getting style recommendations:', style);
 
   if (DEMO_MODE) {
@@ -644,10 +856,10 @@ export async function getStyleRecommendations(style) {
 /**
  * Validate a prompt for tattoo generation suitability
  *
- * @param {string} prompt - Prompt to validate
- * @returns {Promise<Object>} Validation result with score and suggestions
+ * @param prompt - Prompt to validate
+ * @returns Validation result with score and suggestions
  */
-export async function validatePrompt(prompt) {
+export async function validatePrompt(prompt: string): Promise<ValidationResult> {
   console.log('[CouncilService] Validating prompt:', prompt);
 
   if (DEMO_MODE) {

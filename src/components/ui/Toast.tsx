@@ -1,14 +1,21 @@
 /**
  * Toast Notification Component
- * 
+ *
  * Non-blocking toast notifications following shadcn/ui patterns
  */
 
 import { useState, useEffect } from 'react';
+import type { Toast as ToastType, ToastType as ToastVariant } from '../../contexts/ToastContext';
 
 const TOAST_DURATION = 4000; // 4 seconds
 
-export function Toast({ message, type = 'info', onClose }) {
+interface ToastProps {
+  message: string;
+  type?: ToastVariant;
+  onClose: () => void;
+}
+
+export function Toast({ message, type = 'info', onClose }: ToastProps) {
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
@@ -20,14 +27,14 @@ export function Toast({ message, type = 'info', onClose }) {
     return () => clearTimeout(timer);
   }, [onClose]);
 
-  const typeStyles = {
+  const typeStyles: Record<ToastVariant, string> = {
     success: 'bg-success-600 text-white',
     error: 'bg-error-600 text-white',
     warning: 'bg-warning-600 text-white',
     info: 'bg-primary-600 text-white'
   };
 
-  const icons = {
+  const icons: Record<ToastVariant, string> = {
     success: '✓',
     error: '✕',
     warning: '⚠',
@@ -37,7 +44,7 @@ export function Toast({ message, type = 'info', onClose }) {
   return (
     <div
       className={`
-        fixed bottom-4 right-4 z-50 
+        fixed bottom-4 right-4 z-50
         px-4 py-3 rounded-lg shadow-hard
         flex items-center gap-3
         transition-all duration-300
@@ -62,7 +69,12 @@ export function Toast({ message, type = 'info', onClose }) {
   );
 }
 
-export function ToastContainer({ toasts, removeToast }) {
+interface ToastContainerProps {
+  toasts: ToastType[];
+  removeToast: (id: number) => void;
+}
+
+export function ToastContainer({ toasts, removeToast }: ToastContainerProps) {
   return (
     <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
       {toasts.map((toast) => (

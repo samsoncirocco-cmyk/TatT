@@ -1,0 +1,28 @@
+/* Studio Glass Panel */
+.studio-glass {
+  background: rgba(10, 10, 11, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Neon Border */
+.neon-border {
+  border: 1px solid rgba(0, 255, 65, 0.3);
+  box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
+}
+
+/* Accent Border */
+.accent-border {
+  border: 1px solid rgba(255, 62, 0, 0.3);
+  box-shadow: 0 0 15px rgba(255, 62, 0, 0.3);
+}
+
+/* Blueprint Grid (Canvas-Ready) */
+.blueprint-grid {
+  background-image:
+    linear-gradient(to right, rgba(0, 255, 65, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 255, 65, 0.08) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mix-blend-mode: screen;
+}

@@ -38,11 +38,11 @@ export default function MatchPulseSidebar({
       aria-live="polite"
       aria-busy={isLoading}
     >
-      <div className={`glass-panel border border-white/10 rounded-3xl h-full flex flex-col ${!isCollapsed ? '' : ''}`}>
+      <div className={`studio-glass border border-white/10 rounded-3xl h-full flex flex-col ${!isCollapsed ? '' : ''}`}>
         <div className="flex items-center justify-between px-4 py-4 border-b border-white/10">
           {!isCollapsed && (
             <div>
-              <p className="text-[11px] font-mono uppercase tracking-[0.4em] text-ducks-green/70">
+              <p className="text-[11px] font-mono uppercase tracking-[0.4em] text-studio-neon opacity-70">
                 Match Pulse
               </p>
               <p className="text-sm text-white mt-1" role="status">
@@ -102,8 +102,9 @@ export default function MatchPulseSidebar({
         {!isCollapsed && (
           <div className="p-4 border-t border-white/10">
             <Button
+              variant="primary"
               onClick={handleViewAll}
-              className="w-full text-xs font-black tracking-wider bg-ducks-yellow text-black hover:bg-white"
+              className="w-full text-xs tracking-wider"
             >
               View All Artists
             </Button>

@@ -65,7 +65,7 @@ export default function GenerationControls({
               </div>
               <div className="h-2 rounded-full bg-white/10 overflow-hidden">
                 <div
-                  className="h-full bg-ducks-yellow transition-all duration-500"
+                  className="h-full bg-studio-accent transition-all duration-500"
                   style={{ width: `${Math.round((progress?.percent || 0) * 100)}%` }}
                 />
               </div>
@@ -79,7 +79,7 @@ export default function GenerationControls({
           )}
 
           {arAsset?.url && (
-            <div className="text-xs font-mono text-ducks-green/80 flex items-center gap-2">
+            <div className="text-xs font-mono text-studio-neon opacity-80 flex items-center gap-2">
               <CheckCircle2 size={14} />
               AR-ready PNG prepared
             </div>
@@ -98,7 +98,8 @@ export default function GenerationControls({
         <Button
           onClick={onGenerate}
           disabled={!canGenerate || isPreviewing || isGenerating}
-          className="h-14 text-sm font-black tracking-wider bg-white text-black hover:bg-ducks-yellow"
+          variant="outline"
+          className="h-14 text-sm tracking-wider"
           icon={Sparkles}
         >
           Generate
@@ -106,7 +107,8 @@ export default function GenerationControls({
         <Button
           onClick={onRefine}
           disabled={!previewImage || isGenerating}
-          className="h-14 text-sm font-black tracking-wider bg-ducks-yellow text-black hover:bg-white"
+          variant="secondary"
+          className="h-14 text-sm tracking-wider"
           icon={Wand2}
         >
           Refine
@@ -114,7 +116,8 @@ export default function GenerationControls({
         <Button
           onClick={onFinalize}
           disabled={!previewImage || isGenerating}
-          className="h-14 text-sm font-black tracking-wider bg-green-500 text-black hover:bg-green-400"
+          variant="primary"
+          className="h-14 text-sm tracking-wider"
           icon={CheckCircle2}
         >
           Finalize
