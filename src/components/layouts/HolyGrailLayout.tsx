@@ -13,12 +13,12 @@ export default function HolyGrailLayout({
     center,
     right,
     className = '',
-    columnsClassName = 'grid-cols-[280px_minmax(0,1fr)_320px]'
+    columnsClassName = 'lg:grid-cols-[280px_minmax(0,1fr)_320px]'
 }: HolyGrailLayoutProps) {
     return (
         <div
             className={`
-                grid ${columnsClassName} gap-6
+                grid grid-cols-1 ${columnsClassName} gap-6
                 w-full items-start
                 ${className}
             `}
