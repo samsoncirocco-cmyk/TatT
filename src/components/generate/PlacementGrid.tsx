@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { BodyPart } from "../../constants/bodyPartAspectRatios";
-import { BODY_PART_CONFIGS } from "../../constants/bodyPartAspectRatios";
+import { BODY_PART_CONFIGS, BODY_PARTS } from "../../constants/bodyPartAspectRatios";
 import humanOutline from "../../assets/human-body-outline.svg";
 
 interface PlacementGridProps {
@@ -101,9 +101,25 @@ export function PlacementGrid({
             </div>
 
             <div className="relative rounded-2xl border border-white/10 bg-black/40 p-4">
+                <div className="grid grid-cols-2 gap-2 md:hidden">
+                    {BODY_PARTS.map((part) => (
+                        <button
+                            key={part.id}
+                            onClick={() => !disabled && onSelect(part.id)}
+                            className={`rounded-xl border px-3 py-2 text-left text-xs font-mono uppercase tracking-widest transition-all ${
+                                selectedBodyPart === part.id
+                                    ? 'border-studio-neon bg-[rgba(0,255,65,0.12)] text-studio-neon'
+                                    : 'border-white/10 bg-white/5 text-white/60 hover:border-white/30'
+                            }`}
+                        >
+                            {part.label}
+                        </button>
+                    ))}
+                </div>
+
                 <svg
                     viewBox="0 0 200 400"
-                    className={`w-full h-[420px] ${disabled ? 'opacity-50' : ''}`}
+                    className={`hidden md:block w-full h-[420px] ${disabled ? 'opacity-50' : ''}`}
                     aria-label="Body placement grid"
                     role="img"
                 >
@@ -124,6 +140,13 @@ export function PlacementGrid({
                                 onFocus={() => setHovered(zone.id)}
                                 onBlur={() => setHovered(null)}
                                 onClick={() => !disabled && onSelect(zone.id)}
+                                onKeyDown={(event) => {
+                                    if (disabled) return;
+                                    if (event.key === "Enter" || event.key === " ") {
+                                        event.preventDefault();
+                                        onSelect(zone.id);
+                                    }
+                                }}
                                 tabIndex={disabled ? -1 : 0}
                                 role="button"
                                 aria-label={zone.label}

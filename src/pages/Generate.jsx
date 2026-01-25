@@ -1497,8 +1497,8 @@ export default function Generate() {
                         center={centerPanel}
                         right={rightPanel}
                         columnsClassName={isRightCollapsed
-                            ? 'grid-cols-[280px_minmax(0,1fr)_40px]'
-                            : 'grid-cols-[280px_minmax(0,1fr)_320px]'
+                            ? 'lg:grid-cols-[280px_minmax(0,1fr)_40px]'
+                            : 'lg:grid-cols-[280px_minmax(0,1fr)_320px]'
                         }
                     />
                 ) : (
