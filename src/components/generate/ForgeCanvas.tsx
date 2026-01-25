@@ -277,7 +277,31 @@ export function ForgeCanvas({
     className = ''
 }: ForgeCanvasProps) {
     const stageRef = useRef<any>(null);
-    const { width, height, aspectRatio } = useCanvasAspectRatio(bodyPart);
+    const containerRef = useRef<HTMLDivElement | null>(null);
+    const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+    const { width, height, aspectRatio } = useCanvasAspectRatio(bodyPart, {
+        maxWidth: containerSize.width || 800,
+        maxHeight: containerSize.height || 900,
+        padding: 0
+    });
+
+    useEffect(() => {
+        const element = containerRef.current;
+        if (!element || typeof ResizeObserver === 'undefined') return;
+
+        const updateSize = () => {
+            setContainerSize({
+                width: element.clientWidth,
+                height: element.clientHeight
+            });
+        };
+
+        updateSize();
+        const observer = new ResizeObserver(updateSize);
+        observer.observe(element);
+
+        return () => observer.disconnect();
+    }, []);
 
     // Sort layers by z-index for proper rendering order
     const sortedLayers = [...layers].sort((a, b) => a.zIndex - b.zIndex);
@@ -290,7 +314,7 @@ export function ForgeCanvas({
     };
 
     return (
-        <div className={`flex items-center justify-center w-full h-full ${className}`}>
+        <div ref={containerRef} className={`flex items-center justify-center w-full h-full ${className}`}>
             <AnimatePresence mode="wait">
                 <motion.div
                     key={bodyPart}
@@ -314,7 +338,7 @@ export function ForgeCanvas({
                     <CanvasSilhouette bodyPart={bodyPart} opacity={0.12} />
 
                     {/* Konva Stage for layer rendering */}
-                    <div className="absolute inset-0">
+                    <div className="absolute inset-0 w-full h-full">
                         <Stage
                             ref={stageRef}
                             width={width}
