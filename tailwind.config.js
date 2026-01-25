@@ -10,6 +10,9 @@ export default {
         // Brand colors (Ducks)
         'ducks-green': '#154733',
         'ducks-yellow': '#FEE123',
+        'studio-bg': 'var(--studio-bg)',
+        'studio-accent': 'var(--studio-accent)',
+        'studio-neon': 'var(--studio-neon)',
 
         // Semantic color tokens
         primary: {
@@ -50,7 +53,7 @@ export default {
       fontFamily: {
         // "AI Slop" Avoidance: No Inter/Roboto
         sans: ['Outfit', 'sans-serif'], // Body default
-        display: ['Space Grotesk', 'sans-serif'], // Headings
+        display: ['Oxanium', 'sans-serif'], // Headings
         mono: ['JetBrains Mono', 'monospace'], // Technical
       },
       backgroundImage: {
