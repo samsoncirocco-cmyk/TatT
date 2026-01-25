@@ -24,8 +24,10 @@ import VersionComparison from '../components/generate/VersionComparison';
 import LayerContextMenu from '../components/generate/LayerContextMenu';
 import RegenerateElementModal from '../components/generate/RegenerateElementModal';
 import ForgeGuide from '../components/generate/ForgeGuide';
+import HolyGrailLayout from '../components/layouts/HolyGrailLayout';
 import { ToastContainer } from '../components/ui/Toast';
 import { DEFAULT_BODY_PART } from '../constants/bodyPartAspectRatios';
+import { ENABLE_STUDIO_LAYOUT } from '../constants/featureFlags';
 import { enhancePrompt } from '../services/councilService';
 import useVibeChipSuggestions from '../hooks/useVibeChipSuggestions';
 import { useLayerManagement } from '../hooks/useLayerManagement';
@@ -1005,6 +1007,370 @@ export default function Generate() {
         }
     };
 
+    const leftPanel = (
+        <div className={ENABLE_STUDIO_LAYOUT ? '' : 'lg:col-span-3 xl:col-span-3 2xl:col-span-2'}>
+            <div
+                id="forge-placement"
+                className="glass-panel rounded-2xl p-4 border border-white/10 sticky top-24"
+            >
+                <BodyPartSelector
+                    selectedBodyPart={bodyPart}
+                    onSelect={handleBodyPartChange}
+                    disabled={false}
+                />
+            </div>
+        </div>
+    );
+
+    const centerPanel = (
+        <div className={`${ENABLE_STUDIO_LAYOUT ? '' : 'lg:col-span-9 xl:col-span-9 2xl:col-span-7'} flex flex-col gap-6`}>
+            {/* Canvas */}
+            <div className="glass-panel rounded-3xl p-6 border border-white/10">
+                <div className="relative group w-full h-full">
+                    <ForgeCanvas
+                        bodyPart={bodyPart}
+                        layers={sortedLayers}
+                        selectedLayerId={selectedLayerId}
+                        onSelectLayer={selectLayer}
+                        onUpdateTransform={updateTransform}
+                        className="w-full h-full"
+                    />
+
+                    {showPreview && (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <img
+                                src={previewImage}
+                                alt="Preview"
+                                className="w-full h-full object-contain opacity-80"
+                            />
+                            <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-black/60 text-xs font-mono uppercase tracking-widest text-ducks-yellow">
+                                Preview
+                            </div>
+                        </div>
+                    )}
+
+                    {stencilView && stencilPreview && (
+                        <img
+                            src={stencilPreview}
+                            alt="Stencil preview"
+                            className="absolute inset-0 w-full h-full object-contain mix-blend-screen pointer-events-none"
+                        />
+                    )}
+
+                    {/* Transform Controls Toolbar */}
+                    {selectedLayerId && (
+                        <div className="absolute top-4 left-1/2 -translate-x-1/2">
+                            <TransformControls
+                                onFlipHorizontal={() => flipHorizontal(selectedLayerId)}
+                                onFlipVertical={() => flipVertical(selectedLayerId)}
+                                onResetRotation={() => updateTransform(selectedLayerId, { rotation: 0 })}
+                            />
+                        </div>
+                    )}
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <Button
+                        variant="primary"
+                        size="md"
+                        onClick={handleToggleStencil}
+                        disabled={isStencilProcessing}
+                        aria-label="Toggle stencil view"
+                    >
+                        {stencilView ? 'Exit Stencil View' : 'Stencil View'}
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="md"
+                        onClick={async () => {
+                            if (!stencilSourceUrl) {
+                                await createStencilSource();
+                            }
+                            setShowStencilExport(true);
+                        }}
+                        aria-label="Export stencil"
+                    >
+                        Export Stencil
+                    </Button>
+                    {isStencilProcessing && (
+                        <span className="text-xs text-white/60 font-mono">Generating stencil...</span>
+                    )}
+                    {stencilError && (
+                        <span className="text-xs text-red-400">{stencilError}</span>
+                    )}
+                    {isPreviewing && (
+                        <span className="text-xs text-white/50 font-mono">
+                            Updating preview...
+                        </span>
+                    )}
+                </div>
+
+                {selectedLayer && (
+                    <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-black/30 border border-white/10 rounded-2xl p-4">
+                            <p className="text-xs font-mono uppercase tracking-[0.3em] text-ducks-green">
+                                Layer Blend
+                            </p>
+                            <p className="text-sm text-white/70 mt-2">
+                                {selectedLayer.name}
+                            </p>
+                            <div className="mt-3">
+                                <BlendModeSelector
+                                    value={selectedLayer.blendMode}
+                                    onChange={(value) => handleBlendModeChange(selectedLayer.id, value)}
+                                />
+                            </div>
+                        </div>
+                        <div className="bg-black/30 border border-white/10 rounded-2xl p-4 space-y-3">
+                            <p className="text-xs font-mono uppercase tracking-[0.3em] text-ducks-green">
+                                Layer Actions
+                            </p>
+                            <div className="grid grid-cols-2 gap-3">
+                                <Button
+                                    variant="primary"
+                                    size="md"
+                                    onClick={() => setShowInpainting(true)}
+                                    icon={Wand2}
+                                >
+                                    Inpaint
+                                </Button>
+                                <Button
+                                    variant="secondary"
+                                    size="md"
+                                    onClick={() => setShowCleanup(true)}
+                                    icon={Eraser}
+                                >
+                                    Clean Up
+                                </Button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <Button
+                                    variant="outline"
+                                    size="md"
+                                    onClick={() => {
+                                        setRestyleLayerId(selectedLayer.id);
+                                        setRestyleStyle(matchStyle);
+                                    }}
+                                    icon={Sparkles}
+                                >
+                                    Restyle
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="md"
+                                    onClick={handleExportPNG}
+                                    icon={Download}
+                                >
+                                    Export PNG
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Prompt Interface */}
+            <div id="forge-prompt" className="glass-panel rounded-3xl p-8 border border-white/10">
+                <div className="mb-6">
+                    <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-[0.3em] text-white/50">
+                        <span>Placement</span>
+                        <span>Prompt</span>
+                        <span>Generate</span>
+                    </div>
+                    <div className="mt-3 h-2 rounded-full bg-white/10 overflow-hidden">
+                        <div
+                            className="h-full bg-ducks-green transition-all duration-500"
+                            style={{
+                                width: `${Math.round(([
+                                    bodyPart ? 1 : 0,
+                                    promptText.trim() || enhancedPrompt?.trim() ? 1 : 0,
+                                    layers.length > 0 ? 1 : 0
+                                ].reduce((sum, value) => sum + value, 0) / 3) * 100)}%`
+                            }}
+                        />
+                    </div>
+                </div>
+                <PromptInterface
+                    value={promptText}
+                    onChange={setPromptText}
+                    selectedChips={selectedChips}
+                />
+
+                <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+                    <Button
+                        variant="outline"
+                        size="lg"
+                        onClick={handleEnhance}
+                        disabled={isEnhancing || !promptText.trim()}
+                        icon={Sparkles}
+                    >
+                        Enhance with AI Council
+                    </Button>
+                    <button
+                        onClick={() => setShowAdvanced(!showAdvanced)}
+                        className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-mono uppercase tracking-widest text-white/60 hover:text-white hover:border-white/40"
+                    >
+                        Tattoo Fine-Tuning
+                    </button>
+                </div>
+
+                <VibeChips
+                    suggestions={suggestions}
+                    selectedChips={selectedChips}
+                    onChipSelect={handleChipSelect}
+                    isLoading={isSuggestionsLoading}
+                />
+
+                <AdvancedOptions
+                    isExpanded={showAdvanced}
+                    onToggle={() => setShowAdvanced(!showAdvanced)}
+                    hideToggle
+                    style={style}
+                    onStyleChange={setStyle}
+                    size={size}
+                    onSizeChange={setSize}
+                    aiModel={aiModel}
+                    onModelChange={setAiModel}
+                    negativePrompt={negativePrompt}
+                    onNegativePromptChange={setNegativePrompt}
+                    enhancementLevel={enhancementLevel}
+                    onEnhancementLevelChange={setEnhancementLevel}
+                    separateRGBA={separateRGBA}
+                    onSeparateRGBAChange={setSeparateRGBA}
+                />
+
+                {enhancedPrompt && (
+                    <div className="mt-6 p-6 bg-ducks-green/10 border border-ducks-green/30 rounded-2xl">
+                        <div className="flex items-center justify-between mb-3">
+                            <h4 className="text-sm font-bold text-ducks-green uppercase tracking-wider">
+                                AI Enhanced Prompt ({enhancementLevel})
+                            </h4>
+                            <button
+                                onClick={() => setEnhancedPrompt(null)}
+                                className="text-xs text-gray-500 hover:text-white transition-colors"
+                            >
+                                Clear
+                            </button>
+                        </div>
+                        <p className="text-sm text-gray-300 leading-relaxed">
+                            {enhancedPrompt}
+                        </p>
+                    </div>
+                )}
+
+                {(enhancedPrompt || promptText.trim()) && (
+                    <div id="forge-actions" className="mt-6 space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                            <Button
+                                variant="outline"
+                                size="lg"
+                                onClick={() => handleGenerate(false)}
+                                disabled={isGenerating}
+                                icon={Layers}
+                                className="h-16 text-base"
+                            >
+                                REFINE
+                            </Button>
+                            <Button
+                                variant="primary"
+                                size="lg"
+                                onClick={() => handleGenerate(true)}
+                                disabled={isGenerating}
+                                icon={CheckCircle}
+                                className="h-16 text-base"
+                            >
+                                FINALIZE
+                            </Button>
+                        </div>
+                        <p className="text-[10px] text-white/40 font-mono text-center">
+                            Refine: Quick iteration (50 steps) • Finalize: Max quality (60+ steps, 300 DPI)
+                        </p>
+                        {isGenerating && (
+                            <div className="mt-4 space-y-2">
+                                <div className="flex items-center justify-between text-xs text-white/60 font-mono">
+                                    <span>Rendering high-res...</span>
+                                    <span>
+                                        {progress?.etaSeconds !== null ? `~${progress.etaSeconds}s` : 'estimating...'}
+                                    </span>
+                                </div>
+                                <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+                                    <div
+                                        className="h-full bg-ducks-green transition-all"
+                                        style={{ width: `${Math.round((progress?.percent || 0) * 100)}%` }}
+                                    />
+                                </div>
+                                {queueLength > 0 && (
+                                    <div className="text-[10px] text-white/40 font-mono">
+                                        Queue: {queueLength} request{queueLength > 1 ? 's' : ''} waiting
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        {generationError && (
+                            <div className="mt-4 p-3 rounded-xl border border-red-500/40 bg-red-500/10 text-xs text-red-200 flex items-center justify-between gap-3">
+                                <span>{generationError}</span>
+                                <button
+                                    onClick={() => handleGenerate(false)}
+                                    className="px-3 py-1 rounded-full bg-red-500/30 text-red-100 text-[10px] font-mono uppercase tracking-wider"
+                                >
+                                    Retry
+                                </button>
+                            </div>
+                        )}
+                        {previewError && (
+                            <div className="mt-4 text-[10px] text-red-300 font-mono text-center">
+                                Preview failed. Adjust your prompt and try again.
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            <div id="forge-review">
+                <VersionTimeline
+                    versions={timeline}
+                    currentVersionId={currentVersionId}
+                    onLoadVersion={handleLoadVersion}
+                    onBranchVersion={handleBranchVersion}
+                    onCompareVersions={handleCompareVersions}
+                    onDeleteVersion={removeVersion}
+                />
+            </div>
+        </div>
+    );
+
+    const rightPanel = (
+        <div className={ENABLE_STUDIO_LAYOUT ? '' : 'lg:col-span-12 xl:col-span-12 2xl:col-span-3'}>
+            <div className="space-y-6 2xl:sticky 2xl:top-24">
+                <MatchPulseSidebar
+                    matches={matches}
+                    totalMatches={totalMatches}
+                    isLoading={isMatching}
+                    error={matchError}
+                    context={matchContext}
+                />
+
+                <div className="glass-panel rounded-2xl border border-white/10 h-[360px] md:h-[calc(100vh-28rem)]">
+                    <LayerStack
+                        layers={layers}
+                        selectedLayerId={selectedLayerId}
+                        onSelectLayer={selectLayer}
+                        onToggleVisibility={toggleVisibility}
+                        onRename={rename}
+                        onDelete={deleteLayer}
+                        onReorder={reorder}
+                        onContextMenu={handleLayerContextMenu}
+                        onAddLayer={() => {
+                            setShowElementModal(true);
+                            setElementPrompt('');
+                            setElementType('subject');
+                        }}
+                    />
+                </div>
+            </div>
+        </div>
+    );
+
     return (
         <div className="min-h-screen pt-16 px-4 pb-32">
             {/* Background Effects */}
@@ -1093,370 +1459,15 @@ export default function Generate() {
                     </div>
                 </section>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-                    {/* Left Sidebar - Body Part Selector */}
-                    <div className="lg:col-span-3 xl:col-span-3 2xl:col-span-2">
-                        <div
-                            id="forge-placement"
-                            className="glass-panel rounded-2xl p-4 border border-white/10 sticky top-24"
-                        >
-                            <BodyPartSelector
-                                selectedBodyPart={bodyPart}
-                                onSelect={handleBodyPartChange}
-                                disabled={false}
-                            />
-                        </div>
+                {ENABLE_STUDIO_LAYOUT ? (
+                    <HolyGrailLayout left={leftPanel} center={centerPanel} right={rightPanel} />
+                ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        {leftPanel}
+                        {centerPanel}
+                        {rightPanel}
                     </div>
-
-                    {/* Center - Canvas */}
-                    <div className="lg:col-span-9 xl:col-span-9 2xl:col-span-7">
-                        <div className="space-y-6">
-                            {/* Canvas */}
-                            <div className="glass-panel rounded-3xl p-6 border border-white/10">
-                                <div className="relative group">
-                                    <ForgeCanvas
-                                        bodyPart={bodyPart}
-                                        layers={sortedLayers}
-                                        selectedLayerId={selectedLayerId}
-                                        onSelectLayer={selectLayer}
-                                        onUpdateTransform={updateTransform}
-                                    />
-
-                                    {showPreview && (
-                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                            <img
-                                                src={previewImage}
-                                                alt="Preview"
-                                                className="w-full h-full object-contain opacity-80"
-                                            />
-                                            <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-black/60 text-xs font-mono uppercase tracking-widest text-ducks-yellow">
-                                                Preview
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {stencilView && stencilPreview && (
-                                        <img
-                                            src={stencilPreview}
-                                            alt="Stencil preview"
-                                            className="absolute inset-0 w-full h-full object-contain mix-blend-screen pointer-events-none"
-                                        />
-                                    )}
-
-                                    {/* Transform Controls Toolbar */}
-                                    {selectedLayerId && (
-                                        <div className="absolute top-4 left-1/2 -translate-x-1/2">
-                                            <TransformControls
-                                                onFlipHorizontal={() => flipHorizontal(selectedLayerId)}
-                                                onFlipVertical={() => flipVertical(selectedLayerId)}
-                                                onResetRotation={() => updateTransform(selectedLayerId, { rotation: 0 })}
-                                            />
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="mt-4 flex flex-wrap items-center gap-3">
-                                    <Button
-                                        variant="primary"
-                                        size="md"
-                                        onClick={handleToggleStencil}
-                                        disabled={isStencilProcessing}
-                                        aria-label="Toggle stencil view"
-                                    >
-                                        {stencilView ? 'Exit Stencil View' : 'Stencil View'}
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        size="md"
-                                        onClick={async () => {
-                                            if (!stencilSourceUrl) {
-                                                await createStencilSource();
-                                            }
-                                            setShowStencilExport(true);
-                                        }}
-                                        aria-label="Export stencil"
-                                    >
-                                        Export Stencil
-                                    </Button>
-                                    {isStencilProcessing && (
-                                        <span className="text-xs text-white/60 font-mono">Generating stencil...</span>
-                                    )}
-                                    {stencilError && (
-                                        <span className="text-xs text-red-400">{stencilError}</span>
-                                    )}
-                                    {isPreviewing && (
-                                        <span className="text-xs text-white/50 font-mono">
-                                            Updating preview...
-                                        </span>
-                                    )}
-                                </div>
-
-                                {selectedLayer && (
-                                    <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="bg-black/30 border border-white/10 rounded-2xl p-4">
-                                            <p className="text-xs font-mono uppercase tracking-[0.3em] text-ducks-green">
-                                                Layer Blend
-                                            </p>
-                                            <p className="text-sm text-white/70 mt-2">
-                                                {selectedLayer.name}
-                                            </p>
-                                            <div className="mt-3">
-                                                <BlendModeSelector
-                                                    value={selectedLayer.blendMode}
-                                                    onChange={(value) => handleBlendModeChange(selectedLayer.id, value)}
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="bg-black/30 border border-white/10 rounded-2xl p-4 space-y-3">
-                                            <p className="text-xs font-mono uppercase tracking-[0.3em] text-ducks-green">
-                                                Layer Actions
-                                            </p>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <Button
-                                                    variant="primary"
-                                                    size="md"
-                                                    onClick={() => setShowInpainting(true)}
-                                                    icon={Wand2}
-                                                >
-                                                    Inpaint
-                                                </Button>
-                                                <Button
-                                                    variant="secondary"
-                                                    size="md"
-                                                    onClick={() => setShowCleanup(true)}
-                                                    icon={Eraser}
-                                                >
-                                                    Clean Up
-                                                </Button>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <Button
-                                                    variant="outline"
-                                                    size="md"
-                                                    onClick={() => {
-                                                        setRestyleLayerId(selectedLayer.id);
-                                                        setRestyleStyle(matchStyle);
-                                                    }}
-                                                    icon={Sparkles}
-                                                >
-                                                    Restyle
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="md"
-                                                    onClick={handleExportPNG}
-                                                    icon={Download}
-                                                >
-                                                    Export PNG
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Prompt Interface */}
-                            <div id="forge-prompt" className="glass-panel rounded-3xl p-8 border border-white/10">
-                                <div className="mb-6">
-                                    <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-[0.3em] text-white/50">
-                                        <span>Placement</span>
-                                        <span>Prompt</span>
-                                        <span>Generate</span>
-                                    </div>
-                                    <div className="mt-3 h-2 rounded-full bg-white/10 overflow-hidden">
-                                        <div
-                                            className="h-full bg-ducks-green transition-all duration-500"
-                                            style={{
-                                                width: `${Math.round(([
-                                                    bodyPart ? 1 : 0,
-                                                    promptText.trim() || enhancedPrompt?.trim() ? 1 : 0,
-                                                    layers.length > 0 ? 1 : 0
-                                                ].reduce((sum, value) => sum + value, 0) / 3) * 100)}%`
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-                                <PromptInterface
-                                    value={promptText}
-                                    onChange={setPromptText}
-                                    selectedChips={selectedChips}
-                                />
-
-                                <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-                                    <Button
-                                        variant="outline"
-                                        size="lg"
-                                        onClick={handleEnhance}
-                                        disabled={isEnhancing || !promptText.trim()}
-                                        icon={Sparkles}
-                                    >
-                                        Enhance with AI Council
-                                    </Button>
-                                    <button
-                                        onClick={() => setShowAdvanced(!showAdvanced)}
-                                        className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-mono uppercase tracking-widest text-white/60 hover:text-white hover:border-white/40"
-                                    >
-                                        Tattoo Fine-Tuning
-                                    </button>
-                                </div>
-
-                                <VibeChips
-                                    suggestions={suggestions}
-                                    selectedChips={selectedChips}
-                                    onChipSelect={handleChipSelect}
-                                    isLoading={isSuggestionsLoading}
-                                />
-
-                                <AdvancedOptions
-                                    isExpanded={showAdvanced}
-                                    onToggle={() => setShowAdvanced(!showAdvanced)}
-                                    hideToggle
-                                    style={style}
-                                    onStyleChange={setStyle}
-                                    size={size}
-                                    onSizeChange={setSize}
-                                    aiModel={aiModel}
-                                    onModelChange={setAiModel}
-                                    negativePrompt={negativePrompt}
-                                    onNegativePromptChange={setNegativePrompt}
-                                    enhancementLevel={enhancementLevel}
-                                    onEnhancementLevelChange={setEnhancementLevel}
-                                    separateRGBA={separateRGBA}
-                                    onSeparateRGBAChange={setSeparateRGBA}
-                                />
-
-                                {enhancedPrompt && (
-                                    <div className="mt-6 p-6 bg-ducks-green/10 border border-ducks-green/30 rounded-2xl">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <h4 className="text-sm font-bold text-ducks-green uppercase tracking-wider">
-                                                AI Enhanced Prompt ({enhancementLevel})
-                                            </h4>
-                                            <button
-                                                onClick={() => setEnhancedPrompt(null)}
-                                                className="text-xs text-gray-500 hover:text-white transition-colors"
-                                            >
-                                                Clear
-                                            </button>
-                                        </div>
-                                        <p className="text-sm text-gray-300 leading-relaxed">
-                                            {enhancedPrompt}
-                                        </p>
-                                    </div>
-                                )}
-
-                                {(enhancedPrompt || promptText.trim()) && (
-                                    <div id="forge-actions" className="mt-6 space-y-3">
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <Button
-                                                variant="outline"
-                                                size="lg"
-                                                onClick={() => handleGenerate(false)}
-                                                disabled={isGenerating}
-                                                icon={Layers}
-                                                className="h-16 text-base"
-                                            >
-                                                REFINE
-                                            </Button>
-                                            <Button
-                                                variant="primary"
-                                                size="lg"
-                                                onClick={() => handleGenerate(true)}
-                                                disabled={isGenerating}
-                                                icon={CheckCircle}
-                                                className="h-16 text-base"
-                                            >
-                                                FINALIZE
-                                            </Button>
-                                        </div>
-                                        <p className="text-[10px] text-white/40 font-mono text-center">
-                                            Refine: Quick iteration (50 steps) • Finalize: Max quality (60+ steps, 300 DPI)
-                                        </p>
-                                        {isGenerating && (
-                                            <div className="mt-4 space-y-2">
-                                                <div className="flex items-center justify-between text-xs text-white/60 font-mono">
-                                                    <span>Rendering high-res...</span>
-                                                    <span>
-                                                        {progress?.etaSeconds !== null ? `~${progress.etaSeconds}s` : 'estimating...'}
-                                                    </span>
-                                                </div>
-                                                <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-                                                    <div
-                                                        className="h-full bg-ducks-green transition-all"
-                                                        style={{ width: `${Math.round((progress?.percent || 0) * 100)}%` }}
-                                                    />
-                                                </div>
-                                                {queueLength > 0 && (
-                                                    <div className="text-[10px] text-white/40 font-mono">
-                                                        Queue: {queueLength} request{queueLength > 1 ? 's' : ''} waiting
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                        {generationError && (
-                                            <div className="mt-4 p-3 rounded-xl border border-red-500/40 bg-red-500/10 text-xs text-red-200 flex items-center justify-between gap-3">
-                                                <span>{generationError}</span>
-                                                <button
-                                                    onClick={() => handleGenerate(false)}
-                                                    className="px-3 py-1 rounded-full bg-red-500/30 text-red-100 text-[10px] font-mono uppercase tracking-wider"
-                                                >
-                                                    Retry
-                                                </button>
-                                            </div>
-                                        )}
-                                        {previewError && (
-                                            <div className="mt-4 text-[10px] text-red-300 font-mono text-center">
-                                                Preview failed. Adjust your prompt and try again.
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-
-                            <div id="forge-review">
-                                <VersionTimeline
-                                    versions={timeline}
-                                    currentVersionId={currentVersionId}
-                                    onLoadVersion={handleLoadVersion}
-                                    onBranchVersion={handleBranchVersion}
-                                    onCompareVersions={handleCompareVersions}
-                                    onDeleteVersion={removeVersion}
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Right Sidebar - Match Pulse + Layer Stack */}
-                    <div className="lg:col-span-12 xl:col-span-12 2xl:col-span-3">
-                        <div className="space-y-6 2xl:sticky 2xl:top-24">
-                            <MatchPulseSidebar
-                                matches={matches}
-                                totalMatches={totalMatches}
-                                isLoading={isMatching}
-                                error={matchError}
-                                context={matchContext}
-                            />
-
-                            <div className="glass-panel rounded-2xl border border-white/10 h-[360px] md:h-[calc(100vh-28rem)]">
-                                <LayerStack
-                                    layers={layers}
-                                    selectedLayerId={selectedLayerId}
-                                    onSelectLayer={selectLayer}
-                                    onToggleVisibility={toggleVisibility}
-                                    onRename={rename}
-                                    onDelete={deleteLayer}
-                                    onReorder={reorder}
-                                    onContextMenu={handleLayerContextMenu}
-                                    onAddLayer={() => {
-                                        setShowElementModal(true);
-                                        setElementPrompt('');
-                                        setElementType('subject');
-                                    }}
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                )}
             </div>
 
             {/* Warning Modal */}
