@@ -275,7 +275,7 @@ export default function InpaintingEditor({ imageUrl, onClose, onSave }) {
                       max="100"
                       value={brushSize}
                       onChange={(e) => setBrushSize(Number(e.target.value))}
-                      className="w-full accent-ducks-green"
+                      className="w-full accent-[rgb(0_255_65)]"
                     />
                   </div>
 
@@ -301,7 +301,7 @@ export default function InpaintingEditor({ imageUrl, onClose, onSave }) {
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     placeholder="e.g., add cherry blossoms, change to a dragon, remove background..."
-                    className="w-full px-4 py-3 border border-white/10 rounded-lg bg-black/40 text-white focus:ring-2 focus:ring-ducks-green focus:border-transparent resize-none"
+                    className="w-full px-4 py-3 border border-white/10 rounded-lg bg-black/40 text-white focus:ring-2 focus:ring-[rgba(0,255,65,0.4)] focus:border-transparent resize-none"
                     rows={3}
                   />
                   <p className="mt-1 text-xs text-white/50">
@@ -312,7 +312,7 @@ export default function InpaintingEditor({ imageUrl, onClose, onSave }) {
                 {/* Advanced Options Toggle */}
                 <button
                   onClick={() => setShowAdvanced(!showAdvanced)}
-                  className="text-sm text-ducks-green hover:text-white font-medium"
+                  className="text-sm text-studio-neon hover:text-white font-medium"
                 >
                   {showAdvanced ? '▼' : '▶'} Tattoo Fine-Tuning
                 </button>
@@ -326,7 +326,7 @@ export default function InpaintingEditor({ imageUrl, onClose, onSave }) {
                       <textarea
                         value={negativePrompt}
                         onChange={(e) => setNegativePrompt(e.target.value)}
-                        className="w-full px-3 py-2 text-sm border border-white/10 rounded-lg bg-black/40 text-white focus:ring-2 focus:ring-ducks-green focus:border-transparent resize-none"
+                        className="w-full px-3 py-2 text-sm border border-white/10 rounded-lg bg-black/40 text-white focus:ring-2 focus:ring-[rgba(0,255,65,0.4)] focus:border-transparent resize-none"
                         rows={2}
                       />
                       <p className="mt-1 text-xs text-white/50">
@@ -345,7 +345,7 @@ export default function InpaintingEditor({ imageUrl, onClose, onSave }) {
                         step="0.5"
                         value={guidanceScale}
                         onChange={(e) => setGuidanceScale(Number(e.target.value))}
-                        className="w-full accent-ducks-green"
+                        className="w-full accent-[rgb(0_255_65)]"
                       />
                       <p className="mt-1 text-xs text-white/50">
                         How closely to follow your prompt (7-8 recommended)
@@ -355,11 +355,11 @@ export default function InpaintingEditor({ imageUrl, onClose, onSave }) {
                 )}
 
                 {/* Cost Estimate */}
-                <div className="bg-ducks-green/10 border border-ducks-green/30 rounded-lg p-3">
-                  <p className="text-sm text-ducks-green/90">
+                <div className="bg-[rgba(0,255,65,0.1)] border border-[rgba(0,255,65,0.3)] rounded-lg p-3">
+                  <p className="text-sm text-studio-neon opacity-90">
                     Estimated cost: <span className="font-medium">{costEstimate.formatted}</span>
                   </p>
-                  <p className="text-xs text-ducks-green/60 mt-1">
+                  <p className="text-xs text-studio-neon opacity-60 mt-1">
                     Processing time: ~10-20 seconds
                   </p>
                 </div>
@@ -379,7 +379,7 @@ export default function InpaintingEditor({ imageUrl, onClose, onSave }) {
                     className={`w-full py-4 rounded-lg font-semibold text-white transition-all ${
                       isProcessing || !prompt.trim() || !imageLoaded
                         ? 'bg-white/20 cursor-not-allowed'
-                        : 'bg-ducks-yellow text-black hover:bg-white active:scale-98'
+                        : 'bg-studio-accent text-white hover:bg-[rgba(255,62,0,0.9)] active:scale-98'
                     }`}
                   >
                     {isProcessing ? (

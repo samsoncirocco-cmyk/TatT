@@ -460,7 +460,7 @@ export default function CleanupTool({ imageUrl, onClose, onSave }) {
                                         <Button
                                             onClick={handleExport}
                                             disabled={!imageLoaded}
-                                            className="h-12 text-xs font-black tracking-wider bg-ducks-yellow text-black hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
+                                            className="h-12 text-xs font-black tracking-wider bg-studio-accent text-white hover:bg-[rgba(255,62,0,0.9)] disabled:opacity-40 disabled:cursor-not-allowed"
                                             icon={Download}
                                         >
                                             SAVE
@@ -472,8 +472,8 @@ export default function CleanupTool({ imageUrl, onClose, onSave }) {
                             {/* Controls Panel */}
                             <div className="space-y-4">
                                 {/* Mode Selection */}
-                                <div className="glass-panel rounded-2xl p-4 border border-white/10">
-                                    <p className="text-xs font-mono uppercase tracking-[0.3em] text-ducks-green mb-3">
+                                <div className="studio-glass rounded-2xl p-4 border border-white/10">
+                                    <p className="text-xs font-mono uppercase tracking-[0.3em] text-studio-neon mb-3">
                                         Tool Mode
                                     </p>
                                     <div className="grid grid-cols-2 gap-2">
@@ -483,7 +483,7 @@ export default function CleanupTool({ imageUrl, onClose, onSave }) {
                                                 h-20 rounded-xl flex flex-col items-center justify-center gap-2
                                                 transition-all border-2
                                                 ${mode === 'erase'
-                                                    ? 'bg-ducks-green/20 border-ducks-green text-ducks-green'
+                                                    ? 'bg-[rgba(0,255,65,0.2)] border-studio-neon text-studio-neon'
                                                     : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
                                                 }
                                             `}
@@ -499,7 +499,7 @@ export default function CleanupTool({ imageUrl, onClose, onSave }) {
                                                 h-20 rounded-xl flex flex-col items-center justify-center gap-2
                                                 transition-all border-2
                                                 ${mode === 'paint'
-                                                    ? 'bg-ducks-green/20 border-ducks-green text-ducks-green'
+                                                    ? 'bg-[rgba(0,255,65,0.2)] border-studio-neon text-studio-neon'
                                                     : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
                                                 }
                                             `}
@@ -513,9 +513,9 @@ export default function CleanupTool({ imageUrl, onClose, onSave }) {
                                 </div>
 
                                 {/* Brush Size */}
-                                <div className="glass-panel rounded-2xl p-4 border border-white/10">
+                                <div className="studio-glass rounded-2xl p-4 border border-white/10">
                                     <div className="flex items-center justify-between mb-3">
-                                        <p className="text-xs font-mono uppercase tracking-[0.3em] text-ducks-green">
+                                        <p className="text-xs font-mono uppercase tracking-[0.3em] text-studio-neon">
                                             Brush Size
                                         </p>
                                         <span className="text-sm font-bold text-white">
@@ -529,7 +529,7 @@ export default function CleanupTool({ imageUrl, onClose, onSave }) {
                                         step="5"
                                         value={brushSize}
                                         onChange={(e) => setBrushSize(Number(e.target.value))}
-                                        className="w-full accent-ducks-green cursor-pointer"
+                                        className="w-full accent-[rgb(0_255_65)] cursor-pointer"
                                     />
                                     <div className="flex justify-between mt-2 text-[10px] text-white/40 font-mono">
                                         <span>10px</span>
@@ -538,8 +538,8 @@ export default function CleanupTool({ imageUrl, onClose, onSave }) {
                                 </div>
 
                                 {/* Keyboard Shortcuts */}
-                                <div className="glass-panel rounded-2xl p-4 border border-white/10">
-                                    <p className="text-xs font-mono uppercase tracking-[0.3em] text-ducks-green mb-3">
+                                <div className="studio-glass rounded-2xl p-4 border border-white/10">
+                                    <p className="text-xs font-mono uppercase tracking-[0.3em] text-studio-neon mb-3">
                                         Keyboard Shortcuts
                                     </p>
                                     <div className="space-y-2 text-xs text-white/70">
@@ -571,8 +571,8 @@ export default function CleanupTool({ imageUrl, onClose, onSave }) {
                                 </div>
 
                                 {/* Instructions */}
-                                <div className="glass-panel rounded-2xl p-4 border border-white/10 bg-ducks-green/5">
-                                    <p className="text-xs font-mono uppercase tracking-[0.3em] text-ducks-green mb-3">
+                                <div className="studio-glass rounded-2xl p-4 border border-white/10 bg-[rgba(0,255,65,0.05)]">
+                                    <p className="text-xs font-mono uppercase tracking-[0.3em] text-studio-neon mb-3">
                                         How to Use
                                     </p>
                                     <ol className="text-xs text-white/70 space-y-2 list-decimal list-inside">
