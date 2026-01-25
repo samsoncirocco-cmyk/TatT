@@ -1,41 +1,118 @@
 /**
  * Storage Service
- * 
+ *
  * Centralized storage management with migration path to backend.
  * Enforces best practices: no base64 blobs in localStorage, size limits, expiry.
- * 
+ *
  * Current: localStorage + IndexedDB (MVP)
  * Future: Supabase/Convex with per-user auth
  */
+
+// ============================================================================
+// Constants
+// ============================================================================
 
 const STORAGE_KEYS = {
   DESIGNS: 'tattester_design_library',
   API_USAGE: 'tattester_api_usage',
   USER_PREFS: 'tattester_user_preferences',
   PLACEMENTS: 'tattester_saved_placements'
-};
+} as const;
 
 const LIMITS = {
   MAX_DESIGNS: 50,
   MAX_STORAGE_MB: 50, // Total storage limit
   DESIGN_EXPIRY_DAYS: 90 // Auto-purge old designs
-};
+} as const;
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface StorageQuota {
+  usedMB: number;
+  quotaMB: number;
+  percentUsed: number;
+  available: number;
+}
+
+export interface Design {
+  id: string;
+  imageUrl: string;
+  userInput?: {
+    style?: string;
+    subject?: string;
+    bodyPart?: string;
+    size?: string;
+    [key: string]: unknown;
+  };
+  metadata: {
+    savedAt: string | Date;
+    prompt?: string;
+    [key: string]: unknown;
+  };
+  favorite?: boolean;
+  tags?: string[];
+  notes?: string;
+  [key: string]: unknown;
+}
+
+export interface ValidationResult {
+  valid: boolean;
+  errors: string[];
+}
+
+export interface StorageSetResult {
+  success: boolean;
+  sizeKB?: number;
+  recovered?: boolean;
+  error?: string;
+  code?: string;
+}
+
+export interface StorageStats {
+  quota: StorageQuota | null;
+  localStorageKB: string;
+  designCount: number;
+  designLimit: number;
+  expiryDays: number;
+}
+
+export interface BackendDesign {
+  id: string;
+  imageUrl: string;
+  metadata: {
+    style?: string;
+    subject?: string;
+    bodyPart?: string;
+    size?: string;
+    savedAt?: string | Date;
+    prompt?: string;
+  };
+  favorite?: boolean;
+  tags: string[];
+  notes: string;
+}
+
+// ============================================================================
+// Public API
+// ============================================================================
 
 /**
  * Storage quota check
  */
-export async function checkStorageQuota() {
+export async function checkStorageQuota(): Promise<StorageQuota | null> {
   if ('storage' in navigator && 'estimate' in navigator.storage) {
     const estimate = await navigator.storage.estimate();
-    const usedMB = (estimate.usage / (1024 * 1024)).toFixed(2);
-    const quotaMB = (estimate.quota / (1024 * 1024)).toFixed(2);
-    const percentUsed = ((estimate.usage / estimate.quota) * 100).toFixed(1);
+    const usedMB = ((estimate.usage || 0) / (1024 * 1024)).toFixed(2);
+    const quotaMB = ((estimate.quota || 0) / (1024 * 1024)).toFixed(2);
+    const percentUsed = (((estimate.usage || 0) / (estimate.quota || 1)) * 100).toFixed(1);
 
     return {
       usedMB: parseFloat(usedMB),
       quotaMB: parseFloat(quotaMB),
       percentUsed: parseFloat(percentUsed),
-      available: estimate.quota - estimate.usage
+      available: (estimate.quota || 0) - (estimate.usage || 0)
     };
   }
 
@@ -45,9 +122,9 @@ export async function checkStorageQuota() {
 /**
  * Purge expired designs
  */
-export function purgeExpiredDesigns() {
+export function purgeExpiredDesigns(): number {
   try {
-    const designs = JSON.parse(localStorage.getItem(STORAGE_KEYS.DESIGNS) || '[]');
+    const designs: Design[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.DESIGNS) || '[]');
     const now = Date.now();
     const expiryMs = LIMITS.DESIGN_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
 
@@ -76,8 +153,8 @@ export function purgeExpiredDesigns() {
  * Validate design before saving
  * Ensures we don't store base64 blobs
  */
-export function validateDesign(design) {
-  const errors = [];
+export function validateDesign(design: Design): ValidationResult {
+  const errors: string[] = [];
 
   // Check for base64 in imageUrl
   if (design.imageUrl && design.imageUrl.startsWith('data:')) {
@@ -99,7 +176,7 @@ export function validateDesign(design) {
 /**
  * Safe localStorage wrapper with error handling
  */
-export function safeLocalStorageSet(key, value) {
+export function safeLocalStorageSet(key: string, value: unknown): StorageSetResult {
   try {
     const serialized = JSON.stringify(value);
     const sizeKB = (serialized.length / 1024).toFixed(2);
@@ -112,7 +189,8 @@ export function safeLocalStorageSet(key, value) {
     localStorage.setItem(key, serialized);
     return { success: true, sizeKB: parseFloat(sizeKB) };
   } catch (error) {
-    if (error.name === 'QuotaExceededError') {
+    const err = error as Error & { name?: string };
+    if (err.name === 'QuotaExceededError') {
       console.error('[Storage] localStorage quota exceeded. Attempting cleanup...');
       purgeExpiredDesigns();
 
@@ -131,7 +209,7 @@ export function safeLocalStorageSet(key, value) {
 
     return {
       success: false,
-      error: error.message,
+      error: err.message,
       code: 'STORAGE_ERROR'
     };
   }
@@ -140,7 +218,7 @@ export function safeLocalStorageSet(key, value) {
 /**
  * Safe localStorage get with fallback
  */
-export function safeLocalStorageGet(key, defaultValue = null) {
+export function safeLocalStorageGet<T>(key: string, defaultValue: T | null = null): T | null {
   try {
     const item = localStorage.getItem(key);
     return item ? JSON.parse(item) : defaultValue;
@@ -153,14 +231,14 @@ export function safeLocalStorageGet(key, defaultValue = null) {
 /**
  * Clear IndexedDB for a specific store
  */
-export function clearIndexedDBStore(dbName, storeName) {
+export function clearIndexedDBStore(dbName: string, storeName: string): Promise<boolean | number> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(dbName, 1);
 
     request.onerror = () => reject(request.error);
 
     request.onsuccess = (event) => {
-      const db = event.target.result;
+      const db = (event.target as IDBOpenDBRequest).result;
 
       if (!db.objectStoreNames.contains(storeName)) {
         resolve(0);
@@ -184,14 +262,14 @@ export function clearIndexedDBStore(dbName, storeName) {
 /**
  * Get storage statistics
  */
-export async function getStorageStats() {
+export async function getStorageStats(): Promise<StorageStats> {
   const quota = await checkStorageQuota();
 
   const localStorageSize = Object.keys(localStorage).reduce((total, key) => {
     return total + (localStorage.getItem(key)?.length || 0);
   }, 0);
 
-  const designs = safeLocalStorageGet(STORAGE_KEYS.DESIGNS, []);
+  const designs = safeLocalStorageGet<Design[]>(STORAGE_KEYS.DESIGNS, []) || [];
 
   return {
     quota,
@@ -204,11 +282,11 @@ export async function getStorageStats() {
 
 /**
  * Migration helper for future backend integration
- * 
+ *
  * This prepares the data structure for Supabase/Convex migration
  */
-export function prepareForBackendMigration() {
-  const designs = safeLocalStorageGet(STORAGE_KEYS.DESIGNS, []);
+export function prepareForBackendMigration(): BackendDesign[] {
+  const designs = safeLocalStorageGet<Design[]>(STORAGE_KEYS.DESIGNS, []) || [];
 
   return designs.map(design => ({
     // Keep only essential data
@@ -230,9 +308,9 @@ export function prepareForBackendMigration() {
 
 /**
  * Backend migration schema (for reference)
- * 
+ *
  * Supabase table structure:
- * 
+ *
  * CREATE TABLE designs (
  *   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
  *   user_id UUID REFERENCES auth.users(id),
@@ -248,7 +326,7 @@ export function prepareForBackendMigration() {
  *   created_at TIMESTAMP DEFAULT NOW(),
  *   updated_at TIMESTAMP DEFAULT NOW()
  * );
- * 
+ *
  * CREATE INDEX idx_designs_user_id ON designs(user_id);
  * CREATE INDEX idx_designs_created_at ON designs(created_at DESC);
  */
@@ -264,3 +342,4 @@ Migration Checklist:
 7. Add offline sync capability
 `;
 
+export { STORAGE_KEYS, LIMITS };
