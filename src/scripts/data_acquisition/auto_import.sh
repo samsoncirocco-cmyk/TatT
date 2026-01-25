@@ -9,6 +9,11 @@
 
 set -e
 
+# Load environment variables
+if [ -f .env ]; then
+    export $(cat .env | xargs)
+fi
+
 echo "========================================="
 echo "Auto-Import Pipeline"
 echo "========================================="

@@ -71,7 +71,53 @@ const CONFIG = {
         'St. Augustine, FL', 'Daytona Beach, FL', 'Fort Lauderdale, FL', 'West Palm Beach, FL',
         'Sarasota, FL', 'Cape Coral, FL', 'Port St. Lucie, FL', 'Lakeland, FL',
         'Melbourne, FL', 'Palm Bay, FL', 'Deltona, FL', 'Pompano Beach, FL',
-        'Clearwater, FL', 'Largo, FL'
+        'Clearwater, FL', 'Largo, FL',
+
+        // END OF US EXPANSION
+
+        // Tier 3: Emerging Hubs (151-250)
+        'Boise, ID', 'Spokane, WA', 'Des Moines, IA', 'Little Rock, AR', 'Jackson, MS',
+        'Sioux Falls, SD', 'Fargo, ND', 'Billings, MT', 'Cheyenne, WY', 'Burlington, VT',
+        'Portland, ME', 'Manchester, NH', 'Providence, RI', 'New Haven, CT', 'Wilmington, DE',
+        'Charleston, WV', 'Huntington, WV', 'Roanoke, VA', 'Asheville, NC', 'Myrtle Beach, SC',
+        'Savannah, GA', 'Tallahassee, FL', 'Pensacola, FL', 'Mobile, AL', 'Shreveport, LA',
+        'Lubbock, TX', 'Amarillo, TX', 'Midland, TX', 'Abilene, TX', 'Waco, TX',
+        'Corpus Christi, TX', 'McAllen, TX', 'Brownsville, TX', 'Las Cruces, NM', 'Yuma, AZ',
+        'Flagstaff, AZ', 'St. George, UT', 'Provo, UT', 'Ogden, UT', 'Reno, NV',
+        'Salem, OR', 'Eugene, OR', 'Medford, OR', 'Tacoma, WA', 'Vancouver, WA',
+        'Anchorage, AK', 'Fairbanks, AK', 'Honolulu, HI', 'Hilo, HI', 'Kahului, HI',
+        'Fort Wayne, IN', 'South Bend, IN', 'Evansville, IN', 'Grand Rapids, MI', 'Lansing, MI',
+        'Toledo, OH', 'Akron, OH', 'Dayton, OH', 'Youngstown, OH', 'Erie, PA',
+        'Allentown, PA', 'Scranton, PA', 'Harrisburg, PA', 'Syracuse, NY', 'Rochester, NY',
+        'Buffalo, NY', 'Albany, NY', 'Springfield, MA', 'Worcester, MA', 'Hartford, CT',
+        'Trenton, NJ', 'Atlantic City, NJ', 'Dover, DE', 'Salisbury, MD', 'Huntsville, AL',
+        'Chattanooga, TN', 'Knoxville, TN', 'Lexington, KY', 'Fort Smith, AR', 'Springfield, MO',
+        'Columbia, MO', 'Topeka, KS', 'Lincoln, NE', 'Omaha, NE', 'Cedar Rapids, IA',
+        'Davenport, IA', 'Rochester, MN', 'Duluth, MN', 'Green Bay, WI', 'Madison, WI',
+
+        // Tier 4: Local Markets (251-350)
+        'Modesto, CA', 'Santa Rosa, CA', 'Oxnard, CA', 'Fontana, CA', 'Moreno Valley, CA',
+        'Glendale, CA', 'Huntington Beach, CA', 'Santa Clarita, CA', 'Garden Grove, CA', 'Oceanside, CA',
+        'Rancho Cucamonga, CA', 'Ontario, CA', 'Lancaster, CA', 'Elk Grove, CA', 'Palmdale, CA',
+        'Salinas, CA', 'Hayward, CA', 'Pomona, CA', 'Escondido, CA', 'Sunnyvale, CA',
+        'Torrance, CA', 'Pasadena, CA', 'Orange, CA', 'Fullerton, CA', 'Visalia, CA',
+        'Thousand Oaks, CA', 'Concord, CA', 'Roseville, CA', 'Simi Valley, CA', 'Victorville, CA',
+        'Vallejo, CA', 'Berkeley, CA', 'El Monte, CA', 'Downey, CA', 'Costa Mesa, CA',
+        'Inglewood, CA', 'San Buenaventura, CA', 'West Covina, CA', 'Norwalk, CA', 'Daly City, CA',
+        // Texas Expansion
+        'Frisco, TX', 'McKinney, TX', 'Grand Prairie, TX', 'Brownsville, TX', 'Killeen, TX',
+        'Pasadena, TX', 'Mesquite, TX', 'Denton, TX', 'Carrollton, TX', 'Roseville, CA',
+        'Midland, TX', 'Waco, TX', 'Pearland, TX', 'College Station, TX', 'Round Rock, TX',
+        'League City, TX', 'Lewisville, TX', 'Tyler, TX', 'Richardson, TX', 'Allen, TX',
+        // Florida Expansion
+        'Port St. Lucie, FL', 'Cape Coral, FL', 'Pembroke Pines, FL', 'Hollywood, FL', 'Miramar, FL',
+        'Gainesville, FL', 'Coral Springs, FL', 'Lehigh Acres, FL', 'Brandon, FL', 'Palm Bay, FL',
+        'Spring Hill, FL', 'Lakeland, FL', 'Pompano Beach, FL', 'West Palm Beach, FL', 'Davie, FL',
+        // Midwest & South
+        'Overland Park, KS', 'Kansas City, KS', 'Olathe, KS', 'Springfield, IL', 'Peoria, IL',
+        'Champaign, IL', 'Rockford, IL', 'Joliet, IL', 'Naperville, IL', 'Aurora, IL',
+        'Gary, IN', 'Lafayette, IN', 'Ann Arbor, MI', 'Flint, MI', 'Dearborn, MI',
+        'Livonia, MI', 'Canton, OH', 'Parma, OH', 'Hamilton, OH', 'Kettering, OH'
     ],
 
     // File paths
@@ -80,15 +126,20 @@ const CONFIG = {
     RAW_OUTPUT: path.join(process.cwd(), 'src/scripts/data_acquisition/output/raw_artists_parallel.json'),
     LOG_FILE: path.join(process.cwd(), 'src/scripts/data_acquisition/output/parallel_crawler.log'),
 
-    // Rate limiting (more aggressive for parallel)
-    DELAY_BETWEEN_REQUESTS: 500,  // 0.5 seconds (was 2s)
-    MAX_RETRIES: 3
+    // Rate limiting (Turbo Mode)
+    DELAY_BETWEEN_REQUESTS: 200,  // 0.2 seconds
+    MAX_RETRIES: 3,
+
+    // Concurrency override
+    CONCURRENT_CITIES: 25,
+    CONCURRENT_SHOPS: 10
 };
 
 class ParallelCrawler {
     constructor() {
         this.results = [];
         this.progress = this.loadProgress();
+        this.results = this.progress.results || []; // Fix: Load existing results!
         this.stats = {
             citiesProcessed: 0,
             shopsProcessed: 0,
@@ -101,6 +152,8 @@ class ParallelCrawler {
         fs.mkdirSync(CONFIG.OUTPUT_DIR, { recursive: true });
 
         this.log(`[Parallel Crawler] Initialized v3.0`);
+        this.log(`[DEBUG] CONFIG.TARGET_CITIES.length: ${CONFIG.TARGET_CITIES.length}`);
+        this.log(`[DEBUG] CONFIG.CONCURRENT_CITIES: ${CONFIG.CONCURRENT_CITIES}`);
         this.log(`[Parallel Crawler] Mode: ${CONFIG.USE_REAL_API ? 'LIVE API' : 'MOCK DATA'}`);
         this.log(`[Parallel Crawler] Concurrency: ${CONFIG.CONCURRENT_CITIES} cities, ${CONFIG.CONCURRENT_SHOPS} shops/city`);
         this.log(`[Parallel Crawler] Target: ${CONFIG.TARGET_CITIES.length} cities`);
@@ -159,42 +212,64 @@ class ParallelCrawler {
     }
 
     async _searchGooglePlaces(city) {
-        const query = `tattoo shop in ${city}`;
-        const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${CONFIG.GOOGLE_API_KEY}`;
+        let allShops = [];
+        let nextPageToken = null;
+        let attempt = 0;
+        const MAX_PAGES = 3; // Google Places API limit is 60 results (3 pages of 20)
 
-        try {
-            const response = await fetch(url);
-            const data = await response.json();
+        do {
+            const query = `tattoo shop in ${city}`;
+            let url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${CONFIG.GOOGLE_API_KEY}`;
 
-            if (data.status !== 'OK') {
-                this.log(`[API Error] ${data.status} for ${city}`);
-                return [];
+            if (nextPageToken) {
+                // Wait 2 seconds before using next_page_token (Google API requirement)
+                await this.sleep(2000);
+                url = `https://maps.googleapis.com/maps/api/place/textsearch/json?pagetoken=${nextPageToken}&key=${CONFIG.GOOGLE_API_KEY}`;
             }
 
-            // Get details for each shop in parallel
-            const shopPromises = data.results.slice(0, 20).map(async (place) => {
-                await this.sleep(CONFIG.DELAY_BETWEEN_REQUESTS);
-                const details = await this._getPlaceDetails(place.place_id);
-                if (details) {
-                    return {
-                        name: place.name,
-                        address: place.formatted_address,
-                        place_id: place.place_id,
-                        website: details.website,
-                        rating: place.rating,
-                        city: city
-                    };
-                }
-                return null;
-            });
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
 
-            const shops = (await Promise.all(shopPromises)).filter(s => s !== null);
-            return shops;
-        } catch (error) {
-            this.log(`[Error] Google API request failed for ${city}: ${error.message}`);
-            this.stats.errors++;
-            return [];
-        }
+                if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
+                    this.log(`[API Error] ${data.status} for ${city}`);
+                    break;
+                }
+
+                if (data.results && data.results.length > 0) {
+                    // Get details for each shop in parallel
+                    const shopPromises = data.results.map(async (place) => {
+                        await this.sleep(CONFIG.DELAY_BETWEEN_REQUESTS);
+                        const details = await this._getPlaceDetails(place.place_id);
+                        if (details) {
+                            return {
+                                name: place.name,
+                                address: place.formatted_address,
+                                place_id: place.place_id,
+                                website: details.website,
+                                rating: place.rating,
+                                city: city
+                            };
+                        }
+                        return null;
+                    });
+
+                    const shops = (await Promise.all(shopPromises)).filter(s => s !== null);
+                    allShops = [...allShops, ...shops];
+                }
+
+                nextPageToken = data.next_page_token;
+                attempt++;
+
+            } catch (error) {
+                this.log(`[Error] Google API request failed for ${city}: ${error.message}`);
+                this.stats.errors++;
+                break;
+            }
+
+        } while (nextPageToken && attempt < MAX_PAGES);
+
+        return allShops;
     }
 
     async _getPlaceDetails(placeId) {

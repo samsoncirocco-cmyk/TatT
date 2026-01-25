@@ -40,3 +40,4 @@ google-credentials.json
 .vercel
 .env*.local
 .env.railway
+nohup.out

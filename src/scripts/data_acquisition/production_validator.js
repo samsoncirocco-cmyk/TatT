@@ -19,9 +19,9 @@ import 'dotenv/config';
 
 // Configuration
 const CONFIG = {
-    INPUT_FILE: process.env.VALIDATOR_INPUT || path.join(process.cwd(), 'src/scripts/data_acquisition/output/raw_artists_production.json'),
-    OUTPUT_FILE: path.join(process.cwd(), 'src/scripts/data_acquisition/output/verified_artists_production.json'),
-    PROGRESS_FILE: path.join(process.cwd(), 'src/scripts/data_acquisition/output/validator_progress.json'),
+    INPUT_FILE: process.env.VALIDATOR_INPUT || path.join(process.cwd(), 'src/scripts/data_acquisition/output/raw_artists_parallel.json'),
+    OUTPUT_FILE: process.env.VALIDATOR_OUTPUT || path.join(process.cwd(), 'src/scripts/data_acquisition/output/verified_artists_production.json'),
+    PROGRESS_FILE: process.env.VALIDATOR_PROGRESS || path.join(process.cwd(), 'src/scripts/data_acquisition/output/validator_progress.json'),
     LOG_FILE: path.join(process.cwd(), 'src/scripts/data_acquisition/output/validator.log'),
 
     // API Configuration
@@ -176,7 +176,16 @@ Return JSON: { isTattooArtist: boolean, styles: string[], avgQuality: number }`;
             return;
         }
 
-        const rawData = JSON.parse(fs.readFileSync(CONFIG.INPUT_FILE, 'utf8'));
+        let rawData = JSON.parse(fs.readFileSync(CONFIG.INPUT_FILE, 'utf8'));
+
+        // Handle parallel crawler format (wrapped in results property)
+        if (!Array.isArray(rawData) && rawData.results && Array.isArray(rawData.results)) {
+            this.log(`[Info] Detected parallel crawler output format`);
+            rawData = rawData.results;
+        } else if (!Array.isArray(rawData)) {
+            this.log(`[Error] Invalid input format. Expected array or {results: []}`);
+            return;
+        }
 
         // Flatten to artist list
         const allArtists = [];
