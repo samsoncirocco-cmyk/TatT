@@ -1,0 +1,34 @@
+{
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true
+  },
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read(./**)",
+      "Write(./**)",
+      "Edit(./**)",
+      "Glob(./**)",
+      "Grep(./**)",
+      "Read(/Users/ciroccofam/conductor/workspaces/tatt-v1/manama-next/**)",
+      "Write(/Users/ciroccofam/conductor/workspaces/tatt-v1/manama-next/**)",
+      "Edit(/Users/ciroccofam/conductor/workspaces/tatt-v1/manama-next/**)",
+      "Glob(/Users/ciroccofam/conductor/workspaces/tatt-v1/manama-next/**)",
+      "Grep(/Users/ciroccofam/conductor/workspaces/tatt-v1/manama-next/**)",
+      "Read(/Users/ciroccofam/conductor/workspaces/tatt-v1/manama-next/.auto-claude/specs/003-vertex-vision-segmentation-requirement-only-partia/**)",
+      "Write(/Users/ciroccofam/conductor/workspaces/tatt-v1/manama-next/.auto-claude/specs/003-vertex-vision-segmentation-requirement-only-partia/**)",
+      "Edit(/Users/ciroccofam/conductor/workspaces/tatt-v1/manama-next/.auto-claude/specs/003-vertex-vision-segmentation-requirement-only-partia/**)",
+      "Bash(*)",
+      "WebFetch(*)",
+      "WebSearch(*)",
+      "mcp__context7__resolve-library-id(*)",
+      "mcp__context7__get-library-docs(*)",
+      "mcp__graphiti-memory__search_nodes(*)",
+      "mcp__graphiti-memory__search_facts(*)",
+      "mcp__graphiti-memory__add_episode(*)",
+      "mcp__graphiti-memory__get_episodes(*)",
+      "mcp__graphiti-memory__get_entity_edge(*)"
+    ]
+  }
+}

@@ -1,0 +1,119 @@
+{
+  "spec_id": "001-match-pulse",
+  "created_at": "2026-01-15T22:22:11.090018+00:00",
+  "updated_at": "2026-01-15T22:22:35.561345+00:00",
+  "phases": {
+    "planning": {
+      "phase": "planning",
+      "status": "failed",
+      "started_at": "2026-01-15T22:22:11.090245+00:00",
+      "completed_at": "2026-01-15T22:22:35.560423+00:00",
+      "entries": [
+        {
+          "timestamp": "2026-01-15T22:22:11.090471+00:00",
+          "type": "phase_start",
+          "content": "Starting spec creation process",
+          "phase": "planning"
+        },
+        {
+          "timestamp": "2026-01-15T22:22:23.441145+00:00",
+          "type": "info",
+          "content": "Starting phase 1: PROJECT DISCOVERY",
+          "phase": "planning"
+        },
+        {
+          "timestamp": "2026-01-15T22:22:34.389133+00:00",
+          "type": "success",
+          "content": "Discovered 23 files in project",
+          "phase": "planning"
+        },
+        {
+          "timestamp": "2026-01-15T22:22:34.390910+00:00",
+          "type": "info",
+          "content": "Starting phase 2: REQUIREMENTS GATHERING",
+          "phase": "planning"
+        },
+        {
+          "timestamp": "2026-01-15T22:22:35.426694+00:00",
+          "type": "info",
+          "content": "Starting phase 3: COMPLEXITY ASSESSMENT",
+          "phase": "planning"
+        },
+        {
+          "timestamp": "2026-01-15T22:22:35.429657+00:00",
+          "type": "info",
+          "content": "Analyzing task complexity with AI...",
+          "phase": "planning"
+        },
+        {
+          "timestamp": "2026-01-15T22:22:35.463347+00:00",
+          "type": "error",
+          "content": "Agent error: Command failed with exit code 127 (exit code: 127)\nError output: Check stderr output for details",
+          "phase": "planning"
+        },
+        {
+          "timestamp": "2026-01-15T22:22:35.474196+00:00",
+          "type": "info",
+          "content": "Starting phase 4: HISTORICAL CONTEXT",
+          "phase": "planning"
+        },
+        {
+          "timestamp": "2026-01-15T22:22:35.496004+00:00",
+          "type": "info",
+          "content": "Knowledge graph not configured, skipping",
+          "phase": "planning"
+        },
+        {
+          "timestamp": "2026-01-15T22:22:35.497706+00:00",
+          "type": "info",
+          "content": "Starting phase 5: QUICK SPEC",
+          "phase": "planning"
+        },
+        {
+          "timestamp": "2026-01-15T22:22:35.521419+00:00",
+          "type": "error",
+          "content": "Agent error: Command failed with exit code 127 (exit code: 127)\nError output: Check stderr output for details",
+          "phase": "planning"
+        },
+        {
+          "timestamp": "2026-01-15T22:22:35.538352+00:00",
+          "type": "error",
+          "content": "Agent error: Command failed with exit code 127 (exit code: 127)\nError output: Check stderr output for details",
+          "phase": "planning"
+        },
+        {
+          "timestamp": "2026-01-15T22:22:35.555952+00:00",
+          "type": "error",
+          "content": "Agent error: Command failed with exit code 127 (exit code: 127)\nError output: Check stderr output for details",
+          "phase": "planning"
+        },
+        {
+          "timestamp": "2026-01-15T22:22:35.558187+00:00",
+          "type": "error",
+          "content": "Phase 'quick_spec' failed: Attempt 1: Quick spec agent failed; Attempt 2: Quick spec agent failed; Attempt 3: Quick spec agent failed",
+          "phase": "planning"
+        },
+        {
+          "timestamp": "2026-01-15T22:22:35.560443+00:00",
+          "type": "phase_end",
+          "content": "Phase quick_spec failed",
+          "phase": "planning"
+        }
+      ]
+    },
+    "coding": {
+      "phase": "coding",
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "entries": []
+    },
+    "validation": {
+      "phase": "validation",
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "entries": []
+    }
+  }
+}

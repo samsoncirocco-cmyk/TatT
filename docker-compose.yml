@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # Development service
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: manama-next-dev
+    ports:
+      - "3000:3000"
+    volumes:
+      # Mount source code with delegated consistency for better performance
+      - .:/app:delegated
+      # Use named volume for node_modules to avoid conflicts
+      - node_modules:/app/node_modules
+      # Mount environment file
+      - ./.env.local:/app/.env.local:ro
+    environment:
+      - NODE_ENV=development
+      - WATCHPACK_POLLING=true  # Enable polling for better Docker file watching
+      - CHOKIDAR_USEPOLLING=true
+    command: npm run dev
+    stdin_open: true
+    tty: true
+    networks:
+      - tatt-network
+
+  # Production build service (for testing)
+  prod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: manama-next-prod
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=production
+    env_file:
+      - .env.local
+    networks:
+      - tatt-network
+    profiles:
+      - production
+
+volumes:
+  node_modules:
+
+networks:
+  tatt-network:
+    driver: bridge

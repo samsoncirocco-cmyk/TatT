@@ -1,0 +1,4 @@
+{
+  "task_description": "Edge API requirement not fully met\n\nmatch/semantic must remain nodejs because of neo4j-driver. Requirement says “Edge API routes” but this route can’t be Edge without major refactor.",
+  "workflow_type": "feature"
+}

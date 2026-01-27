@@ -1,0 +1,7 @@
+{
+  "task_description": "Vertex Vision segmentation requirement only partially met\n\nsegmentation-vertex.ts is a stub for a custom Vertex endpoint.\nUnless VERTEX_SEGMENTATION_ENDPOINT_ID is set and a model is deployed, it still falls back to Replicate SAM.",
+  "scoped_services": [],
+  "files_to_modify": [],
+  "files_to_reference": [],
+  "created_at": "2026-01-15T15:23:30.272024"
+}

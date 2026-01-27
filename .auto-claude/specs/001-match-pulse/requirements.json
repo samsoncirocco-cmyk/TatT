@@ -1,0 +1,4 @@
+{
+  "task_description": "Match Pulse is not wired to realtime data\n\nMatchPulse reads from useMatchStore, but nothing writes to that store.\nuseRealtimeMatchPulse still manages local state, not the store.\nResult: MatchPulse UI likely shows “no matches” even when updates exist.",
+  "workflow_type": "feature"
+}
