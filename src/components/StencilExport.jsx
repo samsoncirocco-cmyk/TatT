@@ -5,7 +5,7 @@ import {
   downloadStencil,
   STENCIL_SIZES,
   STYLE_PRESETS
-} from '../services/stencilService';
+} from '../services/stencilService.ts';
 import {
   PAPER_SIZES,
   calculateScaleFactor,

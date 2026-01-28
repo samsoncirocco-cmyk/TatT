@@ -10,7 +10,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { inpaintTattooDesign, createMaskCanvas, getInpaintingCost } from '../services/inpaintingService';
+import { inpaintTattooDesign, createMaskCanvas, getInpaintingCost } from '../services/inpaintingService.ts';
 
 export default function InpaintingEditor({ imageUrl, onClose, onSave }) {
   // Canvas refs
