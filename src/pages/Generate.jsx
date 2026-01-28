@@ -53,7 +53,7 @@ import {
     processGenerationResult,
     addMultipleLayers,
     shouldUseMultiLayer
-} from '../services/multiLayerService';
+} from '../services/multiLayerService.ts';
 
 const TRENDING_EXAMPLES = [
     {

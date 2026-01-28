@@ -15,6 +15,11 @@ export default {
                 'ducks-green': '#154733',
                 'ducks-yellow': '#FEE123',
 
+                // Studio design tokens
+                'studio-bg': 'var(--studio-bg)',
+                'studio-accent': 'var(--studio-accent)',
+                'studio-neon': 'var(--studio-neon)',
+
                 // Semantic color tokens
                 primary: {
                     50: '#eff6ff',
