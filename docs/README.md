@@ -118,6 +118,19 @@ src/
 - **Artist Matching**: Hybrid vector-graph matching algorithm
 - **Match Pulse UI**: Swipeable artist discovery interface
 
+## How Generation Works
+
+1. Client submits a prompt to `POST /api/v1/generate`.
+2. `generationService` wraps Imagen with retry/backoff, safety/seed options, and duration tracking.
+3. The API responds with base64 PNGs plus metadata (latency, safety settings, seed).
+
+## How Canvas State Works
+
+1. The Forge uses a Zustand store for layer metadata and transforms.
+2. Image data is stored in an in-memory registry and referenced by IDs in the store.
+3. Undo uses delta history for transforms and snapshot history for structural changes.
+4. Thumbnails are generated per layer and used in the layer panel for fast scrolling.
+
 ## Documentation
 
 - [MIGRATION_STATUS.md](./MIGRATION_STATUS.md) - Migration details & known issues

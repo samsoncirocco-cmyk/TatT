@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { enhancePromptWithGemini } from '@/services/vertex-ai-edge';
+import { enhancePrompt } from '@/services/councilService';
 
 export const runtime = 'edge';
 
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
         });
 
         const startTime = Date.now();
-        const result = await enhancePromptWithGemini({
+        const result = await enhancePrompt({
             userIdea: user_prompt,
             style: style,
             bodyPart: body_part,
@@ -65,16 +65,16 @@ export async function POST(req: NextRequest) {
             success: true,
             enhanced_prompts: enhancedPrompts,
             model_selections: {
-                primary: 'gemini-2.0-flash-exp', // Using the model defined in service
-                reasoning: 'Standard enhancement'
+                primary: result?.metadata?.model || 'council',
+                reasoning: result?.modelSelection?.reasoning || 'Council enhancement'
             },
             metadata: {
                 original_prompt: user_prompt,
                 style,
                 body_part,
                 complexity,
-                council_members: ['technical', 'artistic', 'cultural'],
-                enhancement_version: '2.0',
+                council_members: result?.metadata?.councilMembers || ['creative', 'technical', 'style'],
+                enhancement_version: '3.0',
                 generated_at: new Date().toISOString()
             },
             performance: {

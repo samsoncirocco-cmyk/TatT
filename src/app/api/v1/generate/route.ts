@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
-import { generateWithImagen } from '@/services/vertex-ai-edge';
+import { generateWithRetry } from '@/services/generationService';
 
 export const runtime = 'edge';
 
@@ -56,16 +56,23 @@ export async function POST(req: NextRequest) {
             ? { width: widthValue, height: heightValue }
             : resolveDimensions(size);
 
-        // Call Edge Service (Imagen)
-        const result = await generateWithImagen({
+        const result = await generateWithRetry({
             prompt: prompt.trim(),
             negativePrompt: negativePrompt?.trim(),
             numImages: requestedCount,
-            aspectRatio: aspectRatio || '1:1'
+            aspectRatio: aspectRatio || '1:1',
+            safetyFilterLevel,
+            personGeneration,
+            outputFormat,
+            seed,
+            retry: {
+                attempts: 2,
+                baseDelayMs: 400
+            },
+            fallback: {
+                safetyFilterLevel: 'block_only_high'
+            }
         });
-
-        // result.images is array of base64 data strings
-        const durationMs = Date.now() - Date.now(); // Approximate
 
         return NextResponse.json({
             success: true,
@@ -81,7 +88,12 @@ export async function POST(req: NextRequest) {
                 size: size || null,
                 aspectRatio: aspectRatio || '1:1',
                 outputFormat: 'png',
-                durationMs
+                durationMs: result.metadata.durationMs,
+                attempts: result.metadata.attempts,
+                safetyFilterLevel: result.metadata.safetyFilterLevel,
+                personGeneration: result.metadata.personGeneration,
+                seed: result.metadata.seed ?? null,
+                fallbackUsed: result.metadata.fallbackUsed
             }
         });
 

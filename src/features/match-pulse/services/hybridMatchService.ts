@@ -15,6 +15,7 @@ import {
     DEFAULT_WEIGHTS
 } from '../utils/scoreAggregation';
 import { fetchWithAbort } from './fetchWithAbort';
+import { generateQueryEmbedding as generateVertexEmbedding } from './embeddingService';
 
 // Type Definitions
 export interface QueryPreferences {
@@ -113,27 +114,27 @@ function parseQuery(query: string): ParsedQuery {
 }
 
 /**
- * Generate embedding for query text
- * Note: This is a placeholder - in production, would call CLIP model
- * For now, returns a mock embedding for testing
+ * Generate embedding for query text using Vertex AI text-embedding-005
+ * Converts natural language queries into 768-dimensional semantic vectors
  */
 async function generateQueryEmbedding(query: string): Promise<number[]> {
-    // TODO: Implement actual text embedding generation (Vertex text or CLIP text encoder)
-    // For now, return a deterministic mock embedding aligned with vector DB dimensions.
-    console.warn('[HybridMatch] Using mock embedding - implement text encoder in production');
+    try {
+        // Call Vertex AI embedding service
+        const embedding = await generateVertexEmbedding(query);
 
-    // Generate a deterministic "embedding" based on query hash
-    // This ensures same query gets same embedding
-    const hash = query.split('').reduce((acc, char) => {
-        return ((acc << 5) - acc) + char.charCodeAt(0);
-    }, 0);
+        // Validate dimensions match config
+        if (embedding.length !== VECTOR_DB_CONFIG.DIMENSIONS) {
+            throw new Error(
+                `Embedding dimension mismatch: expected ${VECTOR_DB_CONFIG.DIMENSIONS}, got ${embedding.length}`
+            );
+        }
 
-    const dimension = VECTOR_DB_CONFIG.DIMENSIONS || 1408;
-    const embedding = new Array(dimension).fill(0).map((_, i) => {
-        return Math.sin(hash * (i + 1) * 0.001) * 0.5 + 0.5;
-    });
-
-    return embedding;
+        return embedding;
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('[HybridMatch] Embedding generation failed:', message);
+        throw new Error(`Failed to generate query embedding: ${message}`);
+    }
 }
 
 /**
