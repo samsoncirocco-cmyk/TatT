@@ -4,231 +4,162 @@
 
 ## Pattern Overview
 
-**Overall:** Hybrid Next.js 16 + React 19 full-stack application with client-side canvas composition, server-side AI generation, and semantic artist matching using Neo4j graph + vector embedding search.
+**Overall:** Hybrid Next.js App Router + Legacy SPA
 
 **Key Characteristics:**
-- Next.js App Router with mixed Edge/Node.js runtimes for different computational requirements
-- Layered client state management (Zustand for canvas, React hooks for features)
-- Service-oriented architecture with clear separation of concerns
-- Hybrid matching combining vector similarity search with graph database traversal
-- Dynamic runtime selection based on operation complexity (edge for matching, nodejs for heavy compute)
+- Next.js 16 with App Router for modern pages and API routes
+- Legacy React SPA code (`src/App.jsx`, `src/main.jsx`) for older features
+- Feature-based modular organization for domain logic
+- Service-oriented architecture with shared utilities
+- Zustand for client state management
+- Edge runtime for critical API routes
 
 ## Layers
 
-**Presentation Layer:**
-- Purpose: Render UI components and handle user interactions
-- Location: `src/app/*`, `src/components/**/*.{jsx,tsx}`, `src/features/**`
-- Contains: Next.js pages, React components (class and functional), feature modules
-- Depends on: Hooks, stores, services, UI components
-- Used by: End users via browser
+**Presentation Layer (App Router):**
+- Purpose: Next.js pages and layouts using App Router pattern
+- Location: `src/app/`
+- Contains: Page components, layouts, API route handlers
+- Depends on: Features, components, services, stores
+- Used by: End users via browser navigation
 
-**State Management Layer:**
-- Purpose: Manage application state including canvas layers, user session, and feature flags
-- Location: `src/stores/useForgeStore.ts` (Zustand), `src/hooks/**` (React hooks)
-- Contains: Zustand store for layer persistence, custom hooks for feature logic
-- Depends on: Services, utilities
-- Used by: Presentation layer components
+**Presentation Layer (Legacy SPA):**
+- Purpose: React Router-based SPA application
+- Location: `src/App.jsx`, `src/main.jsx`, `src/pages/`, `src/components/`
+- Contains: Page components, shared components, routing logic
+- Depends on: Features, services, stores
+- Used by: Legacy entry point (parallel to Next.js)
+
+**Feature Layer:**
+- Purpose: Domain-specific business logic organized by feature
+- Location: `src/features/`
+- Contains: Feature-specific components, hooks, services for generate, match-pulse, inpainting, stencil
+- Depends on: Services, lib, stores
+- Used by: Presentation layers
 
 **Service Layer:**
-- Purpose: Handle business logic, API integrations, and data transformations
-- Location: `src/services/**`
-- Contains: 35+ services including generation, matching, storage, image processing
-- Key services:
-  - `hybridMatchService.ts`: Semantic artist matching combining vectors and graphs
-  - `neo4jService.ts`: Graph database queries for artist genealogy and relationships
-  - `vertex-ai-service.js`: Imagen 3.0 image generation integration
-  - `canvasService.ts`: Layer manipulation and canvas operations
-  - `councilService.js`: Multi-model AI prompt enhancement (OpenRouter)
-  - `gcs-service.ts`: Google Cloud Storage integration
-  - `replicateService.js`: External model execution via Replicate
-- Depends on: External APIs, utilities, config
-- Used by: API routes, components via hooks
+- Purpose: External integrations and data operations
+- Location: `src/services/`
+- Contains: API clients, business logic services (councilService, generationService, gcs-service, etc.)
+- Depends on: Lib utilities, external APIs
+- Used by: Features, API routes
 
-**API Layer:**
-- Purpose: Handle HTTP requests and delegate to services, with authentication
-- Location: `src/app/api/**` (Next.js route handlers)
-- Contains: Route files organized by domain (v1/generate, v1/match, v1/storage, etc.)
-- Runtime selection:
-  - `edge`: Lightweight operations like semantic matching, council enhancement (routes: `/v1/match/semantic`, `/v1/council/enhance`)
-  - `nodejs`: Heavy compute or external integrations (routes: `/v1/generate`, `/v1/embeddings/generate`, `/v1/stencil/export`)
-- Depends on: Services, authentication middleware
-- Used by: Frontend via fetch, external clients
-
-**Data & Configuration Layer:**
-- Purpose: Define schemas, constants, and configuration
-- Location: `src/constants/`, `src/config/`, `src/db/`, `src/data/`
-- Contains:
-  - `bodyPartAspectRatios.ts`: Canvas dimensions for different body parts
-  - `promptTemplates.js`: Style-based prompt construction
-  - `modelRoutingRules.js`: Model selection logic
-  - `characterDatabase.js`: 100KB+ character/style reference data
-  - `vectorDbConfig.js`: Vector database configuration
-- Depends on: Nothing (foundational)
+**Utility Layer:**
+- Purpose: Shared cross-cutting utilities and helpers
+- Location: `src/lib/`, `src/utils/`
+- Contains: Auth helpers, API clients, utilities, reusable functions
+- Depends on: External libraries only
 - Used by: All layers
 
-**Infrastructure Layer:**
-- Purpose: Authentication, rate limiting, logging, external service clients
-- Location: `src/lib/`, middleware
-- Contains:
-  - `api-auth.ts`: Bearer token verification
-  - `vertex-imagen-client.ts`: Vertex AI API client
-  - `segmentation-vertex.ts`: Image segmentation via Vertex
-  - `neo4j.ts`: Neo4j connection configuration
-  - `rate-limit.ts`: Express rate limiting
-- Depends on: Environment variables
-- Used by: Service and API layers
+**State Management Layer:**
+- Purpose: Global client state using Zustand
+- Location: `src/store/`, `src/stores/`
+- Contains: Zustand stores (useForgeStore, useAuthStore, useMatchStore)
+- Depends on: Feature services (for actions)
+- Used by: Components and hooks
+
+**Configuration Layer:**
+- Purpose: Static configuration and data
+- Location: `src/config/`, `src/constants/`, `src/data/`
+- Contains: Character database, prompt templates, body part configs, model routing rules
+- Depends on: Nothing
+- Used by: Services and features
 
 ## Data Flow
 
-**Design Generation Flow:**
+**Image Generation Flow:**
 
-1. User enters prompt on `/generate` page (`src/features/Generate.jsx`)
-2. Component calls `enhancePrompt()` from `councilService.js` via hook
-3. Enhanced prompt sent to `/api/v1/generate` (edge runtime)
-4. Route calls `generateWithImagen()` from `vertex-ai-edge.ts`
-5. Returns base64 images
-6. Component adds image to canvas via `useForgeStore.addLayer()`
-7. Store creates Layer object with `canvasService.createLayer()`
-8. Layer persisted to sessionStorage via Zustand persist middleware
+1. User triggers generation from `src/app/generate/page.tsx` or `src/features/Generate.jsx`
+2. Component calls feature hook or makes API request to `src/app/api/v1/generate/route.ts`
+3. API route validates auth via `src/lib/api-auth.ts`
+4. Route delegates to `src/services/generationService.ts`
+5. GenerationService gets GCP token via `src/lib/google-auth-edge.ts`
+6. Service calls Vertex AI Imagen API with retry logic
+7. Base64 images returned through service → route → component
+8. Component adds images to canvas via `useForgeStore` which uses `src/features/generate/services/canvasService.ts`
 
 **Artist Matching Flow:**
 
-1. User provides search query on Match page
-2. Component calls `/api/v1/match/semantic` with query and preferences
-3. Edge route calls `findMatchingArtists()` from `hybridMatchService.ts`
-4. Service performs dual search:
-   - Vector similarity: calls `searchSimilar()` from `vectorDbService.js`
-   - Graph traversal: calls `findMatchingArtists()` from `neo4jService.ts` (HTTP proxy)
-5. Results merged and scored via `mergeResults()` and `calculateCompositeScore()`
-6. Response includes matches, match reasoning, and score breakdown
-7. Frontend renders artist cards with MatchPulse animations
-
-**Layer Composition Flow:**
-
-1. Multiple layers managed in Zustand store (`useForgeStore`)
-2. Each layer has transform (position, scale, rotation), blend mode, visibility
-3. Transform updates via `useTransformShortcuts` hook
-4. History tracked: every operation recorded to `history.past` array (max 50)
-5. Undo/redo replay from history snapshots
-6. Canvas export via `exportAsPNG()` from `canvasService.ts`
-7. Optional stencil conversion via `convertToStencil()` from `stencilService.js`
+1. User interacts with match UI in `src/features/match-pulse/`
+2. Component uses `src/features/match-pulse/hooks/useArtistMatching.js` or `useRealtimeMatchPulse.js`
+3. Hook calls `src/features/match-pulse/services/hybridMatchService.ts`
+4. HybridMatchService generates embedding via `src/services/embeddingService.ts`
+5. Service queries Neo4j via `src/features/match-pulse/services/neo4jService.ts`
+6. Service performs vector search via custom vectorDbService
+7. Results merged and scored, returned to UI
+8. State updated in `src/store/useMatchStore.ts`
 
 **State Management:**
-
-- Canvas state: Zustand store with sessionStorage persistence (layers, selection, transforms)
-- Feature state: React hooks (useImageGeneration, useLayerManagement, useArtistMatching)
-- No global Redux/Recoil: selective Zustand for canvas only
-- History: In-memory array of Layer snapshots, max 50 states
+- Zustand stores provide reactive state with persistence (sessionStorage for Forge, localStorage for auth/match)
+- Stores import service functions directly for actions
+- Components subscribe to stores via hooks
+- State changes trigger re-renders automatically
 
 ## Key Abstractions
 
-**Layer:**
-- Purpose: Represents a single composable image on the canvas
-- Examples: `src/services/canvasService.ts` (Layer interface), `src/stores/useForgeStore.ts` (layer management)
-- Pattern: Immutable data with pure functions for transformations
-- Structure: ID, name, image URL, transform matrix, blend mode, visibility, z-index, optional thumbnail
+**Layer (Canvas System):**
+- Purpose: Represents a compositable image layer with transforms
+- Examples: `src/features/generate/services/canvasService.ts`, `src/stores/useForgeStore.ts`
+- Pattern: Immutable data structure with functional updates, managed in Zustand store with history
 
-**Service Pattern:**
-- Purpose: Encapsulate business logic for specific domains
-- Examples: `councilService.js` (AI enhancement), `hybridMatchService.ts` (matching), `neo4jService.ts` (graph queries)
-- Pattern: Pure or idempotent functions, error throwing with specific codes, logging
-- Composition: Services call other services, utilities, and external APIs
+**Feature Module:**
+- Purpose: Self-contained domain feature with components, hooks, services
+- Examples: `src/features/generate/`, `src/features/match-pulse/`, `src/features/stencil/`, `src/features/inpainting/`
+- Pattern: Index exports, internal services, isolated from other features
 
-**Hook Pattern:**
-- Purpose: Reuse stateful logic in functional components
-- Examples: `useImageGeneration.js`, `useLayerManagement.ts`, `useArtistMatching.js`
-- Pattern: useState/useCallback for local state, integration with services
-- Lifecycle: useEffect for initialization, cleanup
+**Service:**
+- Purpose: Encapsulates external API interaction or complex business logic
+- Examples: `src/services/generationService.ts`, `src/services/councilService.ts`, `src/services/gcs-service.ts`
+- Pattern: Export async functions with typed interfaces, handle errors with custom error codes
 
-**Store Pattern (Zustand):**
-- Purpose: Share mutable state across component tree without prop drilling
-- Examples: `useForgeStore.ts` for canvas layer state
-- Pattern: Action methods (addLayer, updateTransform, undo) that update state via `set()`
-- Persistence: Conditional middleware wrapping based on `typeof window`
+**API Route Handler:**
+- Purpose: Next.js API endpoint with auth, validation, error handling
+- Examples: `src/app/api/v1/generate/route.ts`, `src/app/api/v1/match/semantic/route.ts`
+- Pattern: Edge runtime, auth middleware, service delegation, structured error responses
 
 ## Entry Points
 
-**Frontend Entry:**
-- Location: `src/app/layout.tsx`
-- Triggers: Browser navigation to domain
-- Responsibilities: Root layout, font setup, metadata, children rendering
+**Next.js App (Modern):**
+- Location: `src/app/layout.tsx`, `src/app/page.tsx`
+- Triggers: Next.js server-side routing
+- Responsibilities: Root layout, home page, app-level metadata
 
-**Generation Route:**
-- Location: `src/app/generate/page.tsx` → dynamically imports `src/features/Generate.jsx`
-- Triggers: User navigates to `/generate` or clicks "Enter the Forge"
-- Responsibilities: Load generation UI with lazy loading, render full-featured editor
+**Next.js Generate Page:**
+- Location: `src/app/generate/page.tsx`
+- Triggers: Navigation to `/generate`
+- Responsibilities: Dynamic import of Generate feature, client-side rendering
 
-**API Entry - Image Generation:**
-- Location: `src/app/api/v1/generate/route.ts`
-- Triggers: POST to `/api/v1/generate` with `{ prompt, bodyPart, aspectRatio, ... }`
-- Responsibilities: Validate request, call Vertex Imagen, return base64 images
+**Legacy SPA Entry:**
+- Location: `src/main.jsx`, `src/App.jsx`
+- Triggers: ReactDOM.createRoot on `index.html`
+- Responsibilities: React Router setup, legacy page routing (parallel system to Next.js)
 
-**API Entry - Semantic Matching:**
-- Location: `src/app/api/v1/match/semantic/route.ts`
-- Triggers: POST to `/api/v1/match/semantic` with `{ query, location, style_preferences, radius, ... }`
-- Responsibilities: Authenticate, call hybrid matching, return ranked artists
+**API Routes:**
+- Location: `src/app/api/v1/*/route.ts`
+- Triggers: HTTP requests from frontend
+- Responsibilities: Auth, validation, service orchestration, error handling
 
-**API Entry - Storage:**
-- Location: `src/app/api/v1/storage/upload/route.ts`, `/get-signed-url/route.ts`
-- Triggers: POST for upload or get signed URL
-- Responsibilities: Handle multipart/file uploads to GCS, return signed URLs
+**Standalone Server (Legacy):**
+- Location: `server.js` (root)
+- Triggers: Node process start
+- Responsibilities: Express server, CORS, Replicate proxy, rate limiting (legacy, may be deprecated)
 
 ## Error Handling
 
-**Strategy:** Differentiated error handling by layer
+**Strategy:** Custom error codes with structured responses
 
-**API Routes:**
-- Pattern: Try/catch blocks with specific error codes
-- Error types: AUTH_REQUIRED, AUTH_INVALID, INVALID_PROMPT, VERTEX_QUOTA_EXCEEDED, GENERATION_FAILED
-- Response: `{ error, code, details?, message? }` with appropriate HTTP status (400, 401, 403, 429, 500)
-- Logging: console.error with context prefix (e.g., `[API] Semantic match error:`)
-
-**Services:**
-- Pattern: Throw Error with `.code` property for specific error types
-- Codes: VERTEX_QUOTA_EXCEEDED, GCS_NOT_CONFIGURED, INVALID_PROMPT, etc.
-- Propagation: Errors bubble up to API route handlers
-- Logging: Limited logging in services, detailed logging in route handlers
-
-**Frontend Components:**
-- Pattern: ErrorBoundary component wraps feature modules
-- Location: `src/components/ErrorBoundary.jsx`
-- Fallback: Error message display, optional recovery actions
-
-**Edge Cases:**
-- Missing auth header → 401 with WWW-Authenticate header
-- Invalid prompt (empty or <3 chars) → 400 with code INVALID_PROMPT
-- Quota exceeded → 429 status code
-- Configuration missing (VERTEX_KEY, GCS_PROJECT) → 500 with config error code
+**Patterns:**
+- Services throw errors with `code` property (e.g., `VERTEX_QUOTA_EXCEEDED`, `AUTH_INVALID`)
+- API routes catch errors and map codes to HTTP status codes
+- Frontend receives structured JSON: `{ error, code, message, details }`
+- Edge routes use NextResponse for consistent error format
+- Client-side: Display user-friendly messages based on error codes
 
 ## Cross-Cutting Concerns
 
-**Logging:**
-- Framework: native console (console.log, console.error)
-- Pattern: Contextual prefixes like `[API]`, `[Service]`
-- Granularity: Operation start/completion with duration in ms
-- Examples: `[API] Semantic match completed in ${duration}ms, found ${result.matches.length} matches`
-
-**Validation:**
-- Frontend: Basic input validation in components and hooks
-- Backend: Request body validation in route handlers (e.g., prompt length, enum values)
-- Service: Domain-specific validation (e.g., supported body parts in AR endpoint)
-- Pattern: Return early with specific error codes for invalid inputs
-
-**Authentication:**
-- Pattern: Bearer token in Authorization header
-- Implementation: `verifyApiAuth()` called at start of protected routes
-- Token source: Environment variable `FRONTEND_AUTH_TOKEN`
-- Scope: All `/api/v1/*` routes use this pattern
-
-**Rate Limiting:**
-- Implementation: Express middleware `express-rate-limit`
-- Location: Potentially used in Express server.js, not yet integrated into Next.js routes
-- Purpose: Prevent abuse of generation and matching endpoints
-
-**Performance Monitoring:**
-- Pattern: Duration tracking in route handlers via `Date.now()`
-- Response field: `performance: { duration_ms: ... }`
-- No centralized monitoring: performance data returned to client
+**Logging:** Centralized via `src/lib/observability.ts` with event tracking (logEvent function)
+**Validation:** Request validation in API routes, type safety via TypeScript
+**Authentication:** Bearer token auth via `src/lib/api-auth.ts` for protected API routes
 
 ---
 
