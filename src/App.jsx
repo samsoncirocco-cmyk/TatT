@@ -23,7 +23,7 @@ import Philosophy from './pages/Philosophy';
 import Generate from './pages/Generate';
 
 // Feature flag for council integration
-const USE_COUNCIL = import.meta.env.VITE_USE_COUNCIL === 'true';
+const USE_COUNCIL = process.env.NEXT_PUBLIC_USE_COUNCIL === 'true';
 
 const PageWrapper = ({ children }) => (
   <motion.div

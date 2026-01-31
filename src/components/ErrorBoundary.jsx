@@ -33,7 +33,7 @@ class ErrorBoundary extends Component {
         });
 
         // TODO: Send to error reporting service (Sentry, LogRocket, etc.)
-        // if (import.meta.env.PROD) {
+        // if (process.env.NODE_ENV === 'production') {
         //     Sentry.captureException(error, { contexts: { react: errorInfo } });
         // }
     }
@@ -92,7 +92,7 @@ class ErrorBoundary extends Component {
                             </p>
 
                             {/* Error details (dev mode only) */}
-                            {import.meta.env.DEV && this.state.error && (
+                            {process.env.NODE_ENV === 'development' && this.state.error && (
                                 <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
                                     <h3 className="text-sm font-bold text-red-400 mb-2 uppercase tracking-wider">
                                         Error Details (Dev Mode)
