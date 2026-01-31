@@ -52,4 +52,4 @@ yarn-error.log*
 # Firebase
 firebase-admin-key.json
 gcp-service-account-key.json
-gcs-cors.json
+gcs-cors.jsonTATT_ENV_REFERENCE.md
