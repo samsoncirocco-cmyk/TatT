@@ -6,16 +6,16 @@
 
 import { useState } from 'react';
 import { Eye, EyeOff, GripVertical, Trash2, Image as ImageIcon } from 'lucide-react';
-import { Layer } from '../../services/canvasService';
+import { LayerWithImages } from '../../services/canvasService';
 
 interface LayerItemProps {
-    layer: Layer;
+    layer: LayerWithImages;
     isSelected: boolean;
     onSelect: (layerId: string) => void;
     onToggleVisibility: (layerId: string) => void;
     onRename: (layerId: string, newName: string) => void;
     onDelete: (layerId: string) => void;
-    onContextMenu?: (layer: Layer, x: number, y: number) => void;
+    onContextMenu?: (layer: LayerWithImages, x: number, y: number) => void;
     isDragging?: boolean;
 }
 

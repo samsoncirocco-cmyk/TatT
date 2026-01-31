@@ -5,8 +5,9 @@
  */
 
 import { useMemo } from 'react';
-import { Layer, getLayersByZIndex } from '../services/canvasService';
-import { useForgeStore } from '../stores/useForgeStore';
+import { Layer, LayerWithImages, getLayersByZIndex } from '@/services/canvasService';
+import { useForgeStore } from '@/stores/useForgeStore';
+import { getImageUrl } from '@/services/forgeImageRegistry';
 
 export function useLayerManagement() {
     const layers = useForgeStore((store) => store.layers);
@@ -31,10 +32,18 @@ export function useLayerManagement() {
     const undo = useForgeStore((store) => store.undo);
     const redo = useForgeStore((store) => store.redo);
 
-    const sortedLayers = useMemo(() => getLayersByZIndex(layers), [layers]);
+    const resolvedLayers = useMemo(() => {
+        return layers.map((layer) => ({
+            ...layer,
+            imageUrl: getImageUrl(layer.imageRef),
+            thumbnail: layer.thumbnailRef ? getImageUrl(layer.thumbnailRef) : null
+        })) as LayerWithImages[];
+    }, [layers]);
+
+    const sortedLayers = useMemo(() => getLayersByZIndex(resolvedLayers), [resolvedLayers]);
 
     return useMemo(() => ({
-        layers,
+        layers: resolvedLayers,
         sortedLayers,
         selectedLayerId,
         addLayer,
@@ -57,7 +66,7 @@ export function useLayerManagement() {
         undo,
         redo
     }), [
-        layers,
+        resolvedLayers,
         sortedLayers,
         selectedLayerId,
         addLayer,
@@ -80,8 +89,8 @@ export function useLayerManagement() {
         undo,
         redo
     ]) as {
-        layers: Layer[];
-        sortedLayers: Layer[];
+        layers: LayerWithImages[];
+        sortedLayers: LayerWithImages[];
         selectedLayerId: string | null;
         addLayer: (imageUrl: string, type?: Layer['type']) => Promise<Layer>;
         deleteLayer: (layerId: string) => void;

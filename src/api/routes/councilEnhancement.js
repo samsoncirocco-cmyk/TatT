@@ -40,11 +40,12 @@ router.post('/', validateCouncilEnhanceRequest, async (req, res) => {
         });
 
         // Import council service
-        const { enhancePrompt } = await import('../../../services/councilService.js');
+        const { enhancePrompt } = await import('../../../services/councilService.ts');
 
         // Execute enhancement with model routing
         const startTime = Date.now();
-        const result = await enhancePrompt(user_prompt, {
+        const result = await enhancePrompt({
+            userIdea: user_prompt,
             style,
             bodyPart: body_part,
             complexity
@@ -56,18 +57,22 @@ router.post('/', validateCouncilEnhanceRequest, async (req, res) => {
         // Format response
         const response = {
             success: true,
-            enhanced_prompts: result.enhancedPrompts || [result.enhancedPrompt],
-            model_selections: result.modelSelections || {
-                primary: result.selectedModel || 'flux-dev',
-                reasoning: result.modelReasoning || 'Default model selection'
+            enhanced_prompts: [
+                result?.prompts?.simple,
+                result?.prompts?.detailed,
+                result?.prompts?.ultra
+            ].filter(Boolean),
+            model_selections: result.modelSelection || {
+                primary: result?.metadata?.model || 'council',
+                reasoning: 'Council enhancement'
             },
             metadata: {
                 original_prompt: user_prompt,
                 style,
                 body_part,
                 complexity,
-                council_members: result.councilMembers || ['technical', 'artistic', 'cultural'],
-                enhancement_version: result.version || '1.0',
+                council_members: result?.metadata?.councilMembers || ['creative', 'technical', 'style'],
+                enhancement_version: result?.metadata?.councilVersion || '3.0',
                 generated_at: new Date().toISOString()
             },
             performance: {

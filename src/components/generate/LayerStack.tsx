@@ -10,12 +10,12 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSo
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Layers, Plus } from 'lucide-react';
-import { Layer } from '../../services/canvasService';
+import { LayerWithImages } from '../../services/canvasService';
 import LayerItem from './LayerItem';
 import Button from '../ui/Button';
 
 interface LayerStackProps {
-    layers: Layer[];
+    layers: LayerWithImages[];
     selectedLayerId: string | null;
     onSelectLayer: (layerId: string) => void;
     onToggleVisibility: (layerId: string) => void;
@@ -23,7 +23,7 @@ interface LayerStackProps {
     onDelete: (layerId: string) => void;
     onReorder: (fromIndex: number, toIndex: number) => void;
     onAddLayer?: () => void;
-    onContextMenu?: (layer: Layer, x: number, y: number) => void;
+    onContextMenu?: (layer: LayerWithImages, x: number, y: number) => void;
 }
 
 // Sortable wrapper for LayerItem

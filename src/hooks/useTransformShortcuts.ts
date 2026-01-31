@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import type { Layer } from '../services/canvasService';
+import type { Layer } from '../features/generate/services/canvasService';
 
 interface UseTransformShortcutsOptions {
     selectedLayerId: string | null;

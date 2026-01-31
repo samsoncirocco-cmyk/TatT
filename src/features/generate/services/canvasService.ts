@@ -4,8 +4,9 @@
  * Core service for managing canvas layers, rendering, and operations
  */
 
-import { add300DpiMetadata } from './pngDpiService.js';
-import { generateLayerId as generateLayerIdUtil } from '../lib/layerUtils.js';
+import { add300DpiMetadata } from '@/services/pngDpiService.js';
+import { generateLayerId as generateLayerIdUtil } from '@/lib/layerUtils.js';
+import { getImageUrl } from '@/services/forgeImageRegistry';
 
 /**
  * Layer data structure
@@ -14,7 +15,7 @@ export interface Layer {
     id: string;
     name: string;
     type: 'subject' | 'background' | 'effect';
-    imageUrl: string;
+    imageRef: string;
     transform: {
         x: number;
         y: number;
@@ -25,7 +26,12 @@ export interface Layer {
     blendMode: 'normal' | 'multiply' | 'screen' | 'overlay';
     visible: boolean;
     zIndex: number;
-    thumbnail?: string;
+    thumbnailRef?: string;
+}
+
+export interface LayerWithImages extends Layer {
+    imageUrl?: string | null;
+    thumbnail?: string | null;
 }
 
 /**
@@ -53,7 +59,7 @@ export function generateLayerName(type: Layer['type'], existingLayers: Layer[]):
  * Create a new layer
  */
 export function createLayer(
-    imageUrl: string,
+    imageRef: string,
     type: Layer['type'] = 'subject',
     existingLayers: Layer[] = []
 ): Layer {
@@ -65,7 +71,7 @@ export function createLayer(
         id: generateLayerId(),
         name: generateLayerName(type, existingLayers),
         type,
-        imageUrl,
+        imageRef,
         transform: {
             x: 0,
             y: 0,
@@ -87,11 +93,15 @@ export function reorderLayers(layers: Layer[], fromIndex: number, toIndex: numbe
     const [movedLayer] = reordered.splice(fromIndex, 1);
     reordered.splice(toIndex, 0, movedLayer);
 
-    // Update z-index values based on new order
-    return reordered.map((layer, index) => ({
-        ...layer,
-        zIndex: index
-    }));
+    // Update z-index values only where they changed
+    const start = Math.min(fromIndex, toIndex);
+    const end = Math.max(fromIndex, toIndex);
+    for (let i = start; i <= end; i += 1) {
+        if (reordered[i].zIndex !== i) {
+            reordered[i] = { ...reordered[i], zIndex: i };
+        }
+    }
+    return reordered;
 }
 
 /**
@@ -119,10 +129,10 @@ export function updateLayerName(layers: Layer[], layerId: string, newName: strin
 /**
  * Update layer image URL
  */
-export function updateLayerImage(layers: Layer[], layerId: string, imageUrl: string): Layer[] {
+export function updateLayerImage(layers: Layer[], layerId: string, imageRef: string): Layer[] {
     return layers.map(layer =>
         layer.id === layerId
-            ? { ...layer, imageUrl }
+            ? { ...layer, imageRef }
             : layer
     );
 }
@@ -346,7 +356,9 @@ export async function compositeLayers(
         if (!layer.visible) continue;
 
         try {
-            const img = await loadImage(layer.imageUrl);
+            const imageUrl = getImageUrl(layer.imageRef) || (layer as LayerWithImages).imageUrl || null;
+            if (!imageUrl) continue;
+            const img = await loadImage(imageUrl);
 
             ctx.save();
 

@@ -29,81 +29,6 @@ const MODELS = {
 };
 
 /**
- * Gemini AI Council - Prompt Enhancement
- * FREE tier: 60 requests per minute
- * 
- * @param {Object} options - Enhancement options
- * @param {string} options.userIdea - User's tattoo idea
- * @param {string} options.style - Tattoo style
- * @param {string} options.bodyPart - Body placement
- * @param {boolean} options.isStencilMode - Stencil mode flag
- * @returns {Promise<Object>} Enhanced prompts
- */
-export async function enhancePromptWithGemini({ userIdea, style, bodyPart, isStencilMode = false }) {
-    try {
-        const model = vertexAI.getGenerativeModel({ model: MODELS.gemini });
-
-        const systemPrompt = `You are an expert tattoo design consultant. Your role is to enhance user ideas into detailed, professional tattoo prompts.
-
-Style: ${style}
-Body Part: ${bodyPart}
-Stencil Mode: ${isStencilMode ? 'Yes (line art only)' : 'No (full color)'}
-
-Generate THREE versions of the prompt:
-1. SIMPLE: Basic description (1 sentence)
-2. DETAILED: Rich description with composition details (2-3 sentences)
-3. ULTRA: Comprehensive prompt with anatomical flow, character details, and technical specifications (4-5 sentences)
-
-Also generate a NEGATIVE PROMPT to avoid unwanted elements.
-
-Return as JSON:
-{
-  "simple": "...",
-  "detailed": "...",
-  "ultra": "...",
-  "negativePrompt": "..."
-}`;
-
-        const prompt = `${systemPrompt}\n\nUser Idea: ${userIdea}`;
-
-        const result = await model.generateContent(prompt);
-        const response = result.response;
-        const text = response.text();
-
-        // Parse JSON response
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-            throw new Error('Failed to parse Gemini response');
-        }
-
-        const prompts = JSON.parse(jsonMatch[0]);
-
-        console.log('[Vertex AI Gemini] Prompt enhancement complete');
-
-        return {
-            prompts: {
-                simple: prompts.simple,
-                detailed: prompts.detailed,
-                ultra: prompts.ultra
-            },
-            negativePrompt: prompts.negativePrompt,
-            metadata: {
-                model: MODELS.gemini,
-                userIdea,
-                style,
-                bodyPart,
-                isStencilMode,
-                generatedAt: new Date().toISOString()
-            }
-        };
-
-    } catch (error) {
-        console.error('[Vertex AI Gemini] Enhancement failed:', error);
-        throw new Error(`Gemini enhancement failed: ${error.message}`);
-    }
-}
-
-/**
  * Imagen 3 - Image Generation
  * Cost: ~$0.02 per image
  * 
@@ -396,7 +321,6 @@ export async function checkVertexAIHealth() {
 }
 
 export default {
-    enhancePromptWithGemini,
     generateWithImagen,
     decomposeImageLayers,
     generateEmbedding,

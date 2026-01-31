@@ -14,8 +14,9 @@ const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 export const VECTOR_DB_CONFIG = {
-    // Dimension of CLIP model embeddings
-    DIMENSIONS: 1408,
+    // Dimension of Vertex AI text-embedding-005 embeddings
+    // Changed from 1408 (CLIP) → 768 (Vertex AI text-embedding-005)
+    DIMENSIONS: 768,
 
     // Similarity metric
     METRIC: 'cosine',

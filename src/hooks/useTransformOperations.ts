@@ -10,7 +10,7 @@ import {
     updateLayerTransform,
     flipLayerHorizontal,
     flipLayerVertical
-} from '../services/canvasService';
+} from '../features/generate/services/canvasService';
 
 export function useTransformOperations(
     layers: Layer[],

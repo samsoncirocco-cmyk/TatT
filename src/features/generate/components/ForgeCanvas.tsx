@@ -7,20 +7,21 @@
 import { useRef, useEffect, useState } from 'react';
 import { Stage, Layer as KonvaLayer, Image as KonvaImage, Circle } from 'react-konva';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BodyPart } from '../../constants/bodyPartAspectRatios';
-import { useCanvasAspectRatio } from '../../hooks/useCanvasAspectRatio';
+import { BodyPart } from '@/constants/bodyPartAspectRatios';
+import { useCanvasAspectRatio } from '@/hooks/useCanvasAspectRatio';
 import { CanvasSilhouette } from './CanvasSilhouette';
-import { Layer, getCompositeOperation } from '../../services/canvasService';
+import { LayerWithImages, getCompositeOperation } from '@/services/canvasService';
+import { loadImageWithCancel } from '@/services/imageLoadManager';
 import TransformHandles from '../Forge/TransformHandles';
 
 interface ForgeCanvasProps {
     bodyPart: BodyPart;
-    layers?: Layer[];
+    layers?: LayerWithImages[];
     selectedLayerId?: string | null;
     onSelectLayer?: (layerId: string | null) => void;
     onUpdateTransform?: (
         layerId: string,
-        transform: Partial<Layer['transform']>,
+        transform: Partial<LayerWithImages['transform']>,
         options?: { recordHistory?: boolean }
     ) => void;
     className?: string;
@@ -29,7 +30,7 @@ interface ForgeCanvasProps {
 /**
  * Load image and return HTMLImageElement
  */
-function useImage(url: string): HTMLImageElement | null {
+function useManagedImage(url?: string | null): HTMLImageElement | null {
     const [image, setImage] = useState<HTMLImageElement | null>(null);
 
     useEffect(() => {
@@ -38,23 +39,27 @@ function useImage(url: string): HTMLImageElement | null {
             return;
         }
 
-        const img = new window.Image();
-        img.crossOrigin = 'anonymous';
+        const controller = new AbortController();
+        const { promise, cancel } = loadImageWithCancel(url, { signal: controller.signal });
+        let isActive = true;
 
-        img.onload = () => {
-            setImage(img);
-        };
-
-        img.onerror = (e) => {
-            console.error('Failed to load image:', url, e);
-            setImage(null);
-        };
-
-        img.src = url;
+        promise
+            .then((img) => {
+                if (!isActive) return;
+                setImage(img);
+            })
+            .catch((error) => {
+                if (!isActive) return;
+                if (error?.message !== 'Image load aborted') {
+                    console.error('Failed to load image:', url, error);
+                }
+                setImage(null);
+            });
 
         return () => {
-            img.onload = null;
-            img.onerror = null;
+            isActive = false;
+            controller.abort();
+            cancel();
         };
     }, [url]);
 
@@ -98,22 +103,22 @@ function LayerImage({
     onSelect,
     onUpdateTransform
 }: {
-    layer: Layer;
+    layer: LayerWithImages;
     canvasWidth: number;
     canvasHeight: number;
     isSelected: boolean;
     onSelect: () => void;
     onUpdateTransform?: (
         layerId: string,
-        transform: Partial<Layer['transform']>,
+        transform: Partial<LayerWithImages['transform']>,
         options?: { recordHistory?: boolean }
     ) => void;
 }) {
-    const image = useImage(layer.imageUrl);
+    const image = useManagedImage(layer.imageUrl);
     const keepRatio = useShiftKey();
     const shapeRef = useRef<any>(null);
     const rafRef = useRef<number | null>(null);
-    const pendingTransformRef = useRef<Partial<Layer['transform']> | null>(null);
+    const pendingTransformRef = useRef<Partial<LayerWithImages['transform']> | null>(null);
 
     // Initial positioning logic (only on first load if x/y are 0)
     // We don't want to override saved transform
@@ -148,7 +153,7 @@ function LayerImage({
         };
     }, []);
 
-    const scheduleTransformUpdate = (nextTransform: Partial<Layer['transform']>) => {
+    const scheduleTransformUpdate = (nextTransform: Partial<LayerWithImages['transform']>) => {
         if (!onUpdateTransform) return;
         pendingTransformRef.current = nextTransform;
         if (rafRef.current !== null) return;

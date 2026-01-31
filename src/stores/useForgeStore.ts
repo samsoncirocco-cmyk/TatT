@@ -23,15 +23,29 @@ import {
     updateLayerBlendMode,
     generateThumbnail,
     getLayersByZIndex
-} from '../services/canvasService';
+} from '../features/generate/services/canvasService';
 import type { BodyPart } from '../constants/bodyPartAspectRatios';
+import { registerImage, releaseImageRef, retainImageRef } from '../services/forgeImageRegistry';
 
 const STORAGE_KEY = 'canvas_layers';
 const MAX_HISTORY = 50;
 
+type HistoryEntry =
+    | {
+        type: 'snapshot';
+        layers: Layer[];
+        selectedLayerId: string | null;
+    }
+    | {
+        type: 'transform';
+        layerId: string;
+        before: Layer['transform'];
+        after: Layer['transform'];
+    };
+
 interface HistoryState {
-    past: Layer[][];
-    future: Layer[][];
+    past: HistoryEntry[];
+    future: HistoryEntry[];
 }
 
 interface CanvasState {
@@ -77,14 +91,52 @@ interface ForgeState {
 }
 
 const baseStore = (set: any, get: any): ForgeState => {
-    const pushHistory = () => {
-        const { layers, history } = get();
-        const nextPast = [...history.past, layers].slice(-MAX_HISTORY);
+    const cloneLayers = (layers: Layer[]) =>
+        layers.map(layer => ({
+            ...layer,
+            transform: { ...layer.transform }
+        }));
+
+    const pushSnapshot = () => {
+        const { layers, selectedLayerId, history } = get();
+        const entry: HistoryEntry = {
+            type: 'snapshot',
+            layers: cloneLayers(layers),
+            selectedLayerId
+        };
+        const nextPast = [...history.past, entry].slice(-MAX_HISTORY);
         return { past: nextPast, future: [] } as HistoryState;
     };
 
+    const pushTransform = (entry: HistoryEntry) => {
+        if (entry.type !== 'transform') return get().history;
+        const { history } = get();
+        const nextPast = [...history.past, entry].slice(-MAX_HISTORY);
+        return { past: nextPast, future: [] } as HistoryState;
+    };
+
+    const normalizeIncomingLayers = (nextLayers: any[]): Layer[] => {
+        return nextLayers.map((layer) => {
+            if (layer.imageRef) {
+                retainImageRef(layer.imageRef);
+                if (layer.thumbnailRef) {
+                    retainImageRef(layer.thumbnailRef);
+                }
+                return layer as Layer;
+            }
+
+            const imageRef = layer.imageUrl ? registerImage(layer.imageUrl) : registerImage('');
+            const thumbnailRef = layer.thumbnail ? registerImage(layer.thumbnail) : undefined;
+            return {
+                ...layer,
+                imageRef,
+                thumbnailRef
+            } as Layer;
+        });
+    };
+
     const applyLayers = (nextLayers: Layer[], recordHistory = true) => {
-        const nextHistory = recordHistory ? pushHistory() : get().history;
+        const nextHistory = recordHistory ? pushSnapshot() : get().history;
         set({ layers: nextLayers, history: nextHistory });
     };
 
@@ -95,15 +147,17 @@ const baseStore = (set: any, get: any): ForgeState => {
         canvas: { bodyPart: null, width: 0, height: 0, aspectRatio: 1 },
 
         addLayer: async (imageUrl: string, type: Layer['type'] = 'subject') => {
-            const newLayer = createLayer(imageUrl, type, get().layers);
+            const imageRef = registerImage(imageUrl);
+            const newLayer = createLayer(imageRef, type, get().layers);
             applyLayers([...get().layers, newLayer]);
             set({ selectedLayerId: newLayer.id });
 
             try {
                 const thumbnail = await generateThumbnail(imageUrl);
+                const thumbnailRef = registerImage(thumbnail);
                 applyLayers(
                     get().layers.map(layer =>
-                        layer.id === newLayer.id ? { ...layer, thumbnail } : layer
+                        layer.id === newLayer.id ? { ...layer, thumbnailRef } : layer
                     ),
                     false
                 );
@@ -115,6 +169,11 @@ const baseStore = (set: any, get: any): ForgeState => {
         },
 
         deleteLayer: (layerId: string) => {
+            const layer = get().layers.find(target => target.id === layerId);
+            if (layer) {
+                releaseImageRef(layer.imageRef);
+                releaseImageRef(layer.thumbnailRef);
+            }
             applyLayers(removeLayer(get().layers, layerId));
             if (get().selectedLayerId === layerId) {
                 set({ selectedLayerId: null });
@@ -135,15 +194,43 @@ const baseStore = (set: any, get: any): ForgeState => {
             options?: { recordHistory?: boolean }
         ) => {
             const recordHistory = options?.recordHistory !== false;
-            applyLayers(updateLayerTransform(get().layers, layerId, transform), recordHistory);
+            const currentLayer = get().layers.find(layer => layer.id === layerId);
+            if (!currentLayer) return;
+            const before = { ...currentLayer.transform };
+            const after = { ...currentLayer.transform, ...transform };
+            const nextLayers = updateLayerTransform(get().layers, layerId, transform);
+            const nextHistory = recordHistory
+                ? pushTransform({ type: 'transform', layerId, before, after })
+                : get().history;
+            set({ layers: nextLayers, history: nextHistory });
         },
 
         flipHorizontal: (layerId: string) => {
-            applyLayers(flipLayerHorizontal(get().layers, layerId));
+            const currentLayer = get().layers.find(layer => layer.id === layerId);
+            if (!currentLayer) return;
+            const before = { ...currentLayer.transform };
+            const nextLayers = flipLayerHorizontal(get().layers, layerId);
+            const updatedLayer = nextLayers.find(layer => layer.id === layerId);
+            if (!updatedLayer) return;
+            const after = { ...updatedLayer.transform };
+            set({
+                layers: nextLayers,
+                history: pushTransform({ type: 'transform', layerId, before, after })
+            });
         },
 
         flipVertical: (layerId: string) => {
-            applyLayers(flipLayerVertical(get().layers, layerId));
+            const currentLayer = get().layers.find(layer => layer.id === layerId);
+            if (!currentLayer) return;
+            const before = { ...currentLayer.transform };
+            const nextLayers = flipLayerVertical(get().layers, layerId);
+            const updatedLayer = nextLayers.find(layer => layer.id === layerId);
+            if (!updatedLayer) return;
+            const after = { ...updatedLayer.transform };
+            set({
+                layers: nextLayers,
+                history: pushTransform({ type: 'transform', layerId, before, after })
+            });
         },
 
         rename: (layerId: string, newName: string) => {
@@ -151,7 +238,29 @@ const baseStore = (set: any, get: any): ForgeState => {
         },
 
         updateImage: (layerId: string, imageUrl: string) => {
-            applyLayers(updateLayerImage(get().layers, layerId, imageUrl));
+            const currentLayer = get().layers.find(layer => layer.id === layerId);
+            if (!currentLayer) return;
+            const imageRef = registerImage(imageUrl);
+            releaseImageRef(currentLayer.imageRef);
+            applyLayers(updateLayerImage(get().layers, layerId, imageRef));
+
+            if (currentLayer.thumbnailRef) {
+                releaseImageRef(currentLayer.thumbnailRef);
+            }
+
+            generateThumbnail(imageUrl)
+                .then((thumbnail) => {
+                    const thumbnailRef = registerImage(thumbnail);
+                    applyLayers(
+                        get().layers.map(layer =>
+                            layer.id === layerId ? { ...layer, thumbnailRef } : layer
+                        ),
+                        false
+                    );
+                })
+                .catch((error) => {
+                    console.warn('Failed to generate thumbnail:', error);
+                });
         },
 
         updateBlendMode: (layerId: string, blendMode: Layer['blendMode']) => {
@@ -174,6 +283,9 @@ const baseStore = (set: any, get: any): ForgeState => {
                 ? Math.max(...get().layers.map(layer => layer.zIndex))
                 : 0;
 
+            retainImageRef(source.imageRef);
+            retainImageRef(source.thumbnailRef);
+
             const newLayer: Layer = {
                 ...source,
                 id: generateLayerId(),
@@ -191,12 +303,20 @@ const baseStore = (set: any, get: any): ForgeState => {
         },
 
         clearLayers: () => {
+            get().layers.forEach(layer => {
+                releaseImageRef(layer.imageRef);
+                releaseImageRef(layer.thumbnailRef);
+            });
             set({ layers: [], selectedLayerId: null, history: { past: [], future: [] } });
         },
 
         replaceLayers: (nextLayers: Layer[]) => {
+            get().layers.forEach(layer => {
+                releaseImageRef(layer.imageRef);
+                releaseImageRef(layer.thumbnailRef);
+            });
             set({
-                layers: nextLayers,
+                layers: normalizeIncomingLayers(nextLayers as Layer[]),
                 selectedLayerId: null,
                 history: { past: [], future: [] }
             });
@@ -211,9 +331,26 @@ const baseStore = (set: any, get: any): ForgeState => {
             if (history.past.length === 0) return;
             const previous = history.past[history.past.length - 1];
             const nextPast = history.past.slice(0, -1);
-            const nextFuture = [layers, ...history.future].slice(0, MAX_HISTORY);
+
+            if (previous.type === 'snapshot') {
+                const futureEntry: HistoryEntry = {
+                    type: 'snapshot',
+                    layers: layers.map(layer => ({ ...layer, transform: { ...layer.transform } })),
+                    selectedLayerId: get().selectedLayerId
+                };
+                const nextFuture = [futureEntry, ...history.future].slice(0, MAX_HISTORY);
+                set({
+                    layers: previous.layers,
+                    selectedLayerId: previous.selectedLayerId,
+                    history: { past: nextPast, future: nextFuture }
+                });
+                return;
+            }
+
+            const nextLayers = updateLayerTransform(get().layers, previous.layerId, previous.before);
+            const nextFuture = [previous, ...history.future].slice(0, MAX_HISTORY);
             set({
-                layers: previous,
+                layers: nextLayers,
                 history: { past: nextPast, future: nextFuture }
             });
         },
@@ -222,9 +359,25 @@ const baseStore = (set: any, get: any): ForgeState => {
             const { history, layers } = get();
             if (history.future.length === 0) return;
             const [next, ...rest] = history.future;
-            const nextPast = [...history.past, layers].slice(-MAX_HISTORY);
+            if (next.type === 'snapshot') {
+                const pastEntry: HistoryEntry = {
+                    type: 'snapshot',
+                    layers: layers.map(layer => ({ ...layer, transform: { ...layer.transform } })),
+                    selectedLayerId: get().selectedLayerId
+                };
+                const nextPast = [...history.past, pastEntry].slice(-MAX_HISTORY);
+                set({
+                    layers: next.layers,
+                    selectedLayerId: next.selectedLayerId,
+                    history: { past: nextPast, future: rest }
+                });
+                return;
+            }
+
+            const nextLayers = updateLayerTransform(get().layers, next.layerId, next.after);
+            const nextPast = [...history.past, next].slice(-MAX_HISTORY);
             set({
-                layers: next,
+                layers: nextLayers,
                 history: { past: nextPast, future: rest }
             });
         },
@@ -243,7 +396,7 @@ export const useForgeStore = create<ForgeState>()(
             name: STORAGE_KEY,
             storage: createJSONStorage(() => window.sessionStorage),
             partialize: (state) => ({
-                layers: state.layers.map(({ thumbnail, ...layer }) => layer),
+                layers: state.layers,
                 selectedLayerId: state.selectedLayerId
             })
         })
