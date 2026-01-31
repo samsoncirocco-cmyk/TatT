@@ -4,184 +4,232 @@
 
 ## APIs & External Services
 
-**AI & Image Generation:**
-- **Replicate** - SDXL and anime model inference for tattoo design generation
-  - SDK/Client: `replicate@1.4.0`
-  - Auth: `REPLICATE_API_TOKEN` (backend) and `VITE_REPLICATE_API_TOKEN` (frontend)
-  - Services: `src/services/replicateService.js` handles all Replicate API calls via proxy
-  - Cost: ~$0.003-0.03 per generation depending on model
-  - Budget controls: `VITE_MAX_DAILY_SPEND` and `VITE_TOTAL_BUDGET` environment variables
+**Google Cloud Platform (Vertex AI):**
+- Imagen 3 (`imagen-3.0-generate-001`) - AI tattoo design generation via REST API
+  - SDK/Client: `@google-cloud/vertexai`, `@google-cloud/aiplatform`
+  - Auth: `GOOGLE_APPLICATION_CREDENTIALS` (service account key path)
+  - Project: `GCP_PROJECT_ID` (tatt-pro)
+  - Region: `GCP_REGION` (us-central1)
+  - Implementation: `src/services/vertex-ai-edge.ts`, `src/services/generationService.ts`
 
-- **Google Vertex AI** - Gemini models for LLM Council and prompt enhancement
-  - SDK/Client: `@google-cloud/vertexai@1.10.0`
-  - Auth: GCP service account (`gcp-service-account-key.json`)
-  - Services: `src/services/vertex-ai-service.js` - Gemini 2.0 Flash (60 RPM free tier)
-  - Also provides: Imagen 3 image generation, Vision API for layer decomposition, Multimodal embeddings
-  - Project ID: `GCP_PROJECT_ID` (default: 'tatt-pro'), Region: `GCP_REGION` (default: 'us-central1')
+- Gemini 2.0 Flash (`gemini-2.0-flash-exp`) - LLM for prompt enhancement
+  - SDK/Client: `@google-cloud/vertexai`
+  - Auth: Same GCP service account
+  - Implementation: `src/services/councilService.ts`
 
-- **Google Vision API** - Image analysis and layer decomposition
-  - SDK/Client: `@google-cloud/vision@5.3.4`
-  - Auth: GCP service account
-  - Usage: Stencil edge detection and layer decomposition in `src/services/stencilEdgeService.js`
+- Vision AI (`imagetext@001`) - Image analysis and layer decomposition
+  - SDK/Client: `@google-cloud/vision` (ImageAnnotatorClient)
+  - Auth: Same GCP service account
+  - Implementation: `src/app/api/v1/layers/decompose/route.ts`
 
-- **Google Cloud Storage (GCS)** - Asset storage for designs, stencils, and layers
-  - SDK/Client: `@google-cloud/storage@7.18.0`
-  - Auth: GCP service account
-  - Bucket: `tatt-pro.firebasestorage.app`
-  - Service: `src/services/gcs-service.ts` handles uploads, signed URLs, and deletions
-  - CORS configuration: `gcs-cors.json`
-  - Upload endpoints: `/api/v1/storage/upload`, `/api/v1/upload-layer`
+- Multimodal Embeddings (`multimodalembedding@001`) - 4096-dim CLIP embeddings for semantic search
+  - SDK/Client: REST API via fetch with GCP access tokens
+  - Auth: `google-auth-library` for edge-compatible token generation
+  - Implementation: `src/services/vertex-ai-edge.ts` (generateEmbedding), `src/features/match-pulse/services/embeddingService.ts`
 
-- **OpenRouter (Optional)** - Multi-model LLM API for council enhancement
-  - SDK/Client: Custom HTTP client
+**Replicate:**
+- Segment Anything Model (SAM) - Image segmentation for layer extraction
+  - SDK/Client: `replicate` npm package
+  - Auth: `REPLICATE_API_TOKEN` (server-side only)
+  - Model: `cjwbw/segment-anything:07788b48270c1953bb4d28929e3776ac7639537f71e1641f9d2757529452b414`
+  - Implementation: `src/lib/segmentation.ts`
+  - Note: Fallback option when Vertex AI segmentation unavailable
+
+**OpenRouter (Optional):**
+- LLM Council - Multi-model prompt enhancement via OpenRouter API
+  - SDK/Client: Custom fetch calls to OpenRouter REST API
   - Auth: `OPENROUTER_API_KEY`
-  - Service: `src/services/openRouterCouncil.js`
   - Models: Claude 3.5 Sonnet, GPT-4 Turbo, Gemini Pro 1.5
-  - Estimated cost: $0.01-0.03 per enhancement
-  - Feature flag: `VITE_USE_OPENROUTER`
+  - Implementation: `src/services/councilService.ts`
+  - Usage: Feature flag `NEXT_PUBLIC_USE_OPENROUTER` (default: false)
 
 ## Data Storage
 
 **Databases:**
+- Google Cloud Storage (GCS)
+  - Bucket: `GCS_BUCKET_NAME` (tatt-pro-assets)
+  - Connection: `GOOGLE_APPLICATION_CREDENTIALS`
+  - Client: `@google-cloud/storage` SDK
+  - Purpose: Store designs, layers, stencils (300dpi), portfolio images
+  - Implementation: `src/services/gcs-service.ts`
+  - Structure:
+    - `designs/` - Generated tattoo designs
+    - `layers/` - Decomposed design layers + thumbnails
+    - `stencils/` - High-res 300dpi stencil exports
+    - `portfolios/` - Artist portfolio images
 
-- **Neo4j** - Graph database for artist networks, genealogy, and relationships
-  - Connection: `neo4j-driver@6.0.1`
-  - URI: `NEO4J_URI` (environment variable, default: `bolt://localhost:7687`)
-  - Auth: `NEO4J_USER` and `NEO4J_PASSWORD`
-  - Service: `src/services/neo4jService.ts` and `src/lib/neo4j.ts`
-  - API Route: `/api/neo4j/query` (server.js line 334)
-  - Used for: Artist matching, mentorship networks, genealogical queries
+- Supabase (PostgreSQL + pgvector)
+  - Connection: `NEXT_PUBLIC_SUPABASE_URL` (https://yfcmysjmoehcyszvkxsr.supabase.co)
+  - Auth (client): `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+  - Auth (server): `SUPABASE_SERVICE_ROLE_KEY`
+  - Client: `@supabase/supabase-js`
+  - Purpose: Artist profiles, vector embeddings (4096-dim CLIP), semantic search
+  - Tables: `portfolio_embeddings` with pgvector extension
+  - Implementation: `src/features/match-pulse/services/vectorDbService.ts`, `src/features/match-pulse/services/hybridMatchService.ts`
 
-- **Supabase (PostgreSQL + pgvector)** - Relational database with vector search
-  - Connection: `@supabase/supabase-js@2.90.1`
-  - URL: `NEXT_PUBLIC_SUPABASE_URL` (https://yfcmysjmoehcyszvkxsr.supabase.co)
-  - Keys: `NEXT_PUBLIC_SUPABASE_ANON_KEY` (client) and `SUPABASE_SERVICE_KEY` (server)
-  - Extensions: pgvector for semantic similarity search
-  - Table: `portfolio_embeddings` (4096-dimensional CLIP embeddings)
-  - Service: `src/services/vectorDbService.js` and config `src/config/vectorDbConfig.js`
-  - Used for: Semantic artist matching via cosine similarity
+- Neo4j (Graph Database)
+  - Connection: `NEO4J_URI` (neo4j+s://36767c9d.databases.neo4j.io)
+  - Auth: `NEO4J_USERNAME`, `NEO4J_PASSWORD`
+  - Client: `neo4j-driver`
+  - Purpose: Artist genealogy, mentorship networks, relationship-based matching
+  - Implementation: `src/lib/neo4j.ts`, `src/features/match-pulse/services/neo4jService.ts`
+  - Endpoint: `/api/neo4j/query`
 
-- **Firebase Realtime Database** - Real-time match updates for Match Pulse feature
-  - Connection: `firebase@12.8.0`, `firebase-admin@13.6.0`
-  - Database URL: `NEXT_PUBLIC_FIREBASE_DATABASE_URL` and `FIREBASE_DATABASE_URL`
-  - Project ID: `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
-  - Service: `src/services/firebase-match-service.js`
-  - Latency: <100ms for live artist suggestions
-  - Used for: Match Pulse real-time updates as users design
+- Firebase Realtime Database
+  - Connection: `FIREBASE_DATABASE_URL` (https://tatt-pro-default-rtdb.firebaseio.com)
+  - Auth (client): Firebase config with `NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, etc.
+  - Auth (server): `firebase-admin` with service account from `GOOGLE_APPLICATION_CREDENTIALS`
+  - Client: `firebase/database` (client), `firebase-admin` (server)
+  - Purpose: Real-time artist match updates (Match Pulse <100ms sync)
+  - Schema: `matches/{userId}/current` - live artist recommendations
+  - Implementation: `src/services/firebase-match-service.js`
 
 **File Storage:**
-- **Google Cloud Storage** - Primary storage for designs, layers, stencils, portfolio images
-- **Local filesystem** - `/uploads/layers` directory for temporary layer storage (served via Express static middleware)
+- Google Cloud Storage (see above)
 
 **Caching:**
-- **In-memory cache** - Query result caching in `src/services/hybridMatchService.ts` (5-minute TTL)
-- No Redis or external cache layer currently configured
+- In-memory query cache in `src/features/match-pulse/services/hybridMatchService.ts`
+  - TTL: 5 minutes
+  - Purpose: Cache semantic match results to reduce Vertex AI API calls
 
 ## Authentication & Identity
 
 **Auth Provider:**
-- **Custom token-based authentication** - Bearer token verification
-  - Implementation: `src/lib/api-auth.ts` verifies `FRONTEND_AUTH_TOKEN` header
-  - Backend proxy server checks token for all protected endpoints
-  - Token shared between Vercel (frontend) and Railway (backend) via environment variables
+- Custom token-based authentication
+  - Implementation: Bearer token verification
+  - Token: `FRONTEND_AUTH_TOKEN` / `NEXT_PUBLIC_FRONTEND_AUTH_TOKEN`
+  - Middleware: `src/lib/api-auth.ts` (verifyApiAuth function)
+  - Applied to: All `/api/v1/*` routes
 
-- **Google Service Account** - For GCP services (Vertex AI, Cloud Storage, Vision)
-  - File: `gcp-service-account-key.json`
-  - Credentials: `GOOGLE_APPLICATION_CREDENTIALS` environment variable
+**GCP Service Account:**
+- File-based authentication
+  - Key file: `GOOGLE_APPLICATION_CREDENTIALS` → `./gcp-service-account-key.json`
+  - Used for: Vertex AI, GCS, Vision AI
+  - Edge-compatible: `src/lib/google-auth-edge.ts` generates access tokens via `google-auth-library`
 
-- **Firebase Authentication** - Optional for future client-side auth
-  - Not currently used for user authentication, only for Realtime Database access
-  - Config: `src/services/firebase-match-service.js` (lines 17-26)
+**Firebase Auth:**
+- Client SDK initialized but primarily used for database access
+  - Config: Multiple `NEXT_PUBLIC_FIREBASE_*` environment variables
+  - Implementation: `src/services/firebase-match-service.js`
 
 ## Monitoring & Observability
 
 **Error Tracking:**
-- Not detected - Consider Sentry or similar (commented in `.env.example` as `VITE_SENTRY_DSN`)
+- Custom logging utility
+  - Implementation: `src/lib/observability.ts` (logEvent function)
+  - Destinations: Console logs
 
 **Logs:**
-- Console logging throughout services (console.log, console.error)
-- Server logs via Express middleware
-- No centralized logging service configured
-
-**Webhooks & Callbacks:**
-- Not detected - No webhook endpoints currently implemented
+- Console-based logging with structured prefixes:
+  - `[Firebase]` - Firebase operations
+  - `[GCS]` - Google Cloud Storage operations
+  - `[Neo4j]` - Graph database operations
+  - `[HybridMatch]` - Semantic matching pipeline
+  - `[PERF]` - Performance metrics
+  - `[Segmentation]` - Image segmentation operations
+  - `[CouncilService]` - LLM council operations
 
 ## CI/CD & Deployment
 
 **Hosting:**
-- **Frontend**: Vercel (Next.js deployment)
-  - URL: `https://tat-t-3x8t.vercel.app`
-  - Auto-deploys from git commits
-
-- **Backend**: Railway (Node.js/Express server)
-  - Runs `server.js` with auto-configured `PORT` environment variable
-  - Configuration: `railway.json`
+- Vercel
+  - Project: manama-next
+  - Project ID: `prj_avt0C5zThGOVeEhZl6VgwuOEQF3o`
+  - Org ID: `team_J8oAAeW3ck0OxWkCMRALUdTE`
+  - Config: `.vercel/project.json`
+  - Supports: Edge runtime, Node.js runtime, serverless functions
 
 **CI Pipeline:**
-- Vercel auto-deployment (build and deploy on push)
-- No GitHub Actions or explicit CI service detected
+- Vercel Git integration (auto-deploy on push)
+- Manual trigger: `.vercel-deploy-trigger` file
+
+**Docker Support:**
+- Multi-stage Dockerfile with Node 20-alpine
+- Stages: deps, development, builder, production
+- Compose: `docker-compose.yml` present
+- Dev server: Port 3000
 
 ## Environment Configuration
 
-**Required env vars (Critical):**
-- `REPLICATE_API_TOKEN` - Image generation (backend)
-- `GCP_PROJECT_ID` - Vertex AI access
-- `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD` - Graph database
-- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Vector search
-- `SUPABASE_SERVICE_KEY` - Server-side vector operations
-- `NEXT_PUBLIC_FIREBASE_*` - Realtime match updates
-- `FRONTEND_AUTH_TOKEN` - API authentication
+**Required env vars:**
 
-**Optional env vars:**
-- `OPENROUTER_API_KEY` - Alternative LLM Council provider
-- `VITE_USE_OPENROUTER` - Enable OpenRouter (default: false)
-- `VITE_COUNCIL_API_URL` - Custom council backend endpoint
-- `VITE_COUNCIL_DEMO_MODE` - Test without backend (default: true)
-- `VITE_ENABLE_INPAINTING`, `VITE_ENABLE_STENCIL_EXPORT`, `VITE_ENABLE_AR_PREVIEW` - Feature flags
-- `VITE_ANALYTICS_ID`, `VITE_SENTRY_DSN` - Analytics (not implemented)
+GCP/Vertex AI:
+- `GCP_PROJECT_ID` - tatt-pro
+- `GCP_REGION` - us-central1
+- `GOOGLE_APPLICATION_CREDENTIALS` - ./gcp-service-account-key.json
+- `GCS_BUCKET_NAME` - tatt-pro-assets
+
+Firebase:
+- `FIREBASE_DATABASE_URL` - https://tatt-pro-default-rtdb.firebaseio.com
+- `NEXT_PUBLIC_FIREBASE_*` - Client SDK configuration (8 vars)
+
+Supabase:
+- `NEXT_PUBLIC_SUPABASE_URL` - https://yfcmysjmoehcyszvkxsr.supabase.co
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Public key for client access
+- `SUPABASE_SERVICE_ROLE_KEY` - Secret key for server operations
+
+Neo4j:
+- `NEO4J_URI` - neo4j+s://36767c9d.databases.neo4j.io
+- `NEO4J_USERNAME` - neo4j
+- `NEO4J_PASSWORD` - Database password
+
+Authentication:
+- `FRONTEND_AUTH_TOKEN` - Shared secret for API authentication
+- `NEXT_PUBLIC_FRONTEND_AUTH_TOKEN` - Client-side auth token
+
+Optional:
+- `REPLICATE_API_TOKEN` - Replicate API for SAM fallback
+- `OPENROUTER_API_KEY` - OpenRouter LLM council
+- `VERTEX_SEGMENTATION_ENDPOINT_ID` - Custom Vertex AI segmentation endpoint
 
 **Secrets location:**
-- `.env.local` - Development (git-ignored)
-- `.env.example` - Template with safe defaults
-- Railway/Vercel environment variables - Production
-- GCP Service Account keys stored as files (git-ignored)
-- Firebase Admin key stored as file (git-ignored)
+- `.env.local` (gitignored)
+- Service account keys in project root (gitignored)
+  - `gcp-service-account-key.json`
+  - `firebase-admin-key.json`
 
-## Request Flow & Rate Limiting
+## Webhooks & Callbacks
 
-**API Proxy Server (server.js):**
-- Express server listens on `PORT` (Railway default) or 3002 (local)
-- All API routes require `FRONTEND_AUTH_TOKEN` Bearer token verification
-- CORS whitelist: `ALLOWED_ORIGINS` with Vercel domain support
+**Incoming:**
+- None detected
 
-**Rate Limiters:**
-- Global: 30 requests/minute
-- Semantic match: 100 requests/hour
-- Council enhancement: 20 requests/hour
-- AR visualization: TBD (configured in server.js)
-- Configured via `express-rate-limit@8.2.1`
+**Outgoing:**
+- None detected
 
-**Main API Routes in server.js:**
-- `/api/v1/match/semantic` - Hybrid vector-graph matching
-- `/api/v1/council/enhance` - LLM prompt enhancement
-- `/api/v1/ar/visualize` - AR preview generation
-- `/api/v1/stencil/export` - Stencil export
-- `/api/v1/layers/decompose` - Image layer analysis
-- `/api/v1/embeddings/generate` - Embedding generation
-- `/api/v1/generate` - Imagen 3 generation
-- `/api/v1/storage/upload` - GCS upload
-- `/api/v1/storage/get-signed-url` - GCS signed URL
-- `/api/neo4j/query` - Neo4j graph queries
+## API Endpoints
 
-## Configuration Files
+**Internal API Routes:**
 
-**Next.js:**
-- `next.config.ts` - Disables Node.js module resolution for browser build (fs, net, GCP SDKs)
-- Entry points: `src/app/page.tsx` (home), `src/app/generate/page.tsx` (design tool)
+Image Generation:
+- `POST /api/v1/generate` - Generate tattoo designs with Imagen 3
+- `POST /api/generate` - Legacy generate endpoint
+- `POST /api/predictions` - Replicate predictions
+- `GET /api/predictions/[id]` - Poll prediction status
 
-**API Routes:**
-- `src/app/api/` - Next.js API routes (supersede some server.js routes)
-- Critical routes: `/api/v1/match/update`, `/api/v1/embeddings/generate`, `/api/v1/council/enhance`
+Matching & Search:
+- `POST /api/v1/match/update` - Update artist matches for design
+- `POST /api/v1/match/semantic` - Semantic artist search
+- `POST /api/neo4j/query` - Graph database queries
+
+Image Processing:
+- `POST /api/v1/layers/decompose` - Decompose design into layers
+- `POST /api/v1/embeddings/generate` - Generate image embeddings
+- `POST /api/v1/stencil/export` - Export high-res stencil
+
+Storage:
+- `POST /api/v1/storage/upload` - Upload to GCS
+- `POST /api/v1/storage/get-signed-url` - Get GCS signed URL
+- `POST /api/v1/upload-layer` - Upload layer image
+
+Enhancement:
+- `POST /api/v1/council/enhance` - LLM prompt enhancement
+
+AR/Preview:
+- `POST /api/v1/ar/visualize` - AR body placement preview
+
+Health:
+- `GET /api/health` - System health check
+- `GET /api/debug` - Debug endpoint
 
 ---
 
