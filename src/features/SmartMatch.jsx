@@ -40,8 +40,9 @@ function SmartMatch() {
   const [searchProgress, setSearchProgress] = useState(0);
   const [showEmptyState, setShowEmptyState] = useState(false);
 
-  const navigate = useNavigate();
+  const router = useRouter();
   const { toast, toasts, removeToast } = useToast();
+  const setMatches = useMatchStore((state) => state.setMatches);
   const searchTimerRef = useRef(null);
 
   // Calculate match count in real-time
@@ -190,13 +191,23 @@ function SmartMatch() {
       // Small delay for visual feedback
       setTimeout(() => {
         setIsSearching(false);
-        navigate('/swipe', {
-          state: {
-            preferences,
-            useSemanticSearch,
-            initialMatches: matchedArtists
-          }
-        });
+        // Store matches in zustand for the swipe page
+        setMatches(matchedArtists.map(m => ({
+          artistId: m.id,
+          artistName: m.name,
+          matchScore: m.matchScore || 0,
+          tags: m.styles || [],
+          bio: m.bio,
+          location: m.location,
+          styles: m.styles,
+          imageUrl: m.portfolioImages?.[0],
+          instagramUrl: m.instagram,
+          availability: m.availability,
+          distance: m.distance,
+          reasoning: m.reasoning,
+          breakdown: m.breakdown,
+        })));
+        router.push('/swipe');
       }, 500);
 
     } catch (err) {

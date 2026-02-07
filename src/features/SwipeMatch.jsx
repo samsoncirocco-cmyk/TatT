@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import TinderCard from 'react-tinder-card';
 import { calculateMatches, trackSwipe } from '../utils/matching';
 import artistsData from '../data/artists.json';
 import Button from '../components/ui/Button';
+import { useMatchStore } from '../store/useMatchStore';
 
 function SwipeMatch() {
-  const location = useLocation();
-  const navigate = useNavigate();
+  const router = useRouter();
+  const storedMatches = useMatchStore((state) => state.matches);
   const [artists, setArtists] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [likedArtists, setLikedArtists] = useState([]);
@@ -16,41 +17,46 @@ function SwipeMatch() {
 
   useEffect(() => {
     try {
-      // Mock data loading if no state preferences for dev/preview
-      // In prod, strict redirect would be here
-      if (!location.state || !location.state.preferences) {
-        // Fallback for development preview if direct access
-        const allArtists = artistsData.artists || [];
-        if (allArtists.length > 0) {
-          setArtists(allArtists.slice(0, 10)); // Show top 10
-          setCurrentIndex(Math.min(9, allArtists.length - 1));
-          setIsLoading(false);
-          return;
-        }
-      }
-
-      const preferences = location.state?.preferences;
-      if (!artistsData || !artistsData.artists) {
-        setError('Artist data registry offline.');
+      // Use matches from store if available
+      if (storedMatches && storedMatches.length > 0) {
+        // Convert stored matches back to artist format
+        const matchedArtists = storedMatches.map(m => ({
+          id: m.artistId,
+          name: m.artistName,
+          score: m.matchScore,
+          styles: m.styles || m.tags,
+          bio: m.bio,
+          location: m.location,
+          portfolioImages: m.imageUrl ? [m.imageUrl] : [],
+          instagram: m.instagramUrl,
+          availability: m.availability,
+          distance: m.distance,
+          reasoning: m.reasoning,
+          reasons: m.tags?.slice(0, 3),
+          shopName: m.location || 'Studio',
+        }));
+        setArtists(matchedArtists);
+        setCurrentIndex(matchedArtists.length - 1);
         setIsLoading(false);
         return;
       }
 
-      const matchedArtists = preferences ? calculateMatches(preferences, artistsData.artists) : artistsData.artists;
-      if (matchedArtists.length === 0) {
-        setError('No artists found matching your biometric intent.');
+      // Fallback for development preview if direct access
+      const allArtists = artistsData.artists || [];
+      if (allArtists.length > 0) {
+        setArtists(allArtists.slice(0, 10)); // Show top 10
+        setCurrentIndex(Math.min(9, allArtists.length - 1));
         setIsLoading(false);
         return;
       }
 
-      setArtists(matchedArtists);
-      setCurrentIndex(matchedArtists.length - 1);
+      setError('No artists found matching your biometric intent.');
       setIsLoading(false);
     } catch (err) {
       setError('System Error: Selection Protocol Failed.');
       setIsLoading(false);
     }
-  }, [location.state, navigate]);
+  }, [storedMatches]);
 
   const swiped = (direction, artist) => {
     if (direction === 'right') {
@@ -82,7 +88,7 @@ function SwipeMatch() {
           <p className="text-gray-400 mb-8 font-medium italic">"{error}"</p>
           <div className="flex flex-col gap-3">
             <Button
-              onClick={() => navigate('/smart-match')}
+              onClick={() => router.push('/smart-match')}
               variant="secondary"
               className="w-full text-xs"
             >
@@ -175,7 +181,7 @@ function SwipeMatch() {
           <p className="text-ducks-green text-[10px] uppercase tracking-[0.4em] mb-4">Selection Loop Complete</p>
           <h2 className="text-3xl font-display tracking-tighter mb-8 text-white">Registry <span className="text-ducks-yellow">Compiled.</span></h2>
           <Button
-            onClick={() => navigate('/artists', { state: { likedIds: likedArtists.map(a => a.id) } })}
+            onClick={() => router.push('/artists')}
             variant="primary"
             size="lg"
             className="w-full"
