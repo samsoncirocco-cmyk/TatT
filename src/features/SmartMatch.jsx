@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { useToast } from '../hooks/useToast';
 import { ToastContainer } from '../components/ui/Toast';
+import { useMatchStore } from '../store/useMatchStore';
 import artistsData from '../data/artists.json';
 import { calculateMatches } from '../utils/matching';
 import EmptyMatchState from '../components/EmptyMatchState';

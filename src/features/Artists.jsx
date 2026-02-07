@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import artistsData from '../data/artists.json';
 import { Search, MapPin, Palette } from 'lucide-react';
 
 function Artists() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStyle, setSelectedStyle] = useState('All Styles');
   const [selectedLocation, setSelectedLocation] = useState('All Locations');
@@ -39,7 +39,7 @@ function Artists() {
   }, [searchQuery, selectedStyle, selectedLocation]);
 
   const handleArtistClick = (artistId) => {
-    navigate(`/artists/${artistId}`);
+    router.push(`/artists/${artistId}`);
   };
 
   return (

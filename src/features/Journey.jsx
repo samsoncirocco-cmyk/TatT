@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { useState } from 'react';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -116,7 +116,7 @@ export default function Journey() {
             Browse Validated Artists
           </Button>
         </div>
-        <Link to="/" className="block mt-12 text-[10px] text-gray-500 font-bold uppercase tracking-[0.4em] hover:text-ducks-green transition-colors">Return to Hub</Link>
+        <Link href="/" className="block mt-12 text-[10px] text-gray-500 font-bold uppercase tracking-[0.4em] hover:text-ducks-green transition-colors">Return to Hub</Link>
       </div>
 
       <footer className="py-12 border-t border-white/5 mt-12">
