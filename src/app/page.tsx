@@ -44,19 +44,18 @@ export default function Home() {
         {/* Hero Text */}
         <div className="space-y-4">
           <motion.div variants={item} className="inline-block px-4 py-1.5 rounded-full bg-white/5 border border-ducks-green/30 text-ducks-green text-xs font-mono tracking-widest uppercase mb-4 backdrop-blur-md">
-            System v2.0 // Life.exe
+            AI-Powered Tattoo Design Studio
           </motion.div>
 
           <motion.h1 variants={item} className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-display font-black leading-[0.95] tracking-tighter text-white">
-            TACTILE<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-gray-400">
-              SCAR TISSUE
+            TatT<br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-ducks-green via-ducks-yellow to-ducks-green">
+              Think it. Ink it.
             </span>
           </motion.h1>
 
           <motion.p variants={item} className="text-xl md:text-2xl text-gray-400 font-light max-w-2xl mx-auto">
-            The next generation of <span className="text-ducks-yellow font-medium">bio-resonant</span> body art.
-            Generate, visualize, and connect with the future of ink.
+            Generate custom tattoo designs with AI. <span className="text-ducks-yellow font-medium">Visualize on your body.</span> Connect with verified artists.
           </motion.p>
         </div>
 
@@ -64,16 +63,16 @@ export default function Home() {
         <motion.div variants={item} className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <button
             onClick={() => router.push('/generate')}
-            className="w-full sm:w-auto min-w-[200px] flex items-center justify-center gap-2 px-6 py-3 bg-ducks-green hover:bg-ducks-green/90 text-white rounded-xl font-medium transition-all"
+            className="w-full sm:w-auto min-w-[200px] flex items-center justify-center gap-2 px-6 py-3 bg-ducks-green hover:bg-ducks-green/90 text-white rounded-xl font-medium transition-all shadow-lg hover:shadow-ducks-green/20"
           >
             <Sparkles size={20} />
-            Enter the Forge
+            Start Designing
           </button>
           <button
             onClick={() => router.push('/journey')}
             className="w-full sm:w-auto min-w-[200px] px-6 py-3 bg-white/10 hover:bg-white/20 text-white border border-white/10 rounded-xl font-medium transition-all backdrop-blur-md"
           >
-            Philosophy
+            How It Works
           </button>
         </motion.div>
 
@@ -97,7 +96,7 @@ export default function Home() {
                 <Smartphone size={24} />
               </div>
               <h3 className="text-lg font-bold text-white mb-2">AR Mirror</h3>
-              <p className="text-sm text-gray-400"> visualize tattoos on your skin in real-time with depth-aware tracking.</p>
+              <p className="text-sm text-gray-400">Visualize tattoos on your skin in real-time with depth-aware AR tracking.</p>
             </div>
           </Link>
 
