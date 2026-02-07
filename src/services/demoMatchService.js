@@ -5,7 +5,7 @@
  * Can be enhanced with vector embeddings post-demo.
  */
 
-import { findMatchingArtists as graphMatch } from './neo4jService.js';
+import { findMatchingArtists as graphMatch } from './neo4jService';
 
 /**
  * Find matching artists for a design (Demo version)

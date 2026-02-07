@@ -101,9 +101,11 @@ export async function fetchWithAbort(
     const headers: Record<string, string> = { ...(fetchOptions.headers as Record<string, string> || {}) };
 
     if (includeAuth) {
-      const authToken = typeof import.meta !== 'undefined' && import.meta.env
-        ? import.meta.env.VITE_FRONTEND_AUTH_TOKEN
-        : process.env.VITE_FRONTEND_AUTH_TOKEN;
+      // Support both Vite and Next.js environments
+      const authToken = typeof window !== 'undefined'
+        ? (process.env.NEXT_PUBLIC_FRONTEND_AUTH_TOKEN || 
+           (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FRONTEND_AUTH_TOKEN))
+        : process.env.FRONTEND_AUTH_TOKEN || process.env.NEXT_PUBLIC_FRONTEND_AUTH_TOKEN;
       if (authToken) {
         headers['Authorization'] = `Bearer ${authToken}`;
       }

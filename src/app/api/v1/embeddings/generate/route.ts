@@ -3,7 +3,7 @@ import { verifyApiAuth } from '@/lib/api-auth';
 // @ts-ignore
 import { generateEmbedding } from '@/services/vertex-ai-service.js';
 // @ts-ignore
-import { storeEmbedding } from '@/services/vectorDbService.js';
+import { storeEmbedding } from '@/services/vectorDbService';
 
 export const runtime = 'nodejs';
 

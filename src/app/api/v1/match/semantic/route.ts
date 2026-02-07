@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
 // @ts-ignore
-import { findMatchingArtists } from '@/services/hybridMatchService.js';
+import { findMatchingArtists } from '@/services/hybridMatchService';
 
 // Edge runtime compatible (Neo4j driver is accessed via HTTP proxy service)
 export const runtime = 'edge';

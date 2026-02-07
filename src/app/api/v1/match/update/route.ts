@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
 // @ts-ignore
-import { getHybridArtistMatches } from '@/services/matchService.js';
+import { getHybridArtistMatches } from '@/services/matchService';
 // @ts-ignore
-import { updateMatches } from '@/services/firebase-match-service.js';
+import { updateMatches } from '@/services/firebase-match-service';
 
 export const runtime = 'nodejs';
 
