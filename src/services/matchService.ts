@@ -5,13 +5,13 @@
  * Falls back to demo matching when services aren't available.
  */
 
-import { searchSimilar } from './vectorDbService.js';
+import { searchSimilar } from './vectorDbService';
 import {
   findArtistMatchesForPulse,
   getArtistsByIds,
   isNeo4jEnabled
-} from './neo4jService.js';
-import { findMatchingArtistsForDemo } from './demoMatchService.js';
+} from './neo4jService';
+import { findMatchingArtistsForDemo } from './demoMatchService';
 
 // Types
 export interface MatchContext {

@@ -19,8 +19,8 @@ import {
   ErrorCodes,
   getUserErrorMessage,
   isErrorCode
-} from './fetchWithAbort.js';
-import { routeGeneration } from './generationRouter.js';
+} from './fetchWithAbort';
+import { routeGeneration } from './generationRouter';
 
 // ============================================================================
 // Type Definitions

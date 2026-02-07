@@ -5,14 +5,14 @@
  * to enable semantic artist discovery beyond keyword matching.
  */
 
-import { searchSimilar, SimilarityMatch } from './vectorDbService.js';
+import { searchSimilar, SimilarityMatch } from './vectorDbService';
 import { VECTOR_DB_CONFIG } from '../config/vectorDbConfig.js';
 import {
   findMatchingArtists as findGraphArtists,
   findArtistsByEmbeddingIds,
   MatchPreferences,
   MatchedArtist as GraphMatchedArtist
-} from './neo4jService.js';
+} from './neo4jService';
 import {
   calculateCompositeScore,
   generateMatchReasoning,

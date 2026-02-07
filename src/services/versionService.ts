@@ -5,7 +5,7 @@
  * Handles auto-saving versions, branching, and comparison data retrieval.
  */
 
-import { safeLocalStorageGet, safeLocalStorageSet } from './storageService.js';
+import { safeLocalStorageGet, safeLocalStorageSet } from './storageService';
 import { generateLayerId } from '../lib/layerUtils.js';
 import type { DesignVersion } from '../hooks/useVersionHistory';
 

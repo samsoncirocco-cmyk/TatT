@@ -6,7 +6,10 @@
  */
 
 const PROXY_URL = '/api';
-const AUTH_TOKEN = import.meta.env.VITE_FRONTEND_AUTH_TOKEN || 'dev-token-change-in-production';
+// Support both Vite and Next.js environments
+const AUTH_TOKEN = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_FRONTEND_AUTH_TOKEN) 
+  || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FRONTEND_AUTH_TOKEN) 
+  || 'dev-token-change-in-production';
 
 export type LayerType = 'subject' | 'background' | 'effect';
 
