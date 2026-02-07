@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
 import { ArrowRight, Sparkles, Zap, Smartphone } from 'lucide-react';
 import Button from './ui/Button';
@@ -21,7 +21,7 @@ const item = {
 };
 
 function Home() {
-  const navigate = useNavigate();
+  const router = useRouter();
 
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center p-6 overflow-hidden">
@@ -62,7 +62,7 @@ function Home() {
         <motion.div variants={item} className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Button
             size="lg"
-            onClick={() => navigate('/generate')}
+            onClick={() => router.push('/generate')}
             className="w-full sm:w-auto min-w-[200px]"
             icon={Sparkles}
           >
@@ -71,7 +71,7 @@ function Home() {
           <Button
             variant="secondary"
             size="lg"
-            onClick={() => navigate('/journey')}
+            onClick={() => router.push('/journey')}
             className="w-full sm:w-auto min-w-[200px]"
           >
             Philosophy
@@ -80,7 +80,7 @@ function Home() {
 
         {/* Feature Grid */}
         <motion.div variants={item} className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-12">
-          <Card hover className="text-left group cursor-pointer" onClick={() => navigate('/generate')}>
+          <Card hover className="text-left group cursor-pointer" onClick={() => router.push('/generate')}>
             <div className="w-12 h-12 rounded-full bg-ducks-green/20 flex items-center justify-center text-ducks-green mb-4 group-hover:scale-110 transition-transform">
               <Sparkles size={24} />
             </div>
@@ -88,7 +88,7 @@ function Home() {
             <p className="text-sm text-gray-400">Generate unique designs using semantic style definitions and bio-feedback.</p>
           </Card>
 
-          <Card hover className="text-left group cursor-pointer" onClick={() => navigate('/visualize')}>
+          <Card hover className="text-left group cursor-pointer" onClick={() => router.push('/visualize')}>
             <div className="w-12 h-12 rounded-full bg-ducks-yellow/10 flex items-center justify-center text-ducks-yellow mb-4 group-hover:scale-110 transition-transform">
               <Smartphone size={24} />
             </div>
@@ -96,7 +96,7 @@ function Home() {
             <p className="text-sm text-gray-400"> visualize tattoos on your skin in real-time with depth-aware tracking.</p>
           </Card>
 
-          <Card hover className="text-left group cursor-pointer" onClick={() => navigate('/artists')}>
+          <Card hover className="text-left group cursor-pointer" onClick={() => router.push('/artists')}>
             <div className="w-12 h-12 rounded-full bg-ducks-yellow/10 flex items-center justify-center text-ducks-yellow mb-4 group-hover:scale-110 transition-transform">
               <Zap size={24} />
             </div>

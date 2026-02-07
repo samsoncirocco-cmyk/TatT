@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, ChangeEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/router';
 import { useToast } from '../hooks/useToast';
 import { ToastContainer } from '../components/ui/Toast';
 import artistsData from '../data/artists.json';
@@ -53,7 +53,7 @@ function SmartMatch() {
   const [searchProgress, setSearchProgress] = useState(0);
   const [showEmptyState, setShowEmptyState] = useState(false);
 
-  const navigate = useNavigate();
+  const router = useRouter();
   const { toast, toasts, removeToast } = useToast();
   const searchTimerRef = useRef<number | null>(null);
 
@@ -203,13 +203,15 @@ function SmartMatch() {
       // Small delay for visual feedback
       setTimeout(() => {
         setIsSearching(false);
-        navigate('/swipe', {
-          state: {
+        // Store state in sessionStorage for Next.js navigation
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('swipeState', JSON.stringify({
             preferences,
             useSemanticSearch,
             initialMatches: matchedArtists
-          }
-        });
+          }));
+        }
+        router.push('/swipe');
       }, 500);
 
     } catch (err: any) {

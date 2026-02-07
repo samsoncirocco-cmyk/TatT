@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { useRouter } from 'next/router';
+import Link from 'next/link';
 import TinderCard from 'react-tinder-card';
 import { calculateMatches, trackSwipe } from '../utils/matching';
 import artistsData from '../data/artists.json';
@@ -33,8 +34,7 @@ interface LocationState {
 type SwipeDirection = 'left' | 'right' | 'up' | 'down';
 
 function SwipeMatch() {
-  const location = useLocation();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [artists, setArtists] = useState<Artist[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [likedArtists, setLikedArtists] = useState<Artist[]>([]);
@@ -43,9 +43,14 @@ function SwipeMatch() {
 
   useEffect(() => {
     try {
-      // Mock data loading if no state preferences for dev/preview
-      // In prod, strict redirect would be here
-      const state = location.state as LocationState;
+      // Get state from sessionStorage (set by SmartMatch page)
+      let state: LocationState | null = null;
+      if (typeof window !== 'undefined') {
+        const storedState = sessionStorage.getItem('swipeState');
+        if (storedState) {
+          state = JSON.parse(storedState) as LocationState;
+        }
+      }
 
       if (!state || !state.preferences) {
         // Fallback for development preview if direct access
@@ -82,7 +87,7 @@ function SwipeMatch() {
       setError('System Error: Selection Protocol Failed.');
       setIsLoading(false);
     }
-  }, [location.state, navigate]);
+  }, []);
 
   const swiped = (direction: SwipeDirection, artist: Artist) => {
     if (direction === 'right') {
@@ -114,7 +119,7 @@ function SwipeMatch() {
           <p className="text-gray-400 mb-8 font-medium italic">"{error}"</p>
           <div className="flex flex-col gap-3">
             <Button
-              onClick={() => navigate('/smart-match')}
+              onClick={() => router.push('/smart-match')}
               variant="secondary"
               className="w-full text-xs"
               icon={undefined}
@@ -208,7 +213,12 @@ function SwipeMatch() {
           <p className="text-ducks-green text-[10px] uppercase tracking-[0.4em] mb-4">Selection Loop Complete</p>
           <h2 className="text-3xl font-display tracking-tighter mb-8 text-white">Registry <span className="text-ducks-yellow">Compiled.</span></h2>
           <Button
-            onClick={() => navigate('/artists', { state: { likedIds: likedArtists.map(a => a.id) } })}
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                sessionStorage.setItem('likedArtistIds', JSON.stringify(likedArtists.map(a => a.id)));
+              }
+              router.push('/artists');
+            }}
             variant="primary"
             size="lg"
             className="w-full"
