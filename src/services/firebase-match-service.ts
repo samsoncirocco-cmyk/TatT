@@ -105,7 +105,10 @@ if (firebaseConfig.databaseURL) {
     console.warn('[Firebase] Client initialization failed:', (error as Error).message);
   }
 } else {
-  console.warn('[Firebase] Skipping client initialization - no database URL configured');
+  // Silent in production build to avoid noise
+  if (process.env.NODE_ENV !== 'production') {
+    console.debug('[Firebase] Client initialization skipped - no database URL');
+  }
 }
 
 // Initialize Firebase Admin (server-side only, lazy)
