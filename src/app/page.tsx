@@ -427,6 +427,111 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ──── PRICING ──── */}
+      <section id="pricing" className="relative py-24 px-4 bg-white/[0.02]">
+        <div className="max-w-5xl mx-auto">
+          <motion.div
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true }}
+            variants={stagger}
+            className="text-center mb-16"
+          >
+            <motion.p variants={fadeUp} className="text-[#FEE123] text-sm font-medium tracking-widest uppercase mb-4">
+              Membership
+            </motion.p>
+            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl md:text-5xl font-bold text-white tracking-tight">
+              Simple, transparent{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FEE123] to-[#154733]">
+                pricing
+              </span>
+            </motion.h2>
+          </motion.div>
+
+          <motion.div
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true }}
+            variants={stagger}
+            className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center"
+          >
+            {/* Free Tier */}
+            <motion.div variants={fadeUp} className="p-8 rounded-3xl bg-black border border-white/10 hover:border-white/20 transition-all">
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-white">Explorer</h3>
+                <p className="text-sm text-gray-400">Perfect for trying out ideas</p>
+              </div>
+              <div className="flex items-baseline gap-1 mb-6">
+                <span className="text-4xl font-bold text-white">$0</span>
+                <span className="text-sm text-gray-500">/mo</span>
+              </div>
+              <ul className="space-y-4 mb-8 text-sm text-gray-400">
+                <li className="flex items-center gap-3"><CheckCircle2 size={16} className="text-[#FEE123]" /> 3 AI Designs / day</li>
+                <li className="flex items-center gap-3"><CheckCircle2 size={16} className="text-[#FEE123]" /> Standard Resolution</li>
+                <li className="flex items-center gap-3"><CheckCircle2 size={16} className="text-[#FEE123]" /> Public Gallery</li>
+              </ul>
+              <button 
+                onClick={() => router.push('/generate')}
+                className="w-full py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold transition-colors"
+              >
+                Start for Free
+              </button>
+            </motion.div>
+
+            {/* Pro Tier */}
+            <motion.div variants={fadeUp} className="relative p-8 rounded-3xl bg-[#154733]/10 border border-[#FEE123]/50 shadow-2xl shadow-[#FEE123]/5 transform scale-105 z-10">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-[#FEE123] text-black text-xs font-bold uppercase tracking-wide shadow-lg">
+                Most Popular
+              </div>
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-white">Ink Master</h3>
+                <p className="text-sm text-gray-300">For serious enthusiasts</p>
+              </div>
+              <div className="flex items-baseline gap-1 mb-6">
+                <span className="text-4xl font-bold text-white">$12</span>
+                <span className="text-sm text-gray-500">/mo</span>
+              </div>
+              <ul className="space-y-4 mb-8 text-sm text-gray-300">
+                <li className="flex items-center gap-3"><CheckCircle2 size={16} className="text-[#FEE123]" /> Unlimited Generations</li>
+                <li className="flex items-center gap-3"><CheckCircle2 size={16} className="text-[#FEE123]" /> 4K Ultra-Res Downloads</li>
+                <li className="flex items-center gap-3"><CheckCircle2 size={16} className="text-[#FEE123]" /> Advanced Style Models</li>
+                <li className="flex items-center gap-3"><CheckCircle2 size={16} className="text-[#FEE123]" /> Private Portfolio</li>
+              </ul>
+              <button 
+                onClick={() => router.push('/generate')}
+                className="w-full py-3 rounded-xl bg-[#FEE123] hover:bg-[#FEE123]/90 text-black font-semibold transition-colors shadow-lg shadow-[#FEE123]/20"
+              >
+                Get Pro Access
+              </button>
+            </motion.div>
+
+            {/* Studio Tier */}
+            <motion.div variants={fadeUp} className="p-8 rounded-3xl bg-black border border-white/10 hover:border-white/20 transition-all">
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-white">Studio</h3>
+                <p className="text-sm text-gray-400">For professional artists</p>
+              </div>
+              <div className="flex items-baseline gap-1 mb-6">
+                <span className="text-4xl font-bold text-white">$49</span>
+                <span className="text-sm text-gray-500">/mo</span>
+              </div>
+              <ul className="space-y-4 mb-8 text-sm text-gray-400">
+                <li className="flex items-center gap-3"><CheckCircle2 size={16} className="text-[#FEE123]" /> Client Management</li>
+                <li className="flex items-center gap-3"><CheckCircle2 size={16} className="text-[#FEE123]" /> Stencil Generation</li>
+                <li className="flex items-center gap-3"><CheckCircle2 size={16} className="text-[#FEE123]" /> Commercial Rights</li>
+                <li className="flex items-center gap-3"><CheckCircle2 size={16} className="text-[#FEE123]" /> Priority Support</li>
+              </ul>
+              <button 
+                onClick={() => router.push('/artists')}
+                className="w-full py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold transition-colors"
+              >
+                Contact Sales
+              </button>
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
       {/* ──── TRUST BAR ──── */}
       <section className="py-16 px-4 border-t border-b border-white/5">
         <div className="max-w-4xl mx-auto">

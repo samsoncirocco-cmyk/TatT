@@ -2,21 +2,50 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "TatT — Think it. Ink it.",
-  description: "AI-powered tattoo design studio. Generate custom designs with AI, preview on your body in AR, and connect with verified artists near you.",
-  keywords: ["tattoo", "AI", "design", "body art", "AR", "artist", "generate", "tattoo design", "AI tattoo"],
-  authors: [{ name: "TatT" }],
+  metadataBase: new URL('https://tatt-app.vercel.app'),
+  title: {
+    default: "TatT — AI Tattoo Design & AR Try-On",
+    template: "%s | TatT"
+  },
+  description: "Generate custom tattoo designs with AI, preview them on your body in real-time AR, and connect with verified artists. The future of ink is here.",
+  keywords: ["tattoo", "AI", "design", "body art", "AR", "augmented reality", "tattoo artist", "ink", "stable diffusion", "midjourney", "tattoo generator"],
+  authors: [{ name: "TatT Team" }],
+  creator: "TatT",
+  publisher: "TatT",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
   openGraph: {
-    title: "TatT — Think it. Ink it.",
-    description: "AI-powered tattoo design studio. Generate, preview in AR, connect with artists.",
-    type: "website",
-    siteName: "TatT",
+    title: "TatT — AI Tattoo Design & AR Try-On",
+    description: "Think it. Ink it. Generate custom tattoos and preview them on your skin instantly.",
+    url: 'https://tatt-app.vercel.app',
+    siteName: 'TatT',
+    locale: 'en_US',
+    type: 'website',
+    images: [
+      {
+        url: '/images/hero.png',
+        width: 1200,
+        height: 630,
+        alt: 'TatT - AI Tattoo Studio',
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "TatT — Think it. Ink it.",
-    description: "AI-powered tattoo design studio.",
+    title: "TatT — AI Tattoo Design & AR Try-On",
+    description: "Think it. Ink it. Generate custom tattoos and preview them on your skin instantly.",
+    images: ['/images/hero.png'],
+    creator: "@tatt_app",
   },
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
+  },
+  manifest: '/site.webmanifest',
 };
 
 export const viewport: Viewport = {
