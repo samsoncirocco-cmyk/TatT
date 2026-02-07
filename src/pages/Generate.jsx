@@ -221,6 +221,9 @@ export default function Generate() {
     const [guideStepIndex, setGuideStepIndex] = useState(0);
 
     const [sessionId, setSessionId] = useState(() => {
+        if (typeof window === 'undefined') {
+            return `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        }
         const stored = sessionStorage.getItem('tattester_session_id');
         if (stored) return stored;
         const created = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
