@@ -19,7 +19,7 @@ import {
   safeLocalStorageSet, 
   validateDesign, 
   purgeExpiredDesigns 
-} from './storageService.js';
+} from './storageService';
 
 const LIBRARY_STORAGE_KEY = 'tattester_design_library';
 const MAX_DESIGNS = 50; // Limit to prevent localStorage overflow
