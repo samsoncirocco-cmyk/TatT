@@ -11,13 +11,14 @@
 
 const PROXY_URL = '/api';
 
-// Inpainting model configuration
-export const INPAINTING_MODEL = {
-  version: 'stability-ai/stable-diffusion-inpainting:95b7223104132402a9ae91cc677285bc5eb997834bd2349fa486f53910fd68b3',
-  cost: 0.0014 // per second, varies based on complexity
-};
+// ===== Type Definitions =====
 
-export interface InpaintingParams {
+export interface InpaintingModel {
+  version: string;
+  cost: number;
+}
+
+export interface InpaintParams {
   imageUrl: string;
   maskCanvas: HTMLCanvasElement;
   prompt: string;
@@ -26,19 +27,36 @@ export interface InpaintingParams {
   numInferenceSteps?: number;
 }
 
+export interface PredictionResponse {
+  id: string;
+  status: 'starting' | 'processing' | 'succeeded' | 'failed';
+  output?: string | string[];
+  error?: string;
+}
+
 export interface InpaintingCost {
   perSecond: number;
   estimated: number;
   formatted: string;
 }
 
+// ===== Constants =====
+
+// Inpainting model configuration
+export const INPAINTING_MODEL: InpaintingModel = {
+  version: 'stability-ai/stable-diffusion-inpainting:95b7223104132402a9ae91cc677285bc5eb997834bd2349fa486f53910fd68b3',
+  cost: 0.0014 // per second, varies based on complexity
+};
+
+// ===== Internal Helpers =====
+
 /**
  * Convert canvas to blob for upload
  */
-function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
   return new Promise((resolve) => {
     canvas.toBlob((blob) => {
-      resolve(blob!);
+      resolve(blob);
     }, 'image/png');
   });
 }
@@ -55,8 +73,13 @@ function blobToDataURL(blob: Blob): Promise<string> {
   });
 }
 
+// ===== Public API =====
+
 /**
  * Perform inpainting on a tattoo design
+ *
+ * @param params - Inpainting parameters
+ * @returns Data URL of inpainted image
  */
 export async function inpaintTattooDesign({
   imageUrl,
@@ -65,12 +88,15 @@ export async function inpaintTattooDesign({
   negativePrompt = 'blurry, low quality, distorted, deformed, ugly, bad anatomy',
   guidanceScale = 7.5,
   numInferenceSteps = 50
-}: InpaintingParams): Promise<string> {
+}: InpaintParams): Promise<string> {
   try {
     console.log('[Inpainting] Starting inpainting process');
 
     // Convert mask canvas to blob then to data URL
     const maskBlob = await canvasToBlob(maskCanvas);
+    if (!maskBlob) {
+      throw new Error('Failed to convert mask canvas to blob');
+    }
     const maskDataURL = await blobToDataURL(maskBlob);
 
     // If imageUrl is a URL (not data URL), we need to convert it to data URL
@@ -111,7 +137,7 @@ export async function inpaintTattooDesign({
       throw new Error(errorData.error || errorData.detail || 'Failed to start inpainting');
     }
 
-    const prediction = await createResponse.json();
+    const prediction = await createResponse.json() as PredictionResponse;
     console.log('[Inpainting] Prediction created:', prediction.id);
 
     // Poll for completion
@@ -128,7 +154,7 @@ export async function inpaintTattooDesign({
         throw new Error('Failed to check inpainting status');
       }
 
-      result = await statusResponse.json();
+      result = await statusResponse.json() as PredictionResponse;
       attempts++;
 
       console.log(`[Inpainting] Status: ${result.status} (attempt ${attempts}/${maxAttempts})`);
@@ -145,13 +171,18 @@ export async function inpaintTattooDesign({
     // Get the output image URL
     const outputImage = Array.isArray(result.output) ? result.output[0] : result.output;
 
+    if (!outputImage) {
+      throw new Error('No output image received');
+    }
+
     console.log('[Inpainting] ✓ Inpainting completed successfully');
 
     return outputImage;
 
   } catch (error) {
-    console.error('[Inpainting] Error:', error);
-    throw new Error(`Inpainting failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    const err = error as Error;
+    console.error('[Inpainting] Error:', err);
+    throw new Error(`Inpainting failed: ${err.message}`);
   }
 }
 
@@ -164,12 +195,11 @@ export function createMaskCanvas(width: number, height: number): HTMLCanvasEleme
   canvas.height = height;
 
   const ctx = canvas.getContext('2d');
-  if (!ctx) {
-    throw new Error('Failed to get canvas context');
+  if (ctx) {
+    // Fill with black (areas to preserve)
+    ctx.fillStyle = 'black';
+    ctx.fillRect(0, 0, width, height);
   }
-  // Fill with black (areas to preserve)
-  ctx.fillStyle = 'black';
-  ctx.fillRect(0, 0, width, height);
 
   return canvas;
 }
