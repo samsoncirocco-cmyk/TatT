@@ -1,4 +1,20 @@
-import { motion } from 'framer-motion';
+import { motion, type HTMLMotionProps } from 'framer-motion';
+import { type ReactNode } from 'react';
+
+type CardVariant = 'default' | 'glass' | 'elevated';
+
+interface CardProps extends Omit<HTMLMotionProps<'div'>, 'children'> {
+    children: ReactNode;
+    className?: string;
+    hover?: boolean;
+    variant?: CardVariant;
+}
+
+const variantStyles: Record<CardVariant, string> = {
+    default: 'bg-[var(--bg-surface)] border-white/[0.05]',
+    glass: 'studio-glass',
+    elevated: 'bg-[var(--bg-elevated)] border-white/[0.08] shadow-[0_10px_28px_-6px_rgba(0,0,0,0.55)]'
+};
 
 const Card = ({
     children,
@@ -6,13 +22,7 @@ const Card = ({
     hover = false,
     variant = 'default',
     ...props
-}) => {
-    const variants = {
-        default: 'bg-[var(--bg-surface)] border-white/[0.05]',
-        glass: 'studio-glass',
-        elevated: 'bg-[var(--bg-elevated)] border-white/[0.08] shadow-[0_10px_28px_-6px_rgba(0,0,0,0.55)]'
-    };
-
+}: CardProps) => {
     return (
         <motion.div
             initial={false}
@@ -23,7 +33,7 @@ const Card = ({
             className={`
                 relative overflow-hidden rounded-2xl p-6
                 border transition-all duration-200
-                ${variants[variant]}
+                ${variantStyles[variant]}
                 ${hover ? 'cursor-pointer hover:border-white/20' : ''}
                 ${className}
             `}
@@ -41,3 +51,4 @@ const Card = ({
 };
 
 export default Card;
+export type { CardProps, CardVariant };

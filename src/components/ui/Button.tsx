@@ -1,7 +1,21 @@
-import { motion } from 'framer-motion';
-import { Loader2 } from 'lucide-react';
+import { motion, type HTMLMotionProps } from 'framer-motion';
+import { Loader2, type LucideIcon } from 'lucide-react';
+import { type ReactNode, forwardRef } from 'react';
 
-const variants = {
+type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+type ButtonSize = 'sm' | 'md' | 'lg';
+
+interface ButtonProps extends Omit<HTMLMotionProps<'button'>, 'children'> {
+    children: ReactNode;
+    variant?: ButtonVariant;
+    size?: ButtonSize;
+    className?: string;
+    isLoading?: boolean;
+    disabled?: boolean;
+    icon?: LucideIcon;
+}
+
+const variants: Record<ButtonVariant, string> = {
     primary: `
         bg-studio-accent text-white font-bold
         border border-[rgba(255,62,0,0.8)]
@@ -38,13 +52,13 @@ const variants = {
     `
 };
 
-const sizes = {
+const sizes: Record<ButtonSize, string> = {
     sm: "h-8 px-3 text-xs gap-1.5",
     md: "h-11 px-5 text-sm gap-2",
     lg: "h-14 px-7 text-base gap-2.5"
 };
 
-const Button = ({
+const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
     children,
     variant = 'primary',
     size = 'md',
@@ -53,11 +67,14 @@ const Button = ({
     disabled = false,
     icon: Icon,
     ...props
-}) => {
+}, ref) => {
+    const isDisabled = disabled || isLoading;
+    
     return (
         <motion.button
-            whileHover={!disabled && !isLoading ? { scale: 1.02 } : {}}
-            whileTap={!disabled && !isLoading ? { scale: 0.98 } : {}}
+            ref={ref}
+            whileHover={!isDisabled ? { scale: 1.02 } : {}}
+            whileTap={!isDisabled ? { scale: 0.98 } : {}}
             className={`
                 relative inline-flex items-center justify-center
                 font-display uppercase tracking-wider rounded-xl
@@ -66,7 +83,7 @@ const Button = ({
                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-neon focus-visible:ring-offset-2 focus-visible:ring-offset-studio-bg
                 ${variants[variant]} ${sizes[size]} ${className}
             `}
-            disabled={disabled || isLoading}
+            disabled={isDisabled}
             {...props}
         >
             {isLoading && <Loader2 className="w-4 h-4 animate-spin" aria-label="Loading" />}
@@ -74,6 +91,9 @@ const Button = ({
             <span>{children}</span>
         </motion.button>
     );
-};
+});
+
+Button.displayName = 'Button';
 
 export default Button;
+export type { ButtonProps, ButtonVariant, ButtonSize };
