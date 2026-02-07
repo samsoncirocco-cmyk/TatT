@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useRouter, useParams } from 'next/navigation';
+import Link from 'next/link';
 import artistsData from '../data/artists.json';
 import { getAllDesigns } from '../services/designLibraryService';
 import Button from '../components/ui/Button';
 import { ArrowLeft, Instagram } from 'lucide-react';
 
 function ArtistProfile() {
-  const { id } = useParams();
-  const navigate = useNavigate();
+  const params = useParams();
+  const id = params?.id;
+  const router = useRouter();
   const artist = artistsData.artists.find(a => a.id === parseInt(id));
 
   const [selectedImage, setSelectedImage] = useState(0);
@@ -17,7 +19,7 @@ function ArtistProfile() {
 
   // If artist not found, redirect to artists page
   if (!artist) {
-    setTimeout(() => navigate('/artists'), 0);
+    setTimeout(() => router.push('/artists'), 0);
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-4 border-ducks-green border-t-transparent"></div>
@@ -45,7 +47,7 @@ function ArtistProfile() {
       <div className="max-w-7xl mx-auto">
         {/* Back Button */}
         <Link
-          to="/artists"
+          href="/artists"
           className="inline-flex items-center text-gray-400 hover:text-white mb-8 transition-colors text-xs font-bold uppercase tracking-widest group"
         >
           <ArrowLeft className="mr-2 group-hover:-translate-x-1 transition-transform" size={16} />
