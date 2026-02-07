@@ -24,10 +24,75 @@ import {
 const LIBRARY_STORAGE_KEY = 'tattester_design_library';
 const MAX_DESIGNS = 50; // Limit to prevent localStorage overflow
 
+// ===== Type Definitions =====
+
+export interface DesignMetadata {
+  generatedAt?: string;
+  prompt?: string;
+  style?: string;
+  subject?: string;
+  bodyPart?: string;
+  size?: string;
+  savedAt: string;
+  updatedAt?: string;
+  [key: string]: unknown;
+}
+
+export interface DesignUserInput {
+  style?: string;
+  subject?: string;
+  bodyPart?: string;
+  size?: string;
+  [key: string]: unknown;
+}
+
+export interface Design {
+  id: string;
+  imageUrl: string;
+  metadata: DesignMetadata;
+  userInput: DesignUserInput;
+  favorite: boolean;
+  notes: string;
+  tags: string[];
+}
+
+export interface LibraryStats {
+  total: number;
+  favorites: number;
+  byStyle: Record<string, number>;
+  byBodyPart: Record<string, number>;
+  capacity: number;
+  remaining: number;
+}
+
+export interface ExportData {
+  version: string;
+  exportedAt: string;
+  designs: Design[];
+}
+
+export interface ImportResult {
+  imported: number;
+  total: number;
+}
+
+// ===== Internal Helpers =====
+
 /**
- * Design schema
+ * Generate unique ID
  */
-function createDesign(imageUrl, metadata, userInput) {
+function generateId(): string {
+  return `design_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+/**
+ * Create design schema
+ */
+function createDesign(
+  imageUrl: string, 
+  metadata: Partial<DesignMetadata>, 
+  userInput: DesignUserInput
+): Design {
   return {
     id: generateId(),
     imageUrl,
@@ -42,17 +107,12 @@ function createDesign(imageUrl, metadata, userInput) {
   };
 }
 
-/**
- * Generate unique ID
- */
-function generateId() {
-  return `design_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-}
+// ===== Public API =====
 
 /**
  * Get all designs from library
  */
-export function getAllDesigns() {
+export function getAllDesigns(): Design[] {
   try {
     // Auto-purge expired designs on read
     purgeExpiredDesigns();
@@ -68,12 +128,16 @@ export function getAllDesigns() {
 /**
  * Save design to library
  *
- * @param {string} imageUrl - URL or base64 of the image
- * @param {Object} metadata - Design metadata from generation
- * @param {Object} userInput - Original user input
- * @returns {Object} Saved design object
+ * @param imageUrl - URL or base64 of the image
+ * @param metadata - Design metadata from generation
+ * @param userInput - Original user input
+ * @returns Saved design object
  */
-export function saveDesign(imageUrl, metadata, userInput) {
+export function saveDesign(
+  imageUrl: string, 
+  metadata: Partial<DesignMetadata>, 
+  userInput: DesignUserInput
+): Design {
   try {
     const designs = getAllDesigns();
 
@@ -119,7 +183,7 @@ export function saveDesign(imageUrl, metadata, userInput) {
 /**
  * Get design by ID
  */
-export function getDesignById(designId) {
+export function getDesignById(designId: string): Design | undefined {
   const designs = getAllDesigns();
   return designs.find(d => d.id === designId);
 }
@@ -127,7 +191,7 @@ export function getDesignById(designId) {
 /**
  * Update design
  */
-export function updateDesign(designId, updates) {
+export function updateDesign(designId: string, updates: Partial<Design>): Design {
   try {
     const designs = getAllDesigns();
     const index = designs.findIndex(d => d.id === designId);
@@ -164,7 +228,7 @@ export function updateDesign(designId, updates) {
 /**
  * Delete design
  */
-export function deleteDesign(designId) {
+export function deleteDesign(designId: string): boolean {
   try {
     const designs = getAllDesigns();
     const filtered = designs.filter(d => d.id !== designId);
@@ -187,7 +251,7 @@ export function deleteDesign(designId) {
 /**
  * Toggle favorite status
  */
-export function toggleFavorite(designId) {
+export function toggleFavorite(designId: string): Design {
   const design = getDesignById(designId);
   if (!design) throw new Error('Design not found');
 
@@ -199,14 +263,14 @@ export function toggleFavorite(designId) {
 /**
  * Add note to design
  */
-export function addNote(designId, note) {
+export function addNote(designId: string, note: string): Design {
   return updateDesign(designId, { notes: note });
 }
 
 /**
  * Add tags to design
  */
-export function addTags(designId, tags) {
+export function addTags(designId: string, tags: string[]): Design {
   const design = getDesignById(designId);
   if (!design) throw new Error('Design not found');
 
@@ -218,7 +282,7 @@ export function addTags(designId, tags) {
 /**
  * Get designs by style
  */
-export function getDesignsByStyle(style) {
+export function getDesignsByStyle(style: string): Design[] {
   const designs = getAllDesigns();
   return designs.filter(d => d.userInput.style === style);
 }
@@ -226,7 +290,7 @@ export function getDesignsByStyle(style) {
 /**
  * Get favorite designs
  */
-export function getFavoriteDesigns() {
+export function getFavoriteDesigns(): Design[] {
   const designs = getAllDesigns();
   return designs.filter(d => d.favorite);
 }
@@ -234,7 +298,7 @@ export function getFavoriteDesigns() {
 /**
  * Get recent designs
  */
-export function getRecentDesigns(limit = 10) {
+export function getRecentDesigns(limit: number = 10): Design[] {
   const designs = getAllDesigns();
   return designs.slice(0, limit);
 }
@@ -242,7 +306,7 @@ export function getRecentDesigns(limit = 10) {
 /**
  * Search designs
  */
-export function searchDesigns(query) {
+export function searchDesigns(query: string): Design[] {
   const designs = getAllDesigns();
   const lowerQuery = query.toLowerCase();
 
@@ -253,7 +317,7 @@ export function searchDesigns(query) {
       d.userInput.bodyPart,
       d.notes,
       ...d.tags
-    ].join(' ').toLowerCase();
+    ].filter(Boolean).join(' ').toLowerCase();
 
     return searchableText.includes(lowerQuery);
   });
@@ -262,21 +326,25 @@ export function searchDesigns(query) {
 /**
  * Get library statistics
  */
-export function getLibraryStats() {
+export function getLibraryStats(): LibraryStats {
   const designs = getAllDesigns();
 
-  const styleCount = {};
-  const bodyPartCount = {};
+  const styleCount: Record<string, number> = {};
+  const bodyPartCount: Record<string, number> = {};
   let favoriteCount = 0;
 
   designs.forEach(d => {
     // Count by style
     const style = d.userInput.style;
-    styleCount[style] = (styleCount[style] || 0) + 1;
+    if (style) {
+      styleCount[style] = (styleCount[style] || 0) + 1;
+    }
 
     // Count by body part
     const bodyPart = d.userInput.bodyPart;
-    bodyPartCount[bodyPart] = (bodyPartCount[bodyPart] || 0) + 1;
+    if (bodyPart) {
+      bodyPartCount[bodyPart] = (bodyPartCount[bodyPart] || 0) + 1;
+    }
 
     // Count favorites
     if (d.favorite) favoriteCount++;
@@ -295,9 +363,9 @@ export function getLibraryStats() {
 /**
  * Export library as JSON
  */
-export function exportLibrary() {
+export function exportLibrary(): void {
   const designs = getAllDesigns();
-  const exportData = {
+  const exportData: ExportData = {
     version: '1.0',
     exportedAt: new Date().toISOString(),
     designs
@@ -320,13 +388,18 @@ export function exportLibrary() {
 /**
  * Import library from JSON
  */
-export function importLibrary(file) {
+export function importLibrary(file: File): Promise<ImportResult> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 
     reader.onload = (event) => {
       try {
-        const importData = JSON.parse(event.target.result);
+        const result = event.target?.result;
+        if (typeof result !== 'string') {
+          throw new Error('Failed to read file');
+        }
+        
+        const importData = JSON.parse(result) as ExportData;
 
         if (!importData.designs || !Array.isArray(importData.designs)) {
           throw new Error('Invalid library format');
@@ -343,10 +416,10 @@ export function importLibrary(file) {
           )
           .slice(0, MAX_DESIGNS);
 
-        const result = safeLocalStorageSet(LIBRARY_STORAGE_KEY, uniqueDesigns);
+        const saveResult = safeLocalStorageSet(LIBRARY_STORAGE_KEY, uniqueDesigns);
         
-        if (!result.success) {
-          throw new Error(result.error || 'Failed to import library');
+        if (!saveResult.success) {
+          throw new Error(saveResult.error || 'Failed to import library');
         }
 
         resolve({
@@ -366,8 +439,8 @@ export function importLibrary(file) {
 /**
  * Clear entire library
  */
-export function clearLibrary() {
-  if (confirm('Are you sure you want to delete all saved designs? This cannot be undone.')) {
+export function clearLibrary(): boolean {
+  if (typeof window !== 'undefined' && window.confirm('Are you sure you want to delete all saved designs? This cannot be undone.')) {
     localStorage.removeItem(LIBRARY_STORAGE_KEY);
     return true;
   }
