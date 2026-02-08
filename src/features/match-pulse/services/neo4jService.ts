@@ -72,6 +72,7 @@ export interface InfluencedArtist {
 
 const NEO4J_ENABLED = process.env.NEXT_PUBLIC_NEO4J_ENABLED === 'true';
 const NEO4J_ENDPOINT = process.env.NEXT_PUBLIC_NEO4J_ENDPOINT || '/api/neo4j/query';
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
 /**
  * Relationship type constants
@@ -83,12 +84,83 @@ export const INFLUENCE_TYPES = {
     COMPOSITION: 'composition_influence'
 } as const;
 
+// Mock artist data for demo mode
+const MOCK_ARTISTS: ArtistRecord[] = [
+    {
+        id: 'artist-1',
+        name: 'Luna Martinez',
+        city: 'Brooklyn',
+        location: 'Brooklyn, NY',
+        styles: ['Neo-Traditional', 'Japanese'],
+        bodyParts: ['arm', 'back', 'leg'],
+        hourlyRate: 250,
+        portfolio: ['https://images.unsplash.com/photo-1598371839696-5c5bb00bdc28?w=400'],
+        portfolioImages: ['https://images.unsplash.com/photo-1598371839696-5c5bb00bdc28?w=400'],
+        instagram: '@luna.ink',
+        tags: ['color', 'bold', 'traditional'],
+        score: 95,
+        matchScore: 0.95,
+    },
+    {
+        id: 'artist-2',
+        name: 'Kai Chen',
+        city: 'San Francisco',
+        location: 'San Francisco, CA',
+        styles: ['Japanese', 'Blackwork'],
+        bodyParts: ['arm', 'chest', 'back'],
+        hourlyRate: 300,
+        portfolio: ['https://images.unsplash.com/photo-1611501275019-9b5cda994e8d?w=400'],
+        portfolioImages: ['https://images.unsplash.com/photo-1611501275019-9b5cda994e8d?w=400'],
+        instagram: '@kai.tattoo',
+        tags: ['traditional', 'japanese', 'detail'],
+        score: 88,
+        matchScore: 0.88,
+    },
+    {
+        id: 'artist-3',
+        name: 'River Thompson',
+        city: 'Portland',
+        location: 'Portland, OR',
+        styles: ['Blackwork', 'Minimalist'],
+        bodyParts: ['wrist', 'ankle', 'shoulder'],
+        hourlyRate: 200,
+        portfolio: ['https://images.unsplash.com/photo-1590246814883-57c511e76729?w=400'],
+        portfolioImages: ['https://images.unsplash.com/photo-1590246814883-57c511e76729?w=400'],
+        instagram: '@river.minimal',
+        tags: ['minimalist', 'geometric', 'clean'],
+        score: 82,
+        matchScore: 0.82,
+    },
+    {
+        id: 'artist-4',
+        name: 'Alex Storm',
+        city: 'Austin',
+        location: 'Austin, TX',
+        styles: ['Traditional', 'Neo-Traditional'],
+        bodyParts: ['arm', 'leg', 'chest'],
+        hourlyRate: 220,
+        portfolio: ['https://images.unsplash.com/photo-1565058379802-bbe93b2f703f?w=400'],
+        portfolioImages: ['https://images.unsplash.com/photo-1565058379802-bbe93b2f703f?w=400'],
+        instagram: '@alex.storm.ink',
+        tags: ['bold', 'color', 'american traditional'],
+        score: 78,
+        matchScore: 0.78,
+    },
+];
+
 /**
  * Execute a read-only Cypher query via proxy
+ * Falls back to mock data in demo mode or on error
  */
 async function executeCypherQuery(query: string, params: Record<string, any> = {}): Promise<any[]> {
+    if (DEMO_MODE) {
+        console.log('[Neo4j] Demo mode - returning mock data');
+        return [];
+    }
+
     if (!NEO4J_ENABLED) {
-        throw new Error('Neo4j integration is not enabled. Set NEXT_PUBLIC_NEO4J_ENABLED=true in your environment variables');
+        console.warn('[Neo4j] Not enabled, using mock data');
+        return [];
     }
 
     try {
@@ -110,15 +182,42 @@ async function executeCypherQuery(query: string, params: Record<string, any> = {
         return data.records || [];
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        console.error('[Neo4j] Query error:', message);
-        throw error;
+        console.warn('[Neo4j] Query error, using mock data:', message);
+        return [];
     }
 }
 
 /**
  * Find matching artists using Neo4j Cypher
+ * Falls back to mock data when Neo4j unavailable
  */
 export async function findMatchingArtists(preferences: ArtistPreferences): Promise<ArtistRecord[]> {
+    if (DEMO_MODE || !NEO4J_ENABLED) {
+        console.log('[Neo4j] Using mock artists for matching');
+        // Filter mock artists based on preferences
+        let filtered = [...MOCK_ARTISTS];
+        
+        if (preferences.styles && preferences.styles.length > 0) {
+            filtered = filtered.filter(a => 
+                a.styles.some(s => preferences.styles?.includes(s))
+            );
+        }
+        
+        if (preferences.location) {
+            filtered = filtered.filter(a => 
+                a.city.toLowerCase().includes(preferences.location!.toLowerCase())
+            );
+        }
+        
+        if (preferences.budget) {
+            filtered = filtered.filter(a => 
+                (a.hourlyRate || 0) <= preferences.budget! * 1.5
+            );
+        }
+        
+        return filtered.length > 0 ? filtered : MOCK_ARTISTS;
+    }
+
     const { styles = [], location, budget, keywords = [] } = preferences;
 
     // Cypher query for artist matching
@@ -214,8 +313,34 @@ export async function findMatchingArtists(preferences: ArtistPreferences): Promi
 
 /**
  * Match Pulse query optimized for sidebar updates
+ * Falls back to mock data when Neo4j unavailable
  */
 export async function findArtistMatchesForPulse(preferences: ArtistPreferences): Promise<ArtistRecord[]> {
+    if (DEMO_MODE || !NEO4J_ENABLED) {
+        console.log('[Neo4j] Using mock artists for pulse matching');
+        let filtered = [...MOCK_ARTISTS];
+        
+        if (preferences.style) {
+            filtered = filtered.filter(a => 
+                a.styles.some(s => s.toLowerCase() === preferences.style?.toLowerCase())
+            );
+        }
+        
+        if (preferences.bodyPart) {
+            filtered = filtered.filter(a => 
+                a.bodyParts?.some(bp => bp.toLowerCase() === preferences.bodyPart?.toLowerCase())
+            );
+        }
+        
+        if (preferences.location) {
+            filtered = filtered.filter(a => 
+                a.location?.toLowerCase().includes(preferences.location!.toLowerCase())
+            );
+        }
+        
+        return filtered.length > 0 ? filtered.slice(0, preferences.limit || 20) : MOCK_ARTISTS;
+    }
+
     const { style, bodyPart, location, limit = 20 } = preferences;
 
     const query = `

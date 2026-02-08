@@ -1,5 +1,5 @@
-import { PAPER_SIZES, validateDimensions, validateDPI, DEFAULT_DPI } from '../utils/stencilCalibration';
-import { createStencilPDF } from '../utils/pdfGenerator';
+import { PAPER_SIZES, validateDimensions, validateDPI, DEFAULT_DPI } from '@/utils/stencilCalibration';
+import { createStencilPDF } from '@/utils/pdfGenerator';
 
 /**
  * Stencil Processing Service

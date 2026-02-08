@@ -5,7 +5,7 @@
  */
 
 import { useMemo } from 'react';
-import { Layer, LayerWithImages, getLayersByZIndex } from '@/services/canvasService';
+import { Layer, LayerWithImages, getLayersByZIndex } from '../services/canvasService';
 import { useForgeStore } from '@/stores/useForgeStore';
 import { getImageUrl } from '@/services/forgeImageRegistry';
 

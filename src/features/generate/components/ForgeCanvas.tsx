@@ -9,10 +9,10 @@ import { Stage, Layer as KonvaLayer, Image as KonvaImage, Circle } from 'react-k
 import { motion, AnimatePresence } from 'framer-motion';
 import { BodyPart } from '@/constants/bodyPartAspectRatios';
 import { useCanvasAspectRatio } from '@/hooks/useCanvasAspectRatio';
-import { CanvasSilhouette } from './CanvasSilhouette';
-import { LayerWithImages, getCompositeOperation } from '@/services/canvasService';
+import { CanvasSilhouette } from '@/components/generate/CanvasSilhouette';
+import { LayerWithImages, getCompositeOperation } from '../services/canvasService';
 import { loadImageWithCancel } from '@/services/imageLoadManager';
-import TransformHandles from '../Forge/TransformHandles';
+import TransformHandles from './Forge/TransformHandles';
 
 interface ForgeCanvasProps {
     bodyPart: BodyPart;
