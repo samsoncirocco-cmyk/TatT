@@ -46,6 +46,50 @@ const COUNCIL_MEMBERS = {
 const CHARACTER_MAP = buildCharacterMap();
 const CHARACTER_NAMES = getAllCharacterNames();
 
+// 1) Token estimation (cheap approximation; avoids heavy tokenizers client-side)
+export function estimateTokenCount(text: string): number {
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  return Math.ceil(words * 1.3); // ~1.3 tokens per word (rough GPT-2-ish heuristic)
+}
+
+// 2) Prompt validation with max token limit
+export function validatePromptLength(
+  prompt: string,
+  maxTokens: number = 450
+): { valid: boolean; error?: string; suggestion?: string; tokenCount: number } {
+  const tokenCount = estimateTokenCount(prompt || '');
+  if (tokenCount > maxTokens) {
+    return {
+      valid: false,
+      tokenCount,
+      error: `Prompt too long (${tokenCount} tokens, max ${maxTokens})`,
+      suggestion: 'Simplify your description or disable council enhancement'
+    };
+  }
+  return { valid: true, tokenCount };
+}
+
+// 3) Body-specific aspect ratio guidance (used to bias composition in prompt enhancement)
+export function getAspectRatioGuidance(bodyPart: string): string {
+  const guidance: Record<string, string> = {
+    forearm: 'vertical orientation, tall narrow canvas (1:3 ratio)',
+    shin: 'vertical orientation, elongated (1:3 ratio)',
+    chest: 'square-ish format, slightly wider than tall (4:5 ratio)',
+    back: 'vertical rectangle, portrait orientation (2:3 ratio)',
+    thigh: 'vertical oval shape (1:2 ratio)',
+    shoulder: 'radial composition, follows joint curvature',
+    bicep: 'circular to oval, wraps around arm (1:1 ratio)',
+    calf: 'vertical elongated (1:2 ratio)',
+    ribcage: 'vertical, follows torso contour (2:3 ratio)',
+    neck: 'vertical narrow column (1:4 ratio)',
+    hand: 'square to slightly tall (4:5 ratio)',
+    foot: 'horizontal landscape (3:2 ratio)'
+  };
+
+  const key = (bodyPart || '').toLowerCase().trim();
+  return guidance[key] || 'balanced composition';
+}
+
 function parseJsonFromText(text: string) {
   if (!text) return null;
   try {
@@ -256,6 +300,7 @@ const MOCK_RESPONSES = {
 
 function buildCouncilSystemPrompt({ bodyPart, isStencilMode }: { bodyPart: string; isStencilMode: boolean }) {
   const flowToken = COUNCIL_SKILL_PACK.anatomicalFlow[bodyPart] || '';
+  const aspectRatioGuidance = getAspectRatioGuidance(bodyPart);
   const stencilRule = isStencilMode
     ? 'STENCIL INTEGRITY: prioritize binary line-art and avoid gradients or soft shading.'
     : 'STENCIL INTEGRITY: only apply stencil rules when requested.';
@@ -263,6 +308,7 @@ function buildCouncilSystemPrompt({ bodyPart, isStencilMode }: { bodyPart: strin
   return [
     'You are a Senior Tattoo Architect on the TatT AI Council.',
     'Your goal is to produce elite, tattoo-ready prompts.',
+    `COMPOSITION (ASPECT RATIO): ${aspectRatioGuidance}`,
     `POSITIONAL ANCHORING: ${COUNCIL_SKILL_PACK.positionalInstructions}`,
     `ANATOMICAL FLOW: ${flowToken || 'Use body-part appropriate flow guidance.'}`,
     `AESTHETIC ANCHORS: ${COUNCIL_SKILL_PACK.aestheticAnchors}`,
@@ -452,10 +498,12 @@ async function enhancePromptWithVertexAI({
   const accessToken = await getGcpAccessToken();
   const endpoint = `https://${REGION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/publishers/google/models/${GEMINI_MODEL}:generateContent`;
 
+  const aspectGuidance = getAspectRatioGuidance(bodyPart);
   const systemPrompt = `You are an expert tattoo design consultant. Your role is to enhance user ideas into detailed, professional tattoo prompts.
 
 Style: ${style}
 Body Part: ${bodyPart}
+Composition guidance: ${aspectGuidance}
 Stencil Mode: ${isStencilMode ? 'Yes (line art only)' : 'No (full color)'}
 
 Generate THREE versions of the prompt:
@@ -554,6 +602,15 @@ export async function enhancePrompt({
   const resolvedStencilMode = isStencilMode === null
     ? detectStencilMode(userIdea)
     : Boolean(isStencilMode);
+
+  const validation = validatePromptLength(userIdea);
+  if (!validation.valid) {
+    const error: any = new Error(validation.error);
+    error.code = 'PROMPT_TOO_LONG';
+    error.suggestion = validation.suggestion;
+    error.tokenCount = validation.tokenCount;
+    throw error;
+  }
 
   const modelSelectionPromise = selectModelWithFallback(style, userIdea, bodyPart);
 

@@ -178,6 +178,17 @@ describe('CouncilService - Skill Pack Integration', () => {
       expect(result).toBeDefined();
       expect(result.prompts).toBeDefined();
     });
+
+    it('should reject prompts that exceed the token budget', async () => {
+      // ~520 words => ~676 tokens by our heuristic (over 450)
+      const tooLong = Array.from({ length: 520 }, () => 'word').join(' ');
+
+      await expect(enhancePrompt({
+        userIdea: tooLong,
+        style: 'traditional',
+        bodyPart: 'forearm'
+      })).rejects.toThrow(/Prompt too long/);
+    });
   });
 
   describe('Callback Integration', () => {
