@@ -5,17 +5,17 @@
  * to enable semantic artist discovery beyond keyword matching.
  */
 
-import { searchSimilar } from './vectorDbService';
-import { VECTOR_DB_CONFIG } from '../config/vectorDbConfig';
+import { searchSimilar } from '@/services/vectorDbService';
+import { VECTOR_DB_CONFIG } from '@/config/vectorDbConfig';
 import { findMatchingArtists as findGraphArtists, findArtistsByEmbeddingIds } from './neo4jService';
 import {
     calculateCompositeScore,
     generateMatchReasoning,
     mergeResults,
     DEFAULT_WEIGHTS
-} from '../utils/scoreAggregation';
-import { fetchWithAbort } from './fetchWithAbort';
-import { generateQueryEmbedding as generateVertexEmbedding } from './embeddingService';
+} from '@/utils/scoreAggregation';
+import { fetchWithAbort } from '@/services/fetchWithAbort';
+import { generateQueryEmbedding as generateVertexEmbedding } from '@/services/embeddingService';
 
 // Type Definitions
 export interface QueryPreferences {

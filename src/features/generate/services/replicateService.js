@@ -11,7 +11,7 @@
  * - Implement caching and rate limiting to control costs
  */
 
-import { buildPrompt, validateInput } from '../config/promptTemplates.js';
+import { buildPrompt, validateInput } from '@/config/promptTemplates.js';
 import {
   fetchJSON,
   postJSON,
@@ -19,8 +19,8 @@ import {
   ErrorCodes,
   getUserErrorMessage,
   isErrorCode
-} from './fetchWithAbort.js';
-import { routeGeneration } from './generationRouter.js';
+} from '@/services/fetchWithAbort.js';
+import { routeGeneration } from '@/services/generationRouter.js';
 
 // Proxy server configuration (injected via env)
 // Use Next.js relative API path

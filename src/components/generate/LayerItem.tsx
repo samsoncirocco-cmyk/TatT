@@ -6,7 +6,7 @@
 
 import { useState } from 'react';
 import { Eye, EyeOff, GripVertical, Trash2, Image as ImageIcon } from 'lucide-react';
-import { LayerWithImages } from '../../services/canvasService';
+import { LayerWithImages } from '@/features/generate/services/canvasService';
 
 interface LayerItemProps {
     layer: LayerWithImages;
