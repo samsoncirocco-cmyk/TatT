@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyApiAuth } from '@/lib/api-auth';
 
 export const runtime = 'edge';
 
 const REPLICATE_API_URL = 'https://api.replicate.com/v1';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const authError = verifyApiAuth(req);
+    if (authError) return authError;
+
     const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
     // Await params in Next.js 15+ (if using recent version, param/searchParams are promises)
     // Assuming Next.js 14/15 here based on "manama-next"

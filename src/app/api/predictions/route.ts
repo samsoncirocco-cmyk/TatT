@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyApiAuth } from '@/lib/api-auth';
 
 export const runtime = 'edge';
 
 const REPLICATE_API_URL = 'https://api.replicate.com/v1';
 
 export async function POST(req: NextRequest) {
+    const authError = verifyApiAuth(req);
+    if (authError) return authError;
+
     const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
 
     if (!REPLICATE_API_TOKEN) {
