@@ -5,7 +5,7 @@
  */
 
 import { ChevronDown } from 'lucide-react';
-import { AI_MODELS } from '../../services/replicateService';
+import { AI_MODELS } from '@/features/generate/services/replicateService';
 
 const SIZE_OPTIONS = [
     { value: 'small', label: 'Small', description: '2-3 inches' },

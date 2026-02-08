@@ -7,7 +7,7 @@
 
 import { searchSimilar } from '@/services/vectorDbService';
 import { VECTOR_DB_CONFIG } from '@/config/vectorDbConfig';
-import { findMatchingArtists as findGraphArtists, findArtistsByEmbeddingIds } from './neo4jService';
+import { findMatchingArtists as findGraphArtists, findArtistsByEmbeddingIds } from './neo4jService.ts';
 import {
     calculateCompositeScore,
     generateMatchReasoning,
