@@ -196,13 +196,13 @@ export async function generateThumbnail(imageUrl: string, size: number = 64): Pr
     return new Promise((resolve, reject) => {
         const img = new Image();
         img.crossOrigin = 'anonymous';
-        let timeoutId: number | null = null;
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
         const cleanup = () => {
             img.onload = null;
             img.onerror = null;
             if (timeoutId !== null) {
-                window.clearTimeout(timeoutId);
+                clearTimeout(timeoutId);
             }
         };
 
@@ -243,7 +243,7 @@ export async function generateThumbnail(imageUrl: string, size: number = 64): Pr
             cleanup();
             reject(new Error('Failed to load image'));
         };
-        timeoutId = window.setTimeout(() => {
+        timeoutId = setTimeout(() => {
             cleanup();
             reject(new Error('Thumbnail generation timed out'));
         }, 8000);
@@ -259,11 +259,11 @@ export function updateLayerTransform(
     layerId: string,
     transform: Partial<Layer['transform']>
 ): Layer[] {
-    return layers.map(layer =>
-        layer.id === layerId
-            ? { ...layer, transform: { ...layer.transform, ...transform } }
-            : layer
-    );
+    const index = layers.findIndex(layer => layer.id === layerId);
+    if (index === -1) return layers;
+    const updated = [...layers];
+    updated[index] = { ...layers[index], transform: { ...layers[index].transform, ...transform } };
+    return updated;
 }
 
 /**

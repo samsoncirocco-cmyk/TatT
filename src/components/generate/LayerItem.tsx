@@ -7,6 +7,7 @@
 import { useState } from 'react';
 import { Eye, EyeOff, GripVertical, Trash2, Image as ImageIcon } from 'lucide-react';
 import { LayerWithImages } from '../../services/canvasService';
+import { getImageUrl } from '../../services/forgeImageRegistry';
 
 interface LayerItemProps {
     layer: LayerWithImages;
@@ -31,6 +32,7 @@ export default function LayerItem({
 }: LayerItemProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [editName, setEditName] = useState(layer.name);
+    const thumbnailUrl = layer.thumbnail || getImageUrl(layer.thumbnailRef);
 
     const handleNameSubmit = () => {
         if (editName.trim() && editName !== layer.name) {
@@ -89,9 +91,9 @@ export default function LayerItem({
 
             {/* Thumbnail */}
             <div className="w-12 h-12 rounded-lg overflow-hidden bg-black/40 border border-white/10 flex-shrink-0">
-                {layer.thumbnail ? (
+                {thumbnailUrl ? (
                     <img
-                        src={layer.thumbnail}
+                        src={thumbnailUrl}
                         alt={layer.name}
                         className="w-full h-full object-cover"
                     />
