@@ -28,7 +28,7 @@ import type { BodyPart } from '../constants/bodyPartAspectRatios';
 import { registerImage, releaseImageRef, retainImageRef } from '../services/forgeImageRegistry';
 
 const STORAGE_KEY = 'canvas_layers';
-const MAX_HISTORY = 50;
+const MAX_HISTORY = 20;
 
 type HistoryEntry =
     | {
