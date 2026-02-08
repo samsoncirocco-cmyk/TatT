@@ -1,65 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs/promises';
-import path from 'path';
+import { verifyApiAuth } from '@/lib/api-auth';
 import crypto from 'crypto';
-import os from 'os';
+import { uploadToGCS } from '@/services/gcs-service';
 
 export const runtime = 'nodejs';
 
-// Use temp dir
-const UPLOAD_DIR = path.join(os.tmpdir(), 'manama-uploads');
-
-async function ensureUploadDir() {
-    await fs.mkdir(UPLOAD_DIR, { recursive: true });
+function sanitizeFilename(name: string) {
+  const trimmed = (name || '').trim() || 'layer.png';
+  // Keep it boring: ascii, no slashes.
+  return trimmed
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .replace(/\.+/g, '.')
+    .replace(/_+/g, '_')
+    .slice(0, 80);
 }
 
 export async function POST(req: NextRequest) {
-    try {
-        const { imageData } = await req.json();
+  const authError = verifyApiAuth(req);
+  if (authError) return authError;
 
-        if (!imageData) {
-            return NextResponse.json({ error: 'Missing imageData in request body' }, { status: 400 });
-        }
+  try {
+    const { imageData, filename } = await req.json();
 
-        await ensureUploadDir();
-
-        let base64Data;
-        let mimeType = 'image/png';
-
-        if (imageData.startsWith('data:')) {
-            const matches = imageData.match(/^data:([^;]+);base64,(.+)$/);
-            if (!matches) {
-                return NextResponse.json({ error: 'Invalid data URL format' }, { status: 400 });
-            }
-            mimeType = matches[1];
-            base64Data = matches[2];
-        } else {
-            base64Data = imageData;
-        }
-
-        const hash = crypto.createHash('sha256').update(base64Data).digest('hex');
-        const fileId = `${hash.substring(0, 16)}_${Date.now()}`;
-        const extension = mimeType.split('/')[1] || 'png';
-        const allowedExtensions = new Set(['png', 'jpg', 'jpeg', 'webp']);
-        const safeExtension = allowedExtensions.has(extension) ? extension : 'png';
-        const generatedFilename = `layer_${fileId}.${safeExtension}`;
-
-        const buffer = Buffer.from(base64Data, 'base64');
-        const filepath = path.join(UPLOAD_DIR, generatedFilename);
-        await fs.writeFile(filepath, buffer);
-
-        const publicUrl = `/uploads/layers/${generatedFilename}`;
-
-        console.log(`[LayerUpload] Saved layer: ${generatedFilename} (${buffer.length} bytes)`);
-
-        return NextResponse.json({
-            url: publicUrl,
-            size: buffer.length,
-            id: fileId
-        });
-
-    } catch (error: any) {
-        console.error('[LayerUpload] Upload failed:', error);
-        return NextResponse.json({ error: 'Failed to upload layer', details: error.message }, { status: 500 });
+    if (!imageData || typeof imageData !== 'string' || !imageData.startsWith('data:image/')) {
+      return NextResponse.json({ error: 'Invalid image data' }, { status: 400 });
     }
+
+    const match = imageData.match(/^data:(.+?);base64,(.*)$/);
+    if (!match) {
+      return NextResponse.json({ error: 'Invalid data URL' }, { status: 400 });
+    }
+
+    const contentType = match[1] || 'image/png';
+    const buffer = Buffer.from(match[2], 'base64');
+    const hash = crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 12);
+
+    const safeName = sanitizeFilename(filename || 'layer.png');
+    const destinationPath = `layers/${Date.now()}_${hash}_${safeName}`;
+
+    const result = await uploadToGCS(buffer, destinationPath, {
+      contentType
+    });
+
+    return NextResponse.json({
+      url: result.url,
+      gcsPath: result.gcsPath
+    });
+  } catch (error: any) {
+    console.error('[UploadLayer] Error:', error);
+    return NextResponse.json(
+      { error: 'Upload failed', message: error?.message || 'Unknown error' },
+      { status: 500 }
+    );
+  }
 }
+
