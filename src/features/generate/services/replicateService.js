@@ -25,6 +25,7 @@ import { routeGeneration } from './generationRouter.js';
 // Proxy server configuration (injected via env)
 // Use Next.js relative API path
 const PROXY_URL = '/api';
+const AUTH_TOKEN = process.env.NEXT_PUBLIC_FRONTEND_AUTH_TOKEN || 'dev-token-change-in-production';
 console.log('[Replicate] Service Config:', { PROXY_URL, demoMode: process.env.NEXT_PUBLIC_DEMO_MODE });
 const VERTEX_GENERATE_URL = '/api/v1/generate';
 
@@ -394,10 +395,18 @@ export async function generateTattooDesign(userInput, modelId = null, signal = n
       predictionInput.output_quality = 100;
     }
 
-    const prediction = await postJSON(`${PROXY_URL}/predictions`, {
-      version: model.version,
-      input: predictionInput
-    });
+    const prediction = await postJSON(
+      `${PROXY_URL}/predictions`,
+      {
+        version: model.version,
+        input: predictionInput
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${AUTH_TOKEN}`
+        }
+      }
+    );
 
     console.log('[Replicate] Prediction created:', prediction.id);
 
@@ -428,7 +437,12 @@ export async function generateTattooDesign(userInput, modelId = null, signal = n
         throw new Error('Generation cancelled');
       }
 
-      result = await fetchJSON(`${PROXY_URL}/predictions/${prediction.id}`, { signal });
+      result = await fetchJSON(`${PROXY_URL}/predictions/${prediction.id}`, {
+        signal,
+        headers: {
+          Authorization: `Bearer ${AUTH_TOKEN}`
+        }
+      });
       attempts++;
 
       console.log(`[Replicate] Status: ${result.status} (attempt ${attempts}/${maxAttempts})`);
