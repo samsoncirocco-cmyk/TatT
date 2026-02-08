@@ -50,7 +50,7 @@ import {
     processGenerationResult,
     addMultipleLayers,
     shouldUseMultiLayer
-} from '../services/multiLayerService';
+} from './generate/services/multiLayerService';
 
 const TRENDING_EXAMPLES = [
     {
@@ -506,6 +506,7 @@ export default function Generate() {
             }
         } catch (error) {
             console.error('Enhancement failed:', error);
+            toast.error(error?.message || 'Council enhancement failed');
         } finally {
             setIsEnhancing(false);
         }
