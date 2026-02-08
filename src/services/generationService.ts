@@ -118,8 +118,10 @@ async function callImagen(options: GenerationOptions) {
 
 export async function generateWithRetry(options: GenerationOptions): Promise<GenerationResult> {
   const startedAt = Date.now();
-  const retryAttempts = options.retry?.attempts ?? 2;
-  const baseDelayMs = options.retry?.baseDelayMs ?? 400;
+  // attempts here means "number of retries after the first try"
+  // Default 4 => 5 total attempts, matching production-hardening expectations.
+  const retryAttempts = options.retry?.attempts ?? 4;
+  const baseDelayMs = options.retry?.baseDelayMs ?? 1000;
 
   let attempts = 0;
   let lastError: any = null;
@@ -169,7 +171,12 @@ export async function generateWithRetry(options: GenerationOptions): Promise<Gen
       const status = error?.status;
       const isRetryable = status && RETRYABLE_STATUS.has(status);
       if (!isRetryable || attempts > retryAttempts) break;
-      await sleep(baseDelayMs * attempts);
+
+      // Exponential backoff (capped) to play nice with quota throttling and transient outages.
+      const exponent = Math.max(0, attempts - 1);
+      const delayMs = Math.min(baseDelayMs * Math.pow(2, exponent), 8000);
+      console.log(`[Generation] Retry ${attempts}/${retryAttempts + 1} after ${delayMs}ms (status=${status})`);
+      await sleep(delayMs);
     }
   }
 
