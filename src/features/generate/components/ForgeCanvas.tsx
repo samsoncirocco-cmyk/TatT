@@ -12,7 +12,7 @@ import { useCanvasAspectRatio } from '@/hooks/useCanvasAspectRatio';
 import { CanvasSilhouette } from './CanvasSilhouette';
 import { LayerWithImages, getCompositeOperation } from '@/services/canvasService';
 import { loadImageWithCancel } from '@/services/imageLoadManager';
-import TransformHandles from '../Forge/TransformHandles';
+import TransformHandles from './Forge/TransformHandles';
 
 interface ForgeCanvasProps {
     bodyPart: BodyPart;

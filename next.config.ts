@@ -1,9 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Prevent Next from inferring a higher-level monorepo root when multiple lockfiles exist.
+  outputFileTracingRoot: process.cwd(),
   // TypeScript strict checking enabled - Phase 2 complete
-  // Add empty turbopack config to silence warning
-  turbopack: {},
+  // Turbopack disabled — causes PostCSS sandbox errors in this environment
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {

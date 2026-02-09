@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import ArtistMatchCard from './ArtistMatchCard';
-import Button from '../ui/Button';
+import Button from '@/components/ui/Button';
 
 export default function MatchPulseSidebar({
   matches = [],

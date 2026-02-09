@@ -6,7 +6,7 @@
  */
 
 import { safeLocalStorageGet, safeLocalStorageSet } from './storageService.js';
-import { generateLayerId } from '../lib/layerUtils.js';
+import { generateLayerId } from '@/lib/layerUtils.js';
 
 const VERSION_STORAGE_KEY_PREFIX = 'tattester_version_history_';
 const MAX_VERSIONS_PER_DESIGN = 50;

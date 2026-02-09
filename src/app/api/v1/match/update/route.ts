@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
             embeddingVector
         };
 
-        const matchResults = await getHybridArtistMatches(context, {
+        const matchResults: any = await getHybridArtistMatches(context, {
             embeddingVector,
             limit: 20
         });

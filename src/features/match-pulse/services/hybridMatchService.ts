@@ -6,14 +6,14 @@
  */
 
 import { searchSimilar } from './vectorDbService';
-import { VECTOR_DB_CONFIG } from '../config/vectorDbConfig';
+import { VECTOR_DB_CONFIG } from '@/config/vectorDbConfig.js';
 import { findMatchingArtists as findGraphArtists, findArtistsByEmbeddingIds } from './neo4jService';
 import {
     calculateCompositeScore,
     generateMatchReasoning,
     mergeResults,
     DEFAULT_WEIGHTS
-} from '../utils/scoreAggregation';
+} from '@/utils/scoreAggregation.js';
 import { fetchWithAbort } from './fetchWithAbort';
 import { generateQueryEmbedding as generateVertexEmbedding } from './embeddingService';
 
@@ -56,7 +56,7 @@ export interface MatchedArtist {
     compositeScore: number;
     score: number;
     matchScore: number;
-    scoreBreakdown: Record<string, number>;
+    scoreBreakdown: Record<string, unknown>;
     reasons: string[];
     visualSimilarity?: number;
     source?: 'vector' | 'graph';
@@ -305,7 +305,7 @@ export async function findMatchingArtists(
                     };
 
                     // Calculate composite score
-                    const { score, breakdown } = calculateCompositeScore(signals, DEFAULT_WEIGHTS);
+                    const { score, breakdown } = calculateCompositeScore(signals, DEFAULT_WEIGHTS) as { score: number; breakdown: Record<string, unknown> };
 
                     // Generate match reasoning
                     const reasons = generateMatchReasoning(signals, artist, preferences);
@@ -388,11 +388,11 @@ export async function findMatchingArtists(
  */
 function cleanCache(): void {
     const now = Date.now();
-    for (const [key, value] of queryCache.entries()) {
+    queryCache.forEach((value, key) => {
         if (now - value.timestamp > CACHE_TTL) {
             queryCache.delete(key);
         }
-    }
+    });
 }
 
 /**

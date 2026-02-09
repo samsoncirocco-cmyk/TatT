@@ -90,7 +90,7 @@ interface ForgeState {
     getSortedLayers: () => Layer[];
 }
 
-const baseStore = (set: any, get: any): ForgeState => {
+const baseStore = (set: any, get: () => ForgeState): ForgeState => {
     const cloneLayers = (layers: Layer[]) =>
         layers.map(layer => ({
             ...layer,

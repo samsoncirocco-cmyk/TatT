@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
             style: style,
             bodyPart: body_part,
             isStencilMode: isStencilMode
-        });
+        }) as any;
         const duration = Date.now() - startTime;
 
         // The service returns { prompts: {...}, negativePrompt, metadata }

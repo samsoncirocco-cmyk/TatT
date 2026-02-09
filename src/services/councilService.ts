@@ -43,8 +43,8 @@ const COUNCIL_MEMBERS = {
   }
 };
 
-const CHARACTER_MAP = buildCharacterMap();
-const CHARACTER_NAMES = getAllCharacterNames();
+const CHARACTER_MAP = buildCharacterMap() as Record<string, string>;
+const CHARACTER_NAMES = getAllCharacterNames() as string[];
 
 // 1) Token estimation (cheap approximation; avoids heavy tokenizers client-side)
 export function estimateTokenCount(text: string): number {
@@ -167,7 +167,10 @@ function applyCouncilSkillPack(prompts: Record<string, string>, negativePrompt: 
       context = { bodyPart: 'forearm', isStencilMode: false, characterMatches: [] };
     }
 
-    const flowToken = COUNCIL_SKILL_PACK.anatomicalFlow[context.bodyPart] || '';
+    const bodyPartKey =
+      typeof context.bodyPart === 'string' ? context.bodyPart.toLowerCase().trim() : '';
+    const anatomicalFlow = COUNCIL_SKILL_PACK.anatomicalFlow as Record<string, string>;
+    const flowToken = anatomicalFlow[bodyPartKey] || '';
     const spatialKeywords = COUNCIL_SKILL_PACK.spatialKeywords || [];
 
     const hardenedPrompts = Object.entries(prompts).reduce((acc, [level, prompt]) => {
@@ -299,7 +302,7 @@ const MOCK_RESPONSES = {
 };
 
 function buildCouncilSystemPrompt({ bodyPart, isStencilMode }: { bodyPart: string; isStencilMode: boolean }) {
-  const flowToken = COUNCIL_SKILL_PACK.anatomicalFlow[bodyPart] || '';
+  const flowToken = (COUNCIL_SKILL_PACK.anatomicalFlow as Record<string, string>)[bodyPart] || '';
   const aspectRatioGuidance = getAspectRatioGuidance(bodyPart);
   const stencilRule = isStencilMode
     ? 'STENCIL INTEGRITY: prioritize binary line-art and avoid gradients or soft shading.'
@@ -359,7 +362,7 @@ async function enhancePromptWithOpenRouter({
 }: any) {
   const startTime = Date.now();
   const councilSystemPrompt = buildCouncilSystemPrompt({ bodyPart, isStencilMode });
-  const flowToken = COUNCIL_SKILL_PACK.anatomicalFlow[bodyPart] || '';
+  const flowToken = (COUNCIL_SKILL_PACK.anatomicalFlow as Record<string, string>)[bodyPart] || '';
   const stencilHint = isStencilMode ? 'Stencil mode: prioritize clean, high-contrast linework.' : '';
 
   if (onDiscussionUpdate) {
@@ -626,7 +629,7 @@ export async function enhancePrompt({
   if (USE_VERTEX_AI && !DEMO_MODE) {
     try {
       if (isVertexAIConfigured()) {
-        const result = await enhancePromptWithVertexAI({
+        const result: any = await enhancePromptWithVertexAI({
           userIdea,
           style,
           bodyPart,
@@ -635,7 +638,7 @@ export async function enhancePrompt({
           requestId
         });
 
-        const modelSelection = await modelSelectionPromise;
+        const modelSelection: any = await modelSelectionPromise;
         result.modelSelection = {
           modelId: modelSelection.modelId,
           modelName: modelSelection.modelName,
@@ -662,7 +665,7 @@ export async function enhancePrompt({
   if (USE_OPENROUTER && !DEMO_MODE) {
     try {
       if (isOpenRouterConfigured()) {
-        const result = await enhancePromptWithOpenRouter({
+        const result: any = await enhancePromptWithOpenRouter({
           userIdea,
           style,
           bodyPart,
@@ -671,7 +674,7 @@ export async function enhancePrompt({
           requestId
         });
 
-        const modelSelection = await modelSelectionPromise;
+        const modelSelection: any = await modelSelectionPromise;
         result.modelSelection = {
           modelId: modelSelection.modelId,
           modelName: modelSelection.modelName,
@@ -705,7 +708,7 @@ export async function enhancePrompt({
       }
 
       setTimeout(async () => {
-        const modelSelection = await modelSelectionPromise;
+        const modelSelection: any = await modelSelectionPromise;
         const prompts = {
           simple: MOCK_RESPONSES.simple(userIdea, style),
           detailed: MOCK_RESPONSES.detailed(userIdea, style),
@@ -742,7 +745,7 @@ export async function enhancePrompt({
   }
 
   try {
-    const modelSelection = await modelSelectionPromise;
+    const modelSelection: any = await modelSelectionPromise;
 
     const response = await fetch(`${COUNCIL_API_URL}/prompt-generation`, {
       method: 'POST',
@@ -766,7 +769,7 @@ export async function enhancePrompt({
     const enhancementTime = Date.now() - startTime;
 
     const ultraPrompt = data.enhanced_prompts.ultra || data.enhanced_prompts.comprehensive;
-    const modelEnhancements = getModelPromptEnhancements(
+    const modelEnhancements: any = getModelPromptEnhancements(
       modelSelection.modelId,
       ultraPrompt,
       true
@@ -808,7 +811,7 @@ export async function enhancePrompt({
   } catch (error) {
     console.error('[CouncilService] Enhancement failed:', error);
 
-    const modelSelection = await modelSelectionPromise;
+    const modelSelection: any = await modelSelectionPromise;
     const enhancementTime = Date.now() - startTime;
 
     const prompts = {

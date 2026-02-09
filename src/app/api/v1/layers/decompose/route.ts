@@ -126,6 +126,9 @@ export async function POST(req: NextRequest) {
 
         // Vision API for Object Detection
         const visionClient = new ImageAnnotatorClient();
+        if (!visionClient.objectLocalization) {
+            return NextResponse.json({ error: 'Vision API objectLocalization not available' }, { status: 500 });
+        }
         const [result] = await visionClient.objectLocalization({
             image: { content: imageBuffer }
         });
