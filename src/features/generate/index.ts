@@ -1,5 +1,6 @@
 // Components
 export { ForgeCanvas } from './components/ForgeCanvas';
+export { default as MatchPulseSidebar } from './components/MatchPulseSidebar';
 export { default as VersionTimeline } from './components/VersionTimeline';
 export { default as VersionComparison } from './components/VersionComparison';
 export { default as ArtistMatchCard } from './components/ArtistMatchCard';
