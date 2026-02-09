@@ -1,5 +1,5 @@
 // Components
-export { default as ForgeCanvas } from './components/ForgeCanvas';
+export { ForgeCanvas } from './components/ForgeCanvas';
 export { default as VersionTimeline } from './components/VersionTimeline';
 export { default as VersionComparison } from './components/VersionComparison';
 export { default as ArtistMatchCard } from './components/ArtistMatchCard';

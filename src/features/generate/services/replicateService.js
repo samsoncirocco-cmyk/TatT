@@ -11,7 +11,7 @@
  * - Implement caching and rate limiting to control costs
  */
 
-import { buildPrompt, validateInput } from '../config/promptTemplates.js';
+import { buildPrompt, validateInput } from '@/config/promptTemplates.js';
 import {
   fetchJSON,
   postJSON,
@@ -531,12 +531,12 @@ export async function generateTattooDesign(userInput, modelId = null, signal = n
  * @param {Object} userInput - Design parameters
  * @param {string} modelId - Optional model ID to use
  * @param {AbortSignal} signal - Optional abort signal
- * @param {number} maxRetries - Maximum retry attempts (default: 3)
+ * @param {number} maxAttempts - Maximum total attempts (default: 5)
  * @returns {Promise<Object>} Generated design data
  */
-export async function generateWithRetry(userInput, modelId = null, signal = null, maxRetries = 3, options = {}) {
+export async function generateWithRetry(userInput, modelId = null, signal = null, maxAttempts = 5, options = {}) {
   let lastError;
-  let retryBudget = maxRetries;
+  const retryBudget = Math.max(1, Number(maxAttempts) || 5);
 
   for (let attempt = 1; attempt <= retryBudget; attempt++) {
     try {
@@ -566,8 +566,9 @@ export async function generateWithRetry(userInput, modelId = null, signal = null
         throw new Error(`Failed after ${retryBudget} attempts: ${error.message}`);
       }
 
-      // Wait before retrying (exponential backoff)
-      const waitTime = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+      // Wait before retrying (exponential backoff, capped).
+      // Matches the Vertex/Imagen retry posture (fast first retry; cap to avoid runaway waits).
+      const waitTime = Math.min(1000 * Math.pow(2, Math.max(0, attempt - 1)), 8000); // 1s, 2s, 4s, 8s...
       console.log(`[Replicate] Retrying in ${waitTime / 1000}s... (${retryBudget - attempt} retries left)`);
 
       await new Promise((resolve, reject) => {
@@ -730,9 +731,9 @@ export async function generateWithRateLimit(userInput, modelId = null, signal = 
 
   rateLimiter.recordRequest();
   if (options.fallbackChain && options.fallbackChain.length > 0) {
-    return generateWithFallbackChain(userInput, modelId, signal, 3, options);
+    return generateWithFallbackChain(userInput, modelId, signal, 5, options);
   }
-  return generateWithRetry(userInput, modelId, signal, 3, options);
+  return generateWithRetry(userInput, modelId, signal, 5, options);
 }
 
 async function generateWithFallbackChain(userInput, modelId, signal, maxRetries, options) {

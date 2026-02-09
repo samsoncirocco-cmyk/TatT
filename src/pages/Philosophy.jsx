@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import Button from '../components/ui/Button';
 
 export default function Philosophy() {
@@ -119,7 +119,7 @@ export default function Philosophy() {
 
             {/* Navigation */}
             <footer className="mt-20 text-center">
-                <Link to="/" className="text-gray-500 hover:text-white transition-colors text-[10px] font-bold uppercase tracking-[0.3em]">
+                <Link href="/" className="text-gray-500 hover:text-white transition-colors text-[10px] font-bold uppercase tracking-[0.3em]">
                     Return to Simulation Hub
                 </Link>
             </footer>

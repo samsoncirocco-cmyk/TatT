@@ -6,9 +6,35 @@ export { default as MatchSkeleton } from './components/Match/MatchSkeleton';
 
 // Services
 export * from './services/matchService';
-export * from './services/neo4jService';
+export {
+  type ArtistPreferences,
+  type ArtistRecord,
+  type Neo4jQueryResponse,
+  type ArtistGenealogy,
+  type InfluencedArtist,
+  INFLUENCE_TYPES,
+  // findMatchingArtists excluded — re-exported from hybridMatchService
+  findArtistMatchesForPulse,
+  isNeo4jEnabled,
+  getArtistById,
+  getArtistsByIds,
+  getArtistGenealogy,
+  getInfluencedArtists,
+  findArtistsByEmbeddingIds,
+  updateArtistEmbeddingId,
+} from './services/neo4jService';
 export * from './services/matchPulseIntegration';
-export * from './services/hybridMatchService';
+export {
+  findMatchingArtists,
+  clearCache,
+  getCacheStats,
+  type QueryPreferences,
+  type VectorSearchResult,
+  type GraphSearchResult,
+  type ScoreSignals,
+  type MatchedArtist,
+  type MatchResult,
+} from './services/hybridMatchService';
 export * from './services/matchUpdateService';
 
 // Hooks

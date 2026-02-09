@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
 import { findMatchingArtists, type MatchResult } from '@/services/hybridMatchService';
 
-// Edge runtime compatible (Neo4j driver is accessed via HTTP proxy service)
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
     // Auth check

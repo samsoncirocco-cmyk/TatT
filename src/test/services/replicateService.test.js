@@ -44,7 +44,7 @@ describe('replicateService smart preview', () => {
     });
 
     expect(postJSON).toHaveBeenCalledWith(
-      expect.stringContaining('/predictions'),
+      expect.stringContaining('/api/predictions'),
       expect.objectContaining({
         version: AI_MODELS.dreamshaper.version,
         input: expect.objectContaining({
@@ -52,6 +52,11 @@ describe('replicateService smart preview', () => {
           height: 512,
           num_outputs: 1,
           num_inference_steps: 4
+        })
+      }),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: expect.stringContaining('Bearer ')
         })
       })
     );
@@ -95,13 +100,18 @@ describe('replicateService high-res generation', () => {
     );
 
     expect(postJSON).toHaveBeenCalledWith(
-      expect.stringContaining('/predictions'),
+      expect.stringContaining('/api/predictions'),
       expect.objectContaining({
         version: AI_MODELS.sdxl.version,
         input: expect.objectContaining({
           num_outputs: 1,
           output_format: 'png',
           output_quality: 100
+        })
+      }),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: expect.stringContaining('Bearer ')
         })
       })
     );

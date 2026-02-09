@@ -12,7 +12,7 @@ import PromptInterface from '../components/generate/PromptInterface';
 import VibeChips from '../components/generate/VibeChips';
 import AdvancedOptions from '../components/generate/AdvancedOptions';
 import LayerStack from '../components/generate/LayerStack';
-import MatchPulse from './match-pulse/components/Match/MatchPulse';
+import MatchPulseSidebar from './generate/components/MatchPulseSidebar';
 import KeyboardShortcutsModal, { useKeyboardShortcuts } from '../components/KeyboardShortcutsModal';
 import BlendModeSelector from '../components/generate/BlendModeSelector';
 import ErrorBoundary from '../components/ErrorBoundary';
@@ -1463,7 +1463,13 @@ export default function Generate() {
                     {/* Right Sidebar - Match Pulse + Layer Stack */}
                     <div className="lg:col-span-12 xl:col-span-12 2xl:col-span-3">
                         <div className="space-y-6 2xl:sticky 2xl:top-24">
-                            <MatchPulse />
+                            <MatchPulseSidebar
+                                matches={matches}
+                                totalMatches={totalMatches}
+                                isLoading={isMatching}
+                                error={matchError}
+                                context={matchContext}
+                            />
 
                             <div className="glass-panel rounded-2xl border border-white/10 h-[360px] md:h-[calc(100vh-28rem)]">
                                 <LayerStack
