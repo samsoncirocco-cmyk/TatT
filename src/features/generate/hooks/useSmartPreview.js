@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { generatePreviewDesign } from '../services/replicateService';
-import { createAbortController } from '../services/fetchWithAbort';
+import { createAbortController } from '@/services/fetchWithAbort';
 
 const PREVIEW_STORAGE_KEY = 'tattester_generation_session';
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { subscribeToMatches } from '../services/firebase-match-service';
+import { subscribeToMatches } from '@/services/firebase-match-service';
 import { requestMatchUpdate } from '../services/matchUpdateService';
-import { useMatchStore } from '../store/useMatchStore';
+import { useMatchStore } from '@/store/useMatchStore';
 
 export function useRealtimeMatchPulse({ userId, context, currentDesign, debounceMs = 2000 } = {}) {
   const {

@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { subscribeToMatches } from '../../services/firebase-match-service';
+import { subscribeToMatches } from '@/services/firebase-match-service';
 import { requestMatchUpdate } from '../../services/matchUpdateService';
 import ArtistCard from './ArtistCard';
 

@@ -10,7 +10,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSo
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Layers, Plus } from 'lucide-react';
-import { LayerWithImages } from '../../services/canvasService';
+import { LayerWithImages } from '@/features/generate/services/canvasService';
 import LayerItem from './LayerItem';
 import Button from '../ui/Button';
 

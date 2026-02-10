@@ -5,7 +5,7 @@
  * Handles auto-saving versions, branching, and comparison data retrieval.
  */
 
-import { safeLocalStorageGet, safeLocalStorageSet } from './storageService.js';
+import { safeLocalStorageGet, safeLocalStorageSet } from '@/services/storageService.js';
 import { generateLayerId } from '@/lib/layerUtils.js';
 
 const VERSION_STORAGE_KEY_PREFIX = 'tattester_version_history_';

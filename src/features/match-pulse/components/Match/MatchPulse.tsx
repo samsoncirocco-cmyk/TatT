@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMatchStore, ArtistMatch } from '@/store/useMatchStore';
-import { SlideUp, FadeIn } from '../shared/Motion';
+import { SlideUp, FadeIn } from '@/components/shared/Motion';
 import MatchSkeleton from './MatchSkeleton';
 import { Heart, MapPin, Instagram, ExternalLink, X, ChevronRight, Info } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';

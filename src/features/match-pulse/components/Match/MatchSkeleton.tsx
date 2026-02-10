@@ -1,4 +1,4 @@
-import { Pulse } from '../shared/Motion';
+import { Pulse } from '@/components/shared/Motion';
 
 export default function MatchSkeleton() {
     return (

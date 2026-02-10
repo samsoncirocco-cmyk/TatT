@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
-import { findMatchingArtists, type MatchResult } from '@/services/hybridMatchService';
+import { findMatchingArtists, type MatchResult } from '@/features/match-pulse/services/hybridMatchService';
 
 export const runtime = 'nodejs';
 
