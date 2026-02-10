@@ -328,17 +328,31 @@ describe('Multi-Character Detection', () => {
 
 ## Current Test Coverage
 
+**Summary:** 197 tests passing across 14 test files (16 skipped), 0 failures
+
 **Well-Tested Areas:**
 - Character database and enhancement (`src/services/__tests__/councilService.test.js`)
+- Council verification: token counting, prompt validation, aspect ratio guidance, retry logic (`src/services/__tests__/councilService.verification.test.js` - 34 tests)
 - Council skill pack configuration (`src/config/councilSkillPack.test.js`)
 - Version service (`src/features/generate/services/versionService.test.js`)
+- Multi-layer RGBA service: layer separation, type inference, naming, error handling (`src/services/multiLayerService.test.js` - 34 tests)
+- Inpainting service: model config, mask canvas, cost estimation, API calls (`tests/inpaintingService.test.js` - 11 tests)
+- Stencil service: size presets, style presets, exported functions (`tests/stencilServiceFeature.test.js` - 12 tests)
+- Vibe chips: keyword suggestion extraction, category limits (`tests/vibeChips.test.js` - 10 tests)
+- Hybrid matching: score aggregation, composite scoring, merge results (`tests/hybridMatching.test.js` - 14 tests)
+- Model routing (`tests/modelRouting.test.js`)
+- Replicate service (`src/test/services/replicateService.test.js`)
 
-**Test Gaps:**
-- API routes (no tests detected)
-- React components (minimal component tests)
-- Hooks (no hook tests detected)
-- Multi-layer service edge cases
+**Skipped (need environment):**
+- Server proxy tests (`tests/server.test.js` - 7 skipped, needs running server)
+- DesignGenerator component tests (`tests/DesignGenerator.test.jsx` - 9 skipped, needs full DOM)
+
+**Remaining Gaps:**
+- API route handler tests (no direct route tests)
+- React component rendering tests (minimal)
+- Hook tests (no dedicated hook tests)
+- E2E tests (no Playwright/Cypress)
 
 ---
 
-*Testing analysis: 2026-01-31*
+*Testing analysis: 2026-02-09*

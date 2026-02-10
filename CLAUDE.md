@@ -66,7 +66,8 @@ npm run start              # Start production server
 npm run lint               # Run ESLint
 
 # Testing
-npm test                   # Run Jest tests (if configured)
+npm test                   # Run vitest (197 tests across 14 files)
+npm run test:watch         # Watch mode
 
 # Database Setup
 node scripts/setup-supabase-vector-schema.js  # Initialize Supabase schema
@@ -269,5 +270,5 @@ NEXT_PUBLIC_COUNCIL_DEMO_MODE=false
 
 ---
 
-**Last Updated:** 2026-02-08  
+**Last Updated:** 2026-02-09  
 **Maintained by:** Samson via OpenClaw

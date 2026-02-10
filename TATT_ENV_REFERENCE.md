@@ -1,6 +1,6 @@
 # 🔑 TatT Environment Variables Reference
 
-**Last Updated:** 2026-01-31
+**Last Updated:** 2026-02-09
 **Computer:** ciroccofam's MacBook
 **Location:** `~/conductor/workspaces/tatt-v1/`
 
@@ -52,14 +52,24 @@ NEXT_PUBLIC_VERTEX_IMAGEN_MODEL=imagen-3.0-generate-001
 NEXT_PUBLIC_VERTEX_VISION_MODEL=imagetext@001
 ```
 
+### Vertex AI Direct Access
+```bash
+VERTEX_PROJECT_ID=tatt-pro
+VERTEX_LOCATION=us-central1
+VERTEX_IMAGEN_MODEL=imagegeneration@006
+```
+**Usage:** Used by `vertex-imagen-client.js` for direct Vertex Imagen API calls (distinct from `GCP_PROJECT_ID`)
+
 ### Google Cloud Storage (GCS)
 ```bash
 NEXT_PUBLIC_GCS_BUCKET_NAME=tatt-pro-assets
 NEXT_PUBLIC_GCS_PROJECT_ID=tatt-pro
 GCS_BUCKET_NAME=tatt-pro-assets
+GCS_BUCKET=tatt-pro-assets
 GCS_PROJECT_ID=tatt-pro
 GCS_LOCATION=us-central1
 ```
+**Note:** Some code uses `GCS_BUCKET` (without `_NAME`), so both are needed
 **Bucket URL:** `gs://tatt-pro-assets`
 
 ---
@@ -114,6 +124,7 @@ SUPABASE_SERVICE_ROLE_KEY=sb_secret_DBun_2vz-tGuNyF_lBLt8w_IFHf1KCV
 ```bash
 NEO4J_URI=neo4j+s://36767c9d.databases.neo4j.io
 NEO4J_USERNAME=neo4j
+NEO4J_USER=neo4j
 NEO4J_PASSWORD=hULhcSIK-88HtRg9A4t-Rourj9wEieVbWSStVfplRmg
 ```
 
@@ -125,6 +136,18 @@ NEXT_PUBLIC_NEO4J_ENDPOINT=/api/neo4j/query
 
 **Dashboard:** https://console.neo4j.io
 **Usage:** Artist genealogy, mentorship networks, relationship matching
+
+---
+
+## 🎨 Replicate (Inpainting / Legacy Generation)
+
+### API Token
+```bash
+REPLICATE_API_TOKEN=r8_PLACEHOLDER_REPLACE_WITH_REAL_TOKEN
+```
+**Get Token:** https://replicate.com/account/api-tokens
+**Usage:** Inpainting (Stable Diffusion), legacy SDXL generation
+**Used By:** `server.js`, `src/app/api/predictions/route.ts`, `src/lib/segmentation.ts`
 
 ---
 
