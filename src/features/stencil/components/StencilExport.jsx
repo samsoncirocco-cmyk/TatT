@@ -11,7 +11,7 @@ import {
   calculateScaleFactor,
   suggestPaperSize,
   validateDimensions
-} from '../utils/stencilCalibration';
+} from '@/utils/stencilCalibration';
 
 const formatFileSize = (bytes) => {
   if (!bytes) return null;

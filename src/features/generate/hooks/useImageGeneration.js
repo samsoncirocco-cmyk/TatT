@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { generateHighResDesign } from '../services/replicateService';
-import { createAbortController } from '../services/fetchWithAbort';
-import { optimizeForAR } from '../services/imageProcessingService';
+import { createAbortController } from '@/services/fetchWithAbort';
+import { optimizeForAR } from '@/services/imageProcessingService';
 
 const GENERATION_STORAGE_KEY = 'tattester_generation_session';
 
