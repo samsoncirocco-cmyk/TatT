@@ -17,8 +17,7 @@ let postJSON;
 describe('replicateService smart preview', () => {
   beforeEach(() => {
     vi.resetModules();
-    vi.stubEnv('VITE_PROXY_URL', 'http://localhost:3001/api');
-    vi.stubEnv('VITE_DEMO_MODE', 'false');
+    vi.stubEnv('NEXT_PUBLIC_DEMO_MODE', 'false');
   });
 
   beforeEach(async () => {
@@ -69,8 +68,7 @@ describe('replicateService smart preview', () => {
 describe('replicateService high-res generation', () => {
   beforeEach(() => {
     vi.resetModules();
-    vi.stubEnv('VITE_PROXY_URL', 'http://localhost:3001/api');
-    vi.stubEnv('VITE_DEMO_MODE', 'false');
+    vi.stubEnv('NEXT_PUBLIC_DEMO_MODE', 'false');
   });
 
   beforeEach(async () => {

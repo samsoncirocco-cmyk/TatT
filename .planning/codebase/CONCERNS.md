@@ -1,14 +1,13 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-01-31
+**Analysis Date:** 2026-02-12 (updated)
 
 ## Tech Debt
 
-**Next.js/Vite Hybrid Architecture:**
-- Issue: Project has mixed Next.js App Router (src/app/) and legacy Vite/React Router code (src/pages/, src/features/, src/main.jsx)
-- Files: `src/pages/Generate.jsx`, `src/features/Generate.jsx`, `src/main.jsx`, `src/App.jsx` (legacy), alongside `src/app/page.tsx`, `src/app/generate/page.tsx` (Next.js)
-- Impact: Confusing architecture, duplicate routing logic, unclear which system is canonical. Build configuration conflicts between Vite and Next.js.
-- Fix approach: Complete migration to Next.js App Router. Remove all Vite-specific files (vite.config.js, src/main.jsx, src/App.jsx). Consolidate all pages under `src/app/`. Update all route components to use Next.js patterns.
+**~~Next.js/Vite Hybrid Architecture:~~ RESOLVED (2026-02-12)**
+- Deleted `src/main.jsx`, `src/App.jsx`, entire `src/pages/` directory (8 legacy route files)
+- Single canonical Generate at `src/features/Generate.jsx`, imported by `src/app/generate/page.tsx`
+- Zero VITE_ references remaining in source code
 
 **Mixed JavaScript/TypeScript Codebase:**
 - Issue: 37,662 lines of code split between .js/.jsx (legacy) and .ts/.tsx (modern). Inconsistent type safety across codebase.
@@ -16,23 +15,19 @@
 - Impact: Type errors caught only in TS files. No IntelliSense for JS files. Harder to refactor safely. Recent conversion effort (Phase 2) converted only 3 critical services.
 - Fix approach: Systematic conversion priority: (1) Services layer (councilService.js, multiLayerService.js, etc.), (2) Hooks, (3) Components. Use `allowJs: true` during transition. Add JSDoc type annotations as intermediate step.
 
-**Vite Environment Variables Still Present:**
-- Issue: 28 files still reference VITE_ environment variables despite Next.js migration
-- Files: `src/services/generationService.ts`, `src/services/embeddingService.ts`, `src/services/councilService.ts`, `src/features/generate/services/replicateService.js`, `src/config/vectorDbConfig.js`, and 23 others
-- Impact: Environment variables won't work in Next.js production build (requires NEXT_PUBLIC_ prefix for client-side). Silent failures in production.
-- Fix approach: Global find/replace VITE_ → NEXT_PUBLIC_ for client-side vars. Move server-side vars to use process.env directly in API routes. Update .env.example and documentation.
+**~~Vite Environment Variables Still Present:~~ RESOLVED (2026-02-12)**
+- All VITE_ references migrated to NEXT_PUBLIC_ equivalents
+- Zero VITE_ references remaining in src/ (verified via grep)
 
-**Duplicate Page Components:**
-- Issue: Two nearly identical Generate page implementations exist side-by-side
-- Files: `src/pages/Generate.jsx` (1706 lines) and `src/features/Generate.jsx` (1733 lines)
-- Impact: Maintenance nightmare - bug fixes must be applied twice. Unclear which is canonical. Wasted ~1700 lines of duplicated code.
-- Fix approach: Consolidate into single Next.js page at `src/app/generate/page.tsx`. Port best features from both versions. Delete legacy files. Update all links/references.
+**~~Duplicate Page Components:~~ RESOLVED (2026-02-12)**
+- Deleted `src/pages/Generate.jsx` and all legacy page duplicates
+- Single canonical `src/features/Generate.jsx` (1733 lines) imported by `src/app/generate/page.tsx`
 
-**Incomplete Embedding Migration:**
-- Issue: Text embeddings migration (mock → Vertex AI) fully implemented in code but never deployed to database
-- Files: `src/services/embeddingService.ts`, `scripts/migrate-to-text-embeddings.js`, `src/db/migrations/002_migrate_to_text_embeddings.sql`
-- Impact: Semantic artist matching returns random results. Mock embeddings in `src/features/match-pulse/services/hybridMatchService.ts` generate random 768-dim vectors instead of real semantic data. User queries meaningless.
-- Fix approach: Execute 3-step deployment documented in MIGRATION_STEPS.md: (1) Run SQL migration in Supabase dashboard, (2) Execute data migration script for 100 artists (~5 min), (3) Verify with test suite. Estimated 65 minutes total once network access restored.
+**Incomplete Embedding Migration: DEPLOYMENT PLAN READY (2026-02-12)**
+- Issue: Text embeddings migration fully implemented in code but never deployed to database
+- Status: Comprehensive deployment plan written at `EMBEDDING_DEPLOYMENT_PLAN.md`
+- Impact: Semantic artist matching still returns random results until deployment is executed
+- Next step: User executes the 7-step deployment plan manually (costs $0 under Vertex free tier)
 
 **TODO Comments Without Context:**
 - Issue: Multiple TODO comments lacking implementation details or priority
@@ -89,11 +84,12 @@
 - Current mitigation: CORS restricts allowed origins, production domain hopefully uses different token
 - Recommendations: (1) Implement JWT-based auth with short-lived tokens, (2) Add request signing/HMAC for API calls, (3) Rotate secrets on schedule, (4) Add startup check to reject dev token in production
 
-**No Rate Limiting on Edge Routes:**
-- Risk: Edge API routes have stub rate limiting that allows all requests
-- Files: `src/lib/rate-limit.ts:9` (returns true unconditionally)
-- Current mitigation: Express server.js has per-endpoint rate limits (100 req/hr semantic, 20 req/hr council)
-- Recommendations: Implement Upstash Redis rate limiter for Edge Runtime. Use sliding window algorithm. Add per-IP and per-user limits. Return 429 status with Retry-After header.
+**~~No Rate Limiting on Edge Routes:~~ RESOLVED (2026-02-12)**
+- Implemented Upstash Redis sliding window rate limiter in `src/lib/rate-limit.ts`
+- Per-endpoint limits: semantic 100/hr, council 20/hr, generation 10/min
+- In-memory fallback for local dev without Redis
+- Returns 429 with Retry-After + X-RateLimit-* headers
+- Requires UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN env vars for production
 
 **Credentials in Git History:**
 - Risk: Service account keys committed to repository
@@ -211,11 +207,12 @@
 
 ## Missing Critical Features
 
-**No User Authentication:**
-- Problem: Production TODO explicitly noted in docs/CLAUDE.md:468 and REQUIREMENTS_AUDIT
-- Blocks: Multi-user support, saved designs per user, API quota management, artist dashboard
-- Priority: High - required for production launch
-- Fix: Implement Firebase Auth (already imported). Add protected routes. Store user designs in Supabase with user_id foreign key. Add login/signup UI.
+**~~No User Authentication:~~ RESOLVED (2026-02-12)**
+- Firebase Auth implemented: `src/services/authService.ts`, `src/hooks/useAuth.ts`, `src/components/AuthProvider.tsx`
+- Google + email/password sign-in via `src/components/auth/AuthModal.tsx`
+- Protected routes via `src/components/auth/ProtectedRoute.tsx`
+- AuthProvider added to `src/app/layout.tsx`
+- Remaining: Store user designs in Supabase with user_id foreign key, artist dashboard
 
 **No Error Tracking/Monitoring:**
 - Problem: VITE_SENTRY_DSN commented out in .env.example, no error tracking configured
@@ -223,9 +220,8 @@
 - Priority: High - flying blind in production
 - Fix: Configure Sentry or similar (PostHog, LogRocket). Add error boundaries that report to service. Track performance metrics. Set up alerts for error rate spikes.
 
-**No Distributed Rate Limiting:**
-- Problem: Stub implementation in src/lib/rate-limit.ts always returns true
-- Blocks: Production API abuse prevention, cost control, quota enforcement
+**~~No Distributed Rate Limiting:~~ RESOLVED (2026-02-12)**
+- See Security Considerations section above — Upstash Redis rate limiter implemented
 - Priority: High - budget protection critical ($500 bootstrap budget)
 - Fix: Implement Upstash Redis rate limiter for Edge. Add per-IP, per-user, per-endpoint limits. Return proper 429 responses. Add rate limit headers (X-RateLimit-*).
 
