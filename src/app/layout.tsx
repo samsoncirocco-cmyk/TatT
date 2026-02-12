@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import DemoModeBanner from "@/components/DemoModeBanner";
+import { AuthProvider } from "@/components/AuthProvider";
 
 export const metadata: Metadata = {
   title: "TatT - Think it. Ink it.",
@@ -17,8 +18,10 @@ export default function RootLayout({
       <body
         className="antialiased"
       >
-        <DemoModeBanner />
-        {children}
+        <AuthProvider>
+          <DemoModeBanner />
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );
