@@ -1,0 +1,11 @@
+{
+  "project": "TatTester GCP Migration",
+  "milestone": "v1",
+  "created": "2026-02-15",
+  "phase_count": 6,
+  "current_phase": 0,
+  "commit_docs": true,
+  "researcher_model": "sonnet",
+  "planner_model": "sonnet",
+  "executor_model": "sonnet"
+}
