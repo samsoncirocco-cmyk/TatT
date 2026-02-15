@@ -66,7 +66,6 @@ if [[ -z "${ALLOWED_ORIGINS}" ]]; then
   # Default for local dev + Vercel previews. Keep in sync with src/middleware.ts.
   ALLOWED_ORIGINS="http://localhost:3000,http://localhost:3001,http://localhost:5173"
 fi
-ALLOWED_ORIGINS_ESCAPED="${ALLOWED_ORIGINS//,/\\,}"
 
 if [[ -z "${NEXT_PUBLIC_FIREBASE_API_KEY}" || -z "${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}" || -z "${NEXT_PUBLIC_FIREBASE_PROJECT_ID}" ]]; then
   cat <<'EOF'
@@ -89,6 +88,14 @@ gcloud builds submit \
   --project "${PROJECT_ID}"
 
 echo "[Cloud Run] Deploying service: ${SERVICE_NAME}"
+
+TMP_ENV="$(mktemp -t tattester-cloudrun-env.XXXXXX.yaml)"
+trap 'rm -f "${TMP_ENV}"' EXIT
+cat > "${TMP_ENV}" <<EOF
+NODE_ENV: "production"
+ALLOWED_ORIGINS: "${ALLOWED_ORIGINS}"
+EOF
+
 gcloud run deploy "${SERVICE_NAME}" \
   --image "${IMAGE_TAG}" \
   --platform managed \
@@ -99,7 +106,7 @@ gcloud run deploy "${SERVICE_NAME}" \
   --cpu 2 \
   --memory 1Gi \
   --concurrency 80 \
-  --set-env-vars NODE_ENV=production,ALLOWED_ORIGINS="${ALLOWED_ORIGINS_ESCAPED}" \
+  --env-vars-file "${TMP_ENV}" \
   --allow-unauthenticated \
   --project "${PROJECT_ID}"
 
