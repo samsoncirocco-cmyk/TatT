@@ -53,8 +53,9 @@ if [[ -z "${CLOUD_RUN_URL}" ]]; then
 fi
 echo "[API Gateway] Cloud Run URL: ${CLOUD_RUN_URL}"
 
-TMP_SPEC="$(mktemp -t tattester-openapi.XXXXXX.yaml)"
-trap 'rm -f "${TMP_SPEC}"' EXIT
+TMP_BASE="$(mktemp -t tattester-openapi.XXXXXX)"
+TMP_SPEC="${TMP_BASE}.yaml"
+trap 'rm -f "${TMP_BASE}" "${TMP_SPEC}"' EXIT
 
 sed "s|https://tattester-api-HASH-uc.a.run.app|${CLOUD_RUN_URL}|g; s|PROJECT_ID|${PROJECT_ID}|g" \
   openapi/api-spec.yaml > "${TMP_SPEC}"
@@ -87,4 +88,3 @@ fi
 
 GW_URL="$(gcloud api-gateway gateways describe "${GATEWAY_NAME}" --location="${REGION}" --format 'value(defaultHostname)' --project "${PROJECT_ID}")"
 echo "[API Gateway] Gateway hostname: ${GW_URL}"
-
