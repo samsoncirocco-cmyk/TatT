@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
-  : ['http://localhost:5173', 'http://localhost:3000'];
+  : ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:3001'];
 
 const commonOptions = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
@@ -28,6 +28,14 @@ const commonOptions = {
 };
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Cloud Tasks callbacks authenticate via OIDC and aren't user cookie based.
+  // Bypass next-firebase-auth-edge middleware for this endpoint.
+  if (pathname === '/api/v1/tasks/generate') {
+    return NextResponse.next();
+  }
+
   // CORS origin check (defense-in-depth; API Gateway may handle preflight).
   const origin = request.headers.get('origin');
   if (origin && !ALLOWED_ORIGINS.includes(origin) && !origin.endsWith('.vercel.app')) {
@@ -45,8 +53,6 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     },
     handleInvalidToken: async (reason) => {
-      const { pathname } = request.nextUrl;
-
       // API routes: return 401 JSON
       if (pathname.startsWith('/api/')) {
         return NextResponse.json(
