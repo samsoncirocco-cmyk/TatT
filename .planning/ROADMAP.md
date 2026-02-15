@@ -112,10 +112,10 @@ Plans:
 **Plans:** 4 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Storage abstraction layer: types, interface, LocalStorage + Firestore adapters
-- [ ] 03-02-PLAN.md — Cloud Storage image service + Cloud Tasks generation queue
-- [ ] 03-03-PLAN.md — StorageFactory, Zustand Firestore adapter, version service migration
-- [ ] 03-04-PLAN.md — Security rules, progressive migration service, integration verification
+- [x] 03-01-PLAN.md — Storage abstraction layer: types, interface, LocalStorage + Firestore adapters
+- [x] 03-02-PLAN.md — Cloud Storage image service + Cloud Tasks generation queue
+- [x] 03-03-PLAN.md — StorageFactory, Zustand Firestore adapter, version service migration
+- [x] 03-04-PLAN.md — Security rules, progressive migration service, integration verification
 
 **Risks:**
 - Firestore document size limit (1MB) could be hit by designs with many large layers
@@ -147,6 +147,14 @@ Plans:
 - Hybrid matching works in live demo: search → real results → meaningful ranking
 
 **Dependencies:** Phase 2 (Cloud Run for embedding generation), Phase 3 (Firestore for storing embeddings)
+
+**Plans:** 4 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Vertex AI embedding service, normalization utilities, Neo4j driver hardening
+- [ ] 04-02-PLAN.md — Firestore vector search service, configurable RRF weight service
+- [ ] 04-03-PLAN.md — Rewire hybrid matching pipeline, artist embedding seed script
+- [ ] 04-04-PLAN.md — Neo4j pagination defaults, end-to-end verification checkpoint
 
 **Risks:**
 - Vertex AI embedding costs could add up for batch operations — need cost monitoring
@@ -246,4 +254,4 @@ All phases are sequential. Each builds on the previous. Phase 1 is the foundatio
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-15 after initial definition*
+*Last updated: 2026-02-15 after Phase 3 execution complete*
