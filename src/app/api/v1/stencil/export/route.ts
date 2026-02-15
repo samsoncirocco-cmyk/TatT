@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyApiAuth } from '@/lib/api-auth';
 // @ts-ignore
 import { queueStencilExport } from '@/services/emailQueueService.js';
 // @ts-ignore
@@ -7,6 +8,9 @@ import { startTimer, endTimer } from '@/utils/performanceMonitor.js';
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
+    const authError = verifyApiAuth(req);
+    if (authError) return authError;
+
     const OP_NAME = 'Stencil Export';
     // Mock timer if module missing
     const start = Date.now();

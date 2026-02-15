@@ -123,9 +123,9 @@ async function executeCypherQuery(query: string, params: CypherQueryParams = {})
   try {
     const response = await fetch(NEO4J_ENDPOINT, {
       method: 'POST',
+      credentials: 'same-origin',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_FRONTEND_AUTH_TOKEN || 'dev-token-change-in-production'}`
       },
       body: JSON.stringify({ query, params })
     });

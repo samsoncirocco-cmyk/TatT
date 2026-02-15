@@ -1,25 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyApiAuth } from '@/lib/api-auth';
 import { enhancePromptWithGemini } from '@/services/vertex-ai-edge';
 
 export const runtime = 'edge';
 
 export async function POST(req: NextRequest) {
-    // Council route might be public or protected. server.js had it protected.
-    // We'll skip verification in the file for now as it's cleaner to use middleware if possible, 
-    // but sticking to the plan: use helper in each route.
-    // Wait, I missed verifyApiAuth import in the previous step? No I added it.
-    // I should add it here too.
-
-    // Note: Previous express code used `validateCouncilEnhanceRequest` middleware.
-    // I should probably implement that validation here or trust the service/frontend validation for now.
-    // The express route also had rate limiting.
+    const authError = verifyApiAuth(req);
+    if (authError) return authError;
 
     try {
-        // Re-import verifyApiAuth since I forgot it at top
-        const { verifyApiAuth } = await import('@/lib/api-auth');
-        const authError = verifyApiAuth(req);
-        if (authError) return authError;
-
         const body = await req.json();
         const { user_prompt, style, body_part, complexity = 'medium', isStencilMode = false } = body;
 
