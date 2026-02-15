@@ -31,6 +31,8 @@
 firebase-admin-key.json
 gcp-service-account-key.json
 *-service-account-key.json
+*-adminsdk-*.json
+.context/attachments/
 *.pem
 *.key
 *.p12

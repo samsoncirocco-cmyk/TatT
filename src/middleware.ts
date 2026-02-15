@@ -2,6 +2,10 @@ import { authMiddleware } from 'next-firebase-auth-edge/lib/next/middleware';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
+  : ['http://localhost:5173', 'http://localhost:3000'];
+
 const commonOptions = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
   cookieName: 'AuthToken',
@@ -24,6 +28,15 @@ const commonOptions = {
 };
 
 export async function middleware(request: NextRequest) {
+  // CORS origin check (defense-in-depth; API Gateway may handle preflight).
+  const origin = request.headers.get('origin');
+  if (origin && !ALLOWED_ORIGINS.includes(origin) && !origin.endsWith('.vercel.app')) {
+    return NextResponse.json(
+      { error: 'Origin not allowed', code: 'CORS_FORBIDDEN' },
+      { status: 403 }
+    );
+  }
+
   return authMiddleware(request, {
     loginPath: '/api/login',
     logoutPath: '/api/logout',
