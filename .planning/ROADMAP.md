@@ -32,6 +32,13 @@
 
 **Dependencies:** None — this is the foundation.
 
+**Plans:** 3 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Firebase Auth client setup, signup/login UI, AuthProvider
+- [ ] 01-02-PLAN.md — Edge middleware, Data Access Layer, API route auth migration
+- [ ] 01-03-PLAN.md — Secret Manager client, hardcoded dev token removal across repo
+
 **Risks:**
 - Next.js 16 SSR + Firebase Auth session cookies may need careful handling
 - Removing hardcoded tokens breaks dev workflow — need local dev token injection pattern
