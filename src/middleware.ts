@@ -45,6 +45,20 @@ export async function middleware(request: NextRequest) {
     );
   }
 
+  // If auth middleware isn't configured (common in Cloud Run where secrets are injected later),
+  // don't fail requests with a 500. API Gateway can still enforce Firebase auth.
+  const hasAuthConfig =
+    !!commonOptions.apiKey &&
+    !!commonOptions.cookieSignatureKeys?.[0] &&
+    !!commonOptions.cookieSignatureKeys?.[1] &&
+    !!commonOptions.serviceAccount?.projectId &&
+    !!commonOptions.serviceAccount?.clientEmail &&
+    !!commonOptions.serviceAccount?.privateKey;
+
+  if (!hasAuthConfig) {
+    return NextResponse.next();
+  }
+
   return authMiddleware(request, {
     loginPath: '/api/login',
     logoutPath: '/api/logout',
