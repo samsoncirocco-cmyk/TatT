@@ -109,6 +109,14 @@ Plans:
 
 **Dependencies:** Phase 1 (auth for Firestore security rules), Phase 2 (Cloud Run for server-side operations)
 
+**Plans:** 4 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Storage abstraction layer: types, interface, LocalStorage + Firestore adapters
+- [ ] 03-02-PLAN.md — Cloud Storage image service + Cloud Tasks generation queue
+- [ ] 03-03-PLAN.md — StorageFactory, Zustand Firestore adapter, version service migration
+- [ ] 03-04-PLAN.md — Security rules, progressive migration service, integration verification
+
 **Risks:**
 - Firestore document size limit (1MB) could be hit by designs with many large layers
 - Version branching/merging logic is complex — needs careful Firestore transaction design
