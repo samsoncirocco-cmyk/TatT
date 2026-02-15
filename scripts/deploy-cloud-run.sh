@@ -46,7 +46,8 @@ IMAGE_TAG="gcr.io/${PROJECT_ID}/tattester:latest"
 dotenv_get() {
   local key="$1"
   if [[ -f ".env.local" ]]; then
-    node -e "require('dotenv').config({ path: '.env.local' }); process.stdout.write(process.env['${key}'] || '')" 2>/dev/null || true
+    # dotenv v17 can print a status line; keep output clean for use in gcloud flags.
+    node -e "process.env.DOTENV_CONFIG_QUIET='true'; require('dotenv').config({ path: '.env.local' }); const v=(process.env['${key}']||'').trim(); process.stdout.write(v);" 2>/dev/null || true
   else
     echo -n ""
   fi
@@ -65,6 +66,7 @@ if [[ -z "${ALLOWED_ORIGINS}" ]]; then
   # Default for local dev + Vercel previews. Keep in sync with src/middleware.ts.
   ALLOWED_ORIGINS="http://localhost:3000,http://localhost:3001,http://localhost:5173"
 fi
+ALLOWED_ORIGINS_ESCAPED="${ALLOWED_ORIGINS//,/\\,}"
 
 if [[ -z "${NEXT_PUBLIC_FIREBASE_API_KEY}" || -z "${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}" || -z "${NEXT_PUBLIC_FIREBASE_PROJECT_ID}" ]]; then
   cat <<'EOF'
@@ -97,7 +99,7 @@ gcloud run deploy "${SERVICE_NAME}" \
   --cpu 2 \
   --memory 1Gi \
   --concurrency 80 \
-  --set-env-vars NODE_ENV=production,ALLOWED_ORIGINS="${ALLOWED_ORIGINS}" \
+  --set-env-vars NODE_ENV=production,ALLOWED_ORIGINS="${ALLOWED_ORIGINS_ESCAPED}" \
   --allow-unauthenticated \
   --project "${PROJECT_ID}"
 
