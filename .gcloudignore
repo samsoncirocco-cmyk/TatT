@@ -1,0 +1,27 @@
+# Speeds up `gcloud builds submit` by excluding local/dev artifacts.
+# Syntax is similar to .gitignore.
+
+node_modules
+.next
+.git
+.context
+.cursor
+
+.env
+.env.*
+
+coverage
+.vscode
+.idea
+
+*.log
+*.md
+
+.planning
+docs
+.github
+
+uploads
+artifacts
+generated
+
