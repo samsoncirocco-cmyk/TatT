@@ -60,6 +60,12 @@ NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="${NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET:-$(do
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="${NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID:-$(dotenv_get NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID)}"
 NEXT_PUBLIC_FIREBASE_APP_ID="${NEXT_PUBLIC_FIREBASE_APP_ID:-$(dotenv_get NEXT_PUBLIC_FIREBASE_APP_ID)}"
 
+ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-$(dotenv_get ALLOWED_ORIGINS)}"
+if [[ -z "${ALLOWED_ORIGINS}" ]]; then
+  # Default for local dev + Vercel previews. Keep in sync with src/middleware.ts.
+  ALLOWED_ORIGINS="http://localhost:3000,http://localhost:3001,http://localhost:5173"
+fi
+
 if [[ -z "${NEXT_PUBLIC_FIREBASE_API_KEY}" || -z "${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}" || -z "${NEXT_PUBLIC_FIREBASE_PROJECT_ID}" ]]; then
   cat <<'EOF'
 Missing required Firebase public config for build.
@@ -91,7 +97,7 @@ gcloud run deploy "${SERVICE_NAME}" \
   --cpu 2 \
   --memory 1Gi \
   --concurrency 80 \
-  --set-env-vars NODE_ENV=production \
+  --set-env-vars NODE_ENV=production,ALLOWED_ORIGINS="${ALLOWED_ORIGINS}" \
   --allow-unauthenticated \
   --project "${PROJECT_ID}"
 
