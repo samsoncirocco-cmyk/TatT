@@ -43,10 +43,42 @@ fi
 SERVICE_NAME="tattester-api"
 IMAGE_TAG="gcr.io/${PROJECT_ID}/tattester:latest"
 
+dotenv_get() {
+  local key="$1"
+  if [[ -f ".env.local" ]]; then
+    node -e "require('dotenv').config({ path: '.env.local' }); process.stdout.write(process.env['${key}'] || '')" 2>/dev/null || true
+  else
+    echo -n ""
+  fi
+}
+
+# NEXT_PUBLIC_* are required at build time for the client bundle.
+NEXT_PUBLIC_FIREBASE_API_KEY="${NEXT_PUBLIC_FIREBASE_API_KEY:-$(dotenv_get NEXT_PUBLIC_FIREBASE_API_KEY)}"
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN:-$(dotenv_get NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN)}"
+NEXT_PUBLIC_FIREBASE_PROJECT_ID="${NEXT_PUBLIC_FIREBASE_PROJECT_ID:-$(dotenv_get NEXT_PUBLIC_FIREBASE_PROJECT_ID)}"
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="${NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET:-$(dotenv_get NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET)}"
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="${NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID:-$(dotenv_get NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID)}"
+NEXT_PUBLIC_FIREBASE_APP_ID="${NEXT_PUBLIC_FIREBASE_APP_ID:-$(dotenv_get NEXT_PUBLIC_FIREBASE_APP_ID)}"
+
+if [[ -z "${NEXT_PUBLIC_FIREBASE_API_KEY}" || -z "${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}" || -z "${NEXT_PUBLIC_FIREBASE_PROJECT_ID}" ]]; then
+  cat <<'EOF'
+Missing required Firebase public config for build.
+
+Set these (either in your shell env or in .env.local) and re-run:
+  NEXT_PUBLIC_FIREBASE_API_KEY
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID
+EOF
+  exit 1
+fi
+
 echo "[Cloud Run] Project: ${PROJECT_ID}"
 echo "[Cloud Run] Region: ${REGION}"
 echo "[Cloud Run] Building image: ${IMAGE_TAG}"
-gcloud builds submit --tag "${IMAGE_TAG}" --project "${PROJECT_ID}"
+gcloud builds submit \
+  --config cloudbuild.yaml \
+  --substitutions _IMAGE="${IMAGE_TAG}",_NEXT_PUBLIC_FIREBASE_API_KEY="${NEXT_PUBLIC_FIREBASE_API_KEY}",_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}",_NEXT_PUBLIC_FIREBASE_PROJECT_ID="${NEXT_PUBLIC_FIREBASE_PROJECT_ID}",_NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="${NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET}",_NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="${NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID}",_NEXT_PUBLIC_FIREBASE_APP_ID="${NEXT_PUBLIC_FIREBASE_APP_ID}" \
+  --project "${PROJECT_ID}"
 
 echo "[Cloud Run] Deploying service: ${SERVICE_NAME}"
 gcloud run deploy "${SERVICE_NAME}" \
@@ -65,4 +97,3 @@ gcloud run deploy "${SERVICE_NAME}" \
 
 URL="$(gcloud run services describe "${SERVICE_NAME}" --region "${REGION}" --format 'value(status.url)' --project "${PROJECT_ID}")"
 echo "[Cloud Run] Service URL: ${URL}"
-

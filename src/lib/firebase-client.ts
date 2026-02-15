@@ -22,35 +22,37 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Validate required configuration
-if (!firebaseConfig.apiKey || !firebaseConfig.authDomain || !firebaseConfig.projectId) {
-  console.warn('[Firebase Client] Missing required environment variables. Auth will not work.');
+const isBrowser = typeof window !== 'undefined';
+
+// Initialize Firebase client only in the browser.
+// This file may be imported during server builds/prerender; keep it side-effect free on the server.
+let app: FirebaseApp | null = null;
+let auth: Auth | null = null;
+
+if (isBrowser) {
+  if (!firebaseConfig.apiKey || !firebaseConfig.authDomain || !firebaseConfig.projectId) {
+    console.warn('[Firebase Client] Missing required environment variables. Auth will not work.');
+  } else {
+    // The getApps() check prevents duplicate initialization errors.
+    if (getApps().length === 0) {
+      app = initializeApp(firebaseConfig);
+      console.log('[Firebase Client] Initialized new app instance');
+    } else {
+      app = getApps()[0];
+      console.log('[Firebase Client] Using existing app instance');
+    }
+
+    auth = getAuth(app);
+
+    // Set persistence to LOCAL (survives browser tab close and refresh).
+    setPersistence(auth, browserLocalPersistence)
+      .then(() => {
+        console.log('[Firebase Client] Auth persistence set to LOCAL (survives tab close)');
+      })
+      .catch((error) => {
+        console.error('[Firebase Client] Failed to set auth persistence:', error);
+      });
+  }
 }
 
-// Initialize Firebase app (only if not already initialized)
-// The getApps() check prevents duplicate initialization errors
-let app: FirebaseApp;
-
-if (getApps().length === 0) {
-  app = initializeApp(firebaseConfig);
-  console.log('[Firebase Client] Initialized new app instance');
-} else {
-  app = getApps()[0];
-  console.log('[Firebase Client] Using existing app instance');
-}
-
-// Initialize Firebase Auth with persistent sessions
-const auth: Auth = getAuth(app);
-
-// Set persistence to LOCAL (survives browser tab close and refresh)
-// This is critical for AUTH-02 requirement: session persistence
-setPersistence(auth, browserLocalPersistence)
-  .then(() => {
-    console.log('[Firebase Client] Auth persistence set to LOCAL (survives tab close)');
-  })
-  .catch((error) => {
-    console.error('[Firebase Client] Failed to set auth persistence:', error);
-  });
-
-// Export Firebase instances for use in hooks and components
 export { app, auth };
