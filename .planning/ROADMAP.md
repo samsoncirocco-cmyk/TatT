@@ -71,6 +71,14 @@ Plans:
 
 **Dependencies:** Phase 1 (Firebase Auth needed for per-user rate limiting and token validation)
 
+**Plans:** 4 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Dockerfile, standalone build config, Edge Runtime removal
+- [ ] 02-02-PLAN.md — Firestore per-user quota tracking, server-side budget enforcement
+- [ ] 02-03-PLAN.md — OpenAPI spec, Cloud Armor WAF policy, rate limit wiring into API routes
+- [ ] 02-04-PLAN.md — Deployment scripts, end-to-end verification
+
 **Risks:**
 - Cloud Run cold starts could add latency to first request
 - Image generation polling (120s) needs adequate request timeout
