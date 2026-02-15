@@ -201,25 +201,25 @@ curl http://localhost:3001/api/health
 
 # Semantic match
 curl -X POST http://localhost:3001/api/v1/match/semantic \
-  -H "Authorization: Bearer dev-token-change-in-production" \
+  -H "Authorization: Bearer $YOUR_AUTH_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"query": "Cyberpunk Gohan", "max_results": 5}'
 
 # AR visualization
 curl -X POST http://localhost:3001/api/v1/ar/visualize \
-  -H "Authorization: Bearer dev-token-change-in-production" \
+  -H "Authorization: Bearer $YOUR_AUTH_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"design_id": "test-123", "body_part": "forearm"}'
 
 # Council enhancement
 curl -X POST http://localhost:3001/api/v1/council/enhance \
-  -H "Authorization: Bearer dev-token-change-in-production" \
+  -H "Authorization: Bearer $YOUR_AUTH_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"user_prompt": "Dragon", "style": "japanese"}'
 
 # Stencil export
 curl -X POST http://localhost:3001/api/v1/stencil/export \
-  -H "Authorization: Bearer dev-token-change-in-production" \
+  -H "Authorization: Bearer $YOUR_AUTH_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"design_id": "test-123", "dimensions": {"width": 6, "height": 8}}'
 ```

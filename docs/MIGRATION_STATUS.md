@@ -62,7 +62,7 @@ npm start
 1. **Environment Variables**: Update `.env.local` → production secrets in Vercel
 2. **Deploy Frontend**: Deploy Next.js app to Vercel
 3. **Update CORS/Rules**: Configure Firebase + GCS for production domains
-4. **Security**: Replace `dev-token-change-in-production` with strong auth token
+4. **Security**: Replace placeholder auth tokens with strong, unique tokens in production
 5. **Database**: Verify Neo4j Aura, Supabase, and Firebase are production-ready
 
 ### Migration Complete

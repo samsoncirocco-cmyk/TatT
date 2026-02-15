@@ -100,16 +100,8 @@ export async function fetchWithAbort(
     // Inject auth header if needed
     const headers: Record<string, string> = { ...(fetchOptions.headers as Record<string, string> || {}) };
 
-    if (includeAuth) {
-      // Support both Vite and Next.js environments
-      const authToken = typeof window !== 'undefined'
-        ? (process.env.NEXT_PUBLIC_FRONTEND_AUTH_TOKEN || 
-           (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FRONTEND_AUTH_TOKEN))
-        : process.env.FRONTEND_AUTH_TOKEN || process.env.NEXT_PUBLIC_FRONTEND_AUTH_TOKEN;
-      if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
-      }
-    }
+    // Auth is handled via cookies (set by Firebase auth middleware).
+    // No explicit Authorization header needed for same-origin requests.
 
     const response = await fetch(url, {
       ...fetchOptions,

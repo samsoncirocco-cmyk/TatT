@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyApiAuth } from '@/lib/api-auth';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
+    const authError = verifyApiAuth(req);
+    if (authError) return authError;
+
     try {
         const { design_id, body_part, depth_map, placement_config = {} } = await req.json();
 

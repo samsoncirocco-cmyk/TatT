@@ -142,9 +142,9 @@ function SmartMatch() {
         // Semantic search via API
         const response = await fetch('/api/v1/match/semantic', {
           method: 'POST',
+          credentials: 'same-origin',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer dev-token-change-in-production' // Use real token in prod
           },
           body: JSON.stringify({
             query: preferences.keywords,

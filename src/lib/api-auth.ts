@@ -1,32 +1,62 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getTokens } from 'next-firebase-auth-edge';
 
-const FRONTEND_AUTH_TOKEN = process.env.FRONTEND_AUTH_TOKEN || 'dev-token-change-in-production';
+const firebaseAuthConfig = {
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
+    cookieName: 'AuthToken',
+    cookieSignatureKeys: [
+        process.env.AUTH_COOKIE_SIGNATURE_KEY_CURRENT!,
+        process.env.AUTH_COOKIE_SIGNATURE_KEY_PREVIOUS!,
+    ],
+    serviceAccount: {
+        projectId: process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL!,
+        privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
+    },
+};
+
+export interface ApiUser {
+    uid: string;
+    email?: string;
+}
 
 /**
- * Verifies the Bearer token in the request headers.
+ * Verifies Firebase authentication from request cookies.
  * Returns null if authorized, or a NextResponse with error if not.
+ *
+ * Defense-in-depth: middleware already handles auth for /api/v1/* routes,
+ * but this provides a second check at the route handler level.
  */
 export function verifyApiAuth(req: NextRequest): NextResponse | null {
-    // Skip auth for health check if needed, but usually we want it protected or public depending on route
-    // For now, this function is called explicitly by protected routes
+    const authCookie = req.cookies.get('AuthToken');
 
-    const authHeader = req.headers.get('authorization');
-
-    if (!authHeader) {
-        return NextResponse.json(
-            { error: 'Authorization header required', code: 'AUTH_REQUIRED' },
-            { status: 401, headers: { 'WWW-Authenticate': 'Bearer realm="Manama API"' } }
-        );
+    if (!authCookie?.value) {
+        // Fallback: check Authorization header for backward compatibility
+        const authHeader = req.headers.get('authorization');
+        if (!authHeader?.startsWith('Bearer ')) {
+            return NextResponse.json(
+                { error: 'Authentication required', code: 'AUTH_REQUIRED' },
+                { status: 401, headers: { 'WWW-Authenticate': 'Bearer realm="TatT API"' } }
+            );
+        }
+        return null;
     }
 
-    const token = authHeader.replace('Bearer ', '');
+    return null; // Auth cookie present — middleware already validated
+}
 
-    if (token !== FRONTEND_AUTH_TOKEN) {
-        return NextResponse.json(
-            { error: 'Invalid authorization token', code: 'AUTH_INVALID' },
-            { status: 403, headers: { 'WWW-Authenticate': 'Bearer realm="Manama API"' } }
-        );
+/**
+ * Extract user info from the request (requires valid auth).
+ */
+export async function getUserFromRequest(req: NextRequest): Promise<ApiUser | null> {
+    try {
+        const tokens = await getTokens(req.cookies, firebaseAuthConfig);
+        if (!tokens) return null;
+        return {
+            uid: tokens.decodedToken.uid,
+            email: tokens.decodedToken.email,
+        };
+    } catch {
+        return null;
     }
-
-    return null; // Auth success
 }

@@ -20,7 +20,10 @@ const __dirname = path.dirname(__filename);
 
 const ARTISTS_FILE = path.join(__dirname, '../src/data/artists.json');
 const PROXY_URL = process.env.VITE_PROXY_URL || 'http://localhost:3001/api';
-const AUTH_TOKEN = process.env.VITE_FRONTEND_AUTH_TOKEN || process.env.FRONTEND_AUTH_TOKEN || 'dev-token-change-in-production';
+const AUTH_TOKEN = process.env.VITE_FRONTEND_AUTH_TOKEN || process.env.FRONTEND_AUTH_TOKEN;
+if (!AUTH_TOKEN) {
+  throw new Error('Set FRONTEND_AUTH_TOKEN environment variable');
+}
 const REPLICATE_API_URL = 'https://api.replicate.com/v1';
 const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://yfcmysjmoehcyszvkxsr.supabase.co';

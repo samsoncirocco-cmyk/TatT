@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyApiAuth } from '@/lib/api-auth';
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
@@ -14,6 +15,9 @@ async function ensureUploadDir() {
 }
 
 export async function POST(req: NextRequest) {
+    const authError = verifyApiAuth(req);
+    if (authError) return authError;
+
     try {
         const { imageData } = await req.json();
 

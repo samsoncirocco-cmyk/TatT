@@ -109,6 +109,11 @@ async function uploadThumbnailWithFallback(buffer: Buffer, designId: string, lay
 }
 
 export async function POST(req: NextRequest) {
+    // Auth check
+    const { verifyApiAuth } = await import('@/lib/api-auth');
+    const authError = verifyApiAuth(req);
+    if (authError) return authError;
+
     const startTime = Date.now();
 
     try {
