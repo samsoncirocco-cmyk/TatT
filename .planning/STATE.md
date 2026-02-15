@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** Real artist matching powered by real embeddings, backed by infrastructure that won't break in front of investors or real users.
-**Current focus:** Phase 1 planned — ready for execution
+**Current focus:** Phase 3 complete — ready to plan Phase 4
 
 ## Current Phase
 
-**Phase:** 1 — Firebase Auth + Secret Manager
-**Status:** Planned (3 plans, 3 waves, verified)
-**Next action:** `/gsd:execute-phase 1`
+**Phase:** 3 — Firestore + Cloud Storage
+**Status:** Complete (verified 2026-02-15, 7/7 truths passed)
+**Next action:** `/gsd:plan-phase 4`
 
 ## Milestone Progress
 
 | Phase | Name | Status |
 |-------|------|--------|
 | 1 | Firebase Auth + Secret Manager | Planned |
-| 2 | Cloud Run + API Gateway | Not started |
-| 3 | Firestore + Cloud Storage | Not started |
+| 2 | Cloud Run + API Gateway | Planned |
+| 3 | Firestore + Cloud Storage | **Complete** |
 | 4 | Real Embeddings + Matching | Not started |
 | 5 | Analytics + Monitoring | Not started |
 | 6 | DOE Framework + CI/CD | Not started |
@@ -33,6 +33,16 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 - DOE (Directives-Orchestration-Execution) framework is the operational philosophy
 - Neo4j stays — first hire is an expert
 
+## Phase 3 Deliverables
+
+- **Storage abstraction:** IDesignStorage interface with LocalStorageAdapter + FirestoreAdapter
+- **Firestore subcollections:** `users/{uid}/designs/{did}/versions/{vid}/layers/{lid}`
+- **Cloud Storage:** CDN-ready image uploads with permanent public URLs
+- **Cloud Tasks:** Hash-bucket sharded generation queue (20 queues, 3 concurrent/user)
+- **Progressive migration:** Anonymous → localStorage, Authenticated → Firestore
+- **Security rules:** Owner-only access on all paths
+- **129/129 tests passing**
+
 ## Recent Decisions
 
 - GCP-only stack (dropping Supabase)
@@ -41,6 +51,7 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 - Firestore over Cloud SQL (flexible schema)
 - Vertex AI embeddings over third-party
 - Cloud Run over Cloud Functions (long-running requests)
+- @google-cloud/storage server SDK for image uploads (not firebase/storage client SDK)
 
 ---
-*Last updated: 2026-02-15 after project initialization*
+*Last updated: 2026-02-15 after Phase 3 execution and verification*
