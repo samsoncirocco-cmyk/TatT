@@ -4,12 +4,19 @@ import { verifyApiAuth } from '@/lib/api-auth';
 import { getHybridArtistMatches } from '@/services/matchService';
 // @ts-ignore
 import { updateMatches } from '@/services/firebase-match-service';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
     const authError = verifyApiAuth(req);
     if (authError) return authError;
+
+    const rateResult = await checkRateLimit(req, 'matching');
+    if (!rateResult.allowed) {
+        return rateLimitResponse(rateResult);
+    }
 
     try {
         const body = await req.json();

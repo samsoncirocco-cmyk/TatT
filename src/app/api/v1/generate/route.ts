@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
 import { generateWithImagen } from '@/services/vertex-ai-edge';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
+import { checkBudget, recordSpend } from '@/lib/budget-tracker';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 const SIZE_MAP: Record<string, number> = {
     small: 512,
@@ -21,6 +24,19 @@ export async function POST(req: NextRequest) {
     // Auth check
     const authError = verifyApiAuth(req);
     if (authError) return authError;
+
+    const rateResult = await checkRateLimit(req, 'generation');
+    if (!rateResult.allowed) {
+        return rateLimitResponse(rateResult);
+    }
+
+    const budgetResult = await checkBudget();
+    if (!budgetResult.allowed) {
+        return NextResponse.json(
+            { error: 'Budget limit reached', spentCents: budgetResult.spentCents },
+            { status: 402 }
+        );
+    }
 
     try {
         const body = await req.json();
@@ -66,6 +82,9 @@ export async function POST(req: NextRequest) {
 
         // result.images is array of base64 data strings
         const durationMs = Date.now() - Date.now(); // Approximate
+
+        // Conservative default estimate per generation (tune later based on provider).
+        await recordSpend(5);
 
         return NextResponse.json({
             success: true,

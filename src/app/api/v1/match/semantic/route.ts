@@ -2,14 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
 // @ts-ignore
 import { findMatchingArtists } from '@/services/hybridMatchService';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 
 // Edge runtime compatible (Neo4j driver is accessed via HTTP proxy service)
-export const runtime = 'edge';
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
     // Auth check
     const authError = verifyApiAuth(req);
     if (authError) return authError;
+
+    const rateResult = await checkRateLimit(req, 'matching');
+    if (!rateResult.allowed) {
+        return rateLimitResponse(rateResult);
+    }
 
     try {
         const body = await req.json();

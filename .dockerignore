@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+.env
+.env.*
+*.md
+.planning
+docs
+.github
+coverage
+.vscode
+Dockerfile
+.dockerignore
+vitest.config.*
+eslint.config.*
+

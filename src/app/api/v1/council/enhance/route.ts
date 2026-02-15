@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
 import { enhancePromptWithGemini } from '@/services/vertex-ai-edge';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
     const authError = verifyApiAuth(req);
     if (authError) return authError;
+
+    const rateResult = await checkRateLimit(req, 'council');
+    if (!rateResult.allowed) {
+        return rateLimitResponse(rateResult);
+    }
 
     try {
         const body = await req.json();

@@ -88,6 +88,22 @@ export function useAuth(): UseAuthReturn {
   }, []);
 
   /**
+   * Set server-side session cookie via /api/login endpoint.
+   * Required for middleware to recognize authenticated users.
+   */
+  const setSessionCookie = async (idToken: string): Promise<void> => {
+    const response = await fetch('/api/login', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${idToken}`,
+      },
+    });
+    if (!response.ok) {
+      console.warn('[useAuth] Failed to set session cookie:', response.status);
+    }
+  };
+
+  /**
    * Sign up with email and password
    */
   const signUp = async (email: string, password: string): Promise<void> => {
@@ -95,8 +111,9 @@ export function useAuth(): UseAuthReturn {
     setLoading(true);
 
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      // User state will be updated by onAuthStateChanged listener
+      const credential = await createUserWithEmailAndPassword(auth, email, password);
+      const idToken = await credential.user.getIdToken();
+      await setSessionCookie(idToken);
     } catch (err: any) {
       const errorMessage = getAuthErrorMessage(err.code);
       const error = new Error(errorMessage);
@@ -115,8 +132,9 @@ export function useAuth(): UseAuthReturn {
     setLoading(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      // User state will be updated by onAuthStateChanged listener
+      const credential = await signInWithEmailAndPassword(auth, email, password);
+      const idToken = await credential.user.getIdToken();
+      await setSessionCookie(idToken);
     } catch (err: any) {
       const errorMessage = getAuthErrorMessage(err.code);
       const error = new Error(errorMessage);
@@ -135,8 +153,8 @@ export function useAuth(): UseAuthReturn {
     setLoading(true);
 
     try {
+      await fetch('/api/logout', { method: 'POST' });
       await signOut(auth);
-      // User state will be updated by onAuthStateChanged listener
     } catch (err: any) {
       const error = new Error('Failed to log out. Please try again.');
       setError(error);

@@ -3,12 +3,19 @@ import { verifyApiAuth } from '@/lib/api-auth';
 import crypto from 'crypto';
 // @ts-ignore
 import { uploadToGCS } from '@/services/gcs-service.js';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
     const authError = verifyApiAuth(req);
     if (authError) return authError;
+
+    const rateResult = await checkRateLimit(req, 'upload');
+    if (!rateResult.allowed) {
+        return rateLimitResponse(rateResult);
+    }
 
     try {
         const { fileData, contentType = 'image/png', destinationPath } = await req.json();
