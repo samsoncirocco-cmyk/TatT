@@ -1,47 +1,50 @@
-openapi: 3.0.4
+swagger: "2.0"
 info:
   title: TatTester API
-  version: 1.0.0
-servers:
-  - url: https://tattester-api-HASH-uc.a.run.app
+  version: "1.0.0"
 
-# Default backend for all operations (can be overridden per-operation if needed).
+# API Gateway expects Swagger (OpenAPI 2.0) extensions for Firebase Auth.
+host: tattester-api.endpoints.PROJECT_ID.cloud.goog
+schemes:
+  - https
+basePath: /
+
+# Default backend for operations (can be overridden per-operation).
 x-google-backend:
   address: https://tattester-api-HASH-uc.a.run.app
-  jwt_audience: PROJECT_ID
 
 x-google-endpoints:
   - name: tattester-api.endpoints.PROJECT_ID.cloud.goog
     allowCors: true
-    # Keep this in sync with middleware.ts ALLOWED_ORIGINS (and update for production domains).
-    allowOrigin:
-      - http://localhost:3000
-      - http://localhost:5173
-      - https://*.vercel.app
 
-components:
-  securitySchemes:
-    firebase:
-      type: oauth2
-      flows:
-        implicit:
-          authorizationUrl: ""
-          scopes: {}
-      x-google-issuer: https://securetoken.google.com/PROJECT_ID
-      x-google-jwks_uri: https://www.googleapis.com/service_accounts/v1/metadata/x509/securetoken@system.gserviceaccount.com
-      x-google-audiences: PROJECT_ID
+securityDefinitions:
+  api_key:
+    type: apiKey
+    name: x-api-key
+    in: header
+  firebase:
+    authorizationUrl: ""
+    flow: implicit
+    type: oauth2
+    x-google-issuer: https://securetoken.google.com/PROJECT_ID
+    x-google-jwks_uri: https://www.googleapis.com/service_accounts/v1/metadata/x509/securetoken@system.gserviceaccount.com
+    x-google-audiences: PROJECT_ID
 
+# Require both: API key (for consumer project association) + Firebase JWT.
 security:
-  - firebase: []
+  - api_key: []
+    firebase: []
 
 paths:
   /api/health:
     get:
       summary: Health check
       operationId: healthCheck
-      security: []
+      # Keep health reachable with just an API key.
+      security:
+        - api_key: []
       responses:
-        "200":
+        200:
           description: OK
 
   /api/v1/generate:
@@ -49,7 +52,7 @@ paths:
       summary: Generate tattoo design
       operationId: generateTattoo
       responses:
-        "200":
+        200:
           description: Generated
 
   /api/v1/council/enhance:
@@ -57,7 +60,7 @@ paths:
       summary: Enhance prompt via AI Council
       operationId: councilEnhance
       responses:
-        "200":
+        200:
           description: Enhanced
 
   /api/v1/match/semantic:
@@ -65,7 +68,7 @@ paths:
       summary: Semantic artist matching
       operationId: matchSemantic
       responses:
-        "200":
+        200:
           description: Matches
 
   /api/v1/match/update:
@@ -73,7 +76,7 @@ paths:
       summary: Update match preferences
       operationId: matchUpdate
       responses:
-        "200":
+        200:
           description: Updated
 
   /api/v1/embeddings/generate:
@@ -81,7 +84,7 @@ paths:
       summary: Generate embeddings
       operationId: embeddingsGenerate
       responses:
-        "200":
+        200:
           description: Generated
 
   /api/v1/ar/visualize:
@@ -89,7 +92,7 @@ paths:
       summary: AR visualization
       operationId: arVisualize
       responses:
-        "200":
+        200:
           description: Visualized
 
   /api/v1/layers/decompose:
@@ -97,7 +100,7 @@ paths:
       summary: Layer decomposition
       operationId: layersDecompose
       responses:
-        "200":
+        200:
           description: Decomposed
 
   /api/v1/stencil/export:
@@ -105,7 +108,7 @@ paths:
       summary: Stencil export
       operationId: stencilExport
       responses:
-        "200":
+        200:
           description: Exported
 
   /api/v1/upload-layer:
@@ -113,7 +116,7 @@ paths:
       summary: Upload layer image
       operationId: uploadLayer
       responses:
-        "200":
+        200:
           description: Uploaded
 
   /api/v1/storage/upload:
@@ -121,7 +124,7 @@ paths:
       summary: Upload to storage
       operationId: storageUpload
       responses:
-        "200":
+        200:
           description: Uploaded
 
   /api/v1/storage/get-signed-url:
@@ -129,5 +132,6 @@ paths:
       summary: Get signed URL
       operationId: storageGetSignedUrl
       responses:
-        "200":
+        200:
           description: Signed URL
+
