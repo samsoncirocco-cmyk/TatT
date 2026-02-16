@@ -1,0 +1,221 @@
+# CI/CD Pipeline for TatTester
+#
+# Triggers:
+# - Push to main: Full pipeline (lint + test + build + deploy)
+# - Pull requests to main: Lint + tests only (no build/deploy)
+# - Manual workflow_dispatch: Full pipeline
+#
+# Required GitHub repository secrets:
+# - GCP_PROJECT_ID: Google Cloud project ID
+# - WIF_PROVIDER: Workload Identity Federation provider resource name
+#   Example: projects/123456789/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+# - WIF_SERVICE_ACCOUNT: Service account for WIF authentication
+#   Example: github-actions@project-id.iam.gserviceaccount.com
+#
+# Build-time secrets (for NEXT_PUBLIC_* client bundle):
+# - NEXT_PUBLIC_FIREBASE_API_KEY
+# - NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+# - NEXT_PUBLIC_FIREBASE_PROJECT_ID
+# - NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+# - NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+# - NEXT_PUBLIC_FIREBASE_APP_ID
+#
+# Runtime secrets (injected from Secret Manager at deploy time):
+# - REPLICATE_API_TOKEN (projects/{project}/secrets/replicate-api-token)
+# - NEO4J_PASSWORD (projects/{project}/secrets/neo4j-password)
+# - OPENROUTER_API_KEY (projects/{project}/secrets/openrouter-api-key)
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'execution/**'
+      - 'tests/**'
+      - 'package*.json'
+      - 'Dockerfile'
+      - '.github/workflows/**'
+      - 'directives/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'execution/**'
+      - 'tests/**'
+      - 'package*.json'
+      - 'Dockerfile'
+      - '.github/workflows/**'
+      - 'directives/**'
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run ESLint
+        run: npm run lint
+
+  test-js:
+    name: Test JavaScript
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run tests with coverage
+        run: npm run test
+
+      - name: Upload JavaScript coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: js-coverage
+          path: coverage/
+          retention-days: 7
+
+  test-python:
+    name: Test Python
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: pip install -r execution/requirements.txt
+
+      - name: Run Python tests with coverage
+        run: pytest tests/execution/ -v --cov=execution --cov-report=xml --cov-report=term
+
+      - name: Upload Python coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: python-coverage
+          path: coverage.xml
+          retention-days: 7
+
+  build:
+    name: Build Docker Image
+    needs: [lint, test-js, test-python]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Configure Docker for GCR
+        run: gcloud auth configure-docker
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            gcr.io/${{ secrets.GCP_PROJECT_ID }}/pangyo:${{ github.sha }}
+            gcr.io/${{ secrets.GCP_PROJECT_ID }}/pangyo:latest
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+          build-args: |
+            NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+            NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+            NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+            NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+            NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+            NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+
+      - name: Rotate cache to prevent unbounded growth
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+  deploy:
+    name: Deploy to Cloud Run
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Fetch secrets from Secret Manager
+        id: secrets
+        uses: google-github-actions/get-secretmanager-secrets@v2
+        with:
+          secrets: |-
+            REPLICATE_API_TOKEN:projects/${{ secrets.GCP_PROJECT_ID }}/secrets/replicate-api-token/versions/latest
+            NEO4J_PASSWORD:projects/${{ secrets.GCP_PROJECT_ID }}/secrets/neo4j-password/versions/latest
+            OPENROUTER_API_KEY:projects/${{ secrets.GCP_PROJECT_ID }}/secrets/openrouter-api-key/versions/latest
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: pangyo-production
+          region: us-central1
+          image: gcr.io/${{ secrets.GCP_PROJECT_ID }}/pangyo:${{ github.sha }}
+          flags: '--cpu=2 --memory=2Gi --max-instances=10 --min-instances=1'
+          env_vars: |
+            NODE_ENV=production
+            GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
+          secrets: |
+            REPLICATE_API_TOKEN=${{ steps.secrets.outputs.REPLICATE_API_TOKEN }}
+            NEO4J_PASSWORD=${{ steps.secrets.outputs.NEO4J_PASSWORD }}
+            OPENROUTER_API_KEY=${{ steps.secrets.outputs.OPENROUTER_API_KEY }}
+
+      - name: Output deployment URL
+        run: echo "Deployed to ${{ steps.deploy.outputs.url }}"
