@@ -189,8 +189,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — Pino structured logger + instrument all API routes with event logging
-- [ ] 05-02-PLAN.md — GCP infra (BigQuery sink, budget alerts, dashboards, match engagement tracking)
+- [x] 05-01-PLAN.md — Pino structured logger + instrument all API routes with event logging
+- [x] 05-02-PLAN.md — GCP infra (BigQuery sink, budget alerts, dashboards, match engagement tracking)
 
 **Risks:**
 - BigQuery streaming insert costs at high volume
