@@ -1,5 +1,6 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { logger } from './logger';
+import { writeBudgetMetric } from './monitoring-client';
 
 export interface BudgetConfig {
   maxSpendCents: number;
@@ -76,6 +77,8 @@ export async function recordSpend(amountCents: number, config: BudgetConfig = DE
   const ref = db.collection('budget').doc('global');
 
   try {
+    let newTotalCents = 0;
+
     await db.runTransaction(async (tx) => {
       const snap = await tx.get(ref);
       const data = snap.data() || {};
@@ -84,21 +87,24 @@ export async function recordSpend(amountCents: number, config: BudgetConfig = DE
         typeof data.periodStartMs === 'number' ? data.periodStartMs : Date.now();
 
       if (!snap.exists || isPeriodExpired(periodStartMs, config)) {
+        const spentAmount = Math.max(0, Math.floor(amountCents));
         tx.set(
           ref,
           {
             periodStartMs: Date.now(),
-            spentCents: Math.max(0, Math.floor(amountCents)),
+            spentCents: spentAmount,
             lastUpdated: FieldValue.serverTimestamp(),
           },
           { merge: true }
         );
 
+        newTotalCents = spentAmount;
+
         // Log spend recorded for new period
         logger.info({
           event_type: 'budget.spend_recorded',
-          amount_cents: Math.max(0, Math.floor(amountCents)),
-          new_total_cents: Math.max(0, Math.floor(amountCents)),
+          amount_cents: spentAmount,
+          new_total_cents: spentAmount,
           period_reset: true,
         });
         return;
@@ -116,13 +122,19 @@ export async function recordSpend(amountCents: number, config: BudgetConfig = DE
         { merge: true }
       );
 
+      newTotalCents = currentSpent + incrementAmount;
+
       // Log spend recorded
       logger.info({
         event_type: 'budget.spend_recorded',
         amount_cents: incrementAmount,
-        new_total_cents: currentSpent + incrementAmount,
+        new_total_cents: newTotalCents,
       });
     });
+
+    // Write budget metric to Cloud Monitoring AFTER transaction completes
+    // (don't hold transaction open for monitoring write)
+    await writeBudgetMetric(newTotalCents);
   } catch (error) {
     logger.warn({
       event_type: 'budget.record_failed',
