@@ -1,4 +1,5 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import { logger } from './logger';
 
 export interface BudgetConfig {
   maxSpendCents: number;
@@ -47,6 +48,11 @@ export async function checkBudget(_userId?: string, config: BudgetConfig = DEFAU
       }
 
       if (spentCents >= config.maxSpendCents) {
+        logger.warn({
+          event_type: 'budget.limit_reached',
+          spent_cents: spentCents,
+          max_cents: config.maxSpendCents,
+        });
         return { allowed: false, spentCents, remainingCents: 0 };
       }
 
@@ -57,7 +63,10 @@ export async function checkBudget(_userId?: string, config: BudgetConfig = DEFAU
       };
     });
   } catch (error) {
-    console.warn('[Budget] Firestore unavailable for budget tracking; allowing request.', error);
+    logger.warn({
+      event_type: 'budget.check_failed',
+      error: error instanceof Error ? error.message : String(error),
+    }, '[Budget] Firestore unavailable for budget tracking; allowing request.');
     return { allowed: true, spentCents: 0, remainingCents: -1 };
   }
 }
@@ -84,20 +93,42 @@ export async function recordSpend(amountCents: number, config: BudgetConfig = DE
           },
           { merge: true }
         );
+
+        // Log spend recorded for new period
+        logger.info({
+          event_type: 'budget.spend_recorded',
+          amount_cents: Math.max(0, Math.floor(amountCents)),
+          new_total_cents: Math.max(0, Math.floor(amountCents)),
+          period_reset: true,
+        });
         return;
       }
+
+      const currentSpent = typeof data.spentCents === 'number' ? data.spentCents : 0;
+      const incrementAmount = Math.max(0, Math.floor(amountCents));
 
       tx.set(
         ref,
         {
-          spentCents: FieldValue.increment(Math.max(0, Math.floor(amountCents))),
+          spentCents: FieldValue.increment(incrementAmount),
           lastUpdated: FieldValue.serverTimestamp(),
         },
         { merge: true }
       );
+
+      // Log spend recorded
+      logger.info({
+        event_type: 'budget.spend_recorded',
+        amount_cents: incrementAmount,
+        new_total_cents: currentSpent + incrementAmount,
+      });
     });
   } catch (error) {
-    console.warn('[Budget] Firestore unavailable for spend tracking; skipping recordSpend.', error);
+    logger.warn({
+      event_type: 'budget.record_failed',
+      amount_cents: amountCents,
+      error: error instanceof Error ? error.message : String(error),
+    }, '[Budget] Firestore unavailable for spend tracking; skipping recordSpend.');
   }
 }
 

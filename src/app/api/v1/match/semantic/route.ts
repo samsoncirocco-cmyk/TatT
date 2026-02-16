@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
-// @ts-ignore
 import { findMatchingArtists } from '@/services/hybridMatchService';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
+import { createRequestLogger } from '@/lib/logger';
 
 // Edge runtime compatible (Neo4j driver is accessed via HTTP proxy service)
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+    const reqLogger = createRequestLogger('match/semantic');
+
     // Auth check
     const authError = verifyApiAuth(req);
     if (authError) return authError;
@@ -37,12 +39,25 @@ export async function POST(req: NextRequest) {
             distance: radius
         };
 
+        // Log match start
+        reqLogger.start('match.semantic.started', {
+            query_length: query?.length || 0,
+            has_location: !!location,
+            style_count: style_preferences.length,
+            max_results,
+        });
+
         // Execute hybrid matching
         const startTime = Date.now();
         const result = await findMatchingArtists(query, preferences, max_results) as any;
         const duration = Date.now() - startTime;
 
-        console.log(`[API] Semantic match completed in ${duration}ms, found ${result.matches.length} matches`);
+        // Log match completion
+        reqLogger.complete('match.semantic.completed', {
+            match_count: result.matches?.length || 0,
+            total_candidates: result.totalCandidates || 0,
+            sources: result.queryInfo?.sources || [],
+        });
 
         return NextResponse.json({
             success: true,
@@ -55,7 +70,8 @@ export async function POST(req: NextRequest) {
         });
 
     } catch (error: any) {
-        console.error('[API] Semantic match error:', error);
+        // Log match failure
+        reqLogger.error('match.semantic.failed', error);
         return NextResponse.json({ error: 'Semantic matching failed', details: error.message }, { status: 500 });
     }
 }
