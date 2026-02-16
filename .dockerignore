@@ -3,7 +3,6 @@ node_modules
 .git
 .env
 .env.*
-*.md
 .planning
 docs
 .github
@@ -13,4 +12,14 @@ Dockerfile
 .dockerignore
 vitest.config.*
 eslint.config.*
+tests
+*.test.js
+*.test.ts
+*.test.jsx
+*.test.tsx
+
+# Keep execution/ and directives/ (needed in image)
+# Keep README.md at root but exclude other markdown
+*.md
+!README.md
 
