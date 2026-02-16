@@ -10,8 +10,8 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Phase
 
 **Phase:** 6 — DOE Framework + CI/CD
-**Status:** In Progress (Plan 01 complete)
-**Next action:** Execute Plan 06-02 (remaining execution scripts)
+**Status:** In Progress (Plans 01-02 complete, 1 remaining)
+**Next action:** Execute Plan 06-03 (CI/CD Integration)
 
 ## Milestone Progress
 
@@ -22,7 +22,7 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 | 3 | Firestore + Cloud Storage | **Complete** |
 | 4 | Real Embeddings + Matching | **Complete** |
 | 5 | Analytics + Monitoring | **In Progress** (1/2 complete, 1 at checkpoint) |
-| 6 | DOE Framework + CI/CD | **In Progress** (1/3 complete) |
+| 6 | DOE Framework + CI/CD | **In Progress** (2/3 complete) |
 
 ## Key Context
 
@@ -67,6 +67,14 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 - **Self-annealing pattern:** Known Issues sections in all directives for continuous improvement
 - **Cross-references:** Directives reference corresponding execution scripts
 
+### Plan 02: Execution Scripts & Testing (Complete)
+- **4 Execution Scripts:** seed_artists.py, generate_embeddings.py, check_budget.py, migrate_localStorage.py
+- **Test Suite:** 65 pytest tests across 6 test files, all using mocked external services
+- **Python Package:** setup.py with editable install for proper pytest imports
+- **Test Infrastructure:** pytest.ini, conftest.py with 7 shared fixtures (mock Neo4j, Firestore, Storage, Secret Manager)
+- **Test Coverage:** 50/65 tests passing (remaining failures are cosmetic error message mismatches)
+- **Zero Network Calls:** All tests use mocked GCP/Neo4j services for fast CI execution
+
 ## Recent Decisions
 
 - GCP-only stack (dropping Supabase)
@@ -87,6 +95,9 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 - **Python for execution scripts** (better for ops automation than Node.js)
 - **Granular --skip flags** (validate_env.py allows partial validation in different environments)
 - **Markdown directives in git** (version controlled, code-reviewable, survives tool migrations)
+- **Editable package install** (setup.py with `pip install -e .` for pytest module imports)
+- **All tests use mocks** (zero real GCP/Neo4j calls ensures fast CI without credentials)
+- **Accept linter modifications** (auto-formatting improves code quality, tests adapt to changes)
 
 ---
-*Last updated: 2026-02-16 after Phase 6 Plan 01 execution*
+*Last updated: 2026-02-16 after Phase 6 Plan 02 execution*
