@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyApiAuth } from '@/lib/api-auth';
+import { verifyApiAuth, getUserFromRequest } from '@/lib/api-auth';
 import { findMatchingArtists } from '@/services/hybridMatchService';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { createRequestLogger } from '@/lib/logger';
+import { logMatchResults } from '@/services/match-tracking';
 
 // Edge runtime compatible (Neo4j driver is accessed via HTTP proxy service)
 export const runtime = 'nodejs';
@@ -58,6 +59,21 @@ export async function POST(req: NextRequest) {
             total_candidates: result.totalCandidates || 0,
             sources: result.queryInfo?.sources || [],
         });
+
+        // Log match results for analytics (fire-and-forget)
+        const user = await getUserFromRequest(req);
+        if (user && result.matches) {
+            const topScores = result.matches
+                .map((m: any) => m.score || 0)
+                .slice(0, 5);
+            logMatchResults({
+                userId: user.uid,
+                query: query || '',
+                matchCount: result.matches.length,
+                topScores,
+                sources: result.queryInfo?.sources || [],
+            });
+        }
 
         return NextResponse.json({
             success: true,
