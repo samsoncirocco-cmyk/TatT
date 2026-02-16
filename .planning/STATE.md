@@ -21,7 +21,7 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 | 2 | Cloud Run + API Gateway | Planned |
 | 3 | Firestore + Cloud Storage | **Complete** |
 | 4 | Real Embeddings + Matching | **Complete** |
-| 5 | Analytics + Monitoring | **In Progress** (1/2 complete, 1 at checkpoint) |
+| 5 | Analytics + Monitoring | **Complete** (2/2 plans) |
 | 6 | DOE Framework + CI/CD | **In Progress** (2/3 complete) |
 
 ## Key Context
@@ -41,7 +41,7 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 - **Match Quality Scoring:** Composite scores with style/location/experience weights
 - **Artist Seeding:** 50+ real artists with portfolio embeddings
 
-## Phase 5 Deliverables (In Progress)
+## Phase 5 Deliverables (Complete)
 
 ### Plan 01: Structured Logging Infrastructure (Complete)
 - **Pino logger:** GCP Cloud Logging integration with severity mapping
@@ -49,13 +49,13 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 - **Budget tracking logs:** Spend events, limit breaches, failures
 - **Event types:** generation.*, council.*, match.*, embeddings.*, budget.*
 
-### Plan 02: GCP Observability Infrastructure (At Checkpoint)
+### Plan 02: GCP Observability Infrastructure (Complete)
 - **Monitoring client:** Cloud Monitoring custom metric for budget spend
 - **Match tracking:** Event logging for engagement analytics
 - **BigQuery sink:** Idempotent setup script for log routing
 - **Budget alerts:** Policies at 50/75/90% thresholds
 - **Monitoring dashboard:** Error rate, API latency (p95), budget scorecards
-- **Status:** Tasks 1-2 complete, Task 3 checkpoint (human-verify) reached
+- **Weekly match quality SQL:** Query template for scheduled BigQuery analytics
 
 ## Phase 6 Deliverables (In Progress)
 
@@ -98,6 +98,9 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 - **Editable package install** (setup.py with `pip install -e .` for pytest module imports)
 - **All tests use mocks** (zero real GCP/Neo4j calls ensures fast CI without credentials)
 - **Accept linter modifications** (auto-formatting improves code quality, tests adapt to changes)
+- **90-day log retention** (BigQuery table expiration balances analytics needs with storage costs)
+- **Distribution metrics for latency** (enables p50/p95/p99 percentile queries in dashboard)
+- **Idempotent setup scripts** (safe to run multiple times for infrastructure updates)
 
 ---
-*Last updated: 2026-02-16 after Phase 6 Plan 02 execution*
+*Last updated: 2026-02-16 after Phase 5 Plan 02 completion*
