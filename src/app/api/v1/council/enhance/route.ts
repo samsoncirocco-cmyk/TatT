@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
 import { enhancePromptWithGemini } from '@/services/vertex-ai-edge';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
+import { createRequestLogger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+    const reqLogger = createRequestLogger('council');
+
     const authError = verifyApiAuth(req);
     if (authError) return authError;
 
@@ -24,12 +27,13 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Invalid prompt', code: 'INVALID_REQUEST' }, { status: 400 });
         }
 
-        console.log('[API] Council enhancement request:', {
+        // Log council start
+        reqLogger.start('council.started', {
             prompt_length: user_prompt.length,
-            style,
-            body_part,
+            style: style || null,
+            body_part: body_part || null,
             complexity,
-            isStencilMode
+            is_stencil_mode: isStencilMode,
         });
 
         const startTime = Date.now();
@@ -55,7 +59,11 @@ export async function POST(req: NextRequest) {
             enhancedPrompts.push('Failed to generate enhanced prompts');
         }
 
-        console.log(`[API] Council enhancement completed in ${duration}ms`);
+        // Log council completion
+        reqLogger.complete('council.completed', {
+            enhanced_prompt_length: enhancedPrompts[0]?.length || 0,
+            prompt_count: enhancedPrompts.length,
+        });
 
         return NextResponse.json({
             success: true,
@@ -79,7 +87,8 @@ export async function POST(req: NextRequest) {
         });
 
     } catch (error: any) {
-        console.error('[API] Council enhancement error:', error);
+        // Log council failure
+        reqLogger.error('council.failed', error);
 
         // Simple error mapping
         const status = error.message.includes('not found') ? 404 :
