@@ -5,13 +5,13 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** Real artist matching powered by real embeddings, backed by infrastructure that won't break in front of investors or real users.
-**Current focus:** Phase 5 in progress — Analytics + Monitoring
+**Current focus:** Phase 6 in progress — DOE Framework + CI/CD
 
 ## Current Phase
 
-**Phase:** 5 — Analytics + Monitoring
-**Status:** In Progress (Plan 02 at checkpoint)
-**Next action:** Verify Plan 05-02 checkpoint, then continue or complete
+**Phase:** 6 — DOE Framework + CI/CD
+**Status:** In Progress (Plan 01 complete)
+**Next action:** Execute Plan 06-02 (remaining execution scripts)
 
 ## Milestone Progress
 
@@ -22,7 +22,7 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 | 3 | Firestore + Cloud Storage | **Complete** |
 | 4 | Real Embeddings + Matching | **Complete** |
 | 5 | Analytics + Monitoring | **In Progress** (1/2 complete, 1 at checkpoint) |
-| 6 | DOE Framework + CI/CD | Not started |
+| 6 | DOE Framework + CI/CD | **In Progress** (1/3 complete) |
 
 ## Key Context
 
@@ -57,6 +57,16 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 - **Monitoring dashboard:** Error rate, API latency (p95), budget scorecards
 - **Status:** Tasks 1-2 complete, Task 3 checkpoint (human-verify) reached
 
+## Phase 6 Deliverables (In Progress)
+
+### Plan 01: DOE Framework Foundation (Complete)
+- **7 Operational Directives:** deploy.md, seed-artists.md, generate-embeddings.md, migrate-data.md, monitor-budget.md, onboard-engineer.md, rotate-secrets.md
+- **validate_env.py:** Environment validation script with --skip and --json flags (202 lines)
+- **run_health_checks.py:** Service health check script with --base-url and --check flags (155 lines)
+- **requirements.txt:** Python dependencies for execution scripts
+- **Self-annealing pattern:** Known Issues sections in all directives for continuous improvement
+- **Cross-references:** Directives reference corresponding execution scripts
+
 ## Recent Decisions
 
 - GCP-only stack (dropping Supabase)
@@ -72,6 +82,11 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 - **Write budget metric after transaction** (don't hold Firestore lock for monitoring)
 - **Fire-and-forget analytics logging** (match tracking shouldn't block responses)
 - **Graceful monitoring degradation** (monitoring failures must not break APIs)
+- **DOE framework pattern** (pair directives with executable scripts)
+- **Self-annealing documentation** (Known Issues sections updated from real incidents)
+- **Python for execution scripts** (better for ops automation than Node.js)
+- **Granular --skip flags** (validate_env.py allows partial validation in different environments)
+- **Markdown directives in git** (version controlled, code-reviewable, survives tool migrations)
 
 ---
-*Last updated: 2026-02-16 after Phase 5 Plan 02 checkpoint*
+*Last updated: 2026-02-16 after Phase 6 Plan 01 execution*
