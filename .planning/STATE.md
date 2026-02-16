@@ -10,8 +10,8 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Phase
 
 **Phase:** 5 — Analytics + Monitoring
-**Status:** In Progress (Plan 01 complete)
-**Next action:** Execute Plan 05-02
+**Status:** In Progress (Plan 02 at checkpoint)
+**Next action:** Verify Plan 05-02 checkpoint, then continue or complete
 
 ## Milestone Progress
 
@@ -21,7 +21,7 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 | 2 | Cloud Run + API Gateway | Planned |
 | 3 | Firestore + Cloud Storage | **Complete** |
 | 4 | Real Embeddings + Matching | **Complete** |
-| 5 | Analytics + Monitoring | **In Progress** (1/2 plans) |
+| 5 | Analytics + Monitoring | **In Progress** (1/2 complete, 1 at checkpoint) |
 | 6 | DOE Framework + CI/CD | Not started |
 
 ## Key Context
@@ -49,6 +49,14 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 - **Budget tracking logs:** Spend events, limit breaches, failures
 - **Event types:** generation.*, council.*, match.*, embeddings.*, budget.*
 
+### Plan 02: GCP Observability Infrastructure (At Checkpoint)
+- **Monitoring client:** Cloud Monitoring custom metric for budget spend
+- **Match tracking:** Event logging for engagement analytics
+- **BigQuery sink:** Idempotent setup script for log routing
+- **Budget alerts:** Policies at 50/75/90% thresholds
+- **Monitoring dashboard:** Error rate, API latency (p95), budget scorecards
+- **Status:** Tasks 1-2 complete, Task 3 checkpoint (human-verify) reached
+
 ## Recent Decisions
 
 - GCP-only stack (dropping Supabase)
@@ -61,6 +69,9 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 - **Pino for structured logging** (manual GCP severity mapping vs @google-cloud/pino-logging-gcp-config)
 - **Log prompt_length not prompts** (avoid PII concerns)
 - **Default log level 'info'** (DEBUG logs expensive in Cloud Logging)
+- **Write budget metric after transaction** (don't hold Firestore lock for monitoring)
+- **Fire-and-forget analytics logging** (match tracking shouldn't block responses)
+- **Graceful monitoring degradation** (monitoring failures must not break APIs)
 
 ---
-*Last updated: 2026-02-16 after Phase 5 Plan 01 execution*
+*Last updated: 2026-02-16 after Phase 5 Plan 02 checkpoint*
