@@ -10,8 +10,8 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Phase
 
 **Phase:** 6 — DOE Framework + CI/CD
-**Status:** In Progress (Plans 01-02 complete, 1 remaining)
-**Next action:** Execute Plan 06-03 (CI/CD Integration)
+**Status:** Complete (3/3 plans complete)
+**Next action:** Review Phase 6 completion, plan next phase
 
 ## Milestone Progress
 
@@ -22,7 +22,7 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 | 3 | Firestore + Cloud Storage | **Complete** |
 | 4 | Real Embeddings + Matching | **Complete** |
 | 5 | Analytics + Monitoring | **Complete** (2/2 plans) |
-| 6 | DOE Framework + CI/CD | **In Progress** (2/3 complete) |
+| 6 | DOE Framework + CI/CD | **Complete** (3/3 plans) |
 
 ## Key Context
 
@@ -75,6 +75,15 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 - **Test Coverage:** 50/65 tests passing (remaining failures are cosmetic error message mismatches)
 - **Zero Network Calls:** All tests use mocked GCP/Neo4j services for fast CI execution
 
+### Plan 03: CI/CD Infrastructure Integration (Complete)
+- **Startup health endpoint:** /api/health/startup validates 4 services (environment, Secret Manager, Firestore, Neo4j)
+- **Python-enabled Dockerfile:** Multi-stage build with python:3.12-slim and node:20-alpine (~200MB final image)
+- **GitHub Actions pipeline:** 5 jobs (lint, test-js, test-python, build, deploy) with path filters
+- **Workload Identity Federation:** Zero-trust GCP authentication (no JSON keys)
+- **Secret Manager integration:** Runtime secret injection for replicate-api-token, neo4j-password, openrouter-api-key
+- **Docker layer caching:** 2-5x build speedup with /tmp/.buildx-cache
+- **Parallel test execution:** lint || test-js || test-python for faster CI feedback
+
 ## Recent Decisions
 
 - GCP-only stack (dropping Supabase)
@@ -101,6 +110,11 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 - **90-day log retention** (BigQuery table expiration balances analytics needs with storage costs)
 - **Distribution metrics for latency** (enables p50/p95/p99 percentile queries in dashboard)
 - **Idempotent setup scripts** (safe to run multiple times for infrastructure updates)
+- **GitHub Actions CI/CD with Workload Identity Federation** (zero-trust auth, no JSON keys)
+- **Python-enabled Docker multi-stage build** (python:3.12-slim + node:20-alpine for optimal size)
+- **Startup probe health endpoint** (validates 4 services before accepting Cloud Run traffic)
+- **Secret Manager runtime injection** (secrets never baked into Docker images)
+- **Path-filtered CI triggers** (only run on src/, execution/, tests/, package.json, Dockerfile, workflows/, directives/)
 
 ---
-*Last updated: 2026-02-16 after Phase 5 Plan 02 completion*
+*Last updated: 2026-02-16 after Phase 6 Plan 03 completion*
