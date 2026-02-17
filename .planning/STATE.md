@@ -10,7 +10,7 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Phase
 
 **Phase:** 6 — DOE Framework + CI/CD
-**Status:** Complete (3/3 plans complete)
+**Status:** Complete (4/4 plans complete)
 **Next action:** Review Phase 6 completion, plan next phase
 
 ## Milestone Progress
@@ -22,7 +22,7 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 | 3 | Firestore + Cloud Storage | **Complete** |
 | 4 | Real Embeddings + Matching | **Complete** |
 | 5 | Analytics + Monitoring | **Complete** (2/2 plans) |
-| 6 | DOE Framework + CI/CD | **Complete** (3/3 plans) |
+| 6 | DOE Framework + CI/CD | **Complete** (4/4 plans) |
 
 ## Key Context
 
@@ -57,7 +57,7 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 - **Monitoring dashboard:** Error rate, API latency (p95), budget scorecards
 - **Weekly match quality SQL:** Query template for scheduled BigQuery analytics
 
-## Phase 6 Deliverables (In Progress)
+## Phase 6 Deliverables (Complete)
 
 ### Plan 01: DOE Framework Foundation (Complete)
 - **7 Operational Directives:** deploy.md, seed-artists.md, generate-embeddings.md, migrate-data.md, monitor-budget.md, onboard-engineer.md, rotate-secrets.md
@@ -83,6 +83,13 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 - **Secret Manager integration:** Runtime secret injection for replicate-api-token, neo4j-password, openrouter-api-key
 - **Docker layer caching:** 2-5x build speedup with /tmp/.buildx-cache
 - **Parallel test execution:** lint || test-js || test-python for faster CI feedback
+
+### Plan 04: Self-Annealing Gap Closure (Complete)
+- **Real Known Issues documentation:** 5 incidents from Phase 6 execution documented in 4 directives
+- **log_incident.py tool:** CLI tool for appending Known Issues entries to directives (auto-numbering, dry-run support)
+- **Self-annealing loop operational:** DOE-03 requirement satisfied (incident → log_incident.py → directive update → future engineers benefit)
+- **Gap closure:** Closed 2 verification gaps from Phase 6 verification report
+- **Test coverage:** 5 passing tests for log_incident.py tool
 
 ## Recent Decisions
 
@@ -115,6 +122,9 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 - **Startup probe health endpoint** (validates 4 services before accepting Cloud Run traffic)
 - **Secret Manager runtime injection** (secrets never baked into Docker images)
 - **Path-filtered CI triggers** (only run on src/, execution/, tests/, package.json, Dockerfile, workflows/, directives/)
+- **Document real incidents not hypotheticals** (Known Issues sections populated from actual Phase 6 failures)
+- **KI-NNN numbering format** (easy reference, auto-incrementing via log_incident.py tool)
+- **CLI tool for incident logging** (automates Known Issues entry creation, prevents manual markdown errors)
 
 ---
-*Last updated: 2026-02-16 after Phase 6 Plan 03 completion*
+*Last updated: 2026-02-17 after Phase 6 Plan 04 completion*
