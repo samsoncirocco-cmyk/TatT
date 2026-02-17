@@ -227,12 +227,13 @@ Plans:
 
 **Dependencies:** All prior phases (DOE documents the system that's been built)
 
-**Plans:** 3 plans
+**Plans:** 4 plans
 
 Plans:
 - [ ] 06-01-PLAN.md — Directives (7 SOPs) + validate_env.py + run_health_checks.py
 - [ ] 06-02-PLAN.md — Remaining execution scripts (4) + Python tests for all 6 scripts
 - [ ] 06-03-PLAN.md — Startup health endpoint, Dockerfile Python stage, GitHub Actions CI/CD pipeline
+- [ ] 06-04-PLAN.md — Gap closure: populate Known Issues with real incidents, self-annealing tooling
 
 **Risks:**
 - Directive maintenance burden if team doesn't adopt the practice
@@ -251,15 +252,15 @@ Plans:
 
 ```
 Phase 1 (Auth + Secrets)
-   ↓
+   |
 Phase 2 (Cloud Run + Gateway)
-   ↓
+   |
 Phase 3 (Firestore + Storage)
-   ↓
+   |
 Phase 4 (Embeddings + Matching)
-   ↓
+   |
 Phase 5 (Analytics + Monitoring)
-   ↓
+   |
 Phase 6 (DOE + CI/CD)
 ```
 
@@ -267,4 +268,4 @@ All phases are sequential. Each builds on the previous. Phase 1 is the foundatio
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-16 after Phase 6 planning complete*
+*Last updated: 2026-02-17 after Phase 6 gap closure planning*
