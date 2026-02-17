@@ -152,7 +152,12 @@ Rollback completes in < 30 seconds. Verify with health checks after rollback.
 
 ## Known Issues
 
-No known issues yet. Update this section when issues are discovered during deployments.
+### KI-001: Docker multi-stage Python venv portability between Debian and Alpine
+**Discovered:** 2026-02-16 during Phase 6 Plan 03
+**Symptom:** Python packages with C extensions (e.g., grpcio) compiled in python:3.12-slim (Debian) may segfault when copied to node:20-alpine (Alpine/musl)
+**Root cause:** Debian uses glibc while Alpine uses musl libc. Native extensions compiled against glibc are not binary-compatible with musl.
+**Resolution:** Current requirements.txt uses pure-Python packages or packages with pre-built musl wheels. If adding new Python dependencies with C extensions (numpy, grpcio, etc.), must either: (a) install from Alpine-compatible wheels, (b) compile in Alpine stage, or (c) add `apk add` for build dependencies in the runner stage.
+**Prevention:** Before adding new Python dependencies to requirements.txt, check if they have C extensions. Test the Docker build end-to-end with `docker build .` locally before merging.
 
 ## Post-Operation
 

@@ -268,7 +268,19 @@ npm install
 
 ## Known Issues
 
-No known issues yet. Update this section when issues are discovered during engineer onboarding.
+### KI-001: Python pytest imports fail with ModuleNotFoundError
+**Discovered:** 2026-02-16 during Phase 6 Plan 02
+**Symptom:** Running `pytest tests/execution/` fails with `ModuleNotFoundError: No module named 'execution'`
+**Root cause:** Pytest's module collection phase runs before conftest.py executes, so sys.path manipulation in conftest is too late. The `execution/` directory is not a standard Python package on the import path.
+**Resolution:** Created setup.py with setuptools configuration and ran `pip install -e .` to install the execution package in editable mode. Also added `pythonpath = .` to pytest.ini as a belt-and-suspenders fix.
+**Prevention:** Always run `pip install -e .` after cloning the repo (documented in Step 4 of onboarding procedure). If you see ModuleNotFoundError for any `execution.*` import, re-run the editable install.
+
+### KI-002: validate_env.py --skip flag order matters on some Python versions
+**Discovered:** 2026-02-16 during Phase 6 Plan 02
+**Symptom:** Running `python execution/validate_env.py --skip secrets --skip firestore` may produce unexpected behavior if argparse nargs configuration changes
+**Root cause:** Multiple --skip flags use `append` action in argparse; if the default list is non-empty, flags append to it rather than replacing
+**Resolution:** Ensure --skip default is an empty list `[]` in argparse configuration
+**Prevention:** When adding new --skip options, test with both single and multiple flags
 
 ## Post-Operation
 

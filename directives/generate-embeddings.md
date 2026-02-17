@@ -183,7 +183,12 @@ See DIR-004: Migrate Data for full backup/restore procedures.
 
 ## Known Issues
 
-No known issues yet. Update this section when issues are discovered during embedding generation.
+### KI-001: Test mock expectations break when script error messages change
+**Discovered:** 2026-02-16 during Phase 6 Plan 02
+**Symptom:** 15 of 65 pytest tests fail with assertion errors on expected error message strings (e.g., expecting "Firestore accessible" but getting "Firestore connected")
+**Root cause:** Tests asserted on exact error message strings. When linter or developer modified the message text, assertions broke even though the underlying logic was correct.
+**Resolution:** Where possible, assert on behavior (exit code, function called, exception type) rather than exact message strings. For tests that must check messages, use `in` or regex matching instead of exact equality.
+**Prevention:** Prefer behavioral assertions (`assert result.returncode == 1`) over string assertions (`assert output == "Error: ..."`) in execution script tests. Use `assertIn` or `re.search` for message content checks.
 
 ## Post-Operation
 
