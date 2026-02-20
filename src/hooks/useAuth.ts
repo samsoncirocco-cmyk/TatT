@@ -15,7 +15,9 @@ import {
   onAuthStateChanged,
   type User,
 } from 'firebase/auth';
-import { auth } from '@/lib/firebase-client';
+import { auth } from '../lib/firebase-client';
+import { setCurrentUser } from '../services/storage/StorageFactory';
+import { hasPendingMigration, isMigrationComplete, migrateLocalStorageToFirestore } from '../services/storage/migrationService';
 
 interface AuthState {
   user: User | null;
@@ -86,6 +88,28 @@ export function useAuth(): UseAuthReturn {
     // Cleanup subscription on unmount
     return () => unsubscribe();
   }, []);
+
+  // Side effects on auth changes: update storage factory and run one-time migration.
+  useEffect(() => {
+    setCurrentUser(user ? { uid: user.uid } : null);
+
+    if (!user) return;
+    if (!hasPendingMigration()) return;
+    if (isMigrationComplete(user.uid)) return;
+
+    migrateLocalStorageToFirestore(user.uid)
+      .then((res) => {
+        if (res.designsMigrated > 0) {
+          console.log(`[Auth] Migrated ${res.designsMigrated} designs from localStorage`);
+        }
+        if (res.errors.length > 0) {
+          console.error('[Auth] Migration errors:', res.errors);
+        }
+      })
+      .catch((err) => {
+        console.error('[Auth] Migration failed:', err);
+      });
+  }, [user?.uid]);
 
   /**
    * Set server-side session cookie via /api/login endpoint.
