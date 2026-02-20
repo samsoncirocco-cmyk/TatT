@@ -5,19 +5,19 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** Real artist matching powered by real embeddings, backed by infrastructure that won't break in front of investors or real users.
-**Current focus:** Phase 6 in progress — DOE Framework + CI/CD
+**Current focus:** Phase 1 in progress — Firebase Auth + Secret Manager
 
 ## Current Phase
 
-**Phase:** 6 — DOE Framework + CI/CD
-**Status:** Complete (4/4 plans complete)
-**Next action:** Review Phase 6 completion, plan next phase
+**Phase:** 1 — Firebase Auth + Secret Manager
+**Status:** In Progress (1/1+ plans in execution)
+**Next action:** Execute plan 01-02 (Secret Manager integration)
 
 ## Milestone Progress
 
 | Phase | Name | Status |
 |-------|------|--------|
-| 1 | Firebase Auth + Secret Manager | Planned |
+| 1 | Firebase Auth + Secret Manager | In Progress (01-01 complete) |
 | 2 | Cloud Run + API Gateway | Planned |
 | 3 | Firestore + Cloud Storage | **Complete** |
 | 4 | Real Embeddings + Matching | **Complete** |
@@ -91,8 +91,23 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 - **Gap closure:** Closed 2 verification gaps from Phase 6 verification report
 - **Test coverage:** 5 passing tests for log_incident.py tool
 
+## Phase 1 Deliverables (In Progress)
+
+### Plan 01: Firebase Auth Client Infrastructure (Complete)
+- **Firebase client SDK:** `src/lib/firebase-client.ts` — initialized with `browserLocalPersistence` (survives tab close), `getApps()` guard prevents duplicate init
+- **useAuth hook:** `src/hooks/useAuth.ts` — signUp/logIn/logOut/getIdToken, error code → user-friendly message mapping, session cookie via /api/login, StorageFactory.setCurrentUser on auth state change, one-time localStorage→Firestore migration trigger
+- **AuthProvider:** `src/components/auth/AuthProvider.tsx` — React context provider, exports `useAuthContext` and `useOptionalAuthContext`, wraps app in `src/app/layout.tsx`
+- **Login page:** `src/app/(auth)/login/page.tsx` — redirects authenticated users, glass-panel styling
+- **Signup page:** `src/app/(auth)/signup/page.tsx` — client-side validation (length, match), redirects authenticated users
+
 ## Recent Decisions
 
+- **browserLocalPersistence for auth** (survives tab close, satisfies AUTH-02)
+- **getApps() guard in firebase-client.ts** (prevents duplicate init with firebase-match-service.ts)
+- **setSessionCookie via /api/login after Firebase auth** (server-side session cookie enables middleware auth checks)
+- **useOptionalAuthContext for legacy pages** (gradual migration of embedded pages without AuthProvider)
+- **StorageFactory.setCurrentUser in useAuth** (keeps storage layer synchronized with Firebase auth state)
+- **One-time localStorage→Firestore migration in useAuth** (data continuity when user first logs in)
 - GCP-only stack (dropping Supabase)
 - Keep Neo4j for artist graph
 - DOE framework for ops maintainability
@@ -127,4 +142,4 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 - **CLI tool for incident logging** (automates Known Issues entry creation, prevents manual markdown errors)
 
 ---
-*Last updated: 2026-02-17 after Phase 6 Plan 04 completion*
+*Last updated: 2026-02-20 after Phase 1 Plan 01 completion*
