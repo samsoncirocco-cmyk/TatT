@@ -15,7 +15,7 @@ interface AuthContextType {
   getIdToken: () => Promise<string | null>;
 }
 
-const AuthContext = createContext<AuthContextType | null>(null);
+export const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const auth = useAuth();
@@ -33,4 +33,9 @@ export function useAuthContext(): AuthContextType {
     throw new Error('useAuthContext must be used within an AuthProvider');
   }
   return context;
+}
+
+// For legacy/embedded pages that don't mount AuthProvider.
+export function useOptionalAuthContext(): AuthContextType | null {
+  return useContext(AuthContext);
 }
