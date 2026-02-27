@@ -18,21 +18,50 @@ import {
     clearSessionHistory
 } from './versionService';
 
+function createStorageMock() {
+    const store = new Map();
+    return {
+        get length() {
+            return store.size;
+        },
+        clear() {
+            store.clear();
+        },
+        getItem(key) {
+            return store.has(String(key)) ? store.get(String(key)) : null;
+        },
+        setItem(key, value) {
+            store.set(String(key), String(value));
+        },
+        removeItem(key) {
+            store.delete(String(key));
+        },
+        key(index) {
+            return Array.from(store.keys())[index] || null;
+        }
+    };
+}
+
 describe('versionService', () => {
     const testSessionId = 'test_session_123';
 
     beforeEach(() => {
+        // Vitest/node environment doesn't always provide a full localStorage implementation.
+        // Provide minimal mocks for the localStorage-backed adapter.
+        globalThis.localStorage = createStorageMock();
+        globalThis.sessionStorage = createStorageMock();
+
         // Clear localStorage before each test
         localStorage.clear();
     });
 
-    afterEach(() => {
+    afterEach(async () => {
         // Cleanup after each test
-        clearSessionHistory(testSessionId);
+        await clearSessionHistory(testSessionId);
     });
 
     describe('Version Storage and Retrieval', () => {
-        it('should store and retrieve versions', () => {
+        it('should store and retrieve versions', async () => {
             const versionData = {
                 prompt: 'dragon tattoo',
                 parameters: { size: 'large' },
@@ -41,32 +70,33 @@ describe('versionService', () => {
                 ]
             };
 
-            const version = addVersion(testSessionId, versionData);
+            const version = await addVersion(testSessionId, versionData);
 
             expect(version).toBeTruthy();
             expect(version.id).toBeDefined();
             expect(version.versionNumber).toBe(1);
 
-            const retrieved = getVersionById(testSessionId, version.id);
+            const retrieved = await getVersionById(testSessionId, version.id);
+            expect(retrieved).toBeTruthy();
             expect(retrieved.prompt).toBe('dragon tattoo');
         });
 
-        it('should increment version numbers', () => {
-            addVersion(testSessionId, { prompt: 'first' });
-            addVersion(testSessionId, { prompt: 'second' });
-            const third = addVersion(testSessionId, { prompt: 'third' });
+        it('should increment version numbers', async () => {
+            await addVersion(testSessionId, { prompt: 'first' });
+            await addVersion(testSessionId, { prompt: 'second' });
+            const third = await addVersion(testSessionId, { prompt: 'third' });
 
             expect(third.versionNumber).toBe(3);
         });
 
-        it('should handle missing session gracefully', () => {
-            const versions = getVersions('nonexistent_session');
+        it('should handle missing session gracefully', async () => {
+            const versions = await getVersions('nonexistent_session');
             expect(versions).toEqual([]);
         });
     });
 
     describe('Version Merging - Layer ID Uniqueness', () => {
-        it('should create unique layer IDs when merging versions', () => {
+        it('should create unique layer IDs when merging versions', async () => {
             // Create two versions with overlapping layer IDs
             const version1Data = {
                 prompt: 'version 1',
@@ -84,11 +114,11 @@ describe('versionService', () => {
                 ]
             };
 
-            const v1 = addVersion(testSessionId, version1Data);
-            const v2 = addVersion(testSessionId, version2Data);
+            const v1 = await addVersion(testSessionId, version1Data);
+            const v2 = await addVersion(testSessionId, version2Data);
 
             // Merge: select all layers from both versions
-            const merged = mergeVersions(testSessionId, v1.id, v2.id, {
+            const merged = await mergeVersions(testSessionId, v1.id, v2.id, {
                 layersFromVersion1: [0, 1],  // Both layers from v1
                 layersFromVersion2: [0, 1]   // Both layers from v2
             });
@@ -114,7 +144,7 @@ describe('versionService', () => {
             });
         });
 
-        it('should assign sequential z-indices after merge', () => {
+        it('should assign sequential z-indices after merge', async () => {
             const version1Data = {
                 layers: [
                     { id: 'l1', zIndex: 5 },
@@ -129,10 +159,10 @@ describe('versionService', () => {
                 ]
             };
 
-            const v1 = addVersion(testSessionId, version1Data);
-            const v2 = addVersion(testSessionId, version2Data);
+            const v1 = await addVersion(testSessionId, version1Data);
+            const v2 = await addVersion(testSessionId, version2Data);
 
-            const merged = mergeVersions(testSessionId, v1.id, v2.id, {
+            const merged = await mergeVersions(testSessionId, v1.id, v2.id, {
                 layersFromVersion1: [0, 1],
                 layersFromVersion2: [0, 1]
             });
@@ -144,7 +174,7 @@ describe('versionService', () => {
             expect(merged.layers[3].zIndex).toBe(3);
         });
 
-        it('should preserve layer data during cloning', () => {
+        it('should preserve layer data during cloning', async () => {
             const version1Data = {
                 layers: [
                     {
@@ -170,10 +200,10 @@ describe('versionService', () => {
                 ]
             };
 
-            const v1 = addVersion(testSessionId, version1Data);
-            const v2 = addVersion(testSessionId, version2Data);
+            const v1 = await addVersion(testSessionId, version1Data);
+            const v2 = await addVersion(testSessionId, version2Data);
 
-            const merged = mergeVersions(testSessionId, v1.id, v2.id, {
+            const merged = await mergeVersions(testSessionId, v1.id, v2.id, {
                 layersFromVersion1: [0],
                 layersFromVersion2: [0]
             });
@@ -191,18 +221,18 @@ describe('versionService', () => {
             expect(clonedDragon.transform).toEqual({ x: 100, y: 50, rotation: 45 });
         });
 
-        it('should merge metadata correctly', () => {
-            const v1 = addVersion(testSessionId, {
+        it('should merge metadata correctly', async () => {
+            const v1 = await addVersion(testSessionId, {
                 prompt: 'dragon',
                 layers: [{ id: 'l1' }]
             });
 
-            const v2 = addVersion(testSessionId, {
+            const v2 = await addVersion(testSessionId, {
                 prompt: 'lightning',
                 layers: [{ id: 'l2' }]
             });
 
-            const merged = mergeVersions(testSessionId, v1.id, v2.id, {
+            const merged = await mergeVersions(testSessionId, v1.id, v2.id, {
                 layersFromVersion1: [0],
                 layersFromVersion2: [0],
                 prompt: 'dragon with lightning',
@@ -223,16 +253,16 @@ describe('versionService', () => {
             });
         });
 
-        it('should handle empty layer selections', () => {
-            const v1 = addVersion(testSessionId, {
+        it('should handle empty layer selections', async () => {
+            const v1 = await addVersion(testSessionId, {
                 layers: [{ id: 'l1' }, { id: 'l2' }]
             });
 
-            const v2 = addVersion(testSessionId, {
+            const v2 = await addVersion(testSessionId, {
                 layers: [{ id: 'l3' }]
             });
 
-            const merged = mergeVersions(testSessionId, v1.id, v2.id, {
+            const merged = await mergeVersions(testSessionId, v1.id, v2.id, {
                 layersFromVersion1: [],  // No layers from v1
                 layersFromVersion2: [0]  // Only first layer from v2
             });
@@ -243,25 +273,25 @@ describe('versionService', () => {
     });
 
     describe('Version Comparison', () => {
-        it('should detect differences between versions', () => {
-            const v1 = addVersion(testSessionId, {
+        it('should detect differences between versions', async () => {
+            const v1 = await addVersion(testSessionId, {
                 prompt: 'dragon',
                 parameters: { size: 'large' }
             });
 
-            const v2 = addVersion(testSessionId, {
+            const v2 = await addVersion(testSessionId, {
                 prompt: 'phoenix',
                 parameters: { size: 'small' }
             });
 
-            const comparison = compareVersions(testSessionId, v1.id, v2.id);
+            const comparison = await compareVersions(testSessionId, v1.id, v2.id);
 
             expect(comparison.differences.prompt).toBe(true);
             expect(comparison.differences.parameters).toBe(true);
             expect(comparison.similarityScore).toBeLessThan(100);
         });
 
-        it('should calculate similarity score correctly', () => {
+        it('should calculate similarity score correctly', async () => {
             const baseData = {
                 prompt: 'dragon',
                 enhancedPrompt: 'detailed dragon',
@@ -270,23 +300,23 @@ describe('versionService', () => {
                 imageUrl: 'url1'
             };
 
-            const v1 = addVersion(testSessionId, baseData);
-            const v2 = addVersion(testSessionId, { ...baseData }); // Identical
+            const v1 = await addVersion(testSessionId, baseData);
+            const v2 = await addVersion(testSessionId, { ...baseData }); // Identical
 
-            const comparison = compareVersions(testSessionId, v1.id, v2.id);
+            const comparison = await compareVersions(testSessionId, v1.id, v2.id);
 
             expect(comparison.similarityScore).toBe(100);
         });
     });
 
     describe('Version Branching', () => {
-        it('should create branch with new session ID', () => {
-            const original = addVersion(testSessionId, {
+        it('should create branch with new session ID', async () => {
+            const original = await addVersion(testSessionId, {
                 prompt: 'dragon',
                 layers: [{ id: 'layer_1' }]
             });
 
-            const branch = branchFromVersion(testSessionId, original.id);
+            const branch = await branchFromVersion(testSessionId, original.id);
 
             expect(branch).toBeTruthy();
             expect(branch.sessionId).toContain('branch');
@@ -297,26 +327,26 @@ describe('versionService', () => {
     });
 
     describe('Edge Cases', () => {
-        it('should handle merge with non-existent versions', () => {
-            const result = mergeVersions(testSessionId, 'fake_id_1', 'fake_id_2');
+        it('should handle merge with non-existent versions', async () => {
+            const result = await mergeVersions(testSessionId, 'fake_id_1', 'fake_id_2');
             expect(result).toBeNull();
         });
 
-        it('should enforce version limit per session', () => {
+        it('should enforce version limit per session', async () => {
             // Add more than MAX_VERSIONS_PER_DESIGN (50)
             for (let i = 0; i < 55; i++) {
-                addVersion(testSessionId, { prompt: `version ${i}` });
+                await addVersion(testSessionId, { prompt: `version ${i}` });
             }
 
-            const versions = getVersions(testSessionId);
+            const versions = await getVersions(testSessionId);
             expect(versions.length).toBeLessThanOrEqual(50);
         });
 
-        it('should handle missing layer arrays in merge', () => {
-            const v1 = addVersion(testSessionId, { prompt: 'no layers' });
-            const v2 = addVersion(testSessionId, { prompt: 'also no layers' });
+        it('should handle missing layer arrays in merge', async () => {
+            const v1 = await addVersion(testSessionId, { prompt: 'no layers' });
+            const v2 = await addVersion(testSessionId, { prompt: 'also no layers' });
 
-            const merged = mergeVersions(testSessionId, v1.id, v2.id, {
+            const merged = await mergeVersions(testSessionId, v1.id, v2.id, {
                 layersFromVersion1: [0], // Try to access non-existent layer
                 layersFromVersion2: [0]
             });

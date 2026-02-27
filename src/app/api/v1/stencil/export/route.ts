@@ -1,12 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyApiAuth } from '@/lib/api-auth';
 // @ts-ignore
 import { queueStencilExport } from '@/services/emailQueueService.js';
 // @ts-ignore
 import { startTimer, endTimer } from '@/utils/performanceMonitor.js';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+    const authError = verifyApiAuth(req);
+    if (authError) return authError;
+
+    const rateResult = await checkRateLimit(req, 'default');
+    if (!rateResult.allowed) {
+        return rateLimitResponse(rateResult);
+    }
+
     const OP_NAME = 'Stencil Export';
     // Mock timer if module missing
     const start = Date.now();

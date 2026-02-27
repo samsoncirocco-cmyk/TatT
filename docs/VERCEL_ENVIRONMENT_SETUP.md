@@ -231,7 +231,7 @@ npm run dev
 ```bash
 # Switch back to local backend
 VITE_PROXY_URL=http://localhost:3001/api
-VITE_FRONTEND_AUTH_TOKEN=dev-token-change-in-production
+VITE_FRONTEND_AUTH_TOKEN=your_secure_token_here
 
 # Start local backend
 npm run server

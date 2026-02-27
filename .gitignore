@@ -31,6 +31,8 @@
 firebase-admin-key.json
 gcp-service-account-key.json
 *-service-account-key.json
+*-adminsdk-*.json
+.context/attachments/
 *.pem
 *.key
 *.p12
@@ -91,6 +93,13 @@ logs/security/
 # Cursor
 # =============================================================================
 .cursor/
+
+# =============================================================================
+# Python Build Artifacts
+# =============================================================================
+*.egg-info/
+__pycache__/
+*.pyc
 
 # =============================================================================
 # Uploads (user-generated, not source)

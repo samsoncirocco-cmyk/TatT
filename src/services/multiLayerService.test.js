@@ -225,7 +225,7 @@ describe('multiLayerService', () => {
                 expect.objectContaining({
                     method: 'POST',
                     headers: expect.objectContaining({
-                        'Authorization': expect.stringContaining('Bearer')
+                        'Content-Type': expect.stringContaining('application/json')
                     })
                 })
             );

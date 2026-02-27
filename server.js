@@ -33,7 +33,10 @@ const REPLICATE_API_URL = 'https://api.replicate.com/v1';
 const NEO4J_URI = process.env.NEO4J_URI;
 const NEO4J_USER = process.env.NEO4J_USER;
 const NEO4J_PASSWORD = process.env.NEO4J_PASSWORD;
-const FRONTEND_AUTH_TOKEN = process.env.FRONTEND_AUTH_TOKEN || 'dev-token-change-in-production';
+const FRONTEND_AUTH_TOKEN = process.env.FRONTEND_AUTH_TOKEN;
+if (!FRONTEND_AUTH_TOKEN) {
+  console.warn('[Server] FRONTEND_AUTH_TOKEN not set — Express proxy auth disabled (using Firebase auth instead)');
+}
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
   : ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:3001'];
@@ -451,7 +454,7 @@ app.listen(PORT, HOST, () => {
   console.log(`  Port:           ${PORT}`);
   console.log(`  Host:           ${HOST}`);
   console.log(`  API:            /api`);
-  console.log(`  Auth:           ${FRONTEND_AUTH_TOKEN === 'dev-token-change-in-production' ? '⚠️  Using dev token' : '✓ Configured'}`);
+  console.log(`  Auth:           ${FRONTEND_AUTH_TOKEN ? '✓ Configured' : '⚠️  Not set (using Firebase auth)'}`);
   console.log(`  Allowed Origins: ${ALLOWED_ORIGINS.join(', ')}`);
   console.log('');
   console.log(`  Replicate Token: ${REPLICATE_API_TOKEN ? '✓ Yes' : '✗ No'}`);

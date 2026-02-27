@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyApiAuth } from '@/lib/api-auth';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+    const authError = verifyApiAuth(req);
+    if (authError) return authError;
+
+    const rateResult = await checkRateLimit(req, 'default');
+    if (!rateResult.allowed) {
+        return rateLimitResponse(rateResult);
+    }
+
     try {
         const { design_id, body_part, depth_map, placement_config = {} } = await req.json();
 

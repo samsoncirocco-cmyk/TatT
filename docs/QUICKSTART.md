@@ -37,8 +37,8 @@ Open `.env` file and replace the placeholder:
 
 ```bash
 REPLICATE_API_TOKEN=r8_your_actual_token_here
-FRONTEND_AUTH_TOKEN=dev-token-change-in-production
-VITE_FRONTEND_AUTH_TOKEN=dev-token-change-in-production
+FRONTEND_AUTH_TOKEN=your_secure_token_here
+VITE_FRONTEND_AUTH_TOKEN=your_secure_token_here
 VITE_PROXY_URL=http://localhost:3001/api
 ```
 

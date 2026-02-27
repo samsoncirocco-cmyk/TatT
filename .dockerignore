@@ -1,0 +1,25 @@
+node_modules
+.next
+.git
+.env
+.env.*
+.planning
+docs
+.github
+coverage
+.vscode
+Dockerfile
+.dockerignore
+vitest.config.*
+eslint.config.*
+tests
+*.test.js
+*.test.ts
+*.test.jsx
+*.test.tsx
+
+# Keep execution/ and directives/ (needed in image)
+# Keep README.md at root but exclude other markdown
+*.md
+!README.md
+

@@ -6,7 +6,6 @@
  */
 
 const PROXY_URL = '/api';
-const AUTH_TOKEN = process.env.NEXT_PUBLIC_FRONTEND_AUTH_TOKEN || 'dev-token-change-in-production';
 
 /**
  * Upload layer image to backend for persistent storage
@@ -20,8 +19,7 @@ async function uploadLayer(dataUrl, filename) {
         const response = await fetch(`${PROXY_URL}/v1/upload-layer`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${AUTH_TOKEN}`
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 imageData: dataUrl,
