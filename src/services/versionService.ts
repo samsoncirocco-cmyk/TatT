@@ -1,323 +1,320 @@
 /**
  * Version History Service
  *
- * Manages the version history of tattoo designs using localStorage.
- * Handles auto-saving versions, branching, and comparison data retrieval.
+ * Storage-backed implementation using IDesignStorage.
+ * Anonymous users persist to LocalStorageAdapter; authenticated users persist to FirestoreAdapter.
  */
 
-import { safeLocalStorageGet, safeLocalStorageSet } from './storageService';
+import type { IDesignStorage } from './storage/IDesignStorage';
+import type { Design, DesignVersion, Layer } from './storage/types';
+import { createStorageAdapter } from './storage/StorageFactory';
 import { generateLayerId } from '../lib/layerUtils.js';
-import type { DesignVersion } from '../hooks/useVersionHistory';
 
-const VERSION_STORAGE_KEY_PREFIX = 'tattester_version_history_';
 const MAX_VERSIONS_PER_DESIGN = 50;
+const LEGACY_VERSION_PREFIX = 'tattester_version_history_';
 
-/**
- * Generate a unique version ID
- */
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
 function generateVersionId(): string {
-    return `v_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return `v_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
-/**
- * Create a version object
- */
 function createVersion(data: Partial<DesignVersion>): DesignVersion {
-    return {
-        id: generateVersionId(),
-        timestamp: new Date().toISOString(),
-        ...data
-    } as DesignVersion;
+  return {
+    id: generateVersionId(),
+    versionNumber: 1,
+    timestamp: nowIso(),
+    ...data,
+  } as DesignVersion;
 }
 
-/**
- * Get all versions for a specific design session
- */
-export function getVersions(sessionId: string): DesignVersion[] {
-    if (!sessionId) return [];
-
-    // Chance to purge old histories (1 in 10 calls to avoid slight perf hit every time)
-    if (Math.random() < 0.1) {
-        purgeOldHistories();
-    }
-
-    const key = `${VERSION_STORAGE_KEY_PREFIX}${sessionId}`;
-    return safeLocalStorageGet<DesignVersion[]>(key, []);
+function cloneLayerWithNewId(layer: any, newZIndex: number): any {
+  return {
+    ...layer,
+    id: generateLayerId(),
+    zIndex: newZIndex,
+  };
 }
 
-/**
- * Purge version histories older than 90 days
- */
-function purgeOldHistories(): void {
-    const now = Date.now();
-    const expiryMs = 90 * 24 * 60 * 60 * 1000; // 90 days
+async function ensureDesignExists(storage: IDesignStorage, userId: string, designId: string, hint?: Partial<Design>) {
+  const existing = await storage.loadDesign(userId, designId);
+  if (existing) return;
+
+  const bodyPart = (hint?.bodyPart as string) || 'forearm';
+  const canvas = hint?.canvas || { width: 1024, height: 1024, aspectRatio: 1 };
+
+  const design: Design = {
+    id: designId,
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
+    currentVersionId: undefined,
+    bodyPart,
+    canvas,
+    isFavorite: false,
+  };
+
+  await storage.saveDesign(userId, design);
+}
+
+async function loadLegacyVersions(designId: string): Promise<DesignVersion[] | null> {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(`${LEGACY_VERSION_PREFIX}${designId}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as DesignVersion[]) : null;
+  } catch {
+    return null;
+  }
+}
+
+export class VersionService {
+  constructor(private storage: IDesignStorage, private userId: string) {}
+
+  async getVersions(designId: string, limit?: number): Promise<DesignVersion[]> {
+    const versions = await this.storage.loadVersions(this.userId, designId, limit);
+    if (versions.length > 0) return versions;
+
+    // Legacy fallback for anonymous localStorage histories.
+    const legacy = await loadLegacyVersions(designId);
+    if (!legacy || legacy.length === 0) return [];
 
     try {
-        Object.keys(localStorage).forEach(key => {
-            if (key.startsWith(VERSION_STORAGE_KEY_PREFIX)) {
-                try {
-                    const rawFn = localStorage.getItem(key);
-                    if (!rawFn) return;
-                    const versions = JSON.parse(rawFn) as DesignVersion[];
-
-                    if (Array.isArray(versions) && versions.length > 0) {
-                        // Check timestamp of the most recent version
-                        const lastVersion = versions[versions.length - 1];
-                        const lastActive = new Date(lastVersion.timestamp).getTime();
-
-                        if (now - lastActive > expiryMs) {
-                            localStorage.removeItem(key);
-                            console.log('[VersionService] Purged expired history:', key);
-                        }
-                    } else {
-                        // Corrupt or empty, remove
-                        localStorage.removeItem(key);
-                    }
-                } catch (e) {
-                    // Ignore parse errors, maybe remove key?
-                }
-            }
-        });
-    } catch (error) {
-        console.warn('[VersionService] Error purging old histories:', error);
-    }
-}
-
-/**
- * Add a new version to the history
- */
-export function addVersion(
-    sessionId: string,
-    versionData: Partial<DesignVersion>
-): DesignVersion | null {
-    if (!sessionId) {
-        console.warn('[VersionService] No session ID provided for saving version.');
-        return null;
-    }
-
-    try {
-        const versions = getVersions(sessionId);
-        const newVersion = createVersion({
-            versionNumber: versions.length + 1,
-            ...versionData
-        });
-
-        // Add to end of array (chronological)
-        versions.push(newVersion);
-
-        // Enforce limit (remove oldest)
-        if (versions.length > MAX_VERSIONS_PER_DESIGN) {
-            versions.shift(); // Remove oldest
+      await ensureDesignExists(this.storage, this.userId, designId);
+      for (const v of legacy) {
+        const { layers, ...rest } = v as any;
+        await this.storage.saveVersion(this.userId, designId, rest as DesignVersion);
+        if (Array.isArray(layers) && layers.length > 0) {
+          await this.storage.saveLayers(this.userId, designId, v.id, layers);
         }
-
-        const key = `${VERSION_STORAGE_KEY_PREFIX}${sessionId}`;
-        const result = safeLocalStorageSet(key, versions);
-
-        if (!result.success) {
-            console.error('[VersionService] Failed to save version:', result.error);
-            return null;
-        }
-
-        return newVersion;
-    } catch (error) {
-        console.error('[VersionService] Error adding version:', error);
-        return null;
+      }
+      return await this.storage.loadVersions(this.userId, designId, limit);
+    } catch (err) {
+      console.warn('[VersionService] Failed to migrate legacy versions; returning legacy in-memory.', err);
+      return legacy;
     }
-}
+  }
 
-/**
- * Delete a specific version
- */
-export function deleteVersion(sessionId: string, versionId: string): DesignVersion[] {
-    const versions = getVersions(sessionId);
-    const updatedVersions = versions.filter(v => v.id !== versionId);
+  async getVersionById(designId: string, versionId: string): Promise<DesignVersion | null> {
+    const version = await this.storage.loadVersion(this.userId, designId, versionId);
+    if (!version) return null;
+    const layers = await this.storage.loadLayers(this.userId, designId, versionId);
+    return { ...version, layers };
+  }
 
-    const key = `${VERSION_STORAGE_KEY_PREFIX}${sessionId}`;
-    safeLocalStorageSet(key, updatedVersions);
-    return updatedVersions;
-}
-
-/**
- * Clear all versions for a session
- */
-export function clearSessionHistory(sessionId: string): void {
-    const key = `${VERSION_STORAGE_KEY_PREFIX}${sessionId}`;
-    localStorage.removeItem(key);
-}
-
-/**
- * Get a specific version by ID
- */
-export function getVersionById(sessionId, versionId) {
-    const versions = getVersions(sessionId);
-    return versions.find(v => v.id === versionId);
-}
-
-/**
- * Branch from a specific version
- * Creates a new session starting from the selected version
- */
-export function branchFromVersion(originalSessionId, versionId) {
-    const sourceVersion = getVersionById(originalSessionId, versionId);
-
-    if (!sourceVersion) {
-        console.error('[VersionService] Version not found:', versionId);
-        return null;
-    }
-
-    // Generate new session ID for the branch
-    const branchSessionId = `${originalSessionId}_branch_${Date.now()}`;
-
-    // Create first version in new branch based on source version
-    const branchVersion = createVersion({
-        versionNumber: 1,
-        ...sourceVersion,
-        branchedFrom: {
-            sessionId: originalSessionId,
-            versionId: versionId,
-            versionNumber: sourceVersion.versionNumber
-        }
+  async addVersion(designId: string, versionData: Partial<DesignVersion>): Promise<DesignVersion> {
+    await ensureDesignExists(this.storage, this.userId, designId, {
+      bodyPart: (versionData as any)?.metadata?.bodyPart,
     });
 
-    // Save to new session
-    const key = `${VERSION_STORAGE_KEY_PREFIX}${branchSessionId}`;
-    safeLocalStorageSet(key, [branchVersion]);
+    const existing = await this.storage.loadVersions(this.userId, designId);
+    const nextNumber = existing.length > 0 ? Math.max(...existing.map(v => v.versionNumber || 0)) + 1 : 1;
 
-    return {
-        sessionId: branchSessionId,
-        version: branchVersion
-    };
-}
+    const newVersion = createVersion({
+      versionNumber: nextNumber,
+      ...versionData,
+    });
 
-/**
- * Compare two versions
- * Returns comparison data for side-by-side display
- */
-export function compareVersions(sessionId, versionId1, versionId2) {
-    const version1 = getVersionById(sessionId, versionId1);
-    const version2 = getVersionById(sessionId, versionId2);
-
-    if (!version1 || !version2) {
-        console.error('[VersionService] One or both versions not found');
-        return null;
+    await this.storage.saveVersion(this.userId, designId, newVersion);
+    if (Array.isArray(newVersion.layers)) {
+      await this.storage.saveLayers(this.userId, designId, newVersion.id, newVersion.layers);
     }
 
-    // Identify differences
+    // Enforce limit: remove oldest non-favorite if needed.
+    const all = await this.storage.loadVersions(this.userId, designId);
+    if (all.length > MAX_VERSIONS_PER_DESIGN) {
+      const sortedAsc = [...all].sort((a, b) => (a.versionNumber || 0) - (b.versionNumber || 0));
+      const candidate = sortedAsc.find(v => !v.isFavorite) || sortedAsc[0];
+      if (candidate?.id && candidate.id !== newVersion.id) {
+        await this.storage.deleteVersion(this.userId, designId, candidate.id);
+      }
+    }
+
+    return newVersion;
+  }
+
+  async deleteVersion(designId: string, versionId: string): Promise<DesignVersion[]> {
+    await this.storage.deleteVersion(this.userId, designId, versionId);
+    return this.storage.loadVersions(this.userId, designId);
+  }
+
+  async clearHistory(designId: string): Promise<void> {
+    await this.storage.deleteDesign(this.userId, designId);
+  }
+
+  async branchFromVersion(designId: string, versionId: string): Promise<{ designId: string; version: DesignVersion } | null> {
+    const source = await this.getVersionById(designId, versionId);
+    if (!source) return null;
+
+    const branchDesignId = `${designId}_branch_${Date.now()}`;
+    await ensureDesignExists(this.storage, this.userId, branchDesignId, {
+      bodyPart: (source as any)?.metadata?.bodyPart,
+    });
+
+    const layers = Array.isArray(source.layers) ? source.layers : [];
+    const clonedLayers = layers.map((layer: any, idx: number) => cloneLayerWithNewId(layer, idx));
+
+    const branchedVersion = createVersion({
+      ...source,
+      id: generateVersionId(),
+      versionNumber: 1,
+      timestamp: nowIso(),
+      layers: clonedLayers,
+      branchedFrom: {
+        sessionId: designId,
+        versionId,
+        versionNumber: source.versionNumber,
+      },
+    });
+
+    await this.storage.saveVersion(this.userId, branchDesignId, branchedVersion);
+    await this.storage.saveLayers(this.userId, branchDesignId, branchedVersion.id, clonedLayers as Layer[]);
+
+    return { designId: branchDesignId, version: branchedVersion };
+  }
+
+  async compareVersions(designId: string, versionId1: string, versionId2: string) {
+    const version1 = await this.getVersionById(designId, versionId1);
+    const version2 = await this.getVersionById(designId, versionId2);
+    if (!version1 || !version2) return null;
+
     const differences = {
-        prompt: version1.prompt !== version2.prompt,
-        enhancedPrompt: version1.enhancedPrompt !== version2.enhancedPrompt,
-        parameters: JSON.stringify(version1.parameters) !== JSON.stringify(version2.parameters),
-        layerCount: (version1.layers?.length || 0) !== (version2.layers?.length || 0),
-        imageUrl: version1.imageUrl !== version2.imageUrl
+      prompt: version1.prompt !== version2.prompt,
+      enhancedPrompt: version1.enhancedPrompt !== version2.enhancedPrompt,
+      parameters: JSON.stringify(version1.parameters) !== JSON.stringify(version2.parameters),
+      layerCount: (version1.layers?.length || 0) !== (version2.layers?.length || 0),
+      imageUrl: version1.imageUrl !== version2.imageUrl,
     };
 
-    // Calculate similarity score (0-100)
     const totalChecks = Object.keys(differences).length;
     const sameCount = Object.values(differences).filter(diff => !diff).length;
     const similarityScore = Math.round((sameCount / totalChecks) * 100);
 
     return {
-        version1,
-        version2,
-        differences,
-        similarityScore,
-        timeDifference: new Date(version2.timestamp).getTime() - new Date(version1.timestamp).getTime()
+      version1,
+      version2,
+      differences,
+      similarityScore,
+      timeDifference: new Date(version2.timestamp).getTime() - new Date(version1.timestamp).getTime(),
     };
-}
+  }
 
-/**
- * Clone layer with new ID and reset z-index
- */
-function cloneLayerWithNewId(layer, newZIndex) {
-    return {
-        ...layer,
-        id: generateLayerId(),
-        zIndex: newZIndex
-    };
-}
-
-/**
- * Merge elements from two versions
- * Combines layers from different versions into a new version
- * IMPORTANT: Clones all layers with new IDs to prevent duplicate ID conflicts
- */
-export function mergeVersions(sessionId, versionId1, versionId2, mergeOptions = {}) {
-    const version1 = getVersionById(sessionId, versionId1);
-    const version2 = getVersionById(sessionId, versionId2);
-
-    if (!version1 || !version2) {
-        console.error('[VersionService] One or both versions not found');
-        return null;
-    }
+  async mergeVersions(
+    designId: string,
+    versionId1: string,
+    versionId2: string,
+    mergeOptions: any = {}
+  ): Promise<DesignVersion | null> {
+    const version1 = await this.getVersionById(designId, versionId1);
+    const version2 = await this.getVersionById(designId, versionId2);
+    if (!version1 || !version2) return null;
 
     const {
-        layersFromVersion1 = [],
-        layersFromVersion2 = [],
-        prompt = version1.prompt,
-        parameters = version1.parameters
+      layersFromVersion1 = [],
+      layersFromVersion2 = [],
+      prompt = version1.prompt,
+      parameters = version1.parameters,
     } = mergeOptions;
 
-    // Combine selected layers and clone with new IDs
-    const layers1 = (version1.layers || [])
-        .filter((_, idx) => layersFromVersion1.includes(idx));
+    const layers1 = (version1.layers || []).filter((_: any, idx: number) => layersFromVersion1.includes(idx));
+    const layers2 = (version2.layers || []).filter((_: any, idx: number) => layersFromVersion2.includes(idx));
 
-    const layers2 = (version2.layers || [])
-        .filter((_, idx) => layersFromVersion2.includes(idx));
-
-    // Clone all layers with new IDs and sequential z-indices
     const mergedLayers = [
-        ...layers1.map((layer, idx) => cloneLayerWithNewId(layer, idx)),
-        ...layers2.map((layer, idx) => cloneLayerWithNewId(layer, layers1.length + idx))
+      ...layers1.map((layer: any, idx: number) => cloneLayerWithNewId(layer, idx)),
+      ...layers2.map((layer: any, idx: number) => cloneLayerWithNewId(layer, layers1.length + idx)),
     ];
 
-    // Create new merged version
-    const mergedVersion = addVersion(sessionId, {
-        prompt,
-        parameters,
-        layers: mergedLayers,
-        imageUrl: null, // Will need to be re-generated
-        mergedFrom: {
-            version1: versionId1,
-            version2: versionId2,
-            mergeOptions
-        }
+    return this.addVersion(designId, {
+      prompt,
+      parameters,
+      layers: mergedLayers,
+      imageUrl: null,
+      mergedFrom: {
+        version1: versionId1,
+        version2: versionId2,
+        mergeOptions,
+      },
     });
+  }
 
-    return mergedVersion;
-}
-
-/**
- * Get version timeline metadata
- * Returns summary info for timeline visualization
- */
-export function getVersionTimeline(sessionId) {
-    const versions = getVersions(sessionId);
-
+  async getVersionTimeline(designId: string) {
+    const versions = await this.getVersions(designId);
     return versions.map(v => ({
-        id: v.id,
-        versionNumber: v.versionNumber,
-        timestamp: v.timestamp,
-        thumbnail: v.imageUrl || v.layers?.[0]?.imageUrl,
-        promptPreview: (v.prompt || '').substring(0, 50) + (v.prompt?.length > 50 ? '...' : ''),
-        layerCount: v.layers?.length || 0,
-        branchedFrom: v.branchedFrom,
-        mergedFrom: v.mergedFrom
+      id: v.id,
+      versionNumber: v.versionNumber,
+      timestamp: v.timestamp,
+      thumbnail: v.imageUrl || (v.layers as any)?.[0]?.imageUrl,
+      promptPreview: (v.prompt || '').substring(0, 50) + ((v.prompt || '').length > 50 ? '...' : ''),
+      layerCount: v.layers?.length || 0,
+      branchedFrom: v.branchedFrom,
+      mergedFrom: v.mergedFrom,
     }));
+  }
+
+  async toggleVersionFavorite(designId: string, versionId: string): Promise<DesignVersion | null> {
+    const version = await this.storage.loadVersion(this.userId, designId, versionId);
+    if (!version) return null;
+    const updated: DesignVersion = { ...version, isFavorite: !version.isFavorite };
+    await this.storage.saveVersion(this.userId, designId, updated);
+    return updated;
+  }
 }
 
-/**
- * Mark version as favorite (won't be auto-purged)
- */
-export function toggleVersionFavorite(sessionId, versionId) {
-    const versions = getVersions(sessionId);
-    const updatedVersions = versions.map(v =>
-        v.id === versionId
-            ? { ...v, isFavorite: !v.isFavorite }
-            : v
-    );
+function getEffectiveUserId(user: any): string {
+  return user?.uid || 'anonymous';
+}
 
-    const key = `${VERSION_STORAGE_KEY_PREFIX}${sessionId}`;
-    safeLocalStorageSet(key, updatedVersions);
+// Backward-compatible module-level helpers used by legacy components/tests.
+export async function getVersions(designId: string, user?: any): Promise<DesignVersion[]> {
+  const service = new VersionService(createStorageAdapter(user), getEffectiveUserId(user));
+  return service.getVersions(designId);
+}
 
-    return updatedVersions.find(v => v.id === versionId);
+export async function addVersion(designId: string, versionData: Partial<DesignVersion>, user?: any): Promise<DesignVersion> {
+  const service = new VersionService(createStorageAdapter(user), getEffectiveUserId(user));
+  return service.addVersion(designId, versionData);
+}
+
+export async function deleteVersion(designId: string, versionId: string, user?: any): Promise<DesignVersion[]> {
+  const service = new VersionService(createStorageAdapter(user), getEffectiveUserId(user));
+  return service.deleteVersion(designId, versionId);
+}
+
+export async function clearSessionHistory(designId: string, user?: any): Promise<void> {
+  const service = new VersionService(createStorageAdapter(user), getEffectiveUserId(user));
+  return service.clearHistory(designId);
+}
+
+export async function getVersionById(designId: string, versionId: string, user?: any): Promise<DesignVersion | null> {
+  const service = new VersionService(createStorageAdapter(user), getEffectiveUserId(user));
+  return service.getVersionById(designId, versionId);
+}
+
+export async function branchFromVersion(designId: string, versionId: string, user?: any) {
+  const service = new VersionService(createStorageAdapter(user), getEffectiveUserId(user));
+  const result = await service.branchFromVersion(designId, versionId);
+  if (!result) return null;
+  return { sessionId: result.designId, version: result.version };
+}
+
+export async function compareVersions(designId: string, versionId1: string, versionId2: string, user?: any) {
+  const service = new VersionService(createStorageAdapter(user), getEffectiveUserId(user));
+  return service.compareVersions(designId, versionId1, versionId2);
+}
+
+export async function mergeVersions(designId: string, versionId1: string, versionId2: string, mergeOptions: any = {}, user?: any) {
+  const service = new VersionService(createStorageAdapter(user), getEffectiveUserId(user));
+  return service.mergeVersions(designId, versionId1, versionId2, mergeOptions);
+}
+
+export async function getVersionTimeline(designId: string, user?: any) {
+  const service = new VersionService(createStorageAdapter(user), getEffectiveUserId(user));
+  return service.getVersionTimeline(designId);
+}
+
+export async function toggleVersionFavorite(designId: string, versionId: string, user?: any) {
+  const service = new VersionService(createStorageAdapter(user), getEffectiveUserId(user));
+  return service.toggleVersionFavorite(designId, versionId);
 }

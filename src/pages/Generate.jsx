@@ -390,8 +390,17 @@ export default function Generate() {
 
 
     const timeline = useMemo(() => (
-        versionService.getVersionTimeline(sessionId)
-    ), [sessionId, versions]);
+        (versions || []).map(v => ({
+            id: v.id,
+            versionNumber: v.versionNumber,
+            timestamp: v.timestamp,
+            thumbnail: v.imageUrl,
+            promptPreview: (v.prompt || '').substring(0, 50) + (v.prompt?.length > 50 ? '...' : ''),
+            layerCount: v.layers?.length || 0,
+            branchedFrom: v.branchedFrom,
+            mergedFrom: v.mergedFrom
+        }))
+    ), [versions]);
 
     const createSessionId = useCallback(() => (
         `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
@@ -564,7 +573,7 @@ export default function Generate() {
                     const thumbnailUrl = createdLayers[createdLayers.length - 1]?.imageUrl || result.images[0];
                     const nextLayers = [...layers, ...createdLayers];
 
-                    addVersion(buildVersionPayload({
+                    await addVersion(buildVersionPayload({
                         layers: nextLayers,
                         imageUrl: thumbnailUrl,
                         arAssetUrl: arAsset?.url || null,
@@ -596,7 +605,7 @@ export default function Generate() {
                         nextLayers = [...layers, newLayer];
                     }
 
-                    addVersion(buildVersionPayload({
+                    await addVersion(buildVersionPayload({
                         layers: nextLayers,
                         imageUrl: nextLayers[nextLayers.length - 1]?.imageUrl || result.images[0],
                         arAssetUrl: arAsset?.url || null,
@@ -669,7 +678,7 @@ export default function Generate() {
 
     const handleLoadExample = async (example) => {
         setIsLoadingExample(true);
-        clearHistory();
+        await clearHistory();
         clearLayers();
         setBodyPart(example.bodyPart);
         setPromptText(example.prompt || '');
@@ -813,8 +822,8 @@ export default function Generate() {
         }
     };
 
-    const handleBranchVersion = (versionId) => {
-        const branch = versionService.branchFromVersion(sessionId, versionId);
+    const handleBranchVersion = async (versionId) => {
+        const branch = await versionService.branchFromVersion(sessionId, versionId);
         if (!branch) return;
 
         sessionStorage.setItem('tattester_session_id', branch.sessionId);
@@ -834,8 +843,8 @@ export default function Generate() {
         }
     };
 
-    const handleCompareVersions = ({ first, second }) => {
-        const compare = versionService.compareVersions(sessionId, first, second);
+    const handleCompareVersions = async ({ first, second }) => {
+        const compare = await versionService.compareVersions(sessionId, first, second);
         if (compare) {
             setComparison({
                 versionA: compare.version1,
@@ -844,13 +853,13 @@ export default function Generate() {
         }
     };
 
-    const handleMergeVersions = (versionA, versionB) => {
+    const handleMergeVersions = async (versionA, versionB) => {
         // Get layer indices for all layers from both versions
         const layersFromVersion1 = (versionA.layers || []).map((_, idx) => idx);
         const layersFromVersion2 = (versionB.layers || []).map((_, idx) => idx);
 
         // Merge versions
-        const merged = versionService.mergeVersions(sessionId, versionA.id, versionB.id, {
+        const merged = await versionService.mergeVersions(sessionId, versionA.id, versionB.id, {
             layersFromVersion1,
             layersFromVersion2,
             prompt: versionA.prompt || promptText,
@@ -890,7 +899,7 @@ export default function Generate() {
                 const nextLayers = layers.map(layer =>
                     layer.id === restyleLayerId ? { ...layer, imageUrl: response.images[0] } : layer
                 );
-                addVersion(buildVersionPayload({
+                await addVersion(buildVersionPayload({
                     layers: nextLayers,
                     imageUrl: response.images[0],
                     arAssetUrl: arAsset?.url || null
@@ -945,7 +954,7 @@ export default function Generate() {
                 }
 
                 const nextLayers = [...layers, ...createdLayers];
-                addVersion(buildVersionPayload({
+                await addVersion(buildVersionPayload({
                     layers: nextLayers,
                     imageUrl: createdLayers[createdLayers.length - 1]?.imageUrl || response.images[0],
                     mode: 'element'
@@ -966,7 +975,7 @@ export default function Generate() {
         const nextLayers = layers.map(layer =>
             layer.id === selectedLayerId ? { ...layer, imageUrl } : layer
         );
-        addVersion(buildVersionPayload({
+        void addVersion(buildVersionPayload({
             layers: nextLayers,
             imageUrl
         }));
@@ -979,7 +988,7 @@ export default function Generate() {
         const nextLayers = layers.map(layer =>
             layer.id === selectedLayerId ? { ...layer, imageUrl } : layer
         );
-        addVersion(buildVersionPayload({
+        void addVersion(buildVersionPayload({
             layers: nextLayers,
             imageUrl,
             mode: 'cleanup'
@@ -996,7 +1005,7 @@ export default function Generate() {
     const handleDuplicateLayer = async (layer) => {
         const newLayer = await addLayer(layer.imageUrl, layer.type);
         const nextLayers = [...layers, newLayer];
-        addVersion(buildVersionPayload({
+        await addVersion(buildVersionPayload({
             layers: nextLayers,
             imageUrl: newLayer.imageUrl
         }));
@@ -1021,7 +1030,7 @@ export default function Generate() {
                 const nextLayers = layers.map(layer =>
                     layer.id === data.layerId ? { ...layer, imageUrl: response.images[0] } : layer
                 );
-                addVersion(buildVersionPayload({
+                await addVersion(buildVersionPayload({
                     layers: nextLayers,
                     imageUrl: response.images[0],
                     mode: 'regenerate'

@@ -27,7 +27,7 @@ const commonOptions = {
   },
 };
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Cloud Tasks callbacks authenticate via OIDC and aren't user cookie based.
@@ -81,7 +81,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     },
     handleError: async (error) => {
-      console.error('[Middleware] Auth error:', error);
+      console.error('[Proxy] Auth error:', error);
       const { pathname } = request.nextUrl;
 
       if (pathname.startsWith('/api/')) {
