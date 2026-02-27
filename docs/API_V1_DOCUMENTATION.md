@@ -374,7 +374,7 @@ All error responses follow this structure:
 ```bash
 # Semantic Match
 curl -X POST http://localhost:3001/api/v1/match/semantic \
-  -H "Authorization: Bearer dev-token-change-in-production" \
+  -H "Authorization: Bearer $YOUR_AUTH_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "query": "Cyberpunk Gohan",
@@ -390,7 +390,7 @@ curl -X POST http://localhost:3001/api/v1/match/semantic \
 const response = await fetch('http://localhost:3001/api/v1/match/semantic', {
   method: 'POST',
   headers: {
-    'Authorization': 'Bearer dev-token-change-in-production',
+    'Authorization': `Bearer ${process.env.VITE_FRONTEND_AUTH_TOKEN}`,
     'Content-Type': 'application/json'
   },
   body: JSON.stringify({

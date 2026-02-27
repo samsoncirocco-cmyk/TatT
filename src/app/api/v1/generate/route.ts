@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
 import { generateWithImagen } from '@/services/vertex-ai-edge';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
+import { checkBudget, recordSpend } from '@/lib/budget-tracker';
+import { createRequestLogger } from '@/lib/logger';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 const SIZE_MAP: Record<string, number> = {
     small: 512,
@@ -18,9 +22,24 @@ function resolveDimensions(size: any) {
 }
 
 export async function POST(req: NextRequest) {
+    const reqLogger = createRequestLogger('generate');
+
     // Auth check
     const authError = verifyApiAuth(req);
     if (authError) return authError;
+
+    const rateResult = await checkRateLimit(req, 'generation');
+    if (!rateResult.allowed) {
+        return rateLimitResponse(rateResult);
+    }
+
+    const budgetResult = await checkBudget();
+    if (!budgetResult.allowed) {
+        return NextResponse.json(
+            { error: 'Budget limit reached', spentCents: budgetResult.spentCents },
+            { status: 402 }
+        );
+    }
 
     try {
         const body = await req.json();
@@ -56,6 +75,15 @@ export async function POST(req: NextRequest) {
             ? { width: widthValue, height: heightValue }
             : resolveDimensions(size);
 
+        // Log generation start
+        reqLogger.start('generation.started', {
+            model: 'imagen-3.0-generate-001',
+            prompt_length: prompt.trim().length,
+            body_part: bodyPart || null,
+            style: style || null,
+            sample_count: requestedCount,
+        });
+
         // Call Edge Service (Imagen)
         const result = await generateWithImagen({
             prompt: prompt.trim(),
@@ -66,6 +94,17 @@ export async function POST(req: NextRequest) {
 
         // result.images is array of base64 data strings
         const durationMs = Date.now() - Date.now(); // Approximate
+
+        // Conservative default estimate per generation (tune later based on provider).
+        const costCents = 5;
+        await recordSpend(costCents);
+
+        // Log generation completion
+        reqLogger.complete('generation.completed', {
+            model: 'imagen-3.0-generate-001',
+            image_count: result.images.length,
+            cost_cents: costCents,
+        });
 
         return NextResponse.json({
             success: true,
@@ -86,7 +125,11 @@ export async function POST(req: NextRequest) {
         });
 
     } catch (error: any) {
-        console.error('[API] Imagen generation error:', error);
+        // Log generation failure
+        reqLogger.error('generation.failed', error, {
+            model: 'imagen-3.0-generate-001',
+            error_code: error.code || 'GENERATION_FAILED',
+        });
 
         if (error.code === 'VERTEX_QUOTA_EXCEEDED') {
             return NextResponse.json({

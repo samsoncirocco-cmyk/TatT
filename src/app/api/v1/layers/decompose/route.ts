@@ -9,8 +9,10 @@ import os from 'os';
 // @ts-ignore
 import { uploadLayer, uploadLayerThumbnail } from '@/services/gcs-service.js';
 import { generateMask } from '@/lib/segmentation';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 // Use temp dir for serverless functions
 const UPLOAD_DIR = path.join(os.tmpdir(), 'manama-uploads');
@@ -109,6 +111,16 @@ async function uploadThumbnailWithFallback(buffer: Buffer, designId: string, lay
 }
 
 export async function POST(req: NextRequest) {
+    // Auth check
+    const { verifyApiAuth } = await import('@/lib/api-auth');
+    const authError = verifyApiAuth(req);
+    if (authError) return authError;
+
+    const rateResult = await checkRateLimit(req, 'default');
+    if (!rateResult.allowed) {
+        return rateLimitResponse(rateResult);
+    }
+
     const startTime = Date.now();
 
     try {

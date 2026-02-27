@@ -154,7 +154,7 @@ export default function DesignGeneratorWithCouncil() {
 
       // Auto-save version
       if (result.images && result.images.length > 0) {
-        addVersion({
+        await addVersion({
           imageUrl: result.images[0], // Use first image as thumbnail
           allImages: result.images,
           metadata: {

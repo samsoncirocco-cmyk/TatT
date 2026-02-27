@@ -36,6 +36,7 @@ import { useSmartPreview } from '../hooks/useSmartPreview';
 import { useToast } from '../hooks/useToast';
 import { useStorageWarning } from '../hooks/useStorageWarning';
 import * as versionService from '../services/versionService';
+import { useAuthContext } from '../components/auth/AuthProvider';
 import Button from '../components/ui/Button';
 import { Wand2, Zap, Download, Sparkles, Layers, CheckCircle, Plus, Eraser } from 'lucide-react';
 import { useImageGeneration } from '../hooks/useImageGeneration';
@@ -45,7 +46,7 @@ import { useTransformShortcuts } from '../hooks/useTransformShortcuts';
 import { exportAsPNG, exportAsARAsset } from '../services/canvasService';
 import { convertToStencil } from '../services/stencilService';
 import { decomposeLayers } from '../services/layerDecompositionService';
-import { useForgeStore } from '../stores/useForgeStore';
+import { useForgeStore, setForgeStoreContext } from '../stores/useForgeStore';
 import {
     processGenerationResult,
     addMultipleLayers,
@@ -216,22 +217,25 @@ export default function Generate() {
     });
     const [guideStepIndex, setGuideStepIndex] = useState(0);
 
-    const [sessionId, setSessionId] = useState(() => {
-        const stored = sessionStorage.getItem('tattester_session_id');
-        if (stored) return stored;
-        const created = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-        sessionStorage.setItem('tattester_session_id', created);
-        return created;
-    });
+	    const [sessionId, setSessionId] = useState(() => {
+	        const stored = sessionStorage.getItem('tattester_session_id');
+	        if (stored) return stored;
+	        const created = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+	        sessionStorage.setItem('tattester_session_id', created);
+	        return created;
+	    });
 
-    const {
-        versions,
-        currentVersionId,
-        addVersion,
-        loadVersion,
-        removeVersion,
-        clearHistory
-    } = useVersionHistory(sessionId);
+	    const { user } = useAuthContext();
+	
+	    const {
+	        versions,
+	        currentVersionId,
+	        addVersion,
+	        loadVersion,
+	        removeVersion,
+	        clearHistory,
+	        isLoading: isVersionLoading
+	    } = useVersionHistory(sessionId);
 
     const {
         layers,
@@ -353,21 +357,34 @@ export default function Generate() {
         totalMatches,
         isLoading: isMatching,
         error: matchError
-    } = useRealtimeMatchPulse({
-        userId: sessionId,
-        context: matchContext,
-        currentDesign,
-        debounceMs: 2000
-    });
+	    } = useRealtimeMatchPulse({
+	        userId: sessionId,
+	        context: matchContext,
+	        currentDesign,
+	        debounceMs: 2000
+	    });
 
-    const historyPastCount = useForgeStore((state) => state.history.past.length);
-    const historyFutureCount = useForgeStore((state) => state.history.future.length);
+	    useEffect(() => {
+	        setForgeStoreContext(user?.uid || null, sessionId);
+	    }, [user?.uid, sessionId]);
+
+	    const historyPastCount = useForgeStore((state) => state.history.past.length);
+	    const historyFutureCount = useForgeStore((state) => state.history.future.length);
 
 
 
-    const timeline = useMemo(() => (
-        versionService.getVersionTimeline(sessionId)
-    ), [sessionId, versions]);
+	    const timeline = useMemo(() => (
+	        (versions || []).map(v => ({
+	            id: v.id,
+	            versionNumber: v.versionNumber,
+	            timestamp: v.timestamp,
+	            thumbnail: v.imageUrl,
+	            promptPreview: (v.prompt || '').substring(0, 50) + (v.prompt?.length > 50 ? '...' : ''),
+	            layerCount: v.layers?.length || 0,
+	            branchedFrom: v.branchedFrom,
+	            mergedFrom: v.mergedFrom
+	        }))
+	    ), [versions]);
 
     const createSessionId = useCallback(() => (
         `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
@@ -537,12 +554,12 @@ export default function Generate() {
                     const thumbnailUrl = createdLayers[createdLayers.length - 1]?.imageUrl || result.images[0];
                     const nextLayers = [...layers, ...createdLayers];
 
-                    addVersion(buildVersionPayload({
-                        layers: nextLayers,
-                        imageUrl: thumbnailUrl,
-                        arAssetUrl: arAsset?.url || null,
-                        mode: finalize ? 'final' : 'refine'
-                    }));
+	                    await addVersion(buildVersionPayload({
+	                        layers: nextLayers,
+	                        imageUrl: thumbnailUrl,
+	                        arAssetUrl: arAsset?.url || null,
+	                        mode: finalize ? 'final' : 'refine'
+	                    }));
 
                     console.log(`[Generate] Created ${createdLayers.length} layers from ${result.images.length} images`);
                 } else {
@@ -569,12 +586,12 @@ export default function Generate() {
                         nextLayers = [...layers, newLayer];
                     }
 
-                    addVersion(buildVersionPayload({
-                        layers: nextLayers,
-                        imageUrl: nextLayers[nextLayers.length - 1]?.imageUrl || result.images[0],
-                        arAssetUrl: arAsset?.url || null,
-                        mode: finalize ? 'final' : 'refine'
-                    }));
+	                    await addVersion(buildVersionPayload({
+	                        layers: nextLayers,
+	                        imageUrl: nextLayers[nextLayers.length - 1]?.imageUrl || result.images[0],
+	                        arAssetUrl: arAsset?.url || null,
+	                        mode: finalize ? 'final' : 'refine'
+	                    }));
                 }
 
                 console.log('Generation successful:', result);
@@ -640,10 +657,10 @@ export default function Generate() {
         }
     }, []);
 
-    const handleLoadExample = async (example) => {
-        setIsLoadingExample(true);
-        clearHistory();
-        clearLayers();
+	    const handleLoadExample = async (example) => {
+	        setIsLoadingExample(true);
+	        await clearHistory();
+	        clearLayers();
         setBodyPart(example.bodyPart);
         setPromptText(example.prompt || '');
         setEnhancedPrompt(null);
@@ -656,14 +673,14 @@ export default function Generate() {
                 loadedLayers.push(newLayer);
             }
 
-            addVersion(buildVersionPayload({
-                layers: loadedLayers,
-                imageUrl: loadedLayers[loadedLayers.length - 1]?.imageUrl || null
-            }));
-        } finally {
-            setIsLoadingExample(false);
-        }
-    };
+	            await addVersion(buildVersionPayload({
+	                layers: loadedLayers,
+	                imageUrl: loadedLayers[loadedLayers.length - 1]?.imageUrl || null
+	            }));
+	        } finally {
+	            setIsLoadingExample(false);
+	        }
+	    };
 
     const createStencilSource = async () => {
         const compositeBlob = await exportAsPNG(sortedLayers, canvasWidth, canvasHeight, 1.0);
@@ -786,9 +803,9 @@ export default function Generate() {
         }
     };
 
-    const handleBranchVersion = (versionId) => {
-        const branch = versionService.branchFromVersion(sessionId, versionId);
-        if (!branch) return;
+	    const handleBranchVersion = async (versionId) => {
+	        const branch = await versionService.branchFromVersion(sessionId, versionId, user ? { uid: user.uid } : null);
+	        if (!branch) return;
 
         sessionStorage.setItem('tattester_session_id', branch.sessionId);
         setSessionId(branch.sessionId);
@@ -805,30 +822,30 @@ export default function Generate() {
         if (Array.isArray(branch.version.parameters?.vibeChips)) {
             setSelectedChips(branch.version.parameters.vibeChips);
         }
-    };
+	    };
 
-    const handleCompareVersions = ({ first, second }) => {
-        const compare = versionService.compareVersions(sessionId, first, second);
-        if (compare) {
-            setComparison({
-                versionA: compare.version1,
-                versionB: compare.version2
-            });
-        }
-    };
+	    const handleCompareVersions = async ({ first, second }) => {
+	        const compare = await versionService.compareVersions(sessionId, first, second, user ? { uid: user.uid } : null);
+	        if (compare) {
+	            setComparison({
+	                versionA: compare.version1,
+	                versionB: compare.version2
+	            });
+	        }
+	    };
 
-    const handleMergeVersions = (versionA, versionB) => {
+	    const handleMergeVersions = async (versionA, versionB) => {
         // Get layer indices for all layers from both versions
         const layersFromVersion1 = (versionA.layers || []).map((_, idx) => idx);
         const layersFromVersion2 = (versionB.layers || []).map((_, idx) => idx);
 
         // Merge versions
-        const merged = versionService.mergeVersions(sessionId, versionA.id, versionB.id, {
-            layersFromVersion1,
-            layersFromVersion2,
-            prompt: versionA.prompt || promptText,
-            parameters: versionA.parameters || { bodyPart, size, aiModel }
-        });
+	        const merged = await versionService.mergeVersions(sessionId, versionA.id, versionB.id, {
+	            layersFromVersion1,
+	            layersFromVersion2,
+	            prompt: versionA.prompt || promptText,
+	            parameters: versionA.parameters || { bodyPart, size, aiModel }
+	        }, user ? { uid: user.uid } : null);
 
         if (merged) {
             // Load the merged version
@@ -838,7 +855,7 @@ export default function Generate() {
         }
     };
 
-    const handleRestyle = async () => {
+	    const handleRestyle = async () => {
         if (!restyleLayerId || !restyleStyle.trim()) return;
 
         const promptBase = enhancedPrompt || promptText;
@@ -863,11 +880,11 @@ export default function Generate() {
                 const nextLayers = layers.map(layer =>
                     layer.id === restyleLayerId ? { ...layer, imageUrl: response.images[0] } : layer
                 );
-                addVersion(buildVersionPayload({
-                    layers: nextLayers,
-                    imageUrl: response.images[0],
-                    arAssetUrl: arAsset?.url || null
-                }));
+	                await addVersion(buildVersionPayload({
+	                    layers: nextLayers,
+	                    imageUrl: response.images[0],
+	                    arAssetUrl: arAsset?.url || null
+	                }));
             }
         } catch (error) {
             console.error('[Generate] Restyle failed:', error);
@@ -917,12 +934,12 @@ export default function Generate() {
                     createdLayers = [newLayer];
                 }
 
-                const nextLayers = [...layers, ...createdLayers];
-                addVersion(buildVersionPayload({
-                    layers: nextLayers,
-                    imageUrl: createdLayers[createdLayers.length - 1]?.imageUrl || response.images[0],
-                    mode: 'element'
-                }));
+	                const nextLayers = [...layers, ...createdLayers];
+	                await addVersion(buildVersionPayload({
+	                    layers: nextLayers,
+	                    imageUrl: createdLayers[createdLayers.length - 1]?.imageUrl || response.images[0],
+	                    mode: 'element'
+	                }));
             }
         } catch (error) {
             console.error('[Generate] Add element failed:', error);
@@ -933,30 +950,30 @@ export default function Generate() {
         }
     };
 
-    const handleInpaintSave = (imageUrl) => {
+	    const handleInpaintSave = (imageUrl) => {
         if (!selectedLayerId || !imageUrl) return;
         updateImage(selectedLayerId, imageUrl);
         const nextLayers = layers.map(layer =>
             layer.id === selectedLayerId ? { ...layer, imageUrl } : layer
         );
-        addVersion(buildVersionPayload({
-            layers: nextLayers,
-            imageUrl
-        }));
+	        void addVersion(buildVersionPayload({
+	            layers: nextLayers,
+	            imageUrl
+	        }));
         setShowInpainting(false);
     };
 
-    const handleCleanupSave = (imageUrl) => {
+	    const handleCleanupSave = (imageUrl) => {
         if (!selectedLayerId || !imageUrl) return;
         updateImage(selectedLayerId, imageUrl);
         const nextLayers = layers.map(layer =>
             layer.id === selectedLayerId ? { ...layer, imageUrl } : layer
         );
-        addVersion(buildVersionPayload({
-            layers: nextLayers,
-            imageUrl,
-            mode: 'cleanup'
-        }));
+	        void addVersion(buildVersionPayload({
+	            layers: nextLayers,
+	            imageUrl,
+	            mode: 'cleanup'
+	        }));
         setShowCleanup(false);
         toast?.success?.('Layer cleaned up successfully');
     };
@@ -966,15 +983,15 @@ export default function Generate() {
         setContextMenu({ layer, x, y });
     };
 
-    const handleDuplicateLayer = async (layer) => {
-        const newLayer = await addLayer(layer.imageUrl, layer.type);
-        const nextLayers = [...layers, newLayer];
-        addVersion(buildVersionPayload({
-            layers: nextLayers,
-            imageUrl: newLayer.imageUrl
-        }));
-        toast?.success?.(`Duplicated layer: ${layer.name}`);
-    };
+	    const handleDuplicateLayer = async (layer) => {
+	        const newLayer = await addLayer(layer.imageUrl, layer.type);
+	        const nextLayers = [...layers, newLayer];
+	        await addVersion(buildVersionPayload({
+	            layers: nextLayers,
+	            imageUrl: newLayer.imageUrl
+	        }));
+	        toast?.success?.(`Duplicated layer: ${layer.name}`);
+	    };
 
     const handleRegenerateElementSubmit = async (data) => {
         try {
@@ -989,16 +1006,16 @@ export default function Generate() {
                 }
             });
 
-            if (response?.images?.[0]) {
+	            if (response?.images?.[0]) {
                 updateImage(data.layerId, response.images[0]);
                 const nextLayers = layers.map(layer =>
                     layer.id === data.layerId ? { ...layer, imageUrl: response.images[0] } : layer
                 );
-                addVersion(buildVersionPayload({
-                    layers: nextLayers,
-                    imageUrl: response.images[0],
-                    mode: 'regenerate'
-                }));
+	                await addVersion(buildVersionPayload({
+	                    layers: nextLayers,
+	                    imageUrl: response.images[0],
+	                    mode: 'regenerate'
+	                }));
 
                 setRegenerateModal(null);
                 toast?.success?.('Element regenerated successfully');

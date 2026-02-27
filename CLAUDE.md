@@ -378,7 +378,7 @@ OPENROUTER_API_KEY=sk-or-...
 ### Development vs Production
 
 **Development**:
-- Uses `dev-token-change-in-production` for auth (acceptable)
+- Uses Firebase Authentication (email/password) — see AuthProvider in layout.tsx
 - CORS allows `localhost:3000` and `localhost:5173`
 - Client-side rate limiting only
 

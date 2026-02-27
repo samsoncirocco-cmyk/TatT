@@ -11,14 +11,18 @@
     "lint": "next lint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "seed:embeddings": "tsx scripts/seed-artist-embeddings.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@google-cloud/aiplatform": "^6.1.0",
+    "@google-cloud/monitoring": "^5.3.1",
+    "@google-cloud/secret-manager": "^6.1.1",
     "@google-cloud/storage": "^7.18.0",
+    "@google-cloud/tasks": "^6.2.1",
     "@google-cloud/vertexai": "^1.10.0",
     "@google-cloud/vision": "^5.3.4",
     "@react-spring/web": "^10.0.3",
@@ -37,6 +41,8 @@
     "lucide-react": "^0.562.0",
     "neo4j-driver": "^6.0.1",
     "next": "16.1.2",
+    "next-firebase-auth-edge": "^1.11.1",
+    "pino": "^10.3.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-konva": "^19.2.1",
@@ -61,6 +67,7 @@
     "react-router-dom": "^7.13.0",
     "supertest": "^7.2.2",
     "tailwindcss": "^4",
+    "tsx": "^4.20.6",
     "typescript": "^5",
     "vitest": "^4.0.18"
   }

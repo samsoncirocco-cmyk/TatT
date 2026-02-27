@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  output: 'standalone',
   // Empty turbopack config to silence the warning about webpack config
   turbopack: {},
   webpack: (config, { isServer }) => {

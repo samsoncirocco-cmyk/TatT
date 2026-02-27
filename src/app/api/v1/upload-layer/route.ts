@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyApiAuth } from '@/lib/api-auth';
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
 import os from 'os';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 // Use temp dir
 const UPLOAD_DIR = path.join(os.tmpdir(), 'manama-uploads');
@@ -14,6 +17,14 @@ async function ensureUploadDir() {
 }
 
 export async function POST(req: NextRequest) {
+    const authError = verifyApiAuth(req);
+    if (authError) return authError;
+
+    const rateResult = await checkRateLimit(req, 'upload');
+    if (!rateResult.allowed) {
+        return rateLimitResponse(rateResult);
+    }
+
     try {
         const { imageData } = await req.json();
 

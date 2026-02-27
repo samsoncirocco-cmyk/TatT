@@ -4,6 +4,7 @@
  * Handles Neo4j database queries for artist matching.
  * Provides a feature-flagged alternative to JS-based matching.
  */
+import { NEO4J_DEFAULT_LIMIT } from '../lib/neo4j';
 
 // ============================================================================
 // Configuration
@@ -123,9 +124,9 @@ async function executeCypherQuery(query: string, params: CypherQueryParams = {})
   try {
     const response = await fetch(NEO4J_ENDPOINT, {
       method: 'POST',
+      credentials: 'same-origin',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_FRONTEND_AUTH_TOKEN || 'dev-token-change-in-production'}`
       },
       body: JSON.stringify({ query, params })
     });
@@ -186,6 +187,7 @@ function generateMatchReasons(artist: any, preferences: MatchPreferences): strin
  */
 export async function findMatchingArtists(preferences: MatchPreferences): Promise<MatchedArtist[]> {
   const { styles = [], location, budget, keywords = [] } = preferences;
+  const safeLimit = Math.min(preferences.limit || NEO4J_DEFAULT_LIMIT, NEO4J_DEFAULT_LIMIT);
 
   // Cypher query for artist matching
   // This leverages Neo4j's graph capabilities for efficient matching
@@ -251,14 +253,15 @@ export async function findMatchingArtists(preferences: MatchPreferences): Promis
       a.tags AS tags,
       totalScore * 100 AS score
     ORDER BY totalScore DESC
-    LIMIT 20
+    LIMIT $limit
   `;
 
   const results = await executeCypherQuery(query, {
     styles,
     location: location || null,
     budget: budget || null,
-    keywords
+    keywords,
+    limit: safeLimit
   });
 
   // Transform Neo4j results to match expected format
@@ -285,6 +288,7 @@ export async function findMatchingArtists(preferences: MatchPreferences): Promis
  */
 export async function findArtistMatchesForPulse(preferences: PulsePreferences): Promise<Artist[]> {
   const { style, bodyPart, location, limit = 20 } = preferences;
+  const safeLimit = Math.min(limit, NEO4J_DEFAULT_LIMIT);
 
   const query = `
     MATCH (a:Artist)
@@ -334,7 +338,7 @@ export async function findArtistMatchesForPulse(preferences: PulsePreferences): 
     style: style || null,
     bodyPart: bodyPart || null,
     location: location || null,
-    limit
+    limit: safeLimit
   });
 
   return results.map(record => ({
@@ -397,9 +401,10 @@ export async function getArtistsByIds(artistIds: Array<string | number> = []): P
       a.portfolioImages AS portfolioImages,
       a.instagram AS instagram,
       a.tags AS tags
+    LIMIT $limit
   `;
 
-  const results = await executeCypherQuery(query, { artistIds });
+  const results = await executeCypherQuery(query, { artistIds, limit: NEO4J_DEFAULT_LIMIT });
 
   return results.map(record => ({
     id: record.id,
@@ -480,9 +485,10 @@ export async function getInfluencedArtists(artistId: string): Promise<Influenced
       strength: r.strength
     } as influencedArtist
     ORDER BY r.strength DESC
+    LIMIT $limit
   `;
 
-  const results = await executeCypherQuery(query, { artistId });
+  const results = await executeCypherQuery(query, { artistId, limit: NEO4J_DEFAULT_LIMIT });
   return results.map(record => record.influencedArtist);
 }
 
@@ -501,9 +507,10 @@ export async function findArtistsByEmbeddingIds(embeddingIds: string[]): Promise
     WHERE a.embedding_id IN $embeddingIds
     RETURN a
     ORDER BY a.name
+    LIMIT $limit
   `;
 
-  const results = await executeCypherQuery(query, { embeddingIds });
+  const results = await executeCypherQuery(query, { embeddingIds, limit: NEO4J_DEFAULT_LIMIT });
   return results.map(record => record.a);
 }
 

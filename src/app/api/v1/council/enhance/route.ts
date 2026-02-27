@@ -1,25 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyApiAuth } from '@/lib/api-auth';
 import { enhancePromptWithGemini } from '@/services/vertex-ai-edge';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
+import { createRequestLogger } from '@/lib/logger';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
-    // Council route might be public or protected. server.js had it protected.
-    // We'll skip verification in the file for now as it's cleaner to use middleware if possible, 
-    // but sticking to the plan: use helper in each route.
-    // Wait, I missed verifyApiAuth import in the previous step? No I added it.
-    // I should add it here too.
+    const reqLogger = createRequestLogger('council');
 
-    // Note: Previous express code used `validateCouncilEnhanceRequest` middleware.
-    // I should probably implement that validation here or trust the service/frontend validation for now.
-    // The express route also had rate limiting.
+    const authError = verifyApiAuth(req);
+    if (authError) return authError;
+
+    const rateResult = await checkRateLimit(req, 'council');
+    if (!rateResult.allowed) {
+        return rateLimitResponse(rateResult);
+    }
 
     try {
-        // Re-import verifyApiAuth since I forgot it at top
-        const { verifyApiAuth } = await import('@/lib/api-auth');
-        const authError = verifyApiAuth(req);
-        if (authError) return authError;
-
         const body = await req.json();
         const { user_prompt, style, body_part, complexity = 'medium', isStencilMode = false } = body;
 
@@ -28,12 +27,13 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Invalid prompt', code: 'INVALID_REQUEST' }, { status: 400 });
         }
 
-        console.log('[API] Council enhancement request:', {
+        // Log council start
+        reqLogger.start('council.started', {
             prompt_length: user_prompt.length,
-            style,
-            body_part,
+            style: style || null,
+            body_part: body_part || null,
             complexity,
-            isStencilMode
+            is_stencil_mode: isStencilMode,
         });
 
         const startTime = Date.now();
@@ -59,7 +59,11 @@ export async function POST(req: NextRequest) {
             enhancedPrompts.push('Failed to generate enhanced prompts');
         }
 
-        console.log(`[API] Council enhancement completed in ${duration}ms`);
+        // Log council completion
+        reqLogger.complete('council.completed', {
+            enhanced_prompt_length: enhancedPrompts[0]?.length || 0,
+            prompt_count: enhancedPrompts.length,
+        });
 
         return NextResponse.json({
             success: true,
@@ -83,7 +87,8 @@ export async function POST(req: NextRequest) {
         });
 
     } catch (error: any) {
-        console.error('[API] Council enhancement error:', error);
+        // Log council failure
+        reqLogger.error('council.failed', error);
 
         // Simple error mapping
         const status = error.message.includes('not found') ? 404 :

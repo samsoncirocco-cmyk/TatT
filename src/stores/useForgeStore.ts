@@ -6,6 +6,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { createFirestoreZustandStorage } from '../services/storage/firestoreZustandStorage';
 import {
     Layer,
     createLayer,
@@ -28,6 +29,24 @@ import type { BodyPart } from '../constants/bodyPartAspectRatios';
 
 const STORAGE_KEY = 'canvas_layers';
 const MAX_HISTORY = 50;
+
+let _currentUserId: string | null = null;
+let _currentDesignId: string | null = null;
+
+export function setForgeStoreContext(userId: string | null, designId: string | null) {
+    _currentUserId = userId;
+    _currentDesignId = designId;
+
+    // When switching storage backends (anon <-> authed), rehydrate from the new source.
+    if (typeof window !== 'undefined') {
+        try {
+            // @ts-ignore - persist is attached by zustand middleware at runtime.
+            void useForgeStore.persist?.rehydrate?.();
+        } catch (err) {
+            console.warn('[ForgeStore] Failed to rehydrate after context change:', err);
+        }
+    }
+}
 
 interface HistoryState {
     past: Layer[][];
@@ -241,7 +260,12 @@ export const useForgeStore = create<ForgeState>()(
     typeof window !== 'undefined'
         ? persist(baseStore, {
             name: STORAGE_KEY,
-            storage: createJSONStorage(() => window.sessionStorage),
+            storage: createJSONStorage(() => {
+                if (_currentUserId && _currentDesignId) {
+                    return createFirestoreZustandStorage(_currentUserId, _currentDesignId);
+                }
+                return window.sessionStorage;
+            }),
             partialize: (state) => ({
                 layers: state.layers.map(({ thumbnail, ...layer }) => layer),
                 selectedLayerId: state.selectedLayerId
