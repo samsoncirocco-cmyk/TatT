@@ -1,11 +1,12 @@
 /**
  * Match Service
  *
- * Combines Neo4j and Supabase vector results using Reciprocal Rank Fusion (RRF).
+ * Combines Neo4j and Firestore vector results using weighted RRF.
  * Falls back to demo matching when services aren't available.
  */
 
-import { searchSimilar } from './vectorDbService';
+import { searchSimilarArtists } from './firestore-vector-service';
+import { getMatchConfig, weightedRRF } from './match-config-service';
 import {
   findArtistMatchesForPulse,
   getArtistsByIds,
@@ -13,7 +14,6 @@ import {
 } from './neo4jService';
 import { findMatchingArtistsForDemo } from './demoMatchService';
 
-// Types
 export interface MatchContext {
   style?: string;
   bodyPart?: string;
@@ -69,25 +69,12 @@ export interface HybridMatchOptions {
 interface RankListItem {
   id?: string;
   score?: number;
+  rank?: number;
   [key: string]: any;
 }
 
-const RRF_K = 60;
-
-function reciprocalRankFusion(rankLists: RankListItem[][], k: number = RRF_K): Map<string, number> {
-  const scores = new Map<string, number>();
-
-  rankLists.forEach((list) => {
-    if (!Array.isArray(list)) return;
-    list.forEach((item, index) => {
-      if (!item?.id) return;
-      const rank = index + 1;
-      const score = 1 / (k + rank);
-      scores.set(item.id, (scores.get(item.id) || 0) + score);
-    });
-  });
-
-  return scores;
+function withStringId<T extends { id: string | number }>(artist: T): T & { id: string } {
+  return { ...artist, id: String(artist.id) };
 }
 
 function normalizePercent(value: number): number {
@@ -104,23 +91,19 @@ function stableHashScore(input: string | undefined): number {
   return Math.abs(hash % 100) / 100;
 }
 
-function computeMatchBreakdown(artist: Artist, context: MatchContext, supabaseScore: number = 0): MatchBreakdown {
+function computeMatchBreakdown(artist: Artist, context: MatchContext, vectorScore: number = 0): MatchBreakdown {
   const style = context.style?.toLowerCase();
   const location = context.location?.toLowerCase();
   const budget = context.budget;
 
-  const styles = (artist.styles || []).map(s => s.toLowerCase());
+  const styles = (artist.styles || []).map((s) => s.toLowerCase());
   const artistLocation = (artist.location || artist.city || '').toLowerCase();
 
-  const visual = Number.isFinite(supabaseScore) ? Math.max(0, Math.min(1, supabaseScore)) : 0.5;
+  const visual = Number.isFinite(vectorScore) ? Math.max(0, Math.min(1, vectorScore)) : 0.5;
   const styleScore = style ? (styles.includes(style) ? 1 : 0.4) : 0.6;
-  const locationScore = location
-    ? (artistLocation.includes(location) ? 1 : 0.5)
-    : 0.6;
+  const locationScore = location ? (artistLocation.includes(location) ? 1 : 0.5) : 0.6;
   const hourlyRate = artist.hourlyRate || artist.rate;
-  const budgetScore = budget && hourlyRate
-    ? (hourlyRate <= budget ? 1 : 0.4)
-    : 0.6;
+  const budgetScore = budget && hourlyRate ? (hourlyRate <= budget ? 1 : 0.4) : 0.6;
   const varietyScore = stableHashScore(artist.id || artist.name);
 
   return {
@@ -140,7 +123,6 @@ function computeMatchScoreFromBreakdown(breakdown: MatchBreakdown): number {
     breakdown.budget * 0.1 +
     breakdown.variety * 0.05
   );
-
   return normalizePercent(weighted * 100);
 }
 
@@ -165,9 +147,10 @@ function buildReasoning(artist: Artist, breakdown: MatchBreakdown, context: Matc
   return parts.join(', ');
 }
 
-function buildArtistCard(artist: Artist, context: MatchContext, rrfScore: number, supabaseScore: number): ArtistCard {
+function buildArtistCard(artist: Artist, context: MatchContext, rrfScore: number, vectorScore: number): ArtistCard {
   const thumbnail = artist.portfolioImages?.[0] || artist.portfolio?.[0] || artist.thumbnail || artist.profileImage;
-  const breakdown = computeMatchBreakdown(artist, context, supabaseScore);
+  const breakdown = computeMatchBreakdown(artist, context, vectorScore);
+
   return {
     ...artist,
     thumbnail,
@@ -178,20 +161,13 @@ function buildArtistCard(artist: Artist, context: MatchContext, rrfScore: number
   };
 }
 
-/**
- * Hybrid search using Neo4j and Supabase embeddings + RRF.
- * Falls back to demo matching if services aren't available.
- */
 export async function getHybridArtistMatches(
   context: MatchContext,
   options: HybridMatchOptions = {}
 ): Promise<HybridMatchResult> {
-  const {
-    embeddingVector,
-    limit = 20
-  } = options;
+  const { embeddingVector, limit = 20 } = options;
+  const matchConfig = await getMatchConfig();
 
-  // Try Neo4j first
   const neo4jEnabled = isNeo4jEnabled();
   const neo4jMatches = neo4jEnabled
     ? await findArtistMatchesForPulse({
@@ -202,19 +178,21 @@ export async function getHybridArtistMatches(
     })
     : [];
 
-  // Try Supabase vector search
-  let supabaseMatches: RankListItem[] = [];
+  let vectorMatches: RankListItem[] = [];
   if (embeddingVector && Array.isArray(embeddingVector)) {
     try {
-      supabaseMatches = await searchSimilar(embeddingVector, limit);
+      const firestoreMatches = await searchSimilarArtists(embeddingVector, limit);
+      vectorMatches = firestoreMatches.map((item) => ({
+        id: item.artistId,
+        score: item.score,
+        rank: item.rank
+      }));
     } catch (error) {
-      console.warn('[MatchService] Supabase vector search failed:', error);
+      console.warn('[MatchService] Firestore vector search failed:', error);
     }
   }
 
-  // If both services failed or returned no results, use demo matching
-  if (neo4jMatches.length === 0 && supabaseMatches.length === 0) {
-    console.log('[MatchService] Using demo matching fallback');
+  if (neo4jMatches.length === 0 && vectorMatches.length === 0) {
     try {
       const demoMatches = await findMatchingArtistsForDemo(
         {
@@ -228,7 +206,7 @@ export async function getHybridArtistMatches(
 
       return {
         total: demoMatches.length,
-        matches: demoMatches.map(artist => ({
+        matches: demoMatches.map((artist) => ({
           ...artist,
           matchScore: Math.round((artist.score || 0) * 100),
           thumbnail: artist.portfolioImages?.[0] || artist.profileImage
@@ -240,45 +218,61 @@ export async function getHybridArtistMatches(
     }
   }
 
+  const graphRankList = neo4jMatches.map((artist, index) => ({
+    id: String(artist.id),
+    rank: index + 1
+  }));
+  const vectorRankList = vectorMatches.map((item, index) => ({
+    id: item.id as string,
+    rank: item.rank || (index + 1)
+  }));
 
-  const rrfScores = reciprocalRankFusion([neo4jMatches, supabaseMatches]);
-  const supabaseScoreMap = new Map<string, number>();
-  supabaseMatches.forEach((item) => {
+  const rrfScores = weightedRRF(graphRankList, vectorRankList, matchConfig);
+  const vectorScoreMap = new Map<string, number>();
+  vectorMatches.forEach((item) => {
     if (item?.id) {
-      supabaseScoreMap.set(item.id, item.score || 0);
+      vectorScoreMap.set(item.id, item.score || 0);
     }
   });
 
   const artistMap = new Map<string, Artist>();
   neo4jMatches.forEach((artist) => {
-    artistMap.set(artist.id, artist);
+    const normalizedArtist = withStringId(artist);
+    artistMap.set(normalizedArtist.id, normalizedArtist);
   });
 
-  const missingIds = supabaseMatches
-    .map(item => item.id)
+  const missingIds = vectorMatches
+    .map((item) => item.id)
     .filter((id): id is string => id != null && !artistMap.has(id));
 
   if (missingIds.length) {
     try {
       const missingArtists = await getArtistsByIds(missingIds);
       missingArtists.forEach((artist) => {
-        artistMap.set(artist.id, artist);
+        const normalizedArtist = withStringId(artist as any);
+        artistMap.set(normalizedArtist.id, normalizedArtist as Artist);
       });
     } catch (error) {
       console.warn('[MatchService] Failed to hydrate artists from Neo4j:', error);
     }
   }
 
-  const merged = Array.from(artistMap.values()).map((artist) =>
-    buildArtistCard(
-      artist,
-      context,
-      rrfScores.get(artist.id) || 0,
-      supabaseScoreMap.get(artist.id) || 0
+  const merged = Array.from(artistMap.values())
+    .map((artist) =>
+      buildArtistCard(
+        artist,
+        context,
+        rrfScores.get(String(artist.id)) || 0,
+        vectorScoreMap.get(String(artist.id)) || 0
+      )
     )
-  );
+    .filter((artist) => (artist.rrfScore >= matchConfig.confidenceThreshold) || vectorScoreMap.has(String(artist.id)));
 
-  merged.sort((a, b) => b.matchScore - a.matchScore);
+  merged.sort((a, b) => {
+    const rrfDiff = (b.rrfScore || 0) - (a.rrfScore || 0);
+    if (rrfDiff !== 0) return rrfDiff;
+    return b.matchScore - a.matchScore;
+  });
 
   return {
     total: merged.length,

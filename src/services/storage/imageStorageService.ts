@@ -1,72 +1,96 @@
 /**
- * Cloud Storage Image Service
+ * Cloud Storage Image Service (Server-Side)
  *
- * Handles uploading and retrieving generated tattoo images from Firebase Cloud Storage.
- * Images are stored with permanent URLs and CDN-ready caching metadata.
+ * Stores generated tattoo images in Google Cloud Storage with CDN-ready caching headers.
  *
  * Storage structure:
  * - generated/${userId}/${designId}/${versionId}/design.png
  *
  * Key features:
  * - Immutable image storage with 1-year CDN cache headers
- * - Permanent download URLs (Firebase token-based, not signed URLs)
- * - Upload from external URLs (Replicate/Vertex AI outputs)
- * - Upload from blob data (direct client uploads)
+ * - Permanent URLs (public object URLs, not expiring signed URLs)
  */
 
-import {
-  ref,
-  uploadBytes,
-  getDownloadURL,
-  deleteObject,
-  getStorage,
-  type StorageReference,
-} from 'firebase/storage';
-import { app } from '../../lib/firebase-client';
+import { Storage } from '@google-cloud/storage';
 
-// Get Firebase Storage instance
-const storage = getStorage(app);
+function getBucketName(): string {
+  return (
+    process.env.GCP_STORAGE_BUCKET ||
+    process.env.GCS_BUCKET_NAME ||
+    process.env.GCS_BUCKET ||
+    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
+    'tatt-pro-assets'
+  );
+}
 
-/**
- * Upload generated image from blob/buffer data
- *
- * @param userId - User ID who owns the design
- * @param designId - Design ID
- * @param versionId - Version ID
- * @param imageData - Image data as Blob, ArrayBuffer, or Uint8Array
- * @returns Permanent download URL
- */
+function getProjectId(): string | undefined {
+  return process.env.GCP_PROJECT_ID || process.env.GCLOUD_PROJECT;
+}
+
+let _storage: Storage | null = null;
+
+function getStorageClient(): Storage {
+  if (_storage) return _storage;
+  _storage = new Storage({
+    keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+    projectId: getProjectId(),
+  });
+  return _storage;
+}
+
+async function toBuffer(imageData: Blob | ArrayBuffer | Uint8Array): Promise<Buffer> {
+  if (typeof Blob !== 'undefined' && imageData instanceof Blob) {
+    const ab = await imageData.arrayBuffer();
+    return Buffer.from(ab);
+  }
+  if (imageData instanceof ArrayBuffer) {
+    return Buffer.from(imageData);
+  }
+  return Buffer.from(imageData);
+}
+
+function publicUrl(bucketName: string, objectPath: string): string {
+  // For public objects, this is stable.
+  return `https://storage.googleapis.com/${bucketName}/${objectPath}`;
+}
+
 export async function uploadGeneratedImage(
   userId: string,
   designId: string,
   versionId: string,
   imageData: Blob | ArrayBuffer | Uint8Array
 ): Promise<string> {
+  if (typeof window !== 'undefined') {
+    throw new Error('[ImageStorage] uploadGeneratedImage is server-only');
+  }
+
+  const bucketName = getBucketName();
+  const objectPath = `generated/${userId}/${designId}/${versionId}/design.png`;
+
   try {
-    // Construct storage path
-    const storagePath = `generated/${userId}/${designId}/${versionId}/design.png`;
-    const storageRef = ref(storage, storagePath);
+    const buffer = await toBuffer(imageData);
+    const storage = getStorageClient();
+    const bucket = storage.bucket(bucketName);
+    const file = bucket.file(objectPath);
 
-    // Upload with metadata
-    const metadata = {
+    await file.save(buffer, {
+      resumable: false,
       contentType: 'image/png',
-      cacheControl: 'public, max-age=31536000, immutable', // 1 year CDN cache
-      customMetadata: {
-        userId,
-        designId,
-        versionId,
-        uploadedAt: new Date().toISOString(),
+      metadata: {
+        cacheControl: 'public, max-age=31536000, immutable',
+        metadata: {
+          userId,
+          designId,
+          versionId,
+          uploadedAt: new Date().toISOString(),
+        },
       },
-    };
+    });
 
-    console.log(`[ImageStorage] Uploading image to ${storagePath}`);
-    await uploadBytes(storageRef, imageData, metadata);
+    // Permanent URL requirement: make the object public.
+    await file.makePublic();
 
-    // Get permanent download URL
-    const downloadUrl = await getDownloadURL(storageRef);
-    console.log(`[ImageStorage] Upload complete. URL: ${downloadUrl.substring(0, 100)}...`);
-
-    return downloadUrl;
+    return publicUrl(bucketName, objectPath);
   } catch (error) {
     console.error('[ImageStorage] Failed to upload image:', error);
     throw new Error(
@@ -75,48 +99,23 @@ export async function uploadGeneratedImage(
   }
 }
 
-/**
- * Upload image from external URL
- *
- * Fetches image from external source (e.g., Replicate output URL) and uploads to Cloud Storage.
- * This is the common path: AI services return temporary URLs, we make them permanent.
- *
- * NOTE: This function must run server-side (fetches external URLs).
- *
- * @param userId - User ID who owns the design
- * @param designId - Design ID
- * @param versionId - Version ID
- * @param sourceUrl - External URL to fetch image from
- * @returns Permanent download URL
- */
 export async function uploadImageFromUrl(
   userId: string,
   designId: string,
   versionId: string,
   sourceUrl: string
 ): Promise<string> {
-  // Server-side only guard
   if (typeof window !== 'undefined') {
-    throw new Error(
-      '[ImageStorage] uploadImageFromUrl must run server-side (cannot fetch external URLs from browser)'
-    );
+    throw new Error('[ImageStorage] uploadImageFromUrl is server-only');
   }
 
   try {
-    console.log(`[ImageStorage] Fetching image from external URL: ${sourceUrl.substring(0, 100)}...`);
-
-    // Fetch image from external URL
     const response = await fetch(sourceUrl);
     if (!response.ok) {
       throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
     }
-
-    // Convert to blob
-    const blob = await response.blob();
-    console.log(`[ImageStorage] Fetched ${blob.size} bytes, type: ${blob.type}`);
-
-    // Upload to Cloud Storage
-    return await uploadGeneratedImage(userId, designId, versionId, blob);
+    const ab = await response.arrayBuffer();
+    return uploadGeneratedImage(userId, designId, versionId, ab);
   } catch (error) {
     console.error('[ImageStorage] Failed to upload image from URL:', error);
     throw new Error(
@@ -125,33 +124,27 @@ export async function uploadImageFromUrl(
   }
 }
 
-/**
- * Get download URL for an existing image
- *
- * @param userId - User ID who owns the design
- * @param designId - Design ID
- * @param versionId - Version ID
- * @returns Download URL if image exists, null otherwise
- */
 export async function getImageUrl(
   userId: string,
   designId: string,
   versionId: string
 ): Promise<string | null> {
+  if (typeof window !== 'undefined') {
+    throw new Error('[ImageStorage] getImageUrl is server-only');
+  }
+
+  const bucketName = getBucketName();
+  const objectPath = `generated/${userId}/${designId}/${versionId}/design.png`;
+
   try {
-    const storagePath = `generated/${userId}/${designId}/${versionId}/design.png`;
-    const storageRef = ref(storage, storagePath);
+    const storage = getStorageClient();
+    const bucket = storage.bucket(bucketName);
+    const file = bucket.file(objectPath);
 
-    const downloadUrl = await getDownloadURL(storageRef);
-    return downloadUrl;
-  } catch (error: any) {
-    // If object doesn't exist, return null (not an error)
-    if (error.code === 'storage/object-not-found') {
-      console.log(`[ImageStorage] Image not found: ${userId}/${designId}/${versionId}`);
-      return null;
-    }
-
-    // Other errors should be logged and re-thrown
+    const [exists] = await file.exists();
+    if (!exists) return null;
+    return publicUrl(bucketName, objectPath);
+  } catch (error) {
     console.error('[ImageStorage] Failed to get image URL:', error);
     throw new Error(
       `Failed to get image URL: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -159,38 +152,25 @@ export async function getImageUrl(
   }
 }
 
-/**
- * Delete an image from Cloud Storage
- *
- * Silently succeeds if image doesn't exist (idempotent operation).
- *
- * @param userId - User ID who owns the design
- * @param designId - Design ID
- * @param versionId - Version ID
- */
-export async function deleteImage(
-  userId: string,
-  designId: string,
-  versionId: string
-): Promise<void> {
+export async function deleteImage(userId: string, designId: string, versionId: string): Promise<void> {
+  if (typeof window !== 'undefined') {
+    throw new Error('[ImageStorage] deleteImage is server-only');
+  }
+
+  const bucketName = getBucketName();
+  const objectPath = `generated/${userId}/${designId}/${versionId}/design.png`;
+
   try {
-    const storagePath = `generated/${userId}/${designId}/${versionId}/design.png`;
-    const storageRef = ref(storage, storagePath);
+    const storage = getStorageClient();
+    const bucket = storage.bucket(bucketName);
+    const file = bucket.file(objectPath);
 
-    console.log(`[ImageStorage] Deleting image: ${storagePath}`);
-    await deleteObject(storageRef);
-    console.log(`[ImageStorage] Delete complete`);
-  } catch (error: any) {
-    // Silently succeed if object doesn't exist
-    if (error.code === 'storage/object-not-found') {
-      console.log(`[ImageStorage] Image already deleted or never existed: ${userId}/${designId}/${versionId}`);
-      return;
-    }
-
-    // Other errors should be logged and re-thrown
+    await file.delete({ ignoreNotFound: true });
+  } catch (error) {
     console.error('[ImageStorage] Failed to delete image:', error);
     throw new Error(
       `Failed to delete image: ${error instanceof Error ? error.message : 'Unknown error'}`
     );
   }
 }
+
