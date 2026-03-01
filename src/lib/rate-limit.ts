@@ -5,7 +5,6 @@ import { checkQuota } from './quota-tracker';
 
 export type RateLimitResult = {
   allowed: boolean;
-  remaining: number;
   retryAfter?: number;
 };
 
@@ -33,7 +32,7 @@ export async function checkRateLimit(req: NextRequest, limitType: string): Promi
 
   // Prefer authenticated user id; fall back to IP-derived key.
   const user = await getUserFromRequest(req);
-  const key = user?.uid || getClientKey(req);
+  const key = user?.uid ? `uid:${user.uid}` : `ip:${getClientKey(req)}`;
 
   return checkQuota(key, endpoint);
 }
@@ -48,4 +47,3 @@ export function rateLimitResponse(result: RateLimitResult): NextResponse {
     { status: 429, headers }
   );
 }
-

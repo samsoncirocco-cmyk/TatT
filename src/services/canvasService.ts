@@ -182,28 +182,72 @@ export function getLayersByZIndex(layers: Layer[]): Layer[] {
 /**
  * Generate thumbnail from image URL
  */
-export async function generateThumbnail(imageUrl: string, size: number = 64): Promise<string> {
-    return new Promise((resolve, reject) => {
+export async function generateThumbnail(
+    imageUrl: string,
+    size: number = 64,
+    options: { timeoutMs?: number } = {}
+): Promise<string> {
+    const timeoutMs = Number.isFinite(options.timeoutMs) ? Math.max(1000, options.timeoutMs as number) : 8000;
+
+    const loadImageWithTimeout = (url: string, timeout: number): Promise<HTMLImageElement> => {
         const img = new Image();
         img.crossOrigin = 'anonymous';
+        const controller = new AbortController();
+        const { signal } = controller;
         let timeoutId: number | null = null;
 
-        const cleanup = () => {
-            img.onload = null;
-            img.onerror = null;
+        const loadPromise = new Promise<HTMLImageElement>((resolve, reject) => {
+            const onAbort = () => {
+                cleanup();
+                img.src = '';
+                const abortError = new Error('Image load aborted');
+                abortError.name = 'AbortError';
+                reject(abortError);
+            };
+
+            const cleanup = () => {
+                img.onload = null;
+                img.onerror = null;
+                signal.removeEventListener('abort', onAbort);
+            };
+
+            signal.addEventListener('abort', onAbort);
+            img.onload = () => {
+                cleanup();
+                resolve(img);
+            };
+            img.onerror = () => {
+                cleanup();
+                reject(new Error('Failed to load image'));
+            };
+            img.src = url;
+        });
+
+        const timeoutPromise = new Promise<never>((_, reject) => {
+            timeoutId = window.setTimeout(() => {
+                const timeoutError = new Error('Thumbnail generation timed out');
+                timeoutError.name = 'TimeoutError';
+                controller.abort();
+                reject(timeoutError);
+            }, timeout);
+        });
+
+        return Promise.race([loadPromise, timeoutPromise]).finally(() => {
             if (timeoutId !== null) {
                 window.clearTimeout(timeoutId);
             }
-        };
+        });
+    };
 
-        img.onload = () => {
+    let lastError: unknown = null;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+            const img = await loadImageWithTimeout(imageUrl, timeoutMs);
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
 
             if (!ctx) {
-                cleanup();
-                reject(new Error('Failed to get canvas context'));
-                return;
+                throw new Error('Failed to get canvas context');
             }
 
             // Calculate thumbnail dimensions maintaining aspect ratio
@@ -225,20 +269,20 @@ export async function generateThumbnail(imageUrl: string, size: number = 64): Pr
             const y = (size - thumbHeight) / 2;
 
             ctx.drawImage(img, x, y, thumbWidth, thumbHeight);
-            cleanup();
-            resolve(canvas.toDataURL());
-        };
+            return canvas.toDataURL();
+        } catch (error) {
+            lastError = error;
+            const isTimeout = error instanceof Error && error.name === 'TimeoutError';
+            if (isTimeout && attempt === 0) {
+                continue;
+            }
+            console.error('[Canvas] Failed to generate thumbnail for image URL:', imageUrl, error);
+            throw error;
+        }
+    }
 
-        img.onerror = () => {
-            cleanup();
-            reject(new Error('Failed to load image'));
-        };
-        timeoutId = window.setTimeout(() => {
-            cleanup();
-            reject(new Error('Thumbnail generation timed out'));
-        }, 8000);
-        img.src = imageUrl;
-    });
+    console.error('[Canvas] Failed to generate thumbnail for image URL:', imageUrl, lastError);
+    throw lastError instanceof Error ? lastError : new Error('Failed to generate thumbnail');
 }
 
 /**
