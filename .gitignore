@@ -106,3 +106,4 @@ __pycache__/
 # =============================================================================
 /uploads/*
 !/uploads/.gitkeep
+firebase-service-account.json
