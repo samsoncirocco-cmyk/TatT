@@ -9,6 +9,7 @@ export const QUOTA_CONFIGS: Record<string, QuotaConfig> = {
   generation: { maxRequests: 20, windowMs: 60 * 60 * 1000 }, // 20/hr
   matching: { maxRequests: 100, windowMs: 60 * 60 * 1000 }, // 100/hr
   council: { maxRequests: 20, windowMs: 60 * 60 * 1000 }, // 20/hr
+  estimate: { maxRequests: 30, windowMs: 60 * 60 * 1000 }, // 30/hr - cost estimator
   upload: { maxRequests: 50, windowMs: 60 * 60 * 1000 }, // 50/hr
   default: { maxRequests: 200, windowMs: 60 * 60 * 1000 }, // 200/hr
 };
