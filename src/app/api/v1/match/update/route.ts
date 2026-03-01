@@ -61,9 +61,17 @@ export async function POST(req: NextRequest) {
             limit: 20
         });
 
+        // Map to MatchedArtist format for Firebase
+        const artists = (matchResults.matches || []).map((artist: { id: string | number; name: string; score?: number; [key: string]: unknown }) => ({
+            id: artist.id,
+            name: artist.name,
+            score: artist.score,
+            ...artist
+        }));
+
         const payload = {
             designId,
-            artists: matchResults.matches || []
+            artists
         };
 
         await updateMatches(userId, payload);
@@ -78,7 +86,7 @@ export async function POST(req: NextRequest) {
             matchId: designId,
             artists: matchResults.matches || [],
             firebasePath: `/matches/${userId}/current`,
-            processingTime: matchResults.processingTime || null
+            processingTime: (matchResults as { processingTime?: number }).processingTime ?? null
         });
 
     } catch (error: any) {

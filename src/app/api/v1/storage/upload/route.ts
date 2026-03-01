@@ -5,6 +5,16 @@ import crypto from 'crypto';
 import { uploadToGCS } from '@/services/gcs-service.js';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 
+// Type for GCS upload result (from gcs-service.js)
+interface GCSUploadResult {
+    success: boolean;
+    gcsPath: string;
+    url: string;
+    bucket: string;
+    path: string;
+    public: boolean;
+}
+
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
@@ -39,8 +49,10 @@ export async function POST(req: NextRequest) {
         const path = destinationPath || `uploads/${Date.now()}_${hash}.png`;
 
         const result = await uploadToGCS(buffer, path, {
-            contentType
-        });
+            contentType,
+            metadata: {},
+            public: false
+        }) as GCSUploadResult;
 
         return NextResponse.json({
             success: true,

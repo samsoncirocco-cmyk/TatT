@@ -571,7 +571,7 @@ export async function generateTattooDesign(
         seed: inputOverrides.seed
       };
 
-      const vertexResponse = await postJSON(VERTEX_GENERATE_URL, vertexPayload, { signal }) as VertexResponse;
+      const vertexResponse = await postJSON(VERTEX_GENERATE_URL, vertexPayload, { signal: signal ?? undefined }) as VertexResponse;
 
       const generationCost = vertexResponse?.cost?.total ?? model.cost * resolvedOutputs;
       trackAPIUsage(generationCost);
@@ -655,7 +655,7 @@ export async function generateTattooDesign(
         throw new Error('Generation cancelled');
       }
 
-      result = await fetchJSON(`${PROXY_URL}/predictions/${prediction.id}`, { signal }) as Prediction;
+      result = await fetchJSON(`${PROXY_URL}/predictions/${prediction.id}`, { signal: signal ?? undefined }) as Prediction;
       attempts++;
 
       console.log(`[Replicate] Status: ${result.status} (attempt ${attempts}/${maxAttempts})`);
