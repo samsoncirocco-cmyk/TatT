@@ -38,7 +38,8 @@ import { useStorageWarning } from '../hooks/useStorageWarning';
 import * as versionService from '../services/versionService';
 import { useAuthContext } from '../components/auth/AuthProvider';
 import Button from '../components/ui/Button';
-import { Wand2, Zap, Download, Sparkles, Layers, CheckCircle, Plus, Eraser } from 'lucide-react';
+import { Wand2, Zap, Download, Sparkles, Layers, CheckCircle, Plus, Eraser, DollarSign } from 'lucide-react';
+import CostEstimator from '../components/generate/CostEstimator';
 import { useImageGeneration } from '../hooks/useImageGeneration';
 import { normalizeStyleKey } from '../config/promptTemplates';
 import TransformControls from '../components/generate/TransformControls';
@@ -313,6 +314,7 @@ export default function Generate() {
 
     // Keyboard shortcuts
     const keyboardShortcuts = useKeyboardShortcuts();
+    const [showCostEstimator, setShowCostEstimator] = useState(false);
     const [stencilView, setStencilView] = useState(false);
     const [stencilPreview, setStencilPreview] = useState(null);
     const [isStencilProcessing, setIsStencilProcessing] = useState(false);
@@ -1419,6 +1421,18 @@ export default function Generate() {
                                                 FINALIZE
                                             </Button>
                                         </div>
+                                        {/* Cost Estimator Button */}
+                                        {sortedLayers.length > 0 && (
+                                            <Button
+                                                variant="outline"
+                                                size="md"
+                                                onClick={() => setShowCostEstimator(true)}
+                                                icon={DollarSign}
+                                                className="w-full mt-3 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
+                                            >
+                                                Get Price Estimate
+                                            </Button>
+                                        )}
                                         <p className="text-[10px] text-white/40 font-mono text-center">
                                             Refine: Quick iteration (50 steps) • Finalize: Max quality (60+ steps, 300 DPI)
                                         </p>
@@ -1732,6 +1746,16 @@ export default function Generate() {
             <KeyboardShortcutsModal
                 isOpen={keyboardShortcuts.isOpen}
                 onClose={keyboardShortcuts.close}
+            />
+
+            {/* Cost Estimator Modal */}
+            <CostEstimator
+                isOpen={showCostEstimator}
+                onClose={() => setShowCostEstimator(false)}
+                imageDataUrl={sortedLayers[sortedLayers.length - 1]?.imageUrl}
+                prompt={enhancedPrompt || promptText}
+                style={normalizedStyle}
+                bodyPart={bodyPart}
             />
 
             {/* Toast Notifications */}

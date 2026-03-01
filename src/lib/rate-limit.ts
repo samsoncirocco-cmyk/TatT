@@ -14,6 +14,7 @@ function normalizeLimitType(limitType: string): string {
     case 'generation':
     case 'matching':
     case 'council':
+    case 'estimate':
     case 'upload':
       return normalized;
     default:
