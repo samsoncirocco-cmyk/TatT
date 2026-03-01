@@ -35,17 +35,15 @@ const NEO4J_USER = process.env.NEO4J_USER;
 const NEO4J_PASSWORD = process.env.NEO4J_PASSWORD;
 const FRONTEND_AUTH_TOKEN = process.env.FRONTEND_AUTH_TOKEN;
 if (!FRONTEND_AUTH_TOKEN) {
-  console.warn('[Server] FRONTEND_AUTH_TOKEN not set — Express proxy auth disabled (using Firebase auth instead)');
+  throw new Error('[Server] Missing required environment variable: FRONTEND_AUTH_TOKEN');
 }
-const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
-  : ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:3001'];
-
-// Add Vercel production URL if not already included
-const VERCEL_URL = process.env.VERCEL_URL || 'https://tat-t-3x8t.vercel.app';
-if (!ALLOWED_ORIGINS.includes(VERCEL_URL)) {
-  ALLOWED_ORIGINS.push(VERCEL_URL);
-}
+const ALLOWED_ORIGINS = [
+  'https://tattester.vercel.app',
+  'https://tatt-app.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+];
 
 // CORS middleware with whitelist and proper preflight handling
 app.use(cors({
@@ -59,13 +57,7 @@ app.use(cors({
       console.log(`[CORS] Origin ${origin} allowed (exact match)`);
       return callback(null, true);
     }
-
-    if (origin.endsWith('.vercel.app')) {
-      console.log(`[CORS] Origin ${origin} allowed (Vercel domain)`);
-      return callback(null, true);
-    }
-
-    console.error(`[CORS] Origin ${origin} not allowed. Allowed origins: ${ALLOWED_ORIGINS.join(', ')}, or any *.vercel.app`);
+    console.error(`[CORS] Origin ${origin} not allowed. Allowed origins: ${ALLOWED_ORIGINS.join(', ')}`);
     const msg = `CORS policy: Origin ${origin} is not in the allowed origins list`;
     return callback(new Error(msg), false);
   },
@@ -454,7 +446,7 @@ app.listen(PORT, HOST, () => {
   console.log(`  Port:           ${PORT}`);
   console.log(`  Host:           ${HOST}`);
   console.log(`  API:            /api`);
-  console.log(`  Auth:           ${FRONTEND_AUTH_TOKEN ? '✓ Configured' : '⚠️  Not set (using Firebase auth)'}`);
+  console.log('  Auth:           ✓ Configured');
   console.log(`  Allowed Origins: ${ALLOWED_ORIGINS.join(', ')}`);
   console.log('');
   console.log(`  Replicate Token: ${REPLICATE_API_TOKEN ? '✓ Yes' : '✗ No'}`);

@@ -15,7 +15,6 @@ export const QUOTA_CONFIGS: Record<string, QuotaConfig> = {
 
 export type QuotaResult = {
   allowed: boolean;
-  remaining: number;
   retryAfter?: number;
 };
 
@@ -38,7 +37,7 @@ export async function checkQuota(userId: string, endpoint: string): Promise<Quot
       if (activeRequests.length >= config.maxRequests) {
         const oldest = Math.min(...activeRequests);
         const retryAfter = Math.max(1, Math.ceil((oldest + config.windowMs - Date.now()) / 1000));
-        return { allowed: false, remaining: 0, retryAfter };
+        return { allowed: false, retryAfter };
       }
 
       const updatedRequests = [...activeRequests, Date.now()];
@@ -53,7 +52,6 @@ export async function checkQuota(userId: string, endpoint: string): Promise<Quot
 
       return {
         allowed: true,
-        remaining: config.maxRequests - updatedRequests.length,
       };
     });
   } catch (error) {
@@ -61,7 +59,7 @@ export async function checkQuota(userId: string, endpoint: string): Promise<Quot
       `[Quota] Firestore unavailable for quota tracking; allowing request for ${userId}/${endpoint}.`,
       error
     );
-    return { allowed: true, remaining: -1 };
+    return { allowed: true };
   }
 }
 
@@ -70,4 +68,3 @@ export async function resetQuota(userId: string, endpoint: string): Promise<void
   const quotaRef = db.collection('quotas').doc(userId).collection('endpoints').doc(endpoint);
   await quotaRef.delete();
 }
-
