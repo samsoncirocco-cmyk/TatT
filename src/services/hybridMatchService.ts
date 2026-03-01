@@ -271,7 +271,9 @@ export async function findMatchingArtists(
             graphRelationship: normalizedRrf
           };
 
-          const { score: weightedScore, breakdown } = calculateCompositeScore(signals, DEFAULT_WEIGHTS);
+          const compositeResult = calculateCompositeScore(signals, DEFAULT_WEIGHTS) as { score: number; breakdown: unknown };
+          const weightedScore = compositeResult.score;
+          const breakdown = compositeResult.breakdown;
           const compositeScore = (weightedScore * 0.7) + (normalizedRrf * 0.3);
           const reasons = generateMatchReasoning(signals, mergedArtist, preferences);
 

@@ -70,7 +70,7 @@ const normalizeStyle = (style?: string): string => (style || '').toLowerCase();
 const resolveModelId = (modelId: string): string => MODEL_ID_MAP[modelId] || modelId;
 
 const resolveFallbackChain = (modelId: string): string[] => {
-  const chain = MODEL_FALLBACK_CHAIN[modelId] || [];
+  const chain = (MODEL_FALLBACK_CHAIN as Record<string, string[]>)[modelId] || [];
   return chain.map(resolveModelId).filter(Boolean);
 };
 
@@ -110,7 +110,7 @@ export function routeGeneration(
   const style = normalizeStyle(userInput.style) || 'default';
   const mode = options.mode || userInput.mode || 'standard';
 
-  const styleMapping: StyleModelMapping | undefined = STYLE_MODEL_MAPPING[style] || STYLE_MODEL_MAPPING.default;
+  const styleMapping: StyleModelMapping | undefined = (STYLE_MODEL_MAPPING as Record<string, StyleModelMapping>)[style] || (STYLE_MODEL_MAPPING as Record<string, StyleModelMapping>).default;
   let modelKey = styleMapping?.primary || 'blackwork_specialist';
 
   if (mode === 'preview') {

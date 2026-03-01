@@ -11,6 +11,16 @@ import { uploadLayer, uploadLayerThumbnail } from '@/services/gcs-service.js';
 import { generateMask } from '@/lib/segmentation';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 
+// Type for GCS upload result (from gcs-service.js)
+interface GCSUploadResult {
+    success: boolean;
+    gcsPath: string;
+    url: string;
+    bucket: string;
+    path: string;
+    public: boolean;
+}
+
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
@@ -89,7 +99,7 @@ async function saveLocally(buffer: Buffer, filename: string) {
 
 async function uploadLayerWithFallback(buffer: Buffer, designId: string, layerType: string, metadata = {}) {
     try {
-        const result = await uploadLayer(buffer, designId, layerType, metadata);
+        const result = await uploadLayer(buffer, designId, layerType, metadata) as GCSUploadResult;
         return result.url;
     } catch (error) {
         console.warn('GCS upload failed, falling back to local temp storage', error);
@@ -101,7 +111,7 @@ async function uploadLayerWithFallback(buffer: Buffer, designId: string, layerTy
 
 async function uploadThumbnailWithFallback(buffer: Buffer, designId: string, layerType: string) {
     try {
-        const result = await uploadLayerThumbnail(buffer, designId, layerType);
+        const result = await uploadLayerThumbnail(buffer, designId, layerType) as GCSUploadResult;
         return result.url;
     } catch (error) {
         const hash = startCrypto.createHash('sha256').update(buffer).digest('hex').slice(0, 12);
@@ -139,7 +149,7 @@ export async function POST(req: NextRequest) {
 
         // Vision API for Object Detection
         const visionClient = new ImageAnnotatorClient();
-        const [result] = await visionClient.objectLocalization({
+        const [result] = await visionClient.objectLocalization!({
             image: { content: imageBuffer }
         });
 
