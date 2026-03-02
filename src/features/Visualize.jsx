@@ -1,3 +1,4 @@
+'use client';
 import { useState, useRef, useEffect } from 'react';
 import designsData from '../data/designs.json';
 import { requestCameraAccess, stopCameraStream, captureFrame, ARSessionState, captureDepthFrame } from '../services/ar/arService';
