@@ -8,11 +8,11 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { BodyPartSelector } from '../components/generate/BodyPartSelector';
 import { ForgeCanvas } from '../components/generate/ForgeCanvas';
 import { BodyPartWarningModal } from '../components/generate/BodyPartWarningModal';
-import PromptInterface from '../components/generate/PromptInterface';
+import NeuralPromptEditor from '../components/generate/NeuralPromptEditor';
 import VibeChips from '../components/generate/VibeChips';
 import AdvancedOptions from '../components/generate/AdvancedOptions';
 import LayerStack from '../components/generate/LayerStack';
-import MatchPulse from '../components/Match/MatchPulse';
+import MatchPulseSidebar from '../components/generate/MatchPulseSidebar';
 import KeyboardShortcutsModal, { useKeyboardShortcuts } from '../components/KeyboardShortcutsModal';
 import BlendModeSelector from '../components/generate/BlendModeSelector';
 import ErrorBoundary from '../components/ErrorBoundary';
@@ -24,8 +24,12 @@ import VersionComparison from '../components/generate/VersionComparison';
 import LayerContextMenu from '../components/generate/LayerContextMenu';
 import RegenerateElementModal from '../components/generate/RegenerateElementModal';
 import ForgeGuide from '../components/generate/ForgeGuide';
+import HolyGrailLayout from '../components/layouts/HolyGrailLayout';
+import CollapsibleSidebar from '../components/layouts/CollapsibleSidebar';
 import { ToastContainer } from '../components/ui/Toast';
+import Input from '../components/ui/Input';
 import { DEFAULT_BODY_PART } from '../constants/bodyPartAspectRatios';
+import { ENABLE_STUDIO_LAYOUT } from '../constants/featureFlags';
 import { enhancePrompt } from '../services/councilService';
 import useVibeChipSuggestions from '../hooks/useVibeChipSuggestions';
 import { useLayerManagement } from '../hooks/useLayerManagement';
@@ -36,10 +40,8 @@ import { useSmartPreview } from '../hooks/useSmartPreview';
 import { useToast } from '../hooks/useToast';
 import { useStorageWarning } from '../hooks/useStorageWarning';
 import * as versionService from '../services/versionService';
-import { useAuthContext } from '../components/auth/AuthProvider';
 import Button from '../components/ui/Button';
-import { Wand2, Zap, Download, Sparkles, Layers, CheckCircle, Plus, Eraser, DollarSign } from 'lucide-react';
-import CostEstimator from '../components/generate/CostEstimator';
+import { Wand2, Zap, Download, Sparkles, Layers, CheckCircle, Plus, Eraser } from 'lucide-react';
 import { useImageGeneration } from '../hooks/useImageGeneration';
 import { normalizeStyleKey } from '../config/promptTemplates';
 import TransformControls from '../components/generate/TransformControls';
@@ -47,12 +49,11 @@ import { useTransformShortcuts } from '../hooks/useTransformShortcuts';
 import { exportAsPNG, exportAsARAsset } from '../services/canvasService';
 import { convertToStencil } from '../services/stencilService';
 import { decomposeLayers } from '../services/layerDecompositionService';
-import { useForgeStore, setForgeStoreContext } from '../stores/useForgeStore';
 import {
     processGenerationResult,
     addMultipleLayers,
     shouldUseMultiLayer
-} from '../services/multiLayerService';
+} from '../services/multiLayerService.ts';
 
 const TRENDING_EXAMPLES = [
     {
@@ -207,6 +208,7 @@ export default function Generate() {
 
     // Advanced options state
     const [showAdvanced, setShowAdvanced] = useState(false);
+    const [style, setStyle] = useState('traditional');
     const [size, setSize] = useState('medium');
     const [aiModel, setAiModel] = useState('tattoo');
     const [negativePrompt, setNegativePrompt] = useState('');
@@ -218,25 +220,25 @@ export default function Generate() {
     });
     const [guideStepIndex, setGuideStepIndex] = useState(0);
 
-	    const [sessionId, setSessionId] = useState(() => {
-	        const stored = sessionStorage.getItem('tattester_session_id');
-	        if (stored) return stored;
-	        const created = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-	        sessionStorage.setItem('tattester_session_id', created);
-	        return created;
-	    });
+    const [sessionId, setSessionId] = useState(() => {
+        if (typeof window === 'undefined') {
+            return `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        }
+        const stored = sessionStorage.getItem('tattester_session_id');
+        if (stored) return stored;
+        const created = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        sessionStorage.setItem('tattester_session_id', created);
+        return created;
+    });
 
-	    const { user } = useAuthContext();
-	
-	    const {
-	        versions,
-	        currentVersionId,
-	        addVersion,
-	        loadVersion,
-	        removeVersion,
-	        clearHistory,
-	        isLoading: isVersionLoading
-	    } = useVersionHistory(sessionId);
+    const {
+        versions,
+        currentVersionId,
+        addVersion,
+        loadVersion,
+        removeVersion,
+        clearHistory
+    } = useVersionHistory(sessionId);
 
     const {
         layers,
@@ -256,22 +258,21 @@ export default function Generate() {
         updateImage,
         updateBlendMode,
         duplicateLayer,
-        clearHistory: clearLayerHistory,
         undo,
         redo
     } = useLayerManagement();
 
-    const resolvedStyle = selectedChips[0] || 'Traditional';
-    const normalizedStyle = normalizeStyleKey(resolvedStyle) || 'traditional';
+    const resolvedStyle = selectedChips[0] || style || 'traditional';
+    const normalizedStyle = normalizeStyleKey(resolvedStyle) || style || 'traditional';
 
     const generationInput = useMemo(() => ({
         subject: enhancedPrompt || promptText,
-        style: normalizedStyle,
+        style: normalizedStyle || style,
         bodyPart,
         size,
         aiModel,
         negativePrompt
-    }), [enhancedPrompt, promptText, normalizedStyle, bodyPart, size, aiModel, negativePrompt]);
+    }), [enhancedPrompt, promptText, normalizedStyle, style, bodyPart, size, aiModel, negativePrompt]);
 
     // Toast and storage monitoring
     const { toast, toasts, removeToast } = useToast();
@@ -311,10 +312,14 @@ export default function Generate() {
     const [elementType, setElementType] = useState('subject');
     const [contextMenu, setContextMenu] = useState(null);
     const [regenerateModal, setRegenerateModal] = useState(null);
+    const [lastSeed, setLastSeed] = useState(null);
+    const [isRightCollapsed, setIsRightCollapsed] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        return localStorage.getItem('tattester_right_sidebar_collapsed') === 'true';
+    });
 
     // Keyboard shortcuts
     const keyboardShortcuts = useKeyboardShortcuts();
-    const [showCostEstimator, setShowCostEstimator] = useState(false);
     const [stencilView, setStencilView] = useState(false);
     const [stencilPreview, setStencilPreview] = useState(null);
     const [isStencilProcessing, setIsStencilProcessing] = useState(false);
@@ -343,6 +348,22 @@ export default function Generate() {
         embeddingVector: null
     }), [bodyPart, layers.length, matchStyle]);
 
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        localStorage.setItem('tattester_right_sidebar_collapsed', String(isRightCollapsed));
+    }, [isRightCollapsed]);
+
+    useEffect(() => {
+        const handler = (event) => {
+            if ((event.ctrlKey || event.metaKey) && event.key === ']') {
+                event.preventDefault();
+                setIsRightCollapsed((prev) => !prev);
+            }
+        };
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    }, []);
+
     const currentDesign = useMemo(() => ({
         id: sessionId,
         prompt: enhancedPrompt || promptText,
@@ -359,34 +380,27 @@ export default function Generate() {
         totalMatches,
         isLoading: isMatching,
         error: matchError
-	    } = useRealtimeMatchPulse({
-	        userId: sessionId,
-	        context: matchContext,
-	        currentDesign,
-	        debounceMs: 2000
-	    });
-
-	    useEffect(() => {
-	        setForgeStoreContext(user?.uid || null, sessionId);
-	    }, [user?.uid, sessionId]);
-
-	    const historyPastCount = useForgeStore((state) => state.history.past.length);
-	    const historyFutureCount = useForgeStore((state) => state.history.future.length);
+    } = useRealtimeMatchPulse({
+        userId: sessionId,
+        context: matchContext,
+        currentDesign,
+        debounceMs: 2000
+    });
 
 
 
-	    const timeline = useMemo(() => (
-	        (versions || []).map(v => ({
-	            id: v.id,
-	            versionNumber: v.versionNumber,
-	            timestamp: v.timestamp,
-	            thumbnail: v.imageUrl,
-	            promptPreview: (v.prompt || '').substring(0, 50) + (v.prompt?.length > 50 ? '...' : ''),
-	            layerCount: v.layers?.length || 0,
-	            branchedFrom: v.branchedFrom,
-	            mergedFrom: v.mergedFrom
-	        }))
-	    ), [versions]);
+    const timeline = useMemo(() => (
+        (versions || []).map(v => ({
+            id: v.id,
+            versionNumber: v.versionNumber,
+            timestamp: v.timestamp,
+            thumbnail: v.imageUrl,
+            promptPreview: (v.prompt || '').substring(0, 50) + (v.prompt?.length > 50 ? '...' : ''),
+            layerCount: v.layers?.length || 0,
+            branchedFrom: v.branchedFrom,
+            mergedFrom: v.mergedFrom
+        }))
+    ), [versions]);
 
     const createSessionId = useCallback(() => (
         `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
@@ -537,6 +551,9 @@ export default function Generate() {
             const result = await generateHighRes({ finalize });
 
             if (result && result.images && result.images.length > 0) {
+                if (result.metadata?.seed) {
+                    setLastSeed(result.metadata.seed);
+                }
                 let createdLayers = [];
 
                 // Check if we should use multi-layer processing
@@ -556,12 +573,12 @@ export default function Generate() {
                     const thumbnailUrl = createdLayers[createdLayers.length - 1]?.imageUrl || result.images[0];
                     const nextLayers = [...layers, ...createdLayers];
 
-	                    await addVersion(buildVersionPayload({
-	                        layers: nextLayers,
-	                        imageUrl: thumbnailUrl,
-	                        arAssetUrl: arAsset?.url || null,
-	                        mode: finalize ? 'final' : 'refine'
-	                    }));
+                    await addVersion(buildVersionPayload({
+                        layers: nextLayers,
+                        imageUrl: thumbnailUrl,
+                        arAssetUrl: arAsset?.url || null,
+                        mode: finalize ? 'final' : 'refine'
+                    }));
 
                     console.log(`[Generate] Created ${createdLayers.length} layers from ${result.images.length} images`);
                 } else {
@@ -588,12 +605,12 @@ export default function Generate() {
                         nextLayers = [...layers, newLayer];
                     }
 
-	                    await addVersion(buildVersionPayload({
-	                        layers: nextLayers,
-	                        imageUrl: nextLayers[nextLayers.length - 1]?.imageUrl || result.images[0],
-	                        arAssetUrl: arAsset?.url || null,
-	                        mode: finalize ? 'final' : 'refine'
-	                    }));
+                    await addVersion(buildVersionPayload({
+                        layers: nextLayers,
+                        imageUrl: nextLayers[nextLayers.length - 1]?.imageUrl || result.images[0],
+                        arAssetUrl: arAsset?.url || null,
+                        mode: finalize ? 'final' : 'refine'
+                    }));
                 }
 
                 console.log('Generation successful:', result);
@@ -659,10 +676,10 @@ export default function Generate() {
         }
     }, []);
 
-	    const handleLoadExample = async (example) => {
-	        setIsLoadingExample(true);
-	        await clearHistory();
-	        clearLayers();
+    const handleLoadExample = async (example) => {
+        setIsLoadingExample(true);
+        await clearHistory();
+        clearLayers();
         setBodyPart(example.bodyPart);
         setPromptText(example.prompt || '');
         setEnhancedPrompt(null);
@@ -675,14 +692,14 @@ export default function Generate() {
                 loadedLayers.push(newLayer);
             }
 
-	            await addVersion(buildVersionPayload({
-	                layers: loadedLayers,
-	                imageUrl: loadedLayers[loadedLayers.length - 1]?.imageUrl || null
-	            }));
-	        } finally {
-	            setIsLoadingExample(false);
-	        }
-	    };
+            addVersion(buildVersionPayload({
+                layers: loadedLayers,
+                imageUrl: loadedLayers[loadedLayers.length - 1]?.imageUrl || null
+            }));
+        } finally {
+            setIsLoadingExample(false);
+        }
+    };
 
     const createStencilSource = async () => {
         const compositeBlob = await exportAsPNG(sortedLayers, canvasWidth, canvasHeight, 1.0);
@@ -805,9 +822,9 @@ export default function Generate() {
         }
     };
 
-	    const handleBranchVersion = async (versionId) => {
-	        const branch = await versionService.branchFromVersion(sessionId, versionId, user ? { uid: user.uid } : null);
-	        if (!branch) return;
+    const handleBranchVersion = async (versionId) => {
+        const branch = await versionService.branchFromVersion(sessionId, versionId);
+        if (!branch) return;
 
         sessionStorage.setItem('tattester_session_id', branch.sessionId);
         setSessionId(branch.sessionId);
@@ -824,30 +841,30 @@ export default function Generate() {
         if (Array.isArray(branch.version.parameters?.vibeChips)) {
             setSelectedChips(branch.version.parameters.vibeChips);
         }
-	    };
+    };
 
-	    const handleCompareVersions = async ({ first, second }) => {
-	        const compare = await versionService.compareVersions(sessionId, first, second, user ? { uid: user.uid } : null);
-	        if (compare) {
-	            setComparison({
-	                versionA: compare.version1,
-	                versionB: compare.version2
-	            });
-	        }
-	    };
+    const handleCompareVersions = async ({ first, second }) => {
+        const compare = await versionService.compareVersions(sessionId, first, second);
+        if (compare) {
+            setComparison({
+                versionA: compare.version1,
+                versionB: compare.version2
+            });
+        }
+    };
 
-	    const handleMergeVersions = async (versionA, versionB) => {
+    const handleMergeVersions = async (versionA, versionB) => {
         // Get layer indices for all layers from both versions
         const layersFromVersion1 = (versionA.layers || []).map((_, idx) => idx);
         const layersFromVersion2 = (versionB.layers || []).map((_, idx) => idx);
 
         // Merge versions
-	        const merged = await versionService.mergeVersions(sessionId, versionA.id, versionB.id, {
-	            layersFromVersion1,
-	            layersFromVersion2,
-	            prompt: versionA.prompt || promptText,
-	            parameters: versionA.parameters || { bodyPart, size, aiModel }
-	        }, user ? { uid: user.uid } : null);
+        const merged = await versionService.mergeVersions(sessionId, versionA.id, versionB.id, {
+            layersFromVersion1,
+            layersFromVersion2,
+            prompt: versionA.prompt || promptText,
+            parameters: versionA.parameters || { bodyPart, size, aiModel }
+        });
 
         if (merged) {
             // Load the merged version
@@ -857,7 +874,7 @@ export default function Generate() {
         }
     };
 
-	    const handleRestyle = async () => {
+    const handleRestyle = async () => {
         if (!restyleLayerId || !restyleStyle.trim()) return;
 
         const promptBase = enhancedPrompt || promptText;
@@ -882,11 +899,11 @@ export default function Generate() {
                 const nextLayers = layers.map(layer =>
                     layer.id === restyleLayerId ? { ...layer, imageUrl: response.images[0] } : layer
                 );
-	                await addVersion(buildVersionPayload({
-	                    layers: nextLayers,
-	                    imageUrl: response.images[0],
-	                    arAssetUrl: arAsset?.url || null
-	                }));
+                await addVersion(buildVersionPayload({
+                    layers: nextLayers,
+                    imageUrl: response.images[0],
+                    arAssetUrl: arAsset?.url || null
+                }));
             }
         } catch (error) {
             console.error('[Generate] Restyle failed:', error);
@@ -936,12 +953,12 @@ export default function Generate() {
                     createdLayers = [newLayer];
                 }
 
-	                const nextLayers = [...layers, ...createdLayers];
-	                await addVersion(buildVersionPayload({
-	                    layers: nextLayers,
-	                    imageUrl: createdLayers[createdLayers.length - 1]?.imageUrl || response.images[0],
-	                    mode: 'element'
-	                }));
+                const nextLayers = [...layers, ...createdLayers];
+                await addVersion(buildVersionPayload({
+                    layers: nextLayers,
+                    imageUrl: createdLayers[createdLayers.length - 1]?.imageUrl || response.images[0],
+                    mode: 'element'
+                }));
             }
         } catch (error) {
             console.error('[Generate] Add element failed:', error);
@@ -952,30 +969,30 @@ export default function Generate() {
         }
     };
 
-	    const handleInpaintSave = (imageUrl) => {
+    const handleInpaintSave = (imageUrl) => {
         if (!selectedLayerId || !imageUrl) return;
         updateImage(selectedLayerId, imageUrl);
         const nextLayers = layers.map(layer =>
             layer.id === selectedLayerId ? { ...layer, imageUrl } : layer
         );
-	        void addVersion(buildVersionPayload({
-	            layers: nextLayers,
-	            imageUrl
-	        }));
+        void addVersion(buildVersionPayload({
+            layers: nextLayers,
+            imageUrl
+        }));
         setShowInpainting(false);
     };
 
-	    const handleCleanupSave = (imageUrl) => {
+    const handleCleanupSave = (imageUrl) => {
         if (!selectedLayerId || !imageUrl) return;
         updateImage(selectedLayerId, imageUrl);
         const nextLayers = layers.map(layer =>
             layer.id === selectedLayerId ? { ...layer, imageUrl } : layer
         );
-	        void addVersion(buildVersionPayload({
-	            layers: nextLayers,
-	            imageUrl,
-	            mode: 'cleanup'
-	        }));
+        void addVersion(buildVersionPayload({
+            layers: nextLayers,
+            imageUrl,
+            mode: 'cleanup'
+        }));
         setShowCleanup(false);
         toast?.success?.('Layer cleaned up successfully');
     };
@@ -985,15 +1002,15 @@ export default function Generate() {
         setContextMenu({ layer, x, y });
     };
 
-	    const handleDuplicateLayer = async (layer) => {
-	        const newLayer = await addLayer(layer.imageUrl, layer.type);
-	        const nextLayers = [...layers, newLayer];
-	        await addVersion(buildVersionPayload({
-	            layers: nextLayers,
-	            imageUrl: newLayer.imageUrl
-	        }));
-	        toast?.success?.(`Duplicated layer: ${layer.name}`);
-	    };
+    const handleDuplicateLayer = async (layer) => {
+        const newLayer = await addLayer(layer.imageUrl, layer.type);
+        const nextLayers = [...layers, newLayer];
+        await addVersion(buildVersionPayload({
+            layers: nextLayers,
+            imageUrl: newLayer.imageUrl
+        }));
+        toast?.success?.(`Duplicated layer: ${layer.name}`);
+    };
 
     const handleRegenerateElementSubmit = async (data) => {
         try {
@@ -1008,16 +1025,16 @@ export default function Generate() {
                 }
             });
 
-	            if (response?.images?.[0]) {
+            if (response?.images?.[0]) {
                 updateImage(data.layerId, response.images[0]);
                 const nextLayers = layers.map(layer =>
                     layer.id === data.layerId ? { ...layer, imageUrl: response.images[0] } : layer
                 );
-	                await addVersion(buildVersionPayload({
-	                    layers: nextLayers,
-	                    imageUrl: response.images[0],
-	                    mode: 'regenerate'
-	                }));
+                await addVersion(buildVersionPayload({
+                    layers: nextLayers,
+                    imageUrl: response.images[0],
+                    mode: 'regenerate'
+                }));
 
                 setRegenerateModal(null);
                 toast?.success?.('Element regenerated successfully');
@@ -1028,19 +1045,389 @@ export default function Generate() {
         }
     };
 
+    const leftPanel = (
+        <div className={ENABLE_STUDIO_LAYOUT ? '' : 'lg:col-span-3 xl:col-span-3 2xl:col-span-2'}>
+            <div
+                id="forge-placement"
+                className="studio-glass rounded-2xl p-4 border border-white/10 sticky top-24"
+            >
+                <BodyPartSelector
+                    selectedBodyPart={bodyPart}
+                    onSelect={handleBodyPartChange}
+                    disabled={false}
+                />
+            </div>
+        </div>
+    );
+
+    const centerPanel = (
+        <div className={`${ENABLE_STUDIO_LAYOUT ? '' : 'lg:col-span-9 xl:col-span-9 2xl:col-span-7'} flex flex-col gap-6`}>
+            {/* Canvas */}
+            <div className="studio-glass rounded-3xl p-6 border border-white/10">
+                <div className="relative group w-full h-full">
+                    <ForgeCanvas
+                        bodyPart={bodyPart}
+                        layers={sortedLayers}
+                        selectedLayerId={selectedLayerId}
+                        onSelectLayer={selectLayer}
+                        onUpdateTransform={updateTransform}
+                        layerCount={layers.length}
+                        seed={lastSeed}
+                        className="w-full h-full"
+                    />
+
+                    {showPreview && (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <img
+                                src={previewImage}
+                                alt="Preview"
+                                className="w-full h-full object-contain opacity-80"
+                            />
+                            <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-black/60 text-xs font-mono uppercase tracking-widest text-studio-accent">
+                                Preview
+                            </div>
+                        </div>
+                    )}
+
+                    {stencilView && stencilPreview && (
+                        <img
+                            src={stencilPreview}
+                            alt="Stencil preview"
+                            className="absolute inset-0 w-full h-full object-contain mix-blend-screen pointer-events-none"
+                        />
+                    )}
+
+                    {/* Transform Controls Toolbar */}
+                    {selectedLayerId && (
+                        <div className="absolute top-4 left-1/2 -translate-x-1/2">
+                            <TransformControls
+                                onFlipHorizontal={() => flipHorizontal(selectedLayerId)}
+                                onFlipVertical={() => flipVertical(selectedLayerId)}
+                                onResetRotation={() => updateTransform(selectedLayerId, { rotation: 0 })}
+                            />
+                        </div>
+                    )}
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <Button
+                        variant="primary"
+                        size="md"
+                        onClick={handleToggleStencil}
+                        disabled={isStencilProcessing}
+                        aria-label="Toggle stencil view"
+                    >
+                        {stencilView ? 'Exit Stencil View' : 'Stencil View'}
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="md"
+                        onClick={async () => {
+                            if (!stencilSourceUrl) {
+                                await createStencilSource();
+                            }
+                            setShowStencilExport(true);
+                        }}
+                        aria-label="Export stencil"
+                    >
+                        Export Stencil
+                    </Button>
+                    {isStencilProcessing && (
+                        <span className="text-xs text-white/60 font-mono">Generating stencil...</span>
+                    )}
+                    {stencilError && (
+                        <span className="text-xs text-red-400">{stencilError}</span>
+                    )}
+                    {isPreviewing && (
+                        <span className="text-xs text-white/50 font-mono">
+                            Updating preview...
+                        </span>
+                    )}
+                </div>
+
+                {selectedLayer && (
+                    <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-black/30 border border-white/10 rounded-2xl p-4">
+                            <p className="text-xs font-mono uppercase tracking-[0.3em] text-studio-neon">
+                                Layer Blend
+                            </p>
+                            <p className="text-sm text-white/70 mt-2">
+                                {selectedLayer.name}
+                            </p>
+                            <div className="mt-3">
+                                <BlendModeSelector
+                                    value={selectedLayer.blendMode}
+                                    onChange={(value) => handleBlendModeChange(selectedLayer.id, value)}
+                                />
+                            </div>
+                        </div>
+                        <div className="bg-black/30 border border-white/10 rounded-2xl p-4 space-y-3">
+                            <p className="text-xs font-mono uppercase tracking-[0.3em] text-studio-neon">
+                                Layer Actions
+                            </p>
+                            <div className="grid grid-cols-2 gap-3">
+                                <Button
+                                    variant="primary"
+                                    size="md"
+                                    onClick={() => setShowInpainting(true)}
+                                    icon={Wand2}
+                                >
+                                    Inpaint
+                                </Button>
+                                <Button
+                                    variant="secondary"
+                                    size="md"
+                                    onClick={() => setShowCleanup(true)}
+                                    icon={Eraser}
+                                >
+                                    Clean Up
+                                </Button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <Button
+                                    variant="outline"
+                                    size="md"
+                                    onClick={() => {
+                                        setRestyleLayerId(selectedLayer.id);
+                                        setRestyleStyle(matchStyle);
+                                    }}
+                                    icon={Sparkles}
+                                >
+                                    Restyle
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="md"
+                                    onClick={handleExportPNG}
+                                    icon={Download}
+                                >
+                                    Export PNG
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Prompt Interface */}
+            <div id="forge-prompt" className="studio-glass rounded-3xl p-8 border border-white/10">
+                <div className="mb-6">
+                    <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-[0.3em] text-white/50">
+                        <span>Placement</span>
+                        <span>Prompt</span>
+                        <span>Generate</span>
+                    </div>
+                    <div className="mt-3 h-2 rounded-full bg-white/10 overflow-hidden">
+                        <div
+                            className="h-full bg-studio-neon transition-all duration-500"
+                            style={{
+                                width: `${Math.round(([
+                                    bodyPart ? 1 : 0,
+                                    promptText.trim() || enhancedPrompt?.trim() ? 1 : 0,
+                                    layers.length > 0 ? 1 : 0
+                                ].reduce((sum, value) => sum + value, 0) / 3) * 100)}%`
+                            }}
+                        />
+                    </div>
+                </div>
+                <NeuralPromptEditor
+                    value={promptText}
+                    onChange={setPromptText}
+                    selectedChips={selectedChips}
+                    onEnhance={handleEnhance}
+                    isEnhancing={isEnhancing}
+                />
+
+                <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
+                    <button
+                        onClick={() => setShowAdvanced(!showAdvanced)}
+                        className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-mono uppercase tracking-widest text-white/60 hover:text-white hover:border-white/40"
+                    >
+                        Tattoo Fine-Tuning
+                    </button>
+                </div>
+
+                <VibeChips
+                    suggestions={suggestions}
+                    selectedChips={selectedChips}
+                    onChipSelect={handleChipSelect}
+                    isLoading={isSuggestionsLoading}
+                />
+
+                <AdvancedOptions
+                    isExpanded={showAdvanced}
+                    onToggle={() => setShowAdvanced(!showAdvanced)}
+                    hideToggle
+                    style={style}
+                    onStyleChange={setStyle}
+                    size={size}
+                    onSizeChange={setSize}
+                    aiModel={aiModel}
+                    onModelChange={setAiModel}
+                    negativePrompt={negativePrompt}
+                    onNegativePromptChange={setNegativePrompt}
+                    enhancementLevel={enhancementLevel}
+                    onEnhancementLevelChange={setEnhancementLevel}
+                    separateRGBA={separateRGBA}
+                    onSeparateRGBAChange={setSeparateRGBA}
+                />
+
+                {enhancedPrompt && (
+                    <div className="mt-6 p-6 bg-[rgba(0,255,65,0.1)] border border-[rgba(0,255,65,0.3)] rounded-2xl">
+                        <div className="flex items-center justify-between mb-3">
+                            <h4 className="text-sm font-bold text-studio-neon uppercase tracking-wider">
+                                AI Enhanced Prompt ({enhancementLevel})
+                            </h4>
+                            <button
+                                onClick={() => setEnhancedPrompt(null)}
+                                className="text-xs text-gray-500 hover:text-white transition-colors"
+                            >
+                                Clear
+                            </button>
+                        </div>
+                        <p className="text-sm text-gray-300 leading-relaxed">
+                            {enhancedPrompt}
+                        </p>
+                    </div>
+                )}
+
+                {(enhancedPrompt || promptText.trim()) && (
+                    <div id="forge-actions" className="mt-6 space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                            <Button
+                                variant="outline"
+                                size="lg"
+                                onClick={() => handleGenerate(false)}
+                                disabled={isGenerating}
+                                icon={Layers}
+                                className="h-16 text-base"
+                            >
+                                REFINE
+                            </Button>
+                            <Button
+                                variant="primary"
+                                size="lg"
+                                onClick={() => handleGenerate(true)}
+                                disabled={isGenerating}
+                                icon={CheckCircle}
+                                className="h-16 text-base"
+                            >
+                                FINALIZE
+                            </Button>
+                        </div>
+                        <p className="text-[10px] text-white/40 font-mono text-center">
+                            Refine: Quick iteration (50 steps) • Finalize: Max quality (60+ steps, 300 DPI)
+                        </p>
+                        {isGenerating && (
+                            <div className="mt-4 space-y-2">
+                                <div className="flex items-center justify-between text-xs text-white/60 font-mono">
+                                    <span>Rendering high-res...</span>
+                                    <span>
+                                        {progress?.etaSeconds !== null ? `~${progress.etaSeconds}s` : 'estimating...'}
+                                    </span>
+                                </div>
+                                <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+                                    <div
+                                        className="h-full bg-studio-neon transition-all"
+                                        style={{ width: `${Math.round((progress?.percent || 0) * 100)}%` }}
+                                    />
+                                </div>
+                                {queueLength > 0 && (
+                                    <div className="text-[10px] text-white/40 font-mono">
+                                        Queue: {queueLength} request{queueLength > 1 ? 's' : ''} waiting
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        {generationError && (
+                            <div className="mt-4 p-3 rounded-xl border border-red-500/40 bg-red-500/10 text-xs text-red-200 flex items-center justify-between gap-3">
+                                <span>{generationError}</span>
+                                <button
+                                    onClick={() => handleGenerate(false)}
+                                    className="px-3 py-1 rounded-full bg-red-500/30 text-red-100 text-[10px] font-mono uppercase tracking-wider"
+                                >
+                                    Retry
+                                </button>
+                            </div>
+                        )}
+                        {previewError && (
+                            <div className="mt-4 text-[10px] text-red-300 font-mono text-center">
+                                Preview failed. Adjust your prompt and try again.
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            <div id="forge-review">
+                <VersionTimeline
+                    versions={timeline}
+                    currentVersionId={currentVersionId}
+                    onLoadVersion={handleLoadVersion}
+                    onBranchVersion={handleBranchVersion}
+                    onCompareVersions={handleCompareVersions}
+                    onDeleteVersion={removeVersion}
+                />
+            </div>
+        </div>
+    );
+
+    const rightPanelContent = (
+        <div className="space-y-6 2xl:sticky 2xl:top-24">
+            <MatchPulseSidebar
+                matches={matches}
+                totalMatches={totalMatches}
+                isLoading={isMatching}
+                error={matchError}
+                context={matchContext}
+            />
+
+            <div className="studio-glass rounded-2xl border border-white/10 h-[360px] md:h-[calc(100vh-28rem)]">
+                <LayerStack
+                    layers={layers}
+                    selectedLayerId={selectedLayerId}
+                    onSelectLayer={selectLayer}
+                    onToggleVisibility={toggleVisibility}
+                    onRename={rename}
+                    onDelete={deleteLayer}
+                    onReorder={reorder}
+                    onContextMenu={handleLayerContextMenu}
+                    onAddLayer={() => {
+                        setShowElementModal(true);
+                        setElementPrompt('');
+                        setElementType('subject');
+                    }}
+                />
+            </div>
+        </div>
+    );
+
+    const rightPanel = ENABLE_STUDIO_LAYOUT ? (
+        <CollapsibleSidebar
+            isCollapsed={isRightCollapsed}
+            onToggle={() => setIsRightCollapsed((prev) => !prev)}
+        >
+            {rightPanelContent}
+        </CollapsibleSidebar>
+    ) : (
+        <div className="lg:col-span-12 xl:col-span-12 2xl:col-span-3">
+            {rightPanelContent}
+        </div>
+    );
+
     return (
         <div className="min-h-screen pt-16 px-4 pb-32">
             {/* Background Effects */}
-            <div className="fixed inset-0 bg-black -z-20" />
-            <div className="fixed inset-0 bg-gradient-to-br from-blue-950/20 via-black to-black -z-10" />
-            <div className="fixed top-0 right-0 w-[600px] h-[600px] bg-ducks-green/10 rounded-full blur-[150px] pointer-events-none -z-10" />
+            <div className="fixed inset-0 bg-studio-bg -z-20" />
+            <div className="fixed inset-0 bg-gradient-to-br from-black via-[#0A0A0B] to-black -z-10" />
+            <div className="fixed top-0 right-0 w-[600px] h-[600px] bg-[rgba(255,62,0,0.12)] rounded-full blur-[150px] pointer-events-none -z-10" />
 
             {/* Header */}
             <div className="text-center mb-12 pt-8" role="banner">
                 <h1 className="text-6xl md:text-7xl font-display font-black tracking-tighter text-white mb-3">
                     THE FORGE
                 </h1>
-                <p className="text-xs font-mono text-ducks-green uppercase tracking-[0.3em]" aria-label="Version 4.2 Neural Ink Generation Engine">
+                <p className="text-xs font-mono text-studio-neon uppercase tracking-[0.3em]" aria-label="Version 4.2 Neural Ink Generation Engine">
                     Neural Ink Generation Engine // v4.2
                 </p>
                 <div className="mt-6 flex items-center justify-center gap-3">
@@ -1062,12 +1449,12 @@ export default function Generate() {
             <div className="max-w-[1560px] mx-auto space-y-10" role="main">
                 <section
                     id="forge-trending"
-                    className="glass-panel rounded-3xl border border-white/10 p-6"
+                    className="studio-glass rounded-3xl border border-white/10 p-6"
                     aria-label="Trending design examples"
                 >
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                         <div>
-                            <p className="text-[11px] font-mono uppercase tracking-[0.4em] text-ducks-green/70">
+                            <p className="text-[11px] font-mono uppercase tracking-[0.4em] text-studio-neon opacity-70">
                                 Trending Now
                             </p>
                             <h2 className="text-2xl md:text-3xl font-display font-bold text-white mt-2">
@@ -1093,7 +1480,7 @@ export default function Generate() {
                             <button
                                 key={example.id}
                                 onClick={() => handleLoadExample(example)}
-                                className="group text-left rounded-2xl border border-white/10 bg-black/40 hover:bg-black/60 transition-all overflow-hidden focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-ducks-yellow"
+                                className="group text-left rounded-2xl border border-white/10 bg-black/40 hover:bg-black/60 transition-all overflow-hidden focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-studio-accent"
                                 disabled={isLoadingExample}
                             >
                                 <div className="relative h-36 overflow-hidden">
@@ -1116,405 +1503,23 @@ export default function Generate() {
                     </div>
                 </section>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-                    {/* Left Sidebar - Body Part Selector */}
-                    <div className="lg:col-span-3 xl:col-span-3 2xl:col-span-2">
-                        <div
-                            id="forge-placement"
-                            className="glass-panel rounded-2xl p-4 border border-white/10 sticky top-24"
-                        >
-                            <BodyPartSelector
-                                selectedBodyPart={bodyPart}
-                                onSelect={handleBodyPartChange}
-                                disabled={false}
-                            />
-                        </div>
+                {ENABLE_STUDIO_LAYOUT ? (
+                    <HolyGrailLayout
+                        left={leftPanel}
+                        center={centerPanel}
+                        right={rightPanel}
+                        columnsClassName={isRightCollapsed
+                            ? 'lg:grid-cols-[280px_minmax(0,1fr)_40px]'
+                            : 'lg:grid-cols-[280px_minmax(0,1fr)_320px]'
+                        }
+                    />
+                ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        {leftPanel}
+                        {centerPanel}
+                        {rightPanel}
                     </div>
-
-                    {/* Center - Canvas */}
-                    <div className="lg:col-span-9 xl:col-span-9 2xl:col-span-7">
-                        <div className="space-y-6">
-                            {/* Canvas */}
-                            <div className="glass-panel rounded-3xl p-6 border border-white/10">
-                                <div className="relative group">
-                                    <ForgeCanvas
-                                        bodyPart={bodyPart}
-                                        layers={sortedLayers}
-                                        selectedLayerId={selectedLayerId}
-                                        onSelectLayer={selectLayer}
-                                        onUpdateTransform={updateTransform}
-                                    />
-
-                                    {showPreview && (
-                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                            <img
-                                                src={previewImage}
-                                                alt="Preview"
-                                                className="w-full h-full object-contain opacity-80"
-                                            />
-                                            <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-black/60 text-xs font-mono uppercase tracking-widest text-ducks-yellow">
-                                                Preview
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {stencilView && stencilPreview && (
-                                        <img
-                                            src={stencilPreview}
-                                            alt="Stencil preview"
-                                            className="absolute inset-0 w-full h-full object-contain mix-blend-screen pointer-events-none"
-                                        />
-                                    )}
-
-                                    {/* Transform Controls Toolbar */}
-                                    {selectedLayerId && (
-                                        <div className="absolute top-4 left-1/2 -translate-x-1/2">
-                                            <TransformControls
-                                                onFlipHorizontal={() => flipHorizontal(selectedLayerId)}
-                                                onFlipVertical={() => flipVertical(selectedLayerId)}
-                                                onResetRotation={() => updateTransform(selectedLayerId, { rotation: 0 })}
-                                            />
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="mt-4 flex flex-wrap items-center gap-3">
-                                    <Button
-                                        variant="primary"
-                                        size="md"
-                                        onClick={handleToggleStencil}
-                                        disabled={isStencilProcessing}
-                                        aria-label="Toggle stencil view"
-                                    >
-                                        {stencilView ? 'Exit Stencil View' : 'Stencil View'}
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        size="md"
-                                        onClick={async () => {
-                                            if (!stencilSourceUrl) {
-                                                await createStencilSource();
-                                            }
-                                            setShowStencilExport(true);
-                                        }}
-                                        aria-label="Export stencil"
-                                    >
-                                        Export Stencil
-                                    </Button>
-                                    <div className="flex items-center gap-2">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={undo}
-                                            disabled={historyPastCount === 0}
-                                            aria-label="Undo"
-                                        >
-                                            Undo
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={redo}
-                                            disabled={historyFutureCount === 0}
-                                            aria-label="Redo"
-                                        >
-                                            Redo
-                                        </Button>
-                                        <span className="text-[10px] font-mono uppercase tracking-wider text-white/60">
-                                            {historyPastCount} changes
-                                        </span>
-                                        <button
-                                            type="button"
-                                            onClick={clearHistory}
-                                            disabled={historyPastCount === 0 && historyFutureCount === 0}
-                                            className="text-[10px] font-mono uppercase tracking-wider text-white/40 hover:text-white/80 disabled:opacity-40"
-                                        >
-                                            Clear History
-                                        </button>
-                                    </div>
-                                    {isStencilProcessing && (
-                                        <span className="text-xs text-white/60 font-mono">Generating stencil...</span>
-                                    )}
-                                    {stencilError && (
-                                        <span className="text-xs text-red-400">{stencilError}</span>
-                                    )}
-                                    {isPreviewing && (
-                                        <span className="text-xs text-white/50 font-mono">
-                                            Updating preview...
-                                        </span>
-                                    )}
-                                </div>
-
-                                {selectedLayer && (
-                                    <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="bg-black/30 border border-white/10 rounded-2xl p-4">
-                                            <p className="text-xs font-mono uppercase tracking-[0.3em] text-ducks-green">
-                                                Layer Blend
-                                            </p>
-                                            <p className="text-sm text-white/70 mt-2">
-                                                {selectedLayer.name}
-                                            </p>
-                                            <div className="mt-3">
-                                                <BlendModeSelector
-                                                    value={selectedLayer.blendMode}
-                                                    onChange={(value) => handleBlendModeChange(selectedLayer.id, value)}
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="bg-black/30 border border-white/10 rounded-2xl p-4 space-y-3">
-                                            <p className="text-xs font-mono uppercase tracking-[0.3em] text-ducks-green">
-                                                Layer Actions
-                                            </p>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <Button
-                                                    variant="primary"
-                                                    size="md"
-                                                    onClick={() => setShowInpainting(true)}
-                                                    icon={Wand2}
-                                                >
-                                                    Inpaint
-                                                </Button>
-                                                <Button
-                                                    variant="secondary"
-                                                    size="md"
-                                                    onClick={() => setShowCleanup(true)}
-                                                    icon={Eraser}
-                                                >
-                                                    Clean Up
-                                                </Button>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <Button
-                                                    variant="outline"
-                                                    size="md"
-                                                    onClick={() => {
-                                                        setRestyleLayerId(selectedLayer.id);
-                                                        setRestyleStyle(matchStyle);
-                                                    }}
-                                                    icon={Sparkles}
-                                                >
-                                                    Restyle
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="md"
-                                                    onClick={handleExportPNG}
-                                                    icon={Download}
-                                                >
-                                                    Export PNG
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Prompt Interface */}
-                            <div id="forge-prompt" className="glass-panel rounded-3xl p-8 border border-white/10">
-                                <div className="mb-6">
-                                    <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-[0.3em] text-white/50">
-                                        <span>Placement</span>
-                                        <span>Prompt</span>
-                                        <span>Generate</span>
-                                    </div>
-                                    <div className="mt-3 h-2 rounded-full bg-white/10 overflow-hidden">
-                                        <div
-                                            className="h-full bg-ducks-green transition-all duration-500"
-                                            style={{
-                                                width: `${Math.round(([
-                                                    bodyPart ? 1 : 0,
-                                                    promptText.trim() || enhancedPrompt?.trim() ? 1 : 0,
-                                                    layers.length > 0 ? 1 : 0
-                                                ].reduce((sum, value) => sum + value, 0) / 3) * 100)}%`
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-                                <PromptInterface
-                                    value={promptText}
-                                    onChange={setPromptText}
-                                    selectedChips={selectedChips}
-                                />
-
-                                <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-                                    <Button
-                                        variant="outline"
-                                        size="lg"
-                                        onClick={handleEnhance}
-                                        disabled={isEnhancing || !promptText.trim()}
-                                        icon={Sparkles}
-                                    >
-                                        Enhance with AI Council
-                                    </Button>
-                                    <button
-                                        onClick={() => setShowAdvanced(!showAdvanced)}
-                                        className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-mono uppercase tracking-widest text-white/60 hover:text-white hover:border-white/40"
-                                    >
-                                        Tattoo Fine-Tuning
-                                    </button>
-                                </div>
-
-                                <VibeChips
-                                    suggestions={suggestions}
-                                    selectedChips={selectedChips}
-                                    onChipSelect={handleChipSelect}
-                                    isLoading={isSuggestionsLoading}
-                                />
-
-                                <AdvancedOptions
-                                    isExpanded={showAdvanced}
-                                    onToggle={() => setShowAdvanced(!showAdvanced)}
-                                    hideToggle
-                                    size={size}
-                                    onSizeChange={setSize}
-                                    aiModel={aiModel}
-                                    onModelChange={setAiModel}
-                                    negativePrompt={negativePrompt}
-                                    onNegativePromptChange={setNegativePrompt}
-                                    enhancementLevel={enhancementLevel}
-                                    onEnhancementLevelChange={setEnhancementLevel}
-                                    separateRGBA={separateRGBA}
-                                    onSeparateRGBAChange={setSeparateRGBA}
-                                />
-
-                                {enhancedPrompt && (
-                                    <div className="mt-6 p-6 bg-ducks-green/10 border border-ducks-green/30 rounded-2xl">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <h4 className="text-sm font-bold text-ducks-green uppercase tracking-wider">
-                                                AI Enhanced Prompt ({enhancementLevel})
-                                            </h4>
-                                            <button
-                                                onClick={() => setEnhancedPrompt(null)}
-                                                className="text-xs text-gray-500 hover:text-white transition-colors"
-                                            >
-                                                Clear
-                                            </button>
-                                        </div>
-                                        <p className="text-sm text-gray-300 leading-relaxed">
-                                            {enhancedPrompt}
-                                        </p>
-                                    </div>
-                                )}
-
-                                {(enhancedPrompt || promptText.trim()) && (
-                                    <div id="forge-actions" className="mt-6 space-y-3">
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <Button
-                                                variant="outline"
-                                                size="lg"
-                                                onClick={() => handleGenerate(false)}
-                                                disabled={isGenerating}
-                                                icon={Layers}
-                                                className="h-16 text-base"
-                                            >
-                                                REFINE
-                                            </Button>
-                                            <Button
-                                                variant="primary"
-                                                size="lg"
-                                                onClick={() => handleGenerate(true)}
-                                                disabled={isGenerating}
-                                                icon={CheckCircle}
-                                                className="h-16 text-base"
-                                            >
-                                                FINALIZE
-                                            </Button>
-                                        </div>
-                                        {/* Cost Estimator Button */}
-                                        {sortedLayers.length > 0 && (
-                                            <Button
-                                                variant="outline"
-                                                size="md"
-                                                onClick={() => setShowCostEstimator(true)}
-                                                icon={DollarSign}
-                                                className="w-full mt-3 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
-                                            >
-                                                Get Price Estimate
-                                            </Button>
-                                        )}
-                                        <p className="text-[10px] text-white/40 font-mono text-center">
-                                            Refine: Quick iteration (50 steps) • Finalize: Max quality (60+ steps, 300 DPI)
-                                        </p>
-                                        {isGenerating && (
-                                            <div className="mt-4 space-y-2">
-                                                <div className="flex items-center justify-between text-xs text-white/60 font-mono">
-                                                    <span>Rendering high-res...</span>
-                                                    <span>
-                                                        {progress?.etaSeconds !== null ? `~${progress.etaSeconds}s` : 'estimating...'}
-                                                    </span>
-                                                </div>
-                                                <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-                                                    <div
-                                                        className="h-full bg-ducks-green transition-all"
-                                                        style={{ width: `${Math.round((progress?.percent || 0) * 100)}%` }}
-                                                    />
-                                                </div>
-                                                {queueLength > 0 && (
-                                                    <div className="text-[10px] text-white/40 font-mono">
-                                                        Queue: {queueLength} request{queueLength > 1 ? 's' : ''} waiting
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                        {generationError && (
-                                            <div className="mt-4 p-3 rounded-xl border border-red-500/40 bg-red-500/10 text-xs text-red-200 flex items-center justify-between gap-3">
-                                                <span>{generationError}</span>
-                                                <button
-                                                    onClick={() => handleGenerate(false)}
-                                                    className="px-3 py-1 rounded-full bg-red-500/30 text-red-100 text-[10px] font-mono uppercase tracking-wider"
-                                                >
-                                                    Retry
-                                                </button>
-                                            </div>
-                                        )}
-                                        {previewError && (
-                                            <div className="mt-4 text-[10px] text-red-300 font-mono text-center">
-                                                Preview failed. Adjust your prompt and try again.
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-
-                            <div id="forge-review">
-                                <VersionTimeline
-                                    versions={timeline}
-                                    currentVersionId={currentVersionId}
-                                    onLoadVersion={handleLoadVersion}
-                                    onBranchVersion={handleBranchVersion}
-                                    onCompareVersions={handleCompareVersions}
-                                    onDeleteVersion={removeVersion}
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Right Sidebar - Match Pulse + Layer Stack */}
-                    <div className="lg:col-span-12 xl:col-span-12 2xl:col-span-3">
-                        <div className="space-y-6 2xl:sticky 2xl:top-24">
-                            <MatchPulse />
-
-                            <div className="glass-panel rounded-2xl border border-white/10 h-[360px] md:h-[calc(100vh-28rem)]">
-                                <LayerStack
-                                    layers={layers}
-                                    selectedLayerId={selectedLayerId}
-                                    onSelectLayer={selectLayer}
-                                    onToggleVisibility={toggleVisibility}
-                                    onRename={rename}
-                                    onDelete={deleteLayer}
-                                    onReorder={reorder}
-                                    onContextMenu={handleLayerContextMenu}
-                                    onAddLayer={() => {
-                                        setShowElementModal(true);
-                                        setElementPrompt('');
-                                        setElementType('subject');
-                                    }}
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                )}
             </div>
 
             {/* Warning Modal */}
@@ -1528,7 +1533,7 @@ export default function Generate() {
 
             {showStencilExport && stencilSourceUrl && (
                 <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-                    <div className="glass-panel border border-white/10 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+                    <div className="studio-glass border border-white/10 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
                         <div className="flex items-center justify-between p-4 border-b border-white/10">
                             <h3 className="text-sm font-bold text-white uppercase tracking-wider">
                                 Stencil Export
@@ -1565,7 +1570,7 @@ export default function Generate() {
 
             {showElementModal && (
                 <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-                    <div className="glass-panel border border-white/10 rounded-2xl max-w-lg w-full">
+                    <div className="studio-glass border border-white/10 rounded-2xl max-w-lg w-full">
                         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
                             <h3 className="text-sm font-bold text-white uppercase tracking-wider">
                                 Add New Element
@@ -1588,7 +1593,7 @@ export default function Generate() {
                                     value={elementPrompt}
                                     onChange={(e) => setElementPrompt(e.target.value)}
                                     placeholder="e.g., Add a koi fish, lightning bolt, ornamental frame"
-                                    className="mt-2 w-full rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-ducks-green/60"
+                                    className="mt-2 w-full rounded-xl bg-[var(--studio-bg)] border border-white/[0.05] px-4 py-3 text-sm text-white font-mono focus:outline-none focus:border-studio-neon focus:shadow-[0_0_14px_rgba(0,255,65,0.35)]"
                                     rows={3}
                                 />
                             </div>
@@ -1600,7 +1605,7 @@ export default function Generate() {
                                     id="element-type"
                                     value={elementType}
                                     onChange={(e) => setElementType(e.target.value)}
-                                    className="mt-2 w-full rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-ducks-green/60"
+                                    className="mt-2 w-full rounded-xl bg-[var(--studio-bg)] border border-white/[0.05] px-4 py-3 text-sm text-white font-mono focus:outline-none focus:border-studio-neon focus:shadow-[0_0_14px_rgba(0,255,65,0.35)]"
                                 >
                                     <option value="subject">Subject</option>
                                     <option value="background">Background</option>
@@ -1624,7 +1629,7 @@ export default function Generate() {
 
             {restyleLayerId && (
                 <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-                    <div className="glass-panel border border-white/10 rounded-2xl max-w-lg w-full">
+                    <div className="studio-glass border border-white/10 rounded-2xl max-w-lg w-full">
                         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
                             <h3 className="text-sm font-bold text-white uppercase tracking-wider">
                                 Restyle Layer
@@ -1641,19 +1646,16 @@ export default function Generate() {
                         </div>
                         <div className="p-6 space-y-4">
                             <div>
-                                <label htmlFor="restyle-style" className="text-xs font-mono uppercase tracking-wider text-white/60">
-                                    New Style
-                                </label>
-                                <input
+                                <Input
                                     id="restyle-style"
                                     type="text"
+                                    label="New Style"
                                     value={restyleStyle}
                                     onChange={(e) => setRestyleStyle(e.target.value)}
                                     placeholder="e.g., Fine-line, Blackwork, Neo-traditional"
-                                    className="mt-2 w-full rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-ducks-green/60"
                                 />
                                 <p className="mt-2 text-xs text-white/50">
-                                    We&apos;ll regenerate the selected layer using the new style while keeping your core prompt.
+                                    We'll regenerate the selected layer using the new style while keeping your core prompt.
                                 </p>
                             </div>
                             <Button
@@ -1746,16 +1748,6 @@ export default function Generate() {
             <KeyboardShortcutsModal
                 isOpen={keyboardShortcuts.isOpen}
                 onClose={keyboardShortcuts.close}
-            />
-
-            {/* Cost Estimator Modal */}
-            <CostEstimator
-                isOpen={showCostEstimator}
-                onClose={() => setShowCostEstimator(false)}
-                imageDataUrl={sortedLayers[sortedLayers.length - 1]?.imageUrl}
-                prompt={enhancedPrompt || promptText}
-                style={normalizedStyle}
-                bodyPart={bodyPart}
             />
 
             {/* Toast Notifications */}
