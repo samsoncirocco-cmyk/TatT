@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from 'next/router';
 import artistsData from '../data/artists.json';
 import { Search, MapPin, Palette } from 'lucide-react';
 

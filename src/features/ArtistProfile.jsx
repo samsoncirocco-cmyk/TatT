@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter } from 'next/router';
 import Link from 'next/link';
 import artistsData from '../data/artists.json';
 import { getAllDesigns } from '../services/designLibraryService';
@@ -7,19 +7,24 @@ import Button from '../components/ui/Button';
 import { ArrowLeft, Instagram } from 'lucide-react';
 
 function ArtistProfile() {
-  const params = useParams();
-  const id = params?.id;
   const router = useRouter();
-  const artist = artistsData.artists.find(a => a.id === parseInt(id));
+  const { id } = router.query;
+  const artist = id ? artistsData.artists.find(a => a.id === parseInt(id)) : null;
 
   const [selectedImage, setSelectedImage] = useState(0);
   const [showQuoteModal, setShowQuoteModal] = useState(false);
   const [selectedDesign, setSelectedDesign] = useState(null);
   const [savedDesigns, setSavedDesigns] = useState([]);
 
-  // If artist not found, redirect to artists page
-  if (!artist) {
-    setTimeout(() => router.push('/artists'), 0);
+  // Redirect to artists page if artist not found (client-side only)
+  useEffect(() => {
+    if (router.isReady && id && !artist) {
+      router.push('/artists');
+    }
+  }, [router.isReady, id, artist, router]);
+
+  // Show loading while router is not ready or artist not found
+  if (!router.isReady || !artist) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-4 border-ducks-green border-t-transparent"></div>
