@@ -1,3 +1,4 @@
+'use client';
 /**
  * Generate Page - Enhanced with Layer Management
  * 
