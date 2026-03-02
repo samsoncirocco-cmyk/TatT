@@ -1,0 +1,50 @@
+{
+  "name": "TatT — AI Tattoo Studio",
+  "short_name": "TatT",
+  "description": "AI-powered tattoo design studio. Turn ideas into ink-ready art in seconds.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#7f13ec",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ],
+  "categories": ["lifestyle", "utilities", "art"],
+  "shortcuts": [
+    {
+      "name": "Generate Design",
+      "url": "/generate",
+      "description": "Create a new AI tattoo design"
+    },
+    {
+      "name": "Find Artists",
+      "url": "/artists",
+      "description": "Browse tattoo artists"
+    },
+    {
+      "name": "Gallery",
+      "url": "/gallery",
+      "description": "Browse community designs"
+    }
+  ]
+}
