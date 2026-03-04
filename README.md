@@ -1,73 +1,60 @@
 <div align="center">
   <h1>🎨 TatT</h1>
-  <p><strong>AI-powered tattoo design studio that turns ideas into ink-ready art</strong></p>
+  <p><strong>AI-powered tattoo design studio — from idea to ink-ready stencil in minutes</strong></p>
   <p>
-    <a href="https://tat-t-3x8t.vercel.app">Live Demo</a> •
+    <a href="https://tatt-app.vercel.app">Live Demo</a> •
     <a href="#quick-start">Quick Start</a> •
-    <a href="#api-reference">API Reference</a> •
-    <a href="ARCHITECTURE.md">Architecture</a> •
-    <a href="docs/TROUBLESHOOTING.md">Troubleshooting</a>
+    <a href="#environment-variables">Environment Variables</a> •
+    <a href="#architecture">Architecture</a> •
+    <a href="ARCHITECTURE.md">Full Architecture Doc</a>
   </p>
-  
+
   ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
   ![React](https://img.shields.io/badge/React-19-61dafb?logo=react)
   ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)
+  ![Tailwind](https://img.shields.io/badge/Tailwind-4-38bdf8?logo=tailwindcss)
   ![License](https://img.shields.io/badge/License-Proprietary-red)
 </div>
 
 ---
 
-## Table of Contents
+## What Is TatT?
 
-- [The Problem](#the-problem)
-- [The Solution](#the-solution)
-- [Quick Start](#quick-start)
-- [Environment Variables](#environment-variables)
-- [Development](#development)
-- [Architecture](#architecture)
-- [API Reference](#api-reference)
-- [Testing](#testing)
-- [Deployment](#deployment)
-- [Troubleshooting](#troubleshooting)
-- [Project Structure](#project-structure)
-- [Contributing](#contributing)
+TatT solves the tattoo commitment problem: **75% of clients arrive at studios with no clear design, and 40% of artists' time is lost to consultations that don't convert.**
 
----
-
-## The Problem
-
-**$3B spent annually on tattoos in the US. 75% of clients arrive with no clear design.**
-
-Getting a tattoo today is broken:
-
-1. **Discovery friction** — Pinterest boards, vague Instagram DMs, hoping an artist "gets it"
-2. **No preview** — You commit to permanent art without seeing it on your body
-3. **Artist mismatch** — The wrong artist for your style means a lifetime of regret
-4. **Design iteration** — Want changes? Pay $150/hour for sketches that might not work
-
-Artists lose 40% of their time to consultations that don't convert. Clients leave with tattoos they didn't want.
-
-## The Solution
-
-TatT is an AI-native tattoo design platform that handles the entire pre-ink workflow:
+TatT handles the entire pre-ink workflow in one place:
 
 ```
-Describe your idea → AI generates designs → Preview on your body with AR → Match with the perfect artist
+Describe your idea → AI generates 4 designs → Preview on your body with AR → Match with the right artist
 ```
-
-**One platform replaces:** Pinterest, consultation calls, deposit gambles, and "I hope this looks good on me" anxiety.
 
 ### Key Features
 
-| Feature | What it does |
-|---------|--------------|
-| **AI Design Studio** | Generate 4 professional variations from a text prompt (10-30 sec) |
-| **LLM Council** | 3 AI models collaborate to transform "cool dragon" → production-ready art direction |
-| **Neural Ink Matching** | Semantic search across artist portfolios finds your perfect match |
-| **Forge Canvas** | Layer-based editor with version history, export at 300 DPI stencil-ready |
-| **AR Visualization** | See the design on your body before you commit |
-| **Swipe Match** | Tinder-style artist discovery — swipe right on portfolios |
-| **Cost Estimator** | Real-time pricing based on size, complexity, and location |
+| Feature | Description |
+|---------|-------------|
+| **AI Design Studio (Forge)** | Generate 4 professional tattoo variations from a text prompt in 10–30 seconds |
+| **LLM Council** | 3 AI models (Claude, GPT-4, Gemini) collaborate to transform vague ideas into production-ready art direction |
+| **Neural Ink Matching** | Hybrid vector + graph search across artist portfolios to find your perfect match |
+| **Forge Canvas** | Layer-based editor with version history, blend modes, and 300 DPI stencil export |
+| **AR Visualization** | Preview the design on your body in real-time via MindAR |
+| **Swipe Match** | Tinder-style artist discovery — swipe right on portfolio styles you love |
+| **Cost Estimator** | Real-time pricing estimates based on size, complexity, and artist location |
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | React 19, Next.js 16 (App Router), Tailwind 4, Framer Motion, Konva |
+| **State** | Zustand (`useForgeStore`), custom hooks |
+| **Backend** | Next.js API Routes (`/api/v1/*`) + Express proxy (`server.js`) |
+| **Image Generation** | Replicate (SDXL, DreamShaper, Anime XL, Blackwork), Google Vertex AI (Imagen 3) |
+| **LLM Council** | OpenRouter — Claude 3.5 Sonnet, GPT-4 Turbo, Gemini Pro 1.5 |
+| **Database** | Supabase (PostgreSQL + pgvector for semantic search), Neo4j (graph relationships) |
+| **Auth** | Firebase Auth via `next-firebase-auth-edge` |
+| **Storage** | Google Cloud Storage (GCS) for generated images |
+| **Deploy** | Vercel (frontend) + Railway (Express proxy) |
 
 ---
 
@@ -75,16 +62,16 @@ Describe your idea → AI generates designs → Preview on your body with AR →
 
 ### Prerequisites
 
-- **Node.js 18+** (recommend 20.x or 22.x)
-- **npm 9+** or **pnpm**
-- **Replicate API token** — [Get one free](https://replicate.com/account/api-tokens)
+- **Node.js 20+** (22.x recommended)
+- **npm 9+**
+- A **Replicate account** — [get a free API token](https://replicate.com/account/api-tokens)
 
 ### 1. Clone & Install
 
 ```bash
-git clone https://github.com/your-repo/TatT.git
+git clone https://github.com/your-org/TatT.git
 cd TatT
-npm install
+npm install --legacy-peer-deps
 ```
 
 ### 2. Configure Environment
@@ -93,133 +80,183 @@ npm install
 cp .env.example .env
 ```
 
-Edit `.env` with your API keys. **Minimum required for local development:**
+Open `.env` and set the **minimum required variables** to get the app running:
 
 ```env
-# REQUIRED — Image generation won't work without this
+# Required — image generation
 REPLICATE_API_TOKEN=r8_your_token_here
 
-# REQUIRED — Auth token for frontend-to-backend communication
+# Required — frontend ↔ backend auth (both must match)
 # Generate with: openssl rand -hex 32
-FRONTEND_AUTH_TOKEN=your_generated_token
-VITE_FRONTEND_AUTH_TOKEN=your_generated_token
+FRONTEND_AUTH_TOKEN=your_generated_secret
+VITE_FRONTEND_AUTH_TOKEN=your_generated_secret
 ```
 
-### 3. Run the Development Server
+Everything else is optional for local dev — see the [full env var reference](#environment-variables) below.
+
+### 3. Start the Servers
+
+TatT uses **two servers** in development:
 
 ```bash
-# Terminal 1: Start Next.js (port 3000)
+# Terminal 1 — Next.js dev server (port 3000)
 npm run dev
 
-# Terminal 2: Start Express proxy (port 3002)
+# Terminal 2 — Express proxy server (port 3002)
 npm run server
 ```
 
 Open [http://localhost:3000](http://localhost:3000)
 
+> **Why two servers?** The Express proxy (`server.js`) handles Replicate API calls (to keep your API token server-side), Neo4j graph queries, and GCS uploads. The Next.js app handles all UI, auth, and the `/api/v1/*` routes.
+
 ### 4. Generate Your First Design
 
-1. Navigate to **Generate** (✨ icon in nav)
-2. Select a style (Traditional, Anime, Minimalist, etc.)
-3. Describe your idea: `"wolf howling at the moon, pine forest background"`
-4. (Optional) Click **Enhance with AI Council** for better prompts
-5. Hit **Generate** — wait 10-30 seconds
-6. Save to library or export as stencil
+1. Go to **Generate** (the ✨ icon in the nav)
+2. Pick a style: Traditional, Anime, Minimalist, Geometric, etc.
+3. Type a description: `"wolf howling at the moon, pine forest"`
+4. (Optional) Click **Enhance with AI Council** for multi-model prompt refinement
+5. Click **Generate** — wait 10–30 seconds for 4 variations
+6. Save to library, or export as a 300 DPI stencil
+
+### No API Keys Yet? Use Demo Mode
+
+```env
+VITE_DEMO_MODE=true
+VITE_COUNCIL_DEMO_MODE=true
+```
+
+This uses mock images and mock LLM responses. Full UI is functional — no API credits burned.
 
 ---
 
 ## Environment Variables
 
-### Required Variables
+Copy `.env.example` → `.env` and fill in what you need. Variables are grouped by feature.
 
-| Variable | Purpose | How to Get |
-|----------|---------|------------|
-| `REPLICATE_API_TOKEN` | Image generation (SDXL, etc.) | [replicate.com/account](https://replicate.com/account/api-tokens) |
-| `FRONTEND_AUTH_TOKEN` | Frontend ↔ backend auth | `openssl rand -hex 32` |
+### Minimum Required (local dev)
 
-### Optional Integrations
+| Variable | Description | How to Get |
+|----------|-------------|------------|
+| `REPLICATE_API_TOKEN` | Replicate image generation (SDXL, DreamShaper, etc.) | [replicate.com/account](https://replicate.com/account/api-tokens) |
+| `FRONTEND_AUTH_TOKEN` | Shared secret: Next.js ↔ Express proxy | `openssl rand -hex 32` |
+| `VITE_FRONTEND_AUTH_TOKEN` | Same secret, available to client-side code | Same value as above |
 
-<details>
-<summary><strong>LLM Council (OpenRouter)</strong> — Enhanced prompt generation</summary>
+### LLM Council (OpenRouter)
 
-```env
-VITE_USE_OPENROUTER=true
-VITE_OPENROUTER_API_KEY=your_openrouter_key
+Powers the 3-model prompt enhancement feature. Without this, set `VITE_COUNCIL_DEMO_MODE=true`.
+
+| Variable | Description |
+|----------|-------------|
+| `VITE_USE_OPENROUTER` | Set `true` to use real LLM council |
+| `VITE_OPENROUTER_API_KEY` | OpenRouter API key — [openrouter.ai/keys](https://openrouter.ai/keys) |
+
+Cost: ~$0.01–0.03 per enhancement (Claude + GPT-4 + Gemini).
+
+### Firebase Auth
+
+Required for user accounts and saved designs. Without it, anonymous session is used.
+
+| Variable | Description |
+|----------|-------------|
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | Firebase client config (safe to expose) |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Firebase auth domain |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Firebase project ID |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Firebase storage bucket |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Firebase sender ID |
+| `NEXT_PUBLIC_FIREBASE_APP_ID` | Firebase app ID |
+| `FIREBASE_PROJECT_ID` | Server-side project ID |
+| `FIREBASE_CLIENT_EMAIL` | Service account email |
+| `FIREBASE_PRIVATE_KEY` | Service account private key (include quotes + `\n` newlines) |
+| `AUTH_COOKIE_SIGNATURE_KEY_CURRENT` | Cookie signing key — `openssl rand -hex 32` |
+| `AUTH_COOKIE_SIGNATURE_KEY_PREVIOUS` | Previous cookie signing key (for rotation) |
+
+**Setup:** Create a Firebase project → enable Email/Google auth → download a service account key from Project Settings → Service Accounts. Full guide: [docs/firebase-setup.md](docs/firebase-setup.md)
+
+### Supabase (Vector Search + Artist DB)
+
+Powers the semantic artist matching feature (pgvector cosine similarity).
+
+| Variable | Description |
+|----------|-------------|
+| `SUPABASE_URL` | Your Supabase project URL |
+| `SUPABASE_ANON_KEY` | Public anon key (safe to expose, used client-side) |
+| `SUPABASE_SERVICE_KEY` | Service role key — **keep secret, server-side only** |
+
+**Setup:**
+```sql
+-- Run in Supabase SQL Editor
+-- 1. Create the artists table + vector columns
+\i generated/create-table.sql
+
+-- 2. Seed with 50 sample artists
+\i generated/insert-batch-50.sql
+```
+Full guide: [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md)
+
+### Neo4j (Graph Database)
+
+Powers relationship-based artist recommendations. Optional — matching works without it.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NEO4J_URI` | `bolt://localhost:7687` | Neo4j connection URI |
+| `NEO4J_USER` | `neo4j` | Database user |
+| `NEO4J_PASSWORD` | — | Database password |
+
+**Setup:**
+```bash
+# Import artist graph data
+node scripts/import-to-neo4j.js
+# Or run Cypher directly:
+# generated/tattoo-artists-neo4j.cypher
 ```
 
-Uses Claude 3.5 Sonnet, GPT-4 Turbo, and Gemini Pro for prompt enhancement. ~$0.01-0.03 per enhancement.
+### Google Cloud (Vertex AI + GCS)
 
-Get a key at [openrouter.ai/keys](https://openrouter.ai/keys)
-</details>
+Required for Imagen 3 (photorealistic generation) and image storage.
 
-<details>
-<summary><strong>Supabase</strong> — Vector search + authentication</summary>
+| Variable | Description |
+|----------|-------------|
+| `GCP_PROJECT_ID` | GCP project ID |
+| `VITE_VERTEX_AI_PROJECT_ID` | Same project (for client-side Vertex calls) |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Path to your GCP service account JSON key |
 
-```env
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your_anon_key
-SUPABASE_SERVICE_KEY=your_service_role_key
-```
+**Setup:**
+1. Create a GCP project with Vertex AI + Cloud Storage APIs enabled
+2. Create a service account with roles: `Vertex AI User`, `Storage Object Admin`
+3. Download the JSON key: `export GOOGLE_APPLICATION_CREDENTIALS=./gcp-key.json`
 
-Enables semantic artist matching with pgvector embeddings.
-</details>
-
-<details>
-<summary><strong>Firebase</strong> — User authentication</summary>
-
-```env
-# Client-side (safe to expose)
-NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-
-# Server-side (keep secret)
-FIREBASE_PROJECT_ID=your_project_id
-FIREBASE_CLIENT_EMAIL=firebase-adminsdk@your_project.iam.gserviceaccount.com
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
-
-# Cookie signing
-AUTH_COOKIE_SIGNATURE_KEY_CURRENT=generate_with_openssl_rand_hex_32
-```
-</details>
-
-<details>
-<summary><strong>Neo4j</strong> — Graph database for artist relationships</summary>
-
-```env
-NEO4J_URI=bolt://localhost:7687
-NEO4J_USER=neo4j
-NEO4J_PASSWORD=your_password
-```
-</details>
-
-<details>
-<summary><strong>Google Cloud</strong> — Vertex AI (Imagen 3) + Storage</summary>
-
-```env
-GCP_PROJECT_ID=your_project_id
-VITE_VERTEX_AI_PROJECT_ID=your_project_id
-```
-
-Requires GCP service account with Vertex AI and Storage permissions.
-</details>
+Full guide: [docs/gcp-setup.md](docs/gcp-setup.md)
 
 ### Feature Flags
 
-```env
-VITE_DEMO_MODE=false           # Use mock images (no API calls)
-VITE_COUNCIL_DEMO_MODE=true    # Use mock LLM responses
-VITE_ENABLE_INPAINTING=true    # Enable inpainting editor
-VITE_ENABLE_STENCIL_EXPORT=true # Enable stencil export
-VITE_ENABLE_AR_PREVIEW=false   # Enable AR visualization (WIP)
-```
+Control what's enabled without touching code:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VITE_DEMO_MODE` | `false` | Use mock images (no API calls) |
+| `VITE_COUNCIL_DEMO_MODE` | `true` | Use mock LLM responses |
+| `VITE_USE_COUNCIL` | `true` | Enable council-enhanced generator |
+| `VITE_USE_OPENROUTER` | `false` | Use real OpenRouter LLM council |
+| `VITE_ENABLE_INPAINTING` | `true` | Enable inpainting editor |
+| `VITE_ENABLE_STENCIL_EXPORT` | `true` | Enable stencil export |
+| `VITE_ENABLE_AR_PREVIEW` | `false` | Enable AR visualization (WIP) |
 
 ### Budget Controls
 
-```env
-VITE_MAX_DAILY_SPEND=10.00     # Max daily API spend (USD)
-VITE_TOTAL_BUDGET=500.00       # Total budget cap (USD)
-```
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VITE_MAX_DAILY_SPEND` | `10.00` | Max daily API spend in USD |
+| `VITE_TOTAL_BUDGET` | `500.00` | Total budget cap in USD |
+
+### Server Config
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3002` | Express proxy port (Railway sets this automatically) |
+| `HOST` | `127.0.0.1` | Server bind address |
+| `ALLOWED_ORIGINS` | `http://localhost:3000` | Comma-separated allowed CORS origins |
 
 ---
 
@@ -228,128 +265,253 @@ VITE_TOTAL_BUDGET=500.00       # Total budget cap (USD)
 ### Scripts
 
 ```bash
-npm run dev          # Next.js dev server (port 3000)
-npm run server       # Express proxy server (port 3002)
+npm run dev          # Start Next.js dev server (port 3000, hot reload)
+npm run server       # Start Express proxy (port 3002, Replicate/Neo4j/GCS proxy)
 npm run build        # Production build
-npm run start        # Start production server
-npm run lint         # Run ESLint
+npm run start        # Start production Next.js server
+npm run lint         # ESLint
 npm run test         # Run test suite (Vitest)
-npm run test:watch   # Watch mode for tests
-npm run test:coverage # Generate coverage report
+npm run test:watch   # Vitest watch mode
+npm run test:coverage # Coverage report
+npm run seed:embeddings  # Seed Supabase artist vector embeddings
 ```
 
-### Development Workflow
+### Development Tips
 
-1. **Frontend changes:** Edit files in `src/`, Next.js hot-reloads automatically
-2. **API changes:** Edit `src/app/api/v1/*/route.ts`, restart dev server if needed
-3. **Backend proxy changes:** Edit `server.js`, restart with `npm run server`
-4. **Style changes:** Tailwind classes hot-reload, edit `tailwind.config.ts` for theme
+- **No API keys?** → Set `VITE_DEMO_MODE=true` and `VITE_COUNCIL_DEMO_MODE=true` — full UI works with mocks
+- **Frontend-only change?** → You only need `npm run dev` (port 3000). The proxy is only needed for Replicate/Neo4j/GCS
+- **API route change?** → Edit files in `src/app/api/v1/*/route.ts`. Next.js hot-reloads them automatically
+- **Proxy change?** → Edit `server.js` and restart `npm run server`
+- **Model routing?** → See `src/config/modelRoutingRules.js` — this controls which AI model runs for each tattoo style
+- **Prompt engineering?** → See `src/config/promptTemplates.js` — style-specific prompt engineering lives here
 
 ### Code Style
 
-- **TypeScript** for new code (migration ~40% complete)
-- **ESLint** with Next.js config
-- **Prettier** for formatting (configure your editor)
-- **Zustand** for state management
-- **Services pattern** for business logic (`src/services/`)
-
-### Hot Tips
-
-- Use `VITE_DEMO_MODE=true` to develop UI without burning API credits
-- The Express proxy (`server.js`) is only needed for Replicate and Neo4j
-- Check `src/config/modelRoutingRules.js` to understand model selection logic
-- All API routes follow REST: `POST /api/v1/{resource}/{action}`
+- **TypeScript for all new code** (migration ~40% complete — see [docs/MIGRATION_STATUS.md](docs/MIGRATION_STATUS.md))
+- **Services pattern**: business logic lives in `src/services/`, not in components
+- **Custom hooks**: stateful UI logic lives in `src/hooks/`
+- **Zustand**: global canvas state via `useForgeStore.ts`; other state uses React local state / custom hooks
+- **REST conventions**: all API routes are `POST /api/v1/{resource}/{action}`
 
 ---
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              CLIENT                                          │
-│                   React 19 • Next.js 16 • Tailwind 4                         │
-│                                                                              │
-│  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │  Generate (Forge)  │  Visualize (AR)  │  Artists (Match)  │  Library  │   │
-│  └──────────────────────────────────────────────────────────────────────┘   │
-└────────────────────────────────┬────────────────────────────────────────────┘
-                                 │
-                    ┌────────────┴────────────┐
-                    ▼                         ▼
-    ┌───────────────────────────┐  ┌────────────────────────────┐
-    │    Next.js API Routes      │  │   Express Proxy (Railway)  │
-    │    /api/v1/*               │  │   Rate limiting • Auth     │
-    │                            │  │                            │
-    │  • /generate               │  │  • Replicate proxy         │
-    │  • /council/enhance        │  │  • Neo4j queries           │
-    │  • /match/semantic         │  │  • GCS uploads             │
-    │  • /stencil/export         │  │                            │
-    │  • /layers/decompose       │  │                            │
-    └─────────────┬──────────────┘  └──────────────┬─────────────┘
-                  │                                 │
-    ┌─────────────┴─────────────────────────────────┴─────────────┐
-    │                      EXTERNAL SERVICES                       │
-    │                                                              │
-    │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐            │
-    │  │  Replicate  │ │ OpenRouter  │ │  Vertex AI  │            │
-    │  │  SDXL       │ │ Claude/GPT  │ │  Imagen 3   │            │
-    │  │  Anime XL   │ │ Gemini      │ │  Embeddings │            │
-    │  │  Blackwork  │ │ (Council)   │ │             │            │
-    │  └─────────────┘ └─────────────┘ └─────────────┘            │
-    │                                                              │
-    │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐            │
-    │  │  Supabase   │ │   Neo4j     │ │    GCS      │            │
-    │  │  Postgres   │ │  Graph DB   │ │   Storage   │            │
-    │  │  pgvector   │ │  Artist     │ │   Images    │            │
-    │  │  Auth       │ │  Relations  │ │             │            │
-    │  └─────────────┘ └─────────────┘ └─────────────┘            │
-    └──────────────────────────────────────────────────────────────┘
-```
+### System Diagram
 
-For detailed architecture documentation, see [ARCHITECTURE.md](ARCHITECTURE.md).
+```
+┌───────────────────────────────────────────────────────────────────────┐
+│                           BROWSER (React 19)                          │
+│   Next.js 16 App Router • Tailwind 4 • Framer Motion • Konva          │
+│                                                                       │
+│  ┌────────────┐ ┌─────────────┐ ┌───────────┐ ┌──────────────────┐   │
+│  │  /generate │ │  /visualize │ │  /artists │ │  /smart-match    │   │
+│  │  (Forge)   │ │  (AR)       │ │  (Match)  │ │  /swipe          │   │
+│  └────────┬───┘ └──────┬──────┘ └─────┬─────┘ └──────────────────┘   │
+└───────────┼────────────┼──────────────┼────────────────────────────────┘
+            │            │              │
+      ┌─────▼────────────▼──────────────▼──────┐
+      │           Next.js API Routes            │
+      │              /api/v1/*                  │
+      │                                         │
+      │  /generate    /council/enhance          │
+      │  /match/semantic  /stencil/export       │
+      │  /layers/decompose  /storage/*          │
+      │  /embeddings/generate  /ar/visualize    │
+      └───────────────┬─────────────────────────┘
+                      │
+          ┌───────────┴───────────┐
+          ▼                       ▼
+┌──────────────────┐    ┌──────────────────────────┐
+│  External APIs   │    │  Express Proxy (Railway)  │
+│                  │    │  server.js : port 3002    │
+│  Replicate       │◀───│                           │
+│  OpenRouter      │    │  • Replicate proxy        │
+│  Vertex AI       │    │  • Neo4j query proxy      │
+│  Firebase        │    │  • GCS upload proxy       │
+└──────────────────┘    │  • Rate limiting + CORS   │
+                        │  • Bearer token auth      │
+                        └──────────────────────────┘
+                                     │
+              ┌──────────────────────┼──────────────────────┐
+              ▼                      ▼                       ▼
+      ┌───────────────┐   ┌─────────────────┐   ┌──────────────────┐
+      │   Supabase    │   │     Neo4j       │   │  Google Cloud    │
+      │  PostgreSQL   │   │  Graph DB       │   │  Storage (GCS)   │
+      │  pgvector     │   │  Artist nodes   │   │  Generated imgs  │
+      │  Auth         │   │  Style edges    │   │                  │
+      └───────────────┘   └─────────────────┘   └──────────────────┘
+```
 
 ### Core Flows
 
-| Flow | Path |
-|------|------|
-| **Design Generation** | User prompt → LLM Council → Model Router → Replicate/Vertex → 4 variations |
-| **Artist Matching** | User preferences → Keyword match + Vector search → Weighted score → Ranked results |
-| **Stencil Export** | Forge Canvas → Layer composition → 300 DPI export → Thermal printer ready |
+#### 1. Design Generation
 
-### Tech Stack
+```
+User prompt
+  → LLM Council Enhancement (Claude + GPT-4 + Gemini via OpenRouter)
+  → Model Router (styleModelMapping.js — picks optimal model per style)
+  → Replicate/Vertex AI (generates 4 variations)
+  → Display + save to library
+```
 
-| Layer | Technology |
-|-------|------------|
-| **Frontend** | React 19, Next.js 16, Tailwind 4, Framer Motion, Zustand, Konva |
-| **Backend** | Next.js API routes, Express proxy |
-| **Image Gen** | Replicate (SDXL, DreamShaper, Anime XL, Blackwork), Google Vertex AI (Imagen 3) |
-| **LLM Council** | OpenRouter (Claude 3.5 Sonnet, GPT-4 Turbo, Gemini Pro 1.5) |
-| **Database** | Supabase (PostgreSQL + pgvector), Neo4j |
-| **Storage** | Google Cloud Storage |
-| **Auth** | Firebase Auth (next-firebase-auth-edge) |
-| **Deploy** | Vercel (frontend), Railway (backend) |
+**Available models:**
+
+| Model | Best For |
+|-------|---------|
+| SDXL | General purpose |
+| DreamShaper Turbo | Fast iterations |
+| Anime XL (Niji SE) | Anime/manga |
+| Tattoo Flash Art | Traditional flash |
+| Blackwork Specialist | Linework, dotwork |
+| Imagen 3 (Vertex AI) | Photorealism |
+
+#### 2. Artist Matching (Neural Ink)
+
+```
+User input (style + zip + budget + radius)
+  → Keyword matching (fuzzy text on style, specialty, location)
+  → Vector search (Supabase pgvector cosine similarity — 4096-dim CLIP embeddings)
+  → Score aggregation (Reciprocal Rank Fusion — combines both signals)
+  → Real-time score pulse (Firebase Realtime / Supabase Realtime)
+  → Ranked artist list
+```
+
+#### 3. Forge Canvas (Layer Editor)
+
+```
+Generated image
+  → Layer decomposition (Vertex AI — linework / shading / color / background)
+  → Konva canvas (drag, resize, rotate, blend modes, version history)
+  → Stencil export (300 DPI, thermal-printer calibrated)
+```
+
+#### 4. AR Visualization
+
+```
+Camera feed → MindAR body detection → Depth mapping → Design warp + overlay
+```
+
+### State Management
+
+- **`useForgeStore.ts`** (Zustand + Firestore persistence) — canvas layers, active layer, transform state, undo/redo history
+- **Custom hooks** — `useImageGeneration`, `useArtistMatching`, `useVersionHistory`, `useRealtimeMatchPulse`, etc.
+- **React Context** — `ToastContext.tsx` (global notification system)
+- **Local storage** — design library (up to 50 designs), user preferences
+
+### Data Layer
+
+| Store | Purpose |
+|-------|---------|
+| **Supabase PostgreSQL** | Artist profiles, auth, row-level security |
+| **Supabase pgvector** | 4096-dim CLIP embeddings for semantic portfolio search |
+| **Neo4j** | Artist → Style → Recommendation graph |
+| **GCS** | Generated image storage |
+| **LocalStorage** | Design library cache, user preferences |
+
+---
+
+## Project Structure
+
+```
+TatT/
+├── src/
+│   ├── app/                        # Next.js App Router
+│   │   ├── api/v1/                 # API routes
+│   │   │   ├── generate/           # POST /api/v1/generate
+│   │   │   ├── council/            # POST /api/v1/council/enhance
+│   │   │   ├── match/              # POST /api/v1/match/semantic
+│   │   │   ├── stencil/            # POST /api/v1/stencil/export
+│   │   │   ├── layers/             # POST /api/v1/layers/decompose
+│   │   │   ├── embeddings/         # POST /api/v1/embeddings/generate
+│   │   │   ├── storage/            # POST /api/v1/storage/*
+│   │   │   ├── ar/                 # POST /api/v1/ar/visualize
+│   │   │   └── estimate/           # POST /api/v1/estimate
+│   │   ├── generate/               # /generate page (Forge Studio)
+│   │   ├── artists/                # /artists page
+│   │   ├── smart-match/            # /smart-match page (SmartMatch.tsx)
+│   │   ├── swipe/                  # /swipe page (SwipeMatch.tsx)
+│   │   ├── library/                # /library page (design library)
+│   │   ├── visualize/              # /visualize page (AR)
+│   │   ├── layout.tsx              # Root layout (auth, metadata)
+│   │   └── page.tsx                # Home
+│   ├── services/                   # Business logic layer
+│   │   ├── councilService.ts       # Multi-agent LLM coordination
+│   │   ├── replicateService.ts     # Replicate + Vertex AI generation
+│   │   ├── matchService.ts         # Hybrid RRF artist matching
+│   │   ├── hybridMatchService.ts   # Vector + keyword fusion
+│   │   ├── neo4jService.ts         # Graph queries
+│   │   ├── versionService.ts       # Design version history
+│   │   ├── stencilService.ts       # 300 DPI stencil export
+│   │   ├── storageService.ts       # GCS operations
+│   │   ├── vectorDbService.ts      # Supabase pgvector queries
+│   │   └── canvasService.ts        # Konva layer utilities
+│   ├── components/
+│   │   ├── Forge/                  # Canvas/editor components
+│   │   ├── Match/                  # Artist matching UI
+│   │   ├── auth/                   # Auth components (Firebase)
+│   │   ├── ui/                     # Shared UI primitives
+│   │   └── shared/                 # Common layout components
+│   ├── stores/
+│   │   └── useForgeStore.ts        # Canvas state (Zustand + Firestore)
+│   ├── hooks/                      # Custom React hooks
+│   │   ├── useImageGeneration.ts
+│   │   ├── useArtistMatching.ts
+│   │   ├── useVersionHistory.ts
+│   │   ├── useLayerManagement.ts
+│   │   ├── useRealtimeMatchPulse.ts
+│   │   └── ...
+│   ├── config/
+│   │   ├── modelRoutingRules.js    # Style → AI model mapping
+│   │   ├── promptTemplates.js      # Style-specific prompts
+│   │   └── characterDatabase.js    # Known character references
+│   └── constants/
+│       ├── featureFlags.ts         # Feature toggle constants
+│       └── bodyPartAspectRatios.ts # Canvas sizing per body placement
+├── server.js                       # Express proxy server (port 3002)
+├── scripts/                        # Data generation + seeding
+├── generated/                      # Pre-built seed data artifacts
+│   ├── create-table.sql            # Supabase DDL
+│   ├── insert-batch-50.sql         # 50-artist seed data
+│   ├── tattoo-artists-supabase.json
+│   └── tattoo-artists-neo4j.cypher
+├── docs/                           # Detailed documentation
+│   ├── ARCHITECTURE.md
+│   ├── API_REFERENCE.md
+│   ├── TROUBLESHOOTING.md
+│   ├── firebase-setup.md
+│   ├── SUPABASE_SETUP.md
+│   ├── RAILWAY_SETUP.md
+│   └── VERCEL_ENVIRONMENT_SETUP.md
+├── tests/                          # Test files
+├── public/                         # Static assets
+├── next.config.js                  # Next.js config
+├── tailwind.config.ts              # Tailwind theme
+├── tsconfig.json                   # TypeScript config
+└── .env.example                    # Environment template
+```
 
 ---
 
 ## API Reference
 
-All endpoints: `POST /api/v1/{resource}/{action}`
+All endpoints accept `POST` and require the `Authorization: Bearer $FRONTEND_AUTH_TOKEN` header on the Express proxy. Next.js routes enforce auth via middleware.
 
-### Image Generation
+### Generate Tattoo Images
 
 ```bash
 curl -X POST http://localhost:3000/api/v1/generate \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $FRONTEND_AUTH_TOKEN" \
   -d '{
-    "prompt": "wolf howling at the moon",
+    "prompt": "wolf howling at the moon, pine forest",
     "style": "traditional",
     "bodyPart": "forearm",
     "numOutputs": 4
   }'
 ```
 
-### LLM Council Enhancement
+### Enhance Prompt via LLM Council
 
 ```bash
 curl -X POST http://localhost:3000/api/v1/council/enhance \
@@ -360,60 +522,71 @@ curl -X POST http://localhost:3000/api/v1/council/enhance \
   }'
 ```
 
-**Response:**
+Response:
 ```json
 {
-  "simple": "Japanese dragon with cloud motifs...",
-  "detailed": "Mythological dragon in traditional irezumi style...",
-  "ultra": "Full-sleeve composition featuring a serpentine dragon..."
+  "simple": "Japanese dragon with cloud motifs in irezumi style...",
+  "detailed": "Serpentine dragon, traditional irezumi composition...",
+  "ultra": "Full-sleeve mythological dragon, muted earth tones..."
 }
 ```
 
-### Full API Surface
+### Semantic Artist Match
 
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/api/v1/generate` | POST | Generate tattoo images |
-| `/api/v1/council/enhance` | POST | LLM prompt enhancement |
-| `/api/v1/match/semantic` | POST | Vector-based artist matching |
-| `/api/v1/match/update` | POST | Update match scores |
-| `/api/v1/layers/decompose` | POST | Split image into layers |
-| `/api/v1/stencil/export` | POST | Export at 300 DPI |
-| `/api/v1/storage/upload` | POST | Upload to GCS |
-| `/api/v1/storage/get-signed-url` | POST | Get signed download URL |
-| `/api/v1/embeddings/generate` | POST | Generate vector embeddings |
-| `/api/v1/ar/visualize` | POST | AR visualization processing |
-| `/api/v1/estimate` | POST | Cost estimation |
-| `/api/v1/tasks/*` | POST | Background task management |
+```bash
+curl -X POST http://localhost:3000/api/v1/match/semantic \
+  -H "Content-Type: application/json" \
+  -d '{
+    "style": "geometric",
+    "location": "85001",
+    "budget": 300,
+    "radius": 25
+  }'
+```
 
-For complete API documentation, see [docs/API_REFERENCE.md](docs/API_REFERENCE.md).
+### Full Endpoint Reference
+
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /api/v1/generate` | Generate tattoo images |
+| `POST /api/v1/council/enhance` | Multi-model prompt enhancement |
+| `POST /api/v1/match/semantic` | Semantic artist search |
+| `POST /api/v1/match/update` | Update match scores |
+| `POST /api/v1/layers/decompose` | Decompose image into layers |
+| `POST /api/v1/stencil/export` | Export at 300 DPI |
+| `POST /api/v1/storage/upload` | Upload to GCS |
+| `POST /api/v1/storage/get-signed-url` | Get signed download URL |
+| `POST /api/v1/embeddings/generate` | Generate vector embeddings |
+| `POST /api/v1/ar/visualize` | AR visualization processing |
+| `POST /api/v1/estimate` | Cost estimate for a design |
+
+Full request/response schemas: [docs/API_V1_DOCUMENTATION.md](docs/API_V1_DOCUMENTATION.md)
 
 ---
 
 ## Testing
 
-### Run Tests
-
 ```bash
-npm run test              # Run all tests once
+npm run test              # Run all tests (Vitest)
 npm run test:watch        # Watch mode
-npm run test:coverage     # Generate coverage report
+npm run test:coverage     # Coverage report
 ```
 
-### Test Structure
+### Test Layout
 
 ```
 tests/
-├── unit/                 # Unit tests for services
-├── integration/          # API endpoint tests
-└── e2e/                  # End-to-end tests (Playwright)
+├── unit/                 # Service + utility unit tests
+└── integration/          # API route tests (supertest)
 
-src/services/__tests__/   # Service-specific tests
+src/services/__tests__/   # Co-located service tests
+src/services/
+├── councilService.test.js
+├── multiLayerService.test.js
+└── versionService.test.js
 ```
 
-### Writing Tests
-
-Tests use **Vitest** with **Testing Library**:
+Tests use **Vitest** + **Testing Library**:
 
 ```typescript
 import { describe, it, expect, vi } from 'vitest'
@@ -422,12 +595,12 @@ import { render, screen } from '@testing-library/react'
 describe('MyComponent', () => {
   it('renders correctly', () => {
     render(<MyComponent />)
-    expect(screen.getByText('Hello')).toBeInTheDocument()
+    expect(screen.getByText('Generate')).toBeInTheDocument()
   })
 })
 ```
 
-For service tests, see examples in `src/services/councilService.test.js`.
+Core services (council, generation, versioning) are at 80%+ coverage.
 
 ---
 
@@ -436,18 +609,21 @@ For service tests, see examples in `src/services/councilService.test.js`.
 ### Frontend → Vercel
 
 ```bash
-# Option 1: CLI deploy
+# CLI deploy
 vercel --prod
 
-# Option 2: Connect GitHub (recommended)
-# Push to main branch → auto-deploys
+# Or: connect GitHub repo — pushes to main auto-deploy
 ```
 
-**Required env vars in Vercel:**
-- `REPLICATE_API_TOKEN`
+**Required Vercel env vars:**
+- All `NEXT_PUBLIC_FIREBASE_*` vars
+- `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`
+- `AUTH_COOKIE_SIGNATURE_KEY_CURRENT`, `AUTH_COOKIE_SIGNATURE_KEY_PREVIOUS`
 - `FRONTEND_AUTH_TOKEN`
-- All Firebase vars (if using auth)
-- See [docs/VERCEL_ENVIRONMENT_SETUP.md](docs/VERCEL_ENVIRONMENT_SETUP.md)
+- `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY`
+- `GCP_PROJECT_ID`
+
+Full checklist: [docs/VERCEL_ENVIRONMENT_SETUP.md](docs/VERCEL_ENVIRONMENT_SETUP.md)
 
 ### Backend → Railway
 
@@ -455,183 +631,156 @@ vercel --prod
 railway up
 ```
 
-**Required env vars in Railway:**
+**Required Railway env vars:**
 - `REPLICATE_API_TOKEN`
 - `FRONTEND_AUTH_TOKEN`
-- `ALLOWED_ORIGINS` (your Vercel URL)
-- `PORT` (set automatically)
+- `ALLOWED_ORIGINS` → your Vercel URL (e.g. `https://tatt-app.vercel.app`)
+- `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD` (if using Neo4j)
+- `PORT` is set automatically by Railway
 
-See [docs/RAILWAY_SETUP.md](docs/RAILWAY_SETUP.md)
+Full guide: [docs/RAILWAY_SETUP.md](docs/RAILWAY_SETUP.md)
 
-### Database Setup
+### Database Seeding
 
 **Supabase:**
 ```sql
 -- Run in Supabase SQL Editor
--- 1. Create tables
 \i generated/create-table.sql
-
--- 2. Seed data
 \i generated/insert-batch-50.sql
 ```
 
 **Neo4j:**
 ```bash
 node scripts/import-to-neo4j.js
+# Or use the Cypher file directly:
+# generated/tattoo-artists-neo4j.cypher
 ```
 
 ---
 
 ## Troubleshooting
 
-### Common Issues
-
 <details>
-<summary><strong>❌ "Failed to generate image" or timeout</strong></summary>
+<summary><strong>❌ "Failed to generate image" or request timeout</strong></summary>
 
-1. Check your `REPLICATE_API_TOKEN` is valid
-2. Verify the Express proxy is running: `npm run server`
+1. Confirm `REPLICATE_API_TOKEN` is valid — test it at [replicate.com/account](https://replicate.com/account)
+2. Make sure the Express proxy is running: `npm run server` (port 3002)
 3. Check Replicate API status: [status.replicate.com](https://status.replicate.com)
-4. Try enabling demo mode: `VITE_DEMO_MODE=true`
+4. Fallback: set `VITE_DEMO_MODE=true` to verify UI works without API
 </details>
 
 <details>
-<summary><strong>❌ CORS errors</strong></summary>
+<summary><strong>❌ CORS error on API calls</strong></summary>
 
-1. Ensure `ALLOWED_ORIGINS` includes your frontend URL
-2. Check that the Express proxy (`server.js`) is running
-3. Verify you're using the correct port (3002 for proxy)
+1. Verify `ALLOWED_ORIGINS` in your proxy includes the frontend URL
+2. Confirm the Express proxy is running (`npm run server`)
+3. In local dev, frontend is port 3000 — proxy must allow `http://localhost:3000`
 </details>
 
 <details>
 <summary><strong>❌ "Council enhancement failed"</strong></summary>
 
-1. If using OpenRouter: check `VITE_OPENROUTER_API_KEY`
-2. Try demo mode: `VITE_COUNCIL_DEMO_MODE=true`
-3. Check OpenRouter credits/quota
+1. Check `VITE_USE_OPENROUTER=true` and `VITE_OPENROUTER_API_KEY` is set
+2. Temporarily bypass: set `VITE_COUNCIL_DEMO_MODE=true`
+3. Verify OpenRouter account has credits
 </details>
 
 <details>
-<summary><strong>❌ Firebase auth errors</strong></summary>
+<summary><strong>❌ Firebase auth errors or cookie issues</strong></summary>
 
-1. Verify all `NEXT_PUBLIC_FIREBASE_*` vars are set
-2. Check `AUTH_COOKIE_SIGNATURE_KEY_*` is generated
-3. Ensure Firebase project has Authentication enabled
-4. See [docs/firebase-setup.md](docs/firebase-setup.md)
+1. All `NEXT_PUBLIC_FIREBASE_*` vars must be set in `.env`
+2. `AUTH_COOKIE_SIGNATURE_KEY_CURRENT` must be a valid 64-char hex string
+3. Firebase project must have Authentication enabled (Email + Google providers)
+4. Private key: make sure `\n` newlines are real newlines in the env var, not the literal string
+5. Full guide: [docs/firebase-setup.md](docs/firebase-setup.md)
 </details>
 
 <details>
-<summary><strong>❌ Build fails with TypeScript errors</strong></summary>
+<summary><strong>❌ Supabase vector search not returning results</strong></summary>
 
-1. Run `npm run lint` to see errors
-2. The codebase is ~40% migrated; some JS files may have issues
-3. Check `tsconfig.json` for excluded files
-4. See [docs/MIGRATION_STATUS.md](docs/MIGRATION_STATUS.md)
+1. Confirm pgvector extension is enabled: `create extension if not exists vector;` in Supabase SQL editor
+2. Make sure artist data is seeded: `\i generated/insert-batch-50.sql`
+3. Check `SUPABASE_SERVICE_KEY` is set — anon key doesn't have permission for vector ops
 </details>
 
-For more troubleshooting, see [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
+<details>
+<summary><strong>❌ TypeScript / build errors</strong></summary>
+
+1. Build ignores TS errors by default (`ignoreBuildErrors: true` in `next.config.js`) — this is intentional during migration
+2. Run `npm run lint` to find ESLint issues
+3. Migration is ~40% complete; some JS files coexist with TS — don't convert them without checking [docs/MIGRATION_STATUS.md](docs/MIGRATION_STATUS.md)
+</details>
+
+<details>
+<summary><strong>❌ npm install fails with peer dependency errors</strong></summary>
+
+```bash
+npm install --legacy-peer-deps
+```
+
+React 19 has peer dep conflicts with some packages. `--legacy-peer-deps` is the expected workaround (also set in `vercel.json`).
+</details>
+
+More in [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
 
 ---
 
-## Project Structure
+## TypeScript Migration Status
 
-```
-TatT/
-├── src/
-│   ├── app/                    # Next.js App Router
-│   │   ├── api/v1/             # API routes (/api/v1/*)
-│   │   ├── generate/           # Generate page
-│   │   ├── artists/            # Artist matching pages
-│   │   ├── library/            # Design library page
-│   │   └── layout.tsx          # Root layout
-│   ├── services/               # Core business logic
-│   │   ├── councilService.ts   # LLM council orchestration
-│   │   ├── replicateService.ts # Image generation
-│   │   ├── matchService.ts     # Artist matching
-│   │   ├── hybridMatchService.ts # Vector + keyword matching
-│   │   ├── stencilService.ts   # Stencil export
-│   │   └── neo4jService.ts     # Graph queries
-│   ├── components/             # React UI components
-│   │   ├── Forge/              # Canvas/editor components
-│   │   ├── Match/              # Artist matching UI
-│   │   └── ui/                 # Shared UI primitives
-│   ├── stores/                 # Zustand state stores
-│   ├── hooks/                  # Custom React hooks
-│   ├── config/                 # Configuration files
-│   │   ├── modelRoutingRules.js
-│   │   └── promptTemplates.js
-│   └── constants/              # Feature flags, constants
-├── server.js                   # Express proxy server
-├── scripts/                    # Build/data scripts
-├── generated/                  # Seeded data artifacts
-├── docs/                       # Documentation
-├── tests/                      # Test files
-└── public/                     # Static assets
-```
+The codebase is ~40% migrated from JavaScript to TypeScript. Migration follows a bottom-up strategy:
+
+| Phase | Scope | Status |
+|-------|-------|--------|
+| 0 | Project setup, tsconfig | ✅ Complete |
+| 1 | Contexts (ToastContext) | ✅ Complete |
+| 2a–2c | Hooks + core services (23 files, ~7,500 lines) | ✅ Complete |
+| 3 | Remaining services, pages, components | ⏳ In progress |
+| 4 | Enable `strict: true` | 🔜 After Phase 3 |
+
+**New code must be TypeScript.** See [docs/MIGRATION_STATUS.md](docs/MIGRATION_STATUS.md) for what's been done and what's next.
 
 ---
 
 ## Contributing
 
-### Before You Start
+1. Read [ARCHITECTURE.md](ARCHITECTURE.md) first
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Write TypeScript for new code
+4. Add tests for new services/hooks
+5. Run `npm run test && npm run lint && npm run build`
+6. Submit a PR — describe what changed and why
 
-1. Read [ARCHITECTURE.md](ARCHITECTURE.md) for system overview
-2. Check [docs/MIGRATION_STATUS.md](docs/MIGRATION_STATUS.md) for TypeScript progress
-3. Review [CHANGELOG.md](CHANGELOG.md) for recent changes
+### Where Things Go
 
-### Development Process
-
-1. Create a feature branch: `git checkout -b feature/your-feature`
-2. Make changes following code style guidelines
-3. Write tests for new functionality
-4. Run tests: `npm run test`
-5. Run lint: `npm run lint`
-6. Build to verify: `npm run build`
-7. Submit a PR with clear description
-
-### Code Guidelines
-
-- **New code should be TypeScript** (`.ts`/`.tsx`)
-- **Services go in `src/services/`** with corresponding tests
-- **Components go in `src/components/`** organized by feature
-- **API routes follow REST conventions**
-- **Use Zustand for global state**, React state for local
+| Thing | Location |
+|-------|---------|
+| Business logic | `src/services/` + corresponding test file |
+| UI logic (stateful) | `src/hooks/` |
+| React components | `src/components/{feature}/` |
+| Global state | `src/stores/` (Zustand) |
+| API endpoints | `src/app/api/v1/{resource}/route.ts` |
+| Config / constants | `src/config/` or `src/constants/` |
 
 ---
 
-## Business Model
-
-**For Users:** Free to generate, pay-per-stencil export, premium AR features
-
-**For Artists:** Subscription for enhanced matching, analytics, verified badges
-
-**For Studios:** Enterprise API for white-label integration
-
-## Metrics
-
-- **Generation time:** 10-30s per batch (4 images)
-- **Council latency:** ~2s for 3-model consensus
-- **Vector search:** <100ms for 10K artists (pgvector)
-- **Test coverage:** Core services at 80%+
-
 ## Roadmap
 
-- [ ] Mobile app (React Native)
-- [ ] Artist-side dashboard
+- [ ] Mobile app (React Native / Expo)
+- [ ] Artist-side dashboard + booking management
 - [ ] Stripe integration for stencil purchases
-- [ ] Fine-tuned tattoo-specific model
+- [ ] Fine-tuned tattoo-specific model (LoRA on existing SDXL)
 - [ ] Multi-session design collaboration
+- [ ] Flash marketplace (buy/sell pre-made designs)
 
 ---
 
 ## License
 
-Proprietary. All rights reserved.
+Proprietary. All rights reserved. © 2026 TatT.
 
 ---
 
 <div align="center">
-  <strong>Turn ideas into ink.</strong>
-  <br><br>
-  <a href="https://tat-t-3x8t.vercel.app">Try the Demo</a>
+  <strong>Turn ideas into ink.</strong><br><br>
+  <a href="https://tatt-app.vercel.app">Try the Demo →</a>
 </div>
