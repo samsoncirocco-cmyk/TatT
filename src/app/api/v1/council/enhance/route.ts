@@ -13,6 +13,35 @@ export async function POST(req: NextRequest) {
     const authError = verifyApiAuth(req);
     if (authError) return authError;
 
+    // ─── DEMO MODE ─────────────────────────────────────────────────────────
+    if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
+        const body = await req.json().catch(() => ({}));
+        const idea = body.user_prompt || 'tattoo design';
+        const style = body.style || 'blackwork';
+        await new Promise(r => setTimeout(r, 1200)); // Simulate thinking delay
+        return NextResponse.json({
+            success: true,
+            enhanced_prompts: [
+                `${idea}, clean ${style} tattoo, bold lines, professional studio quality`,
+                `Intricate ${style} tattoo of ${idea}, fine linework, high contrast, tattoo flash art style, white background, ready for stencil`,
+                `Masterfully composed ${style} tattoo design — ${idea}. Clean isolated artwork on white background, bold outlines, expert shading, museum-quality tattoo artistry, single color scheme, print-ready.`,
+            ],
+            model_selections: { primary: 'demo-mode', reasoning: 'Demo mode active — no API calls' },
+            metadata: {
+                original_prompt: idea,
+                style: body.style,
+                body_part: body.body_part,
+                complexity: body.complexity || 'medium',
+                council_members: ['technical', 'artistic', 'cultural'],
+                enhancement_version: '2.0',
+                generated_at: new Date().toISOString(),
+                demoMode: true,
+            },
+            performance: { duration_ms: 1200 }
+        });
+    }
+    // ───────────────────────────────────────────────────────────────────────
+
     const rateResult = await checkRateLimit(req, 'council');
     if (!rateResult.allowed) {
         return rateLimitResponse(rateResult);

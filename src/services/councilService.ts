@@ -213,8 +213,11 @@ interface ModelEnhancements {
 // Council API configuration
 const COUNCIL_API_URL = process.env.NEXT_PUBLIC_COUNCIL_API_URL || 'http://localhost:8001/api';
 
-// Demo mode for testing without council backend
-const DEMO_MODE = process.env.NEXT_PUBLIC_COUNCIL_DEMO_MODE === 'true';
+// Demo mode for testing without council backend.
+// Enabled by either the council-specific flag OR the master demo flag.
+const DEMO_MODE =
+  process.env.NEXT_PUBLIC_COUNCIL_DEMO_MODE === 'true' ||
+  process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
 // Build character lookup map on service initialization (one-time cost)
 const CHARACTER_MAP = buildCharacterMap();

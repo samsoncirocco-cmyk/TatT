@@ -21,12 +21,42 @@ function resolveDimensions(size: any) {
     return { width: dimension, height: dimension };
 }
 
+// Demo-mode mock images (Unsplash tattoo photos, no API cost)
+const DEMO_MOCK_IMAGES = [
+    'https://images.unsplash.com/photo-1565058379802-bbe93b2f703f?w=1024&h=1024&fit=crop',
+    'https://images.unsplash.com/photo-1598371839696-5c5bb00bdc28?w=1024&h=1024&fit=crop',
+    'https://images.unsplash.com/photo-1611501275019-9b5cda994e8d?w=1024&h=1024&fit=crop',
+    'https://images.unsplash.com/photo-1590246814883-57c511e76729?w=1024&h=1024&fit=crop',
+];
+
 export async function POST(req: NextRequest) {
     const reqLogger = createRequestLogger('generate');
 
     // Auth check
     const authError = verifyApiAuth(req);
     if (authError) return authError;
+
+    // ─── DEMO MODE ─────────────────────────────────────────────────────────
+    // When NEXT_PUBLIC_DEMO_MODE=true, skip all external API calls and return
+    // mock images so Killua (and other testers) can use the full UI flow
+    // without Replicate / Vertex AI / Firebase credentials.
+    if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
+        const body = await req.json().catch(() => ({}));
+        const sampleCount = Math.min(Number(body.sampleCount || body.num_outputs || 4), 4);
+        await new Promise(r => setTimeout(r, 1500)); // Simulate generation delay
+        return NextResponse.json({
+            success: true,
+            images: DEMO_MOCK_IMAGES.slice(0, sampleCount),
+            metadata: {
+                generatedAt: new Date().toISOString(),
+                prompt: body.prompt || 'demo',
+                model: 'demo-mode',
+                provider: 'demo',
+                demoMode: true,
+            }
+        });
+    }
+    // ───────────────────────────────────────────────────────────────────────
 
     const rateResult = await checkRateLimit(req, 'generation');
     if (!rateResult.allowed) {

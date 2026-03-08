@@ -26,8 +26,16 @@ export interface ApiUser {
  *
  * Defense-in-depth: middleware already handles auth for /api/v1/* routes,
  * but this provides a second check at the route handler level.
+ *
+ * In DEMO MODE (`NEXT_PUBLIC_DEMO_MODE=true`), auth is bypassed entirely
+ * so Killua (and other testers) can use the app without credentials.
  */
 export function verifyApiAuth(req: NextRequest): NextResponse | null {
+    // Demo mode: skip all auth checks
+    if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
+        return null;
+    }
+
     const authCookie = req.cookies.get('AuthToken');
 
     if (!authCookie?.value) {
