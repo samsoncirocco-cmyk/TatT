@@ -1,1005 +1,986 @@
----
-title: "TatT — Next-Gen UX Architecture"
-date: 2026-03-08
-author: paul (AI Architect)
-tags: [architecture, tatt, next-gen-ux, yc-prep, multi-agent, do-it-now]
-status: canonical
----
-
 # TatT — Next-Gen UX Architecture
+**Document Version:** 1.0  
+**Date:** 2026-03-08  
+**Author:** paul (AI co-pilot)  
+**Status:** Active Design Reference  
+**Audience:** Founding team, future CTO, YC technical reviewers
 
-> **Think it. Ink it. Ship it.**
-> This document synthesises the multi-agent role-specialisation framework, the `do-it-now` bypass pattern, and the full platform architecture into a single canonical reference. It is the source of truth for platform decisions from March 2026 onward.
+---
+
+> **Key Insight Framing**  
+> Two patterns from the agent-orchestration layer apply directly to TatT's product UX:
+>
+> 1. **"Do it now" bypass** — Skip delegation overhead when the user already knows what they want. In TatT, this means surfacing a zero-friction direct-generation path that skips the Council pipeline when the user's intent is clear.
+> 2. **Role-specialisation** — The LLM Council (Creative Director / Technical Expert / Style Specialist) is the product's core differentiator. Each role has a narrow, well-defined job. Specialisation beats generalism at every quality benchmark.
+>
+> This document makes both patterns first-class architectural concerns throughout the stack.
 
 ---
 
 ## Table of Contents
 
-1. [Strategic Context](#1-strategic-context)
-2. [System Component Diagram](#2-system-component-diagram)
-3. [API Contract Sketch](#3-api-contract-sketch)
-4. [Database Schema Diff (Current → Target)](#4-database-schema-diff-current--target)
-5. [CI/CD Flow](#5-cicd-flow)
-6. [Role-Specialisation: Agent Mesh](#6-role-specialisation-agent-mesh)
-7. [Do-It-Now Bypass — Platform Integration](#7-do-it-now-bypass--platform-integration)
-8. [Phased Build Roadmap](#8-phased-build-roadmap)
-9. [Open Issues & Infra Debt](#9-open-issues--infra-debt)
+1. [System Component Diagram](#1-system-component-diagram)
+2. [The Council Pipeline (Role-Specialisation Deep Dive)](#2-the-council-pipeline-role-specialisation-deep-dive)
+3. ["Do It Now" Fast-Path — Bypass Architecture](#3-do-it-now-fast-path--bypass-architecture)
+4. [API Contract Sketch](#4-api-contract-sketch)
+5. [DB Schema Diff (Current → Next-Gen)](#5-db-schema-diff-current--next-gen)
+6. [CI/CD Flow](#6-cicd-flow)
+7. [Phased Build Roadmap](#7-phased-build-roadmap)
+8. [Open Risks & Mitigations](#8-open-risks--mitigations)
 
 ---
 
-## 1. Strategic Context
-
-TatT is a **three-sided marketplace**: consumers who want custom tattoo designs, artists who sell time and creativity, and an AI layer that unlocks both sides. The core UX insight from user research is this:
-
-> *People don't know what they want until they see it on their body.*
-
-Everything in this architecture flows from that constraint. The platform must collapse the feedback loop between **idea → visual → AR preview → artist match → booking** into a single, sub-5-minute experience.
-
-### Current State (March 2026)
-
-| Layer | Technology | Status |
-|---|---|---|
-| Frontend | Next.js 16 + React 19 + Tailwind v4 | ✅ Live (tatt-app.vercel.app) |
-| Auth | Firebase Auth v12 + next-firebase-auth-edge | ✅ Working |
-| AI Image Gen | Vertex AI Imagen 3 + Replicate (fallback) | ⚠️ Demo flags misconfigured |
-| AR Preview | MindAR + Three.js on-device | ✅ Built, needs mobile QA |
-| Artist Matching | Neo4j graph + Supabase pgvector (RRF fusion) | ⚠️ Neo4j connection failing |
-| Canvas/Editor | Konva-based Forge with drag-and-drop layers | ✅ Working |
-| LLM Council | OpenRouter multi-model prompt enhancement | ✅ Working |
-| Backend API | Express + Next.js API routes (dual) | ⚠️ CORS issues, dual-host confusion |
-| Storage | GCS (designs + layers) | ❌ GCS_BUCKET env missing |
-| Observability | GCP Cloud Monitoring | ✅ Wired |
-
-### North Star KPIs (18 months)
-
-- 100K active users
-- 50K paid subscribers ($9.99–$24.99/mo)
-- 1,000 verified artists onboarded
-- 1M+ designs generated
-- $100K MRR → Series A trigger
-
----
-
-## 2. System Component Diagram
+## 1. System Component Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                              TATT PLATFORM                                      │
+│                              USER'S DEVICE                                      │
 │                                                                                 │
-│  ┌──────────────────────────────────────────────────────────────────────────┐  │
-│  │  CDN / EDGE LAYER  (Vercel Edge Network + Cloudflare)                    │  │
-│  │  • Static asset caching   • Edge middleware (auth token verification)    │  │
-│  │  • A/B test routing        • Rate-limit headers                          │  │
-│  └───────────────────────────┬──────────────────────────────────────────────┘  │
-│                               │                                                 │
-│  ┌──────────────────────────────────────────────────────────────────────────┐  │
-│  │  FRONTEND  (Next.js 16 App Router — tatt-app.vercel.app)                 │  │
-│  │                                                                          │  │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐ │  │
-│  │  │  /        │  │/generate │  │/visualize│  │ /artists │  │/journey  │ │  │
-│  │  │ Landing   │  │ AI Forge │  │AR Preview│  │ Swipe+   │  │Onboarding│ │  │
-│  │  │           │  │ Canvas   │  │ MindAR   │  │ SmartMatch│  │  Flow    │ │  │
-│  │  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘ │  │
-│  │                                                                          │  │
-│  │  State: Zustand stores (useAuthStore, useMatchStore, useDesignStore)     │  │
-│  │  Anim:  Framer Motion + react-spring   DnD: @dnd-kit                    │  │
-│  └───────────────────────────┬──────────────────────────────────────────────┘  │
-│                               │  HTTPS / REST + WebSocket                       │
-│  ┌──────────────────────────────────────────────────────────────────────────┐  │
-│  │  API GATEWAY  (Next.js API Routes — /api/v1/*)                           │  │
-│  │  Auth middleware → Firebase token verify → rate-limit (express-rate-limit)│  │
-│  │                                                                          │  │
-│  │   /v1/generate          /v1/council/enhance    /v1/ar/visualize          │  │
-│  │   /v1/match/semantic    /v1/match/update       /v1/embeddings/generate   │  │
-│  │   /v1/layers/decompose  /v1/stencil/export     /v1/storage/*             │  │
-│  │   /v1/estimate          /v1/book               /v1/designs/share/*       │  │
-│  │   /v1/tasks/generate    /api/health/*           /api/predictions/*       │  │
-│  └───┬───────┬───────┬───────┬──────────┬──────────┬───────────────────────┘  │
-│      │       │       │       │          │          │                            │
-│  ┌───▼──┐ ┌──▼──┐ ┌──▼──┐ ┌──▼───┐ ┌───▼──┐ ┌────▼────┐                     │
-│  │ AI   │ │Match│ │Store│ │ LLM  │ │Canvas│ │ Tasks   │                     │
-│  │Layer │ │Layer│ │Layer│ │Council│ │/Forge│ │ Queue   │                     │
-│  └──────┘ └─────┘ └─────┘ └──────┘ └──────┘ └─────────┘                     │
+│   ┌─────────────────────────────────────────────────────────────────────────┐   │
+│   │                     TatT SPA  (React 19 + Next.js 16)                  │   │
+│   │                                                                         │   │
+│   │  ┌─────────┐  ┌───────────────┐  ┌──────────┐  ┌────────┐  ┌───────┐  │   │
+│   │  │  Home   │  │  Forge Studio │  │  AR Viz  │  │Artists │  │Library│  │   │
+│   │  │         │  │  (Generate)   │  │          │  │(Match) │  │       │  │   │
+│   │  └─────────┘  └───────┬───────┘  └────┬─────┘  └───┬────┘  └───────┘  │   │
+│   │                       │               │             │                   │   │
+│   │  ┌────────────────────┴───────────────┴─────────────┴─────────────┐    │   │
+│   │  │           Client-Side State (Zustand + React Query)            │    │   │
+│   │  │  useGenerationStore · useMatchStore · useAuthStore             │    │   │
+│   │  └─────────────────────────────────────────────────────────────────┘    │   │
+│   └─────────────────────────────────────────────────────────────────────────┘   │
+│            │ HTTPS + WebSocket                                                   │
+└────────────┼────────────────────────────────────────────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                            API GATEWAY LAYER                                    │
 │                                                                                 │
-│  ┌──────────────────────────────────────────────────────────────────────────┐  │
-│  │  AI / ML LAYER                                                           │  │
-│  │                                                                          │  │
-│  │  ┌────────────────────┐    ┌─────────────────────────────────────────┐  │  │
-│  │  │  Generation Router │    │  LLM Council (OpenRouter)               │  │  │
-│  │  │  (generationRouter)│    │  ┌──────────┐ ┌──────────┐ ┌─────────┐ │  │  │
-│  │  │                    │    │  │ GPT-4o   │ │ Claude   │ │Llama 3.3│ │  │  │
-│  │  │  Style → Model Map │    │  │(detail)  │ │(narrative)│ │(speed)  │ │  │  │
-│  │  │  styleModelMapping │    │  └──────────┘ └──────────┘ └─────────┘ │  │  │
-│  │  │                    │    └─────────────────────────────────────────┘  │  │
-│  │  │  Primary: Vertex   │                                                 │  │
-│  │  │  Imagen 3          │    ┌─────────────────────────────────────────┐  │  │
-│  │  │  Fallback:Replicate│    │  Vertex AI Embeddings (text-embed-005)  │  │  │
-│  │  │  (SDXL, FLUX)      │    │  1408-dim multimodal → artist matching  │  │  │
-│  │  └────────────────────┘    └─────────────────────────────────────────┘  │  │
-│  └──────────────────────────────────────────────────────────────────────────┘  │
-│                                                                                 │
-│  ┌──────────────────────────────────────────────────────────────────────────┐  │
-│  │  MATCHING LAYER (Hybrid RRF Fusion)                                      │  │
-│  │                                                                          │  │
-│  │  ┌──────────────────────┐         ┌────────────────────────────────┐   │  │
-│  │  │  Neo4j (Graph DB)    │         │  Supabase (pgvector)           │   │  │
-│  │  │  AuraDB (cloud)      │         │  • artist_embeddings (1408-dim)│   │  │
-│  │  │  • Artists → Styles  │   RRF   │  • cosine similarity search    │   │  │
-│  │  │  • Styles → Tags     │ ──────► │  • tag-based filtering         │   │  │
-│  │  │  • Artist ↔ Artist   │  fusion │                                │   │  │
-│  │  │    (collab graph)    │         └────────────────────────────────┘   │  │
-│  │  └──────────────────────┘                                               │  │
-│  │                          ↓                                               │  │
-│  │               Ranked artist results + match_score                        │  │
-│  └──────────────────────────────────────────────────────────────────────────┘  │
-│                                                                                 │
-│  ┌──────────────────────────────────────────────────────────────────────────┐  │
-│  │  STORAGE LAYER                                                           │  │
-│  │                                                                          │  │
-│  │  ┌────────────────────┐  ┌────────────────────┐  ┌──────────────────┐  │  │
-│  │  │  Firestore (NoSQL) │  │  GCS Bucket        │  │  Firebase RTDB   │  │  │
-│  │  │  • user profiles   │  │  • generated images│  │  • real-time     │  │  │
-│  │  │  • design metadata │  │  • canvas layers   │  │    match updates │  │  │
-│  │  │  • bookings        │  │  • stencil exports │  │  • notifications │  │  │
-│  │  │  • artist listings │  │  • AR models       │  │                  │  │  │
-│  │  └────────────────────┘  └────────────────────┘  └──────────────────┘  │  │
-│  └──────────────────────────────────────────────────────────────────────────┘  │
-│                                                                                 │
-│  ┌──────────────────────────────────────────────────────────────────────────┐  │
-│  │  INFRA / OBSERVABILITY                                                   │  │
-│  │  GCP Project: tatt-pro  |  GCP Cloud Monitoring  |  Secret Manager      │  │
-│  │  Workload Identity Federation (GitHub Actions WIF)                       │  │
-│  │  Cloud Tasks (async generation queue)                                    │  │
-│  └──────────────────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────────────────┘
+│   ┌──────────────────────────────────┐   ┌──────────────────────────────────┐  │
+│   │   Next.js API Routes (Vercel)    │   │   Express Proxy (Railway)        │  │
+│   │   /api/v1/*                      │   │   server.js                      │  │
+│   │                                  │   │                                  │  │
+│   │  • /generate (standard path)     │   │  • Replicate webhook receiver    │  │
+│   │  • /generate/fast  ← BYPASS      │   │  • Neo4j query proxy             │  │
+│   │  • /council/enhance              │   │  • Cloud Tasks consumer          │  │
+│   │  • /council/stream  ← SSE        │   │  • Rate limiting (express-rl)    │  │
+│   │  • /match/semantic               │   │  • Auth middleware + RBAC        │  │
+│   │  • /match/swipe-rank             │   │  • Layer upload multipart        │  │
+│   │  • /stencil/export               │   │  • /api/health + /health/startup │  │
+│   │  • /layers/decompose             │   │                                  │  │
+│   │  • /estimate                     │   └───────────────┬──────────────────┘  │
+│   │  • /storage/upload               │                   │                     │
+│   │  • /storage/signed-url           │                   │                     │
+│   │  • /tasks/generate               │                   │                     │
+│   └──────────────┬───────────────────┘                   │                     │
+└──────────────────┼────────────────────────────────────────┼────────────────────┘
+                   │                                        │
+          ┌────────┴──────────────────┐                    │
+          ▼                           ▼                    ▼
+┌──────────────────┐  ┌─────────────────────────┐  ┌──────────────┐
+│  AI / ML Tier    │  │  Data / Storage Tier     │  │ Graph Tier   │
+│                  │  │                          │  │              │
+│  ┌────────────┐  │  │  ┌────────────────────┐  │  │  ┌────────┐  │
+│  │ Vertex AI  │  │  │  │ Supabase           │  │  │  │ Neo4j  │  │
+│  │ • Imagen 3 │  │  │  │ • PostgreSQL       │  │  │  │ Artist │  │
+│  │ • Gemini   │  │  │  │ • pgvector (4096d) │  │  │  │ Graph  │  │
+│  │   2.0 Flash│  │  │  │ • Realtime WS      │  │  │  │ Nodes/ │  │
+│  │ • text-    │  │  │  │ • Auth + RLS       │  │  │  │ Rels   │  │
+│  │   embed-   │  │  │  └────────────────────┘  │  │  └────────┘  │
+│  │   005 768d │  │  │                          │  │              │
+│  └────────────┘  │  │  ┌────────────────────┐  │  └──────────────┘
+│                  │  │  │ Firestore          │  │
+│  ┌────────────┐  │  │  │ • artist_embeddings│  │
+│  │ Replicate  │  │  │  │   (768d vectors)   │  │
+│  │ • SDXL     │  │  │  │ • design_library   │  │
+│  │ • DreamSh. │  │  │  │ • match_history    │  │
+│  │ • AnimeXL  │  │  │  └────────────────────┘  │
+│  │ • Flash Art│  │  │                          │
+│  │ • Blackwork│  │  │  ┌────────────────────┐  │
+│  └────────────┘  │  │  │ GCS Buckets        │  │
+│                  │  │  │ • generated-designs│  │
+│  ┌────────────┐  │  │  │ • stencil-exports  │  │
+│  │ OpenRouter │  │  │  │ • layer-segments   │  │
+│  │ • Claude   │  │  │  └────────────────────┘  │
+│  │   3.5 Son. │  │  │                          │
+│  │ • GPT-4T   │  │  │  ┌────────────────────┐  │
+│  │ • Gemini   │  │  │  │ Firebase RTDB      │  │
+│  │   Pro 1.5  │  │  │  │ • auth sessions    │  │
+│  └────────────┘  │  │  │ • realtime signals │  │
+│                  │  │  └────────────────────┘  │
+└──────────────────┘  └──────────────────────────┘
+                                  │
+                    ┌─────────────┴─────────────┐
+                    ▼                           ▼
+          ┌──────────────────┐      ┌─────────────────────┐
+          │ Google Cloud     │      │ Observability        │
+          │ Tasks            │      │                      │
+          │ (async queues)   │      │ • Cloud Monitoring   │
+          │ • generation     │      │ • performanceMonitor │
+          │   jobs           │      │ • budget alerts      │
+          │ • email delivery │      │ • Secret Manager     │
+          └──────────────────┘      └─────────────────────┘
 ```
 
-### Component Ownership (Agent Mesh)
+### Key Topology Decisions
 
-| Component | Primary Owner | On-Call |
+| Decision | Current | Next-Gen Target |
 |---|---|---|
-| Frontend routes, Zustand stores | SLED Codex Agent | paul |
-| API routes (`/api/v1/*`) | SLED Codex Agent | paul |
-| AI generation pipeline | SLED Codex Agent | paul |
-| Neo4j schema + queries | SLED Codex Agent | — |
-| Supabase pgvector schema | SLED Codex Agent | — |
-| Firestore rules + schema | SLED Codex Agent | — |
-| CI/CD pipeline | paul (Infra Saturday) | — |
-| Vault docs + status reports | Second Brain Agent | paul |
-| Salesforce (artist leads) | SFDC Agent | paul |
+| Auth boundary | Firebase + Supabase split | Consolidate to Supabase Auth + Firebase for RTDB only |
+| Image model routing | Client-side JS (generationRouter.ts) | Server-side edge function — hide model keys |
+| Council calls | Client → OpenRouter direct | Server-side SSE stream (keys never leave server) |
+| Fast-path bypass | None — all requests go through Council | `/generate/fast` skips Council, returns in <5s |
+| Realtime | Supabase Realtime (WebSocket) | Keep + add SSE stream for Council deliberation steps |
 
 ---
 
-## 3. API Contract Sketch
+## 2. The Council Pipeline (Role-Specialisation Deep Dive)
 
-All API routes follow the contract below. Any deviation is a bug, not a feature.
+> **Insight:** The LLM Council is the product moat. No competitor routes different LLM roles to specialised models with domain-specific system prompts fused with anatomical + aesthetic knowledge. This section specifies how to make it production-grade.
 
-### Global Headers
+### 2.1 Current State
 
 ```
-Authorization: Bearer <firebase-id-token>   # required on all /api/v1/* routes
-Content-Type: application/json
-X-Request-ID: <uuid>                        # optional; returned in response for tracing
+User idea
+    │
+    ▼
+buildCouncilSystemPrompt()
+    │  (bodyPart → anatomicalFlow token)
+    │  (isStencilMode → stencilRule)
+    │
+    ▼  parallel fan-out (OpenRouter)
+    ├─→ [Creative Director]  claude-3.5-sonnet   → base enhanced prompt
+    ├─→ [Technical Expert]   gpt-4-turbo          → technical refinements
+    └─→ [Style Specialist]   gemini-pro-1.5       → style + cultural accuracy
+    │
+    ▼
+Consensus aggregation (client-side)
+    │
+    ▼
+{ simple, detailed, ultra } variants → user selects → image generation
 ```
 
-### Global Response Envelope
+### 2.2 Next-Gen: Streaming Council with Dedicated Roles
 
-```jsonc
-// Success
-{
-  "success": true,
-  "data": { /* route-specific payload */ },
-  "requestId": "abc-123",
-  "durationMs": 342
-}
+Each council member gets a **narrower, more specialised prompt** and the deliberation is streamed to the UI in real time:
 
-// Error
-{
-  "success": false,
-  "error": {
-    "code": "RATE_LIMIT_EXCEEDED",          // machine-readable
-    "message": "You've hit your design quota for this month.",  // human-readable
-    "details": {}                           // optional: validation errors, etc.
-  },
-  "requestId": "abc-123"
-}
+```
+User idea + context
+    │
+    ▼
+/api/v1/council/stream  (SSE endpoint)
+    │
+    │  Stage 1 — Parallel (150ms deadline)
+    ├──→ ROLE: Creative Director (claude-3.5-sonnet)
+    │        System: "You are a Senior Tattoo Artistic Director.
+    │                 Your ONLY job: cinematic composition + emotional resonance.
+    │                 Output: ONE paragraph, max 4 sentences."
+    │        → emits SSE event: { role: "creative", chunk: "..." }
+    │
+    ├──→ ROLE: Technical Expert (gpt-4-turbo)
+    │        System: "You are a Professional Tattoo Feasibility Analyst.
+    │                 Your ONLY job: flag ink-bleeding risks, line-weight issues,
+    │                 skin-tone compatibility, and stencil transfer constraints.
+    │                 Output: bullet list, max 5 items."
+    │        → emits SSE event: { role: "technical", chunk: "..." }
+    │
+    └──→ ROLE: Style Specialist (gemini-pro-1.5)
+             System: "You are a Tattoo Style & Cultural Accuracy Specialist.
+                      Your ONLY job: ensure style vocabulary is authentic
+                      (e.g., irezumi ≠ neo-traditional; blackwork ≠ fineline).
+                      Output: corrected style tokens + rationale, max 3 lines."
+             → emits SSE event: { role: "style", chunk: "..." }
+    │
+    │  Stage 2 — Sequential (runs after all Stage 1 responses collected)
+    ▼
+ROLE: Prompt Synthesiser (gemini-2.0-flash — fast, cheap)
+    System: "You are a Master Prompt Engineer for tattoo image generation.
+             You receive 3 council opinions. Synthesise into 3 prompt variants:
+             SIMPLE / DETAILED / ULTRA.
+             Inject COUNCIL_SKILL_PACK tokens:
+               - negativeShield (always)
+               - anatomicalFlow[bodyPart]
+               - aestheticAnchors
+               - positionalInstructions if multi-subject
+             Return JSON."
+    → emits SSE event: { role: "synthesiser", variants: { simple, detailed, ultra }, negativePrompt }
+    │
+    ▼
+Client receives stream → animated Council Discussion UI → user selects variant
+    │
+    ▼
+Model Router (server-side) → Image Generation Provider
 ```
 
-### Core Endpoints
+### 2.3 Role Skill Matrix
 
-#### `POST /api/v1/generate`
-
-Generate a tattoo design using the AI pipeline.
-
-**Request:**
-```jsonc
-{
-  "prompt": "small traditional rose on forearm, black and grey",
-  "style": "traditional",                // enum: traditional | neo-traditional | realism | geometric | watercolor | minimalist | japanese | blackwork | tribal
-  "size": "small",                       // enum: small | medium | large | full-sleeve
-  "placement": "forearm",               // body placement hint for style optimisation
-  "modelOverride": null,                 // optional: force specific model (vertex | replicate-sdxl | replicate-flux)
-  "councilEnhance": true,               // run LLM council prompt enhancement before generation
-  "layered": false                       // return multi-layer output for Forge editor
-}
-```
-
-**Response:**
-```jsonc
-{
-  "success": true,
-  "data": {
-    "designId": "des_7f3a9c2b",
-    "imageUrl": "https://storage.googleapis.com/tatt-designs/des_7f3a9c2b/main.png",
-    "thumbnailUrl": "https://storage.googleapis.com/tatt-designs/des_7f3a9c2b/thumb.png",
-    "layers": [],                        // populated if layered=true
-    "model": "vertex-imagen-3",
-    "enhancedPrompt": "Traditional American rose tattoo...",  // council output
-    "costEstimate": { "usd": 0.04 },
-    "generationMs": 3200
-  }
-}
-```
-
-**Error codes:** `QUOTA_EXCEEDED`, `INVALID_STYLE`, `GENERATION_FAILED`, `COUNCIL_TIMEOUT`
-
----
-
-#### `POST /api/v1/council/enhance`
-
-Run the LLM Council to enhance a raw user prompt into a generation-ready tattoo brief.
-
-**Request:**
-```jsonc
-{
-  "rawPrompt": "I want something tribal but modern",
-  "style": "tribal",
-  "placement": "shoulder",
-  "contextTags": ["bold lines", "geometric influence"]
-}
-```
-
-**Response:**
-```jsonc
-{
-  "success": true,
-  "data": {
-    "enhancedPrompt": "Bold Polynesian-influenced tribal tattoo...",
-    "vibeChips": ["geometric", "bold", "ancestral"],
-    "suggestedStyles": ["tribal", "geometric"],
-    "councilVotes": {
-      "gpt4o": "Polynesian-inspired...",
-      "claude": "Geometric tribal fusion...",
-      "llama": "Traditional tribal..."
-    },
-    "finalBlend": "weighted-majority"
-  }
-}
-```
-
----
-
-#### `POST /api/v1/match/semantic`
-
-Find artists whose portfolio best matches a design or prompt.
-
-**Request:**
-```jsonc
-{
-  "designId": "des_7f3a9c2b",            // OR
-  "prompt": "geometric blackwork",       // one of these required
-  "embedding": null,                     // OR pass precomputed 1408-dim vector
-  "filters": {
-    "location": "Los Angeles, CA",
-    "maxDistanceKm": 50,
-    "stylesTags": ["blackwork", "geometric"],
-    "priceRange": { "min": 150, "max": 400 }
-  },
-  "limit": 10,
-  "returnExplanation": true
-}
-```
-
-**Response:**
-```jsonc
-{
-  "success": true,
-  "data": {
-    "artists": [
-      {
-        "artistId": "art_9d2f1a",
-        "name": "Mika Reyes",
-        "studio": "Dark Matter Ink, LA",
-        "matchScore": 0.93,
-        "explanation": "Portfolio strong in blackwork geometric — 87% tag overlap",
-        "profileUrl": "https://tatt-app.vercel.app/artists/art_9d2f1a",
-        "portfolioSamples": ["url1", "url2"],
-        "pricingEstimate": "$200–350 / session",
-        "availability": "2026-03-15"
-      }
-    ],
-    "matchMethod": "rrf-fusion",         // rrf-fusion | vector-only | graph-only
-    "vectorScore": 0.91,
-    "graphScore": 0.95
-  }
-}
-```
-
----
-
-#### `POST /api/v1/ar/visualize`
-
-Return AR placement data for a design on a body part.
-
-**Request:**
-```jsonc
-{
-  "designId": "des_7f3a9c2b",
-  "bodyPart": "forearm",                 // enum: forearm | upper-arm | shoulder | back | chest | leg | ankle | neck | hand
-  "skinToneHint": "medium",             // optional: light | medium | dark (for opacity tuning)
-  "format": "mindar-target"             // format expected by frontend AR engine
-}
-```
-
-**Response:**
-```jsonc
-{
-  "success": true,
-  "data": {
-    "arTargetUrl": "https://storage.googleapis.com/.../ar-target.mind",
-    "overlayImageUrl": "https://storage.googleapis.com/.../overlay.png",
-    "anchorPoints": { "x": 0.5, "y": 0.3, "scale": 0.8 },
-    "depthHint": "cylinder",
-    "placementMs": 180
-  }
-}
-```
-
----
-
-#### `POST /api/v1/estimate`
-
-Return cost and complexity estimate for a design before committing AI credits.
-
-**Request:**
-```jsonc
-{
-  "prompt": "Japanese sleeve with koi fish, waves, and cherry blossoms",
-  "style": "japanese",
-  "size": "full-sleeve",
-  "layered": true
-}
-```
-
-**Response:**
-```jsonc
-{
-  "success": true,
-  "data": {
-    "complexity": "high",
-    "estimatedSessions": "8–12",
-    "artistPriceRange": { "low": 2400, "high": 4800, "currency": "USD" },
-    "aiCreditCost": { "usd": 0.12 },
-    "generationTimeEstimate": "6–10 seconds",
-    "warnings": ["Full sleeve designs perform best with layered=true for Forge editing"]
-  }
-}
-```
-
----
-
-#### `POST /api/v1/book`
-
-Initiate a booking request between a user and an artist.
-
-**Request:**
-```jsonc
-{
-  "artistId": "art_9d2f1a",
-  "designId": "des_7f3a9c2b",
-  "requestedDate": "2026-03-20",
-  "notes": "First tattoo, would love a consultation first",
-  "depositAmount": 100                   // USD, platform captures via Stripe
-}
-```
-
-**Response:**
-```jsonc
-{
-  "success": true,
-  "data": {
-    "bookingId": "bk_4c8e2f",
-    "status": "pending_artist_confirm",
-    "stripePaymentIntentId": "pi_abc123",
-    "depositCaptured": false,           // captured on artist confirmation
-    "estimatedConfirmationHours": 24,
-    "messagingThreadId": "thread_8a2c"
-  }
-}
-```
-
----
-
-#### `POST /api/v1/embeddings/generate`
-
-Generate and store a vector embedding for a design or prompt (used for matching and search).
-
-**Request:**
-```jsonc
-{
-  "text": "blackwork geometric sleeve with sacred geometry",
-  "imageUrl": "https://storage.googleapis.com/...",  // optional: multimodal
-  "entityType": "design",              // design | artist-portfolio | style-tag
-  "entityId": "des_7f3a9c2b"
-}
-```
-
-**Response:**
-```jsonc
-{
-  "success": true,
-  "data": {
-    "embeddingId": "emb_2b9f4c",
-    "dimensions": 1408,
-    "storedIn": "supabase",
-    "model": "text-embedding-005"
-  }
-}
-```
-
----
-
-### Rate Limits
-
-| Tier | Designs/month | AR previews | Match searches | Bookings |
+| Role | Model | Skill Tokens | Max Tokens | Deadline |
 |---|---|---|---|---|
-| Free | 3 | 10 | 20 | 1 |
-| Creator ($9.99) | 30 | 100 | unlimited | 5 |
-| Pro ($24.99) | 150 | unlimited | unlimited | unlimited |
-| Artist (portal) | N/A | N/A | N/A | N/A |
+| Creative Director | `claude-3.5-sonnet` | artisticVision, composition | 500 | 4s |
+| Technical Expert | `gpt-4-turbo` | feasibility, inkSafety | 300 | 3s |
+| Style Specialist | `gemini-pro-1.5` | styleVocabulary, cultural | 300 | 3s |
+| Prompt Synthesiser | `gemini-2.0-flash` | COUNCIL_SKILL_PACK all | 600 | 2s |
 
-Limits enforced via `src/lib/quota-tracker.ts` + Firestore quota documents per user.
+**Timeout policy:** If a Stage 1 council member exceeds deadline, Synthesiser runs with available inputs. Never block generation on a single model.
 
----
+### 2.4 COUNCIL_SKILL_PACK Upgrade
 
-## 4. Database Schema Diff (Current → Target)
+```js
+// Current (councilSkillPack.js) — extend with:
+export const COUNCIL_SKILL_PACK_V2 = {
+  ...COUNCIL_SKILL_PACK,
 
-### Supabase (pgvector) — Artist Embeddings
+  // New: ink safety rules injected into Technical Expert's system prompt
+  inkSafetyRules: {
+    fineline: 'Warn: fine lines <1mm may blur within 2-3 years. Recommend 1.5-2mm minimum stroke.',
+    whitework: 'Warn: white ink fades on pale skin. Recommend UV-reactive or grey wash alternative.',
+    blackwork: 'Safe for all skin tones. Prefer for longevity.',
+    watercolor: 'Warn: no outlines causes rapid fade. Recommend shadow outline layer.'
+  },
 
-**Current schema:**
-```sql
-CREATE TABLE artist_embeddings (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  artist_id   TEXT NOT NULL,
-  embedding   VECTOR(1408),
-  tags        TEXT[],
-  created_at  TIMESTAMPTZ DEFAULT NOW()
-);
-```
+  // New: style vocabulary guard tokens for Style Specialist
+  styleVocabularyGuards: {
+    irezumi: ['no outline gradients', 'bold bokashi shading', 'negative space clouds'],
+    blackwork: ['no grey wash', 'solid black fill only', 'geometric precision'],
+    fineline: ['<0.5mm stroke simulation', 'single-needle aesthetic', 'delicate detail']
+  },
 
-**Target schema (add):**
-```sql
--- Add: design embeddings table
-CREATE TABLE design_embeddings (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  design_id   TEXT NOT NULL UNIQUE,
-  user_id     TEXT NOT NULL,
-  embedding   VECTOR(1408),
-  style       TEXT,
-  body_part   TEXT,
-  tags        TEXT[],
-  created_at  TIMESTAMPTZ DEFAULT NOW(),
-  CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE INDEX ON design_embeddings USING ivfflat (embedding vector_cosine_ops);
-
--- Add: style similarity cache
-CREATE TABLE style_similarity_cache (
-  style_a     TEXT NOT NULL,
-  style_b     TEXT NOT NULL,
-  similarity  FLOAT NOT NULL,
-  computed_at TIMESTAMPTZ DEFAULT NOW(),
-  PRIMARY KEY (style_a, style_b)
-);
-
--- Modify: artist_embeddings — add portfolio richness score
-ALTER TABLE artist_embeddings
-  ADD COLUMN portfolio_score   FLOAT DEFAULT 0,
-  ADD COLUMN verified          BOOLEAN DEFAULT FALSE,
-  ADD COLUMN location_point    GEOGRAPHY(POINT, 4326),
-  ADD COLUMN price_floor_usd   INTEGER,
-  ADD COLUMN price_ceiling_usd INTEGER,
-  ADD COLUMN updated_at        TIMESTAMPTZ DEFAULT NOW();
-
--- Add: booking intent signals (for match ranking tuning)
-CREATE TABLE match_events (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id     TEXT NOT NULL,
-  artist_id   TEXT NOT NULL,
-  design_id   TEXT,
-  event_type  TEXT NOT NULL,  -- view | save | inquire | book | reject
-  match_score FLOAT,
-  created_at  TIMESTAMPTZ DEFAULT NOW()
-);
-CREATE INDEX ON match_events (artist_id, event_type);
-CREATE INDEX ON match_events (user_id, created_at DESC);
+  // New: positional anchor grammar for multi-subject designs
+  positionalGrammar: [
+    '[Subject] positioned at [LEFT|CENTER|RIGHT]',
+    '[Foreground element] overlaps [Background element]',
+    '[Subject] faces [LEFT|RIGHT] with [MOTION DIRECTION]'
+  ]
+};
 ```
 
 ---
 
-### Firestore — Collections
+## 3. "Do It Now" Fast-Path — Bypass Architecture
 
-**Current collections:**
-- `users/{uid}` — profile, quotaUsed, tier
-- `designs/{designId}` — imageUrl, prompt, metadata
-- `artists/{artistId}` — name, bio, styles, portfolioUrls
+> **Insight:** Not every user wants the 8–12s Council deliberation. A power user who knows "I want a blackwork snake on my forearm" should get straight to generation in <5s. The bypass is a **first-class product feature**, not a shortcut.
 
-**Target additions:**
-```
-bookings/{bookingId}
-  ├── userId: string
-  ├── artistId: string
-  ├── designId: string
-  ├── status: "pending" | "confirmed" | "cancelled" | "completed"
-  ├── stripePaymentIntentId: string
-  ├── depositAmount: number
-  ├── sessionDate: Timestamp
-  ├── notes: string
-  ├── messagingThreadId: string
-  └── timestamps: { created, updated, confirmed, completed }
-
-messagingThreads/{threadId}
-  ├── participants: [userId, artistId]
-  ├── bookingId: string
-  └── messages (subcollection)/{messageId}
-        ├── senderId: string
-        ├── text: string
-        ├── attachmentUrl: string | null
-        └── sentAt: Timestamp
-
-artistOnboarding/{artistId}
-  ├── status: "applied" | "under_review" | "approved" | "rejected"
-  ├── portfolioSubmitted: boolean
-  ├── idVerified: boolean
-  ├── stripeAccountId: string
-  ├── reviewedBy: string (admin uid)
-  └── timestamps: { applied, reviewed, approved }
-
-reviews/{reviewId}
-  ├── bookingId: string
-  ├── userId: string
-  ├── artistId: string
-  ├── rating: 1–5
-  ├── body: string
-  ├── photoUrls: string[]
-  └── createdAt: Timestamp
-```
-
----
-
-### Neo4j — Graph Schema
-
-**Current nodes/relationships:**
-```
-(:Artist {id, name, styles[], tags[], city})
-(:Style {name})
-(:Tag {name})
-(:Artist)-[:SPECIALIZES_IN]->(:Style)
-(:Style)-[:HAS_TAG]->(:Tag)
-```
-
-**Target additions:**
-```
-// New node types
-(:User {id, city, preferredStyles[]})
-(:Design {id, style, tags[], embedding_id})
-(:Booking {id, status, date})
-(:Studio {id, name, city, lat, lng})
-
-// New relationships
-(:Artist)-[:WORKS_AT]->(:Studio)
-(:User)-[:GENERATED]->(:Design)
-(:User)-[:BOOKED]->(:Booking)
-(:Booking)-[:WITH_ARTIST]->(:Artist)
-(:Booking)-[:FOR_DESIGN]->(:Design)
-(:Artist)-[:COLLABORATED_WITH]->(:Artist)   // built from shared-style signals
-(:User)-[:INSPIRED_BY]->(:Design)            // saved/liked designs
-
-// New relationship properties
-(:Artist)-[:SPECIALIZES_IN {proficiency: 0.0–1.0}]->(:Style)
-
-// Indexes
-CREATE INDEX artist_city FOR (a:Artist) ON (a.city)
-CREATE INDEX style_name FOR (s:Style) ON (s.name)
-```
-
----
-
-## 5. CI/CD Flow
+### 3.1 Decision Logic
 
 ```
-Developer / Agent Push
+User submits generation request
          │
          ▼
-  ┌─────────────┐
-  │  GitHub PR  │
-  │  (feature/*)│
-  └──────┬──────┘
+    Bypass Eligible?
          │
-         ▼
-  ┌─────────────────────────────────────────────┐
-  │  GitHub Actions — CI Pipeline               │
-  │  Trigger: push to PR branch                 │
-  │                                             │
-  │  1. checkout + cache restore                │
-  │  2. pnpm install --frozen-lockfile          │
-  │  3. ESLint + TypeScript check               │
-  │  4. Vitest unit tests (src/**/*.test.ts)    │
-  │  5. GCP auth (Workload Identity Federation) │
-  │     ├── WIF_PROVIDER (secret)               │
-  │     └── WIF_SERVICE_ACCOUNT (secret)        │
-  │  6. Build: next build                       │
-  │  7. Smoke test: curl /api/health            │
-  └──────┬──────────────────────────────────────┘
-         │  PR merged → main
-         ▼
-  ┌─────────────────────────────────────────────┐
-  │  Deploy Pipeline — main branch              │
-  │                                             │
-  │  Parallel:                                  │
-  │  ┌─────────────────┐  ┌───────────────────┐ │
-  │  │  Vercel Deploy  │  │  Cloud Run Deploy │ │
-  │  │  (frontend +    │  │  (backend server  │ │
-  │  │   API routes)   │  │   pangyo-prod)    │ │
-  │  │                 │  │                   │ │
-  │  │  vercel --prod  │  │  gcloud run       │ │
-  │  │  [auto via      │  │  deploy --image   │ │
-  │  │   GitHub int.]  │  │  gcr.io/tatt-pro/ │ │
-  │  └────────┬────────┘  └────────┬──────────┘ │
-  │           │                    │             │
-  │           ▼                    ▼             │
-  │     Vercel health         Cloud Run health   │
-  │     /api/health           /api/health        │
-  └──────┬──────────────────────────────────────┘
-         │  Both healthy
-         ▼
-  ┌─────────────────────────────────────────────┐
-  │  Post-Deploy                                │
-  │  1. Invalidate Vercel cache (revalidate)    │
-  │  2. Trigger embedding refresh (Cloud Tasks) │
-  │  3. Notify #tatt-dev Slack channel          │
-  │  4. Update CHANGELOG.md + version tag       │
-  └─────────────────────────────────────────────┘
+    ┌────┴────────────────────────────────────────────────────────┐
+    │ YES — bypass if ANY of these match:                        │
+    │  • User has Pro/Creator subscription (trust the prompt)    │
+    │  • Prompt contains ≥3 expert style tokens from             │
+    │    COUNCIL_SKILL_PACK.stencilKeywords or                   │
+    │    styleVocabularyGuards keys                              │
+    │  • User explicitly clicks "Quick Generate" CTA             │
+    │  • Prompt is a refinement of a previous Council output     │
+    │    (has session.councilSessionId)                          │
+    └────────────────────────────────────────────────────────────┘
+         │                       │
+         ▼                       ▼
+ FAST PATH                FULL COUNCIL PATH
+ /api/v1/generate/fast    /api/v1/council/stream
+                          → /api/v1/generate
+         │                       │
+         │                       │
+    ┌────┴────┐             ┌────┴────┐
+    │ Target  │             │ Target  │
+    │ <5s     │             │ 8-15s   │
+    │ latency │             │ latency │
+    └─────────┘             └─────────┘
 ```
 
-### Secrets Checklist (all must exist in GitHub repo secrets)
-
-| Secret Name | Where Used | Current Status |
-|---|---|---|
-| `WIF_PROVIDER` | GCP auth in CI | ❌ MISSING — set up WIF |
-| `WIF_SERVICE_ACCOUNT` | GCP auth in CI | ❌ MISSING |
-| `GCP_PROJECT_ID` | Cloud Run deploy | ❌ MISSING |
-| `VERCEL_TOKEN` | Vercel deploy | verify in repo settings |
-| `VERCEL_ORG_ID` | Vercel deploy | verify in repo settings |
-| `VERCEL_PROJECT_ID` | Vercel deploy | verify in repo settings |
-| `FIREBASE_SERVICE_ACCOUNT_BASE64` | Server-side Firebase | ❌ rotate + add |
-| `NEO4J_URI` + `NEO4J_PASSWORD` | Railway/Cloud Run | ❌ rotate, add to CI |
-| `REPLICATE_API_TOKEN` | Generation fallback | ✅ on Railway |
-
-### Environment Variable Audit
-
-**Required in production (Vercel) — currently misconfigured:**
-
-```bash
-# WRONG (Vite-style, Next.js ignores these):
-VITE_DEMO_MODE=false
-VITE_COUNCIL_DEMO_MODE=true
-
-# CORRECT (Next.js reads these):
-NEXT_PUBLIC_DEMO_MODE=false
-NEXT_PUBLIC_COUNCIL_DEMO_MODE=false
-NEXT_PUBLIC_FIREBASE_API_KEY=...
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=tatt-pro
-
-# Server-side only (NOT prefixed):
-GCS_BUCKET=tatt-designs
-GCP_PROJECT_ID=tatt-pro
-NEO4J_URI=neo4j+s://...aura.io
-NEO4J_PASSWORD=...
-REPLICATE_API_TOKEN=...
-SUPABASE_URL=...
-SUPABASE_SERVICE_KEY=...
-OPENROUTER_API_KEY=...
-```
-
----
-
-## 6. Role-Specialisation: Agent Mesh
-
-The TatT platform is built and maintained by a **4-agent mesh**, not a single monolithic AI. This is the most important operational insight of the March 2026 architecture review.
+### 3.2 Fast-Path API Route
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│  paul (Orchestrator) — paul-macpro                               │
-│  • Routes all tasks. Direct Samson interface.                    │
-│  • Monitors agent health, surfaces blockers.                     │
-│  • Handles heartbeat, Slack comms, briefings.                    │
-│  • NEVER executes domain work directly.                          │
-└───────────────────────┬──────────────────────────────────────────┘
-                        │
-        ┌───────────────┼───────────────┐
-        ▼               ▼               ▼
-┌──────────────┐ ┌──────────────┐ ┌──────────────────┐
-│ SLED Codex   │ │  SFDC Agent  │ │  2nd Brain Agent │
-│   Agent      │ │              │ │                  │
-│              │ │ Domain:      │ │ Domain:          │
-│ Domain:      │ │ Salesforce   │ │ Vault content,   │
-│ TatT code,   │ │ ops, quotes, │ │ MEMORY.md,       │
-│ AI features, │ │ territories  │ │ concept docs,    │
-│ E-Rate,      │ │              │ │ brain.6eyes.dev  │
-│ voice caller │ │ Host:        │ │                  │
-│              │ │ paul-macpro  │ │ Host: Killua     │
-│ Host: Killua │ │ (isolated)   │ │ (overnight)      │
-└──────────────┘ └──────────────┘ └──────────────────┘
+POST /api/v1/generate/fast
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "prompt": "blackwork snake coiling around forearm, bold linework, no shading",
+  "style": "blackwork",
+  "bodyPart": "forearm",
+  "mode": "preview",              // "preview" | "high-quality"
+  "skipCouncil": true,            // explicit bypass flag
+  "councilSessionId": null        // or prior session ID for refinement
+}
+
+→ Response (streaming NDJSON):
+{ "status": "routing",  "modelId": "sdxl", "provider": "replicate" }
+{ "status": "queued",   "predictionId": "abc123" }
+{ "status": "progress", "logs": "...", "step": 3 }
+{ "status": "complete", "images": ["https://..."], "metadata": { "cost": 0.003, "latencyMs": 3800 } }
 ```
 
-### Why This Matters for TatT
-
-Every TatT code change flows through the **SLED Codex Agent** running on Killua. This keeps:
-- Codex sessions off paul-macpro (Killua has the hardware headroom)
-- paul's context clean for routing and Samson conversations
-- Vault docs from being polluted with code comments
-- SFDC updates from triggering unrelated TatT deploys
-
-**Spawn pattern for TatT work:**
-```bash
-bash tools/killua-codex.sh tatt-[feature-name] "[task description]"
-# Logs to today's daily note under ## 🔧 Open Projects automatically
-```
-
-**Handoff triggers (paul → SLED Codex):**
-
-Any message from Samson containing: `TatT`, `generate`, `AR`, `artist matching`, `council`, `Neo4j`, `Supabase`, `Forge`, `canvas`, `stencil`, `deploy TatT`, `fix TatT`
-
----
-
-## 7. Do-It-Now Bypass — Platform Integration
-
-The **`do-it-now`** bypass is not just a personal assistant feature — it is a **platform-level architectural pattern** that should be reflected in how TatT itself handles power-user actions.
-
-### The Core Insight
-
-> *Delegation has latency. When a user knows exactly what they want, every routing step is friction.*
-
-This applies to the AI orchestration layer:
-
-| Current (over-delegated) | Target (bypass-aware) |
-|---|---|
-| User types prompt → council always runs → adds 2–4s | If `directMode=true`, skip council, go straight to Imagen |
-| Every generate hits quota check → Firestore read on each call | Quota cached in-memory (Redis/Vercel KV), sync async |
-| AR always loads model detection → 3–5s cold start | Pre-warm AR model on `/generate` page load |
-| Match search always hits Neo4j + Supabase → 1.2s avg | Add `quickMatch` mode: vector-only, <200ms |
-
-### Bypass Routing in the API
+### 3.3 Bypass Eligibility Service (Server-Side)
 
 ```typescript
-// src/services/generationRouter.ts — proposed bypass logic
+// /src/services/bypassEligibilityService.ts
 
-export async function route(req: GenerateRequest): Promise<GenerateResponse> {
-  const { directMode, councilEnhance, prompt, style } = req;
+interface BypassContext {
+  userId: string;
+  subscriptionTier: 'free' | 'creator' | 'pro';
+  prompt: string;
+  hasCouncilSessionId: boolean;
+  explicitBypass: boolean;
+}
 
-  // BYPASS: User is a Pro subscriber who explicitly opted out of council
-  if (directMode && req.userTier === 'pro') {
-    return await generateDirect(prompt, style);  // ~1.5s
-  }
+export function isBypassEligible(ctx: BypassContext): boolean {
+  // Explicit user choice always wins
+  if (ctx.explicitBypass) return true;
 
-  // COUNCIL PATH: Default — enhance prompt then generate
-  if (councilEnhance !== false) {
-    const enhanced = await councilEnhance(prompt);  // ~1.5s
-    return await generateDirect(enhanced.prompt, style);  // ~3s total
-  }
+  // Prior Council session = user is refining, not exploring
+  if (ctx.hasCouncilSessionId) return true;
 
-  // FAST PATH: council disabled but not direct mode (e.g. Creator tier)
-  return await generateDirect(prompt, style);  // ~1.5s, no enhancement
+  // Pro/Creator users trust their own taste
+  if (['creator', 'pro'].includes(ctx.subscriptionTier)) return true;
+
+  // Detect expert-level prompt vocabulary
+  const expertTokenCount = countExpertTokens(ctx.prompt);
+  if (expertTokenCount >= 3) return true;
+
+  return false;
+}
+
+function countExpertTokens(prompt: string): number {
+  const expertTokens = [
+    ...COUNCIL_SKILL_PACK.stencilKeywords,
+    ...Object.keys(COUNCIL_SKILL_PACK_V2.styleVocabularyGuards),
+    'irezumi', 'bokashi', 'tebori', 'flash art', 'neo-trad',
+    'blackwork', 'fineline', 'geometric', 'dotwork', 'watercolor'
+  ];
+  return expertTokens.filter(t => prompt.toLowerCase().includes(t)).length;
 }
 ```
 
-### "Do It Now" in the UI
+### 3.4 UX Surfaces
 
-Proposed Pro-tier UI element on the Generate page:
-
-```
-┌──────────────────────────────────────────────────────┐
-│  [⚡ Direct Mode]  Skip AI council · Fastest results  │
-│  Design generates in ~1.5s instead of ~4s            │
-│  (Pro feature — less prompt refinement)              │
-└──────────────────────────────────────────────────────┘
-```
-
-This mirrors paul's bypass pattern: Power users who know what they want should never wait for delegation overhead.
-
-### Bypass in the Agent Mesh (Heartbeat Integration)
-
-paul checks `memory/pending-wake-NOW.txt` at every heartbeat **before anything else**. For TatT specifically:
-
-1. Samson writes `!now: redeploy TatT to Vercel` in Slack
-2. Next heartbeat (~4h or manual trigger) picks up the bypass
-3. paul executes inline: `cd repos/TatT && git push origin main` → triggers Vercel auto-deploy
-4. Reports completion in Slack #tatt-dev
-
-**The key property:** Bypass tasks are never queued, never delegated, never buffered. They go to the front of the line.
-
----
-
-## 8. Phased Build Roadmap
-
-### Phase 0 — Production Stabilisation (Week 1–2)
-*Goal: Get every existing feature working in production, no exceptions.*
-
-**P0 blockers to clear:**
-
-| Task | Owner | ETA |
+| Trigger | UX Interaction | Notes |
 |---|---|---|
-| Fix `VITE_*` → `NEXT_PUBLIC_*` env vars | SLED Codex | 1h |
-| Set `NEXT_PUBLIC_DEMO_MODE=false` in Vercel | paul (inline) | 15m |
-| Create GCS bucket `tatt-designs`, add `GCS_BUCKET` env | paul (inline) | 30m |
-| Rotate all secrets (service account, Neo4j, Replicate) | paul → SLED Codex | 2h |
-| Configure GitHub WIF secrets for CI/CD | paul (Infra Saturday) | 1h |
-| Commit local canvas service fixes from paul-macpro | paul (inline) | 30m |
-| Fix Neo4j AuraDB connection (check encryption settings) | SLED Codex | 1h |
-| Redeploy to `tatt-app.vercel.app` as canonical URL | paul (inline) | 15m |
-
-**Definition of done:** `/api/health/startup` returns 200 with all services green.
+| "Quick Generate" button | Visible alongside "Enhance with Council" | Default for Creator/Pro |
+| Style token detection | System auto-promotes to bypass; subtle badge "Expert prompt detected" | Optional — can toggle off |
+| Council refinement | After Council session, regeneration uses bypass automatically | Session continuity |
+| Keyboard shortcut | `Cmd+Enter` = bypass; `Enter` = Council path | Power user feature |
 
 ---
 
-### Phase 1 — Core UX Polish (Weeks 3–6)
-*Goal: YC Demo Day-ready. Every feature demoed live, nothing mocked.*
+## 4. API Contract Sketch
 
-**Features:**
+> Full OpenAPI spec lives at `/openapi/`. This section describes the critical contracts for the next-gen endpoints.
 
-| Feature | Description | Effort |
-|---|---|---|
-| Gallery page | `/gallery` route with user's saved designs, shareable links | M |
-| Design sharing | `/api/v1/designs/share` → public URL with OG metadata | S |
-| Mobile AR QA | Test MindAR on iOS + Android, fix scaling/anchor bugs | L |
-| Artist profile pages | Full `/artists/[id]` pages with portfolio grid, booking CTA | M |
-| Booking flow v1 | Request → artist confirm → Stripe deposit capture | L |
-| Review system | Post-booking review UI + Firestore schema | M |
-| Quota dashboard | Show users remaining designs + upgrade path | S |
-| `directMode` toggle | Pro-tier bypass for council (see §7) | S |
+### 4.1 Core Endpoints
 
-**KPIs for Phase 1 exit:**
-- All routes return 200 in production
-- End-to-end flow: generate → AR → match → book works without manual intervention
-- 10 beta artists onboarded with real profiles
-
----
-
-### Phase 2 — Artist Marketplace (Months 2–3)
-*Goal: Revenue-generating. First real bookings processed.*
-
-**Features:**
-
-| Feature | Description | Effort |
-|---|---|---|
-| Artist onboarding portal | Self-service application, portfolio upload, ID verify | XL |
-| Stripe Connect | Artist payouts, platform commission (15%), deposit handling | XL |
-| Messaging system | In-app threads between user and artist (Firebase RTDB) | L |
-| Calendar integration | Artist availability → iCal sync | M |
-| Artist analytics | Views, matches, conversions, earnings dashboard | L |
-| Neo4j `COLLABORATED_WITH` | Build collaboration graph from shared booking history | M |
-| Featured listings | Artist paid placement in match results | M |
-| Style model fine-tuning | Use generated + rated designs to improve style routing accuracy | XL |
-
-**KPIs for Phase 2 exit:**
-- 50 verified artists live
-- 100 completed bookings
-- $5K GMV processed
-
----
-
-### Phase 3 — Growth Engine (Months 4–6)
-*Goal: Viral distribution + retention loops.*
-
-**Features:**
-
-| Feature | Description | Effort |
-|---|---|---|
-| Social sharing | One-tap TikTok/Instagram share with TatT watermark | M |
-| Design collections | Curated galleries by style, era, trend | M |
-| Artist following | Follow artists, notification on new portfolio additions | M |
-| "Ink the look" | Upload reference photo → generate similar tattoo style | XL |
-| Convention mode | Geo-fenced artist discovery at tattoo conventions | L |
-| Referral program | User invites → free design credits | M |
-| SEO landing pages | `/styles/[style]` static pages for organic traffic | M |
-| Push notifications | Mobile PWA notifications for booking updates, new matches | L |
-
-**KPIs for Phase 3 exit:**
-- 10K MAU
-- 15% week-over-week user growth
-- 2.5% free → paid conversion rate
-
----
-
-### Phase 4 — Platform Expansion (Months 7–12)
-*Goal: Beyond tattoos. Body art ecosystem.*
-
-**Features:**
-
-| Feature | Description | Effort |
-|---|---|---|
-| Expo mobile app | Native iOS + Android (stubbed, needs real screens) | XL |
-| Piercing marketplace | Expand matching to piercing artists | L |
-| Body paint / henna | Temporary art as intro product for non-committed users | M |
-| Studio booking | Book studios (not just individual artists) | L |
-| AI style transfer | Apply your design to real reference tattoo photos | XL |
-| International markets | Multi-currency, locale-aware artist matching | L |
-| Insurance integration | Tattoo-specific liability coverage embedded in booking | XL |
-| B2B studio tools | Studio management SaaS ($99–299/mo) | XL |
-
----
-
-### Roadmap Timeline View
-
-```
-Mar 2026    Apr 2026    May 2026    Jun 2026    Jul–Sep     Oct–Mar
-────────────────────────────────────────────────────────────────────
-│Phase 0│                                                          
-    │Phase 1 (YC Demo Day target)│                               
-                │Phase 2 — Artist Marketplace│                  
-                                │Phase 3 — Growth│             
-                                            │Phase 4 (Expansion)│
+#### `POST /api/v1/generate/fast`
+```yaml
+summary: Zero-council direct generation
+security: [bearerAuth]
+requestBody:
+  required: true
+  content:
+    application/json:
+      schema:
+        type: object
+        required: [prompt, style, bodyPart]
+        properties:
+          prompt:         { type: string, maxLength: 500 }
+          style:          { type: string, enum: [traditional, blackwork, fineline, irezumi, neoTraditional, anime, watercolor, realism] }
+          bodyPart:       { type: string, enum: [forearm, shin, chest, back, shoulder, hip, ankle, neck, ribcage] }
+          mode:           { type: string, enum: [preview, high-quality], default: preview }
+          skipCouncil:    { type: boolean, default: true }
+          councilSessionId: { type: string, nullable: true }
+          count:          { type: integer, minimum: 1, maximum: 4, default: 4 }
+responses:
+  '200':
+    description: NDJSON stream of generation events
+    content:
+      application/x-ndjson:
+        schema:
+          oneOf:
+            - { $ref: '#/components/schemas/RoutingEvent' }
+            - { $ref: '#/components/schemas/QueuedEvent' }
+            - { $ref: '#/components/schemas/ProgressEvent' }
+            - { $ref: '#/components/schemas/CompleteEvent' }
+  '402': { description: Quota exceeded }
+  '429': { description: Rate limited }
 ```
 
+#### `GET /api/v1/council/stream`
+```yaml
+summary: SSE stream of council deliberation
+security: [bearerAuth]
+parameters:
+  - name: idea
+    in: query
+    required: true
+    schema: { type: string, maxLength: 300 }
+  - name: style
+    in: query
+    schema: { type: string }
+  - name: bodyPart
+    in: query
+    schema: { type: string }
+  - name: isStencilMode
+    in: query
+    schema: { type: boolean, default: false }
+responses:
+  '200':
+    description: Server-Sent Events stream
+    content:
+      text/event-stream:
+        schema:
+          description: |
+            Events emitted in order:
+              data: {"role":"creative","status":"thinking"}
+              data: {"role":"creative","status":"done","content":"..."}
+              data: {"role":"technical","status":"thinking"}
+              data: {"role":"technical","status":"done","content":"..."}
+              data: {"role":"style","status":"thinking"}
+              data: {"role":"style","status":"done","content":"..."}
+              data: {"role":"synthesiser","status":"done","variants":{...},"negativePrompt":"...","councilSessionId":"uuid"}
+              data: [DONE]
+```
+
+#### `POST /api/v1/match/semantic`
+```yaml
+summary: Vector-semantic artist matching
+security: [bearerAuth]
+requestBody:
+  content:
+    application/json:
+      schema:
+        type: object
+        required: [designDescription]
+        properties:
+          designDescription: { type: string }
+          styleWeights:      { type: object, additionalProperties: { type: number } }
+          locationZip:       { type: string }
+          radiusMiles:       { type: integer, default: 50 }
+          budgetRange:
+            type: object
+            properties:
+              min: { type: integer }
+              max: { type: integer }
+          limit:             { type: integer, default: 20 }
+responses:
+  '200':
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            artists:
+              type: array
+              items: { $ref: '#/components/schemas/ArtistMatch' }
+            matchMetadata:
+              type: object
+              properties:
+                vectorScore: { type: number }
+                keywordScore: { type: number }
+                blendedScore: { type: number }
+                latencyMs: { type: integer }
+```
+
+#### `POST /api/v1/estimate`
+```yaml
+summary: AI-powered cost & complexity estimation
+security: [bearerAuth]
+requestBody:
+  content:
+    application/json:
+      schema:
+        type: object
+        required: [prompt, size]
+        properties:
+          prompt:    { type: string }
+          size:      { type: string, enum: [tiny, small, medium, large, full-sleeve] }
+          placement: { type: string }
+          style:     { type: string }
+responses:
+  '200':
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            estimatedHours:  { type: number }
+            priceRangeLow:   { type: integer }
+            priceRangeHigh:  { type: integer }
+            complexity:      { type: string, enum: [simple, moderate, complex, masterpiece] }
+            inkSafetyFlags:  { type: array, items: { type: string } }
+            artistTierMatch: { type: string, enum: [apprentice, journeyman, senior, master] }
+```
+
+### 4.2 Authentication Flow
+
+```
+Client                Next.js                Firebase Auth          Supabase
+  │                      │                        │                     │
+  │ → POST /auth/login    │                        │                     │
+  │    (email+password)   │                        │                     │
+  │                       │ → signInWithPassword() │                     │
+  │                       │                        │ → idToken (JWT)     │
+  │                       │ ← idToken              │                     │
+  │                       │ → verifyIdToken()      │                     │
+  │                       │              (next-firebase-auth-edge)       │
+  │                       │ → exchangeForSupabaseToken()                 │
+  │                       │                                    → RLS JWT │
+  │ ← { accessToken,      │                                              │
+  │     supabaseToken }   │                                              │
+  │                       │                                              │
+  │ (all subsequent API calls carry Authorization: Bearer <accessToken>) │
+```
+
+### 4.3 Rate Limiting Matrix
+
+| Endpoint | Free | Creator | Pro | Artist |
+|---|---|---|---|---|
+| `/generate` | 3/day | 50/day | 200/day | 100/day |
+| `/generate/fast` | 0/day | 30/day | 200/day | — |
+| `/council/stream` | 3/day | 20/day | 100/day | — |
+| `/match/semantic` | 10/day | 100/day | 500/day | 500/day |
+| `/estimate` | 10/day | unlimited | unlimited | unlimited |
+| `/stencil/export` | 1/design | 5/design | unlimited | unlimited |
+
 ---
 
-## 9. Open Issues & Infra Debt
+## 5. DB Schema Diff (Current → Next-Gen)
 
-Issues that must not be carried past Phase 1:
+### 5.1 Supabase (PostgreSQL + pgvector)
 
-| # | Issue | Severity | Owner |
+#### Current State
+```sql
+-- artists table (inferred from matching service)
+CREATE TABLE artists (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        TEXT NOT NULL,
+  styles      TEXT[],
+  location    TEXT,
+  zip         TEXT,
+  bio         TEXT,
+  hourly_rate INTEGER,
+  portfolio   TEXT[],  -- GCS URLs
+  embedding   vector(4096)  -- CLIP multimodal embeddings
+);
+
+-- designs table (inferred from library service)
+CREATE TABLE designs (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID REFERENCES auth.users(id),
+  prompt      TEXT,
+  style       TEXT,
+  image_url   TEXT,
+  created_at  TIMESTAMPTZ DEFAULT now()
+);
+```
+
+#### Next-Gen Schema Additions
+```sql
+-- ✅ ADD: council_sessions — persist Council deliberation output
+CREATE TABLE council_sessions (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id           UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  idea              TEXT NOT NULL,
+  style             TEXT,
+  body_part         TEXT,
+  is_stencil_mode   BOOLEAN DEFAULT FALSE,
+  creative_output   TEXT,
+  technical_output  TEXT,
+  style_output      TEXT,
+  variants          JSONB,              -- { simple, detailed, ultra }
+  negative_prompt   TEXT,
+  selected_variant  TEXT,              -- which variant the user picked
+  bypass_used       BOOLEAN DEFAULT FALSE,
+  latency_ms        INTEGER,
+  created_at        TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX idx_council_sessions_user ON council_sessions(user_id, created_at DESC);
+
+-- ✅ ADD: generation_jobs — track async generation with full lineage
+CREATE TABLE generation_jobs (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id           UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  council_session_id UUID REFERENCES council_sessions(id),
+  prompt            TEXT NOT NULL,
+  style             TEXT,
+  body_part         TEXT,
+  model_id          TEXT NOT NULL,
+  provider          TEXT NOT NULL,       -- 'replicate' | 'vertex-ai'
+  prediction_id     TEXT,               -- external provider job ID
+  status            TEXT DEFAULT 'queued',  -- queued|processing|complete|failed
+  images            TEXT[],             -- GCS URLs
+  cost_usd          NUMERIC(8,5),
+  latency_ms        INTEGER,
+  bypass_used       BOOLEAN DEFAULT FALSE,
+  error_message     TEXT,
+  created_at        TIMESTAMPTZ DEFAULT now(),
+  completed_at      TIMESTAMPTZ
+);
+CREATE INDEX idx_generation_jobs_user ON generation_jobs(user_id, created_at DESC);
+CREATE INDEX idx_generation_jobs_status ON generation_jobs(status) WHERE status != 'complete';
+
+-- ✅ MODIFY: designs — add council lineage + bypass flag
+ALTER TABLE designs
+  ADD COLUMN IF NOT EXISTS council_session_id UUID REFERENCES council_sessions(id),
+  ADD COLUMN IF NOT EXISTS generation_job_id  UUID REFERENCES generation_jobs(id),
+  ADD COLUMN IF NOT EXISTS body_part          TEXT,
+  ADD COLUMN IF NOT EXISTS mode               TEXT DEFAULT 'standard',
+  ADD COLUMN IF NOT EXISTS bypass_used        BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS is_stencil_mode    BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS embedding          vector(768),  -- downgrade from 4096 CLIP to 768 Vertex
+  ADD COLUMN IF NOT EXISTS ink_safety_flags   TEXT[];
+
+-- ✅ ADD: bypass_analytics — track bypass usage for product decisions
+CREATE TABLE bypass_analytics (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       UUID REFERENCES auth.users(id),
+  trigger       TEXT NOT NULL,   -- 'explicit' | 'expert_tokens' | 'council_refinement' | 'subscription'
+  prompt        TEXT,
+  expert_token_count INTEGER,
+  subscription_tier TEXT,
+  latency_ms    INTEGER,
+  created_at    TIMESTAMPTZ DEFAULT now()
+);
+
+-- ✅ ADD: artist_bookings — marketplace transaction layer
+CREATE TABLE artist_bookings (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  artist_id     UUID REFERENCES artists(id),
+  user_id       UUID REFERENCES auth.users(id),
+  design_id     UUID REFERENCES designs(id),
+  status        TEXT DEFAULT 'inquiry',   -- inquiry|accepted|scheduled|completed|cancelled
+  message       TEXT,
+  budget_range  NUMRANGE,
+  preferred_date DATE,
+  commission_pct NUMERIC(4,2) DEFAULT 15.00,  -- TatT takes 15%
+  created_at    TIMESTAMPTZ DEFAULT now(),
+  updated_at    TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### 5.2 Firestore Collections
+
+#### Current
+```
+artist_embeddings/{artistId}
+  - embedding: vector(768)
+  - model: "text-embedding-004"
+  - sourceText: string
+  - createdAt: Timestamp
+```
+
+#### Next-Gen Additions
+```
+design_interactions/{userId}/events/{eventId}
+  - type: "view" | "save" | "share" | "book_inquiry" | "generate_variant"
+  - designId: string
+  - timestamp: Timestamp
+  - metadata: map
+
+council_feedback/{sessionId}
+  - userId: string
+  - selectedVariant: "simple" | "detailed" | "ultra"
+  - rating: 1-5 (optional, post-generation)
+  - generatedImageId: string
+  - timestamp: Timestamp
+
+model_performance/{modelId}/runs/{date}
+  - totalRequests: number
+  - avgLatencyMs: number
+  - successRate: number
+  - avgCostUsd: number
+  - byStyle: map<string, number>
+```
+
+### 5.3 Neo4j Graph Schema
+
+#### Current (inferred)
+```cypher
+(Artist)-[:SPECIALISES_IN]->(Style)
+(Artist)-[:LOCATED_IN]->(City)
+(User)-[:LIKED]->(Artist)
+```
+
+#### Next-Gen Additions
+```cypher
+// Design lineage graph
+(Design)-[:GENERATED_FROM]->(CouncilSession)
+(Design)-[:USED_MODEL]->(AIModel)
+(Design)-[:DEPICTS_STYLE]->(Style)
+(Design)-[:PLACED_ON]->(BodyPart)
+
+// Artist capability graph
+(Artist)-[:MASTERED]->(Style {level: "expert"|"proficient"|"learning"})
+(Artist)-[:AVAILABLE_IN]->(City)
+(Artist)-[:RATED_BY]->(User {score: float, timestamp: datetime})
+
+// Booking relationship (future)
+(User)-[:BOOKED]->(Artist {via_design: designId, status: string})
+```
+
+---
+
+## 6. CI/CD Flow
+
+```
+Developer pushes to GitHub (branch or main)
+         │
+         ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         GitHub Actions                                      │
+│                                                                             │
+│  .github/workflows/ci.yml                                                   │
+│                                                                             │
+│  [on: push to any branch]                                                   │
+│    ├─ lint: eslint + tsc --noEmit                                           │
+│    ├─ unit-test: vitest (src/**/*.test.ts)                                  │
+│    │     includes: councilSkillPack.test.js, multiLayerService.test.js      │
+│    ├─ build: next build (fails fast on type errors)                         │
+│    └─ security: npm audit --audit-level=high                                │
+│                                                                             │
+│  [on: push to main]  (all above pass first)                                 │
+│    ├─ integration-test: vitest --config vitest.config.js (API mocks)        │
+│    ├─ deploy-preview: Vercel preview URL (auto-comment on PR)               │
+│    └─ notify: Slack #tatt-dev "✅ CI green — preview: <url>"               │
+└────────────────────────────┬────────────────────────────────────────────────┘
+                             │  main branch only, all checks green
+                             ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       Deployment Pipeline                                   │
+│                                                                             │
+│  Vercel (Frontend + Next.js API Routes)                                     │
+│    • Auto-deploy on push to main (GitHub integration)                       │
+│    • Preview deploys on PRs                                                 │
+│    • Env vars: managed in Vercel dashboard + Secret Manager pull            │
+│    • Rollback: vercel rollback <deployment-id>                              │
+│                                                                             │
+│  Railway (Express Proxy + Webhook Receiver)                                 │
+│    • Auto-deploy from Dockerfile on railway.json config                     │
+│    • Health check: /api/health/startup must return 200 before traffic       │
+│    • Env vars: GCP_PROJECT_ID, GCS_BUCKET_NAME, NEO4J_URI, credentials     │
+│    • Rollback: Railway dashboard → previous deployment                      │
+│                                                                             │
+│  Google Cloud Build (cloudbuild.yaml — optional heavy jobs)                 │
+│    • Used for: embedding batch jobs, model fine-tuning triggers             │
+│    • Triggered manually or via Cloud Scheduler                              │
+└────────────────────────────┬────────────────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    Post-Deploy Verification                                  │
+│                                                                             │
+│  Automated smoke tests (run after each production deploy):                  │
+│    curl /api/health → expect {"status":"ok"}                               │
+│    curl /api/health/startup → expect all services green                     │
+│    POST /api/v1/generate/fast (mock prompt) → expect prediction_id          │
+│    GET /api/v1/council/stream (mock idea) → expect SSE stream starts        │
+│                                                                             │
+│  Failure → auto-rollback + Slack alert #tatt-dev                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 6.1 Branch Strategy
+
+```
+main ─────────────────────────────────────────→ Production (Vercel + Railway)
+  │
+  ├── feat/council-stream ──────────→ Preview deploy + PR review
+  ├── feat/fast-path-bypass ────────→ Preview deploy + PR review
+  ├── feat/db-schema-v2 ──────────→ Preview deploy + DB migration review
+  └── fix/* ────────────────────────→ Patch deploy (fast lane)
+```
+
+### 6.2 Secret Rotation Policy
+
+| Secret | Location | Rotation Freq | Alert Channel |
 |---|---|---|---|
-| 1 | `firebase-service-account.json` committed to public repo | P0 🔥 | paul |
-| 2 | `VITE_*` env vars ignored by Next.js — demo mode always on | P0 🔥 | paul |
-| 3 | Dual deployment (Cloud Run + Railway) causing CORS split | P0 🔥 | SLED Codex |
-| 4 | `GCS_BUCKET` not set — image uploads fail silently | P0 🔥 | paul |
-| 5 | GitHub Actions CI secrets not configured | P0 🔥 | paul (Infra Sat) |
-| 6 | Primary Vercel URL (tat-t-3x8t) returns 404 | P1 | paul |
-| 7 | Gallery page 404 | P1 | SLED Codex |
-| 8 | Supabase project possibly paused (free tier) | P1 | paul |
-| 9 | Neo4j encryption mismatch | P1 | SLED Codex |
-| 10 | Cost estimator endpoint not deployed to Vercel | P1 | SLED Codex |
-| 11 | Canvas service thumbnail timeout fixes uncommitted | P2 | paul |
-| 12 | No Sentry / error monitoring | P2 | SLED Codex |
-| 13 | `quota-tracker.ts` doesn't cache — Firestore read per request | P2 | SLED Codex |
-| 14 | No `/gallery` route | P2 | SLED Codex |
+| OPENROUTER_API_KEY | Vercel + Secret Manager | 90 days | #tatt-dev |
+| REPLICATE_API_TOKEN | Railway + Secret Manager | 90 days | #tatt-dev |
+| FIREBASE_SERVICE_ACCOUNT | Railway (secret volume) | 180 days | #alerts |
+| SUPABASE_SERVICE_KEY | Vercel | On breach only | #alerts |
+| GCP_CREDENTIALS | Secret Manager | 180 days | #alerts |
+
+See `directives/rotate-secrets.md` for procedure.
 
 ---
 
-## Appendix: Key File Locations
+## 7. Phased Build Roadmap
 
-| Purpose | Path |
+> **Guiding principle:** Each phase must be independently deployable and deliver user value. No phase blocks the next unless explicitly marked.
+
+---
+
+### Phase 1 — Foundation Hardening (Weeks 1–2)
+*Goal: Make what exists actually work in production.*
+
+| Task | Owner | Blocking? |
+|---|---|---|
+| Fix Railway env vars: `GCP_PROJECT_ID`, `GCS_BUCKET_NAME` | Samson | Yes — blocks all GCP features |
+| Mount GCP service account JSON on Railway | Samson | Yes — blocks Firestore, GCS |
+| Fix Neo4j connection (encryption mismatch) | Samson | Yes — blocks artist matching |
+| Verify Supabase project status (may be paused) | Samson | Yes — blocks auth + vector search |
+| Redeploy to Vercel (push main or `vercel --prod`) | paul | Yes — current deploy is stale |
+| Add `/gallery` page (or redirect `/gallery` → `/generate`) | paul | No |
+| Add `/api/health/startup` to deployment smoke test | paul | No |
+| Move Council API calls server-side (hide OpenRouter key) | paul | Security — do ASAP |
+
+**Exit Criteria:** `/api/health/startup` returns all green. `tatt-app.vercel.app` serves `/generate`, `/artists`, `/gallery`, `/login`.
+
+---
+
+### Phase 2 — Fast-Path Bypass (Weeks 3–4)
+*Goal: Ship the "Do It Now" bypass as a product feature.*
+
+| Task | Details |
 |---|---|
-| Generation router | `src/services/generationRouter.ts` |
-| Style → model mapping | `src/utils/styleModelMapping.js` |
-| Model routing rules | `src/config/modelRoutingRules.js` |
-| LLM Council | `src/services/openRouterCouncil.js` |
-| Match (RRF fusion) | `src/services/matchService.ts` |
-| Firebase match service | `src/services/firebase-match-service.ts` |
-| Vertex embeddings | `src/services/vertex-embedding-service.ts` |
-| GCS service | `src/services/gcs-service.js` |
-| Canvas / Forge | `src/services/canvasService.ts` |
-| Stencil export | `src/services/stencilService.ts` |
-| Cost estimator | `src/services/costEstimatorService.ts` |
-| Rate limiting | `src/lib/rate-limit.ts` |
-| Quota tracking | `src/lib/quota-tracker.ts` |
-| AR visualize | `src/app/api/v1/ar/visualize/route.ts` |
-| Deploy directive | `directives/deploy.md` |
-| CI config | `.github/workflows/` (to be created) |
-| Cloud Build | `cloudbuild.yaml` |
+| `bypassEligibilityService.ts` | Server-side eligibility check (§3.3) |
+| `/api/v1/generate/fast` endpoint | Streaming NDJSON response (§3.2) |
+| `COUNCIL_SKILL_PACK_V2` | Expert token vocabulary expansion (§2.4) |
+| UX: "Quick Generate" button | Alongside Council enhance; default for Creator/Pro |
+| UX: Expert prompt detection badge | "Expert prompt detected — using fast path" |
+| DB: `bypass_analytics` table | Track bypass usage (§5.1) |
+| DB: `generation_jobs` table | Full job lineage (§5.1) |
+| Rate limit differentiation | Free gets 0 fast-path; Creator/Pro unlocked (§4.3) |
+
+**Exit Criteria:** Pro user can generate 4 images in <5s without Council. Bypass analytics are being logged.
 
 ---
 
-*Document generated by paul (subagent) · 2026-03-08 · Session: build-overnight-architecture-plan*
-*Next review: Phase 1 exit (estimated late March 2026)*
+### Phase 3 — Council Streaming (Weeks 5–7)
+*Goal: Make the Council deliberation feel like watching experts work in real time.*
+
+| Task | Details |
+|---|---|
+| `/api/v1/council/stream` SSE endpoint | Server-side, streamed, keys never client-side (§2.2) |
+| Stage 1 parallel fan-out | 3 council members, 150ms aggregate deadline |
+| Stage 2 synthesiser | Gemini 2.0 Flash, structured JSON output |
+| `councilSessionId` persistence | Supabase `council_sessions` table (§5.1) |
+| `COUNCIL_SKILL_PACK_V2` injection | inkSafetyRules + styleVocabularyGuards |
+| UI: Real-time council animation | Each role card animates in as SSE events arrive |
+| UI: Ink safety warning display | Show Technical Expert's flags below design |
+| Council → bypass handoff | After Council completes, refinements use fast path automatically |
+| Feedback collection | Post-generation: "Which variant did you use?" → Firestore |
+
+**Exit Criteria:** Council deliberation streams to UI in real time. `councilSessionId` links Council → generation → design in DB. Ink safety flags shown to users.
+
+---
+
+### Phase 4 — Artist Marketplace MVP (Weeks 8–12)
+*Goal: Connect users with artists. Close the loop from design to booking.*
+
+| Task | Details |
+|---|---|
+| `artist_bookings` table | Supabase (§5.1) |
+| `/api/v1/bookings` CRUD | Create inquiry, accept/reject, schedule |
+| Artist dashboard | View inquiries, portfolio analytics, booking calendar |
+| `POST /api/v1/match/semantic` upgrade | Return `artistTierMatch` from `/estimate` data (§4.1) |
+| Neo4j graph enrichment | Add Design → Artist capability edges (§5.3) |
+| Commission tracking | 15% platform fee on bookings |
+| Artist onboarding flow | Portfolio upload → embedding generation → Neo4j seeding |
+| Stripe integration | Payment processing for bookings |
+| Email notifications | `emailQueueService.js` → booking confirmations |
+
+**Exit Criteria:** User can go from design → find artist → send booking inquiry → artist responds. First paid booking processed.
+
+---
+
+### Phase 5 — Mobile-First & Growth (Weeks 13–20)
+*Goal: AR experience on mobile, viral sharing, social proof.*
+
+| Task | Details |
+|---|---|
+| MindAR stabilisation | Fix depth-aware placement for real-world use |
+| Progressive Web App (PWA) | Offline design library, push notifications |
+| Design sharing card | Branded shareable image with TatT watermark + QR code |
+| TikTok-style design feed | Discovery page: trending styles, top artists |
+| Referral system | User invites artist → earns booking fee credit |
+| A/B test: Council vs Bypass CTR | Measure which path leads to more completions |
+| Convention mode | Kiosk layout for tablet — artist can show clients at events |
+
+---
+
+### Phase 6 — Scale & Series A (Months 6–12)
+*Goal: 100K users, $100K MRR, 1,000 artists, Series A ready.*
+
+| Task | Details |
+|---|---|
+| Multi-region Vercel Edge | Reduce latency for EU/APAC users |
+| Model fine-tuning | Fine-tune SDXL on curated tattoo dataset |
+| Custom Replicate deployment | Dedicated model endpoints for < $0.001/generation |
+| Enterprise artist tools | Studio dashboard, team accounts, client CRM |
+| White-label API | Let tattoo studios embed TatT generation in their own sites |
+| Analytics dashboard | Internal: cost per generation, LTV by tier, artist NPS |
+| YC Demo Day pack | Live demo script, backup data, offline fallback mode |
+
+---
+
+## 8. Open Risks & Mitigations
+
+| Risk | Severity | Mitigation |
+|---|---|---|
+| OpenRouter key exposed client-side | 🔴 Critical | Move Council to server-side SSE (Phase 3) |
+| Railway infra completely broken | 🔴 Critical | Phase 1 fix (§7 Phase 1 — Week 1) |
+| Supabase free tier paused | 🟠 High | Upgrade to Pro ($25/mo) before any user testing |
+| Neo4j AuraDB encryption mismatch | 🟠 High | Verify `NEO4J_URI` scheme: `neo4j+s://` vs `bolt://` |
+| Model costs uncontrolled | 🟠 High | `monitor-budget.md` directive + hard limits per user tier |
+| Council latency >12s on slow models | 🟡 Medium | Timeout policy (§2.2) + graceful degradation to bypass |
+| No CI/CD smoke tests post-deploy | 🟡 Medium | Phase 1: add automated health checks to deploy pipeline |
+| CLIP 4096d embeddings slow at scale | 🟡 Medium | Migrate to Vertex `text-embedding-005` 768d (already partially done in Firestore) |
+| No stencil export in production | 🟡 Medium | Verify `/api/v1/stencil/export` end-to-end after Railway fix |
+| Solo founder bus factor | 🟡 Medium | Write `directives/onboard-engineer.md` + record Loom architecture walk |
+
+---
+
+## Appendix A — Environment Variable Checklist
+
+### Vercel (Frontend + Next.js API)
+```
+NEXT_PUBLIC_FIREBASE_API_KEY
+NEXT_PUBLIC_FIREBASE_PROJECT_ID
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+NEXT_PUBLIC_OPENROUTER_API_KEY       ← move to server-only (Phase 3)
+OPENROUTER_API_KEY                   ← server-side only
+REPLICATE_API_TOKEN                  ← add to Vercel (currently Railway-only)
+GCP_PROJECT_ID
+VERTEX_AI_LOCATION
+GOOGLE_APPLICATION_CREDENTIALS_JSON  ← base64 encoded service account
+FIREBASE_SERVICE_ACCOUNT_JSON        ← base64 encoded
+```
+
+### Railway (Express Proxy)
+```
+GCP_PROJECT_ID                       ← MISSING — add now
+GCS_BUCKET_NAME                      ← MISSING — add now
+GOOGLE_APPLICATION_CREDENTIALS       ← path to mounted secret file
+NEO4J_URI
+NEO4J_USER
+NEO4J_PASSWORD
+REPLICATE_API_TOKEN
+PORT=3001
+NODE_ENV=production
+```
+
+---
+
+## Appendix B — Glossary
+
+| Term | Definition |
+|---|---|
+| **Council** | The 3-LLM panel (Creative Director, Technical Expert, Style Specialist) that enhances user prompts before generation |
+| **Bypass / Fast Path** | Direct generation route that skips the Council, targeting <5s latency |
+| **COUNCIL_SKILL_PACK** | Shared configuration object containing anatomical flow tokens, aesthetic anchors, stencil keywords, and safety rules injected into Council system prompts |
+| **Synthesiser** | The 4th LLM (Gemini 2.0 Flash) that aggregates Council opinions into Simple/Detailed/Ultra prompt variants |
+| **councilSessionId** | UUID that links a Council deliberation → selected variant → generation job → saved design, enabling full lineage tracing |
+| **bypassEligibilityService** | Server-side function that determines whether a request qualifies for the fast path based on subscription, prompt vocabulary, or explicit user choice |
+| **Forge Canvas** | TatT's layer-based design editor — allows users to segment, rearrange, and colour-correct generated tattoo layers |
+| **Neural Ink** | Marketing name for TatT's semantic artist-matching feature |
+| **anatomicalFlow** | Per-body-part composition guidelines injected into Council prompts (e.g., forearm = vertical + tapered; chest = symmetrical + landscape) |
+| **pgvector** | PostgreSQL extension for vector similarity search — used in Supabase for artist matching |
+
+---
+
+*Document generated by paul (AI co-pilot) | TatT workspace | 2026-03-08*  
+*Next review: after Phase 2 completion*
