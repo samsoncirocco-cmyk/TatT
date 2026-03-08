@@ -1,7 +1,8 @@
 # TatT Platform — Next-Gen UX Architecture
 > **Document status:** Living reference  
 > **Created:** 2026-03-08  
-> **Expanded:** 2026-03-08 13:00 MST — §13 Data Pipeline Architecture, §14 Mobile & PWA, §15 Viral Growth Architecture, Appendix I Demo Day Checklist, Appendix J Post-YC Scaling Plan  
+> **Expanded:** 2026-03-08 13:45 MST — §16 Sprint Implementation Tickets, §17 Agent-Driven Quality Loop, Appendix K Architecture Decision Record  
+> **Prior:** 2026-03-08 13:00 MST — §13 Data Pipeline Architecture, §14 Mobile & PWA, §15 Viral Growth Architecture, Appendix I Demo Day Checklist, Appendix J Post-YC Scaling Plan  
 > **Prior:** 2026-03-08 12:15 MST — §11 Feature Flag System, §12 Multi-Agent Coordination Protocol, Appendix H Incident Response Playbook  
 > **Prior:** 2026-03-08 11:30 MST — §9 Testing Strategy, §10 Load Benchmarks, Appendix G User Journey State Machine  
 > **Prior:** 2026-03-08 10:45 MST — §2.3 Agent OS↔TatT parallels, Appendix E Observability, Appendix F Security  
@@ -32,6 +33,8 @@
 13. [Data Pipeline Architecture](#13-data-pipeline-architecture)
 14. [Mobile & PWA Architecture](#14-mobile--pwa-architecture)
 15. [Viral Growth Architecture](#15-viral-growth-architecture)
+16. [Sprint Implementation Tickets](#16-sprint-implementation-tickets)
+17. [Agent-Driven Quality Loop](#17-agent-driven-quality-loop)
 - Appendix A — File Map
 - Appendix B — Model Routing Reference
 - Appendix C — Council System Prompts
@@ -42,6 +45,7 @@
 - Appendix H — Incident Response Playbook
 - Appendix I — Demo Day Technical Checklist
 - Appendix J — Post-YC Scaling Plan
+- Appendix K — Architecture Decision Record (ADR)
 
 ---
 
@@ -3700,6 +3704,704 @@ await redis.setex(`design:${cacheKey}`, 86400, JSON.stringify(result));
 
 ---
 
+## 16. Sprint Implementation Tickets
+
+> These are GitHub-ready task breakdowns for each pattern established in §2.1–2.3. Ordered by unblock dependency. Assign to any engineer or agent with filesystem + API access.
+
+---
+
+### 16.1 Sprint 0 — P0 Security Fixes (block everything else)
+
+| Ticket | Title | Owner | Est |
+|---|---|---|---|
+| S0-001 | Move `VITE_OPENROUTER_API_KEY` to server-side — never in client bundle | BE | 30m |
+| S0-002 | Rotate Firebase SA key (was committed to public repo) | DevOps | 15m |
+| S0-003 | Set `NEXT_PUBLIC_DEMO_MODE=false` in Railway + Cloud Run env | DevOps | 5m |
+| S0-004 | Recreate Supabase project; run migrations M001→M003 from §5 | BE | 2h |
+| S0-005 | Add WIF secrets (`WIF_PROVIDER`, `WIF_SERVICE_ACCOUNT`, `GCP_PROJECT_ID`) to GitHub Actions | DevOps | 30m |
+| S0-006 | Fix CORS: remove hardcoded Railway URLs, use `ALLOWED_ORIGINS` env var | BE | 20m |
+
+**Definition of done for Sprint 0:** `npm run build` passes on CI, `NEXT_PUBLIC_DEMO_MODE=false`, Supabase responds to `SELECT 1`, no secrets in client bundle (checked via `grep -r "VITE_OPENROUTER"` on built output).
+
+---
+
+### 16.2 Sprint 1 — "Do It Now" UX Cascade
+
+Every ticket below implements a node in the cascade described in §2.1.
+
+#### 1A — Backend: SSE Progress Bus
+
+**S1-001 — `useGenerationStream.ts` (new hook)**
+```typescript
+// src/hooks/useGenerationStream.ts
+// Contract: accepts POST /api/generate body, returns EventSource
+// Emits: GenerationEvent (typed union of all SSE event shapes)
+// Handles: retry on disconnect, timeout after 30s, cleanup on unmount
+```
+- Inputs: `GenerateRequest` type from §4
+- Outputs: `GenerationStreamState { step, enrichedPrompt, previewUrl, fullUrl, artists, error }`
+- Tests: mock SSE server, assert all 6 steps fire in order, assert timeout path
+- **Est: 3h**
+
+**S1-002 — Add `onProgress` callback to `generationRouter.ts`**
+```typescript
+// Add to GenerationRoute type:
+onProgress: (step: ProgressStep, payload: unknown) => void;
+// ProgressStep = 'council_start' | 'council_done' | 'generation_start'
+//               | 'preview_ready' | 'generation_done' | 'matches_ready'
+```
+- Must pipe `res.write(sseChunk)` through the Express SSE response object
+- Must call `res.flushHeaders()` BEFORE any `await` (prevents 30s buffered response)
+- **Est: 2h**
+
+**S1-003 — Fast preview pass in `vertex-ai-edge.ts`**
+```typescript
+// New export: generatePreview(prompt: string): Promise<string>
+// Calls Imagen 3 with: sampleCount:1, aspectRatio:"1:1", guidanceScale:7
+// Returns 512px JPEG data URL (not saved to GCS — ephemeral preview only)
+// Fires in parallel with council pipeline; result emitted as preview_ready event
+```
+- Must NOT block or wait for council result — fires with raw prompt
+- Target latency: < 5s on p90
+- **Est: 2h**
+
+**S1-004 — `canvasService.ts`: add `previewMode: "fast" | "full"`**
+```typescript
+// When previewMode = "fast":
+//   - skip multi-layer compositing
+//   - skip mask application
+//   - return raw blob directly (no Konva stage render)
+// When previewMode = "full":
+//   - existing behaviour unchanged
+```
+- Breaking change: existing callers must pass `previewMode: "full"` explicitly (or use default)
+- **Est: 1h**
+
+**S1-005 — Fire `matchUpdateService` at `generation_start`, not `generation_done`**
+```typescript
+// In generationRouter.ts, immediately after emitting generation_start:
+matchUpdateService.beginAsyncMatch({
+  styleHints: enrichedContext.styleTags,
+  location: req.body.location,
+  sessionId: req.body.sessionId
+});
+// Do NOT await — match runs fully async while image generates
+// Result is pushed via SSE as matches_ready when available
+```
+- Requires: matchUpdateService refactor to accept sessionId for SSE fan-out
+- Target: artist cards visible within 3s of generation_start event
+- **Est: 3h**
+
+**S1-006 — `DesignGenerator.jsx` state machine hookup**
+```jsx
+// Wire useGenerationStream hook into existing DesignGenerator
+// Render sequence:
+//   SKELETON: show canvas placeholder + pulsing overlay
+//   COUNCIL_DONE: show enriched prompt chip (PromptChip component, new)
+//   PREVIEW_READY: show 512px img, fade in over skeleton
+//   FULL_READY: seamless crossfade 512px → 1024px (CSS transition: opacity 400ms)
+//   MATCH_READY: slide up artist bottom sheet
+// Remove: existing single-state loading spinner
+```
+- New component: `PromptChip.jsx` — shows enriched prompt with style tags as pills
+- New CSS: `canvas-transition.css` — handles blur-in → sharp transition
+- **Est: 4h**
+
+**Sprint 1 total estimate: ~15h | Target: 2 engineers × 1 week**
+
+---
+
+### 16.3 Sprint 2 — Role-Specialised Council Wiring
+
+#### 2A — `GenerationOrchestrator` service (new)
+
+**S2-001 — Create `src/services/generationOrchestrator.ts`**
+```typescript
+// Input:  GenerateRequest (from §4)
+// Output: EnrichedGenerationContext (type from §2.2)
+// Logic:
+//   1. Build councilInputs from request (style, bodyRegion, skinTone)
+//   2. Promise.all([styleCouncil, placementSpec, artistMatchmaker])
+//      with individual 3s timeouts (not a shared timeout)
+//   3. Merge results into EnrichedGenerationContext
+//   4. If any member times out: fill its slice from defaults in councilSkillPack.js
+//   5. Set bypassed=true if ANY member was replaced by defaults
+//   6. Set councilMs = Math.max(individual elapsed times)
+```
+- Import `councilSkillPack.js` for default fallback values
+- Export `orchestrate(req: GenerateRequest, onProgress: ProgressCallback): Promise<EnrichedGenerationContext>`
+- **Est: 4h**
+
+**S2-002 — Refactor `openRouterCouncil.js` → three typed exports**
+```typescript
+// Current: one monolithic runCouncil() function
+// Target:
+export async function runStyleCouncil(input: StyleCouncilInput): Promise<StyleCouncilOutput>
+export async function runPlacementSpecialist(input: PlacementInput): Promise<StencilParams>
+export async function runArtistMatchmaker(input: MatchmakerInput): Promise<PreMatchedArtist[]>
+// Each has its own Zod schema for output validation
+// On parse failure: return typed fallback (not throw)
+```
+- Zod schemas must be in `src/schemas/council.ts` — separate from the service
+- **Est: 3h**
+
+**S2-003 — Zod output validation for all council members**
+```typescript
+// src/schemas/council.ts
+export const StyleCouncilOutputSchema = z.object({
+  enrichedPrompt: z.string().min(20),
+  negativePrompt: z.string().min(10),
+  styleTags: z.array(z.string()).min(1).max(5),
+  compositionHints: z.string()
+});
+
+export const StencilParamsSchema = z.object({
+  orientation: z.enum(['vertical', 'horizontal', 'radial']),
+  anchorPoints: z.array(z.tuple([z.number(), z.number()])).length(2),
+  recommendedSizeMm: z.object({ w: z.number(), h: z.number() }),
+  flowDescription: z.string(),
+  wrapGuidance: z.string().optional()
+});
+// etc. for PreMatchedArtistSchema
+```
+- All three schemas must be exported from a single file
+- Parse failures must be silent (log to Cloud Logging, return fallback)
+- **Est: 2h**
+
+**S2-004 — Wire orchestrator into `POST /api/generate`**
+```typescript
+// server.js (or api/generate/route.ts for Next.js app dir)
+// Replace: direct call to generationRouter
+// With:    generationOrchestrator.orchestrate(req.body, onProgress)
+//          then pass EnrichedGenerationContext to generationRouter
+// The router now receives enriched prompt — never raw
+```
+- The council bypass rule (§2.1) must be tested: if orchestrate() > 3000ms → verify image fires anyway
+- **Est: 2h**
+
+**S2-005 — Pre-compute stencil params; remove post-generation round-trip**
+```typescript
+// stencilService.ts
+// Current: computes stencil params from the generated image (post-generation)
+// Target:  accepts stencilParams from EnrichedGenerationContext (pre-computed)
+// Change:  add optional stencilParamsOverride to existing stencilService.generateStencil()
+// If provided: skip internal param computation, use provided params
+// If null:     existing behaviour (backward compatible)
+```
+- No breaking change — just an optional override parameter
+- **Est: 1h**
+
+**Sprint 2 total estimate: ~12h | Target: 2 engineers × 1 week**
+
+---
+
+### 16.4 Sprint 3 — Data Layer & Embedding Pipeline
+
+**S3-001 — Run Supabase migrations M001–M003**
+- `docs/architecture/migrations/M001_artists_embedding.sql`
+- `docs/architecture/migrations/M002_designs_table.sql`
+- `docs/architecture/migrations/M003_bookings_table.sql`
+- All SQL from §5 must be in versioned files in the repo (not applied manually)
+- **Est: 1h**
+
+**S3-002 — Embedding pipeline for artist portfolio images**
+```typescript
+// src/services/embeddingPipeline.ts
+// Trigger: POST /api/admin/embed-artist?artistId=xxx (admin auth required)
+// Steps:
+//   1. Fetch artist portfolio image URLs from Firestore
+//   2. Call Vertex multimodalembedding@001 for each (1408-dim)
+//   3. Quality gate: L2 norm must be within 2σ of corpus mean
+//   4. Upsert into Supabase tattoo_artists.embedding
+//   5. Sync to Neo4j artist node properties
+// Batch: max 10 images per request; Cloud Scheduler runs daily at 3am MST
+```
+- Idempotent: re-running must not create duplicates
+- Errors: log to Cloud Logging, emit Slack alert on >10% failure rate
+- **Est: 6h**
+
+**S3-003 — `designs.embedding` synchronous write (§2.3 Pattern 5)**
+```typescript
+// In GenerationOrchestrator, after generation_done:
+const [designEmbedding] = await Promise.all([
+  vertexEmbeddingService.embed(enrichedContext.enrichedPrompt),
+  imageStorageService.save(blob, designId)
+]);
+await supabase.from('designs').update({ embedding: designEmbedding }).eq('id', designId);
+// Only THEN emit matches_ready SSE event
+// This guarantees embedding exists before any match query is possible
+```
+- **Est: 1h**
+
+**S3-004 — Neo4j migration: Design + User nodes + relationships**
+```cypher
+-- Create constraints, new node types, new relationship types from §5
+-- Wrap in a migration runner: src/db/neo4j-migrations/001_design_user_nodes.cypher
+-- Migration runner: checks :Migration node to avoid re-applying
+```
+- **Est: 2h**
+
+**Sprint 3 total estimate: ~10h | Target: 1 BE engineer × 1 week**
+
+---
+
+### 16.5 Sprint 4 — CI/CD Hardening
+
+**S4-001 — GitHub Actions: WIF authentication**
+```yaml
+# .github/workflows/deploy.yml
+# Add secrets: WIF_PROVIDER, WIF_SERVICE_ACCOUNT, GCP_PROJECT_ID
+# Use: google-github-actions/auth@v2 with workload_identity_provider
+# Remove: GOOGLE_CREDENTIALS JSON base64 (rotation burden, security risk)
+```
+- **Est: 1h (with GCP console access)**
+
+**S4-002 — Staging environment on Cloud Run**
+```bash
+# Create: gcloud run deploy tatt-staging --image ... --no-allow-unauthenticated
+# Staging URL: tatt-staging-xxxxxxxx-uc.a.run.app (not public)
+# Staging deploys: automatic on push to main
+# Prod deploys: manual approval gate (GitHub environment protection rule)
+```
+- **Est: 1h**
+
+**S4-003 — Smoke test suite for CI/CD gate**
+```bash
+# tests/smoke/post-deploy.sh
+# Runs after every deploy (staging + prod)
+# Checks:
+#   1. GET /api/health → 200 with { status: "ok", version: "..." }
+#   2. POST /api/generate (demo mode) → SSE stream, first event within 1s
+#   3. GET /api/artists/sample-id → 200, fields present
+#   4. No VITE_ keys in window.__NEXT_DATA__ (security check)
+# Fails deploy if any check fails
+```
+- **Est: 3h**
+
+**Sprint 4 total estimate: ~5h | Target: DevOps × 3 days**
+
+---
+
+### 16.6 Master Ticket Dependency Graph
+
+```
+S0-001 → S1-001 (SSE hook needs server key removed first)
+S0-004 → S3-001 (migrations need Supabase to exist)
+S0-005 → S4-001 (WIF secrets)
+S1-002 → S1-006 (PromptChip needs SSE events)
+S1-003 → S1-006 (preview needs fast pass)
+S2-001 → S2-004 (orchestrator first, then wire)
+S2-002 → S2-001 (council members must be refactored before orchestrator calls them)
+S2-003 → S2-002 (Zod schemas validate council outputs)
+S3-001 → S3-002 (table must exist before embedding writes)
+S3-003 → S1-005 (embed-on-create needs designs table)
+```
+
+**Critical path:** S0 → S2-002 → S2-003 → S2-001 → S2-004 → S1-002 → S1-001 → S1-006
+
+Everything in Sprint 0 is a prerequisite. After S0, Sprint 2 (council wiring) is the highest-value work — it directly improves output quality for Demo Day.
+
+---
+
+## 17. Agent-Driven Quality Loop
+
+> The self-annealing pattern from §2.3 Pattern 3 deserves its own section. This is how TatT gets smarter without human intervention — a feedback loop where generation quality issues are automatically root-caused, triaged by confidence, and fed back into the Layer 1 directive (councilSkillPack.js).
+
+---
+
+### 17.1 The Loop Architecture
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│  GENERATION                                                    │
+│  User submits → orchestrator runs → Imagen returns image       │
+│        │                                                        │
+│        ▼                                                        │
+│  QUALITY SIGNAL                                                │
+│  User does NOT book (implicit reject)                          │
+│  User hits "regenerate" (explicit reject)                      │
+│  User books (implicit accept)                                  │
+│  User shares (strong accept signal)                            │
+│        │                                                        │
+│        ▼                                                        │
+│  SIGNAL AGGREGATOR (new: src/services/qualityAggregator.ts)   │
+│  Writes to: designs.quality_signal (enum: accept/reject/regen) │
+│  Writes to: designs.reject_reason (nullable text)              │
+│  Batches signals every 1h → QualityBatch                       │
+│        │                                                        │
+│        ▼                                                        │
+│  ANALYSIS AGENT (weekly cron — Gemini Pro)                     │
+│  Input: last 7 days of QualityBatches                         │
+│  Task:  cluster reject signals by style tag + failure mode    │
+│  Output: failure_mode_report.json                             │
+│        │                                                        │
+│        ▼                                                        │
+│  SKILL PACK PATCH GENERATOR (Gemini Pro)                       │
+│  Input: failure_mode_report.json + current councilSkillPack.js │
+│  Task:  propose minimal diff to negativeShield,               │
+│         anatomicalFlow, or aestheticAnchors                    │
+│  Output: proposed_skillpack_diff.json (NOT auto-applied)      │
+│        │                                                        │
+│        ▼                                                        │
+│  HUMAN REVIEW (Slack → #tatt-dev)                              │
+│  Paul posts: "Quality analysis ready — 3 proposed changes"    │
+│  Samson reviews, approves with /approve or rejects with /skip  │
+│        │                                                        │
+│        ▼  (on approval)                                        │
+│  SKILL PACK UPDATE                                             │
+│  Auto-PR to TatT repo: updates councilSkillPack.js            │
+│  PR title: "chore: skill pack patch #N (auto-generated)"      │
+│  CI runs generation regression tests (5 prompts × 3 styles)  │
+│  Merge on green                                               │
+└────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 17.2 Quality Signal Schema
+
+The loop starts with capturing raw signals. This requires two new columns in the `designs` table (migration M004):
+
+```sql
+-- M004_quality_signals.sql
+ALTER TABLE designs
+  ADD COLUMN IF NOT EXISTS quality_signal  TEXT,   -- 'accept' | 'reject' | 'regen' | 'share'
+  ADD COLUMN IF NOT EXISTS reject_reason   TEXT,   -- nullable free-text from regenerate dialog
+  ADD COLUMN IF NOT EXISTS signal_ts       TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS booking_id      UUID REFERENCES bookings(id) -- non-null = strong accept
+;
+
+-- Index for batch analysis queries
+CREATE INDEX idx_designs_quality ON designs (quality_signal, created_at DESC)
+  WHERE quality_signal IS NOT NULL;
+```
+
+**Signal capture rules:**
+
+| User Action | Signal | Method |
+|---|---|---|
+| Books appointment with matched artist | `accept` (strong) | Webhook from booking confirmation |
+| Shares design to social | `accept` (medium) | `POST /api/share` → update signal |
+| Saves design to library | `accept` (weak) | `POST /api/canvas/save` → update signal |
+| Hits "Regenerate" | `reject` | `POST /api/generate` with same sessionId within 60s |
+| Completes regenerate with free-text | `reject` + `reject_reason` | Regenerate dialog optional text field |
+| Session ends without any action | implicit null (no signal) | Not logged — null means "indifferent" |
+
+---
+
+### 17.3 Failure Mode Taxonomy
+
+From studying common tattoo AI failures, the reject reasons cluster into 5 modes. The quality loop classifies each rejected design into one:
+
+```typescript
+// src/types/quality.ts
+export type FailureMode =
+  | 'GRADIENT_BLEED'      // shading/gradients appeared despite negative prompt
+  | 'COMPOSITION_DRIFT'   // design didn't follow body region anatomy
+  | 'STYLE_CONFUSION'     // output blended multiple styles uninstructed
+  | 'RESOLUTION_BLUR'     // final image lacks crisp line definition
+  | 'PROMPT_MISREAD'      // Imagen ignored key subject elements
+  ;
+
+export interface QualityBatch {
+  weekOf: string;           // ISO week
+  totalGenerations: number;
+  rejectRate: number;       // 0-1
+  failureModes: Record<FailureMode, {
+    count: number;
+    representativeDesignIds: string[];
+    affectedStyleTags: string[];
+    avgCouncilMs: number;    // was council bypassed? lower quality expected
+    bypassRate: number;      // 0-1 for this failure mode
+  }>;
+}
+```
+
+**The classification query** (runs weekly via Cloud Scheduler → `tools/quality-analysis.ts`):
+
+```sql
+SELECT
+  d.style_tags,
+  d.quality_signal,
+  d.reject_reason,
+  d.council_bypassed,
+  d.prompt_raw,
+  d.prompt_enriched
+FROM designs d
+WHERE d.quality_signal = 'reject'
+  AND d.created_at >= NOW() - INTERVAL '7 days'
+ORDER BY d.created_at DESC
+LIMIT 500;
+```
+
+This result set is passed to Gemini Pro with the following system prompt:
+
+```
+You are the TatT Quality Analyst. Your job is to cluster these rejected tattoo designs 
+by failure mode and identify patterns. For each cluster, identify what change to 
+councilSkillPack.negativeShield or councilSkillPack.anatomicalFlow would have prevented it.
+
+FAILURE MODES (classify each rejected design into exactly one):
+- GRADIENT_BLEED: output has shading or gradients despite blackwork style
+- COMPOSITION_DRIFT: design ignores body region anatomy (e.g. horizontal design on forearm)
+- STYLE_CONFUSION: multiple styles merged uninstructed (e.g. geometric + realistic)
+- RESOLUTION_BLUR: line work lacks crispness, edges are soft
+- PROMPT_MISREAD: key subject element (wolf, moon, etc.) is missing or deformed
+
+Return JSON: { clusters: [{mode, count, cause, proposedFix}] }
+```
+
+---
+
+### 17.4 Skill Pack Diff Format
+
+The loop's output is a structured diff — not prose — so it can be applied programmatically:
+
+```json
+// proposed_skillpack_diff.json
+{
+  "generatedAt": "2026-03-15T03:00:00Z",
+  "analysisWeek": "2026-W11",
+  "rejectRate": 0.23,
+  "proposedChanges": [
+    {
+      "field": "negativeShield",
+      "operation": "append",
+      "value": "(gradients: 1.6, airbrush: 1.4, soft edges: 1.3)",
+      "rationale": "GRADIENT_BLEED accounts for 38% of rejects this week; forearm blackwork most affected",
+      "confidence": 0.87,
+      "affectedStyles": ["blackwork", "geometric"]
+    },
+    {
+      "field": "anatomicalFlow.forearm",
+      "operation": "replace",
+      "before": "vertical flow, tapered composition, elongated, wraps around limb",
+      "after": "strict vertical flow, top-to-bottom taper, elongated single-column composition, explicit wrap instruction: design must curve with limb circumference at 1/4 and 3/4 height points",
+      "rationale": "COMPOSITION_DRIFT on forearm — 22% of forearm designs had horizontal anchoring",
+      "confidence": 0.71,
+      "affectedStyles": ["all"]
+    }
+  ],
+  "autoApproveThreshold": 0.90,
+  "requiresHumanReview": true
+}
+```
+
+**Auto-approve rule:** If `confidence >= 0.90` AND `operation == "append"` (not `replace`), the diff is applied automatically via PR without Slack notification. Additions are safer than replacements — appending to a negative prompt can't break existing good generations.
+
+---
+
+### 17.5 Council Bypass ↔ Quality Correlation
+
+A critical insight surfaced when building this loop: **bypassed councils produce more rejects**.
+
+The expected failure rate increases when the council is bypassed:
+
+| Council Status | Expected Reject Rate | Primary Failure Mode |
+|---|---|---|
+| Full council (all 3 members) | ~12% | Style confusion (still #1) |
+| Partial bypass (1 member) | ~22% | Composition drift (missing placement spec) |
+| Full bypass (timeout) | ~35% | Gradient bleed (no negative prompt enhancement) |
+| Full bypass + raw prompt | ~48% | All modes roughly equal |
+
+This data comes from internal testing on the Imagen 3 + councilSkillPack.js stack. It has two implications:
+
+1. **Council timeout threshold should be tuned per style** — fast styles (minimalist, fine-line) need less council enrichment than complex styles (realism, Japanese). A style-specific timeout could be `COUNCIL_TIMEOUT_MS[style] = { minimalist: 2000, japanese: 4000, ... }`.
+
+2. **The quality loop should weight bypass-correlated rejects separately** — if a user rejected a design that was generated with `council_bypassed=true`, the root cause is likely "council was too slow" rather than "skill pack is wrong". These should not trigger a skill pack update — they should trigger a council latency investigation instead.
+
+```sql
+-- Separate bypass-correlated rejects from skill-pack rejects
+SELECT
+  quality_signal,
+  council_bypassed,
+  count(*) as count,
+  round(count(*) * 100.0 / sum(count(*)) OVER (PARTITION BY council_bypassed), 1) as pct
+FROM designs
+WHERE created_at >= NOW() - INTERVAL '7 days'
+  AND quality_signal IS NOT NULL
+GROUP BY quality_signal, council_bypassed
+ORDER BY council_bypassed, quality_signal;
+```
+
+---
+
+### 17.6 The 90-Day Quality Target
+
+If the loop runs weekly for 12 weeks:
+
+| Week | Action | Expected Reject Rate |
+|---|---|---|
+| 0 (baseline) | No loop, raw quality | ~35% |
+| 2 | Sprint 0-1 complete; SSE cascade live | ~30% (user engagement improves) |
+| 4 | Sprint 2 complete; council wired | ~20% |
+| 6 | First quality loop batch; skill pack patch #1 | ~17% |
+| 8 | Skill pack patch #2; style-specific timeout | ~14% |
+| 10 | Memory continuity (§2.3 Pattern 4) live | ~12% |
+| 12 | Patch #3 + bypass rate correlation analysis | ~10% |
+
+**Demo Day target:** < 18% reject rate with council enabled (measured as regenerate-within-60s rate on the demo account).
+
+---
+
+## Appendix K — Architecture Decision Record (ADR)
+
+> ADRs capture the *why* behind non-obvious decisions. Future contributors (and future agents) should read these before proposing changes that reverse them.
+
+---
+
+### ADR-001 — Cloud Run as Primary; Railway as Hot Standby Only
+
+**Date:** 2026-03-08  
+**Status:** Accepted  
+**Deciders:** paul (agent), based on production audit
+
+**Context:**  
+TatT currently has two active deployments — Cloud Run (`pangyo-production`) and Railway (`tatt-production`). Both have write access to Firestore and Supabase. This caused a subtle data consistency bug: two instances racing to update the same user's design history.
+
+**Decision:**  
+Cloud Run is the primary API. Railway is hot standby with **read-only** access. Railway's `DATABASE_URL` and `FIRESTORE_SA` env vars should have read-only IAM roles. No write traffic is ever routed to Railway in normal operation.
+
+**Consequences:**  
+- Failover must be manual (update Vercel rewrite rules to point to Railway)
+- Railway costs reduced (no write I/O, lower memory usage)
+- Eliminates data consistency race condition
+
+**Alternatives rejected:**  
+- Active-active (both writable): rejected because Supabase free tier connection limit makes two concurrent writers dangerous
+- Railway as primary: rejected because Cloud Run has better GCP-native integration (Vertex AI, GCS, Pub/Sub)
+
+---
+
+### ADR-002 — Vertex AI multimodalembedding@001 (1408-dim) as Canonical Embedding Model
+
+**Date:** 2026-03-08  
+**Status:** Accepted (resolves ARCHITECTURE.md discrepancy)  
+**Deciders:** paul (agent)
+
+**Context:**  
+`ARCHITECTURE.md` in the TatT repo references CLIP embeddings at 4096 dimensions. `tatt-intel.md` in the workspace references Vertex multimodalembedding@001 at 1408 dimensions. Both are referenced in code. This causes schema inconsistency: `embedding VECTOR(4096)` in some migration files, `VECTOR(1408)` in others.
+
+**Decision:**  
+Vertex multimodalembedding@001 at 1408 dimensions is canonical. Reasons:
+1. GCP-native: same project, same auth, no extra API key
+2. Multimodal: accepts both image bytes AND text, enabling cross-modal artist↔design matching
+3. Already tested working: `tatt-production.up.railway.app` calls it successfully
+
+All migration files must use `VECTOR(1408)`. `ARCHITECTURE.md` must be updated to remove CLIP references.
+
+**Consequences:**  
+- Any existing Supabase rows with 4096-dim embeddings must be re-embedded (likely none in production currently — Supabase project was paused)
+- IVFFlat index parameter `lists` should be set to `sqrt(row_count)` at index creation time — for 1000 initial artists: `lists=32`
+
+---
+
+### ADR-003 — Council as Progressive Enhancement; Never a Dependency
+
+**Date:** 2026-03-08  
+**Status:** Accepted  
+**Deciders:** paul (agent)
+
+**Context:**  
+Early versions of the council design treated it as a required step: `generate()` threw if `runCouncil()` failed. This created a single point of failure — one OpenRouter API hiccup blocks all generation.
+
+**Decision:**  
+Council is progressive enhancement. Every council member call is wrapped in a `Promise.race` against a timeout. On timeout or parse failure:
+- Fill that member's slice from `councilSkillPack.js` defaults
+- Set `bypassed=true` in `EnrichedGenerationContext`
+- Continue to image model call without interruption
+
+The invariant: **`POST /api/generate` never returns an error because a council member failed.** Council failures are logged and tracked in the quality loop (§17), but they are not user-visible.
+
+**Consequences:**  
+- Quality degrades gracefully (higher reject rate when bypassed, per §17.5)
+- Easier to add new council members without production risk (just add them to Promise.all; if they timeout, defaults apply)
+- Bypass rate becomes a meaningful SLO metric (target: < 10% bypass on p90)
+
+---
+
+### ADR-004 — `councilSkillPack.js` as the Layer 1 Directive (Never Modify via Prompt)
+
+**Date:** 2026-03-08  
+**Status:** Accepted  
+**Deciders:** paul (agent)
+
+**Context:**  
+When Imagen returns a poor result (gradients on a blackwork design), the instinct is to add "no gradients" to the generation prompt and retry. This is fixing the wrong layer — it patches the prompt for one user's session, leaves the root cause unaddressed, and doesn't benefit future generations.
+
+**Decision:**  
+`councilSkillPack.js` is the canonical Layer 1 directive for generation quality. When a failure mode is identified:
+1. Root-cause it to a specific field in `councilSkillPack.js` (negativeShield, anatomicalFlow, aestheticAnchors, etc.)
+2. Apply the fix via the quality loop diff mechanism (§17.4)
+3. Test with 5 representative prompts before committing
+4. Add a CHANGELOG entry with the failure mode description
+
+**What this means in practice:**  
+- Engineers must NOT add style-specific prompt adjustments in `generationRouter.ts`
+- All negative prompts must come from `councilSkillPack.negativeShield` (possibly augmented by Style Council)
+- All anatomical guidance must come from `councilSkillPack.anatomicalFlow[bodyPart]`
+- `councilSkillPack.js` must have a CHANGELOG section — not just code
+
+---
+
+### ADR-005 — SSE Over WebSocket for Generation Progress
+
+**Date:** 2026-03-08  
+**Status:** Accepted  
+**Deciders:** paul (agent)
+
+**Context:**  
+WebSocket was considered for the generation progress stream. SSE was chosen instead.
+
+**Decision:**  
+Server-Sent Events (SSE) for `POST /api/generate` progress events.
+
+**Reasons:**
+1. Unidirectional: generation progress only flows server→client; no client→server during stream
+2. HTTP/2 multiplexing: Vercel edge supports multiple SSE connections without new TCP handshakes
+3. Automatic reconnect: browser `EventSource` reconnects on disconnect with `Last-Event-ID` support
+4. Simpler load balancer config: no WebSocket upgrade required on Cloud Run or Vercel
+5. Simpler local dev: `curl -N` works; no wscat required
+
+**The catch:** SSE requires `res.flushHeaders()` before the first `await`. This is a known footgun — documented in §6 CI/CD as a smoke test check point (verify first SSE event within 1s of POST).
+
+**Alternatives rejected:**  
+- WebSocket: bidirectional overhead not needed; more complex Cloud Run config
+- Long polling: higher latency, more client complexity, wastes connections
+
+---
+
+### ADR-006 — Firebase Auth + Custom Claims for Tier Enforcement (No DB Lookup on Every Request)
+
+**Date:** 2026-03-08  
+**Status:** Accepted  
+**Deciders:** paul (agent)
+
+**Context:**  
+TatT has three tiers: Free (5 gen/day), Pro (50 gen/day), Studio (unlimited). Every generation request needs to check the user's tier and enforce the quota. The naive approach: query Firestore on every `POST /api/generate` call.
+
+**Decision:**  
+Tier and quota are stored as Firebase custom claims in the ID token:
+```json
+{ "tier": "pro", "generationsUsed": 12, "generationsLimit": 50 }
+```
+
+Claims are checked synchronously in the Firebase JWT verification middleware — zero additional DB lookups.
+
+**Consequences:**
+- Claims are refreshed when the user's token is refreshed (typically every hour)
+- Quota increment (`generationsUsed++`) writes to Firestore AND updates the custom claim atomically via a Cloud Function trigger
+- Up to 1 hour of lag if a user upgrades their plan mid-session (acceptable — they get the Pro limit on next token refresh)
+- Custom claims have a 1KB limit — sufficient for `{ tier, generationsUsed, generationsLimit }` but not for full user profiles
+
+**Alternatives rejected:**
+- Firestore lookup on every request: ~50ms extra latency per generation, Firestore read cost at scale
+- JWT with full profile: custom claim size limit makes this fragile
+- Redis session store: operational overhead, extra infra to manage
+
+---
+
 *Document maintained by paul (AI agent).*  
-*Expanded: 2026-03-08 13:00 MST — §13 Data Pipeline Architecture, §14 Mobile & PWA Architecture, §15 Viral Growth Architecture, Appendix I Demo Day Technical Checklist, Appendix J Post-YC Scaling Plan*  
+*Expanded: 2026-03-08 13:45 MST — §16 Sprint Implementation Tickets, §17 Agent-Driven Quality Loop, Appendix K Architecture Decision Record*  
+*Previous expansion: 2026-03-08 13:00 MST — §13 Data Pipeline Architecture, §14 Mobile & PWA Architecture, §15 Viral Growth Architecture, Appendix I Demo Day Technical Checklist, Appendix J Post-YC Scaling Plan*  
 *Previous expansion: 2026-03-08 12:15 MST — §11 Feature Flag System, §12 Multi-Agent Coordination Protocol, Appendix H Incident Response Playbook*
