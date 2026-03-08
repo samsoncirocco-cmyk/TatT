@@ -1,9 +1,11 @@
 # TatT Platform — Next-Gen UX Architecture
 > **Document status:** Living reference  
 > **Created:** 2026-03-08  
-> **Expanded:** 2026-03-08 07:45 MST  
-> **Updated:** 2026-03-08 10:45 MST — §2.3 Agent OS↔TatT parallels, Appendix E Observability, Appendix F Security  
+> **Expanded:** 2026-03-08 12:15 MST — §11 Feature Flag System, §12 Multi-Agent Coordination Protocol, Appendix H Incident Response Playbook  
+> **Prior:** 2026-03-08 11:30 MST — §9 Testing Strategy, §10 Load Benchmarks, Appendix G User Journey State Machine  
+> **Prior:** 2026-03-08 10:45 MST — §2.3 Agent OS↔TatT parallels, Appendix E Observability, Appendix F Security  
 > **Prior:** 2026-03-08 09:15 MST — Appendix D: production status audit  
+> **Prior:** 2026-03-08 07:45 MST — initial overnight build  
 > **Author:** paul (agent) — build-overnight-architecture-plan session  
 > **Scope:** Full-stack architecture expansion, multi-agent UX layer, phased roadmap through YC Demo Day and beyond  
 
@@ -22,12 +24,18 @@
 6. [CI/CD Flow](#6-cicd-flow)
 7. [Phased Build Roadmap](#7-phased-build-roadmap)
 8. [Open Blockers & Risk Register](#8-open-blockers--risk-register)
+9. [Testing Strategy](#9-testing-strategy)
+10. [Load Benchmarks & Demo Day Readiness](#10-load-benchmarks--demo-day-readiness)
+11. [Feature Flag System](#11-feature-flag-system)
+12. [Multi-Agent Coordination Protocol](#12-multi-agent-coordination-protocol)
 - Appendix A — File Map
 - Appendix B — Model Routing Reference
 - Appendix C — Council System Prompts
 - Appendix D — Production Status (2026-03-08)
 - Appendix E — Observability, SLOs & Budget Controls
 - Appendix F — Security Model & Auth Flow
+- Appendix G — User Journey State Machine
+- Appendix H — Incident Response Playbook
 
 ---
 
@@ -1807,5 +1815,1373 @@ app.post('/api/v1/generate', generationLimiter, generationController);
 
 ---
 
+---
+
+## 9. Testing Strategy
+
+> TatT's test surface is three-layered, matching the DOE architecture. Tests belong in the same layer as the code they verify. AI-generated outputs are never directly asserted — they are asserted on *structure*, *latency*, and *bypass behaviour*.
+
+### 9.1 Layer Breakdown
+
+```
+Layer 1 — Unit Tests (deterministic code, no mocks needed)
+  src/config/councilSkillPack.test.js      ← already exists ✅
+  src/utils/matching.test.js               ← TODO
+  src/utils/scoreAggregation.test.js       ← TODO
+  src/services/generationOrchestrator.test.ts ← TODO (Phase 1)
+
+Layer 2 — Integration Tests (real services, controlled inputs)
+  tests/integration/council.test.ts        ← Council pipeline end-to-end
+  tests/integration/matching.test.ts       ← RRF fusion with real Supabase
+  tests/integration/sse-cascade.test.ts    ← SSE event ordering verification
+
+Layer 3 — E2E / Smoke Tests (real HTTP, Playwright)
+  tests/e2e/generate-flow.spec.ts          ← Full generation user flow
+  tests/e2e/artist-match.spec.ts           ← Swipe/match interaction
+  tests/e2e/stencil-export.spec.ts         ← Export + download
+```
+
+### 9.2 Unit Tests — Priority Targets
+
+**`src/services/generationOrchestrator.test.ts` (new — Phase 1 must-have):**
+
+```typescript
+import { GenerationOrchestrator } from './generationOrchestrator';
+
+// Mock all three council members
+jest.mock('./openRouterCouncil');
+jest.mock('./vertex-ai-edge');
+
+describe('GenerationOrchestrator', () => {
+  it('merges all three council results into EnrichedGenerationContext', async () => {
+    const result = await GenerationOrchestrator.run({
+      prompt: 'minimalist wolf',
+      style: 'geometric',
+      bodyRegion: 'forearm',
+      councilEnabled: true
+    });
+    expect(result).toMatchObject({
+      enrichedPrompt: expect.any(String),
+      negativePrompt: expect.any(String),
+      styleTags: expect.arrayContaining(['geometric']),
+      stencilParams: expect.objectContaining({ orientation: expect.any(String) }),
+      preMatchedArtists: expect.any(Array),
+      bypassed: false
+    });
+  });
+
+  it('sets bypassed=true and uses defaults when council exceeds 3000ms', async () => {
+    // Mock council to take 4 seconds
+    jest.mocked(runCouncil).mockImplementation(
+      () => new Promise(resolve => setTimeout(resolve, 4000))
+    );
+    const result = await GenerationOrchestrator.run({
+      prompt: 'wolf',
+      style: 'geometric',
+      bodyRegion: 'forearm',
+      councilEnabled: true
+    });
+    expect(result.bypassed).toBe(true);
+    expect(result.bypassReason).toBe('COUNCIL_TIMEOUT');
+    // Defaults from councilSkillPack should be present
+    expect(result.negativePrompt).toContain('shading');
+  });
+
+  it('short-circuits immediately when councilEnabled=false', async () => {
+    const start = Date.now();
+    const result = await GenerationOrchestrator.run({
+      prompt: 'wolf',
+      councilEnabled: false
+    });
+    const elapsed = Date.now() - start;
+    expect(elapsed).toBeLessThan(50);   // no network calls
+    expect(result.bypassed).toBe(true);
+    expect(result.bypassReason).toBe('COUNCIL_DISABLED');
+  });
+
+  it('isolates individual council member failures', async () => {
+    // Style council fails — placement and matchmaker still succeed
+    jest.mocked(runStyleCouncil).mockRejectedValue(new Error('OpenRouter 503'));
+    const result = await GenerationOrchestrator.run({
+      prompt: 'rose',
+      style: 'fine-line',
+      bodyRegion: 'wrist',
+      councilEnabled: true
+    });
+    // Stencil params and artist matches still present
+    expect(result.stencilParams).toBeDefined();
+    expect(result.preMatchedArtists.length).toBeGreaterThan(0);
+    // Prompt falls back to raw
+    expect(result.bypassReason).toContain('STYLE_COUNCIL_ERROR');
+  });
+});
+```
+
+**`src/utils/scoreAggregation.test.js` (targets existing file):**
+
+```javascript
+import { rrfFusion } from './scoreAggregation';
+
+describe('RRF Fusion', () => {
+  const semanticResults = [
+    { id: 'a1', score: 0.95 },
+    { id: 'a2', score: 0.82 },
+    { id: 'a3', score: 0.71 }
+  ];
+  const graphResults = [
+    { id: 'a2', overlap: 3 },
+    { id: 'a1', overlap: 2 },
+    { id: 'a4', overlap: 2 }
+  ];
+
+  it('boosts artists appearing in both semantic and graph results', () => {
+    const fused = rrfFusion(semanticResults, graphResults, null);
+    // a2 appears in both — should rank above a3 (semantic only)
+    const a2rank = fused.findIndex(a => a.id === 'a2');
+    const a3rank = fused.findIndex(a => a.id === 'a3');
+    expect(a2rank).toBeLessThan(a3rank);
+  });
+
+  it('includes artists from graph-only results', () => {
+    const fused = rrfFusion(semanticResults, graphResults, null);
+    expect(fused.map(a => a.id)).toContain('a4');
+  });
+
+  it('applies proximity boost when location is provided', () => {
+    const location = { lat: 33.4, lng: -112.1 };
+    // a1 is near Phoenix, a2 is in New York (mocked in artist fixtures)
+    const fused = rrfFusion(semanticResults, graphResults, location);
+    // Proximity-boosted artist should rank higher
+    expect(fused[0].scoreBreakdown.proximity).toBeGreaterThan(0);
+  });
+});
+```
+
+### 9.3 Integration Tests
+
+**`tests/integration/sse-cascade.test.ts` — SSE event ordering:**
+
+```typescript
+import { createServer } from 'http';
+import request from 'supertest';
+import app from '../../server';
+
+describe('POST /api/generate SSE cascade', () => {
+  it('emits events in correct order', async () => {
+    const events: string[] = [];
+    const response = await request(app)
+      .post('/api/generate')
+      .set('Authorization', `Bearer ${TEST_TOKEN}`)
+      .set('Accept', 'text/event-stream')
+      .send({ prompt: 'rose', style: 'fine-line', bodyRegion: 'wrist', councilEnabled: false });
+
+    // Parse SSE events
+    const lines = response.text.split('\n').filter(l => l.startsWith('event:'));
+    const eventNames = lines.map(l => l.replace('event: ', '').trim());
+
+    // Council is bypassed — should skip council events
+    expect(eventNames).not.toContain('council_start');
+
+    // Generation events must appear in order
+    const genStart = eventNames.indexOf('generation_start');
+    const preview = eventNames.indexOf('preview_ready');
+    const genDone = eventNames.indexOf('generation_done');
+    const matches = eventNames.indexOf('matches_ready');
+
+    expect(genStart).toBeLessThan(preview);
+    expect(preview).toBeLessThan(genDone);
+    // Matches can arrive before or with gen_done
+    expect(matches).toBeGreaterThanOrEqual(0);
+  }, 30_000);
+
+  it('emits council_done before generation_start when council is enabled', async () => {
+    const response = await request(app)
+      .post('/api/generate')
+      .set('Authorization', `Bearer ${TEST_TOKEN}`)
+      .send({ prompt: 'wolf', style: 'geometric', bodyRegion: 'forearm', councilEnabled: true });
+
+    const lines = response.text.split('\n').filter(l => l.startsWith('event:'));
+    const names = lines.map(l => l.replace('event: ', '').trim());
+
+    const councilDone = names.indexOf('council_done');
+    const genStart = names.indexOf('generation_start');
+    expect(councilDone).toBeLessThan(genStart);
+  }, 30_000);
+});
+```
+
+### 9.4 E2E Tests (Playwright)
+
+**`tests/e2e/generate-flow.spec.ts`:**
+
+```typescript
+import { test, expect } from '@playwright/test';
+
+test.describe('Generation Flow — Do It Now UX Cascade', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    // Sign in with test account
+    await page.click('[data-testid="signin-google"]');
+    // ... auth flow
+  });
+
+  test('skeleton appears within 200ms of submit', async ({ page }) => {
+    await page.goto('/generate');
+    await page.fill('[data-testid="prompt-input"]', 'minimalist wolf geometric forearm');
+    
+    const submitTime = Date.now();
+    await page.click('[data-testid="generate-button"]');
+    
+    await expect(page.locator('[data-testid="canvas-skeleton"]')).toBeVisible();
+    const skeletonTime = Date.now() - submitTime;
+    expect(skeletonTime).toBeLessThan(200);
+  });
+
+  test('prompt chip appears before 2 seconds', async ({ page }) => {
+    await page.goto('/generate');
+    await page.fill('[data-testid="prompt-input"]', 'rose fine-line wrist');
+    
+    const start = Date.now();
+    await page.click('[data-testid="generate-button"]');
+    await expect(page.locator('[data-testid="prompt-chip"]')).toBeVisible({ timeout: 2000 });
+    
+    const elapsed = Date.now() - start;
+    expect(elapsed).toBeLessThan(2000);
+  });
+
+  test('512px preview appears before 6 seconds', async ({ page }) => {
+    await page.goto('/generate');
+    await page.fill('[data-testid="prompt-input"]', 'wolf geometric');
+    
+    const start = Date.now();
+    await page.click('[data-testid="generate-button"]');
+    await expect(page.locator('[data-testid="canvas-preview"]')).toBeVisible({ timeout: 6000 });
+    
+    expect(Date.now() - start).toBeLessThan(6000);
+  });
+
+  test('artist match cards appear in bottom sheet after generation', async ({ page }) => {
+    await page.goto('/generate');
+    await page.fill('[data-testid="prompt-input"]', 'geometric blackwork sleeve');
+    await page.click('[data-testid="generate-button"]');
+    
+    // Wait for generation complete
+    await page.waitForSelector('[data-testid="canvas-full"]', { timeout: 20_000 });
+    
+    // Artist matches should be present
+    const artistCards = page.locator('[data-testid="artist-match-card"]');
+    await expect(artistCards).toHaveCount({ min: 1 }, { timeout: 5000 });
+  });
+});
+```
+
+### 9.5 Test Runner Config
+
+**`jest.config.ts`:**
+```typescript
+export default {
+  testEnvironment: 'node',
+  transform: { '^.+\\.tsx?$': ['ts-jest', { tsconfig: 'tsconfig.test.json' }] },
+  testMatch: ['**/src/**/*.test.{ts,js}', '**/tests/unit/**/*.test.{ts,js}'],
+  globalSetup: './tests/setup/globalSetup.ts',   // seed test DB
+  globalTeardown: './tests/setup/globalTeardown.ts',
+  coverageThreshold: {
+    global: { lines: 70, functions: 70, branches: 60 }
+  }
+};
+```
+
+**`playwright.config.ts`:**
+```typescript
+import { defineConfig } from '@playwright/test';
+export default defineConfig({
+  testDir: './tests/e2e',
+  timeout: 45_000,
+  retries: process.env.CI ? 2 : 0,
+  use: {
+    baseURL: process.env.E2E_BASE_URL || 'http://localhost:3000',
+    trace: 'on-first-retry',
+    video: 'retain-on-failure'
+  },
+  projects: [
+    { name: 'chromium', use: { browserName: 'chromium' } },
+    { name: 'mobile-chrome', use: { ...devices['Pixel 7'] } }
+  ]
+});
+```
+
+---
+
+## 10. Load Benchmarks & Demo Day Readiness
+
+> YC Demo Day is a **15-minute window** with investors watching a live product. The system must not stall, queue, or error in front of a room. This section defines the load profile, benchmarks, and the go/no-go checklist.
+
+### 10.1 Expected Demo Day Load Profile
+
+```
+Scenario: Samson demos live on stage. Simultaneously, 10–20 investors on their phones
+          open tatt-app.vercel.app (QR code on slide). All hit /generate at once.
+
+Peak load (burst):
+  - 20 concurrent /generate requests
+  - 5–10 /api/match requests
+  - 50–100 static asset requests (Vercel CDN absorbs these)
+
+Sustained load (post-demo, VC exploration):
+  - 5–10 concurrent users over 30–60 minutes
+  - Mostly /generate and /artists browsing
+
+External API dependencies at peak:
+  - Imagen 3: 20 concurrent calls × $0.020 = $0.40 burst cost
+  - OpenRouter council: 60 calls (3 members × 20 users) × ~$0.003 avg = $0.18 burst
+  - Total burst cost: < $1.00 — acceptable
+```
+
+### 10.2 Cloud Run Scaling Config
+
+```yaml
+# cloudbuild.yaml — Cloud Run deploy with concurrency tuning
+--concurrency=10            # requests per instance before scaling
+--min-instances=1           # always-warm; no cold starts during demo
+--max-instances=5           # cap at 5 instances (budget guard)
+--cpu=2                     # 2 vCPU per instance (council Promise.all is CPU-hungry)
+--memory=2Gi                # 2GB RAM per instance
+--timeout=60s               # generous; Imagen can take up to 15s
+```
+
+**Why `min-instances=1`:** Cold-start on Cloud Run with Node.js + Firebase init + Neo4j connection pool is 4–8 seconds. One warm instance eliminates cold starts for the first demo request.
+
+**Why `--concurrency=10`:** The council makes 3 external API calls in parallel per request. At 10 concurrent requests, that's 30 outbound connections per instance — within safe limits.
+
+### 10.3 Benchmark Targets vs Current Baselines
+
+| Metric | Demo-Day Target | Current Baseline | Status | Action Needed |
+|---|---|---|---|---|
+| First SSE event latency | < 300ms | ~800ms | 🔴 Miss | SSE refactor (Phase 1) |
+| 512px preview | < 5s | Unknown | 🟡 Unmeasured | Add telemetry |
+| 1024px full image (Imagen) | < 15s | ~12s | ✅ Within | None |
+| 1024px full image (Replicate) | < 10s | ~7s | ✅ Within | None |
+| Artist match `/api/match` | < 500ms | ~280ms | ✅ Within | None |
+| Council pipeline (happy path) | < 3000ms | Unknown | 🟡 Unmeasured | Add timing |
+| `min-instances=1` cold start | < 500ms | ~6000ms | 🔴 Miss | Set min-instances |
+| Concurrent 20-user burst | No errors | Untested | 🔴 Unknown | Load test below |
+| Vercel LCP `/generate` | < 2.5s | Unknown | 🟡 Unmeasured | Add SpeedInsights |
+
+### 10.4 Load Test Script
+
+Run this the day before demo day. Fix anything red.
+
+```bash
+#!/bin/bash
+# tools/load-test-demo.sh
+# Requires: hey (https://github.com/rakyll/hey)
+# Usage: TATT_TOKEN=... bash tools/load-test-demo.sh
+
+BASE_URL="${TATT_URL:-https://tatt-app.vercel.app}"
+TOKEN="${TATT_TOKEN:?Set TATT_TOKEN env var}"
+API_URL="${TATT_API_URL:-https://tatt-production.up.railway.app}"
+
+echo "=== 1. Health Check ==="
+curl -sf "$API_URL/api/health" | jq .status
+
+echo ""
+echo "=== 2. Single generation baseline (council bypassed) ==="
+time curl -sf -X POST "$API_URL/api/generate" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"prompt":"rose","style":"fine-line","bodyRegion":"wrist","councilEnabled":false}' \
+  -N --no-buffer | head -c 500
+
+echo ""
+echo "=== 3. Concurrent burst: 20 users, 1 request each ==="
+hey -n 20 -c 20 -m POST \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"prompt":"wolf geometric forearm","councilEnabled":false}' \
+    "$API_URL/api/generate"
+
+echo ""
+echo "=== 4. Match endpoint: 10 concurrent ==="
+hey -n 50 -c 10 -m POST \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"styleHints":["geometric"],"limit":3}' \
+    "$API_URL/api/match"
+
+echo ""
+echo "=== 5. Frontend LCP check (Lighthouse CLI) ==="
+if command -v lighthouse &>/dev/null; then
+  lighthouse "$BASE_URL/generate" --only-categories=performance --output=json \
+    | jq '.categories.performance.score, .audits["largest-contentful-paint"].displayValue'
+else
+  echo "Lighthouse not installed — skip"
+fi
+
+echo ""
+echo "=== Load test complete. Check #tatt-dev for results. ==="
+```
+
+### 10.5 Go / No-Go Checklist (Day Before Demo)
+
+Run through every item. If any is ❌, fix it before sleeping.
+
+```
+INFRASTRUCTURE
+[ ] curl tatt-app.vercel.app/api/health → 200 OK
+[ ] curl tatt-production.up.railway.app/api/health/startup → no critical failures
+[ ] Cloud Run min-instances=1 set (check: gcloud run services describe pangyo-production)
+[ ] Supabase project active (not paused — login to dashboard)
+[ ] Neo4j AuraDB reachable (nc -zv 36767c9d.databases.neo4j.io 7687)
+[ ] GCS bucket tatt-pro-assets responds (gsutil ls gs://tatt-pro-assets)
+
+GENERATION
+[ ] POST /api/generate with councilEnabled=false returns preview_ready < 6s
+[ ] POST /api/generate with councilEnabled=true returns council_done < 3s
+[ ] Imagen 3 quota not within 80% of daily limit
+[ ] Replicate fallback works (set modelPreference=replicate, verify)
+
+DEMO MODE
+[ ] NEXT_PUBLIC_DEMO_MODE=false on Vercel (real AI, not Unsplash mocks)
+[ ] /generate page loads without JS console errors
+[ ] Generate → submit → image appears (full flow end-to-end)
+[ ] Artist cards appear after generation
+
+SECURITY
+[ ] No VITE_OPENROUTER_API_KEY visible in browser Network tab
+[ ] Firebase Auth Google sign-in works on mobile Safari (QR code path)
+
+RECOVERY PLAN (if Imagen fails mid-demo)
+[ ] Replicate fallback confirmed working (tested above)
+[ ] councilEnabled=false bypass confirmed < 2s first response
+[ ] Demo-mode screenshots ready as last resort (in /public/demo/)
+```
+
+### 10.6 Demo Day Runbook (15-Minute Window)
+
+```
+T-30 min: Run load-test-demo.sh. Fix anything red.
+T-15 min: Open tatt-app.vercel.app on demo laptop. Generate 1 test design.
+           Verify artist cards appear. Keep tab open — warm connection.
+T-5 min:  Show QR code slide early. Let investors scan and arrive at landing.
+T-0:      Demo starts. First generation fires from warm instance.
+           Expected flow:
+             0s   — Submit prompt
+             0.1s — Skeleton canvas visible
+             0.8s — Enriched prompt chip appears (or "Generating..." if council bypassed)
+             4-5s — 512px preview tile renders
+             12s  — 1024px full image appears
+             12s  — Artist match cards visible in bottom sheet
+T+3:      Click artist card → profile page → "Book Consultation" CTA
+T+5:      Stencil export → PDF download
+T+10:     Mention pricing. Freemium / Pro tier.
+T+12:     Investor phones: they should be on /generate by now.
+           Their requests hit Cloud Run → same real AI (not demo mode).
+T+14:     Close with artist marketplace slide.
+T+15:     QA time.
+
+If generation stalls at T+60s:
+  → Quietly navigate to /artists — show matching UX instead
+  → Keep talking, give Imagen another 30s, switch back
+If Imagen returns poor quality:
+  → Regenerate once with different seed (retry button)
+  → If still bad, use stencil export to show the design pipeline instead
+```
+
+---
+
+## Appendix G — User Journey State Machine
+
+> Maps every user-facing state to the system events that drive it. Use this when building `useGenerationStream.ts` — every state transition corresponds to an SSE event.
+
+### G.1 Generation Page State Machine
+
+```
+States:
+  IDLE          — No active generation. Prompt input visible.
+  SUBMITTING    — User clicked Generate. Request in flight.
+  SKELETON      — Canvas skeleton rendered. Awaiting first signal.
+  COUNCIL_RUN   — Council members processing (spinner with agent names).
+  PROMPT_READY  — Enriched prompt chip visible. Generation queued.
+  PREVIEW_READY — 512px tile visible. Full image in flight.
+  FULL_READY    — 1024px image rendered. Transition complete.
+  MATCH_READY   — Artist cards in bottom sheet.
+  ERROR         — Any error state. Shows retry + fallback options.
+  SAVED         — User saved design to library.
+
+Transitions:
+  IDLE          → SUBMITTING    on: user clicks Generate
+  SUBMITTING    → SKELETON      on: HTTP 200 + SSE stream opens (< 100ms)
+  SKELETON      → COUNCIL_RUN   on: SSE event "council_start"
+  SKELETON      → PROMPT_READY  on: SSE event "council_done" (bypassed=true)
+  COUNCIL_RUN   → PROMPT_READY  on: SSE event "council_done"
+  PROMPT_READY  → PREVIEW_READY on: SSE event "preview_ready"
+  PREVIEW_READY → FULL_READY    on: SSE event "generation_done"
+  FULL_READY    → MATCH_READY   on: SSE event "matches_ready" (can arrive simultaneously)
+  any           → ERROR         on: SSE event "generation_error" with no retrying=true
+  any           → SUBMITTING    on: SSE event "generation_error" with retrying=true (auto-retry)
+  FULL_READY    → SAVED         on: user clicks Save
+  MATCH_READY   → [artist page] on: user clicks artist card
+
+  
+Council bypass path (councilEnabled=false):
+  IDLE → SUBMITTING → SKELETON → PROMPT_READY (immediate) → PREVIEW_READY → FULL_READY → MATCH_READY
+  (COUNCIL_RUN is skipped entirely)
+```
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  GENERATION PAGE STATE MACHINE                                      │
+│                                                                     │
+│   ┌──────┐  click     ┌───────────┐  stream    ┌──────────┐        │
+│   │ IDLE │──────────→ │SUBMITTING │───opens──→ │ SKELETON │        │
+│   └──────┘            └───────────┘            └────┬─────┘        │
+│                            ↑ retrying=true          │               │
+│                            │                  council_start│        │
+│                       ┌────┴─────┐                  ↓               │
+│                       │  ERROR   │          ┌──────────────┐        │
+│                       └────┬─────┘          │ COUNCIL_RUN  │        │
+│                            │                └──────┬───────┘        │
+│                  error, no │                council_done│            │
+│                  retry     │                       ↓                │
+│                            │               ┌──────────────┐         │
+│                            └───────────────│ PROMPT_READY │         │
+│                                            └──────┬───────┘         │
+│                                           preview_ready│             │
+│                                                   ↓                 │
+│                                          ┌───────────────┐          │
+│                                          │ PREVIEW_READY │          │
+│                                          └──────┬────────┘          │
+│                                        generation_done│              │
+│                                                  ↓                  │
+│                                          ┌─────────────┐            │
+│                              ┌──────────→│  FULL_READY │←────────┐  │
+│                              │           └──────┬──────┘         │  │
+│                              │          matches_ready│            │  │
+│                              │                  ↓                │  │
+│                              │          ┌─────────────┐          │  │
+│                              │          │ MATCH_READY │          │  │
+│                              │          └──────┬──────┘          │  │
+│                              │                 │                  │  │
+│                           save click    artist click           retry │
+│                              ↓                 ↓                │  │
+│                          ┌───────┐      [artist page]           │  │
+│                          │ SAVED │                              │  │
+│                          └───────┘                              │  │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### G.2 React State Implementation
+
+```typescript
+// src/hooks/useGenerationStream.ts  (new — Phase 1)
+
+type GenerationState =
+  | 'IDLE'
+  | 'SUBMITTING'
+  | 'SKELETON'
+  | 'COUNCIL_RUN'
+  | 'PROMPT_READY'
+  | 'PREVIEW_READY'
+  | 'FULL_READY'
+  | 'MATCH_READY'
+  | 'ERROR'
+  | 'SAVED';
+
+interface GenerationPayload {
+  state: GenerationState;
+  enrichedPrompt?: string;
+  styleTags?: string[];
+  previewUrl?: string;
+  fullUrl?: string;
+  designId?: string;
+  artists?: PreMatchedArtist[];
+  error?: { code: string; message: string; retrying: boolean };
+  councilMs?: number;
+  bypassed?: boolean;
+}
+
+export function useGenerationStream() {
+  const [payload, setPayload] = useState<GenerationPayload>({ state: 'IDLE' });
+
+  const generate = useCallback(async (input: GenerationInput) => {
+    setPayload({ state: 'SUBMITTING' });
+
+    const response = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await getToken()}` },
+      body: JSON.stringify(input)
+    });
+
+    if (!response.ok) {
+      setPayload({ state: 'ERROR', error: { code: 'HTTP_ERROR', message: response.statusText, retrying: false } });
+      return;
+    }
+
+    // SSE stream
+    setPayload(p => ({ ...p, state: 'SKELETON' }));
+
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n\n');
+      buffer = lines.pop() ?? '';
+
+      for (const chunk of lines) {
+        const eventLine = chunk.split('\n').find(l => l.startsWith('event:'));
+        const dataLine = chunk.split('\n').find(l => l.startsWith('data:'));
+        if (!eventLine || !dataLine) continue;
+
+        const event = eventLine.replace('event: ', '').trim();
+        const data = JSON.parse(dataLine.replace('data: ', ''));
+
+        switch (event) {
+          case 'council_start':
+            setPayload(p => ({ ...p, state: 'COUNCIL_RUN' }));
+            break;
+          case 'council_done':
+            setPayload(p => ({
+              ...p,
+              state: 'PROMPT_READY',
+              enrichedPrompt: data.enrichedPrompt,
+              styleTags: data.styleTags,
+              councilMs: data.councilMs,
+              bypassed: data.bypassed
+            }));
+            break;
+          case 'preview_ready':
+            setPayload(p => ({ ...p, state: 'PREVIEW_READY', previewUrl: data.url }));
+            break;
+          case 'generation_done':
+            setPayload(p => ({ ...p, state: 'FULL_READY', fullUrl: data.url, designId: data.designId }));
+            break;
+          case 'matches_ready':
+            setPayload(p => ({ ...p, state: 'MATCH_READY', artists: data.artists }));
+            break;
+          case 'generation_error':
+            if (data.retrying) {
+              setPayload(p => ({ ...p, state: 'SUBMITTING' }));
+            } else {
+              setPayload(p => ({ ...p, state: 'ERROR', error: data }));
+            }
+            break;
+        }
+      }
+    }
+  }, []);
+
+  return { payload, generate };
+}
+```
+
+### G.3 Artist Discovery Journey
+
+```
+Entry points:
+  A. Via generation → artist match cards (bottom sheet)
+  B. Direct /artists browse (grid of verified artists)
+  C. Deep link from Instagram/TikTok (artist sharing their TatT profile)
+
+Journey A (most common post-MVP):
+  Generate design
+    → Swipe artist match cards (pre-filtered by style + proximity)
+      → Tap card → Artist Profile page
+        → View portfolio gallery (filtered by style match)
+          → "Book Consultation" CTA
+            → Inquiry form (design attached automatically)
+              → Artist accepts → Deposit request (Stripe)
+                → Session confirmed → Calendar invite
+                  → Post-session → Review + rating
+
+Journey B (browse first):
+  /artists → filter by style + city
+    → Artist grid → click artist
+      → Profile page (full portfolio)
+        → Upload existing design OR → /generate to create new
+          → "Match this artist" → booking flow
+
+Journey C (viral / referral):
+  Instagram story → "Designed on TatT by @alexromero"
+    → Tap link → Artist profile (pre-filled with referral artist)
+      → "Try a design" CTA → /generate with artist's styles pre-seeded
+        → User generates → sees artist as top match (of course)
+          → Books the artist who shared the link
+
+Key UX principle for Journey C:
+  When a user arrives via referral link (?ref=artist:{id}), the GenerationOrchestrator
+  should pre-seed the council matchmaker with that artist's style profile:
+    → User's generation will produce a design that matches the referring artist's style
+    → Referring artist is guaranteed to appear in top match results
+    → This is NOT manipulation — it's context-aware generation
+```
+
+### G.4 Booking State Machine
+
+```
+INQUIRY_SENT      → on: user submits booking form
+INQUIRY_SEEN      → on: artist opens notification
+INQUIRY_ACCEPTED  → on: artist clicks Accept
+DEPOSIT_PENDING   → on: system sends Stripe payment link
+DEPOSIT_PAID      → on: Stripe webhook confirms payment
+SESSION_CONFIRMED → on: both parties confirm date/time
+SESSION_COMPLETE  → on: session date passes + artist marks complete
+REVIEW_PENDING    → on: system prompts user for review (24h post-session)
+REVIEW_DONE       → on: user submits rating + review
+ARCHIVED          → on: booking is >180 days old
+
+Cancellation paths:
+  Any state before DEPOSIT_PAID → CANCELLED (no charge)
+  DEPOSIT_PAID or later → CANCELLATION_REQUESTED → artist decides:
+    → REFUNDED (artist cancels) or DISPUTED → manual review
+```
+
+---
+
+---
+
+## 11. Feature Flag System
+
+> All Phase 1–2 changes described in this document are risky enough to warrant controlled rollout. This section defines the feature flag architecture that lets us ship incrementally, A/B test, and roll back without a redeploy.
+
+### 11.1 Why Feature Flags Beat Feature Branches
+
+The agent OS has a relevant parallel: the `do-it-now` bypass was **always on** from day one. There was no gradual rollout. The consequence: if the bypass logic was wrong, every session would be broken — not just new sessions.
+
+TatT's council integration and UX cascade are both high-risk changes to the core generation path. A single bug in `GenerationOrchestrator` would break generation for every user simultaneously. Feature flags give us:
+
+| Without flags | With flags |
+|---|---|
+| Bug in orchestrator breaks all users | Bug only hits flagged users (5% canary) |
+| Rollback = redeploy (3–5 min outage) | Rollback = flag flip (< 30s, no redeploy) |
+| No perf comparison (before/after) | Live A/B: old path vs new path, real metrics |
+| Demo Day risk: untested in prod at scale | Demo Day: flag to 100% only after load test passes |
+
+### 11.2 Flag Definitions
+
+```typescript
+// src/config/featureFlags.ts
+
+export interface TatTFlags {
+  // Phase 1: council + UX cascade
+  council_enabled:           boolean;   // master kill-switch for all council calls
+  ux_cascade_enabled:        boolean;   // skeleton → chip → preview → full
+  preview_fast_pass:         boolean;   // 512px fast-pass before full image
+  artist_parallel_match:     boolean;   // match fires at generation_start, not generation_done
+  embed_on_creation:         boolean;   // sync embedding before matches_ready fires
+
+  // Phase 2: data layer
+  geo_proximity_matching:    boolean;   // filter artists by lat/lng
+  design_library_enabled:    boolean;   // /designs page
+  user_style_profile:        boolean;   // weighted embedding across past designs
+
+  // Phase 3: monetisation
+  freemium_quota_enabled:    boolean;   // enforce free/pro limits
+  booking_flow_enabled:      boolean;   // inquiry → deposit → session
+
+  // Infra
+  cloud_run_primary:         boolean;   // use Cloud Run (not Railway) as API primary
+  telemetry_enabled:         boolean;   // emit custom GCP metrics
+}
+
+export const FLAG_DEFAULTS: TatTFlags = {
+  council_enabled:           false,    // off until Phase 1 ships
+  ux_cascade_enabled:        false,    // off until Phase 1 ships
+  preview_fast_pass:         false,
+  artist_parallel_match:     false,
+  embed_on_creation:         false,
+  geo_proximity_matching:    false,
+  design_library_enabled:    false,
+  user_style_profile:        false,
+  freemium_quota_enabled:    false,
+  booking_flow_enabled:      false,
+  cloud_run_primary:         false,    // Railway is current primary
+  telemetry_enabled:         true,     // safe to enable immediately
+};
+```
+
+### 11.3 Flag Evaluation — Server-Side
+
+Flags are evaluated server-side per request. The evaluation chain:
+
+```
+1. Hard-coded defaults (FLAG_DEFAULTS above) — the floor
+2. Environment variable overrides (TATT_FLAGS_JSON in Cloud Run env)
+3. User-level overrides (Firestore: users/{uid}/flags — for beta testers)
+4. A/B bucket assignment (deterministic hash of uid — no DB lookup)
+```
+
+```typescript
+// src/services/featureFlagService.ts
+
+import { getFirestore } from 'firebase-admin/firestore';
+
+const ENV_FLAGS = process.env.TATT_FLAGS_JSON
+  ? JSON.parse(process.env.TATT_FLAGS_JSON) as Partial<TatTFlags>
+  : {};
+
+export async function getFlagsForUser(uid: string): Promise<TatTFlags> {
+  // Layer 1: defaults + env overrides
+  const base: TatTFlags = { ...FLAG_DEFAULTS, ...ENV_FLAGS };
+
+  // Layer 2: user-specific overrides (beta opt-ins)
+  const userFlagsDoc = await getFirestore()
+    .doc(`users/${uid}/flags/overrides`)
+    .get();
+  const userFlags = userFlagsDoc.exists ? userFlagsDoc.data() as Partial<TatTFlags> : {};
+
+  // Layer 3: A/B bucket (council_enabled: 20% of users)
+  const abBucket = stableHash(uid) % 100;
+  const abFlags: Partial<TatTFlags> = {};
+
+  if (base.council_enabled === false && abBucket < 20) {
+    // 20% canary: gets council even when globally off
+    abFlags.council_enabled = true;
+    abFlags.ux_cascade_enabled = true;
+  }
+
+  return { ...base, ...abFlags, ...userFlags };
+}
+
+// Deterministic hash — same uid always gets same bucket
+function stableHash(uid: string): number {
+  let hash = 0;
+  for (const char of uid) {
+    hash = ((hash << 5) - hash) + char.charCodeAt(0);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+```
+
+### 11.4 Using Flags in the Generation Pipeline
+
+```typescript
+// In GenerationOrchestrator.run():
+
+const flags = await getFlagsForUser(uid);
+
+// Do It Now bypass: council disabled or global kill-switch
+if (!flags.council_enabled || input.councilEnabled === false) {
+  return {
+    enrichedPrompt: input.prompt,
+    negativePrompt: COUNCIL_SKILL_PACK.negativeShield,
+    styleTags: [input.style ?? 'geometric'],
+    stencilParams: getDefaultStencilParams(input.bodyRegion),
+    preMatchedArtists: [],
+    councilMs: 0,
+    bypassed: true,
+    bypassReason: flags.council_enabled ? 'USER_DISABLED' : 'FLAG_DISABLED',
+  };
+}
+
+// Artist parallel match: fire at generation_start if flag is on
+if (flags.artist_parallel_match) {
+  matchPromise = councilMatchmaker.matchArtists(input.styleTags ?? [], input.location);
+  // matchPromise runs in background; we don't await here
+}
+
+// Preview fast pass: add fast 512px call if flag is on
+if (flags.preview_fast_pass) {
+  previewPromise = vertexAiEdge.generate512px(enrichedContext.enrichedPrompt);
+}
+```
+
+### 11.5 Rollout Playbook
+
+Each Phase 1 feature follows this rollout sequence:
+
+```
+1. Ship behind flag (flag_name=false in defaults)
+2. Enable for internal users only (Firestore override for Samson's uid)
+3. Test: run E2E suite against prod with flag=true
+4. Canary: set TATT_FLAGS_JSON to enable for 5% of users via A/B bucket
+5. Monitor: watch latency metrics + error rate for 24h
+6. If clean: bump to 20% → 50% → 100%
+7. Once at 100% for 7 days: make it the default in FLAG_DEFAULTS, remove flag
+```
+
+**Demo Day exception:** For the demo, set `TATT_FLAGS_JSON` to enable all Phase 1 flags for 100% of users 24h before demo. This gives us a full day of production-validated performance before investors are in the room.
+
+```bash
+# Enable all Phase 1 flags for Demo Day (24h before)
+gcloud run services update pangyo-production \
+  --update-env-vars TATT_FLAGS_JSON='{"council_enabled":true,"ux_cascade_enabled":true,"preview_fast_pass":true,"artist_parallel_match":true,"embed_on_creation":true}' \
+  --region us-central1
+```
+
+### 11.6 Flag Observability
+
+Every flag decision should be logged (telemetry must be `enabled`):
+
+```typescript
+// Log flag evaluation for every /api/generate request
+console.log(JSON.stringify({
+  severity: 'INFO',
+  message: 'flags_evaluated',
+  uid,
+  flags: {
+    council_enabled: flags.council_enabled,
+    ux_cascade_enabled: flags.ux_cascade_enabled,
+    bypassed: result.bypassed,
+    bypassReason: result.bypassReason,
+    abBucket: stableHash(uid) % 100,
+  },
+  ts: new Date().toISOString()
+}));
+```
+
+This gives us a Cloud Logging query to see the live A/B split:
+
+```
+# Cloud Logging query — council A/B split
+resource.type="cloud_run_revision"
+jsonPayload.message="flags_evaluated"
+timestamp >= "2026-03-08T00:00:00Z"
+
+# Aggregate: count council_enabled=true vs false
+```
+
+---
+
+## 12. Multi-Agent Coordination Protocol
+
+> §2.2 defined the three council members and their roles. This section defines how they communicate, fail independently, and merge results — the coordination protocol that makes the council a real system rather than three isolated LLM calls.
+
+### 12.1 The Coordination Problem
+
+The three council members — Style Interpreter, Placement Specialist, Artist Matchmaker — run in `Promise.all()`. This is parallel, not coordinated. Parallel is fast. But it means:
+
+1. **No shared context:** Style Interpreter produces an `enrichedPrompt`. Placement Specialist doesn't know about it — it works from the raw prompt. This is fine for Phase 1, but it means the stencil parameters are based on raw style tags, not the enriched artistic vision.
+
+2. **No inter-member signalling:** If Style Interpreter detects the design is extremely complex (multi-sleeve, full back piece), Placement Specialist should adapt its stencil params accordingly. Currently it can't — there's no coordination bus.
+
+3. **Merge is dumb:** `GenerationOrchestrator` merges by simple object spread. If Style Council returns `enrichedPrompt: "X"` and Placement Specialist returns stencil params optimised for a different style, there's no reconciliation.
+
+Phase 1 ships with dumb-merge (fast, simple, good enough). Phase 2 introduces the coordination protocol below.
+
+### 12.2 Two-Phase Execution Model (Phase 2)
+
+```
+Phase A: Parallel fast pass (same as Phase 1)
+  ├─ Style Interpreter runs with raw prompt + style tag
+  ├─ Placement Specialist runs with raw body region + style tag
+  └─ Artist Matchmaker runs with raw style tags + location
+  Timeout: 2000ms (tighter than Phase 1's 3000ms)
+
+Phase B: Synthesis pass (new in Phase 2)
+  Input: Phase A outputs merged into PartialContext
+  ├─ Style Interpreter (second pass): given stencilParams from Placement Specialist,
+  │    refine enrichedPrompt to match orientation + size constraints
+  │    e.g., "vertical composition, max width 60mm" → adjusts composition hints
+  └─ Reconcile: merge Phase A + Phase B → FinalEnrichedContext
+  Timeout: 1000ms (total council budget now 3000ms: 2s phase A + 1s phase B)
+```
+
+```typescript
+// src/services/generationOrchestrator.ts  — Phase 2 update
+
+async function runTwoPhaseCouncil(input: GenerationInput): Promise<EnrichedGenerationContext> {
+  const PHASE_A_TIMEOUT = 2000;
+  const PHASE_B_TIMEOUT = 1000;
+
+  // ── PHASE A ──────────────────────────────────────────────────────
+  const [styleResult, placementResult, matchResult] = await Promise.race([
+    Promise.all([
+      styleCouncil.run(input),
+      placementSpecialist.run(input),
+      artistMatchmaker.run(input)
+    ]),
+    timeout(PHASE_A_TIMEOUT, 'PHASE_A_TIMEOUT')
+  ]);
+
+  // ── PHASE B ──────────────────────────────────────────────────────
+  // Refinement: style council sees placement params, tightens composition
+  const refinedStyleResult = await Promise.race([
+    styleCouncil.refine({
+      ...input,
+      stencilParams: placementResult.stencilParams,
+      prevEnrichedPrompt: styleResult.enrichedPrompt
+    }),
+    timeout(PHASE_B_TIMEOUT, 'PHASE_B_TIMEOUT')
+  ]).catch(() => styleResult); // If phase B times out, use phase A style result
+
+  return merge(refinedStyleResult, placementResult, matchResult);
+}
+```
+
+**Why this is worth the extra latency:** A forearm design that the Style Interpreter thinks should be "massive, sprawling" but the Placement Specialist correctly identifies as constrained to 60×140mm — those two outputs, without synthesis, produce a prompt that asks Imagen for something it can't fit. With Phase B, the Style Interpreter sees "60×140mm vertical forearm" and writes a composition-aware enriched prompt.
+
+### 12.3 Council Member Failure Isolation Matrix
+
+Every failure mode has a defined fallback. The orchestrator never lets one member's failure propagate:
+
+| Member | Failure Mode | Fallback | Impact |
+|---|---|---|---|
+| Style Interpreter | OpenRouter 429/503 | Raw prompt + `councilSkillPack.negativeShield` | Slightly weaker prompt, correct negative prompt |
+| Style Interpreter | JSON parse error | Same fallback | Same impact |
+| Style Interpreter | Timeout (>2000ms) | Same fallback | `bypassed=true` on style only |
+| Placement Specialist | Any failure | `getDefaultStencilParams(bodyRegion)` from skill pack | Default stencil params |
+| Artist Matchmaker | Vertex AI error | Skip pre-matching; match fires after generation_done | Artist cards arrive 8-15s late |
+| Artist Matchmaker | Supabase unavailable | Empty `preMatchedArtists: []` | No artist cards — show "explore artists" CTA |
+| **All three** | Total council failure | Full bypass — raw prompt, defaults, no pre-match | Worst case: still generates, still works |
+
+The key invariant: **image generation always fires**. The council enriches. The council does not block.
+
+```typescript
+// Explicit per-member error isolation in GenerationOrchestrator
+
+const [styleResult, placementResult, matchResult] = await Promise.all([
+  styleCouncil.run(input).catch(err => ({
+    ...STYLE_FALLBACK,
+    error: err.message,
+    bypassed: true,
+    bypassReason: 'STYLE_COUNCIL_ERROR'
+  })),
+  placementSpecialist.run(input).catch(() => ({
+    ...getDefaultStencilParams(input.bodyRegion),
+    bypassed: true
+  })),
+  artistMatchmaker.run(input).catch(() => ({
+    preMatchedArtists: [],
+    bypassed: true
+  }))
+]);
+```
+
+### 12.4 Council Output Contracts — Formal Schema
+
+These are the exact TypeScript interfaces each council member must return. Deviation from these causes a merge error. Use Zod validation at the boundary:
+
+```typescript
+// src/types/council.ts
+
+import { z } from 'zod';
+
+export const StyleCouncilOutputSchema = z.object({
+  enrichedPrompt:   z.string().max(500),
+  negativePrompt:   z.string().max(300),
+  styleTags:        z.array(z.string()).min(1).max(8),
+  compositionHints: z.string().max(200),
+  bypassed:         z.boolean().optional().default(false),
+  bypassReason:     z.string().optional(),
+});
+
+export const PlacementOutputSchema = z.object({
+  orientation:         z.enum(['vertical', 'horizontal', 'radial']),
+  anchorPoints:        z.array(z.tuple([z.number(), z.number()])).length(2),
+  recommendedSizeMm:   z.object({ w: z.number(), h: z.number() }),
+  flowDescription:     z.string(),
+  wrapGuidance:        z.string().optional(),
+  bypassed:            z.boolean().optional().default(false),
+});
+
+export const MatchmakerOutputSchema = z.object({
+  preMatchedArtists:   z.array(z.object({
+    id:    z.string().uuid(),
+    name:  z.string(),
+    score: z.number().min(0).max(1),
+    scoreBreakdown: z.object({
+      semantic:  z.number(),
+      graph:     z.number(),
+      proximity: z.number(),
+    }),
+  })).max(5),
+  searchPriority:      z.enum(['semantic', 'graph', 'hybrid']).optional(),
+  bypassed:            z.boolean().optional().default(false),
+});
+
+// Validate at council member boundary:
+export function validateStyleOutput(raw: unknown) {
+  const result = StyleCouncilOutputSchema.safeParse(raw);
+  if (!result.success) {
+    console.error('StyleCouncil output validation failed', result.error);
+    return { ...STYLE_FALLBACK, bypassed: true, bypassReason: 'VALIDATION_ERROR' };
+  }
+  return result.data;
+}
+```
+
+**Why Zod validation matters:** LLMs return malformed JSON under load. Without validation, a single malformed `anchorPoints` value crashes the stencil service and the user sees a blank canvas. With Zod, the fallback kicks in before the bad data propagates downstream.
+
+### 12.5 Observability — Council Coordination Metrics
+
+Beyond the individual member latencies, we need to track merge quality:
+
+```typescript
+// After council completes, emit coordination metrics
+console.log(JSON.stringify({
+  severity: 'INFO',
+  message: 'council_coordination',
+  designId,
+  phase_a_ms:         phaseAMs,
+  phase_b_ms:         phaseBMs || 0,
+  style_bypassed:     styleResult.bypassed,
+  placement_bypassed: placementResult.bypassed,
+  match_bypassed:     matchResult.bypassed,
+  full_bypass:        allBypassed,
+  artist_count:       matchResult.preMatchedArtists.length,
+  // Merge quality signal: did style + placement agree on orientation?
+  orientation_match:  styleResult.compositionHints?.includes(placementResult.orientation),
+  ts: new Date().toISOString()
+}));
+```
+
+Cloud Logging dashboard query for merge quality:
+```
+jsonPayload.message="council_coordination"
+jsonPayload.orientation_match=false
+```
+
+If this query returns hits > 10% of generations, the Phase B synthesis pass should be tuned — the style and placement members are disagreeing too often.
+
+### 12.6 The "Council Memory" Extension (Phase 3)
+
+Once we have 1,000+ completed designs with council outputs stored in Supabase, we can replace the LLM-based Placement Specialist with a **learned placement model**:
+
+```
+Input:  style_tags[] + body_region + skin_tone + design_complexity_score
+Output: stencilParams (orientation, anchorPoints, recommendedSizeMm)
+Trained on: 1,000 successful designs where user booked an artist
+            (booking = implicit quality signal: the design was good enough to execute)
+```
+
+This is the "self-annealing" pattern from §2.3 Pattern 3, applied at model layer: the council learns from past successes and hardcodes them into a deterministic lookup, eliminating the LLM call and the JSON-parse fragility entirely.
+
+The learned model replaces the gpt-4-turbo Placement Specialist call — saving ~$0.003/generation and reducing council latency by 600ms. This is Phase 3 work, but the data collection starts now: `designs.stencil_params` (Supabase M002) stores every council output. By Phase 3, we have the training set.
+
+---
+
+## Appendix H — Incident Response Playbook
+
+> Production incidents during Demo Day or beta testing need a fast, documented response path. This playbook covers the 5 most likely failure modes and their immediate fixes.
+
+---
+
+### H.1 Incident Classification
+
+```
+SEV-1: Complete generation failure — users cannot generate designs
+       Response: < 5 min first response, < 15 min resolution or fallback
+       Notify: Samson DM immediately
+
+SEV-2: Degraded generation — generates but council/preview/matches broken
+       Response: < 15 min first response, < 1h resolution
+       Notify: #tatt-dev
+
+SEV-3: Non-critical degradation — stencil export broken, booking flow down
+       Response: < 4h
+       Notify: #tatt-dev
+
+SEV-4: Data/cosmetic issues — wrong artist cards, stale matching
+       Response: next working session
+       Notify: JIRA/GitHub issue
+```
+
+---
+
+### H.2 Playbook: Imagen 3 Quota Exceeded (SEV-1)
+
+**Symptoms:** `POST /api/generate` returns 429 or `IMAGEN_QUOTA_EXCEEDED` SSE event. All generations fail.
+
+**Immediate (< 2 min):**
+```bash
+# 1. Verify it's a quota issue
+gcloud logging read 'resource.type="cloud_run_revision" jsonPayload.message="generation_error" jsonPayload.code="IMAGEN_QUOTA_EXCEEDED"' \
+  --limit=10 --format=json | jq '.[].jsonPayload'
+
+# 2. Force Replicate fallback via feature flag (no redeploy needed)
+gcloud run services update pangyo-production \
+  --update-env-vars TATT_FLAGS_JSON='{"imagen_disabled":true}' \
+  --region us-central1
+```
+
+**In generationRouter.ts (must be pre-built):**
+```typescript
+if (flags.imagen_disabled || model === 'imagen-3') {
+  if (flags.imagen_disabled) {
+    console.warn('Imagen 3 disabled via flag — routing to Replicate');
+    return replicateService.generate(prompt, style);
+  }
+}
+```
+
+**Resolution:** Check GCP Quota dashboard. If daily limit hit, wait for reset (midnight UTC) or request quota increase at `console.cloud.google.com/iam-admin/quotas`.
+
+**Post-incident:** Add `imagen_disabled` flag to `FLAG_DEFAULTS` as `false`. Document the daily quota limit in §10.3 benchmarks.
+
+---
+
+### H.3 Playbook: Supabase Goes Down / Vector Search Fails (SEV-2)
+
+**Symptoms:** Artist matches return empty. `POST /api/match` returns 500. Logs show `SUPABASE_CONNECTION_ERROR`.
+
+**Immediate (< 5 min):**
+```bash
+# 1. Check Supabase status
+curl -sf "https://yfcmysjmoehcyszvkxsr.supabase.co/rest/v1/" \
+  -H "apikey: $SUPABASE_ANON_KEY" | jq .
+
+# 2. If Supabase is down, fall back to Neo4j-only matching
+gcloud run services update pangyo-production \
+  --update-env-vars TATT_FLAGS_JSON='{"supabase_disabled":true}' \
+  --region us-central1
+```
+
+**In councilMatchmaker.ts (must be pre-built):**
+```typescript
+if (flags.supabase_disabled) {
+  // Neo4j-only cold-start query — no vector similarity, graph traversal only
+  return await neo4j.run(COLD_START_QUERY, { styles: styleHints });
+}
+```
+
+**The degraded experience:** Artist matches work but are less accurate (graph-only, no semantic similarity). Users still see artists. Generation still works. Not ideal but not SEV-1.
+
+**Resolution:** Monitor `https://status.supabase.com`. When restored, disable flag.
+
+---
+
+### H.4 Playbook: Council Members All Timeout (SEV-2 → auto-degrades to nominal)
+
+**Symptoms:** Generations succeed but all prompts are raw (no enrichment). `council_bypassed` metric is 100%. Logs show `COUNCIL_TIMEOUT` on every request.
+
+**This is actually handled automatically** by the 3-second timeout guard (§2.1). Generation still fires. Users still get images. The only degradation is prompt quality.
+
+**Diagnostic:**
+```bash
+# Check OpenRouter status
+curl -sf "https://openrouter.ai/api/v1/models" \
+  -H "Authorization: Bearer $OPENROUTER_API_KEY" | jq length
+
+# Check if it's a specific model
+gcloud logging read 'jsonPayload.message="council_coordination" jsonPayload.full_bypass=true' \
+  --limit=20 --format=json | jq '.[].jsonPayload.bypassReason'
+```
+
+**If OpenRouter is down:** Generation continues (bypassed). No action needed until OpenRouter recovers.  
+**If it's a timeout pattern:** Check if council token limits are too high causing slow responses. Reduce `max_tokens` in council system prompts (§Appendix C).
+
+---
+
+### H.5 Playbook: Firebase Auth Broken — All API Calls Return 401 (SEV-1)
+
+**Symptoms:** Every authenticated endpoint returns 401. Firebase sign-in may still work (client-side) but server-side `verifyIdToken()` fails.
+
+**Immediate (< 5 min):**
+```bash
+# 1. Check Firebase Admin SDK initialization
+gcloud logging read 'resource.type="cloud_run_revision" severity="ERROR"' \
+  --limit=20 | grep -i firebase
+
+# 2. Verify GOOGLE_CREDENTIALS_BASE64 is valid
+echo "$GOOGLE_CREDENTIALS_BASE64" | base64 -d | python3 -c "import sys,json; j=json.load(sys.stdin); print(j.get('client_email'))"
+
+# 3. If credentials corrupt, re-encode and update
+cat google-credentials.json | base64 -w 0 > /tmp/creds.b64
+gcloud run services update pangyo-production \
+  --update-env-vars "GOOGLE_CREDENTIALS_BASE64=$(cat /tmp/creds.b64)" \
+  --region us-central1
+```
+
+**Most likely cause post-March 2026:** The Firebase SA key was previously found in a public repo (§8, Blocker #1). If the old key was revoked and the Railway/Cloud Run env wasn't updated, this is the failure.
+
+**Resolution:** Generate new key in GCP IAM → re-encode → update Cloud Run env var → verify `verifyIdToken` works again.
+
+---
+
+### H.6 Playbook: Full Generation UX Frozen — No SSE Events (SEV-1)
+
+**Symptoms:** User submits prompt. Skeleton appears. Nothing else happens. Network tab shows SSE connection open but no data.
+
+**Diagnostic:**
+```bash
+# Test SSE from command line (bypasses browser quirks)
+curl -N -X POST "https://tatt-production.up.railway.app/api/generate" \
+  -H "Authorization: Bearer $TEST_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"prompt":"rose","councilEnabled":false}' 2>&1 | head -20
+```
+
+**If no events even on curl:**
+- The SSE stream isn't being written server-side
+- Check `generationController.ts` — `res.write()` must be called before any `await`
+- Common bug: `await authenticateRequest(req)` before `res.setHeader('Content-Type', 'text/event-stream')` — if auth takes > 2s, some clients time out before stream starts
+
+**Fix:**
+```typescript
+// generationController.ts — set SSE headers FIRST, auth second
+res.setHeader('Content-Type', 'text/event-stream');
+res.setHeader('Cache-Control', 'no-cache');
+res.setHeader('Connection', 'keep-alive');
+res.flushHeaders();  // flush NOW — client receives headers immediately
+
+// THEN authenticate (client is already waiting with open stream)
+const uid = await verifyToken(req.headers.authorization);
+if (!uid) {
+  res.write(`event: auth_error\ndata: {"code":"UNAUTHORIZED"}\n\n`);
+  res.end();
+  return;
+}
+```
+
+**If events arrive on curl but not in browser:** CORS issue. Browser blocks SSE from cross-origin without proper headers.
+
+```typescript
+// Add to SSE response headers:
+res.setHeader('Access-Control-Allow-Origin', origin);
+res.setHeader('Access-Control-Allow-Credentials', 'true');
+```
+
+---
+
+### H.7 Demo Day Emergency Script
+
+```bash
+#!/bin/bash
+# tools/demo-day-emergency.sh
+# Run if anything breaks during demo. Fast triage + stabilise.
+
+API="${TATT_API_URL:-https://tatt-production.up.railway.app}"
+TOKEN="${TATT_TOKEN}"
+
+echo "⚡ TatT Emergency Triage — $(date)"
+echo ""
+
+echo "1. Health..."
+curl -sf "$API/api/health" && echo "✅ Healthy" || echo "❌ HEALTH FAIL"
+
+echo ""
+echo "2. Force council bypass + Replicate fallback..."
+gcloud run services update pangyo-production \
+  --update-env-vars 'TATT_FLAGS_JSON={"council_enabled":false,"imagen_disabled":false}' \
+  --region us-central1 --quiet && echo "✅ Flags updated"
+
+echo ""
+echo "3. Smoke test fast path (should complete in < 8s)..."
+time curl -sf -N -X POST "$API/api/generate" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"prompt":"simple rose","style":"fine-line","bodyRegion":"wrist","councilEnabled":false}' \
+  | grep "event:" | head -5
+
+echo ""
+echo "4. Match endpoint..."
+curl -sf -X POST "$API/api/match" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"styleHints":["fine-line"],"limit":3}' | jq '.artists | length'
+
+echo ""
+echo "Done. If generation smoke test returned 'preview_ready' → system is stable."
+echo "If not → switch to offline demo mode: set NEXT_PUBLIC_DEMO_MODE=true on Vercel."
+```
+
+---
+
 *Document maintained by paul (AI agent). Update whenever architecture decisions change.*  
-*Last updated: 2026-03-08 10:45 MST — §2.3 Agent OS↔TatT parallels, Appendix E Observability+Budget, Appendix F Security Model*
+*Last updated: 2026-03-08 12:15 MST — §11 Feature Flag System, §12 Multi-Agent Coordination Protocol, Appendix H Incident Response Playbook*
