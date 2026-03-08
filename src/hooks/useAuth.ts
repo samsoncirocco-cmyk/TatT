@@ -71,6 +71,13 @@ export function useAuth(): UseAuthReturn {
 
   // Listen to auth state changes (handles persistence automatically)
   useEffect(() => {
+    // In demo mode (or when Firebase isn't configured), skip auth entirely.
+    if (!auth) {
+      console.warn('[useAuth] Firebase Auth not initialized — running in demo/unauthenticated mode.');
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(
       auth,
       (currentUser) => {
@@ -131,6 +138,10 @@ export function useAuth(): UseAuthReturn {
    * Sign up with email and password
    */
   const signUp = async (email: string, password: string): Promise<void> => {
+    if (!auth) {
+      console.warn('[useAuth] signUp called but Firebase Auth is not configured (demo mode).');
+      return;
+    }
     setError(null);
     setLoading(true);
 
@@ -152,6 +163,10 @@ export function useAuth(): UseAuthReturn {
    * Log in with email and password
    */
   const logIn = async (email: string, password: string): Promise<void> => {
+    if (!auth) {
+      console.warn('[useAuth] logIn called but Firebase Auth is not configured (demo mode).');
+      return;
+    }
     setError(null);
     setLoading(true);
 
@@ -173,6 +188,10 @@ export function useAuth(): UseAuthReturn {
    * Log out current user
    */
   const logOut = async (): Promise<void> => {
+    if (!auth) {
+      console.warn('[useAuth] logOut called but Firebase Auth is not configured (demo mode).');
+      return;
+    }
     setError(null);
     setLoading(true);
 
@@ -192,7 +211,7 @@ export function useAuth(): UseAuthReturn {
    * Get ID token for authenticated user (for API calls)
    */
   const getIdToken = async (): Promise<string | null> => {
-    if (!user) {
+    if (!auth || !user) {
       return null;
     }
 
