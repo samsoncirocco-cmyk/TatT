@@ -1,7 +1,8 @@
 # TatT Platform — Next-Gen UX Architecture
 > **Document status:** Living reference  
 > **Created:** 2026-03-08  
-> **Expanded:** 2026-03-08 12:15 MST — §11 Feature Flag System, §12 Multi-Agent Coordination Protocol, Appendix H Incident Response Playbook  
+> **Expanded:** 2026-03-08 13:00 MST — §13 Data Pipeline Architecture, §14 Mobile & PWA, §15 Viral Growth Architecture, Appendix I Demo Day Checklist, Appendix J Post-YC Scaling Plan  
+> **Prior:** 2026-03-08 12:15 MST — §11 Feature Flag System, §12 Multi-Agent Coordination Protocol, Appendix H Incident Response Playbook  
 > **Prior:** 2026-03-08 11:30 MST — §9 Testing Strategy, §10 Load Benchmarks, Appendix G User Journey State Machine  
 > **Prior:** 2026-03-08 10:45 MST — §2.3 Agent OS↔TatT parallels, Appendix E Observability, Appendix F Security  
 > **Prior:** 2026-03-08 09:15 MST — Appendix D: production status audit  
@@ -28,6 +29,9 @@
 10. [Load Benchmarks & Demo Day Readiness](#10-load-benchmarks--demo-day-readiness)
 11. [Feature Flag System](#11-feature-flag-system)
 12. [Multi-Agent Coordination Protocol](#12-multi-agent-coordination-protocol)
+13. [Data Pipeline Architecture](#13-data-pipeline-architecture)
+14. [Mobile & PWA Architecture](#14-mobile--pwa-architecture)
+15. [Viral Growth Architecture](#15-viral-growth-architecture)
 - Appendix A — File Map
 - Appendix B — Model Routing Reference
 - Appendix C — Council System Prompts
@@ -36,6 +40,8 @@
 - Appendix F — Security Model & Auth Flow
 - Appendix G — User Journey State Machine
 - Appendix H — Incident Response Playbook
+- Appendix I — Demo Day Technical Checklist
+- Appendix J — Post-YC Scaling Plan
 
 ---
 
@@ -3185,3 +3191,515 @@ echo "If not → switch to offline demo mode: set NEXT_PUBLIC_DEMO_MODE=true on 
 
 *Document maintained by paul (AI agent). Update whenever architecture decisions change.*  
 *Last updated: 2026-03-08 12:15 MST — §11 Feature Flag System, §12 Multi-Agent Coordination Protocol, Appendix H Incident Response Playbook*
+
+---
+
+## 13. Data Pipeline Architecture
+
+> How artist data, portfolio embeddings, and user-generated designs flow through the system at scale.
+
+### 13.1 Embedding Pipeline (Artist Portfolios)
+
+The semantic match quality is only as good as the embeddings. Current state: embeddings are generated ad-hoc. Target state: a reproducible, incremental pipeline with quality gates.
+
+```
+Artist onboarding / portfolio update
+          │
+          ▼
+  ┌───────────────────┐
+  │  Image Ingestion  │  Accepts: URL, GCS path, direct upload
+  │  GCS bucket:      │  Resize → 512x512 (CLIP input)
+  │  tatt-portfolio/  │  Strip EXIF metadata
+  └────────┬──────────┘
+           │
+           ▼
+  ┌───────────────────────┐
+  │  Embedding Service    │  Vertex AI: multimodalembedding@001
+  │  (vertex-embedding-   │  Dimension: 1408 (multimodal)
+  │   service.ts)         │  Batch: up to 250 images/request
+  └────────┬──────────────┘
+           │
+           ▼
+  ┌───────────────────────┐
+  │  Quality Gate         │  Filter: norm < 0.1 → likely blank/corrupt
+  │                       │  Cluster check: UMAP 2D, flag outliers >3σ
+  └────────┬──────────────┘
+           │
+           ▼
+  ┌──────────────────────────────┐
+  │  Supabase upsert             │  portfolio_embeddings table
+  │  + Neo4j sync                │  Artist→Portfolio relationship
+  │  + Firestore doc update      │  /artists/{id}/meta.embeddingAt
+  └──────────────────────────────┘
+```
+
+**Trigger points:**
+- Manual: `POST /api/v1/embeddings/generate` (existing endpoint)
+- Scheduled: Cloud Scheduler → Cloud Run job, every 24h (new — Phase 2)
+- On-demand: artist profile save event → Pub/Sub → Cloud Run job (Phase 3)
+
+**Embedding model choice rationale:**
+| Model | Dimension | Modality | Cost/image | Chosen? |
+|---|---|---|---|---|
+| `textembedding-gecko` | 768 | text-only | $0.0001 | ❌ text-only |
+| `text-embedding-005` | 768 | text-only | $0.00002 | ❌ text-only |
+| `multimodalembedding@001` | 1408 | image+text | $0.0002 | ✅ YES |
+| CLIP (OpenAI) | 512 | image+text | external | ❌ dependency risk |
+
+**Note:** The ARCHITECTURE.md mentions CLIP 4096-dim vectors — this appears to be an aspirational reference. The actual service (`vertex-embedding-service.ts`) uses Vertex multimodal embeddings. 1408 is the authoritative dimension for new migrations.
+
+### 13.2 User Design Data Flow
+
+```
+User generates design
+       │
+       ├──► GCS: full image + preview (tatt-designs/{uid}/{designId}/)
+       │
+       ├──► Firestore: canvas state JSON (users/{uid}/designs/{designId})
+       │    Layer diffs (last 10 versions per design, LRU eviction)
+       │
+       ├──► Supabase designs table (M002):
+       │    Row: metadata, prompt, style tags, stencil params
+       │    Trigger: pg_notify('new_design', design_id)
+       │
+       └──► Async: embedding generation job (design thumbnail → 1408-dim)
+            → portfolio_embeddings record (with is_design=true flag)
+            → enables "find artists who've done similar work" query
+```
+
+**Retention policy (Phase 2):**
+```sql
+-- Auto-delete GCS objects for unverified users after 30 days
+-- Keep Supabase row (no blob cost) indefinitely for match training data
+-- Cap Firestore canvas versions: trigger function prunes to 10 on each write
+```
+
+### 13.3 Artist Data Seeding & Refresh
+
+Current: 100 artists seeded from `generated/tattoo-artists-supabase.json` (static, one-time). Problem: stale data, fake portfolios, no continuous update.
+
+**Phase 1 (Demo Day — good enough):**
+Use the existing 100 seeded artists. Ensure embeddings exist for all 100 before demo. Run `scripts/inject-supabase-data.js` + `scripts/generate-embeddings.js` and verify via Supabase dashboard.
+
+**Phase 2 (post-Demo Day — real pipeline):**
+```
+Curation workflow:
+  Artist applies via /join form
+  → Firestore: pending_artists/{id}
+  → Admin reviews via Nexus dashboard
+  → Approve: moves to tattoo_artists + triggers embedding generation
+  → Deny: soft-delete with reason
+```
+
+**Phase 3 (scale — automated quality scoring):**
+```python
+# artist_quality_score.py — runs nightly via Cloud Scheduler
+# Signals: portfolio image count, booking completion rate,
+#          response rate, review sentiment, embedding coherence score
+# Output: profile_score (0.0–1.0) → surfaces top artists in match results
+```
+
+---
+
+## 14. Mobile & PWA Architecture
+
+> `/mobile` directory exists in the repo. This section defines the canonical mobile strategy.
+
+### 14.1 Current State vs Target
+
+| Layer | Current | Target |
+|---|---|---|
+| Mobile support | Responsive Tailwind CSS | Responsive + installable PWA |
+| Camera (AR) | Browser `getUserMedia` | PWA + native-like camera API |
+| Offline | None | SW caches generated designs |
+| Home screen | No | `manifest.json` + icon set |
+| Push notifications | None | Firebase Cloud Messaging |
+| App Store | No | Possible via PWABuilder/TWA |
+
+### 14.2 PWA Implementation Plan
+
+**Step 1 — `manifest.json` (Phase 1):**
+```json
+{
+  "name": "TatT — AI Tattoo Try-On",
+  "short_name": "TatT",
+  "description": "Design and preview your next tattoo with AI",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#7f13ec",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
+```
+
+**Step 2 — Service Worker (Phase 2):**
+```typescript
+// sw.ts — Workbox-based
+// Strategy: NetworkFirst for API routes, CacheFirst for assets
+import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
+import { registerRoute } from 'workbox-routing';
+import { NetworkFirst, CacheFirst } from 'workbox-strategies';
+
+// Precache static assets (Next.js build output)
+precacheAndRoute(self.__WB_MANIFEST);
+
+// API routes: try network, fall back to cached response
+registerRoute(
+  ({ url }) => url.pathname.startsWith('/api/'),
+  new NetworkFirst({ cacheName: 'api-cache', networkTimeoutSeconds: 5 })
+);
+
+// Generated designs: serve from cache immediately
+registerRoute(
+  ({ url }) => url.hostname.includes('storage.googleapis.com'),
+  new CacheFirst({ cacheName: 'design-cache' })
+);
+```
+
+**Step 3 — Push Notifications (Phase 3):**
+```
+User books consultation
+  → Firebase Cloud Messaging token stored in Firestore
+  → When artist accepts: Cloud Function sends push notification
+  → Payload: {"title": "Alex accepted your booking!", "body": "...", "icon": "..."}
+  → PWA receives via SW `push` event → shows notification
+```
+
+### 14.3 AR on Mobile
+
+The current `mindarSession.js` implementation uses a WebGL overlay. On mobile browsers:
+- iOS Safari: `getUserMedia` works, WebGL works, AR overlay works
+- Android Chrome: same, slightly better performance
+- Known issue: iOS Safari caps camera resolution at 1280x720 (sufficient for tattoo preview)
+
+**Performance target for AR:**
+- Canvas must hit 24fps minimum (tattoo overlay must not appear to slide)
+- `depthMappingService.js` should offload to a Web Worker (prevents main thread jank)
+- Use `requestAnimationFrame` + `OffscreenCanvas` where supported
+
+```typescript
+// ar-worker.ts — depth mapping in a Worker
+// Main thread posts frame data:
+arWorker.postMessage({ type: 'frame', imageData: frame });
+// Worker responds with warp transform:
+arWorker.onmessage = ({ data }) => {
+  if (data.type === 'warpTransform') applyOverlay(data.matrix);
+};
+```
+
+---
+
+## 15. Viral Growth Architecture
+
+> TatT's virality mechanic: the design itself is the distribution channel.
+
+### 15.1 The Core Insight
+
+Every generated tattoo design is a shareable artifact. When a user shares their TatT creation on Instagram/TikTok, the design card must contain enough metadata to:
+1. Look beautiful standalone (not a boring link preview)
+2. Drive installs / site visits from people who see it
+3. Enable the sharer to earn credit when their referral converts
+
+This is the same pattern as Canva's "Made with Canva" watermark — except TatT's version is *desirable* (people want to show off their tattoo concept) rather than a brand tax.
+
+### 15.2 Shareable Design Card
+
+**Technical implementation:**
+```typescript
+// api/v1/share/[designId]/route.ts
+// Generates an OG image on the fly using @vercel/og
+
+import { ImageResponse } from '@vercel/og';
+
+export async function GET(req: Request, { params }) {
+  const design = await getDesign(params.designId);
+  
+  return new ImageResponse(
+    <div style={{ display: 'flex', flexDirection: 'column', background: '#0a0a0a', width: 1200, height: 630 }}>
+      <img src={design.thumbnailUrl} style={{ objectFit: 'cover', width: '100%', height: 500 }} />
+      <div style={{ padding: 20, color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: 24, fontWeight: 700 }}>{design.style} | TatT AI</span>
+        <span style={{ fontSize: 18, color: '#7f13ec' }}>tatt.app/d/{params.designId}</span>
+      </div>
+    </div>,
+    { width: 1200, height: 630 }
+  );
+}
+
+// OG tags on the share page:
+// og:image → /api/v1/share/{designId} (the image above)
+// og:title → "I designed my next tattoo with AI — what do you think?"
+// og:description → "{style} tattoo for {bodyPart}"
+```
+
+**Share URL structure:**
+```
+https://tatt.app/d/{designId}?ref={sharerUid}
+```
+The `ref` param seeds the referral conversion funnel (tracked in Firestore `referrals` collection).
+
+### 15.3 Referral State Machine
+
+```
+Sharer generates design → clicks "Share"
+  → System generates /d/{designId}?ref={uid} link
+  → Sharer posts to Instagram / sends to friend
+        │
+        ▼
+Visitor opens link
+  → Design landing page loads (designId = preloaded, no generation cost)
+  → "Remix this design" CTA
+  → Visitor signs up / signs in
+  → Firestore: referrals/{sharerUid}/{visitorUid} = { convertedAt, designId }
+        │
+        ▼
+Conversion triggers reward
+  → sharerUid gets +5 free generations (Phase 2)
+  → sharerUid badge: "Ink Influencer" (Phase 3)
+```
+
+### 15.4 Design Library Public Mode
+
+Phase 3: users can opt their designs into a public gallery (`/explore`). Public designs:
+- Indexed by style tag (paginated, fast — Supabase query on `is_public=true`)
+- Embeddable via `<iframe>` (tattoo studios can embed a gallery on their site)
+- "Remix" button on any public design → forks the design (new designId, inherits style + stencil params) → drives acquisition
+
+**Data model addition (M004 — Phase 3):**
+```sql
+ALTER TABLE designs
+  ADD COLUMN IF NOT EXISTS is_public     BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS forked_from   UUID REFERENCES designs(id),
+  ADD COLUMN IF NOT EXISTS fork_count    INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS view_count    INTEGER DEFAULT 0;
+
+-- Public gallery index
+CREATE INDEX IF NOT EXISTS idx_designs_public_gallery
+  ON designs (created_at DESC)
+  WHERE is_public = true;
+```
+
+---
+
+## Appendix I — Demo Day Technical Checklist
+
+> Hour-by-hour preparation guide. Run this the morning of Demo Day.
+
+### I.1 T-24h (Night Before)
+
+```bash
+# 1. Verify all secrets are current
+gcloud secrets list --project=tatt-pro | grep -E "(OPENROUTER|REPLICATE|SUPABASE|FIREBASE)"
+
+# 2. Rotate any secret older than 30 days
+# (see directives/rotate-secrets.md)
+
+# 3. Force a clean Vercel build
+curl -X POST "https://api.vercel.com/v1/integrations/deploy/prj_NTkv0Mufkqlw7nEEo2omjrXsWWwz/V8oBfINjz9"
+# Wait for green deploy
+
+# 4. Verify Railway is healthy
+curl -sf https://tatt-production.up.railway.app/api/health | jq
+
+# 5. Run embedding health check (are all 100 seeded artists embedded?)
+# In Supabase SQL editor:
+# SELECT COUNT(*) FROM tattoo_artists WHERE embedding IS NOT NULL;
+# Target: 100/100
+
+# 6. Set budget caps (prevent runaway costs during live demo)
+gcloud billing budgets update BUDGET_ID --budget-amount=20.00 --currency=USD
+```
+
+### I.2 T-4h (Morning Of)
+
+```bash
+# Enable Phase 1 feature flags
+gcloud run services update tatt-production \
+  --update-env-vars 'TATT_FLAGS_JSON={"council_enabled":true,"sse_generation":true,"progressive_preview":true,"artist_match_parallel":true}' \
+  --region us-central1
+
+# Run full smoke test
+bash tools/demo-day-emergency.sh
+
+# Check SSE stream timing
+time curl -N -s -X POST "https://tatt-production.up.railway.app/api/generate" \
+  -H "Authorization: Bearer $TATT_DEMO_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"prompt":"geometric wolf","style":"blackwork","bodyRegion":"forearm"}' \
+  | while IFS= read -r line; do echo "$(date +%s.%N) $line"; done
+
+# Confirm: council_done event arrives ≤ 3s from request
+# Confirm: preview_ready event arrives ≤ 8s from request
+```
+
+### I.3 T-1h (Final Check)
+
+| Check | Command | Pass Criteria |
+|---|---|---|
+| Frontend loads | `curl -sf https://tatt-app.vercel.app/ \| grep -c "TatT"` | `> 0` |
+| API health | `curl -sf https://tatt-production.up.railway.app/api/health \| jq .status` | `"ok"` |
+| SSE first event | time to first `council_start` event | `< 300ms` |
+| Preview ready | time to `preview_ready` event | `< 8s` |
+| Artist match | `/api/match` returns 3+ artists | `ok` |
+| AR visualize | browser camera opens on `/visualize` | `no errors` |
+| Auth flow | sign up → generate → library → save | `no errors` |
+
+### I.4 During Demo (Live Ops)
+
+**Slack alerts to watch: `#tatt-dev` and `#alerts`**
+
+If generation stalls → run `tools/demo-day-emergency.sh` (flags council bypass + Replicate fallback in < 2min)
+
+If Vercel goes down → pre-built offline demo mode: `NEXT_PUBLIC_DEMO_MODE=true` on Vercel (Unsplash mocks, no real AI — last resort only)
+
+If Supabase times out → Neo4j-only matching still works (set `USE_NEO4J_ONLY=true` flag)
+
+### I.5 Demo Script (Technical Flow to Show)
+
+1. **Home** → show the hero ("Design your tattoo before it's permanent")
+2. **Generate** → type "geometric wolf, forearm, blackwork" → hit Generate
+   - Point out: skeleton UI appears instantly (< 100ms)
+   - Point out: prompt chip populates from council (~800ms)
+   - Point out: 512px preview appears while full image still generating
+3. **Full image** → appears ~12s (Imagen 3, full quality)
+4. **Artist cards** → appear beside image (ran in parallel, not after)
+5. **Forge** → drag to canvas → resize, rotate a layer
+6. **Stencil export** → click Export → download PDF
+7. **Visualize** → open camera → hold phone to arm → see design overlay
+8. **Artist profile** → click top match → booking CTA
+
+---
+
+## Appendix J — Post-YC Scaling Plan
+
+> What happens if we get 10,000 users overnight (or after a viral tweet).
+
+### J.1 Scaling Triggers & Thresholds
+
+| Metric | Normal | Warning | Emergency |
+|---|---|---|---|
+| Concurrent users | < 50 | 50–200 | > 200 |
+| Generation queue depth | < 10 | 10–50 | > 50 |
+| Cloud Run instances | 1–3 | 3–10 | > 10 (max) |
+| Imagen API calls/min | < 30 | 30–60 | > 60 (quota limit) |
+| Supabase connections | < 20 | 20–60 | > 60 (free tier cap) |
+
+### J.2 Auto-Scaling Configuration
+
+```yaml
+# cloud-run-scaling.yaml — apply with: gcloud run services replace
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: tatt-production
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "1"     # always-warm instance
+        autoscaling.knative.dev/maxScale: "20"    # hard cap (cost control)
+        autoscaling.knative.dev/target: "50"      # concurrent requests per instance
+    spec:
+      containerConcurrency: 80                    # max concurrent per container
+      timeoutSeconds: 60                          # SSE connections need long timeout
+      containers:
+        - image: gcr.io/tatt-pro/tatt-api:latest
+          resources:
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+```
+
+### J.3 Viral Surge Playbook (Ordered Response)
+
+**Minute 0–5 (detection):**
+- Cloud Monitoring alert fires → Slack `#alerts` → `@samson`
+- Check: `gcloud run services describe tatt-production --format="value(status.traffic)"`
+- Check Imagen quota: GCP Console → APIs → Vertex AI → Quotas
+
+**Minute 5–15 (first response):**
+```bash
+# 1. Enable Replicate fallback (relieve Imagen pressure)
+gcloud run services update tatt-production \
+  --update-env-vars 'TATT_FLAGS_JSON={"imagen_enabled":false,"replicate_fallback":true}'
+
+# 2. Reduce council quality to save latency (raw prompts are good enough at scale)
+gcloud run services update tatt-production \
+  --update-env-vars 'TATT_FLAGS_JSON={"council_enabled":false,"replicate_fallback":true}'
+
+# 3. Enable generation queue (prevent timeout cascade)
+# Queue: Cloud Tasks → tatt-generation-queue → max 10 concurrent
+```
+
+**Minute 15–60 (stabilise):**
+```bash
+# 4. Upgrade Supabase plan (if > 60 connections sustained)
+# → supabase.com → project settings → billing → Pro plan
+# Pro gives 60-200 connections, PgBouncer connection pooling
+
+# 5. Request Imagen quota increase (async — takes hours, not minutes)
+# gcloud alpha services quota update --service=aiplatform.googleapis.com \
+#   --consumer=project/tatt-pro --metric=... --value=...
+
+# 6. Enable Cloudflare caching on static assets (if not already)
+# → should already be in place via Vercel → Cloudflare passthrough
+```
+
+**Hour 1+ (post-surge):**
+- Analyse: who shared, from where, what design style went viral
+- Capture emails/accounts before users churn (Firebase Auth + Firestore)
+- Update `docs/architecture/next-gen-ux.md` with lessons learned
+- Write `memory/YYYY-MM-DD.md` entry with traffic numbers
+
+### J.4 Database Scaling Path
+
+```
+Phase 0 (< 1k MAU): Supabase free tier
+  → 500 MB DB, 60 connections, 1GB egress/month
+
+Phase 1 (1k–10k MAU): Supabase Pro ($25/month)
+  → 8 GB DB, 200 connections, PgBouncer, daily backups
+
+Phase 2 (10k–100k MAU): Supabase Pro + custom compute
+  → Dedicated compute add-on ($50–200/month)
+  → Read replicas for match queries (writes still primary)
+  → Neo4j AuraDB Professional (persistent, not free tier)
+
+Phase 3 (> 100k MAU): self-hosted or enterprise
+  → Postgres on Cloud SQL (more control, GCP-native)
+  → Migrate embeddings to Vertex AI Vector Search (managed, scales to 1B vectors)
+  → Supabase → Auth only (keep Auth infra, move DB)
+```
+
+### J.5 Cost Model at Scale
+
+| Users (MAU) | Generations/day | Imagen cost/day | Replicate cost/day | Total AI/month |
+|---|---|---|---|---|
+| 100 | 200 | $4.00 | $1.00 | ~$150 |
+| 1,000 | 2,000 | $40.00 | $10.00 | ~$1,500 |
+| 10,000 | 20,000 | $400 (quota hit) | $100 | ~$15,000 |
+| 10,000 (optimised) | 20,000 | $100 (caching + Replicate default) | $250 | ~$10,500 |
+
+**Key insight:** At 10k MAU, caching identical prompts saves ~60% of generation cost. Most first-time users generate slight variations of the same 50 popular styles. A Redis cache keyed on `hash(style+subject+bodyPart)` with a 24h TTL would dramatically reduce spend.
+
+```typescript
+// generationRouter.ts — cache layer (Phase 2)
+const cacheKey = md5(`${style}:${subject}:${bodyPart}:${complexity}`);
+const cached = await redis.get(`design:${cacheKey}`);
+if (cached) {
+  res.write(`event: generation_done\ndata: ${cached}\n\n`);
+  return; // $0 cost — served from cache
+}
+// ... generate ... 
+await redis.setex(`design:${cacheKey}`, 86400, JSON.stringify(result));
+```
+
+---
+
+*Document maintained by paul (AI agent).*  
+*Expanded: 2026-03-08 13:00 MST — §13 Data Pipeline Architecture, §14 Mobile & PWA Architecture, §15 Viral Growth Architecture, Appendix I Demo Day Technical Checklist, Appendix J Post-YC Scaling Plan*  
+*Previous expansion: 2026-03-08 12:15 MST — §11 Feature Flag System, §12 Multi-Agent Coordination Protocol, Appendix H Incident Response Playbook*
