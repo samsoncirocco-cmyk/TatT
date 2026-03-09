@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import Image from 'next/image';
 import artistsData from '../data/artists.json';
 import { getAllDesigns } from '../services/designLibraryService';
 import Button from '../components/ui/Button';
@@ -9,22 +10,15 @@ import { ArrowLeft, Instagram } from 'lucide-react';
 function ArtistProfileContent() {
   const router = useRouter();
   const { id } = router.query;
-  const artist = artistsData.artists.find(a => a.id === parseInt(id));
 
   const [selectedImage, setSelectedImage] = useState(0);
   const [showQuoteModal, setShowQuoteModal] = useState(false);
-  const [selectedDesign, setSelectedDesign] = useState(null);
   const [savedDesigns, setSavedDesigns] = useState([]);
 
-  // If artist not found, redirect to artists page
-  if (!artist) {
-    setTimeout(() => router.push('/artists'), 0);
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-ducks-green border-t-transparent"></div>
-      </div>
-    );
-  }
+  // Find artist - memoized to avoid recalculation
+  const artist = useMemo(() => {
+    return artistsData.artists.find(a => a.id === parseInt(id));
+  }, [id]);
 
   // Load saved designs when modal opens
   useEffect(() => {
@@ -32,6 +26,22 @@ function ArtistProfileContent() {
       setSavedDesigns(getAllDesigns());
     }
   }, [showQuoteModal]);
+
+  // Redirect if artist not found - must be after all hooks
+  useEffect(() => {
+    if (id && !artist) {
+      router.push('/artists');
+    }
+  }, [id, artist, router]);
+
+  // Loading state while router query is undefined or artist not found
+  if (!id || !artist) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-ducks-green border-t-transparent"></div>
+      </div>
+    );
+  }
 
   const handleRequestQuote = () => {
     setShowQuoteModal(true);
@@ -58,10 +68,12 @@ function ArtistProfileContent() {
           {/* Left: Portfolio Gallery */}
           <div className="space-y-6">
             <div className="aspect-[4/5] glass-panel p-2 rounded-[2.5rem] overflow-hidden border border-white/10 shadow-2xl relative">
-              <img
+              <Image
                 src={artist.portfolioImages[selectedImage]}
                 alt={`${artist.name} portfolio ${selectedImage + 1}`}
-                className="w-full h-full object-cover rounded-[2rem]"
+                fill
+                className="object-cover rounded-[2rem]"
+                priority
               />
               <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/80 to-transparent pointer-events-none rounded-b-[2rem]" />
             </div>
@@ -71,15 +83,16 @@ function ArtistProfileContent() {
                 <button
                   key={index}
                   onClick={() => setSelectedImage(index)}
-                  className={`aspect-square rounded-2xl overflow-hidden transition-all border-2 ${selectedImage === index
+                  className={`aspect-square rounded-2xl overflow-hidden transition-all border-2 relative ${selectedImage === index
                     ? 'border-ducks-green shadow-glow-green scale-95 opacity-100'
                     : 'border-transparent opacity-50 hover:opacity-100 hover:border-white/20'
                     }`}
                 >
-                  <img
+                  <Image
                     src={image}
                     alt={`${artist.name} thumbnail ${index + 1}`}
-                    className="w-full h-full object-cover bg-white/5"
+                    fill
+                    className="object-cover bg-white/5"
                   />
                 </button>
               ))}
@@ -117,7 +130,7 @@ function ArtistProfileContent() {
             <div className="mb-12">
               <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-ducks-green mb-4">Biomedical Narrative</h2>
               <p className="text-gray-300 leading-relaxed font-light text-lg">
-                "{artist.bio}"
+                &ldquo;{artist.bio}&rdquo;
               </p>
             </div>
 
