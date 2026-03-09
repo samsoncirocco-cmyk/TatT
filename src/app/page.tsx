@@ -56,7 +56,7 @@ export default function Home() {
 
           <motion.p variants={item} className="text-xl md:text-2xl text-gray-400 font-light max-w-2xl mx-auto">
             The next generation of <span className="text-ducks-yellow font-medium">bio-resonant</span> body art.
-            Generate, visualize, and connect with the future of ink.
+            Design, visualize, and connect with the future of ink.
           </motion.p>
         </div>
 
@@ -70,10 +70,10 @@ export default function Home() {
             Enter the Forge
           </button>
           <button
-            onClick={() => router.push('/journey')}
+            onClick={() => router.push('/pitch')}
             className="w-full sm:w-auto min-w-[200px] px-6 py-3 bg-white/10 hover:bg-white/20 text-white border border-white/10 rounded-xl font-medium transition-all backdrop-blur-md"
           >
-            Philosophy
+            Our Story
           </button>
         </motion.div>
 
@@ -97,7 +97,7 @@ export default function Home() {
                 <Smartphone size={24} />
               </div>
               <h3 className="text-lg font-bold text-white mb-2">AR Mirror</h3>
-              <p className="text-sm text-gray-400"> visualize tattoos on your skin in real-time with depth-aware tracking.</p>
+              <p className="text-sm text-gray-400">Visualize tattoos on your skin in real-time with depth-aware AR tracking.</p>
             </div>
           </Link>
 

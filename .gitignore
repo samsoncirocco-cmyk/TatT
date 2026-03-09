@@ -57,3 +57,4 @@ TATT_ENV_REFERENCE.md
 
 # TypeScript
 tsconfig.tsbuildinfo
+.env.firebase
