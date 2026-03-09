@@ -11,5 +11,14 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-export const app: FirebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
-export const auth: Auth = getAuth(app);
+// Guard: don't initialize Firebase if API key is missing (demo mode / build time)
+const hasFirebaseConfig = Boolean(firebaseConfig.apiKey);
+
+export const app: FirebaseApp | null = hasFirebaseConfig
+  ? (getApps().length ? getApp() : initializeApp(firebaseConfig))
+  : null;
+
+// Auth is null when running without Firebase credentials (demo mode)
+export const auth: Auth | null = app ? getAuth(app) : null;
+
+export { hasFirebaseConfig };
