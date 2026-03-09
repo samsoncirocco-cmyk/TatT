@@ -48,7 +48,7 @@ export default function Error({
 
           {/* Description */}
           <p className="text-white/70 mb-6 text-lg">
-            We encountered an unexpected error. This has been logged and we'll look into it.
+            We encountered an unexpected error. This has been logged and we&apos;ll look into it.
             You can try again or return to the home page.
           </p>
 

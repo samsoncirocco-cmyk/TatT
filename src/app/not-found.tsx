@@ -23,7 +23,7 @@ export default function NotFound() {
           This canvas is blank.
         </h1>
         <p className="text-gray-400 text-lg">
-          The page you're looking for doesn't exist — or hasn't been inked yet.
+          The page you&apos;re looking for doesn&apos;t exist — or hasn&apos;t been inked yet.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
