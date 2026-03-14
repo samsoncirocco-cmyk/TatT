@@ -3,7 +3,7 @@ import { useRouter } from 'next/navigation';
 import { useMatchStore, ArtistMatch } from '@/store/useMatchStore';
 import { SlideUp, FadeIn } from '@/components/shared/Motion';
 import MatchSkeleton from './MatchSkeleton';
-import { Heart, MapPin, Instagram, ExternalLink, X, ChevronRight, Info } from 'lucide-react';
+import { Heart, MapPin, Instagram, ExternalLink, X, ChevronRight, Info, CalendarCheck } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 
 export default function MatchPulse() {
@@ -236,15 +236,29 @@ export default function MatchPulse() {
                             </div>
 
                             {/* Actions */}
-                            <div className="grid grid-cols-2 gap-3 mt-4">
-                                <button className="flex items-center justify-center gap-2 py-3 px-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                                    <Instagram className="w-5 h-5" />
-                                    Portfolio
+                            <div className="space-y-3 mt-4">
+                                {/* PRIMARY: Book Now CTA */}
+                                <button
+                                    onClick={() => router.push(`/book/${selectedArtist.artistId}`)}
+                                    className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-gradient-to-r from-[#154733] to-[#1a5a42] text-white rounded-xl font-bold text-base hover:opacity-90 transition-all shadow-lg shadow-[#154733]/30"
+                                >
+                                    <CalendarCheck className="w-5 h-5" />
+                                    Book a Session
                                 </button>
-                                <button className="flex items-center justify-center gap-2 py-3 px-4 bg-black dark:bg-white text-white dark:text-black rounded-xl font-medium hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors">
-                                    Contact Artist
-                                    <ExternalLink className="w-4 h-4 ml-1" />
-                                </button>
+                                {/* Secondary row */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        onClick={() => selectedArtist.instagramUrl && window.open(selectedArtist.instagramUrl, '_blank')}
+                                        className="flex items-center justify-center gap-2 py-2.5 px-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm"
+                                    >
+                                        <Instagram className="w-4 h-4" />
+                                        Portfolio
+                                    </button>
+                                    <button className="flex items-center justify-center gap-2 py-2.5 px-4 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-sm">
+                                        Message
+                                        <ExternalLink className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </motion.div>
