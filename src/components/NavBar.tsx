@@ -2,10 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Sparkles, Home, Presentation } from 'lucide-react';
+import { Sparkles, Home, Presentation, Play } from 'lucide-react';
 
 const links = [
   { href: '/', label: 'Home', icon: Home },
+  { href: '/demo', label: 'Demo', icon: Play },
   { href: '/generate', label: 'Forge', icon: Sparkles },
   { href: '/pitch', label: 'Pitch', icon: Presentation },
 ];
