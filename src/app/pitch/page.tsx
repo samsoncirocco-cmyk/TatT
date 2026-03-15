@@ -26,7 +26,7 @@ export default function PitchPage() {
         <div className="hero-content">
           <h1 className="hero-logo">TatT</h1>
           <p className="hero-tagline">Design Your Next Tattoo with AI</p>
-          <Link href="/generate" className="cta-button">
+          <Link href="/demo" className="cta-button">
             Try the Demo
           </Link>
         </div>
