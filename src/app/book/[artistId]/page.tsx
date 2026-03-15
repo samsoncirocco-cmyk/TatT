@@ -18,10 +18,9 @@ import {
   Phone,
   FileText,
   Sparkles,
-  ArrowRight,
   Zap,
 } from 'lucide-react';
-import { useBookingStore } from '@/store/useBookingStore';
+import { useBookingStore, type Booking } from '@/store/useBookingStore';
 import { useMatchStore } from '@/store/useMatchStore';
 
 // ─── Demo Data ─────────────────────────────────────────────────────────────
@@ -36,6 +35,12 @@ const PLACEMENTS = [
   'Forearm', 'Upper Arm', 'Shoulder', 'Back', 'Chest',
   'Ribcage', 'Thigh', 'Calf', 'Ankle', 'Neck', 'Hand', 'Other',
 ];
+const DEPOSIT_BY_SIZE: Record<string, number> = {
+  small: 75,
+  medium: 150,
+  large: 300,
+  sleeve: 500,
+};
 
 function generateAvailability() {
   const today = new Date();
@@ -437,18 +442,19 @@ function StepDetails({
 // ─── Step 3: Confirm ───────────────────────────────────────────────────────
 function StepConfirm({
   booking,
-  onConfirm,
+  onPayDeposit,
   onBack,
   loading,
 }: {
-  booking: ReturnType<typeof useBookingStore>['booking'];
-  onConfirm: () => void;
+  booking: Booking;
+  onPayDeposit: () => void;
   onBack: () => void;
   loading: boolean;
 }) {
   const slot = booking.slot;
   const details = booking.details;
   const artist = booking.artist;
+  const depositAmount = DEPOSIT_BY_SIZE[details.size || ''] ?? DEPOSIT_BY_SIZE.medium;
 
   const fmtDate = (iso: string) =>
     new Date(iso).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
@@ -521,9 +527,13 @@ function StepConfirm({
         </div>
       </div>
 
-      <div className="text-xs text-white/30 text-center">
-        This sends a consultation request — the artist will confirm availability within 24 hours.
-        No payment required yet.
+      <div className="p-4 rounded-2xl border border-ducks-yellow/30 bg-ducks-yellow/10">
+        <div className="text-sm text-ducks-yellow font-semibold">
+          Deposit due now: ${depositAmount}
+        </div>
+        <div className="text-xs text-white/60 mt-1">
+          Deposit secures your slot. Balance due at consultation.
+        </div>
       </div>
 
       <div className="flex gap-3">
@@ -534,94 +544,21 @@ function StepConfirm({
           <ChevronLeft className="w-5 h-5" />
         </button>
         <button
-          onClick={onConfirm}
+          onClick={onPayDeposit}
           disabled={loading}
           className="flex-1 py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all disabled:opacity-50 bg-ducks-yellow text-black hover:bg-ducks-yellow/90 shadow-lg shadow-ducks-yellow/20"
         >
           {loading ? (
-            <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+            <>
+              <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+              Securing your slot...
+            </>
           ) : (
             <>
               <Zap className="w-5 h-5" />
-              Send Booking Request
+              Pay Deposit
             </>
           )}
-        </button>
-      </div>
-    </motion.div>
-  );
-}
-
-// ─── Step 4: Success ───────────────────────────────────────────────────────
-function StepSuccess({
-  booking,
-  onDone,
-}: {
-  booking: ReturnType<typeof useBookingStore>['booking'];
-  onDone: () => void;
-}) {
-  const slot = booking.slot;
-  const fmtDate = (iso: string) =>
-    new Date(iso).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className="text-center space-y-6 py-4"
-    >
-      {/* Confetti-ish animation */}
-      <motion.div
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ type: 'spring', stiffness: 200, delay: 0.1 }}
-        className="w-24 h-24 rounded-full bg-ducks-green/20 border-2 border-ducks-green flex items-center justify-center mx-auto shadow-xl shadow-ducks-green/20"
-      >
-        <CheckCircle className="w-12 h-12 text-ducks-green" />
-      </motion.div>
-
-      <div>
-        <h2 className="text-2xl font-black text-white mb-2">Request Sent! 🎉</h2>
-        <p className="text-white/60 leading-relaxed max-w-xs mx-auto">
-          {booking.artist?.artistName} has received your consultation request and will confirm within 24 hours.
-        </p>
-      </div>
-
-      <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-left space-y-2">
-        <div className="flex justify-between text-sm">
-          <span className="text-white/40">Requested Date</span>
-          <span className="text-white font-medium">{slot ? fmtDate(slot.date) : '—'}</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-white/40">Time</span>
-          <span className="text-white font-medium">{slot?.time} ({slot?.duration}h)</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-white/40">Artist</span>
-          <span className="text-white font-medium">{booking.artist?.artistName}</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-white/40">Confirmation to</span>
-          <span className="text-white font-medium">{booking.details.email}</span>
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        <button
-          onClick={onDone}
-          className="w-full py-4 rounded-2xl font-bold bg-ducks-green text-white flex items-center justify-center gap-2 hover:bg-ducks-green/90 transition-all shadow-lg shadow-ducks-green/20"
-        >
-          Back to Design Studio <ArrowRight className="w-5 h-5" />
-        </button>
-        <button
-          onClick={() => {
-            if (navigator.share) {
-              navigator.share({ title: 'Check out my TatT design!', url: window.location.origin + '/generate' });
-            }
-          }}
-          className="w-full py-4 rounded-2xl font-bold bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 transition-all"
-        >
-          Share My Design ↗
         </button>
       </div>
     </motion.div>
@@ -634,8 +571,16 @@ export default function BookArtistPage() {
   const router = useRouter();
   const artistId = params.artistId as string;
 
-  const { booking, setArtist, setSlot, setDetails, confirmBooking, resetBooking } =
-    useBookingStore();
+  const {
+    booking,
+    setArtist,
+    setSlot,
+    setDetails,
+    setPaymentStatus,
+    setDepositAmount,
+    setStripeSessionId,
+    resetBooking,
+  } = useBookingStore();
   const { matches } = useMatchStore();
 
   const [loading, setLoading] = useState(false);
@@ -673,12 +618,58 @@ export default function BookArtistPage() {
     setStepIndex(2);
   };
 
-  const handleConfirm = async () => {
+  const handlePayDeposit = async () => {
+    if (!booking.artist || !booking.slot || !booking.details.size) {
+      return;
+    }
+
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1400)); // simulate API call
-    confirmBooking();
-    setStepIndex(3);
-    setLoading(false);
+    setPaymentStatus('processing');
+    const deposit = DEPOSIT_BY_SIZE[booking.details.size] ?? DEPOSIT_BY_SIZE.medium;
+    setDepositAmount(deposit);
+
+    try {
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          artistId,
+          artistName: booking.artist.artistName,
+          size: booking.details.size,
+          placement: booking.details.placement || 'Unspecified',
+          date: booking.slot.date,
+          time: booking.slot.time,
+          budget: booking.details.budget || 'flexible',
+          clientName: `${booking.details.firstName || ''} ${booking.details.lastName || ''}`.trim(),
+          clientEmail: booking.details.email || '',
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data?.sessionUrl) {
+        throw new Error(data?.error || 'Unable to start checkout.');
+      }
+
+      if (typeof data.sessionUrl === 'string') {
+        const sessionId = data.sessionUrl.match(/\/pay\/([^/?#]+)/)?.[1] ?? null;
+        setStripeSessionId(sessionId);
+      }
+
+      if (data.demoMode) {
+        setPaymentStatus('completed');
+        router.push(data.sessionUrl);
+        return;
+      }
+
+      window.location.href = data.sessionUrl;
+    } catch (error) {
+      console.error('Deposit checkout failed:', error);
+      setPaymentStatus('failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const artist = booking.artist;
@@ -702,7 +693,7 @@ export default function BookArtistPage() {
           </button>
           <div>
             <h1 className="text-xl font-black text-white">
-              {stepIndex === 3 ? 'Booking Confirmed' : 'Book a Session'}
+              {stepIndex === 2 ? 'Confirm & Pay' : 'Book a Session'}
             </h1>
             <p className="text-white/40 text-sm">
               {artist?.artistName ?? 'Loading…'}
@@ -711,7 +702,7 @@ export default function BookArtistPage() {
         </div>
 
         {/* Step Bar (hide on success) */}
-        {stepIndex < 3 && <StepBar step={stepIndex} />}
+        <StepBar step={stepIndex} />
 
         {/* Steps */}
         <AnimatePresence mode="wait">
@@ -725,16 +716,9 @@ export default function BookArtistPage() {
             <StepConfirm
               key="confirm"
               booking={booking}
-              onConfirm={handleConfirm}
+              onPayDeposit={handlePayDeposit}
               onBack={() => setStepIndex(1)}
               loading={loading}
-            />
-          )}
-          {stepIndex === 3 && (
-            <StepSuccess
-              key="success"
-              booking={booking}
-              onDone={() => router.push('/generate')}
             />
           )}
         </AnimatePresence>

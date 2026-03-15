@@ -35,11 +35,17 @@ export interface Booking {
 interface BookingState {
   booking: Booking;
   history: Booking[];
+  paymentStatus: 'pending' | 'processing' | 'completed' | 'failed';
+  depositAmount: number;
+  stripeSessionId: string | null;
 
   setArtist: (artist: ArtistMatch) => void;
   setSlot: (slot: BookingSlot) => void;
   setDetails: (details: Partial<BookingDetails>) => void;
   setStep: (step: BookingStep) => void;
+  setPaymentStatus: (status: BookingState['paymentStatus']) => void;
+  setDepositAmount: (amount: number) => void;
+  setStripeSessionId: (sessionId: string | null) => void;
   confirmBooking: () => void;
   resetBooking: () => void;
 }
@@ -57,6 +63,9 @@ export const useBookingStore = create<BookingState>()(
     (set, get) => ({
       booking: freshBooking(),
       history: [],
+      paymentStatus: 'pending',
+      depositAmount: 0,
+      stripeSessionId: null,
 
       setArtist: (artist) =>
         set((s) => ({ booking: { ...s.booking, artist } })),
@@ -72,6 +81,12 @@ export const useBookingStore = create<BookingState>()(
       setStep: (step) =>
         set((s) => ({ booking: { ...s.booking, step } })),
 
+      setPaymentStatus: (status) => set({ paymentStatus: status }),
+
+      setDepositAmount: (amount) => set({ depositAmount: amount }),
+
+      setStripeSessionId: (sessionId) => set({ stripeSessionId: sessionId }),
+
       confirmBooking: () => {
         const { booking, history } = get();
         const confirmed: Booking = {
@@ -83,7 +98,12 @@ export const useBookingStore = create<BookingState>()(
       },
 
       resetBooking: () =>
-        set({ booking: freshBooking() }),
+        set({
+          booking: freshBooking(),
+          paymentStatus: 'pending',
+          depositAmount: 0,
+          stripeSessionId: null,
+        }),
     }),
     {
       name: 'tatt-booking',
