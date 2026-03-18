@@ -20,7 +20,7 @@ const OPENROUTER_SITE_URL = process.env.OPENROUTER_SITE_URL || process.env.NEXT_
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_VERTEX_AI_PROJECT_ID || process.env.GCP_PROJECT_ID || 'tatt-pro';
 const REGION = process.env.GCP_REGION || 'us-central1';
-const GEMINI_MODEL = 'gemini-2.0-flash-exp';
+const GEMINI_MODEL = 'gemini-2.0-flash-001'; // Updated 2026-03-17: gemini-2.0-flash-exp deprecated → stable gemini-2.0-flash-001
 
 const COUNCIL_MEMBERS = {
   creative: {
@@ -36,7 +36,7 @@ const COUNCIL_MEMBERS = {
     estimatedCostUsd: 0.03
   },
   style: {
-    model: 'google/gemini-pro-1.5',
+    model: 'google/gemini-1.5-pro' // Updated 2026-03-17: fixed model ID format,
     role: 'Style Specialist',
     focus: 'Style authenticity and cultural accuracy',
     estimatedCostUsd: 0.02
