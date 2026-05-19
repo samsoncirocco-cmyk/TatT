@@ -36,7 +36,10 @@ yarn-error.log*
 # Credentials (never commit)
 firebase-admin-key.json
 gcp-service-account-key.json
+firebase-service-account.json
 *-service-account-key.json
+*-service-account.json
+*service-account*.json
 
 # vercel
 .vercel
