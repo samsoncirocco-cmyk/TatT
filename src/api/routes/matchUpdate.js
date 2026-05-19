@@ -6,7 +6,7 @@
 
 import { Router } from 'express';
 import { getHybridArtistMatches } from '../../services/matchService.js';
-import { updateMatches } from '../../services/firebase-match-service.js';
+import { updateMatches } from '../../services/firebase-match-service';
 
 const router = Router();
 
