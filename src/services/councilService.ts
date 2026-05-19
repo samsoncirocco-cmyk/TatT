@@ -12,7 +12,84 @@ import { getGcpAccessToken } from '@/lib/google-auth-edge';
 import { logEvent } from '@/lib/observability';
 
 const COUNCIL_API_URL = process.env.NEXT_PUBLIC_COUNCIL_API_URL || 'http://localhost:8001/api';
-const DEMO_MODE = process.env.NEXT_PUBLIC_COUNCIL_DEMO_MODE === 'true';
+const DEMO_MODE = process.env.NEXT_PUBLIC_COUNCIL_DEMO_MODE === 'true' || process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+
+/**
+ * Structured error thrown when ALL real providers (Vertex AI + OpenRouter +
+ * external Council API) AND the in-memory cache are exhausted. Callers should
+ * catch this and surface a clear "temporarily unavailable" message — NEVER
+ * silently substitute mock data.
+ */
+export class CouncilProviderError extends Error {
+  provider: string;
+  cause?: Error;
+  retryAfterMs?: number;
+  constructor(
+    message: string,
+    opts: { provider?: string; cause?: Error; retryAfterMs?: number } = {}
+  ) {
+    super(message);
+    this.name = 'CouncilProviderError';
+    this.provider = opts.provider || 'all_providers_exhausted';
+    this.cause = opts.cause;
+    this.retryAfterMs = opts.retryAfterMs ?? 60_000;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * In-memory response cache (TTL 1h, capacity 500, lazy eviction)
+ *
+ * Used as a brief shock-absorber so transient Vertex AI hiccups don't reach
+ * users on identical-shaped requests. On a healthy hit we return cached data
+ * with `cacheHit: true`. On total provider failure we re-check the cache as
+ * the last line of defense before throwing CouncilProviderError.
+ * ────────────────────────────────────────────────────────────────────────── */
+const CACHE_TTL_MS = 60 * 60 * 1000;
+const CACHE_MAX_ENTRIES = 500;
+type CacheEntry = { value: any; expiresAt: number };
+const councilCache: Map<string, CacheEntry> = new Map();
+
+function cacheKey(parts: {
+  fn: string;
+  userIdea?: string;
+  style?: string;
+  bodyPart?: string;
+  complexity?: string;
+  prompt?: string;
+}): string {
+  const norm = (s?: string) => (s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  return [
+    parts.fn,
+    norm(parts.userIdea),
+    norm(parts.style),
+    norm(parts.bodyPart),
+    norm(parts.complexity),
+    norm(parts.prompt)
+  ].join('|');
+}
+
+function cacheGet(key: string): any | undefined {
+  const entry = councilCache.get(key);
+  if (!entry) return undefined;
+  if (entry.expiresAt < Date.now()) {
+    councilCache.delete(key);
+    return undefined;
+  }
+  // Refresh LRU position
+  councilCache.delete(key);
+  councilCache.set(key, entry);
+  return entry.value;
+}
+
+function cacheSet(key: string, value: any) {
+  // Evict oldest entries when at capacity (Map iterates in insertion order)
+  while (councilCache.size >= CACHE_MAX_ENTRIES) {
+    const oldest = councilCache.keys().next().value;
+    if (oldest === undefined) break;
+    councilCache.delete(oldest);
+  }
+  councilCache.set(key, { value, expiresAt: Date.now() + CACHE_TTL_MS });
+}
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
@@ -615,6 +692,30 @@ export async function enhancePrompt({
     throw error;
   }
 
+  // ── Cache lookup (skipped in DEMO_MODE so the demo path stays deterministic)
+  const cKey = cacheKey({
+    fn: 'enhancePrompt',
+    userIdea,
+    style,
+    bodyPart,
+    complexity: String(resolvedStencilMode)
+  });
+  if (!DEMO_MODE) {
+    const cached = cacheGet(cKey);
+    if (cached) {
+      logEvent('council.result', {
+        requestId,
+        provider: 'cache',
+        durationMs: Date.now() - startTime,
+        estimatedCostUsd: 0,
+        cacheHit: true
+      });
+      return { ...cached, cacheHit: true };
+    }
+  }
+
+  // Track underlying failures so we can attach them to CouncilProviderError.cause
+  const providerErrors: Error[] = [];
   const modelSelectionPromise = selectModelWithFallback(style, userIdea, bodyPart);
 
   logEvent('council.request', {
@@ -654,10 +755,13 @@ export async function enhancePrompt({
           { bodyPart, isStencilMode: resolvedStencilMode, characterMatches }
         );
 
-        return { ...result, ...hardened };
+        const finalResult = { ...result, ...hardened };
+        cacheSet(cKey, finalResult);
+        return finalResult;
       }
     } catch (error) {
       console.error('[CouncilService] Vertex AI failed, trying fallback:', error);
+      providerErrors.push(error instanceof Error ? error : new Error(String(error)));
     }
   }
 
@@ -690,10 +794,13 @@ export async function enhancePrompt({
           { bodyPart, isStencilMode: resolvedStencilMode, characterMatches }
         );
 
-        return { ...result, ...hardened };
+        const finalResult = { ...result, ...hardened };
+        cacheSet(cKey, finalResult);
+        return finalResult;
       }
     } catch (error) {
       console.error('[CouncilService] OpenRouter failed, falling back:', error);
+      providerErrors.push(error instanceof Error ? error : new Error(String(error)));
     }
   }
 
@@ -787,7 +894,7 @@ export async function enhancePrompt({
       { bodyPart, isStencilMode: resolvedStencilMode, characterMatches }
     );
 
-    return {
+    const finalResult = {
       prompts: hardened.prompts,
       negativePrompt: hardened.negativePrompt,
       modelSelection: {
@@ -807,53 +914,44 @@ export async function enhancePrompt({
         enhancementTime
       }
     };
+    cacheSet(cKey, finalResult);
+    return finalResult;
 
   } catch (error) {
     console.error('[CouncilService] Enhancement failed:', error);
+    providerErrors.push(error instanceof Error ? error : new Error(String(error)));
 
-    const modelSelection: any = await modelSelectionPromise;
-    const enhancementTime = Date.now() - startTime;
-
-    const prompts = {
-      simple: MOCK_RESPONSES.simple(userIdea, style),
-      detailed: MOCK_RESPONSES.detailed(userIdea, style),
-      ultra: MOCK_RESPONSES.ultra(userIdea, style, bodyPart)
-    };
-    const negativePrompt = MOCK_RESPONSES.negative(userIdea);
-    const hardened = applyCouncilSkillPack(
-      prompts,
-      negativePrompt,
-      { bodyPart, isStencilMode: resolvedStencilMode, characterMatches }
-    );
+    // Last-line-of-defense: re-check cache before hard-failing
+    const cached = cacheGet(cKey);
+    if (cached) {
+      logEvent('council.result', {
+        requestId,
+        provider: 'cache-rescue',
+        durationMs: Date.now() - startTime,
+        estimatedCostUsd: 0,
+        cacheHit: true,
+        rescued: true
+      }, 'warn');
+      return { ...cached, cacheHit: true };
+    }
 
     logEvent('council.result', {
       requestId,
-      provider: 'fallback',
-      durationMs: enhancementTime,
+      provider: 'none',
+      durationMs: Date.now() - startTime,
       estimatedCostUsd: 0,
-      fallback: true
-    }, 'warn');
+      failed: true,
+      providerErrors: providerErrors.map(e => e.message)
+    }, 'error');
 
-    return {
-      prompts: hardened.prompts,
-      negativePrompt: hardened.negativePrompt,
-      modelSelection: {
-        modelId: modelSelection.modelId,
-        modelName: modelSelection.modelName,
-        reasoning: modelSelection.reasoning,
-        estimatedTime: modelSelection.estimatedTime,
-        cost: modelSelection.cost,
-        isFallback: modelSelection.isFallback || false
-      },
-      metadata: {
-        userIdea,
-        style,
-        bodyPart,
-        generatedAt: new Date().toISOString(),
-        fallback: true,
-        enhancementTime
+    throw new CouncilProviderError(
+      'all_providers_exhausted: AI Council temporarily unavailable',
+      {
+        provider: 'all_providers_exhausted',
+        cause: providerErrors[providerErrors.length - 1],
+        retryAfterMs: 60_000
       }
-    };
+    );
   }
 }
 
@@ -922,6 +1020,12 @@ export async function getStyleRecommendations(style: string) {
     };
   }
 
+  const cKey = cacheKey({ fn: 'getStyleRecommendations', style });
+  const cached = cacheGet(cKey);
+  if (cached) {
+    return { ...cached, cacheHit: true };
+  }
+
   try {
     const response = await fetch(`${COUNCIL_API_URL}/style-recommendations/${style}`);
 
@@ -929,11 +1033,23 @@ export async function getStyleRecommendations(style: string) {
       throw new Error(`Council API error: ${response.status}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    cacheSet(cKey, data);
+    return data;
 
   } catch (error) {
     console.error('[CouncilService] Style recommendations failed:', error);
-    return null;
+    // Last-line-of-defense cache re-check before hard-fail
+    const rescue = cacheGet(cKey);
+    if (rescue) return { ...rescue, cacheHit: true };
+    throw new CouncilProviderError(
+      'all_providers_exhausted: style recommendations unavailable',
+      {
+        provider: 'council_api',
+        cause: error instanceof Error ? error : new Error(String(error)),
+        retryAfterMs: 60_000
+      }
+    );
   }
 }
 
@@ -952,6 +1068,12 @@ export async function validatePrompt(prompt: string) {
     };
   }
 
+  const cKey = cacheKey({ fn: 'validatePrompt', prompt });
+  const cached = cacheGet(cKey);
+  if (cached) {
+    return { ...cached, cacheHit: true };
+  }
+
   try {
     const response = await fetch(`${COUNCIL_API_URL}/prompt-validation`, {
       method: 'POST',
@@ -965,14 +1087,22 @@ export async function validatePrompt(prompt: string) {
       throw new Error(`Council API error: ${response.status}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    cacheSet(cKey, data);
+    return data;
 
   } catch (error) {
     console.error('[CouncilService] Validation failed:', error);
-    return {
-      score: 70,
-      isValid: true,
-      suggestions: ['Validation service unavailable']
-    };
+    // Last-line-of-defense cache re-check before hard-fail
+    const rescue = cacheGet(cKey);
+    if (rescue) return { ...rescue, cacheHit: true };
+    throw new CouncilProviderError(
+      'all_providers_exhausted: prompt validation unavailable',
+      {
+        provider: 'council_api',
+        cause: error instanceof Error ? error : new Error(String(error)),
+        retryAfterMs: 60_000
+      }
+    );
   }
 }
