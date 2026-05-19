@@ -6,7 +6,7 @@
  */
 
 import { findMatchingArtistsForDemo } from './demoMatchService.js';
-import { updateMatches } from './firebase-match-service.js';
+import { updateMatches } from '@/services/firebase-match-service';
 
 // Debounce timer
 let updateTimer = null;
@@ -93,7 +93,7 @@ export async function initializeMatchPulse(userId, initialDesign = null, prefere
  */
 export async function clearMatchPulse(userId) {
     try {
-        const { clearMatches } = await import('./firebase-match-service.js');
+        const { clearMatches } = await import('@/services/firebase-match-service');
         await clearMatches(userId);
         console.log('[MatchPulse] Cleared for user:', userId);
     } catch (error) {
