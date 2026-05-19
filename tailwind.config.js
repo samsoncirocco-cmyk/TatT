@@ -7,51 +7,23 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Brand colors (Ducks)
-        'ducks-green': '#154733',
-        'ducks-yellow': '#FEE123',
-
-        // Semantic color tokens
+        // Studio theme (TatT HUD)
         primary: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          800: '#1e40af',
-          900: '#1e3a8a',
-          950: '#172554',
+          DEFAULT: '#1ef61e',
+          glow: 'rgba(30, 246, 30, 0.25)',
         },
-        secondary: {
-          50: '#f8fafc',
-          100: '#f1f5f9',
-          200: '#e2e8f0',
-          300: '#cbd5e1',
-          400: '#94a3b8',
-          500: '#64748b',
-          600: '#475569',
-          700: '#334155',
-          800: '#1e293b',
-          900: '#0f172a',
-          950: '#020617',
+        studio: {
+          bg: '#0a0d0a',
+          panel: '#102210',
+          elevated: '#162b16',
         },
-        // Zinc / Grays for Dark Mode
-        zinc: {
-          900: '#18181b', // Main background candidate
-          950: '#09090b', // Darker background
-        },
-        // Semantic Aliases
-        background: '#050505',
-        surface: '#121212',
+        'border-subtle': 'rgba(255, 255, 255, 0.1)',
+        'border-primary': 'rgba(30, 246, 30, 0.2)',
       },
       fontFamily: {
-        // "AI Slop" Avoidance: No Inter/Roboto
-        sans: ['Outfit', 'sans-serif'], // Body default
-        display: ['Space Grotesk', 'sans-serif'], // Headings
-        mono: ['JetBrains Mono', 'monospace'], // Technical
+        sans: ['Manrope', 'sans-serif'],
+        display: ['Manrope', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace'],
       },
       backgroundImage: {
         'mesh-gradient': 'radial-gradient(circle at 50% 0%, rgba(21, 71, 51, 0.4), transparent 70%)',
@@ -67,9 +39,9 @@ export default {
         '128': '32rem',
       },
       borderRadius: {
-        'xl': '1rem',
-        '2xl': '1.5rem',
-        '3xl': '2rem',
+        DEFAULT: '0.125rem',
+        'lg': '0.25rem',
+        'xl': '0.5rem',
       },
       boxShadow: {
         'soft': '0 2px 8px rgba(0, 0, 0, 0.08)',
