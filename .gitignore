@@ -32,8 +32,14 @@ dist-ssr
 temp/
 uploads/
 
-# Secrets
+# Secrets — never commit any credential file
 google-credentials.json
+firebase-admin-key.json
+firebase-service-account.json
+gcp-service-account-key.json
+*-service-account-key.json
+*-service-account.json
+*service-account*.json
 
 # Claude/Codex skills
 .claude/skills/
