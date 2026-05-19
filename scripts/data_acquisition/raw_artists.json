@@ -1,0 +1,58 @@
+[
+  {
+    "name": "Daredevil Tattoo",
+    "address": "141 Division St, New York, NY 10002",
+    "website": "https://www.daredeviltattoo.com",
+    "place_id": "mock_place_1",
+    "found_artists": [],
+    "crawled_at": "2026-01-20T17:54:54.637Z"
+  },
+  {
+    "name": "Saved Tattoo",
+    "address": "426 Union Ave, Brooklyn, NY 11211",
+    "website": "https://savedtattoo.com",
+    "place_id": "mock_place_2",
+    "found_artists": [
+      {
+        "handle": "tatthq",
+        "profile_url": "https://www.instagram.com/tatthq/",
+        "source": "instagram_link"
+      }
+    ],
+    "crawled_at": "2026-01-20T17:54:59.272Z"
+  },
+  {
+    "name": "Atlas Tattoo",
+    "address": "4543 N Albina Ave, Portland, OR 97217",
+    "website": "https://www.atlastattoo.com",
+    "place_id": "mock_place_3",
+    "found_artists": [
+      {
+        "handle": "atlastattoo",
+        "profile_url": "https://www.instagram.com/atlastattoo",
+        "source": "instagram_link"
+      },
+      {
+        "handle": "atlastattoo",
+        "profile_url": "https://www.instagram.com/atlastattoo",
+        "source": "instagram_link"
+      },
+      {
+        "handle": "atlastattoo",
+        "profile_url": "https://www.instagram.com/atlastattoo",
+        "source": "instagram_link"
+      },
+      {
+        "handle": "atlastattoo",
+        "profile_url": "https://www.instagram.com/atlastattoo",
+        "source": "instagram_link"
+      },
+      {
+        "handle": "atlastattoo",
+        "profile_url": "https://www.instagram.com/atlastattoo",
+        "source": "instagram_link"
+      }
+    ],
+    "crawled_at": "2026-01-20T17:55:01.152Z"
+  }
+]
