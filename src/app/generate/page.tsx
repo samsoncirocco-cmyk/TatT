@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 
-const LegacyContent = dynamic(() => import('@/features/Generate.jsx'), {
+const LegacyContent = dynamic(() => import('../../features/Generate.jsx'), {
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center h-screen bg-black text-white">
