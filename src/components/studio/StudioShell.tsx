@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useFavorites, useDemoUser } from "@/lib/tattStorage";
+import { useFavorites, useDemoUser, useDesigns, useBookings } from "@/lib/tattStorage";
 
 type StudioShellProps = {
   children: ReactNode;
@@ -28,6 +28,8 @@ export default function StudioShell({
   const pathname = usePathname();
   const { favorites, hydrated: favHydrated } = useFavorites();
   const { user, hydrated: userHydrated, signOut } = useDemoUser();
+  const { designs, hydrated: designsHydrated } = useDesigns();
+  const { bookings, hydrated: bookingsHydrated } = useBookings();
 
   return (
     <div className="halftone grain min-h-screen text-white font-body flex flex-col relative bg-black">
@@ -58,6 +60,24 @@ export default function StudioShell({
           </div>
 
           <div className="flex items-stretch">
+            {designsHydrated && designs.length > 0 && (
+              <Link
+                href="/designs"
+                aria-label={`${designs.length} saved designs`}
+                className="hidden lg:flex items-center px-3 border-l hairline-white text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink press tabular-nums font-body"
+              >
+                ◆&nbsp;{designs.length}
+              </Link>
+            )}
+            {bookingsHydrated && bookings.length > 0 && (
+              <Link
+                href="/bookings"
+                aria-label={`${bookings.length} bookings`}
+                className="hidden lg:flex items-center px-3 border-l hairline-white text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink press tabular-nums font-body"
+              >
+                ▣&nbsp;{bookings.length}
+              </Link>
+            )}
             {favHydrated && favorites.length > 0 && (
               <Link
                 href="/matches"
