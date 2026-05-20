@@ -1,6 +1,5 @@
 import Link from "next/link";
 import StudioShell from "@/components/studio/StudioShell";
-import PunkFooter from "@/components/studio/PunkFooter";
 
 const TIERS = [
   {
@@ -133,8 +132,6 @@ export default function PricingPage() {
           </div>
         </div>
       </div>
-
-      <PunkFooter />
     </StudioShell>
   );
 }

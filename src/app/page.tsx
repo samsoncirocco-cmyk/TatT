@@ -1,6 +1,5 @@
 import Link from "next/link";
 import StudioShell from "@/components/studio/StudioShell";
-import PunkFooter from "@/components/studio/PunkFooter";
 
 const STEPS = [
   {
@@ -165,7 +164,6 @@ export default function Home() {
             </div>
           </div>
         </section>
-        <PunkFooter />
       </div>
     </StudioShell>
   );

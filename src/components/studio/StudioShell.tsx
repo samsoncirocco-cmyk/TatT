@@ -4,11 +4,18 @@ import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useFavorites, useDemoUser, useDesigns, useBookings } from "@/lib/tattStorage";
+import PunkFooter from "@/components/studio/PunkFooter";
 
 type StudioShellProps = {
   children: ReactNode;
   leftSidebar?: ReactNode;
   rightSidebar?: ReactNode;
+  /**
+   * Render the global PunkFooter at the bottom of the main column.
+   * Defaults to true so app routes get the footer too; the Forge can
+   * pass `footer={false}` since it has its own sticky bottom chrome.
+   */
+  footer?: boolean;
 };
 
 const NAV = [
@@ -22,6 +29,7 @@ export default function StudioShell({
   children,
   leftSidebar,
   rightSidebar,
+  footer = true,
 }: StudioShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -200,20 +208,65 @@ export default function StudioShell({
                 {n.label}
               </Link>
             ))}
-            <Link
-              href="/login"
-              onClick={() => setMobileOpen(false)}
-              className="block px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-pink border-b hairline-soft font-body"
-            >
-              Log In
-            </Link>
-            <Link
-              href="/signup"
-              onClick={() => setMobileOpen(false)}
-              className="block px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-pink font-body"
-            >
-              Sign Up
-            </Link>
+            {userHydrated && user ? (
+              <>
+                <div className="px-6 py-3 border-b hairline-soft">
+                  <div className="text-[9px] uppercase tracking-[0.25em] text-white/40 font-body">
+                    Signed in as
+                  </div>
+                  <div className="mt-1 text-[12px] text-pink font-body truncate">
+                    {user.name || user.email}
+                  </div>
+                </div>
+                <Link
+                  href="/designs"
+                  onClick={() => setMobileOpen(false)}
+                  className="block px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-white/80 hover:text-pink border-b hairline-soft font-body"
+                >
+                  My Designs
+                </Link>
+                <Link
+                  href="/bookings"
+                  onClick={() => setMobileOpen(false)}
+                  className="block px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-white/80 hover:text-pink border-b hairline-soft font-body"
+                >
+                  My Bookings
+                </Link>
+                <Link
+                  href="/settings"
+                  onClick={() => setMobileOpen(false)}
+                  className="block px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-white/80 hover:text-pink border-b hairline-soft font-body"
+                >
+                  Settings
+                </Link>
+                <button
+                  onClick={() => {
+                    signOut();
+                    setMobileOpen(false);
+                  }}
+                  className="block w-full text-left px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-pink font-body"
+                >
+                  Log Out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  onClick={() => setMobileOpen(false)}
+                  className="block px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-pink border-b hairline-soft font-body"
+                >
+                  Log In
+                </Link>
+                <Link
+                  href="/signup"
+                  onClick={() => setMobileOpen(false)}
+                  className="block px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-pink font-body"
+                >
+                  Sign Up
+                </Link>
+              </>
+            )}
           </div>
         )}
       </header>
@@ -225,7 +278,10 @@ export default function StudioShell({
           </aside>
         )}
 
-        <main className="flex-1 min-w-0 overflow-y-auto bg-black">{children}</main>
+        <div className="flex-1 min-w-0 overflow-y-auto bg-black flex flex-col">
+          <main className="flex-1 min-w-0">{children}</main>
+          {footer && <PunkFooter />}
+        </div>
 
         {rightSidebar && (
           <aside className="hidden xl:block w-80 shrink-0 border-l hairline-white relative bg-black">
