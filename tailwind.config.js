@@ -7,30 +7,36 @@ export default {
   theme: {
     extend: {
       colors: {
-        // TatT — paper, ink, one accent.
-        bone: {
-          DEFAULT: '#f3ecd9',
-          dark: '#e8e0c8',
+        // TICKETS TO MY DOWNFALL — hot pink, pitch black, bleached white, sparing cream.
+        pink: {
+          DEFAULT: '#ff1f6b',
+          deep: '#d6004f',
         },
-        ink: {
-          DEFAULT: '#15110d',
-          soft: '#5a5249',
+        ink: {            // kept as alias for legacy classes, mapped to black
+          DEFAULT: '#0a0a0a',
+          soft: '#9a9690',
+        },
+        bone: {           // legacy alias, mapped to bleached white
+          DEFAULT: '#f5f5f0',
+          dark: '#e8d9b8',
+        },
+        cream: {
+          DEFAULT: '#e8d9b8',
         },
         oxblood: {
-          DEFAULT: '#6b1818',
+          DEFAULT: '#ff1f6b', // legacy alias → pink so any stragglers stay loud
         },
       },
       fontFamily: {
-        // One family. Multiple weights, optical sizes, and a soft axis.
-        display: ['"Fraunces"', 'Georgia', 'serif'],
-        body:    ['"Fraunces"', 'Georgia', 'serif'],
+        display: ['"Anton"', 'Impact', 'Arial Narrow', 'sans-serif'],
+        body:    ['"Space Mono"', 'Menlo', 'monospace'],
       },
       borderRadius: {
         none: '0',
-        DEFAULT: '2px',
-        sm: '2px',
-        md: '3px',
-        lg: '4px',
+        DEFAULT: '0',
+        sm: '0',
+        md: '0',
+        lg: '0',
         full: '9999px',
       },
     },
