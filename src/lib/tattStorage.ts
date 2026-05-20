@@ -138,6 +138,29 @@ function genId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+/**
+ * Non-hook write — for callers outside React render (event handlers in
+ * non-React code, async callbacks that fire long after a hook closure
+ * would have stale state). The hook variant inside `useDesigns` is
+ * preferred when you're in a component because it updates local state
+ * immediately; this helper just persists + fires the cross-tab event.
+ */
+export function addDesignToStorage(
+  prompt: string,
+  extra?: Partial<TattDesign>,
+): TattDesign {
+  const design: TattDesign = {
+    id: genId(),
+    prompt: (prompt || "").trim(),
+    createdAt: Date.now(),
+    color: DESIGN_COLORS[Math.floor(Math.random() * DESIGN_COLORS.length)],
+    ...extra,
+  };
+  const current = safeRead<TattDesign[]>(STORAGE_KEYS.designs, []);
+  safeWrite(STORAGE_KEYS.designs, [design, ...current]);
+  return design;
+}
+
 export function useDesigns() {
   const { items, hydrated, setItems } = useStoredList<TattDesign>(STORAGE_KEYS.designs);
 
