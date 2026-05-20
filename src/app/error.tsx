@@ -1,10 +1,15 @@
-'use client';
+"use client";
+
+import Link from "next/link";
+import { useEffect } from "react";
 
 /**
- * Root Error Boundary for Next.js App Router
- * Catches errors in any page and displays a styled fallback
+ * Root Error Boundary — punk styled.
+ *
+ * Caught errors render here for any page under app/ that doesn't define
+ * its own error.tsx. Logs to console + offers Retry (reset) and Home
+ * exits.
  */
-
 export default function Error({
   error,
   reset,
@@ -12,74 +17,77 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  console.error('[App Error]', error);
+  useEffect(() => {
+    console.error("[App Error]", error);
+  }, [error]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black px-4 relative overflow-hidden">
-      {/* Gradient Background */}
-      <div className="absolute inset-0 -z-10">
-        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-purple-500/20 rounded-full blur-[120px] animate-pulse" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-pink-500/20 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '1s' }} />
+    <div className="halftone grain min-h-screen text-white font-body bg-black flex flex-col">
+      <div className="px-6 md:px-12 pt-6 pb-4 border-b hairline">
+        <div className="max-w-4xl mx-auto flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/50 tabular-nums font-body">
+          <span>
+            <span className="text-pink">●</span>&nbsp;&nbsp;Error
+          </span>
+          <span>
+            Status:&nbsp;<span className="text-pink">Crashed</span>
+          </span>
+        </div>
       </div>
 
-      <div className="max-w-2xl w-full z-10">
-        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 shadow-2xl">
-          {/* Icon */}
-          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500/30 to-pink-500/30 flex items-center justify-center mb-6">
-            <svg
-              className="w-8 h-8 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-              />
-            </svg>
-          </div>
-
-          {/* Title */}
-          <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 mb-3">
-            Something went wrong
+      <div className="flex-1 flex items-center px-6 md:px-12 py-16 md:py-24">
+        <div className="max-w-4xl mx-auto w-full">
+          <h1 className="font-display text-white leading-[0.88] text-[64px] sm:text-[96px] md:text-[128px] tracking-[0.005em]">
+            Something&nbsp;<span className="slash"><span>broke</span></span>
+            <span className="text-pink">.</span>
           </h1>
 
-          {/* Description */}
-          <p className="text-white/70 mb-6 text-lg">
-            We encountered an unexpected error. This has been logged and we'll look into it.
-            You can try again or return to the home page.
+          <p className="mt-10 max-w-xl text-[15px] leading-[1.55] text-white/70 font-body">
+            The page hit a wall on the way to render.{" "}
+            <span className="scribble text-pink">Not your fault.</span>{" "}
+            Hit retry, or bounce home and start fresh.
           </p>
 
-          {/* Error details (dev mode only) */}
-          {process.env.NODE_ENV === 'development' && error && (
-            <div className="mb-6 p-4 bg-pink-500/10 border border-pink-500/30 rounded-xl">
-              <h3 className="text-sm font-bold text-pink-400 mb-2 uppercase tracking-wider">
-                Error Details (Dev Mode)
-              </h3>
-              <pre className="text-xs text-pink-300 overflow-x-auto whitespace-pre-wrap break-words max-h-40 overflow-y-auto">
+          {process.env.NODE_ENV === "development" && error?.message && (
+            <div className="mt-10 border-2 hairline p-5 max-w-3xl">
+              <div className="text-[10px] uppercase tracking-[0.28em] text-pink font-body mb-3">
+                ▸ Dev mode — error
+              </div>
+              <pre className="text-[12px] text-white/70 font-body leading-[1.55] whitespace-pre-wrap break-words max-h-60 overflow-auto">
                 {error.message}
-                {error.stack && `\n\n${error.stack}`}
+                {error.stack ? `\n\n${error.stack}` : ""}
               </pre>
+              {error.digest && (
+                <div className="mt-3 text-[10px] uppercase tracking-[0.25em] text-white/40 font-body tabular-nums">
+                  Digest:&nbsp;<span className="text-pink">{error.digest}</span>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Actions */}
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="mt-10 flex flex-wrap items-center gap-5">
             <button
               onClick={reset}
-              className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all transform hover:scale-105"
+              className="tape press inline-flex items-center justify-center px-10 py-5 font-display text-[32px] sm:text-[38px] leading-none tracking-[0.02em]"
             >
               Try Again
+              <span className="ml-3 text-[20px]">▸</span>
             </button>
-            <button
-              onClick={() => window.location.href = '/'}
-              className="px-6 py-3 bg-white/10 text-white font-bold rounded-xl hover:bg-white/20 transition-all backdrop-blur-sm"
+            <Link
+              href="/"
+              className="text-[10px] uppercase tracking-[0.25em] text-white/60 hover:text-pink border hairline px-4 py-3 press font-body"
             >
-              Return Home
-            </button>
+              ▸ Go Home
+            </Link>
           </div>
+        </div>
+      </div>
+
+      <div className="border-t hairline px-6 md:px-12 py-4 bg-black">
+        <div className="max-w-4xl mx-auto flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/50 tabular-nums font-body">
+          <span>Code:&nbsp;<span className="text-pink">5xx</span></span>
+          <span>
+            <span className="text-pink">●</span>&nbsp;&nbsp;TatT
+          </span>
         </div>
       </div>
     </div>
