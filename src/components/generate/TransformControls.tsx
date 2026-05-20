@@ -21,31 +21,31 @@ export default function TransformControls({
     disabled = false
 }: TransformControlsProps) {
     return (
-        <div className="flex items-center gap-2 p-2 bg-black/40 backdrop-blur-md rounded-lg border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+        <div className="flex items-center gap-1 p-1.5 bg-black border-2 border-pink opacity-0 group-hover:opacity-100 transition-opacity duration-150">
             <button
                 onClick={onFlipHorizontal}
                 disabled={disabled}
-                className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded transition-colors disabled:opacity-50"
+                className="press p-2 text-white hover:text-black hover:bg-pink transition-colors disabled:opacity-50"
                 title="Flip Horizontal"
             >
-                <FlipHorizontal size={20} />
+                <FlipHorizontal size={18} />
             </button>
             <button
                 onClick={onFlipVertical}
                 disabled={disabled}
-                className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded transition-colors disabled:opacity-50"
+                className="press p-2 text-white hover:text-black hover:bg-pink transition-colors disabled:opacity-50"
                 title="Flip Vertical"
             >
-                <FlipVertical size={20} />
+                <FlipVertical size={18} />
             </button>
-            <div className="w-px h-4 bg-white/20 mx-1" />
+            <div className="w-px h-4 bg-pink mx-1" />
             <button
                 onClick={onResetRotation}
                 disabled={disabled}
-                className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded transition-colors disabled:opacity-50"
+                className="press p-2 text-white hover:text-black hover:bg-pink transition-colors disabled:opacity-50"
                 title="Reset Rotation"
             >
-                <RotateCw size={20} />
+                <RotateCw size={18} />
             </button>
         </div>
     );
