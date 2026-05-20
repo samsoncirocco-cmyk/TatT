@@ -158,7 +158,7 @@ export default function DesignDetailPage({
 
             <div className="mt-10 flex flex-col sm:flex-row gap-3">
               <Link
-                href="/generate/stencil"
+                href={`/generate/stencil?prompt=${encodeURIComponent(design.prompt)}`}
                 className="tape press inline-flex items-center justify-center px-6 py-4 font-display text-[20px] sm:text-[24px] leading-none tracking-[0.02em]"
               >
                 Iterate
