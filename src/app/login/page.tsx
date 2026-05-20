@@ -2,11 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
+import { useDemoUser } from "@/lib/tattStorage";
 
 const PROVIDERS = ["Google", "Apple", "Github"];
 
 export default function LoginPage() {
+  const router = useRouter();
+  const { signIn } = useDemoUser();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -34,7 +38,9 @@ export default function LoginPage() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              console.log("login", { email, password });
+              if (!email.trim() || !password) return;
+              signIn(email);
+              router.push("/designs");
             }}
             className="mt-10 space-y-6"
           >

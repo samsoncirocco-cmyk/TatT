@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
+import { useDemoUser } from "@/lib/tattStorage";
 
 const NAV = ["Profile", "Notifications", "Billing", "Delete Account"];
 
@@ -12,13 +14,35 @@ const STYLES = [
 ];
 
 export default function SettingsPage() {
+  const router = useRouter();
+  const { user, hydrated, updateUser, signOut } = useDemoUser();
   const [active, setActive] = useState(0);
-  const [name, setName] = useState("Samson Cirocco");
-  const [email, setEmail] = useState("samson@example.com");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [picked, setPicked] = useState<string[]>(["Fineline", "Blackwork"]);
+  const [saved, setSaved] = useState(false);
+
+  // Sync local form state from store on hydration / user change.
+  useEffect(() => {
+    if (!hydrated) return;
+    setName(user?.name ?? "");
+    setEmail(user?.email ?? "");
+  }, [hydrated, user]);
 
   const toggle = (s: string) =>
     setPicked((p) => (p.includes(s) ? p.filter((x) => x !== s) : [...p, s]));
+
+  const handleSave = () => {
+    if (!user) return;
+    updateUser({ name: name.trim() || undefined, email: email.trim() });
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 2000);
+  };
+
+  const handleLogout = () => {
+    signOut();
+    router.push("/");
+  };
 
   return (
     <StudioShell>
@@ -120,15 +144,39 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  <div className="pt-6 border-t hairline">
-                    <button
-                      onClick={() => console.log("save", { name, email, picked })}
-                      className="tape press inline-flex items-center justify-center px-8 py-4 font-display text-[24px] leading-none tracking-[0.02em]"
-                    >
-                      Save Changes
-                      <span className="ml-3 text-[18px]">▸</span>
-                    </button>
+                  <div className="pt-6 border-t hairline flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <button
+                        onClick={handleSave}
+                        disabled={!user}
+                        className={`tape press inline-flex items-center justify-center px-8 py-4 font-display text-[24px] leading-none tracking-[0.02em] ${
+                          !user ? "opacity-40 cursor-not-allowed" : ""
+                        }`}
+                      >
+                        Save Changes
+                        <span className="ml-3 text-[18px]">▸</span>
+                      </button>
+                      {saved && (
+                        <span className="text-[10px] uppercase tracking-[0.25em] text-pink font-body">
+                          ● Saved
+                        </span>
+                      )}
+                    </div>
+                    {user && (
+                      <button
+                        onClick={handleLogout}
+                        className="text-[10px] uppercase tracking-[0.25em] text-white/60 hover:text-pink border hairline px-4 py-3 press font-body"
+                      >
+                        Log Out
+                      </button>
+                    )}
                   </div>
+                  {hydrated && !user && (
+                    <p className="text-[10px] uppercase tracking-[0.25em] text-white/40 font-body">
+                      Not signed in. Demo sign-in:&nbsp;
+                      <a href="/login" className="text-pink hover:underline">log in</a>.
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div className="py-16 text-center">
