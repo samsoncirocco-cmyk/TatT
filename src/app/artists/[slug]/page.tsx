@@ -1,5 +1,6 @@
 import Link from "next/link";
 import StudioShell from "@/components/studio/StudioShell";
+import FavoriteButton from "@/components/punk/FavoriteButton";
 
 const TILE_COLORS = [
   "bg-pink", "bg-bone", "bg-cream",
@@ -52,10 +53,13 @@ export default async function ArtistProfilePage({
             </div>
           </div>
           <div className="md:col-span-7">
-            <h1 className="font-display text-white text-[56px] sm:text-[80px] md:text-[96px] leading-[0.88] tracking-[0.005em]">
-              {name}
-              <span className="text-pink">.</span>
-            </h1>
+            <div className="flex items-start justify-between gap-4">
+              <h1 className="font-display text-white text-[56px] sm:text-[80px] md:text-[96px] leading-[0.88] tracking-[0.005em]">
+                {name}
+                <span className="text-pink">.</span>
+              </h1>
+              <FavoriteButton slug={slug} label={name} size={28} className="mt-2 shrink-0" />
+            </div>
             <div className="mt-4 flex flex-wrap items-center gap-3 text-[10px] uppercase tracking-[0.25em] text-white/60 font-body">
               <span>Brooklyn, NY</span>
               <span className="text-pink">●</span>
