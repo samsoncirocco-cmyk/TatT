@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
 import { useDesigns } from "@/lib/tattStorage";
 
@@ -61,10 +61,22 @@ function RightSidebarContent() {
   );
 }
 
-export default function StencilPage() {
+function StencilPageInner() {
   const [prompt, setPrompt] = useState("");
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { addDesign } = useDesigns();
+
+  // Allow deep-linking with a pre-filled prompt: /generate/stencil?prompt=...
+  // Used by /designs/[id]'s "Iterate" CTA to pick up where a saved design
+  // left off. Only fires once on mount; subsequent user edits stick.
+  useEffect(() => {
+    const initial = searchParams?.get("prompt");
+    if (initial) setPrompt(initial);
+    // intentionally not depending on searchParams — we only want the initial
+    // hydration, not to clobber user input if the URL changes later.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const appendSuggestion = (s: string) => {
     setPrompt((p) => (p.trim() ? `${p.trim()}, ${s}` : s));
@@ -191,5 +203,15 @@ export default function StencilPage() {
         </div>
       </div>
     </StudioShell>
+  );
+}
+
+export default function StencilPage() {
+  // useSearchParams requires a Suspense boundary in the app router.
+  // Fallback returns the same shell without the URL-driven prompt prefill.
+  return (
+    <Suspense fallback={<StencilPageInner />}>
+      <StencilPageInner />
+    </Suspense>
   );
 }
