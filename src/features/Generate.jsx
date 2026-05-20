@@ -51,6 +51,7 @@ import {
     addMultipleLayers,
     shouldUseMultiLayer
 } from './generate/services/multiLayerService';
+import { addDesignToStorage } from '../lib/tattStorage';
 
 const TRENDING_EXAMPLES = [
     {
@@ -579,6 +580,22 @@ export default function Generate() {
                 }
 
                 console.log('Generation successful:', result);
+
+                // On finalize, persist the design to the punk demo library
+                // (tatt:designs) so it shows up on /designs and /designs/[id].
+                // Demo-only; the source-of-truth is still the Forge's version
+                // history in IndexedDB. Failures here must not break the
+                // generation flow — wrapped in try/catch and logged.
+                if (finalize) {
+                    try {
+                        const titlePrompt = (enhancedPrompt || promptText || '').trim();
+                        if (titlePrompt) {
+                            addDesignToStorage(titlePrompt);
+                        }
+                    } catch (storageError) {
+                        console.warn('[Generate] tatt:designs persist failed:', storageError);
+                    }
+                }
             }
         } catch (error) {
             console.error('Generation failed:', error);
