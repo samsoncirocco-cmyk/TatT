@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..900,0..100;1,9..144,300..900,0..100&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap');
 
 @tailwind base;
@@ -6,64 +6,144 @@
 @tailwind utilities;
 
 :root {
-  /* Refined palette — paper, ink, one accent. That's it. */
-  --bone: #f3ecd9;          /* slightly cooler, less yellow than before */
-  --bone-dark: #e8e0c8;     /* a single subtle tonal step for surfaces */
-  --ink: #15110d;
-  --ink-soft: #5a5249;      /* paper-stained graphite for secondary text */
-  --oxblood: #6b1818;
-  --background: var(--bone);
-  --foreground: var(--ink);
+  /* TICKETS TO MY DOWNFALL — hot pink, pitch black, bleached white, one dusty support. */
+  --pink: #ff1f6b;
+  --pink-deep: #d6004f;
+  --black: #0a0a0a;
+  --white: #f5f5f0;
+  --cream: #e8d9b8;       /* sparing support — pricetag / sticker only */
+  --background: var(--black);
+  --foreground: var(--white);
 }
 
 html, body {
   margin: 0;
   min-height: 100vh;
+  background: var(--black);
 }
 
 body {
   color: var(--foreground);
-  background: var(--bone);
-  font-family: 'Fraunces', 'Georgia', serif;
-  font-optical-sizing: auto;
-  font-variation-settings: "SOFT" 30;
-  font-size: 17px;
-  line-height: 1.6;
+  background: var(--black);
+  font-family: 'Space Mono', 'Menlo', monospace;
+  font-size: 14px;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-/* Display sets — exploit Fraunces' variable axes */
 .font-display {
-  font-family: 'Fraunces', 'Georgia', serif;
-  font-variation-settings: "opsz" 144, "SOFT" 20;
+  font-family: 'Anton', 'Impact', 'Arial Narrow', sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.005em;
+  text-transform: uppercase;
 }
 
-/* Almost-invisible paper grain. No foxing, no decorative noise blast. */
-.paper-grain {
-  position: relative;
-  background-color: var(--bone);
+.font-body {
+  font-family: 'Space Mono', 'Menlo', monospace;
 }
-.paper-grain::before {
+
+/* HALFTONE PINK DOT PATTERN — fixed background, low-density, like a screenprint */
+.halftone {
+  position: relative;
+}
+.halftone::before {
   content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  opacity: 0.08;
-  mix-blend-mode: multiply;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.08  0 0 0 0 0.07  0 0 0 0 0.06  0 0 0 0.6 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  opacity: 0.18;
+  background-image: radial-gradient(circle at 1px 1px, var(--pink) 1px, transparent 1.4px);
+  background-size: 14px 14px;
+  mix-blend-mode: screen;
+}
+
+/* GRAIN — VHS / cracked-mirror noise, kept subtle */
+.grain::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.12;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 0.12  0 0 0 0 0.42  0 0 0 0.55 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
 }
 
 @layer utilities {
   .text-balance { text-wrap: balance; }
   .text-pretty  { text-wrap: pretty; }
 
-  /* Hairline — a single 1px ink rule that disappears into the paper */
-  .hairline      { border-color: rgba(21, 17, 13, 0.18); }
-  .hairline-soft { border-color: rgba(21, 17, 13, 0.10); }
+  /* Hard hairline — pink at low alpha, never grey */
+  .hairline      { border-color: rgba(255, 31, 107, 0.35); }
+  .hairline-soft { border-color: rgba(245, 245, 240, 0.10); }
+  .hairline-white { border-color: rgba(245, 245, 240, 0.20); }
 
-  /* Material symbols kept (used by header icons only) */
+  /* Diagonal slash on a word — the headline cut */
+  .slash {
+    position: relative;
+    display: inline-block;
+  }
+  .slash::after {
+    content: "";
+    position: absolute;
+    left: -4%;
+    right: -4%;
+    top: 48%;
+    height: 14%;
+    background: var(--pink);
+    transform: rotate(-6deg);
+    mix-blend-mode: normal;
+    z-index: 1;
+  }
+  .slash > span { position: relative; z-index: 2; }
+
+  /* Emergency-tape — for the CTA. Pink rectangle, black Anton text crashing through. */
+  .tape {
+    background: var(--pink);
+    color: var(--black);
+    position: relative;
+    box-shadow: 6px 6px 0 0 var(--white);
+    transition: transform 120ms ease, box-shadow 120ms ease;
+  }
+  .tape:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 10px 10px 0 0 var(--white);
+  }
+  .tape:active {
+    transform: translate(3px, 3px);
+    box-shadow: 2px 2px 0 0 var(--white);
+  }
+
+  /* RGB displacement glitch on hover — pink and white shadow shift */
+  .glitch {
+    position: relative;
+    transition: text-shadow 80ms steps(2);
+  }
+  .glitch:hover {
+    text-shadow:
+      -1px 0 var(--pink),
+       2px 0 #00f0ff;
+  }
+
+  /* Sharpie scribble underline */
+  .scribble {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 14' preserveAspectRatio='none'><path d='M2 8 Q 30 1, 60 7 T 120 8 T 198 6' fill='none' stroke='%23ff1f6b' stroke-width='3' stroke-linecap='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: 0 100%;
+    background-size: 100% 0.5em;
+    padding-bottom: 0.1em;
+  }
+
+  /* Sticker pricetag — rotated, cream paper, black text */
+  .sticker {
+    background: var(--cream);
+    color: var(--black);
+    transform: rotate(-3deg);
+    box-shadow: 2px 2px 0 0 rgba(0,0,0,0.4);
+  }
+
   .material-symbols-outlined {
     font-family: 'Material Symbols Outlined';
     font-weight: normal;
@@ -81,28 +161,24 @@ body {
 }
 
 ::selection {
-  background: var(--oxblood);
-  color: var(--bone);
+  background: var(--pink);
+  color: var(--black);
 }
 
-/* The one motion: slow, eased fade-in with stagger. No bounce. No rotation. */
-@keyframes rise {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+/* Single motion: hard cut-in. No fade-up, no easing curves. Snap. */
+@keyframes snap {
+  0%   { opacity: 0; transform: translateX(-6px); }
+  60%  { opacity: 1; transform: translateX(2px); }
+  100% { opacity: 1; transform: translateX(0); }
 }
-.rise {
-  animation: rise 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-.rise-1 { animation-delay: 60ms; }
-.rise-2 { animation-delay: 160ms; }
-.rise-3 { animation-delay: 280ms; }
-.rise-4 { animation-delay: 420ms; }
-.rise-5 { animation-delay: 580ms; }
+.rise { animation: snap 280ms steps(6, end) both; }
+.rise-1 { animation-delay: 40ms; }
+.rise-2 { animation-delay: 120ms; }
+.rise-3 { animation-delay: 220ms; }
+.rise-4 { animation-delay: 320ms; }
+.rise-5 { animation-delay: 440ms; }
 
-/* CTA: weighty press. Not bouncy. */
 .press {
-  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
-              background-color 220ms ease,
-              color 220ms ease;
+  transition: transform 120ms ease;
 }
 .press:active { transform: translateY(1px); }
