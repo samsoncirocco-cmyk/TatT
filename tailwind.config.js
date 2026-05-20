@@ -7,75 +7,47 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Studio theme (TatT HUD)
-        primary: {
-          DEFAULT: '#1ef61e',
-          glow: 'rgba(30, 246, 30, 0.25)',
+        // TatT — Tattoo Flash Zine palette
+        bone: {
+          DEFAULT: '#f1ead8',
+          dark: '#e3d9c0',
+          deep: '#d4c8a8',
         },
-        studio: {
-          bg: '#0a0d0a',
-          panel: '#102210',
-          elevated: '#162b16',
+        ink: {
+          DEFAULT: '#14110f',
+          soft: '#2a2622',
         },
-        'border-subtle': 'rgba(255, 255, 255, 0.1)',
-        'border-primary': 'rgba(30, 246, 30, 0.2)',
+        oxblood: {
+          DEFAULT: '#6e1a1a',
+          deep: '#4a0d0d',
+        },
+        riso: {
+          cyan: '#2ec4d6',
+          orange: '#ef6a30',
+        },
       },
       fontFamily: {
-        sans: ['Manrope', 'sans-serif'],
-        display: ['Manrope', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
-      },
-      backgroundImage: {
-        'mesh-gradient': 'radial-gradient(circle at 50% 0%, rgba(21, 71, 51, 0.4), transparent 70%)',
-        'glass-panel': 'linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%)',
-      },
-      dropShadow: {
-        'glow': '0 0 10px rgba(254, 225, 35, 0.3)', // Ducks Yellow Glow
-        'glow-green': '0 0 15px rgba(21, 71, 51, 0.5)', // Ducks Green Glow
-      },
-      spacing: {
-        '18': '4.5rem',
-        '88': '22rem',
-        '128': '32rem',
+        display: ['"Abril Fatface"', 'Georgia', 'serif'],
+        body: ['"IM Fell DW Pica"', 'Georgia', 'serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
       },
       borderRadius: {
-        DEFAULT: '0.125rem',
-        'lg': '0.25rem',
-        'xl': '0.5rem',
+        none: '0',
+        DEFAULT: '0',
+        sm: '0',
+        md: '0',
+        lg: '0',
+        xl: '0',
+        full: '9999px',
       },
       boxShadow: {
-        'soft': '0 2px 8px rgba(0, 0, 0, 0.08)',
-        'medium': '0 4px 16px rgba(0, 0, 0, 0.12)',
-        'hard': '0 8px 24px rgba(0, 0, 0, 0.16)',
+        ink: '4px 4px 0 #14110f',
+        'ink-sm': '2px 2px 0 #14110f',
+        'ink-lg': '8px 8px 0 #14110f',
+        oxblood: '4px 4px 0 #6e1a1a',
       },
       animation: {
-        'fade-in': 'fadeIn 0.3s ease-in-out',
-        'slide-up': 'slideUp 0.3s ease-out',
-        'slide-down': 'slideDown 0.3s ease-out',
-        'scale-in': 'scaleIn 0.2s ease-out',
-        'pulse-glow': 'pulseGlow 2s infinite',
-      },
-      keyframes: {
-        fadeIn: {
-          '0%': { opacity: '0' },
-          '100%': { opacity: '1' },
-        },
-        slideUp: {
-          '0%': { transform: 'translateY(10px)', opacity: '0' },
-          '100%': { transform: 'translateY(0)', opacity: '1' },
-        },
-        slideDown: {
-          '0%': { transform: 'translateY(-10px)', opacity: '0' },
-          '100%': { transform: 'translateY(0)', opacity: '1' },
-        },
-        scaleIn: {
-          '0%': { transform: 'scale(0.95)', opacity: '0' },
-          '100%': { transform: 'scale(1)', opacity: '1' },
-        },
-        pulseGlow: {
-          '0%, 100%': { opacity: '1', filter: 'brightness(1)' },
-          '50%': { opacity: '0.8', filter: 'brightness(1.2)' },
-        }
+        'ink-bleed': 'ink-bleed 6s ease-in-out infinite',
       },
     },
   },
