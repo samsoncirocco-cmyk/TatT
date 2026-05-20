@@ -4,80 +4,59 @@ import { useState } from "react";
 import StudioShell from "@/components/studio/StudioShell";
 
 const SUGGESTIONS = [
-  { label: "Traditional Japanese", n: "I" },
-  { label: "Fineline Floral", n: "II" },
-  { label: "Geometric Minimal", n: "III" },
-  { label: "Dark Surrealism", n: "IV" },
+  { label: "Traditional Japanese" },
+  { label: "Fineline Floral" },
+  { label: "Geometric Minimal" },
+  { label: "Dark Surrealism" },
 ];
 
 const ITERATIONS = [
-  { id: 1, no: "Nº 03", label: "Coiled Serpent", time: "2 min", tilt: "-rotate-2" },
-  { id: 2, no: "Nº 02", label: "Crane in Mist", time: "5 min", tilt: "rotate-1" },
-  { id: 3, no: "Nº 01", label: "First Pass", time: "8 min", tilt: "-rotate-1" },
+  { id: 1, label: "Coiled Serpent", time: "2 min" },
+  { id: 2, label: "Crane in Mist", time: "5 min" },
+  { id: 3, label: "First Pass", time: "8 min" },
 ];
 
-function FlashCard({
-  no,
-  label,
-  time,
-  tilt,
-}: {
-  no: string;
-  label: string;
-  time: string;
-  tilt: string;
-}) {
+function IterationRow({ label, time }: { label: string; time: string }) {
   return (
-    <div
-      className={`shrink-0 w-48 xl:w-full bg-bone border-2 border-ink shadow-ink ${tilt} hover:rotate-0 transition-transform duration-300`}
-    >
-      {/* Faux-printed flash plate */}
-      <div className="aspect-square bg-bone-dark border-b-2 border-ink relative overflow-hidden">
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage:
-              "repeating-linear-gradient(45deg, rgba(20,17,15,0.18) 0 1px, transparent 1px 6px), repeating-linear-gradient(-45deg, rgba(110,26,26,0.12) 0 1px, transparent 1px 8px)",
-          }}
-        />
-        <div className="absolute inset-0 flex items-center justify-center font-display text-5xl text-oxblood/80">
-          {no}
-        </div>
-      </div>
-      <div className="p-3 flex items-center justify-between font-mono text-[10px] uppercase">
-        <div>
-          <div className="font-body italic text-sm tracking-tight normal-case text-ink leading-none">
-            {label}
-          </div>
-          <div className="text-ink-soft/60 mt-1">{time} ago</div>
-        </div>
-        <button
-          aria-label="Reuse"
-          className="w-7 h-7 border-2 border-ink bg-bone hover:bg-riso-cyan transition flex items-center justify-center shadow-ink-sm"
+    <button className="w-full text-left group press">
+      <div className="aspect-square bg-bone-dark border hairline mb-3 flex items-center justify-center overflow-hidden">
+        <span
+          className="font-display text-ink/15 group-hover:text-oxblood/40 transition-colors"
+          style={{ fontSize: "5rem", fontVariationSettings: '"wght" 700, "opsz" 144' }}
         >
-          <span className="material-symbols-outlined text-sm">refresh</span>
-        </button>
+          ·
+        </span>
       </div>
-    </div>
+      <div className="flex items-baseline justify-between gap-3">
+        <span
+          className="text-[15px] tracking-[-0.01em]"
+          style={{ fontVariationSettings: '"wght" 500, "opsz" 24' }}
+        >
+          {label}
+        </span>
+        <span className="text-[12px] text-ink-soft tabular-nums">{time}</span>
+      </div>
+    </button>
   );
 }
 
 function RightSidebarContent() {
   return (
-    <div className="p-5 space-y-5 relative">
-      <div className="absolute top-0 right-4 -rotate-12 font-display text-oxblood/30 text-5xl leading-none select-none pointer-events-none">
-        FLASH
-      </div>
-      <div className="flex items-end justify-between pt-2">
-        <h3 className="font-display text-2xl leading-none">The Wall</h3>
-        <span className="font-mono text-[10px] uppercase tracking-widest bg-ink text-bone px-1.5 py-0.5">
-          {ITERATIONS.length} sheets
+    <div className="p-8 space-y-8">
+      <div className="flex items-baseline justify-between">
+        <h3
+          className="font-display text-[15px] tracking-[-0.01em]"
+          style={{ fontVariationSettings: '"wght" 600, "opsz" 24' }}
+        >
+          History
+        </h3>
+        <span className="text-[12px] text-ink-soft tabular-nums">
+          {ITERATIONS.length}
         </span>
       </div>
-      <div className="double-rule" />
-      <div className="space-y-6 pt-2">
+      <div className="space-y-7">
         {ITERATIONS.map(({ id, ...it }) => (
-          <FlashCard key={id} {...it} />
+          <IterationRow key={id} {...it} />
         ))}
       </div>
     </div>
@@ -98,175 +77,107 @@ export default function StencilPage() {
   return (
     <StudioShell rightSidebar={<RightSidebarContent />}>
       <div className="flex flex-col min-h-full">
-        {/* Progress header — looks like a ticket stub */}
-        <div className="px-4 md:px-8 pt-5 pb-4 border-b-2 border-ink bg-bone-dark/30 relative">
-          <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.2em] mb-3">
-            <span className="flex items-center gap-2">
-              <span className="inline-block w-2 h-2 bg-oxblood stamp-blink" />
-              Stage I · The Drawing
-            </span>
-            <span className="text-ink-soft">Ticket 0001 / IV</span>
-          </div>
-          <div className="flex gap-1.5">
-            {[0, 1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className={`h-2 flex-1 border-2 border-ink ${
-                  i === 0 ? "bg-oxblood" : "bg-bone"
-                }`}
-              />
-            ))}
+        {/* Quiet meta-bar: step, status. Honest labels, no theater. */}
+        <div className="px-6 md:px-12 pt-8 pb-6 border-b hairline">
+          <div className="max-w-4xl mx-auto flex items-baseline justify-between text-[12px] text-ink-soft tabular-nums">
+            <span>Step 1 of 4 — Describe</span>
+            <span>Status: Ready</span>
           </div>
         </div>
 
-        {/* Main canvas area */}
-        <div className="flex-1 px-4 md:px-10 py-10 md:py-14 relative">
-          {/* Decorative corner brand */}
-          <div className="hidden md:block absolute top-6 right-8 font-mono text-[10px] uppercase tracking-[0.3em] text-ink-soft/60 -rotate-90 origin-top-right">
-            Hand-Drawn · Machine-Helped · 1 of 1
-          </div>
-
-          <div className="max-w-4xl mx-auto space-y-10">
-            {/* Headline — the wheat-pasted flash sheet headline */}
-            <div className="text-center space-y-4">
-              <div className="flex items-center justify-center gap-3 font-mono text-[10px] uppercase tracking-[0.35em]">
-                <span className="h-px w-10 sm:w-20 bg-ink" />
-                <span>Today's Session</span>
-                <span className="h-px w-10 sm:w-20 bg-ink" />
-              </div>
-
-              <h1 className="font-display leading-[0.85] tracking-tight text-5xl sm:text-7xl md:text-8xl">
-                <span className="block">Tell us what</span>
-                <span className="flash-banner text-bone relative inline-block px-3 py-1 ink-bleed">
-                  bleeds
-                </span>
-                <span className="block italic font-body text-3xl sm:text-5xl md:text-6xl mt-3">
-                  &amp; we&rsquo;ll draw it.
-                </span>
-              </h1>
-
-              <p className="font-body italic text-base sm:text-lg text-ink-soft max-w-xl mx-auto">
-                One sentence. Be specific. Mention the body part, the mood, the
-                era you stole it from.
-              </p>
-            </div>
-
-            {/* Ornamental divider */}
-            <div className="flex items-center gap-4 max-w-md mx-auto">
-              <div className="flex-1 ornamental-rule" />
-              <span className="font-display text-2xl leading-none text-oxblood">
-                &#x2766;
+        {/* Editorial canvas */}
+        <div className="flex-1 px-6 md:px-12 py-20 md:py-32">
+          <div className="max-w-3xl mx-auto">
+            {/* The headline moment. No ornaments, no rules, no banners. */}
+            <h1
+              className="font-display rise rise-1 text-balance tracking-[-0.035em] leading-[0.95] text-[64px] sm:text-[96px] md:text-[128px]"
+              style={{ fontVariationSettings: '"wght" 400, "opsz" 144, "SOFT" 10' }}
+            >
+              Describe the
+              <br />
+              <span
+                className="italic text-oxblood"
+                style={{ fontVariationSettings: '"wght" 400, "opsz" 144, "SOFT" 40' }}
+              >
+                tattoo
               </span>
-              <div className="flex-1 ornamental-rule" />
-            </div>
+              .
+            </h1>
 
-            {/* Prompt panel — looks like a typewriter form on cardstock */}
-            <div className="bg-bone border-2 border-ink shadow-ink-lg relative">
-              {/* Top label tab */}
-              <div className="absolute -top-3 left-4 bg-ink text-bone font-mono text-[10px] uppercase tracking-[0.3em] px-2 py-1">
-                Form &mdash; Subject of the Tattoo
-              </div>
-              <div className="absolute -top-3 right-4 hidden sm:block bg-riso-cyan border-2 border-ink font-mono text-[10px] uppercase tracking-[0.3em] px-2 py-0.5 -rotate-3">
-                Carbon Copy
-              </div>
+            <p
+              className="rise rise-2 mt-10 max-w-xl text-[19px] md:text-[20px] leading-[1.55] text-ink-soft text-pretty"
+              style={{ fontVariationSettings: '"wght" 400, "opsz" 24' }}
+            >
+              One sentence is enough. Mention the subject, the placement on the
+              body, and the mood you&rsquo;re after.
+            </p>
 
-              <div className="p-5 md:p-7 pt-6 md:pt-8">
-                <textarea
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="e.g. a dragon coiled around a katana, traditional Japanese ink, left forearm, looks like it was tattooed in 1973…"
-                  rows={4}
-                  className="w-full bg-transparent text-ink placeholder-ink-soft/40 resize-none focus:outline-none font-body italic text-lg md:text-xl leading-snug border-b-2 border-dotted border-ink-soft/40 pb-3"
-                />
+            {/* Input — a single line beneath the prose. No card, no border-stack, no tab. */}
+            <div className="rise rise-3 mt-20">
+              <label htmlFor="prompt" className="block text-[12px] text-ink-soft mb-4">
+                Your description
+              </label>
+              <textarea
+                id="prompt"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="A dragon coiled around a katana, left forearm, looks like it was tattooed in 1973."
+                rows={3}
+                className="w-full bg-transparent text-ink placeholder-ink-soft/45 resize-none focus:outline-none text-[22px] md:text-[26px] leading-[1.45] tracking-[-0.01em] border-b hairline focus:border-ink pb-4 transition-colors"
+                style={{ fontVariationSettings: '"wght" 400, "opsz" 36' }}
+              />
 
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-5">
-                  <div className="flex items-center gap-2">
-                    {[
-                      { icon: "image", label: "Reference" },
-                      { icon: "palette", label: "Palette" },
-                      { icon: "history", label: "History" },
-                    ].map(({ icon, label }) => (
-                      <button
-                        key={icon}
-                        aria-label={label}
-                        title={label}
-                        className="w-10 h-10 border-2 border-ink bg-bone hover:bg-ink hover:text-bone transition flex items-center justify-center shadow-ink-sm"
-                      >
-                        <span className="material-symbols-outlined text-base">
-                          {icon}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="flex-1 hidden sm:block font-mono text-[10px] uppercase tracking-[0.25em] text-ink-soft/60 text-right">
-                    Signed &amp; dated by the machine ↘
-                  </div>
-
-                  <button
-                    onClick={handleGenerate}
-                    className="group bg-oxblood text-bone font-display text-2xl tracking-wide px-6 py-3 border-2 border-ink shadow-ink hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-ink-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all flex items-center justify-center gap-3"
-                  >
-                    <span className="material-symbols-outlined">bolt</span>
-                    Ink It
-                  </button>
+              <div className="mt-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+                <div className="flex flex-wrap gap-x-6 gap-y-3">
+                  {SUGGESTIONS.map((s) => (
+                    <button
+                      key={s.label}
+                      onClick={() => appendSuggestion(s.label)}
+                      className="text-[14px] text-ink-soft hover:text-ink underline decoration-transparent hover:decoration-current underline-offset-4 transition-colors press"
+                    >
+                      {s.label}
+                    </button>
+                  ))}
                 </div>
+
+                <button
+                  onClick={handleGenerate}
+                  className="press inline-flex items-center justify-center bg-ink text-bone px-7 py-3.5 text-[15px] tracking-[-0.01em] hover:bg-oxblood self-start sm:self-auto"
+                  style={{ fontVariationSettings: '"wght" 500, "opsz" 20' }}
+                >
+                  Generate
+                </button>
               </div>
             </div>
 
-            {/* Suggestion chips — like flash sheet plate numbers */}
-            <div>
-              <div className="font-mono text-[10px] uppercase tracking-[0.3em] text-ink-soft mb-4 text-center">
-                or pick a plate from the wall &mdash;
-              </div>
-              <div className="flex flex-wrap gap-3 justify-center">
-                {SUGGESTIONS.map((s, i) => (
-                  <button
-                    key={s.label}
-                    onClick={() => appendSuggestion(s.label)}
-                    className={`group inline-flex items-center gap-3 bg-bone border-2 border-ink px-4 py-2 shadow-ink-sm hover:bg-ink hover:text-bone hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all ${
-                      i % 2 === 0 ? "-rotate-1" : "rotate-1"
-                    }`}
-                  >
-                    <span className="font-display text-xl leading-none text-oxblood group-hover:text-riso-cyan">
-                      {s.n}
-                    </span>
-                    <span className="font-body italic text-base">{s.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Mobile/tablet iterations strip */}
-            <div className="xl:hidden pt-4">
-              <div className="flex items-end justify-between mb-4">
-                <h3 className="font-display text-3xl leading-none">The Wall</h3>
-                <span className="font-mono text-[10px] uppercase tracking-widest bg-ink text-bone px-1.5 py-0.5">
-                  {ITERATIONS.length} sheets
+            {/* Mobile/tablet history — replaces the rotated flash strip */}
+            <div className="xl:hidden rise rise-4 mt-28 pt-12 border-t hairline">
+              <div className="flex items-baseline justify-between mb-8">
+                <h3
+                  className="font-display text-[15px] tracking-[-0.01em]"
+                  style={{ fontVariationSettings: '"wght" 600, "opsz" 24' }}
+                >
+                  History
+                </h3>
+                <span className="text-[12px] text-ink-soft tabular-nums">
+                  {ITERATIONS.length}
                 </span>
               </div>
-              <div className="double-rule mb-5" />
-              <div className="flex gap-6 overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0">
-                {ITERATIONS.map((it) => (
-                  <FlashCard key={it.id} {...it} />
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
+                {ITERATIONS.map(({ id, ...it }) => (
+                  <IterationRow key={id} {...it} />
                 ))}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Bottom status bar — parlor receipt footer */}
-        <div className="border-t-2 border-ink bg-ink text-bone px-4 md:px-8 py-2 font-mono text-[10px] md:text-xs uppercase tracking-[0.25em] flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 bg-riso-cyan stamp-blink" />
-            <span>Needle Down · Awaiting Subject</span>
+        {/* Quiet footer — honest metadata, no carnival. */}
+        <div className="border-t hairline px-6 md:px-12 py-4">
+          <div className="max-w-4xl mx-auto flex items-center justify-between text-[12px] text-ink-soft tabular-nums">
+            <span>Model: SDXL Stencil v2</span>
+            <span className="hidden md:inline">Ready</span>
           </div>
-          <div className="hidden md:flex items-center gap-6 text-bone/70">
-            <span>Plate: SDXL-Stencil-v2</span>
-            <span>Pressure: 42%</span>
-            <span className="text-riso-orange">No Refunds</span>
-          </div>
-          <div className="md:hidden text-bone/60">Ready</div>
         </div>
       </div>
     </StudioShell>

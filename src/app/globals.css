@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Abril+Fatface&family=IM+Fell+DW+Pica:ital@0;1&family=JetBrains+Mono:wght@300;400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..900,0..100;1,9..144,300..900,0..100&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap');
 
 @tailwind base;
@@ -6,13 +6,12 @@
 @tailwind utilities;
 
 :root {
-  --bone: #f1ead8;
-  --bone-dark: #e3d9c0;
-  --ink: #14110f;
-  --oxblood: #6e1a1a;
-  --oxblood-deep: #4a0d0d;
-  --riso-cyan: #2ec4d6;
-  --riso-orange: #ef6a30;
+  /* Refined palette — paper, ink, one accent. That's it. */
+  --bone: #f3ecd9;          /* slightly cooler, less yellow than before */
+  --bone-dark: #e8e0c8;     /* a single subtle tonal step for surfaces */
+  --ink: #15110d;
+  --ink-soft: #5a5249;      /* paper-stained graphite for secondary text */
+  --oxblood: #6b1818;
   --background: var(--bone);
   --foreground: var(--ink);
 }
@@ -25,138 +24,85 @@ html, body {
 body {
   color: var(--foreground);
   background: var(--bone);
-  font-family: 'IM Fell DW Pica', 'Times New Roman', serif;
-  font-size: 16px;
-  line-height: 1.5;
+  font-family: 'Fraunces', 'Georgia', serif;
+  font-optical-sizing: auto;
+  font-variation-settings: "SOFT" 30;
+  font-size: 17px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* Paper grain — layered noise + subtle weave */
+/* Display sets — exploit Fraunces' variable axes */
+.font-display {
+  font-family: 'Fraunces', 'Georgia', serif;
+  font-variation-settings: "opsz" 144, "SOFT" 20;
+}
+
+/* Almost-invisible paper grain. No foxing, no decorative noise blast. */
 .paper-grain {
   position: relative;
   background-color: var(--bone);
-  background-image:
-    radial-gradient(rgba(20, 17, 15, 0.06) 1px, transparent 1px),
-    radial-gradient(rgba(20, 17, 15, 0.04) 1px, transparent 1px);
-  background-size: 3px 3px, 7px 7px;
-  background-position: 0 0, 1px 2px;
 }
-
 .paper-grain::before {
   content: "";
-  position: absolute;
+  position: fixed;
   inset: 0;
   pointer-events: none;
-  opacity: 0.35;
+  z-index: 0;
+  opacity: 0.08;
   mix-blend-mode: multiply;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.08  0 0 0 0 0.07  0 0 0 0 0.06  0 0 0 0.55 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
-}
-
-.foxing {
-  background-image:
-    radial-gradient(ellipse at 12% 18%, rgba(110, 26, 26, 0.10), transparent 35%),
-    radial-gradient(ellipse at 88% 82%, rgba(110, 26, 26, 0.08), transparent 40%),
-    radial-gradient(ellipse at 70% 30%, rgba(46, 196, 214, 0.06), transparent 30%);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.08  0 0 0 0 0.07  0 0 0 0 0.06  0 0 0 0.6 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
 }
 
 @layer utilities {
   .text-balance { text-wrap: balance; }
+  .text-pretty  { text-wrap: pretty; }
 
-  /* Riso misregistration — duplicate the text in cyan, slightly offset */
-  .riso-shift {
-    text-shadow:
-      2px 2px 0 var(--riso-cyan),
-      -1px -1px 0 var(--riso-orange);
-  }
+  /* Hairline — a single 1px ink rule that disappears into the paper */
+  .hairline      { border-color: rgba(21, 17, 13, 0.18); }
+  .hairline-soft { border-color: rgba(21, 17, 13, 0.10); }
 
-  .ink-shadow {
-    box-shadow:
-      4px 4px 0 var(--ink);
-  }
-  .ink-shadow-sm {
-    box-shadow:
-      2px 2px 0 var(--ink);
-  }
-  .ink-shadow-oxblood {
-    box-shadow:
-      4px 4px 0 var(--oxblood);
-  }
-
-  .stamp {
-    border: 2px solid var(--ink);
-    box-shadow: 3px 3px 0 var(--ink);
-  }
-
-  .ornamental-rule {
-    background-image: repeating-linear-gradient(
-      90deg,
-      var(--ink) 0 8px,
-      transparent 8px 12px
-    );
-    height: 2px;
-  }
-
-  .double-rule {
-    border-top: 2px solid var(--ink);
-    border-bottom: 1px solid var(--ink);
-    height: 6px;
-  }
-
-  .ticket-edge {
-    background:
-      radial-gradient(circle at 0 50%, transparent 6px, var(--bone) 6px) left/8px 16px repeat-y,
-      radial-gradient(circle at 100% 50%, transparent 6px, var(--bone) 6px) right/8px 16px repeat-y;
-  }
-
+  /* Material symbols kept (used by header icons only) */
   .material-symbols-outlined {
     font-family: 'Material Symbols Outlined';
     font-weight: normal;
     font-style: normal;
-    font-size: 1.25rem;
+    font-size: 1.125rem;
     line-height: 1;
     letter-spacing: normal;
     text-transform: none;
     display: inline-block;
     white-space: nowrap;
-    word-wrap: normal;
     direction: ltr;
     -webkit-font-feature-settings: 'liga';
     -webkit-font-smoothing: antialiased;
   }
 }
 
-/* Hand-drawn underline that wobbles slightly */
-.flash-banner {
-  position: relative;
-  display: inline-block;
-}
-.flash-banner::before {
-  content: "";
-  position: absolute;
-  left: -8%;
-  right: -8%;
-  bottom: 4%;
-  height: 38%;
-  background: var(--oxblood);
-  z-index: -1;
-  transform: skewY(-1.5deg);
-}
-
-/* Selection */
 ::selection {
   background: var(--oxblood);
   color: var(--bone);
 }
 
-/* Wobble animation for the stencil chip */
-@keyframes ink-bleed {
-  0%, 100% { transform: rotate(-1.2deg); }
-  50%      { transform: rotate(0.6deg); }
+/* The one motion: slow, eased fade-in with stagger. No bounce. No rotation. */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-.ink-bleed { animation: ink-bleed 6s ease-in-out infinite; }
+.rise {
+  animation: rise 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.rise-1 { animation-delay: 60ms; }
+.rise-2 { animation-delay: 160ms; }
+.rise-3 { animation-delay: 280ms; }
+.rise-4 { animation-delay: 420ms; }
+.rise-5 { animation-delay: 580ms; }
 
-@keyframes stamp-blink {
-  0%, 70%, 100% { opacity: 1; }
-  80%           { opacity: 0.35; }
+/* CTA: weighty press. Not bouncy. */
+.press {
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 220ms ease,
+              color 220ms ease;
 }
-.stamp-blink { animation: stamp-blink 2.4s steps(1, end) infinite; }
+.press:active { transform: translateY(1px); }
