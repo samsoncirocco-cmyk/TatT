@@ -38,10 +38,13 @@ the reason.
   `src/app/generate/error.tsx`.** I did not redesign these — they're
   out-of-system but pitch is explicitly off-limits and generate is
   being actively rewritten by the parallel session.
-- **No `error.tsx` for /artists, /matches, /designs, /book, /bookings,
-  /login, /signup, /settings.** They'll fall back to the root
-  `src/app/error.tsx` (which I redesigned), so functionality is fine,
-  but per-route messaging would be richer.
+- ~~**No `error.tsx` for /artists, /matches, /designs, /book,
+  /bookings, /login, /signup, /settings.**~~ **Resolved in `77b811a`.**
+  All nine routes now have their own `error.tsx` delegating to a
+  shared `PunkErrorBoundary` component with scoped label, description,
+  and contextual back-CTA (e.g. /matches errors offer "Browse Roster
+  Instead" rather than the generic "Go Home"). `/designs/[id]` also
+  has its own error boundary (`e482adb`).
 - **Empty state for `/matches`** — favorites pinning works but the
   "no matches yet" state still shows 12 hardcoded mock artists rather
   than a real empty screen. Out of scope for me because /matches is
@@ -53,8 +56,21 @@ the reason.
 ## Tier 6 (stretch) — not attempted
 
 - Theme toggle.
-- Real placeholder design generation that routes to `/designs/[id]`.
-- Footer on app pages.
+- ~~Real placeholder design generation that routes to `/designs/[id]`.~~
+  **Partially resolved in `e482adb`.** The `/designs/[id]` route
+  exists with full punk styling (canvas placeholder, prompt display,
+  Iterate / Find an artist / Delete actions, loading + error
+  boundaries). The /designs grid still links each tile to
+  `/generate/stencil` rather than the detail route — a one-line edit
+  in `src/app/designs/page.tsx` to flip `href="/generate/stencil"` to
+  `href={\`/designs/\${d.id}\`}` is the remaining wiring. Deferred so
+  the same change can be made alongside whatever other /designs grid
+  tweaks land next.
+- Footer on app pages — `PunkFooter` exists and is used on
+  `/`, `/about`, `/pricing`, `/legal/*`, but `StudioShell` (which wraps
+  every app route) doesn't render it. Adding it requires editing
+  `StudioShell.tsx`, which was being actively edited by the parallel
+  session for nav-badge work — deferred to avoid conflict.
 - Live design count + favorite count in top nav — **shipped** in
   `5910cde`: the desktop nav now surfaces `◆ N` (designs), `▣ N`
   (bookings), and `♥ N` (favorites) when each store is non-empty,

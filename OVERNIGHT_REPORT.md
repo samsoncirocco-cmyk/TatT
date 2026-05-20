@@ -29,6 +29,10 @@ and which tier from the overnight brief it served.
 | c2869c3 | T2/T3 | this     | Punk restyle of Forge's `LayerStack` + `LayerItem`. |
 | 711fa31 | T2/T3 | this     | Punk restyle of Forge's `MatchPulseSidebar` + `ArtistMatchCard`. |
 | 5910cde | T5/T6 | parallel | `/bookings/loading.tsx` skeleton (matches PunkSkeleton pattern). StudioShell nav also surfaces live `◆ N` design count and `▣ N` booking count, both hydration-gated. |
+| 5481000 | T2/T5 | this     | Punk error states + modals + blend selector inside the Forge. |
+| 77e7515 | T2    | this     | Punk restyle of Forge's `TransformControls` + `LayerContextMenu`. |
+| 77b811a | T5    | parallel | Per-route `error.tsx` for /artists, /artists/[slug], /matches, /designs, /book, /bookings, /login, /signup, /settings (nine routes), all delegating to a new shared `PunkErrorBoundary` component so each route gets scoped messaging + a contextual recovery CTA instead of falling back to the generic root error. |
+| e482adb | T6    | parallel | New `/designs/[id]` detail route — canvas placeholder, full prompt, saved timestamp, Iterate/Find an artist/Delete actions, plus matching `loading.tsx` (hero skeleton) and `error.tsx`. Missing-id state styled as a "Design gone." not-found-style screen rather than crashing. |
 
 (The "this" / "parallel" labeling above is from the perspective of the
 session that first wrote this report — the Claude Code session running
@@ -47,8 +51,8 @@ session and preserved the original labeling.)
 | **T2 — Forge integration**  | ✅ Mostly  | Forge + Button + PromptInterface + VibeChips + AdvancedOptions restyled to punk. Outstanding: explicit `tatt:designs` write from the Forge's "Save to Portfolio" path and the "BACK TO STENCIL" tape CTA (see KNOWN_ISSUES). |
 | **T3 — Shared components**  | ✅ Components shipped | TapeCTA, SlashHeadline, HalftoneBg, StickerPricetag committed. Page-level adoption deferred — see KNOWN_ISSUES. |
 | **T4 — Mobile polish**      | ❌ Not attempted | See KNOWN_ISSUES. |
-| **T5 — Loading/error/empty/404** | ✅ Complete | not-found.tsx, 10 loading.tsx (incl. /bookings), redesigned error.tsx. /designs + /bookings have real punk empty states (shipped via T1). /matches empty state still shows mock artists — flagged in KNOWN_ISSUES. |
-| **T6 — Stretch (live counts only)** | ✅ Partial | Live `◆ designs`, `▣ bookings`, `♥ favorites` counts in nav, all hydration-gated. Theme toggle / `/designs/[id]` / app-vs-marketing footer split not attempted. |
+| **T5 — Loading/error/empty/404** | ✅ Complete | not-found.tsx, 11 loading.tsx (incl. /bookings + /designs/[id]), redesigned root error.tsx, plus 10 per-route error.tsx delegating to a shared `PunkErrorBoundary`. /designs + /bookings have real punk empty states (shipped via T1). /matches empty state still shows mock artists — flagged in KNOWN_ISSUES. |
+| **T6 — Stretch (partial)** | ✅ Partial | Live `◆ designs`, `▣ bookings`, `♥ favorites` counts in nav (hydration-gated). New `/designs/[id]` detail route shipped. Still not attempted: theme toggle, wiring /designs grid links into the new detail route, app-vs-marketing footer split. |
 
 
 ---
