@@ -7,47 +7,31 @@ export default {
   theme: {
     extend: {
       colors: {
-        // TatT — Tattoo Flash Zine palette
+        // TatT — paper, ink, one accent.
         bone: {
-          DEFAULT: '#f1ead8',
-          dark: '#e3d9c0',
-          deep: '#d4c8a8',
+          DEFAULT: '#f3ecd9',
+          dark: '#e8e0c8',
         },
         ink: {
-          DEFAULT: '#14110f',
-          soft: '#2a2622',
+          DEFAULT: '#15110d',
+          soft: '#5a5249',
         },
         oxblood: {
-          DEFAULT: '#6e1a1a',
-          deep: '#4a0d0d',
-        },
-        riso: {
-          cyan: '#2ec4d6',
-          orange: '#ef6a30',
+          DEFAULT: '#6b1818',
         },
       },
       fontFamily: {
-        display: ['"Abril Fatface"', 'Georgia', 'serif'],
-        body: ['"IM Fell DW Pica"', 'Georgia', 'serif'],
-        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+        // One family. Multiple weights, optical sizes, and a soft axis.
+        display: ['"Fraunces"', 'Georgia', 'serif'],
+        body:    ['"Fraunces"', 'Georgia', 'serif'],
       },
       borderRadius: {
         none: '0',
-        DEFAULT: '0',
-        sm: '0',
-        md: '0',
-        lg: '0',
-        xl: '0',
+        DEFAULT: '2px',
+        sm: '2px',
+        md: '3px',
+        lg: '4px',
         full: '9999px',
-      },
-      boxShadow: {
-        ink: '4px 4px 0 #14110f',
-        'ink-sm': '2px 2px 0 #14110f',
-        'ink-lg': '8px 8px 0 #14110f',
-        oxblood: '4px 4px 0 #6e1a1a',
-      },
-      animation: {
-        'ink-bleed': 'ink-bleed 6s ease-in-out infinite',
       },
     },
   },
