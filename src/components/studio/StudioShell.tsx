@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useFavorites } from "@/lib/tattStorage";
 
 type StudioShellProps = {
   children: ReactNode;
@@ -25,6 +26,7 @@ export default function StudioShell({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const pathname = usePathname();
+  const { favorites, hydrated: favHydrated } = useFavorites();
 
   return (
     <div className="halftone grain min-h-screen text-white font-body flex flex-col relative bg-black">
@@ -55,6 +57,15 @@ export default function StudioShell({
           </div>
 
           <div className="flex items-stretch">
+            {favHydrated && favorites.length > 0 && (
+              <Link
+                href="/matches"
+                aria-label={`${favorites.length} favorited artists`}
+                className="hidden md:flex items-center px-4 border-l hairline-white text-[10px] uppercase tracking-[0.25em] text-pink hover:text-white press tabular-nums font-body"
+              >
+                ♥&nbsp;{favorites.length}
+              </Link>
+            )}
             <div className="hidden md:flex items-stretch relative">
               <button
                 onClick={() => setAccountOpen((v) => !v)}

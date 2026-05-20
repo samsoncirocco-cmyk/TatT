@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import StudioShell from "@/components/studio/StudioShell";
+import FavoriteButton from "@/components/punk/FavoriteButton";
 
 const COLORS = ["bg-pink", "bg-bone", "bg-cream", "bg-pink-deep", "bg-white/10", "bg-white/5"];
 const NAMES = [
@@ -86,26 +87,33 @@ export default function ArtistsPage() {
 
           <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filtered.map((a) => (
-              <Link
-                key={a.slug}
-                href={`/artists/${a.slug}`}
-                className="block group press"
-              >
-                <div className={`aspect-[3/4] ${a.color} border-2 hairline relative overflow-hidden`}>
-                  <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 mix-blend-multiply" />
-                  <span className="absolute bottom-3 left-3 text-[9px] uppercase tracking-[0.2em] text-white/80 font-body">
-                    {a.style}
-                  </span>
-                </div>
-                <div className="mt-3">
-                  <div className="font-display text-[20px] tracking-wide text-white group-hover:text-pink">
-                    {a.name}
+              <div key={a.slug} className="relative group">
+                <Link
+                  href={`/artists/${a.slug}`}
+                  className="block press"
+                >
+                  <div className={`aspect-[3/4] ${a.color} border-2 hairline relative overflow-hidden`}>
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 mix-blend-multiply" />
+                    <span className="absolute bottom-3 left-3 text-[9px] uppercase tracking-[0.2em] text-white/80 font-body">
+                      {a.style}
+                    </span>
                   </div>
-                  <div className="text-[10px] uppercase tracking-[0.2em] text-white/50 font-body mt-1">
-                    {a.city}
+                  <div className="mt-3">
+                    <div className="font-display text-[20px] tracking-wide text-white group-hover:text-pink">
+                      {a.name}
+                    </div>
+                    <div className="text-[10px] uppercase tracking-[0.2em] text-white/50 font-body mt-1">
+                      {a.city}
+                    </div>
                   </div>
-                </div>
-              </Link>
+                </Link>
+                <FavoriteButton
+                  slug={a.slug}
+                  label={a.name}
+                  size={20}
+                  className="absolute top-2 right-2 z-10"
+                />
+              </div>
             ))}
           </div>
 
