@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 
-const SwipeMatchPage = dynamic(() => import('@/features/SwipeMatch'), {
+const SwipeMatchPage = dynamic(() => import('@/features/SwipeMatch.jsx'), {
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center h-screen bg-black text-white">

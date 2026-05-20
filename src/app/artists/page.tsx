@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 
-const ArtistsPage = dynamic(() => import('@/features/Artists'), {
+const ArtistsPage = dynamic(() => import('@/features/Artists.jsx'), {
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center h-screen bg-black text-white">
