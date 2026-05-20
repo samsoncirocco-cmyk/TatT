@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useFavorites } from "@/lib/tattStorage";
+import { useFavorites, useDemoUser } from "@/lib/tattStorage";
 
 type StudioShellProps = {
   children: ReactNode;
@@ -27,6 +27,7 @@ export default function StudioShell({
   const [accountOpen, setAccountOpen] = useState(false);
   const pathname = usePathname();
   const { favorites, hydrated: favHydrated } = useFavorites();
+  const { user, hydrated: userHydrated, signOut } = useDemoUser();
 
   return (
     <div className="halftone grain min-h-screen text-white font-body flex flex-col relative bg-black">
@@ -71,33 +72,85 @@ export default function StudioShell({
                 onClick={() => setAccountOpen((v) => !v)}
                 aria-label="Account"
                 aria-expanded={accountOpen}
-                className="px-4 flex items-center justify-center border-l hairline-white text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink press"
+                className="px-4 flex items-center justify-center border-l hairline-white text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink press max-w-[220px]"
               >
-                Account&nbsp;<span className="text-pink">▾</span>
+                <span className="truncate">
+                  {userHydrated && user
+                    ? user.email
+                    : userHydrated
+                    ? "Sign In"
+                    : "Account"}
+                </span>
+                <span className="text-pink ml-2">▾</span>
               </button>
               {accountOpen && (
-                <div className="absolute right-0 top-full mt-0 w-56 bg-black border-2 hairline z-30">
-                  <Link
-                    href="/login"
-                    onClick={() => setAccountOpen(false)}
-                    className="block px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink hover:bg-white/5 border-b hairline-soft font-body"
-                  >
-                    Log In
-                  </Link>
-                  <Link
-                    href="/signup"
-                    onClick={() => setAccountOpen(false)}
-                    className="block px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink hover:bg-white/5 border-b hairline-soft font-body"
-                  >
-                    Sign Up
-                  </Link>
-                  <Link
-                    href="/settings"
-                    onClick={() => setAccountOpen(false)}
-                    className="block px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink hover:bg-white/5 font-body"
-                  >
-                    Settings
-                  </Link>
+                <div className="absolute right-0 top-full mt-0 w-64 bg-black border-2 hairline z-30">
+                  {userHydrated && user ? (
+                    <>
+                      <div className="px-5 py-3 border-b hairline-soft">
+                        <div className="text-[9px] uppercase tracking-[0.25em] text-white/40 font-body">
+                          Signed in as
+                        </div>
+                        <div className="mt-1 text-[12px] text-pink font-body truncate">
+                          {user.name || user.email}
+                        </div>
+                      </div>
+                      <Link
+                        href="/designs"
+                        onClick={() => setAccountOpen(false)}
+                        className="block px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink hover:bg-white/5 border-b hairline-soft font-body"
+                      >
+                        My Designs
+                      </Link>
+                      <Link
+                        href="/bookings"
+                        onClick={() => setAccountOpen(false)}
+                        className="block px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink hover:bg-white/5 border-b hairline-soft font-body"
+                      >
+                        My Bookings
+                      </Link>
+                      <Link
+                        href="/settings"
+                        onClick={() => setAccountOpen(false)}
+                        className="block px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink hover:bg-white/5 border-b hairline-soft font-body"
+                      >
+                        Settings
+                      </Link>
+                      <button
+                        onClick={() => {
+                          signOut();
+                          setAccountOpen(false);
+                        }}
+                        className="block w-full text-left px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-pink hover:bg-pink hover:text-black font-body"
+                      >
+                        Log Out
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <Link
+                        href="/login"
+                        onClick={() => setAccountOpen(false)}
+                        className="block px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink hover:bg-white/5 border-b hairline-soft font-body"
+                      >
+                        Log In
+                      </Link>
+                      <Link
+                        href="/signup"
+                        onClick={() => setAccountOpen(false)}
+                        className="block px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink hover:bg-white/5 border-b hairline-soft font-body"
+                      >
+                        Sign Up
+                      </Link>
+                      <Link
+                        href="/settings"
+                        onClick={() => setAccountOpen(false)}
+                        className="block px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink hover:bg-white/5 font-body"
+                      >
+                        Settings
+                      </Link>
+                    </>
+                  )}
                 </div>
               )}
             </div>
