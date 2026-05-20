@@ -1,4 +1,8 @@
-import type { ReactNode } from "react";
+"use client";
+
+import { useState, type ReactNode } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 type StudioShellProps = {
   children: ReactNode;
@@ -6,41 +10,128 @@ type StudioShellProps = {
   rightSidebar?: ReactNode;
 };
 
+const NAV = [
+  { label: "Forge", href: "/generate" },
+  { label: "Artists", href: "/artists" },
+  { label: "My Designs", href: "/designs" },
+  { label: "Pricing", href: "/pricing" },
+];
+
 export default function StudioShell({
   children,
   leftSidebar,
   rightSidebar,
 }: StudioShellProps) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const pathname = usePathname();
+
   return (
     <div className="halftone grain min-h-screen text-white font-body flex flex-col relative bg-black">
-      <header className="relative z-10 border-b-2 hairline bg-black">
+      <header className="relative z-20 border-b-2 hairline bg-black">
         <div className="flex items-stretch justify-between">
-          <div className="flex items-center px-5 sm:px-8 py-4 gap-4">
-            <span
-              className="font-display text-white text-3xl leading-none tracking-[0.01em] glitch"
-            >
-              TA<span className="text-pink">TT</span>
-            </span>
-            <span className="hidden sm:inline-block text-[10px] uppercase text-white/40 tracking-[0.25em] border-l hairline-white pl-4">
-              Side&nbsp;A&nbsp;/&nbsp;Track&nbsp;01
-            </span>
+          <div className="flex items-center px-5 sm:px-8 py-4 gap-6">
+            <Link href="/" className="flex items-center">
+              <span className="font-display text-white text-3xl leading-none tracking-[0.01em] glitch">
+                TA<span className="text-pink">TT</span>
+              </span>
+            </Link>
+            <nav className="hidden md:flex items-center gap-5">
+              {NAV.map((n) => {
+                const active = pathname === n.href || (n.href !== "/" && pathname?.startsWith(n.href));
+                return (
+                  <Link
+                    key={n.href}
+                    href={n.href}
+                    className={`text-[10px] uppercase tracking-[0.25em] font-body press ${
+                      active ? "text-pink" : "text-white/70 hover:text-pink"
+                    }`}
+                  >
+                    {n.label}
+                  </Link>
+                );
+              })}
+            </nav>
           </div>
 
           <div className="flex items-stretch">
+            <div className="hidden md:flex items-stretch relative">
+              <button
+                onClick={() => setAccountOpen((v) => !v)}
+                aria-label="Account"
+                aria-expanded={accountOpen}
+                className="px-4 flex items-center justify-center border-l hairline-white text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink press"
+              >
+                Account&nbsp;<span className="text-pink">▾</span>
+              </button>
+              {accountOpen && (
+                <div className="absolute right-0 top-full mt-0 w-56 bg-black border-2 hairline z-30">
+                  <Link
+                    href="/login"
+                    onClick={() => setAccountOpen(false)}
+                    className="block px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink hover:bg-white/5 border-b hairline-soft font-body"
+                  >
+                    Log In
+                  </Link>
+                  <Link
+                    href="/signup"
+                    onClick={() => setAccountOpen(false)}
+                    className="block px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink hover:bg-white/5 border-b hairline-soft font-body"
+                  >
+                    Sign Up
+                  </Link>
+                  <Link
+                    href="/settings"
+                    onClick={() => setAccountOpen(false)}
+                    className="block px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink hover:bg-white/5 font-body"
+                  >
+                    Settings
+                  </Link>
+                </div>
+              )}
+            </div>
+
             <button
-              aria-label="Profile"
-              className="w-12 sm:w-14 flex items-center justify-center border-l hairline-white text-white/60 hover:text-pink press"
+              onClick={() => setMobileOpen((v) => !v)}
+              aria-label="Menu"
+              aria-expanded={mobileOpen}
+              className="md:hidden w-12 flex items-center justify-center border-l hairline-white text-white/70 hover:text-pink press"
             >
-              <span className="material-symbols-outlined">person</span>
-            </button>
-            <button
-              aria-label="Exit"
-              className="w-12 sm:w-14 flex items-center justify-center border-l hairline-white text-white/60 hover:text-pink press"
-            >
-              <span className="material-symbols-outlined">logout</span>
+              <span className="material-symbols-outlined">
+                {mobileOpen ? "close" : "menu"}
+              </span>
             </button>
           </div>
         </div>
+
+        {mobileOpen && (
+          <div className="md:hidden border-t hairline bg-black">
+            {NAV.map((n) => (
+              <Link
+                key={n.href}
+                href={n.href}
+                onClick={() => setMobileOpen(false)}
+                className="block px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-white/80 hover:text-pink border-b hairline-soft font-body"
+              >
+                {n.label}
+              </Link>
+            ))}
+            <Link
+              href="/login"
+              onClick={() => setMobileOpen(false)}
+              className="block px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-pink border-b hairline-soft font-body"
+            >
+              Log In
+            </Link>
+            <Link
+              href="/signup"
+              onClick={() => setMobileOpen(false)}
+              className="block px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-pink font-body"
+            >
+              Sign Up
+            </Link>
+          </div>
+        )}
       </header>
 
       <div className="flex-1 flex flex-col lg:flex-row min-h-0 relative z-[2]">
