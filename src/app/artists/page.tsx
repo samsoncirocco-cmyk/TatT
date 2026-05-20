@@ -35,14 +35,21 @@ const ARTISTS = Array.from({ length: 24 }).map((_, i) => ({
   color: COLORS[i % COLORS.length],
 }));
 
+const STYLE_FILTERS = ["All", ...STYLES] as const;
+
 export default function ArtistsPage() {
   const [q, setQ] = useState("");
-  const filtered = ARTISTS.filter(
-    (a) =>
-      a.name.toLowerCase().includes(q.toLowerCase()) ||
-      a.city.toLowerCase().includes(q.toLowerCase()) ||
-      a.style.toLowerCase().includes(q.toLowerCase())
-  );
+  const [style, setStyle] = useState<string>("All");
+  const ql = q.trim().toLowerCase();
+  const filtered = ARTISTS.filter((a) => {
+    if (style !== "All" && a.style !== style) return false;
+    if (!ql) return true;
+    return (
+      a.name.toLowerCase().includes(ql) ||
+      a.city.toLowerCase().includes(ql) ||
+      a.style.toLowerCase().includes(ql)
+    );
+  });
 
   return (
     <StudioShell>
@@ -83,6 +90,42 @@ export default function ArtistsPage() {
               placeholder="Name, city, or style…"
               className="w-full bg-black text-white placeholder-white/30 focus:outline-none text-[20px] md:text-[24px] leading-[1.4] tracking-tight border-2 hairline focus:border-pink p-5 transition-colors font-display"
             />
+          </div>
+
+          {/* STICKY FILTER CHIPS */}
+          <div className="mt-6 sticky top-0 z-10 -mx-6 md:-mx-12 px-6 md:px-12 py-3 bg-black/90 backdrop-blur-sm border-y hairline">
+            <div className="flex items-center gap-3 overflow-x-auto">
+              <span className="text-[10px] uppercase tracking-[0.25em] text-pink font-body shrink-0">
+                Style
+              </span>
+              {STYLE_FILTERS.map((s) => {
+                const active = style === s;
+                return (
+                  <button
+                    key={s}
+                    onClick={() => setStyle(s)}
+                    className={`text-[10px] uppercase tracking-[0.2em] border hairline px-3 py-2 press font-body shrink-0 ${
+                      active
+                        ? "bg-pink text-black border-pink"
+                        : "text-white/70 hover:text-black hover:bg-pink"
+                    }`}
+                  >
+                    {s}
+                  </button>
+                );
+              })}
+              {(style !== "All" || q) && (
+                <button
+                  onClick={() => {
+                    setStyle("All");
+                    setQ("");
+                  }}
+                  className="ml-auto text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-pink font-body shrink-0 press"
+                >
+                  Clear&nbsp;✕
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
