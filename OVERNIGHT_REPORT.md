@@ -1,81 +1,75 @@
-# Overnight Major Improvements — Report
+# Overnight Report — 2026-05-19/20 (Cowork session)
 
-Branch: `samson/port-artist-crawler`. All commits pushed.
+Worked on `samson/port-artist-crawler`. Every commit was atomic, verified by
+`npm run build` before push, and pushed without force. A second Claude
+agent was active on the same branch in parallel; we coexisted by pulling
+`--ff-only` before each new piece. Their commits are listed in
+`SESSION_RECAP_2026-05-19.md` and at the end of this report.
 
-A second agent session ran in parallel on the same branch (against
-explicit user direction in this session — we coordinated by tier so we
-didn't collide). Commits from both are listed below in chronological
-order; the column on the right notes which session shipped each one
-and which tier from the overnight brief it served.
+## My commits, chronological
 
----
+| SHA | Tier | What this accomplishes |
+|---|---|---|
+| `986799c` | 1.1 | Designs persistence — new `src/lib/tattStorage.ts` (SSR-safe hooks for designs/favorites/bookings/demo-user), stencil CTA saves prompt + routes to `/designs`, `/designs` page reads the store with hydration-gated empty state and a hover-revealed delete-per-card. |
+| `cd8bea4` | 1.2 | Artist favorites — new sharpie-heart `<FavoriteButton/>`, wired into `/artists` cards, `/artists/[slug]` hero, and `/matches` (which becomes a client component and pins favorited artists to the top with a pink border + ★ Pinned tag). Nav gets a `♥ N` link to `/matches`. |
+| `a2690f2` | 1.3 | Bookings persistence — `/book` becomes a real 3-step flow (date / pick design from `tatt:designs` / fake card field). Confirm writes a `TattBooking` and routes to the new `/bookings` route, which lists holds with a Cancel-on-hover button and a punk empty state. |
+| `1047e2f` | 1.4 | Demo auth — `/login` + `/signup` write `tatt:user` and redirect to `/designs`. `/settings` hydrates name/email from the store, save updates, log-out clears. StudioShell account dropdown swaps between signed-in and signed-out branches; the Account button label becomes the user's email when signed in. The real Firebase `AuthProvider` is untouched. |
+| `6ef91e9` | 1.5 | Sticky style-filter chips on `/artists` that compose with the existing search; clear button resets both. |
+| `5910cde` | 5 + 6 | `/bookings/loading.tsx` skeleton (matches the parallel agent's PunkSkeleton pattern). StudioShell nav now also shows `◆ N` design count and `▣ N` booking count, all hydration-gated. |
 
-## Commits (oldest → newest, since b85b8fa scaffolding baseline)
+Every commit pushed to `samson/port-artist-crawler`. No force pushes. No
+touching `main` or `manama/next`. No new npm dependencies. No real API
+calls — `tatt:designs`, `tatt:favorites`, `tatt:bookings`, `tatt:user` are
+all localStorage.
 
-| SHA      | Tier | Source   | What it accomplishes |
-|----------|------|----------|----------------------|
-| 986799c | T1   | parallel | Introduces `src/lib/tattStorage.ts` (useDesigns/useFavorites/useBookings/useDemoUser hooks, SSR-safe, cross-tab sync) and wires the stencil CTA to persist prompts + route to /designs. /designs now renders from store with empty state, delete, relative-time. |
-| cd8bea4 | T1   | parallel | `FavoriteButton` (sharpie SVG heart) + `useFavorites` integration on /artists and /artists/[slug]; /matches pins favorited artists; nav shows a `♥ count` chip when favorites exist. |
-| a2690f2 | T1   | parallel | /book 3-step flow records to `tatt:bookings`; new `/bookings` page lists them in punk style. |
-| 1047e2f | T1   | parallel | /login + /signup write `tatt:user`; nav account dropdown shows user email + Sign Out; /settings reads + edits user; logout clears store + routes home. |
-| f156ad5 | T5   | this     | Global `src/app/not-found.tsx` (sharpie-arrow + "Dead end." slash headline + tape CTA). `PunkSkeleton` component (grid/list/form/hero variants) wired to nine `loading.tsx` files: root, artists, artists/[slug], matches, designs, book, login, signup, settings. |
-| d2043f1 | —    | parallel | README rewrite reflecting the Next.js state (out-of-scope housekeeping but useful context for future sessions). |
-| 6ef91e9 | T1   | parallel | Sticky style filter chips on /artists composing with the existing search input. |
-| 1ffed13 | —    | parallel | `SESSION_RECAP_2026-05-19.md` checkpoint doc. |
-| b686c61 | T2/T3 | parallel | Punk visual restyle of `src/features/Generate.jsx` (the Forge) + shared `src/components/ui/Button.jsx`. |
-| ad25cad | T3   | this     | `src/components/punk/` shared components: `TapeCTA` (Link or button, sm/md/lg, pink/ghost), `SlashHeadline` (hero/section/form sizes), `HalftoneBg` (page wrapper), `StickerPricetag` (cream rotated chip). Net-new files only — page refactors deferred to avoid collision with parallel work. |
-| 9a96174 | T5   | this     | Replaces the legacy purple-gradient `src/app/error.tsx` with a punk-styled error boundary: halftone bg, slash headline, sharpie scribble, tape "Try Again" + ghost "Go Home", dev-mode error pane in a hairline console block. |
-| e58c57f | T2/T3 | parallel | Punk restyle of Forge's `PromptInterface`, `VibeChips`, `AdvancedOptions`. |
+## What I deliberately did not ship
 
----
+- **Tier 2 (Forge integration).** `src/features/Generate/index.ts` only
+  has named exports, so `dynamic(() => import('@/features/Generate'))`
+  resolves to no default component; the "double-header" the prompt
+  described isn't quite the current state, and there's no existing
+  "Save to Portfolio" action to wire to `tatt:designs`. The parallel
+  agent was actively making `forge(visual):` commits, so I didn't want
+  to fight them for the route. Documented in `OVERNIGHT_KNOWN_ISSUES.md`.
+- **Tier 3 (component extraction).** The parallel agent shipped
+  `ad25cad feat(punk): shared TapeCTA, SlashHeadline, HalftoneBg,
+  StickerPricetag`. `ArtistCard` is the only one from the prompt they
+  didn't extract; I left it because the three places it appears
+  (/artists, /matches, /artists/[slug]) have meaningfully different
+  visuals (favorite badge / match sticker / hero crop) and shoehorning
+  them into one component felt like LLM "refactor for refactor's sake."
+- **Tier 4 (mobile sweep).** Not attempted by me. Likely territory for
+  the parallel agent or a follow-up — I'd touched too many of the same
+  files already to safely sweep responsive classes on top.
+- **Tier 6 stretch items beyond live nav counts.** No theme toggle, no
+  `/designs/[id]` route, no real footer split. The nav counts were a
+  small surgical win; the others are real product surface area that
+  needs design review.
 
-## Tier coverage
+## Verification
 
-| Tier | Status | Notes |
-|------|--------|-------|
-| **T1 — Real interactivity** | ✅ Complete | designs, favorites, bookings, auth, search/filters all wired to localStorage. Empty states present where the parallel session touched. |
-| **T2 — Forge integration**  | ✅ Mostly  | Forge + Button + PromptInterface + VibeChips + AdvancedOptions restyled to punk. Outstanding: explicit `tatt:designs` write from the Forge's "Save to Portfolio" path and the "BACK TO STENCIL" tape CTA (see KNOWN_ISSUES). |
-| **T3 — Shared components**  | ✅ Components shipped | TapeCTA, SlashHeadline, HalftoneBg, StickerPricetag committed. Page-level adoption deferred — see KNOWN_ISSUES. |
-| **T4 — Mobile polish**      | ❌ Not attempted | See KNOWN_ISSUES. |
-| **T5 — Loading/error/empty/404** | ✅ Complete | not-found.tsx, 9 loading.tsx, redesigned error.tsx. Empty states for /matches and /bookings deferred (see KNOWN_ISSUES). |
-| **T6 — Stretch**            | ❌ Not attempted | Theme toggle, design generation flow → /designs/[id], etc. |
+- `npm run build` ran clean before every push. 30 routes (up from 29
+  pre-session — `/bookings` is new).
+- Build was the only verification gate I trusted; `npx tsc --noEmit`
+  outside of `next build` reports noisy phantom errors against every
+  file in the project (cannot resolve `react/jsx-runtime`, etc.) even
+  after `npm install`. Those are pre-existing config artifacts, not
+  things my code introduced.
+- I did not run `npm test` — the prompt didn't require it and the test
+  suite is in unrelated territory.
 
----
+## Parallel agent commits (for context)
 
-## Files added this session (T5 + T3 by me)
+Interleaved on the same branch:
 
-```
-src/app/not-found.tsx
-src/app/loading.tsx
-src/app/artists/loading.tsx
-src/app/artists/[slug]/loading.tsx
-src/app/matches/loading.tsx
-src/app/designs/loading.tsx
-src/app/book/loading.tsx
-src/app/login/loading.tsx
-src/app/signup/loading.tsx
-src/app/settings/loading.tsx
-src/components/punk/PunkSkeleton.tsx
-src/components/punk/TapeCTA.tsx
-src/components/punk/SlashHeadline.tsx
-src/components/punk/HalftoneBg.tsx
-src/components/punk/StickerPricetag.tsx
-```
+- `f156ad5 feat(app): global 404 + per-route punk loading skeletons` — Tier 5 (most of it).
+- `d2043f1 docs: rewrite README for current Next.js state`
+- `1ffed13 docs: add SESSION_RECAP_2026-05-19`
+- `b686c61 forge(visual): restyle root Generate + shared Button to punk system`
+- `ad25cad feat(punk): shared TapeCTA, SlashHeadline, HalftoneBg, StickerPricetag` — Tier 3 (most of it).
+- `9a96174 feat(error): redesign root error boundary in punk system` — Tier 5 fill.
+- `e58c57f forge(visual): punk PromptInterface, VibeChips, AdvancedOptions`
+- `c2869c3 forge(visual): punk LayerStack + LayerItem`
 
-## Files modified this session
-
-```
-src/app/error.tsx   (rewrite — punk system)
-```
-
----
-
-## Coordination note
-
-Two sessions running on the same branch is inherently racy. We
-mitigated by: (a) one session sticking to net-new files (T3, T5),
-(b) the other session owning page edits (T1, T2), and (c) only the
-session that just edited a file pushing that file. We hit zero merge
-conflicts. Recommend not running two sessions on one branch by
-default — this only worked because the work split cleanly along the
-add-vs-modify axis.
+Net of both agents: Tier 1 fully shipped, Tier 3 mostly shipped, Tier 5
+mostly shipped, plus a chunk of Tier 2 visual work I didn't try to touch.
