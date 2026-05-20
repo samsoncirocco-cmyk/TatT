@@ -1,5 +1,11 @@
 'use client';
 
+// Force dynamic rendering — pitch page initializes Firebase client SDK,
+// which can't run at build time without NEXT_PUBLIC_FIREBASE_* env vars.
+// Setting this lets the build complete even if Firebase env vars aren't
+// configured on Vercel yet. Page still works at runtime.
+export const dynamic = 'force-dynamic';
+
 import Link from 'next/link';
 import { useEffect, useRef } from 'react';
 
