@@ -3,34 +3,45 @@
 Honest list of things noticed but not fixed during this session, with
 the reason.
 
-## Tier 2 (Forge) — partial
+## Tier 2 (Forge) — done except one minor
 
-- **Forge "Save to Portfolio" doesn't write to `tatt:designs`.** The
-  parallel session restyled the Forge visually but didn't wire its
-  save action to the same localStorage key the stencil page uses.
-  Reason: ran out of session time + the Forge code path is
-  legacy-shaped (refs registry, history snapshot system) and grafting
-  a localStorage write requires reading more of `useForgeStore.ts` than
-  I had budget for without conflicting with the parallel Forge restyle.
-- **"BACK TO STENCIL" tape CTA in the Forge chrome.** Same reason —
-  visual restyle happened, this affordance didn't.
+- ~~**Forge "Save to Portfolio" doesn't write to `tatt:designs`.**~~
+  **Resolved in `65bb843`.** `handleGenerate(finalize=true)` now calls
+  a new non-hook `addDesignToStorage` helper from `tattStorage.ts`
+  that persists the enhanced (or raw) prompt to the same key the
+  stencil page uses. Refine generations intentionally skip
+  persistence — only finalize commits show up on /designs.
+- **"BACK TO STENCIL" tape CTA in the Forge chrome.** Still not
+  added. Low priority — the Forge is the actual studio, stencil is
+  the entry point, and the existing top nav already has a Forge link.
+  Worth adding if user testing shows people getting lost in the
+  Forge and wanting to start a new prompt fresh.
 
-## Tier 3 (shared components) — partial
+## Tier 3 (shared components) — page adoption deferred
 
 - **No page adopts the new TapeCTA / SlashHeadline / etc. yet.** The
   components were shipped as net-new files only. Refactoring the ~15
-  inlined sites would have required touching almost every page —
-  exactly the files the parallel session was actively editing.
-  Migration is safe to do in a fresh session that owns the branch.
-- **`ArtistCard` not extracted.** It's inlined in /artists, /matches,
-  /artists/[slug] related, /designs. Same conflict reason as above.
+  inlined sites is a follow-up — adoption produces zero visual diff
+  since the components match the existing class output exactly.
+- **`ArtistCard` not extracted.** Inlined in /artists, /matches,
+  /artists/[slug] related, /designs. Same follow-up.
 
-## Tier 4 (mobile polish) — not attempted
+## Tier 4 (mobile polish) — light pass shipped
 
-- Did not do a responsive sweep. Most pages already declare `sm:`/`md:`
-  breakpoints but I did not verify on a 375px viewport. The hamburger
-  drawer in `StudioShell` looked correct from code-reading, untested
-  live.
+- ~~Mobile sweep not attempted.~~ **Resolved in `a011be3`.** Desktop
+  count chips (◆ designs, ▣ bookings) now show from md (≥768px)
+  instead of lg (≥1024px) so tablet users see them. Mobile drawer
+  surfaces counts inline next to each nav item label (only when
+  non-zero), plus a "My Bookings N" row when bookings exist. Artist
+  profile tabs row scrolls cleanly on narrow viewports via
+  `overflow-x-auto` + negative-margin bleed. Other grids already
+  collapsed to 1-col on mobile and the booking stepper already
+  stacked vertically — those were correct from prior sessions.
+- **Untested on a real 375px device.** Code-reading only. If anything
+  breaks on a real iPhone SE viewport, it's likely the hero text on
+  `/` ("Tattoo your way." at 72px) or the `/artists/[slug]` name
+  header at 56px when the name is long. Both fit on paper; verify
+  live before declaring done.
 
 ## Tier 5 (loading/error/empty) — gaps
 
@@ -45,32 +56,35 @@ the reason.
   and contextual back-CTA (e.g. /matches errors offer "Browse Roster
   Instead" rather than the generic "Go Home"). `/designs/[id]` also
   has its own error boundary (`e482adb`).
-- **Empty state for `/matches`** — favorites pinning works but the
-  "no matches yet" state still shows 12 hardcoded mock artists rather
-  than a real empty screen. Out of scope for me because /matches is
-  what the parallel session was redesigning during my window.
+- ~~**Empty state for `/matches`**~~ **Resolved in `fbe1912`.** Page
+  adapts its headline ("Your matches." vs "Explore the roster."),
+  status bar, body copy, and adds a hairline banner with a "Browse
+  Roster" CTA when no favorites exist. The 12 mock artists are still
+  rendered, but framed as a warm-up exploration instead of "your
+  matches" — honest about the demo state.
 - **Empty state for `/bookings`** — confirmed in a subsequent commit:
   the page does have a punk empty state ("No bookings yet." + tape CTA
   back to /book). Shipped as part of `a2690f2`. Verified.
 
 ## Tier 6 (stretch) — not attempted
 
-- Theme toggle.
+- Theme toggle. Not attempted — would require duplicating every color
+  token decision in DESIGN_SYSTEM.md for a light variant. Big surface
+  area, low value for a demo.
 - ~~Real placeholder design generation that routes to `/designs/[id]`.~~
-  **Partially resolved in `e482adb`.** The `/designs/[id]` route
-  exists with full punk styling (canvas placeholder, prompt display,
-  Iterate / Find an artist / Delete actions, loading + error
-  boundaries). The /designs grid still links each tile to
-  `/generate/stencil` rather than the detail route — a one-line edit
-  in `src/app/designs/page.tsx` to flip `href="/generate/stencil"` to
-  `href={\`/designs/\${d.id}\`}` is the remaining wiring. Deferred so
-  the same change can be made alongside whatever other /designs grid
-  tweaks land next.
-- Footer on app pages — `PunkFooter` exists and is used on
-  `/`, `/about`, `/pricing`, `/legal/*`, but `StudioShell` (which wraps
-  every app route) doesn't render it. Adding it requires editing
-  `StudioShell.tsx`, which was being actively edited by the parallel
-  session for nav-badge work — deferred to avoid conflict.
+  **Fully resolved.** `/designs/[id]` shipped in `e482adb`; /designs
+  grid tiles deep-link into it (`1283882`). The Forge's
+  finalize-generate also writes to tatt:designs (`65bb843`), so real
+  generations populate the route too. The only follow-up is making
+  the detail page's "Iterate" CTA pre-fill the stencil prompt with
+  the saved design's prompt — currently it routes to a blank stencil
+  page. One-line change once the stencil page accepts a `?prompt=`
+  query param.
+- ~~Footer on app pages.~~ **Resolved in `1283882`.** PunkFooter now
+  rendered by StudioShell on every app route (default-on, opt out
+  with `footer={false}`). Removed six redundant manual `<PunkFooter />`
+  instances from the marketing pages so there's a single source of
+  truth.
 - Live design count + favorite count in top nav — **shipped** in
   `5910cde`: the desktop nav now surfaces `◆ N` (designs), `▣ N`
   (bookings), and `♥ N` (favorites) when each store is non-empty,
@@ -83,11 +97,11 @@ the reason.
 - **Two sessions on one branch is risky.** We managed it via strict
   add-vs-modify discipline; future overnight runs should pick one
   session per branch.
-- **Build verification not run end-to-end overnight.** `npx tsc
-  --noEmit` showed zero errors in files I authored. Did not run
-  `npm run build` because (a) it'd race with the parallel session
-  writing files and (b) Vercel previews are the load-bearing
-  verification.
+- ~~**Build verification not run end-to-end overnight.**~~ Ran
+  `npm run build` after the final commit (`a011be3`); build
+  succeeded, all 18 routes compiled including the new dynamic
+  `/designs/[id]`. Zero errors, zero warnings. Only side effect was
+  the known `next-env.d.ts` drift, reverted before pushing.
 - **`next-env.d.ts` drift on build.** Running `npm run build` in this
   checkout strips one `<reference>` line from `next-env.d.ts` every
   time (Next 16 quirk). Reverted before every commit so the working
