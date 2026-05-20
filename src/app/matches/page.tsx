@@ -73,6 +73,8 @@ function FilterPill({ label, active }: { label: string; active?: boolean }) {
 
 export default function MatchesPage() {
   const { favorites, hydrated } = useFavorites();
+  const favCount = hydrated ? favorites.length : 0;
+  const hasFavorites = favCount > 0;
   const ordered = hydrated
     ? [
         ...ARTISTS.filter((a) => favorites.includes(a.slug)),
@@ -88,7 +90,11 @@ export default function MatchesPage() {
             <span className="text-pink">●</span>&nbsp;&nbsp;Step&nbsp;03/04 — Match
           </span>
           <span>
-            Matches:&nbsp;<span className="text-pink">{ARTISTS.length}</span>
+            {hasFavorites ? (
+              <>Pinned:&nbsp;<span className="text-pink tabular-nums">{favCount}</span></>
+            ) : (
+              <>Status:&nbsp;<span className="text-pink">Exploring</span></>
+            )}
           </span>
         </div>
       </div>
@@ -97,13 +103,38 @@ export default function MatchesPage() {
         <div className="max-w-6xl mx-auto">
           <div className="flex items-baseline justify-between mb-3">
             <h1 className="font-display text-white text-[48px] md:text-[88px] leading-[0.88] tracking-[0.005em]">
-              Your&nbsp;<span className="slash"><span>matches</span></span>
-              <span className="text-pink">.</span>
+              {hasFavorites ? (
+                <>
+                  Your&nbsp;<span className="slash"><span>matches</span></span>
+                  <span className="text-pink">.</span>
+                </>
+              ) : (
+                <>
+                  Explore the&nbsp;<span className="slash"><span>roster</span></span>
+                  <span className="text-pink">.</span>
+                </>
+              )}
             </h1>
           </div>
           <p className="text-[14px] text-white/60 font-body max-w-xl leading-[1.55]">
-            Ranked by style fit, location, and availability. Tap a card to see the portfolio.
+            {hasFavorites
+              ? "Your pinned artists land first. The rest are ranked by style fit, location, and availability."
+              : "Heart any artist below or over on the Roster — they'll get pinned to the top of this page."}
           </p>
+
+          {!hasFavorites && hydrated && (
+            <div className="mt-8 border-2 hairline p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-pink/5">
+              <p className="text-[12px] uppercase tracking-[0.2em] text-white/70 font-body leading-[1.6]">
+                <span className="text-pink">▸</span>&nbsp;&nbsp;No favorites yet. Below is the full roster as a warm-up.
+              </p>
+              <Link
+                href="/artists"
+                className="text-[10px] uppercase tracking-[0.2em] text-white/80 hover:text-black hover:bg-pink border-2 hairline px-4 py-3 press font-body whitespace-nowrap inline-flex items-center justify-center self-start sm:self-auto"
+              >
+                Browse Roster&nbsp;<span className="ml-2">▸</span>
+              </Link>
+            </div>
+          )}
 
           {/* FILTERS */}
           <div className="mt-10 space-y-4 border-y-2 hairline py-6">
