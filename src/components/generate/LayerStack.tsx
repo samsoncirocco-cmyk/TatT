@@ -83,24 +83,24 @@ export default function LayerStack({
     return (
         <div className="flex flex-col h-full">
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-white/10">
+            <div className="flex items-center justify-between p-4 border-b-2 hairline">
                 <div className="flex items-center gap-2">
-                    <Layers size={18} className="text-ducks-green" />
-                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                    <Layers size={16} className="text-pink" />
+                    <h3 className="text-[14px] font-display tracking-wide text-white uppercase">
                         Layers
                     </h3>
-                    <span className="text-xs text-gray-600 font-mono">
+                    <span className="text-[10px] text-white/40 font-body tabular-nums tracking-[0.18em]">
                         ({layers.length})
                     </span>
                 </div>
                 {onAddLayer && (
                     <button
                         onClick={onAddLayer}
-                        className="p-1.5 rounded hover:bg-white/10 transition-colors"
+                        className="press p-1.5 border hairline-white hover:bg-pink hover:border-pink transition-colors"
                         title="Add layer"
                         aria-label="Add layer"
                     >
-                        <Plus size={16} className="text-gray-400 hover:text-white" />
+                        <Plus size={14} className="text-white hover:text-black" />
                     </button>
                 )}
             </div>
@@ -109,9 +109,9 @@ export default function LayerStack({
             <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
                 {layers.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-center py-12">
-                        <Layers size={48} className="text-gray-700 mb-4" />
-                        <p className="text-sm text-gray-500 mb-2">No layers yet</p>
-                        <p className="text-xs text-gray-600">
+                        <Layers size={40} className="text-white/10 mb-4" />
+                        <p className="text-[12px] font-display uppercase tracking-[0.22em] text-white/60 mb-2">No layers yet</p>
+                        <p className="text-[10px] font-body uppercase tracking-[0.22em] text-white/30">
                             Add a design to create your first layer
                         </p>
                     </div>
@@ -144,9 +144,9 @@ export default function LayerStack({
 
             {/* Footer Info */}
             {layers.length > 0 && (
-                <div className="p-3 border-t border-white/10 bg-black/20">
-                    <p className="text-[10px] text-gray-600 font-mono">
-                        Drag to reorder • Double-click name to edit
+                <div className="p-3 border-t-2 hairline bg-black">
+                    <p className="text-[10px] text-white/40 font-body uppercase tracking-[0.2em]">
+                        <span className="text-pink">●</span>&nbsp;&nbsp;Drag to reorder &nbsp;/&nbsp; Double-click to rename
                     </p>
                 </div>
             )}
