@@ -1,3 +1,4 @@
+import path from 'path';
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   typescript: {
@@ -27,6 +28,10 @@ const nextConfig = {
         'neo4j-driver': false,
       };
     }
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': path.resolve(process.cwd(), 'src'),
+    };
     return config;
   },
 };
