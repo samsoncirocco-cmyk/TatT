@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 
-const JourneyPage = dynamic(() => import('@/features/Journey'), {
+const JourneyPage = dynamic(() => import('@/features/Journey.jsx'), {
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center h-screen bg-black text-white">

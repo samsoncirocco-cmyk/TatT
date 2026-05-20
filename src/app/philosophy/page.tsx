@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 
-const PhilosophyPage = dynamic(() => import('@/features/Philosophy'), {
+const PhilosophyPage = dynamic(() => import('@/features/Philosophy.jsx'), {
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center h-screen bg-black text-white">
