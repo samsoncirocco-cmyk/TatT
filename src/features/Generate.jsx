@@ -1011,31 +1011,29 @@ export default function Generate() {
     };
 
     return (
-        <div className="min-h-screen pt-16 px-4 pb-32">
-            {/* Background Effects */}
+        <div className="halftone grain min-h-screen pt-10 px-4 pb-32 bg-black text-white font-body">
+            {/* Background — solid pitch black, halftone+grain applied above */}
             <div className="fixed inset-0 bg-black -z-20" />
-            <div className="fixed inset-0 bg-gradient-to-br from-blue-950/20 via-black to-black -z-10" />
-            <div className="fixed top-0 right-0 w-[600px] h-[600px] bg-ducks-green/10 rounded-full blur-[150px] pointer-events-none -z-10" />
 
-            {/* Header */}
-            <div className="text-center mb-12 pt-8" role="banner">
-                <h1 className="text-6xl md:text-7xl font-display font-black tracking-tighter text-white mb-3">
-                    THE FORGE
+            {/* Header — slashed Anton headline, pink dot meta */}
+            <div className="text-center mb-12 pt-4" role="banner">
+                <h1 className="rise rise-1 font-display text-white leading-[0.88] tracking-[0.005em] text-[72px] sm:text-[104px] md:text-[128px]">
+                    THE&nbsp;<span className="slash"><span>FORGE</span></span><span className="text-pink">.</span>
                 </h1>
-                <p className="text-xs font-mono text-ducks-green uppercase tracking-[0.3em]" aria-label="Version 4.2 Neural Ink Generation Engine">
-                    Neural Ink Generation Engine // v4.2
+                <p className="rise rise-2 mt-6 text-[10px] font-body text-pink uppercase tracking-[0.3em]" aria-label="Version 4.2 Neural Ink Generation Engine">
+                    <span className="text-pink">●</span>&nbsp;&nbsp;Neural Ink Generation Engine&nbsp;—&nbsp;v4.2
                 </p>
-                <div className="mt-6 flex items-center justify-center gap-3">
+                <div className="mt-8 flex items-center justify-center gap-3">
                     <button
                         onClick={() => {
                             setGuideStepIndex(0);
                             setShowGuide(true);
                         }}
-                        className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-mono uppercase tracking-widest text-white/70 hover:text-white hover:border-white/40"
+                        className="press border hairline-white px-4 py-2 text-[10px] font-body uppercase tracking-[0.25em] text-white/70 hover:text-black hover:bg-pink hover:border-pink"
                     >
                         Guided Tour
                     </button>
-                    <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-white/30">
+                    <span className="text-[10px] font-body uppercase tracking-[0.28em] text-white/30">
                         Learn the flow in 60 seconds
                     </span>
                 </div>
@@ -1044,19 +1042,19 @@ export default function Generate() {
             <div className="max-w-[1560px] mx-auto space-y-10" role="main">
                 <section
                     id="forge-trending"
-                    className="glass-panel rounded-3xl border border-white/10 p-6"
+                    className="border-2 hairline bg-black p-6"
                     aria-label="Trending design examples"
                 >
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                         <div>
-                            <p className="text-[11px] font-mono uppercase tracking-[0.4em] text-ducks-green/70">
-                                Trending Now
+                            <p className="text-[10px] font-body uppercase tracking-[0.3em] text-pink">
+                                <span className="text-pink">●</span>&nbsp;&nbsp;Trending Now
                             </p>
-                            <h2 className="text-2xl md:text-3xl font-display font-bold text-white mt-2">
+                            <h2 className="text-[28px] md:text-[36px] font-display tracking-wide text-white mt-2 uppercase leading-none">
                                 Inspiration library
                             </h2>
-                            <p className="text-sm text-white/50 mt-2 max-w-xl">
-                                Start from a curated concept or begin with a blank canvas.
+                            <p className="text-[13px] text-white/60 mt-3 max-w-xl font-body leading-[1.55]">
+                                Start from a curated concept or burn a blank canvas.
                             </p>
                         </div>
                         <Button
@@ -1075,23 +1073,22 @@ export default function Generate() {
                             <button
                                 key={example.id}
                                 onClick={() => handleLoadExample(example)}
-                                className="group text-left rounded-2xl border border-white/10 bg-black/40 hover:bg-black/60 transition-all overflow-hidden focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-ducks-yellow"
+                                className="press group text-left border hairline-white bg-black hover:border-pink transition-colors overflow-hidden focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-pink"
                                 disabled={isLoadingExample}
                             >
                                 <div className="relative h-36 overflow-hidden">
                                     <img
                                         src={example.layers[0]?.imageUrl}
                                         alt={example.title}
-                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                        className="w-full h-full object-cover"
                                     />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-transparent" />
-                                    <span className="absolute bottom-3 left-3 text-xs font-mono uppercase tracking-widest text-white/70">
+                                    <span className="absolute bottom-3 left-3 text-[10px] font-body uppercase tracking-[0.25em] text-white bg-black/70 px-2 py-1">
                                         {example.bodyPart}
                                     </span>
                                 </div>
-                                <div className="p-4 space-y-2">
-                                    <h3 className="text-lg font-bold text-white">{example.title}</h3>
-                                    <p className="text-xs text-white/60">{example.description}</p>
+                                <div className="p-4 space-y-2 border-t hairline-white">
+                                    <h3 className="text-[18px] font-display tracking-wide uppercase text-white group-hover:text-pink">{example.title}</h3>
+                                    <p className="text-[11px] text-white/60 font-body">{example.description}</p>
                                 </div>
                             </button>
                         ))}
@@ -1104,7 +1101,7 @@ export default function Generate() {
                     <div className="lg:col-span-3 xl:col-span-3 2xl:col-span-2">
                         <div
                             id="forge-placement"
-                            className="glass-panel rounded-2xl p-4 border border-white/10 sticky top-24"
+                            className="bg-black border-2 hairline p-4 sticky top-24"
                         >
                             <BodyPartSelector
                                 selectedBodyPart={bodyPart}
@@ -1118,7 +1115,7 @@ export default function Generate() {
                     <div className="lg:col-span-9 xl:col-span-9 2xl:col-span-7">
                         <div className="space-y-6">
                             {/* Canvas */}
-                            <div className="glass-panel rounded-3xl p-6 border border-white/10">
+                            <div className="bg-black border-2 hairline p-6">
                                 <div className="relative group">
                                     <ForgeCanvas
                                         bodyPart={bodyPart}
@@ -1135,7 +1132,7 @@ export default function Generate() {
                                                 alt="Preview"
                                                 className="w-full h-full object-contain opacity-80"
                                             />
-                                            <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-black/60 text-xs font-mono uppercase tracking-widest text-ducks-yellow">
+                                            <div className="absolute top-3 left-3 px-3 py-1 bg-pink text-black text-[10px] font-body uppercase tracking-[0.25em]">
                                                 Preview
                                             </div>
                                         </div>
@@ -1203,26 +1200,26 @@ export default function Generate() {
                                         >
                                             Redo
                                         </Button>
-                                        <span className="text-[10px] font-mono uppercase tracking-wider text-white/60">
+                                        <span className="text-[10px] font-body uppercase tracking-[0.2em] text-white/60 tabular-nums">
                                             {historyPastCount} changes
                                         </span>
                                         <button
                                             type="button"
                                             onClick={clearHistory}
                                             disabled={historyPastCount === 0 && historyFutureCount === 0}
-                                            className="text-[10px] font-mono uppercase tracking-wider text-white/40 hover:text-white/80 disabled:opacity-40"
+                                            className="text-[10px] font-body uppercase tracking-[0.2em] text-white/40 hover:text-pink disabled:opacity-40"
                                         >
                                             Clear History
                                         </button>
                                     </div>
                                     {isStencilProcessing && (
-                                        <span className="text-xs text-white/60 font-mono">Generating stencil...</span>
+                                        <span className="text-[10px] text-pink font-body uppercase tracking-[0.25em]">Generating stencil...</span>
                                     )}
                                     {stencilError && (
-                                        <span className="text-xs text-red-400">{stencilError}</span>
+                                        <span className="text-[10px] text-pink font-body uppercase tracking-[0.25em]">{stencilError}</span>
                                     )}
                                     {isPreviewing && (
-                                        <span className="text-xs text-white/50 font-mono">
+                                        <span className="text-[10px] text-white/50 font-body uppercase tracking-[0.25em]">
                                             Updating preview...
                                         </span>
                                     )}
@@ -1230,11 +1227,11 @@ export default function Generate() {
 
                                 {selectedLayer && (
                                     <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="bg-black/30 border border-white/10 rounded-2xl p-4">
-                                            <p className="text-xs font-mono uppercase tracking-[0.3em] text-ducks-green">
-                                                Layer Blend
+                                        <div className="bg-black border-2 hairline p-4">
+                                            <p className="text-[10px] font-body uppercase tracking-[0.28em] text-pink">
+                                                <span className="text-pink">●</span>&nbsp;&nbsp;Layer Blend
                                             </p>
-                                            <p className="text-sm text-white/70 mt-2">
+                                            <p className="text-[13px] text-white/70 mt-2 font-body">
                                                 {selectedLayer.name}
                                             </p>
                                             <div className="mt-3">
@@ -1244,9 +1241,9 @@ export default function Generate() {
                                                 />
                                             </div>
                                         </div>
-                                        <div className="bg-black/30 border border-white/10 rounded-2xl p-4 space-y-3">
-                                            <p className="text-xs font-mono uppercase tracking-[0.3em] text-ducks-green">
-                                                Layer Actions
+                                        <div className="bg-black border-2 hairline p-4 space-y-3">
+                                            <p className="text-[10px] font-body uppercase tracking-[0.28em] text-pink">
+                                                <span className="text-pink">●</span>&nbsp;&nbsp;Layer Actions
                                             </p>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <Button
@@ -1293,16 +1290,16 @@ export default function Generate() {
                             </div>
 
                             {/* Prompt Interface */}
-                            <div id="forge-prompt" className="glass-panel rounded-3xl p-8 border border-white/10">
+                            <div id="forge-prompt" className="bg-black border-2 hairline p-8">
                                 <div className="mb-6">
-                                    <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-[0.3em] text-white/50">
-                                        <span>Placement</span>
-                                        <span>Prompt</span>
-                                        <span>Generate</span>
+                                    <div className="flex items-center justify-between text-[10px] font-body uppercase tracking-[0.28em] text-white/50">
+                                        <span><span className="text-pink">01</span> Placement</span>
+                                        <span><span className="text-pink">02</span> Prompt</span>
+                                        <span><span className="text-pink">03</span> Generate</span>
                                     </div>
-                                    <div className="mt-3 h-2 rounded-full bg-white/10 overflow-hidden">
+                                    <div className="mt-3 h-1.5 bg-white/10 overflow-hidden">
                                         <div
-                                            className="h-full bg-ducks-green transition-all duration-500"
+                                            className="h-full bg-pink transition-all duration-200"
                                             style={{
                                                 width: `${Math.round(([
                                                     bodyPart ? 1 : 0,
@@ -1331,7 +1328,7 @@ export default function Generate() {
                                     </Button>
                                     <button
                                         onClick={() => setShowAdvanced(!showAdvanced)}
-                                        className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-mono uppercase tracking-widest text-white/60 hover:text-white hover:border-white/40"
+                                        className="press border hairline-white px-4 py-2 text-[10px] font-body uppercase tracking-[0.25em] text-white/70 hover:text-black hover:bg-pink hover:border-pink"
                                     >
                                         Tattoo Fine-Tuning
                                     </button>
@@ -1361,19 +1358,19 @@ export default function Generate() {
                                 />
 
                                 {enhancedPrompt && (
-                                    <div className="mt-6 p-6 bg-ducks-green/10 border border-ducks-green/30 rounded-2xl">
+                                    <div className="mt-6 p-6 bg-black border-2 border-pink">
                                         <div className="flex items-center justify-between mb-3">
-                                            <h4 className="text-sm font-bold text-ducks-green uppercase tracking-wider">
-                                                AI Enhanced Prompt ({enhancementLevel})
+                                            <h4 className="text-[12px] font-display tracking-[0.22em] text-pink uppercase">
+                                                <span className="text-pink">●</span>&nbsp;&nbsp;Council Enhanced ({enhancementLevel})
                                             </h4>
                                             <button
                                                 onClick={() => setEnhancedPrompt(null)}
-                                                className="text-xs text-gray-500 hover:text-white transition-colors"
+                                                className="text-[10px] font-body uppercase tracking-[0.22em] text-white/50 hover:text-pink"
                                             >
                                                 Clear
                                             </button>
                                         </div>
-                                        <p className="text-sm text-gray-300 leading-relaxed">
+                                        <p className="text-[13px] text-white/80 leading-[1.55] font-body">
                                             {enhancedPrompt}
                                         </p>
                                     </div>
@@ -1403,43 +1400,43 @@ export default function Generate() {
                                                 FINALIZE
                                             </Button>
                                         </div>
-                                        <p className="text-[10px] text-white/40 font-mono text-center">
-                                            Refine: Quick iteration (50 steps) • Finalize: Max quality (60+ steps, 300 DPI)
+                                        <p className="text-[10px] text-white/40 font-body uppercase tracking-[0.2em] text-center">
+                                            Refine: Quick iteration (50 steps) <span className="text-pink">●</span> Finalize: Max quality (60+ steps, 300 DPI)
                                         </p>
                                         {isGenerating && (
                                             <div className="mt-4 space-y-2">
-                                                <div className="flex items-center justify-between text-xs text-white/60 font-mono">
-                                                    <span>Rendering high-res...</span>
+                                                <div className="flex items-center justify-between text-[10px] text-white/70 font-body uppercase tracking-[0.22em] tabular-nums">
+                                                    <span><span className="text-pink">●</span>&nbsp;&nbsp;Rendering high-res...</span>
                                                     <span>
                                                         {progress?.etaSeconds !== null ? `~${progress.etaSeconds}s` : 'estimating...'}
                                                     </span>
                                                 </div>
-                                                <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+                                                <div className="h-1.5 bg-white/10 overflow-hidden">
                                                     <div
-                                                        className="h-full bg-ducks-green transition-all"
+                                                        className="h-full bg-pink transition-all"
                                                         style={{ width: `${Math.round((progress?.percent || 0) * 100)}%` }}
                                                     />
                                                 </div>
                                                 {queueLength > 0 && (
-                                                    <div className="text-[10px] text-white/40 font-mono">
+                                                    <div className="text-[10px] text-white/40 font-body uppercase tracking-[0.22em]">
                                                         Queue: {queueLength} request{queueLength > 1 ? 's' : ''} waiting
                                                     </div>
                                                 )}
                                             </div>
                                         )}
                                         {generationError && (
-                                            <div className="mt-4 p-3 rounded-xl border border-red-500/40 bg-red-500/10 text-xs text-red-200 flex items-center justify-between gap-3">
-                                                <span>{generationError}</span>
+                                            <div className="mt-4 p-3 border-2 border-pink bg-black text-[11px] text-pink font-body flex items-center justify-between gap-3">
+                                                <span className="uppercase tracking-[0.18em]">{generationError}</span>
                                                 <button
                                                     onClick={() => handleGenerate(false)}
-                                                    className="px-3 py-1 rounded-full bg-red-500/30 text-red-100 text-[10px] font-mono uppercase tracking-wider"
+                                                    className="press px-3 py-1 bg-pink text-black text-[10px] font-body uppercase tracking-[0.22em]"
                                                 >
                                                     Retry
                                                 </button>
                                             </div>
                                         )}
                                         {previewError && (
-                                            <div className="mt-4 text-[10px] text-red-300 font-mono text-center">
+                                            <div className="mt-4 text-[10px] text-pink font-body uppercase tracking-[0.22em] text-center">
                                                 Preview failed. Adjust your prompt and try again.
                                             </div>
                                         )}
@@ -1471,7 +1468,7 @@ export default function Generate() {
                                 context={matchContext}
                             />
 
-                            <div className="glass-panel rounded-2xl border border-white/10 h-[360px] md:h-[calc(100vh-28rem)]">
+                            <div className="bg-black border-2 hairline h-[360px] md:h-[calc(100vh-28rem)]">
                                 <LayerStack
                                     layers={layers}
                                     selectedLayerId={selectedLayerId}
@@ -1503,17 +1500,17 @@ export default function Generate() {
             />
 
             {showStencilExport && stencilSourceUrl && (
-                <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-                    <div className="glass-panel border border-white/10 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-                        <div className="flex items-center justify-between p-4 border-b border-white/10">
-                            <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                                Stencil Export
+                <div className="fixed inset-0 z-50 bg-black/80 halftone flex items-center justify-center p-4">
+                    <div className="bg-black border-2 border-pink max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="flex items-center justify-between p-4 border-b-2 hairline">
+                            <h3 className="text-[16px] font-display tracking-wide text-white uppercase">
+                                <span className="text-pink">●</span>&nbsp;&nbsp;Stencil Export
                             </h3>
                             <button
                                 onClick={() => setShowStencilExport(false)}
-                                className="text-white/60 hover:text-white text-sm"
+                                className="text-[10px] font-body uppercase tracking-[0.22em] text-white/60 hover:text-pink"
                             >
-                                Close
+                                Close ✕
                             </button>
                         </div>
                         <div className="p-6">
@@ -1540,43 +1537,43 @@ export default function Generate() {
             )}
 
             {showElementModal && (
-                <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-                    <div className="glass-panel border border-white/10 rounded-2xl max-w-lg w-full">
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-                            <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                                Add New Element
+                <div className="fixed inset-0 z-50 bg-black/80 halftone flex items-center justify-center p-4">
+                    <div className="bg-black border-2 border-pink max-w-lg w-full">
+                        <div className="flex items-center justify-between px-6 py-4 border-b-2 hairline">
+                            <h3 className="text-[16px] font-display tracking-wide text-white uppercase">
+                                <span className="text-pink">●</span>&nbsp;&nbsp;Add New Element
                             </h3>
                             <button
                                 onClick={() => setShowElementModal(false)}
-                                className="text-white/60 hover:text-white text-sm"
+                                className="text-[10px] font-body uppercase tracking-[0.22em] text-white/60 hover:text-pink"
                                 aria-label="Close add element modal"
                             >
-                                Close
+                                Close ✕
                             </button>
                         </div>
                         <div className="p-6 space-y-4">
                             <div>
-                                <label htmlFor="element-prompt" className="text-xs font-mono uppercase tracking-wider text-white/60">
-                                    Element Prompt
+                                <label htmlFor="element-prompt" className="text-[10px] font-body uppercase tracking-[0.25em] text-pink">
+                                    ▸ Element Prompt
                                 </label>
                                 <textarea
                                     id="element-prompt"
                                     value={elementPrompt}
                                     onChange={(e) => setElementPrompt(e.target.value)}
                                     placeholder="e.g., Add a koi fish, lightning bolt, ornamental frame"
-                                    className="mt-2 w-full rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-ducks-green/60"
+                                    className="mt-2 w-full bg-black border-2 hairline focus:border-pink px-4 py-3 text-[14px] text-white font-display tracking-tight focus:outline-none placeholder-white/30 transition-colors"
                                     rows={3}
                                 />
                             </div>
                             <div>
-                                <label htmlFor="element-type" className="text-xs font-mono uppercase tracking-wider text-white/60">
-                                    Element Type
+                                <label htmlFor="element-type" className="text-[10px] font-body uppercase tracking-[0.25em] text-pink">
+                                    ▸ Element Type
                                 </label>
                                 <select
                                     id="element-type"
                                     value={elementType}
                                     onChange={(e) => setElementType(e.target.value)}
-                                    className="mt-2 w-full rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-ducks-green/60"
+                                    className="mt-2 w-full bg-black border-2 hairline focus:border-pink px-4 py-3 text-[14px] text-white font-display tracking-tight uppercase focus:outline-none transition-colors"
                                 >
                                     <option value="subject">Subject</option>
                                     <option value="background">Background</option>
@@ -1599,26 +1596,26 @@ export default function Generate() {
             )}
 
             {restyleLayerId && (
-                <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-                    <div className="glass-panel border border-white/10 rounded-2xl max-w-lg w-full">
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-                            <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                                Restyle Layer
+                <div className="fixed inset-0 z-50 bg-black/80 halftone flex items-center justify-center p-4">
+                    <div className="bg-black border-2 border-pink max-w-lg w-full">
+                        <div className="flex items-center justify-between px-6 py-4 border-b-2 hairline">
+                            <h3 className="text-[16px] font-display tracking-wide text-white uppercase">
+                                <span className="text-pink">●</span>&nbsp;&nbsp;Restyle Layer
                             </h3>
                             <button
                                 onClick={() => {
                                     setRestyleLayerId(null);
                                     setRestyleStyle('');
                                 }}
-                                className="text-white/60 hover:text-white text-sm"
+                                className="text-[10px] font-body uppercase tracking-[0.22em] text-white/60 hover:text-pink"
                             >
-                                Close
+                                Close ✕
                             </button>
                         </div>
                         <div className="p-6 space-y-4">
                             <div>
-                                <label htmlFor="restyle-style" className="text-xs font-mono uppercase tracking-wider text-white/60">
-                                    New Style
+                                <label htmlFor="restyle-style" className="text-[10px] font-body uppercase tracking-[0.25em] text-pink">
+                                    ▸ New Style
                                 </label>
                                 <input
                                     id="restyle-style"
@@ -1626,9 +1623,9 @@ export default function Generate() {
                                     value={restyleStyle}
                                     onChange={(e) => setRestyleStyle(e.target.value)}
                                     placeholder="e.g., Fine-line, Blackwork, Neo-traditional"
-                                    className="mt-2 w-full rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-ducks-green/60"
+                                    className="mt-2 w-full bg-black border-2 hairline focus:border-pink px-4 py-3 text-[14px] text-white font-display tracking-tight focus:outline-none placeholder-white/30 transition-colors"
                                 />
-                                <p className="mt-2 text-xs text-white/50">
+                                <p className="mt-2 text-[11px] text-white/60 font-body leading-[1.55]">
                                     We&apos;ll regenerate the selected layer using the new style while keeping your core prompt.
                                 </p>
                             </div>
