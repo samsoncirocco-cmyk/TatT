@@ -72,7 +72,7 @@ export default function StudioShell({
               <Link
                 href="/designs"
                 aria-label={`${designs.length} saved designs`}
-                className="hidden lg:flex items-center px-3 border-l hairline-white text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink press tabular-nums font-body"
+                className="hidden md:flex items-center px-3 border-l hairline-white text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink press tabular-nums font-body"
               >
                 ◆&nbsp;{designs.length}
               </Link>
@@ -81,7 +81,7 @@ export default function StudioShell({
               <Link
                 href="/bookings"
                 aria-label={`${bookings.length} bookings`}
-                className="hidden lg:flex items-center px-3 border-l hairline-white text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink press tabular-nums font-body"
+                className="hidden md:flex items-center px-3 border-l hairline-white text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink press tabular-nums font-body"
               >
                 ▣&nbsp;{bookings.length}
               </Link>
@@ -198,16 +198,37 @@ export default function StudioShell({
 
         {mobileOpen && (
           <div className="md:hidden border-t hairline bg-black">
-            {NAV.map((n) => (
+            {NAV.map((n) => {
+              const count =
+                n.href === "/designs" && designsHydrated
+                  ? designs.length
+                  : n.href === "/artists" && favHydrated
+                  ? favorites.length
+                  : 0;
+              return (
+                <Link
+                  key={n.href}
+                  href={n.href}
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center justify-between px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-white/80 hover:text-pink border-b hairline-soft font-body"
+                >
+                  <span>{n.label}</span>
+                  {count > 0 && (
+                    <span className="text-pink tabular-nums">{count}</span>
+                  )}
+                </Link>
+              );
+            })}
+            {bookingsHydrated && bookings.length > 0 && (
               <Link
-                key={n.href}
-                href={n.href}
+                href="/bookings"
                 onClick={() => setMobileOpen(false)}
-                className="block px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-white/80 hover:text-pink border-b hairline-soft font-body"
+                className="flex items-center justify-between px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-white/80 hover:text-pink border-b hairline-soft font-body"
               >
-                {n.label}
+                <span>My Bookings</span>
+                <span className="text-pink tabular-nums">{bookings.length}</span>
               </Link>
-            ))}
+            )}
             {userHydrated && user ? (
               <>
                 <div className="px-6 py-3 border-b hairline-soft">
