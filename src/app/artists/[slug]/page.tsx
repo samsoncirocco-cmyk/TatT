@@ -74,11 +74,11 @@ export default async function ArtistProfilePage({
             </p>
 
             {/* TABS */}
-            <div className="mt-10 flex gap-0 border-b-2 hairline">
+            <div className="mt-10 flex gap-0 border-b-2 hairline overflow-x-auto -mx-6 px-6 sm:mx-0 sm:px-0">
               {["Portfolio", "About", "Book"].map((t, i) => (
                 <button
                   key={t}
-                  className={`px-5 py-3 font-display text-[16px] tracking-wide press border-r hairline ${
+                  className={`px-5 py-3 font-display text-[16px] tracking-wide press border-r hairline shrink-0 ${
                     i === 0
                       ? "bg-pink text-black"
                       : "text-white/70 hover:text-pink"
