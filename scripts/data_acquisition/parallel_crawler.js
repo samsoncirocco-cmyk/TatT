@@ -76,13 +76,15 @@ const CONFIG = {
         // END OF US EXPANSION
 
         // Tier 3: Emerging Hubs (151-250)
-        'Boise, ID', 'Spokane, WA', 'Des Moines, IA', 'Little Rock, AR', 'Jackson, MS',
+        // Boise,ID and Spokane,WA removed here — already listed in Tier 2 above.
+        'Des Moines, IA', 'Little Rock, AR', 'Jackson, MS',
         'Sioux Falls, SD', 'Fargo, ND', 'Billings, MT', 'Cheyenne, WY', 'Burlington, VT',
         'Portland, ME', 'Manchester, NH', 'Providence, RI', 'New Haven, CT', 'Wilmington, DE',
         'Charleston, WV', 'Huntington, WV', 'Roanoke, VA', 'Asheville, NC', 'Myrtle Beach, SC',
         'Savannah, GA', 'Tallahassee, FL', 'Pensacola, FL', 'Mobile, AL', 'Shreveport, LA',
         'Lubbock, TX', 'Amarillo, TX', 'Midland, TX', 'Abilene, TX', 'Waco, TX',
-        'Corpus Christi, TX', 'McAllen, TX', 'Brownsville, TX', 'Las Cruces, NM', 'Yuma, AZ',
+        // Corpus Christi,TX removed here — already in Tier 2.
+        'McAllen, TX', 'Brownsville, TX', 'Las Cruces, NM', 'Yuma, AZ',
         'Flagstaff, AZ', 'St. George, UT', 'Provo, UT', 'Ogden, UT', 'Reno, NV',
         'Salem, OR', 'Eugene, OR', 'Medford, OR', 'Tacoma, WA', 'Vancouver, WA',
         'Anchorage, AK', 'Fairbanks, AK', 'Honolulu, HI', 'Hilo, HI', 'Kahului, HI',
@@ -106,7 +108,7 @@ const CONFIG = {
         'Inglewood, CA', 'San Buenaventura, CA', 'West Covina, CA', 'Norwalk, CA', 'Daly City, CA',
         // Texas Expansion
         'Frisco, TX', 'McKinney, TX', 'Grand Prairie, TX', 'Brownsville, TX', 'Killeen, TX',
-        'Pasadena, TX', 'Mesquite, TX', 'Denton, TX', 'Carrollton, TX', 'Roseville, CA',
+        'Pasadena, TX', 'Mesquite, TX', 'Denton, TX', 'Carrollton, TX', // Roseville,CA removed — duplicate of CA section, was copy-paste error
         'Midland, TX', 'Waco, TX', 'Pearland, TX', 'College Station, TX', 'Round Rock, TX',
         'League City, TX', 'Lewisville, TX', 'Tyler, TX', 'Richardson, TX', 'Allen, TX',
         // Florida Expansion
@@ -118,7 +120,17 @@ const CONFIG = {
         'Champaign, IL', 'Rockford, IL', 'Joliet, IL', 'Naperville, IL', 'Aurora, IL',
         'Gary, IN', 'Lafayette, IN', 'Ann Arbor, MI', 'Flint, MI', 'Dearborn, MI',
         'Livonia, MI', 'Canton, OH', 'Parma, OH', 'Hamilton, OH', 'Kettering, OH'
-    ],
+    ].filter((city, idx, arr) => {
+        // Dedupe-on-load safety net: if a future copy-paste mistake adds the
+        // same city twice (e.g. "Roseville,CA" in the TX section), this strips
+        // duplicates so we never pay Google Places API twice for the same city.
+        const first = arr.indexOf(city);
+        if (first !== idx) {
+            console.warn(`[Crawler] Skipping duplicate target city: ${city}`);
+            return false;
+        }
+        return true;
+    }),
 
     // File paths
     OUTPUT_DIR: path.join(process.cwd(), 'src/scripts/data_acquisition/output'),
