@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
+import { useDesigns } from "@/lib/tattStorage";
 
 const SUGGESTIONS = [
   { label: "Traditional Japanese" },
@@ -61,13 +63,18 @@ function RightSidebarContent() {
 
 export default function StencilPage() {
   const [prompt, setPrompt] = useState("");
+  const router = useRouter();
+  const { addDesign } = useDesigns();
 
   const appendSuggestion = (s: string) => {
     setPrompt((p) => (p.trim() ? `${p.trim()}, ${s}` : s));
   };
 
   const handleGenerate = () => {
-    console.log("TODO: call /api/v1/generate", { prompt });
+    const trimmed = prompt.trim();
+    if (!trimmed) return;
+    addDesign(trimmed);
+    router.push("/designs");
   };
 
   return (
