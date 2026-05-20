@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 
-const VisualizePage = dynamic(() => import('@/features/Visualize.jsx'), {
+const VisualizePage = dynamic(() => import('../../features/Visualize.jsx'), {
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center h-screen bg-black text-white">

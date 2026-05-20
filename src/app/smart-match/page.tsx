@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 
-const SmartMatchPage = dynamic(() => import('@/features/SmartMatch.jsx'), {
+const SmartMatchPage = dynamic(() => import('../../features/SmartMatch.jsx'), {
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center h-screen bg-black text-white">
