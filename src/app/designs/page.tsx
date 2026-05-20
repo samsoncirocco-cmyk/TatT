@@ -78,7 +78,7 @@ export default function DesignsPage() {
             <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {designs.map((d) => (
                 <div key={d.id} className="group press relative">
-                  <Link href="/generate/stencil" className="block">
+                  <Link href={`/designs/${d.id}`} className="block">
                     <div
                       className={`aspect-square ${d.color} border-2 hairline relative overflow-hidden`}
                     >

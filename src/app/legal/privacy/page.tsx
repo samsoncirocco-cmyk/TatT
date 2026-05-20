@@ -1,5 +1,4 @@
 import StudioShell from "@/components/studio/StudioShell";
-import PunkFooter from "@/components/studio/PunkFooter";
 
 export default function PrivacyPage() {
   return (
@@ -56,7 +55,6 @@ export default function PrivacyPage() {
           </div>
         </div>
       </div>
-      <PunkFooter />
     </StudioShell>
   );
 }

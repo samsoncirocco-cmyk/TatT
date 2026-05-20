@@ -1,5 +1,4 @@
 import StudioShell from "@/components/studio/StudioShell";
-import PunkFooter from "@/components/studio/PunkFooter";
 
 export default function TermsPage() {
   return (
@@ -57,7 +56,6 @@ export default function TermsPage() {
           </div>
         </div>
       </div>
-      <PunkFooter />
     </StudioShell>
   );
 }

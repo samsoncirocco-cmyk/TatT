@@ -1,6 +1,5 @@
 import Link from "next/link";
 import StudioShell from "@/components/studio/StudioShell";
-import PunkFooter from "@/components/studio/PunkFooter";
 
 const SECTIONS = [
   {
@@ -106,8 +105,6 @@ export default function AboutPage() {
           </Link>
         </div>
       </section>
-
-      <PunkFooter />
     </StudioShell>
   );
 }
