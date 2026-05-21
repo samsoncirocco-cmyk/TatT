@@ -33,53 +33,53 @@ export function BodyPartWarningModal({
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onCancel}
-                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+                        className="fixed inset-0 bg-black/80 halftone z-50"
                     />
 
                     {/* Modal */}
                     <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
                         <motion.div
-                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                            className="relative max-w-md w-full bg-gradient-to-br from-card/95 to-card/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-glass-lg p-6"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 20 }}
+                            transition={{ duration: 0.15, ease: 'linear' }}
+                            className="relative max-w-md w-full bg-black border-2 border-pink p-6"
                         >
                             {/* Close button */}
                             <button
                                 onClick={onCancel}
-                                className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors"
+                                className="press absolute top-4 right-4 text-white/40 hover:text-pink transition-colors"
                             >
-                                <X className="w-5 h-5" />
+                                <X className="w-4 h-4" />
                             </button>
 
                             {/* Warning icon */}
-                            <div className="flex items-center justify-center w-16 h-16 bg-accent/20 rounded-full mb-4">
-                                <AlertTriangle className="w-8 h-8 text-accent" />
+                            <div className="flex items-center justify-center w-12 h-12 bg-pink mb-4">
+                                <AlertTriangle className="w-6 h-6 text-black" />
                             </div>
 
                             {/* Content */}
                             <div className="space-y-4">
-                                <h3 className="font-display text-2xl font-bold text-white">
-                                    Change Body Part?
+                                <h3 className="font-display text-[28px] uppercase tracking-wide leading-none text-white">
+                                    Change Body Part<span className="text-pink">?</span>
                                 </h3>
 
-                                <p className="font-sans text-white/70 leading-relaxed">
-                                    You're about to change from{" "}
-                                    <span className="font-semibold text-primary">
+                                <p className="font-body text-[13px] text-white/70 leading-[1.55]">
+                                    You&apos;re about to change from{" "}
+                                    <span className="text-pink font-display tracking-wide uppercase">
                                         {BODY_PART_CONFIGS[currentBodyPart].label}
                                     </span>{" "}
                                     to{" "}
-                                    <span className="font-semibold text-primary">
+                                    <span className="text-pink font-display tracking-wide uppercase">
                                         {BODY_PART_CONFIGS[newBodyPart].label}
                                     </span>
                                     . This will clear your current design.
                                 </p>
 
-                                <div className="bg-white/5 border border-white/10 rounded-lg p-3">
-                                    <div className="flex items-center gap-2 text-sm text-white/60">
-                                        <AlertTriangle className="w-4 h-4 text-accent" />
-                                        <span className="font-sans">Your current design will be lost</span>
+                                <div className="bg-black border-2 hairline p-3">
+                                    <div className="flex items-center gap-2 text-[11px] text-white/70 font-body uppercase tracking-[0.22em]">
+                                        <AlertTriangle className="w-3 h-3 text-pink" />
+                                        <span>Your current design will be lost</span>
                                     </div>
                                 </div>
                             </div>
@@ -88,13 +88,13 @@ export function BodyPartWarningModal({
                             <div className="flex gap-3 mt-6">
                                 <button
                                     onClick={onCancel}
-                                    className="flex-1 px-4 py-3 bg-white/10 hover:bg-white/15 border border-white/10 rounded-xl font-display font-semibold text-white transition-all"
+                                    className="press flex-1 px-4 py-3 bg-black border-2 hairline-white hover:border-pink font-display text-[14px] uppercase tracking-[0.22em] text-white transition-colors"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     onClick={onConfirm}
-                                    className="flex-1 px-4 py-3 bg-accent hover:bg-accent/90 rounded-xl font-display font-semibold text-white transition-all shadow-[0_0_20px_rgba(160,32,240,0.4)] hover:shadow-[0_0_30px_rgba(160,32,240,0.6)]"
+                                    className="tape press flex-1 px-4 py-3 font-display text-[14px] uppercase tracking-[0.22em] text-black"
                                 >
                                     Change Anyway
                                 </button>

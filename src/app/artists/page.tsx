@@ -1,77 +1,163 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { Zap, ArrowLeft, Sparkles } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { useState } from "react";
+import StudioShell from "@/components/studio/StudioShell";
+import ArtistCard from "@/components/punk/ArtistCard";
+import SlashHeadline from "@/components/punk/SlashHeadline";
+
+const COLORS = ["bg-pink", "bg-bone", "bg-cream", "bg-pink-deep", "bg-white/10", "bg-white/5"];
+const NAMES = [
+  "Kira Volkov", "Diego Marin", "Astrid Holm", "Yuki Tanaka",
+  "Marcus Reed", "Léa Dupont", "Sven Eriksson", "Priya Anand",
+  "Tomás Vega", "Hana Park", "Idris Khan", "Mira Bell",
+  "Jonas Weiss", "Camila Rojas", "Otto Lindqvist", "Naima Said",
+  "Ren Kobayashi", "Sasha Petrov", "Eli Sterling", "Zoe Marchetti",
+  "Bash Carter", "Nori Hayashi", "Pia Falk", "Quincy Drake",
+];
+const CITIES = [
+  "Brooklyn, NY", "Mexico City", "Berlin, DE", "Osaka, JP",
+  "Austin, TX", "Paris, FR", "Stockholm, SE", "Mumbai, IN",
+  "Lisbon, PT", "Seoul, KR", "Manchester, UK", "Portland, OR",
+  "Munich, DE", "Buenos Aires", "Helsinki, FI", "Cairo, EG",
+  "Tokyo, JP", "Kyiv, UA", "Toronto, CA", "Rome, IT",
+  "Dallas, TX", "Yokohama, JP", "Copenhagen, DK", "Atlanta, GA",
+];
+const STYLES = [
+  "Fineline", "Traditional", "Blackwork", "Irezumi", "Neo-Trad",
+  "Script", "Nordic", "Mehndi", "Surreal", "Soft Color", "Lettering", "Botanical",
+];
+
+const ARTISTS = Array.from({ length: 24 }).map((_, i) => ({
+  slug: NAMES[i].toLowerCase().replace(/\s+/g, "-"),
+  name: NAMES[i],
+  city: CITIES[i],
+  style: STYLES[i % STYLES.length],
+  color: COLORS[i % COLORS.length],
+}));
+
+const STYLE_FILTERS = ["All", ...STYLES] as const;
 
 export default function ArtistsPage() {
+  const [q, setQ] = useState("");
+  const [style, setStyle] = useState<string>("All");
+  const ql = q.trim().toLowerCase();
+  const filtered = ARTISTS.filter((a) => {
+    if (style !== "All" && a.style !== style) return false;
+    if (!ql) return true;
+    return (
+      a.name.toLowerCase().includes(ql) ||
+      a.city.toLowerCase().includes(ql) ||
+      a.style.toLowerCase().includes(ql)
+    );
+  });
+
   return (
-    <div className="relative min-h-screen flex flex-col items-center justify-center p-6 overflow-hidden bg-background">
-      {/* Background */}
-      <div className="absolute inset-0 -z-10">
-        <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[60%] bg-ducks-green/20 rounded-full blur-[120px] mix-blend-screen animate-pulse-glow" />
-        <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-ducks-yellow/10 rounded-full blur-[100px] mix-blend-screen animate-pulse-glow" style={{ animationDelay: '1.2s' }} />
+    <StudioShell>
+      <div className="px-6 md:px-12 pt-6 pb-4 border-b hairline">
+        <div className="max-w-6xl mx-auto flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/50 tabular-nums font-body">
+          <span>
+            <span className="text-pink">●</span>&nbsp;&nbsp;Directory
+          </span>
+          <span>
+            Showing:&nbsp;<span className="text-pink">{filtered.length}</span>
+          </span>
+        </div>
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="max-w-2xl w-full text-center space-y-8 z-10"
-      >
-        {/* Icon */}
-        <div className="flex justify-center">
-          <div className="w-20 h-20 rounded-full bg-ducks-green/20 border border-ducks-green/30 flex items-center justify-center">
-            <Zap size={36} className="text-ducks-green" />
-          </div>
-        </div>
-
-        {/* Badge */}
-        <div className="inline-block px-4 py-1.5 rounded-full bg-white/5 border border-ducks-green/30 text-ducks-green text-xs font-mono tracking-widest uppercase backdrop-blur-md">
-          Coming Soon
-        </div>
-
-        <div className="space-y-4">
-          <h1 className="text-5xl md:text-6xl font-display font-black tracking-tighter text-white">
-            Artist Match
-          </h1>
-          <p className="text-xl text-gray-400 font-light max-w-xl mx-auto">
-            Connect with tattoo artists whose style matches your aesthetic vision — powered by semantic AI matching.
+      <div className="px-6 md:px-12 py-16 md:py-20">
+        <div className="max-w-6xl mx-auto">
+          <SlashHeadline
+            before="The"
+            slashed="roster"
+            sizeClassName="text-[48px] md:text-[88px] leading-[0.88]"
+          />
+          <p className="mt-6 text-[14px] text-white/60 font-body max-w-xl leading-[1.55]">
+            Hand-picked tattoo artists, ready to land your design.
           </p>
-        </div>
 
-        {/* Feature preview */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
-          {[
-            { label: 'Style matching', desc: 'AI compares your design aesthetic to artist portfolios' },
-            { label: 'Verified artists', desc: 'Curated profiles with real portfolio work' },
-            { label: 'Seamless booking', desc: 'Book consultations directly in the app' },
-          ].map((f) => (
-            <div key={f.label} className="p-4 rounded-2xl bg-white/5 border border-white/10">
-              <p className="text-xs font-mono text-ducks-green uppercase tracking-widest mb-1">{f.label}</p>
-              <p className="text-sm text-gray-400">{f.desc}</p>
+          {/* SEARCH */}
+          <div className="mt-10">
+            <label
+              htmlFor="search"
+              className="block text-[10px] uppercase tracking-[0.28em] text-pink mb-3 font-body"
+            >
+              ▸ Search
+            </label>
+            <input
+              id="search"
+              type="text"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Name, city, or style…"
+              className="w-full bg-black text-white placeholder-white/30 focus:outline-none text-[20px] md:text-[24px] leading-[1.4] tracking-tight border-2 hairline focus:border-pink p-5 transition-colors font-display"
+            />
+          </div>
+
+          {/* STICKY FILTER CHIPS */}
+          <div className="mt-6 sticky top-0 z-10 -mx-6 md:-mx-12 px-6 md:px-12 py-3 bg-black/90 backdrop-blur-sm border-y hairline">
+            <div className="flex items-center gap-3 overflow-x-auto">
+              <span className="text-[10px] uppercase tracking-[0.25em] text-pink font-body shrink-0">
+                Style
+              </span>
+              {STYLE_FILTERS.map((s) => {
+                const active = style === s;
+                return (
+                  <button
+                    key={s}
+                    onClick={() => setStyle(s)}
+                    className={`text-[10px] uppercase tracking-[0.2em] border hairline px-3 py-2 press font-body shrink-0 ${
+                      active
+                        ? "bg-pink text-black border-pink"
+                        : "text-white/70 hover:text-black hover:bg-pink"
+                    }`}
+                  >
+                    {s}
+                  </button>
+                );
+              })}
+              {(style !== "All" || q) && (
+                <button
+                  onClick={() => {
+                    setStyle("All");
+                    setQ("");
+                  }}
+                  className="ml-auto text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-pink font-body shrink-0 press"
+                >
+                  Clear&nbsp;✕
+                </button>
+              )}
             </div>
-          ))}
-        </div>
+          </div>
 
-        {/* CTAs */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Link
-            href="/generate"
-            className="flex items-center gap-2 px-6 py-3 bg-ducks-green hover:bg-ducks-green/90 text-white rounded-xl font-medium transition-all"
-          >
-            <Sparkles size={18} />
-            Design Your Tattoo First
-          </Link>
-          <Link
-            href="/"
-            className="flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 text-white border border-white/10 rounded-xl font-medium transition-all backdrop-blur-md"
-          >
-            <ArrowLeft size={18} />
-            Back to Home
-          </Link>
+          <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filtered.map((a) => (
+              <ArtistCard
+                key={a.slug}
+                slug={a.slug}
+                name={a.name}
+                city={a.city}
+                color={a.color}
+                style={a.style}
+                showFavorite
+                favoriteSize={20}
+                favoritePosition="top-right"
+              />
+            ))}
+          </div>
+
+          {filtered.length === 0 && (
+            <div className="mt-16 border-2 hairline p-10 text-center">
+              <div className="font-display text-[24px] tracking-wide text-white/60">
+                No artists match&nbsp;
+                <span className="text-pink">&quot;{q}&quot;</span>
+              </div>
+              <p className="mt-3 text-[12px] uppercase tracking-[0.2em] text-white/40 font-body">
+                Try a broader term.
+              </p>
+            </div>
+          )}
         </div>
-      </motion.div>
-    </div>
+      </div>
+    </StudioShell>
   );
 }

@@ -57,4 +57,6 @@ TATT_ENV_REFERENCE.md
 
 # TypeScript
 tsconfig.tsbuildinfo
+# Crawler runtime checkpoints — regenerated on every run, never commit
+scripts/data_acquisition/output/
 .env.firebase

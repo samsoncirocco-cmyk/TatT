@@ -36,16 +36,16 @@ export default function AdvancedOptions({
     onSeparateRGBAChange
 }) {
     return (
-        <div className="border-t border-white/5 pt-6">
+        <div className="border-t-2 hairline pt-6">
             {/* Toggle Button */}
             {!hideToggle && (
                 <button
                     onClick={onToggle}
-                    className="flex items-center gap-2 text-xs font-mono text-gray-600 hover:text-white transition-colors uppercase tracking-widest mb-4"
+                    className="press flex items-center gap-2 text-[10px] font-body text-white/60 hover:text-pink transition-colors uppercase tracking-[0.25em] mb-4"
                 >
                     <ChevronDown
-                        className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
-                        size={14}
+                        className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                        size={12}
                     />
                     Tattoo Fine-Tuning
                 </button>
@@ -53,25 +53,25 @@ export default function AdvancedOptions({
 
             {/* Expanded Panel */}
             {isExpanded && (
-                <div className="glass-panel rounded-2xl p-6 border border-white/10 space-y-6 animate-slide-down">
+                <div className="bg-black border-2 hairline p-6 space-y-6">
 
                     {/* Size Selection */}
                     <div>
-                        <label className="block text-[10px] font-mono uppercase tracking-widest text-gray-500 mb-3">
-                            Size
+                        <label className="block text-[10px] font-body uppercase tracking-[0.28em] text-pink mb-3">
+                            ▸ Size
                         </label>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                             {SIZE_OPTIONS.map((option) => (
                                 <button
                                     key={option.value}
                                     onClick={() => onSizeChange(option.value)}
-                                    className={`p-3 rounded-lg text-sm font-bold transition-all ${size === option.value
-                                            ? 'bg-white text-black'
-                                            : 'bg-white/5 text-gray-500 hover:bg-white/10 hover:text-white'
+                                    className={`press p-3 text-left transition-colors ${size === option.value
+                                            ? 'bg-pink text-black border-2 border-pink'
+                                            : 'bg-black text-white/70 border hairline hover:border-pink hover:text-pink'
                                         }`}
                                 >
-                                    <div>{option.label}</div>
-                                    <div className="text-[10px] font-normal opacity-70">{option.description}</div>
+                                    <div className="font-display text-[14px] uppercase tracking-wide">{option.label}</div>
+                                    <div className="text-[10px] font-body tracking-[0.15em] opacity-80 mt-1">{option.description}</div>
                                 </button>
                             ))}
                         </div>
@@ -79,17 +79,17 @@ export default function AdvancedOptions({
 
                     {/* AI Model Selection */}
                     <div>
-                        <label className="block text-[10px] font-mono uppercase tracking-widest text-gray-500 mb-3">
-                            The Artist's Hand
+                        <label className="block text-[10px] font-body uppercase tracking-[0.28em] text-pink mb-3">
+                            ▸ The Artist's Hand
                         </label>
                         <div className="flex flex-wrap gap-2">
                             {Object.entries(AI_MODELS).map(([key, model]) => (
                                 <button
                                     key={key}
                                     onClick={() => onModelChange(key)}
-                                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${aiModel === key
-                                            ? 'bg-ducks-green text-white border-2 border-ducks-green'
-                                            : 'bg-white/5 text-gray-500 border border-white/10 hover:border-white/30'
+                                    className={`press px-4 py-2 text-[11px] font-body uppercase tracking-[0.22em] transition-colors ${aiModel === key
+                                            ? 'bg-pink text-black border-2 border-pink'
+                                            : 'bg-black text-white/70 border hairline hover:border-pink hover:text-pink'
                                         }`}
                                     title={model.description}
                                 >
@@ -101,29 +101,28 @@ export default function AdvancedOptions({
 
                     {/* Enhancement Level */}
                     <div>
-                        <label className="block text-[10px] font-mono uppercase tracking-widest text-gray-500 mb-3">
-                            Detail Intensity
+                        <label className="block text-[10px] font-body uppercase tracking-[0.28em] text-pink mb-3">
+                            ▸ Detail Intensity
                         </label>
                         <div className="space-y-2">
                             {ENHANCEMENT_LEVELS.map((level) => (
                                 <button
                                     key={level.value}
                                     onClick={() => onEnhancementLevelChange(level.value)}
-                                    className={`w-full p-3 rounded-lg text-left transition-all ${enhancementLevel === level.value
-                                            ? 'bg-purple-500/10 border-2 border-purple-500 text-white'
-                                            : 'bg-white/5 border border-white/10 text-gray-400 hover:border-white/30'
+                                    className={`press w-full p-3 text-left transition-colors ${enhancementLevel === level.value
+                                            ? 'bg-black border-2 border-pink text-white'
+                                            : 'bg-black border hairline text-white/70 hover:border-pink'
                                         }`}
                                 >
                                     <div className="flex items-center gap-3">
-                                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${enhancementLevel === level.value ? 'border-purple-500' : 'border-gray-600'
-                                            }`}>
+                                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${enhancementLevel === level.value ? 'border-pink' : 'border-white/30'}`}>
                                             {enhancementLevel === level.value && (
-                                                <div className="w-2 h-2 bg-purple-500 rounded-full" />
+                                                <div className="w-2 h-2 bg-pink rounded-full" />
                                             )}
                                         </div>
                                         <div className="flex-1">
-                                            <div className="font-bold text-sm">{level.label}</div>
-                                            <div className="text-xs opacity-70">{level.description}</div>
+                                            <div className="font-display text-[14px] uppercase tracking-wide">{level.label}</div>
+                                            <div className="text-[10px] font-body tracking-[0.15em] opacity-80 mt-0.5">{level.description}</div>
                                         </div>
                                     </div>
                                 </button>
@@ -133,14 +132,14 @@ export default function AdvancedOptions({
 
                     {/* Negative Prompt */}
                     <div>
-                        <label className="block text-[10px] font-mono uppercase tracking-widest text-gray-500 mb-3">
-                            The "No-Go" List (Optional)
+                        <label className="block text-[10px] font-body uppercase tracking-[0.28em] text-pink mb-3">
+                            ▸ The "No-Go" List (Optional)
                         </label>
                         <textarea
                             value={negativePrompt}
                             onChange={(e) => onNegativePromptChange(e.target.value)}
                             placeholder="Things to avoid... (e.g., blurry, messy lines, too much shading)"
-                            className="w-full bg-black/40 border border-white/10 text-white rounded-lg px-4 py-3 text-sm focus:border-ducks-green focus:outline-none resize-none placeholder-gray-600"
+                            className="w-full bg-black border-2 hairline text-white px-4 py-3 text-[14px] font-display tracking-tight focus:border-pink focus:outline-none resize-none placeholder-white/30 transition-colors"
                             rows="3"
                         />
                     </div>
@@ -153,13 +152,13 @@ export default function AdvancedOptions({
                                     type="checkbox"
                                     checked={separateRGBA}
                                     onChange={(e) => onSeparateRGBAChange(e.target.checked)}
-                                    className="w-5 h-5 rounded border-2 border-white/20 bg-black/40 checked:bg-ducks-green checked:border-ducks-green transition-colors cursor-pointer"
+                                    className="w-5 h-5 border-2 hairline bg-black checked:bg-pink checked:border-pink transition-colors cursor-pointer accent-pink"
                                 />
                                 <div className="flex-1">
-                                    <div className="text-sm font-bold text-white group-hover:text-ducks-green transition-colors">
+                                    <div className="font-display text-[14px] uppercase tracking-wide text-white group-hover:text-pink transition-colors">
                                         Sticker Mode (Cutouts)
                                     </div>
-                                    <div className="text-xs text-gray-500 mt-1">
+                                    <div className="text-[10px] font-body tracking-[0.15em] text-white/50 mt-1">
                                         Removes the background so you can move each part like a sticker
                                     </div>
                                 </div>

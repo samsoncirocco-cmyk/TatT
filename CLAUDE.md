@@ -16,7 +16,7 @@ Democratize custom tattoo design by lowering the barrier between idea and execut
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| **Frontend** | Next.js 14 (App Router), React 19, Tailwind CSS | Server components + client interactivity |
+| **Frontend** | Next.js 16 (App Router), React 19, Tailwind CSS 3.4 | Server components + client interactivity |
 | **UI Libraries** | Framer Motion, Konva/React-Konva, Lucide Icons, react-tinder-card | Animations, canvas manipulation, swipe UX |
 | **AI Generation** | Replicate (SDXL models), Google Vertex AI (Imagen 3, Gemini 2.0), OpenRouter (Claude, GPT-4) | Multi-model routing with fallbacks |
 | **Council AI** | Vertex AI Gemini 2.0 Flash | Prompt enhancement via multi-agent simulation (Creative + Technical + Style) |
@@ -270,5 +270,5 @@ NEXT_PUBLIC_COUNCIL_DEMO_MODE=false
 
 ---
 
-**Last Updated:** 2026-02-09  
+**Last Updated:** 2026-05-21  
 **Maintained by:** Samson via OpenClaw
