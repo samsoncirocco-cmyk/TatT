@@ -290,6 +290,7 @@ export function useUser() {
           import("@/lib/firebase"),
         ]);
         if (cancelled) return;
+        if (!auth) return;
         unsub = fbOnAuthStateChanged(auth, (fbUser) => {
           if (fbUser) {
             const mapped = firebaseToTattUser(fbUser);
@@ -367,6 +368,7 @@ export function useUser() {
           import("firebase/auth"),
           import("@/lib/firebase"),
         ]);
+        if (!auth) return;
         if (!auth.currentUser) return;
         if (patch.name !== undefined) {
           await updateProfile(auth.currentUser, {
