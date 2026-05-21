@@ -1,18 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-// @ts-ignore
-import { queueStencilExport } from '@/services/emailQueueService.js';
-// @ts-ignore
-import { startTimer, endTimer } from '@/utils/performanceMonitor.js';
+import {
+    queueStencilExport,
+    type StencilExportRequest,
+} from '@/services/emailQueueService';
 
 export const runtime = 'nodejs';
 
+type StencilExportBody = StencilExportRequest & {
+    force_queue?: boolean;
+};
+
 export async function POST(req: NextRequest) {
-    const OP_NAME = 'Stencil Export';
-    // Mock timer if module missing
     const start = Date.now();
 
     try {
-        const body = await req.json();
+        const body = (await req.json()) as StencilExportBody;
         const {
             design_id,
             dimensions,
@@ -31,7 +33,7 @@ export async function POST(req: NextRequest) {
 
         if (force_queue) {
             console.log('[API] Service unavailable (simulated), queuing export...');
-            const queueId = queueStencilExport ? queueStencilExport(body) : 'mock-queue-id';
+            const queueId = queueStencilExport(body);
 
             return NextResponse.json({
                 success: true,
@@ -42,7 +44,6 @@ export async function POST(req: NextRequest) {
             }, { status: 202 });
         }
 
-        // Mock stencil generation
         const stencilData = {
             stencil_url: `https://storage.example.com/stencils/${design_id}_${dimensions.width}x${dimensions.height}.${format}`,
             metadata: {
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest) {
                     grid: true,
                     ruler: true
                 },
-                artist_info: artist_info,
+                artist_info,
                 generated_at: new Date().toISOString(),
                 version: '1.0',
                 overlay: include_metadata ? { qr_code: true } : undefined
@@ -77,8 +78,12 @@ export async function POST(req: NextRequest) {
             }
         });
 
-    } catch (error: any) {
+    } catch (error) {
         console.error('[API] Stencil export error:', error);
-        return NextResponse.json({ error: 'Stencil export failed', message: error.message }, { status: 500 });
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        return NextResponse.json(
+            { error: 'Stencil export failed', message },
+            { status: 500 },
+        );
     }
 }
