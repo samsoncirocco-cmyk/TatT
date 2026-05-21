@@ -113,7 +113,7 @@ const COUNCIL_MEMBERS = {
     estimatedCostUsd: 0.03
   },
   style: {
-    model: 'google/gemini-1.5-pro' // Updated 2026-03-17: fixed model ID format,
+    model: 'google/gemini-1.5-pro', // Updated 2026-03-17: fixed model ID format
     role: 'Style Specialist',
     focus: 'Style authenticity and cultural accuracy',
     estimatedCostUsd: 0.02
