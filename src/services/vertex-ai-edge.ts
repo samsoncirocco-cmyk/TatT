@@ -4,7 +4,7 @@ const PROJECT_ID = process.env.GCP_PROJECT_ID || 'tatt-pro';
 const REGION = process.env.GCP_REGION || 'us-central1';
 
 const MODELS = {
-    gemini: 'gemini-2.0-flash-exp',
+    gemini: 'gemini-2.0-flash-001' // Updated 2026-03-17: -exp deprecated,
     imagen: 'imagen-3.0-generate-001',
     embeddings: 'multimodalembedding@001'
 };

@@ -1,24 +1,36 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import Image from 'next/image';
 import artistsData from '../data/artists.json';
 import { getAllDesigns } from '../services/designLibraryService';
 import Button from '../components/ui/Button';
 import { ArrowLeft, Instagram } from 'lucide-react';
 
-function ArtistProfileContent() {
+function ArtistProfile() {
   const router = useRouter();
   const { id } = router.query;
+  const artist = id ? artistsData.artists.find(a => a.id === parseInt(id)) : null;
 
   const [selectedImage, setSelectedImage] = useState(0);
   const [showQuoteModal, setShowQuoteModal] = useState(false);
+  const [selectedDesign, setSelectedDesign] = useState(null);
   const [savedDesigns, setSavedDesigns] = useState([]);
 
-  // Find artist - memoized to avoid recalculation
-  const artist = useMemo(() => {
-    return artistsData.artists.find(a => a.id === parseInt(id));
-  }, [id]);
+  // Redirect to artists page if artist not found (client-side only)
+  useEffect(() => {
+    if (router.isReady && id && !artist) {
+      router.push('/artists');
+    }
+  }, [router.isReady, id, artist, router]);
+
+  // Show loading while router is not ready or artist not found
+  if (!router.isReady || !artist) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-ducks-green border-t-transparent"></div>
+      </div>
+    );
+  }
 
   // Load saved designs when modal opens
   useEffect(() => {
@@ -26,22 +38,6 @@ function ArtistProfileContent() {
       setSavedDesigns(getAllDesigns());
     }
   }, [showQuoteModal]);
-
-  // Redirect if artist not found - must be after all hooks
-  useEffect(() => {
-    if (id && !artist) {
-      router.push('/artists');
-    }
-  }, [id, artist, router]);
-
-  // Loading state while router query is undefined or artist not found
-  if (!id || !artist) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-ducks-green border-t-transparent"></div>
-      </div>
-    );
-  }
 
   const handleRequestQuote = () => {
     setShowQuoteModal(true);
@@ -56,7 +52,7 @@ function ArtistProfileContent() {
       <div className="max-w-7xl mx-auto">
         {/* Back Button */}
         <Link
-          to="/artists"
+          href="/artists"
           className="inline-flex items-center text-gray-400 hover:text-white mb-8 transition-colors text-xs font-bold uppercase tracking-widest group"
         >
           <ArrowLeft className="mr-2 group-hover:-translate-x-1 transition-transform" size={16} />
@@ -68,12 +64,10 @@ function ArtistProfileContent() {
           {/* Left: Portfolio Gallery */}
           <div className="space-y-6">
             <div className="aspect-[4/5] glass-panel p-2 rounded-[2.5rem] overflow-hidden border border-white/10 shadow-2xl relative">
-              <Image
+              <img
                 src={artist.portfolioImages[selectedImage]}
                 alt={`${artist.name} portfolio ${selectedImage + 1}`}
-                fill
-                className="object-cover rounded-[2rem]"
-                priority
+                className="w-full h-full object-cover rounded-[2rem]"
               />
               <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/80 to-transparent pointer-events-none rounded-b-[2rem]" />
             </div>
@@ -83,16 +77,15 @@ function ArtistProfileContent() {
                 <button
                   key={index}
                   onClick={() => setSelectedImage(index)}
-                  className={`aspect-square rounded-2xl overflow-hidden transition-all border-2 relative ${selectedImage === index
+                  className={`aspect-square rounded-2xl overflow-hidden transition-all border-2 ${selectedImage === index
                     ? 'border-ducks-green shadow-glow-green scale-95 opacity-100'
                     : 'border-transparent opacity-50 hover:opacity-100 hover:border-white/20'
                     }`}
                 >
-                  <Image
+                  <img
                     src={image}
                     alt={`${artist.name} thumbnail ${index + 1}`}
-                    fill
-                    className="object-cover bg-white/5"
+                    className="w-full h-full object-cover bg-white/5"
                   />
                 </button>
               ))}
@@ -130,7 +123,7 @@ function ArtistProfileContent() {
             <div className="mb-12">
               <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-ducks-green mb-4">Biomedical Narrative</h2>
               <p className="text-gray-300 leading-relaxed font-light text-lg">
-                &ldquo;{artist.bio}&rdquo;
+                "{artist.bio}"
               </p>
             </div>
 
@@ -221,4 +214,4 @@ function ArtistProfileContent() {
   );
 }
 
-export default ArtistProfileContent;
+export default ArtistProfile;

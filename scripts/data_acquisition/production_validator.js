@@ -27,7 +27,7 @@ const CONFIG = {
     // API Configuration
     USE_REAL_AI: process.env.GEMINI_API_KEY ? true : false,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY,
-    GEMINI_MODEL: 'gemini-2.0-flash-exp', // Fast and cost-effective
+    GEMINI_MODEL: 'gemini-2.0-flash-001', // Stable Gemini 2.0 Flash model
 
     // Processing settings
     BATCH_SIZE: 10,

@@ -1,16 +1,17 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import artistsData from '../data/artists.json';
 import { Search, MapPin, Palette } from 'lucide-react';
 
-function ArtistsContent() {
+function Artists() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStyle, setSelectedStyle] = useState('All Styles');
   const [selectedLocation, setSelectedLocation] = useState('All Locations');
+  const [filteredArtists, setFilteredArtists] = useState(artistsData.artists);
 
-  // Filter artists based on search and filters - using useMemo instead of useEffect+setState
-  const filteredArtists = useMemo(() => {
+  // Filter artists based on search and filters
+  useEffect(() => {
     let results = artistsData.artists;
 
     // Filter by search query (name or shop)
@@ -34,7 +35,7 @@ function ArtistsContent() {
       results = results.filter(artist => artist.location === selectedLocation);
     }
 
-    return results;
+    setFilteredArtists(results);
   }, [searchQuery, selectedStyle, selectedLocation]);
 
   const handleArtistClick = (artistId) => {
@@ -164,4 +165,4 @@ function ArtistsContent() {
   );
 }
 
-export default ArtistsContent;
+export default Artists;
