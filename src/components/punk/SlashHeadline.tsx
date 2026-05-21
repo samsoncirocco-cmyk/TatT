@@ -18,6 +18,13 @@ type Props = {
   after?: ReactNode;
   period?: boolean;
   size?: Size;
+  /**
+   * Override the size preset entirely. Pass the exact Tailwind text-[..]
+   * + leading-[..] classes you want. When set, `size` is ignored. Use
+   * this when adopting on a page whose original h1 didn't exactly match
+   * hero/section/form — preserves zero visual diff.
+   */
+  sizeClassName?: string;
   className?: string;
   as?: "h1" | "h2" | "h3";
 };
@@ -34,12 +41,14 @@ export default function SlashHeadline({
   after,
   period = true,
   size = "section",
+  sizeClassName,
   className = "",
   as: Tag = "h1",
 }: Props) {
+  const sizeCls = sizeClassName ?? SIZES[size];
   return (
     <Tag
-      className={`font-display text-white tracking-[0.005em] ${SIZES[size]} ${className}`}
+      className={`font-display text-white tracking-[0.005em] ${sizeCls} ${className}`}
     >
       {before}
       {before ? <>&nbsp;</> : null}

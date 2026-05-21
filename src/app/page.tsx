@@ -1,5 +1,6 @@
 import Link from "next/link";
 import StudioShell from "@/components/studio/StudioShell";
+import SlashHeadline from "@/components/punk/SlashHeadline";
 
 const STEPS = [
   {
@@ -46,13 +47,12 @@ export default function Home() {
               ▸&nbsp;Think it. Ink it.
             </div>
 
-            <h1 className="rise rise-2 font-display text-white text-balance leading-[0.88] tracking-[0.005em] text-[72px] sm:text-[112px] md:text-[148px]">
-              Tattoo
-              <br />
-              your&nbsp;
-              <span className="slash"><span>way</span></span>
-              <span className="text-pink">.</span>
-            </h1>
+            <SlashHeadline
+              before={<>Tattoo<br />your</>}
+              slashed="way"
+              size="hero"
+              className="rise rise-2 text-balance"
+            />
 
             <p className="rise rise-3 mt-10 max-w-xl text-[15px] leading-[1.55] text-white/70 font-body">
               The AI tattoo studio that doesn&rsquo;t flinch. Describe the ink you

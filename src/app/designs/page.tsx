@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import StudioShell from "@/components/studio/StudioShell";
+import SlashHeadline from "@/components/punk/SlashHeadline";
 import { useDesigns, type TattDesign } from "@/lib/tattStorage";
 
 function formatEdited(ts: number): string {
@@ -45,10 +46,11 @@ export default function DesignsPage() {
       <div className="px-6 md:px-12 py-16 md:py-20">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-end justify-between gap-6 flex-wrap">
-            <h1 className="font-display text-white text-[48px] md:text-[88px] leading-[0.88] tracking-[0.005em]">
-              Your&nbsp;<span className="slash"><span>cuts</span></span>
-              <span className="text-pink">.</span>
-            </h1>
+            <SlashHeadline
+              before="Your"
+              slashed="cuts"
+              sizeClassName="text-[48px] md:text-[88px] leading-[0.88]"
+            />
             <Link
               href="/generate/stencil"
               className="tape press inline-flex items-center justify-center px-6 py-3 font-display text-[20px] leading-none tracking-[0.02em]"

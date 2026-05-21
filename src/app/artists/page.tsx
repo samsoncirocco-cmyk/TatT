@@ -3,6 +3,7 @@
 import { useState } from "react";
 import StudioShell from "@/components/studio/StudioShell";
 import ArtistCard from "@/components/punk/ArtistCard";
+import SlashHeadline from "@/components/punk/SlashHeadline";
 
 const COLORS = ["bg-pink", "bg-bone", "bg-cream", "bg-pink-deep", "bg-white/10", "bg-white/5"];
 const NAMES = [
@@ -65,10 +66,11 @@ export default function ArtistsPage() {
 
       <div className="px-6 md:px-12 py-16 md:py-20">
         <div className="max-w-6xl mx-auto">
-          <h1 className="font-display text-white text-[48px] md:text-[88px] leading-[0.88] tracking-[0.005em]">
-            The&nbsp;<span className="slash"><span>roster</span></span>
-            <span className="text-pink">.</span>
-          </h1>
+          <SlashHeadline
+            before="The"
+            slashed="roster"
+            sizeClassName="text-[48px] md:text-[88px] leading-[0.88]"
+          />
           <p className="mt-6 text-[14px] text-white/60 font-body max-w-xl leading-[1.55]">
             Hand-picked tattoo artists, ready to land your design.
           </p>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import TapeCTA from "@/components/punk/TapeCTA";
 
 /**
  * Root Error Boundary — punk styled.
@@ -65,13 +66,7 @@ export default function Error({
           )}
 
           <div className="mt-10 flex flex-wrap items-center gap-5">
-            <button
-              onClick={reset}
-              className="tape press inline-flex items-center justify-center px-10 py-5 font-display text-[32px] sm:text-[38px] leading-none tracking-[0.02em]"
-            >
-              Try Again
-              <span className="ml-3 text-[20px]">▸</span>
-            </button>
+            <TapeCTA onClick={reset} size="lg">Try Again</TapeCTA>
             <Link
               href="/"
               className="text-[10px] uppercase tracking-[0.25em] text-white/60 hover:text-pink border hairline px-4 py-3 press font-body"

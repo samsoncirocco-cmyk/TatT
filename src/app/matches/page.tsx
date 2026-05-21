@@ -3,6 +3,7 @@
 import Link from "next/link";
 import StudioShell from "@/components/studio/StudioShell";
 import ArtistCard from "@/components/punk/ArtistCard";
+import SlashHeadline from "@/components/punk/SlashHeadline";
 import { useFavorites } from "@/lib/tattStorage";
 
 const COLORS = ["bg-pink", "bg-bone", "bg-cream", "bg-pink-deep", "bg-white/10"];
@@ -102,19 +103,19 @@ export default function MatchesPage() {
       <div className="px-6 md:px-12 py-16 md:py-20">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-baseline justify-between mb-3">
-            <h1 className="font-display text-white text-[48px] md:text-[88px] leading-[0.88] tracking-[0.005em]">
-              {hasFavorites ? (
-                <>
-                  Your&nbsp;<span className="slash"><span>matches</span></span>
-                  <span className="text-pink">.</span>
-                </>
-              ) : (
-                <>
-                  Explore the&nbsp;<span className="slash"><span>roster</span></span>
-                  <span className="text-pink">.</span>
-                </>
-              )}
-            </h1>
+            {hasFavorites ? (
+              <SlashHeadline
+                before="Your"
+                slashed="matches"
+                sizeClassName="text-[48px] md:text-[88px] leading-[0.88]"
+              />
+            ) : (
+              <SlashHeadline
+                before="Explore the"
+                slashed="roster"
+                sizeClassName="text-[48px] md:text-[88px] leading-[0.88]"
+              />
+            )}
           </div>
           <p className="text-[14px] text-white/60 font-body max-w-xl leading-[1.55]">
             {hasFavorites
