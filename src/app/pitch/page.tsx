@@ -32,7 +32,7 @@ export default function PitchPage() {
         <div className="hero-content">
           <h1 className="hero-logo">TatT</h1>
           <p className="hero-tagline">Design Your Next Tattoo with AI</p>
-          <Link href="/generate" className="cta-button">
+          <Link href="/demo" className="cta-button">
             Try the Demo
           </Link>
         </div>
@@ -202,7 +202,7 @@ export default function PitchPage() {
             <div className="team-bio">
               <p>✓ Enterprise tech sales background (Fortinet)</p>
               <p>✓ Built multi-agent AI orchestration system</p>
-              <p className="team-quote">"Technical enough to build, commercial enough to sell"</p>
+              <p className="team-quote">&ldquo;Technical enough to build, commercial enough to sell&rdquo;</p>
             </div>
           </div>
         </div>
