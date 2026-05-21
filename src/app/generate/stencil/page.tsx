@@ -3,6 +3,8 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
+import SlashHeadline from "@/components/punk/SlashHeadline";
+import TapeCTA from "@/components/punk/TapeCTA";
 import { useDesigns } from "@/lib/tattStorage";
 
 const SUGGESTIONS = [
@@ -116,13 +118,12 @@ function StencilPageInner() {
             </div>
 
             {/* THE HEADLINE — Anton, massive, "TATTOO" slashed in pink */}
-            <h1 className="rise rise-1 font-display text-white text-balance leading-[0.88] tracking-[0.005em] text-[72px] sm:text-[112px] md:text-[148px]">
-              Describe
-              <br />
-              the&nbsp;
-              <span className="slash"><span>tattoo</span></span>
-              <span className="text-pink">.</span>
-            </h1>
+            <SlashHeadline
+              before={<>Describe<br />the</>}
+              slashed="tattoo"
+              size="hero"
+              className="rise rise-1 text-balance"
+            />
 
             <p className="rise rise-2 mt-10 max-w-xl text-[15px] leading-[1.55] text-white/70 font-body">
               ONE SENTENCE IS ENOUGH. Mention the subject, the placement on the
@@ -163,13 +164,13 @@ function StencilPageInner() {
 
                 {/* SIGNATURE MOMENT — emergency-tape CTA. Hot pink rectangle,
                     Anton "GENERATE" crashing through with hard shadow. */}
-                <button
+                <TapeCTA
                   onClick={handleGenerate}
-                  className="tape press inline-flex items-center justify-center px-10 py-5 font-display text-[32px] sm:text-[38px] leading-none tracking-[0.02em] self-start sm:self-auto"
+                  size="lg"
+                  className="self-start sm:self-auto"
                 >
                   GENERATE
-                  <span className="ml-3 text-[20px]">▸</span>
-                </button>
+                </TapeCTA>
               </div>
             </div>
 

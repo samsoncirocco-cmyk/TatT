@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
+import SlashHeadline from "@/components/punk/SlashHeadline";
 import { useDemoUser } from "@/lib/tattStorage";
 
 const PROVIDERS = ["Google", "Apple", "Github"];
@@ -27,10 +28,11 @@ export default function SignupPage() {
 
       <div className="px-6 md:px-12 py-16 md:py-24">
         <div className="max-w-md mx-auto">
-          <h1 className="font-display text-white text-[48px] sm:text-[64px] leading-[0.88] tracking-[0.005em]">
-            Join the&nbsp;<span className="slash"><span>cult</span></span>
-            <span className="text-pink">.</span>
-          </h1>
+          <SlashHeadline
+            before="Join the"
+            slashed="cult"
+            sizeClassName="text-[48px] sm:text-[64px] leading-[0.88]"
+          />
           <p className="mt-4 text-[14px] text-white/60 font-body leading-[1.55]">
             Free forever. Upgrade when you outgrow it.
           </p>

@@ -4,6 +4,7 @@ import { use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
+import TapeCTA from "@/components/punk/TapeCTA";
 import { useDesigns, type TattDesign } from "@/lib/tattStorage";
 
 function formatCreated(ts: number): string {
@@ -72,13 +73,7 @@ export default function DesignDetailPage({
               <span className="scribble text-pink">Deleted, or never was.</span>
             </p>
             <div className="mt-10 flex flex-wrap items-center gap-5">
-              <Link
-                href="/designs"
-                className="tape press inline-flex items-center justify-center px-10 py-5 font-display text-[32px] sm:text-[38px] leading-none tracking-[0.02em]"
-              >
-                Back to Designs
-                <span className="ml-3 text-[20px]">▸</span>
-              </Link>
+              <TapeCTA href="/designs" size="lg">Back to Designs</TapeCTA>
               <Link
                 href="/generate/stencil"
                 className="text-[10px] uppercase tracking-[0.25em] text-white/60 hover:text-pink border hairline px-4 py-3 press font-body"

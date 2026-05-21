@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import StudioShell from "@/components/studio/StudioShell";
+import SlashHeadline from "@/components/punk/SlashHeadline";
 import { useBookings, useDesigns, type TattBooking } from "@/lib/tattStorage";
 
 function formatBookingDate(iso: string): string {
@@ -93,10 +94,11 @@ export default function BookingsPage() {
       <div className="px-6 md:px-12 py-16 md:py-20">
         <div className="max-w-5xl mx-auto">
           <div className="flex items-end justify-between gap-6 flex-wrap">
-            <h1 className="font-display text-white text-[48px] md:text-[80px] leading-[0.88] tracking-[0.005em]">
-              Chair&nbsp;<span className="slash"><span>time</span></span>
-              <span className="text-pink">.</span>
-            </h1>
+            <SlashHeadline
+              before="Chair"
+              slashed="time"
+              size="section"
+            />
             <Link
               href="/book"
               className="tape press inline-flex items-center justify-center px-6 py-3 font-display text-[20px] leading-none tracking-[0.02em]"

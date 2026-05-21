@@ -1,4 +1,5 @@
 import Link from "next/link";
+import TapeCTA from "@/components/punk/TapeCTA";
 
 /**
  * Global 404 — punk-styled. Lives at app root so it catches any
@@ -51,13 +52,7 @@ export default function NotFound() {
           </p>
 
           <div className="mt-10 flex flex-wrap items-center gap-5">
-            <Link
-              href="/"
-              className="tape press inline-flex items-center justify-center px-10 py-5 font-display text-[32px] sm:text-[38px] leading-none tracking-[0.02em]"
-            >
-              Go Home
-              <span className="ml-3 text-[20px]">▸</span>
-            </Link>
+            <TapeCTA href="/" size="lg">Go Home</TapeCTA>
             <Link
               href="/generate/stencil"
               className="text-[10px] uppercase tracking-[0.25em] text-white/60 hover:text-pink border hairline px-4 py-3 press font-body"

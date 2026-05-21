@@ -1,5 +1,6 @@
 import Link from "next/link";
 import StudioShell from "@/components/studio/StudioShell";
+import SlashHeadline from "@/components/punk/SlashHeadline";
 
 const SECTIONS = [
   {
@@ -48,12 +49,11 @@ export default function AboutPage() {
 
       <div className="px-6 md:px-12 py-16 md:py-24">
         <div className="max-w-5xl mx-auto">
-          <h1 className="font-display text-white text-[56px] sm:text-[88px] md:text-[120px] leading-[0.88] tracking-[0.005em]">
-            From idea
-            <br />
-            to&nbsp;<span className="slash"><span>ink</span></span>
-            <span className="text-pink">.</span>
-          </h1>
+          <SlashHeadline
+            before={<>From idea<br />to</>}
+            slashed="ink"
+            sizeClassName="text-[56px] sm:text-[88px] md:text-[120px] leading-[0.88]"
+          />
           <p className="mt-8 text-[15px] text-white/70 font-body max-w-xl leading-[1.55]">
             Four steps. No bullshit. Here&rsquo;s how TatT works.
           </p>
@@ -74,10 +74,13 @@ export default function AboutPage() {
               </div>
             </div>
             <div className="md:col-span-9">
-              <h2 className="font-display text-white text-[64px] sm:text-[96px] md:text-[120px] leading-[0.88] tracking-[0.005em]">
-                <span className="text-pink">{s.n}.</span>&nbsp;
-                <span className="slash"><span>{s.word}</span></span>
-              </h2>
+              <SlashHeadline
+                as="h2"
+                before={<span className="text-pink">{s.n}.</span>}
+                slashed={s.word}
+                period={false}
+                sizeClassName="text-[64px] sm:text-[96px] md:text-[120px] leading-[0.88]"
+              />
               <div className="mt-8 space-y-4 max-w-xl">
                 {s.body.map((p, i) => (
                   <p key={i} className="text-[15px] text-white/70 font-body leading-[1.6]">

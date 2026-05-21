@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
+import SlashHeadline from "@/components/punk/SlashHeadline";
 import { useBookings, useDesigns, type TattDesign } from "@/lib/tattStorage";
 
 const STEPS = [
@@ -58,10 +59,7 @@ export default function BookPage() {
 
       <div className="px-6 md:px-12 py-12 md:py-16">
         <div className="max-w-5xl mx-auto">
-          <h1 className="font-display text-white text-[48px] md:text-[80px] leading-[0.88] tracking-[0.005em]">
-            Book the&nbsp;<span className="slash"><span>chair</span></span>
-            <span className="text-pink">.</span>
-          </h1>
+          <SlashHeadline before="Book the" slashed="chair" size="section" />
 
           {/* STEPPER */}
           <div className="mt-12 flex flex-col sm:flex-row sm:items-stretch gap-0 border-2 hairline">
