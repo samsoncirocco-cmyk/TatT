@@ -5,15 +5,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
 import SlashHeadline from "@/components/punk/SlashHeadline";
-import { useDemoUser } from "@/lib/tattStorage";
+import { useUser } from "@/lib/tattStorage";
 
 const PROVIDERS = ["Google", "Apple", "Github"];
 
 export default function LoginPage() {
   const router = useRouter();
-  const { signIn } = useDemoUser();
+  const { signIn, error: authError } = useUser();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   return (
     <StudioShell>
@@ -38,11 +39,13 @@ export default function LoginPage() {
           </p>
 
           <form
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
-              if (!email.trim() || !password) return;
-              signIn(email);
-              router.push("/designs");
+              if (!email.trim() || !password || submitting) return;
+              setSubmitting(true);
+              const user = await signIn(email, password);
+              setSubmitting(false);
+              if (user) router.push("/designs");
             }}
             className="mt-10 space-y-6"
           >
@@ -89,11 +92,18 @@ export default function LoginPage() {
               />
             </div>
 
+            {authError && (
+              <div className="border-2 hairline border-pink p-4 text-[11px] uppercase tracking-[0.2em] text-pink font-body leading-[1.5]">
+                ▸ {authError}
+              </div>
+            )}
+
             <button
               type="submit"
-              className="tape press inline-flex items-center justify-center w-full px-8 py-4 font-display text-[24px] leading-none tracking-[0.02em]"
+              disabled={submitting}
+              className="tape press inline-flex items-center justify-center w-full px-8 py-4 font-display text-[24px] leading-none tracking-[0.02em] disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Log In
+              {submitting ? "Signing in…" : "Log In"}
               <span className="ml-3 text-[18px]">▸</span>
             </button>
           </form>

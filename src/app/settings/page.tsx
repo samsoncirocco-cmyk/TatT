@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
-import { useDemoUser } from "@/lib/tattStorage";
+import { useUser } from "@/lib/tattStorage";
 
 const NAV = ["Profile", "Notifications", "Billing", "Delete Account"];
 
@@ -15,7 +15,7 @@ const STYLES = [
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { user, hydrated, updateUser, signOut } = useDemoUser();
+  const { user, hydrated, updateUser, signOut, error: authError } = useUser();
   const [active, setActive] = useState(0);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -32,15 +32,15 @@ export default function SettingsPage() {
   const toggle = (s: string) =>
     setPicked((p) => (p.includes(s) ? p.filter((x) => x !== s) : [...p, s]));
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!user) return;
-    updateUser({ name: name.trim() || undefined, email: email.trim() });
+    await updateUser({ name: name.trim() || undefined });
     setSaved(true);
     window.setTimeout(() => setSaved(false), 2000);
   };
 
-  const handleLogout = () => {
-    signOut();
+  const handleLogout = async () => {
+    await signOut();
     router.push("/");
   };
 
@@ -114,9 +114,13 @@ export default function SettingsPage() {
                       id="s-email"
                       type="email"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full bg-black text-white placeholder-white/30 focus:outline-none text-[20px] leading-[1.4] tracking-tight border-2 hairline focus:border-pink p-4 transition-colors font-display"
+                      readOnly
+                      aria-readonly
+                      className="w-full bg-black text-white/50 placeholder-white/30 focus:outline-none text-[20px] leading-[1.4] tracking-tight border-2 hairline-soft p-4 font-display cursor-not-allowed"
                     />
+                    <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-white/40 font-body">
+                      Email change requires re-auth. Contact support.
+                    </p>
                   </div>
 
                   <div>
@@ -159,6 +163,11 @@ export default function SettingsPage() {
                       {saved && (
                         <span className="text-[10px] uppercase tracking-[0.25em] text-pink font-body">
                           ● Saved
+                        </span>
+                      )}
+                      {authError && !saved && (
+                        <span className="text-[10px] uppercase tracking-[0.2em] text-pink font-body">
+                          ▸ {authError}
                         </span>
                       )}
                     </div>

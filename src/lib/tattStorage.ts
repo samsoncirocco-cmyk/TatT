@@ -244,59 +244,167 @@ export function useBookings() {
 }
 
 
-// ─── Demo user (parallel to Firebase AuthProvider) ─────────────────────
+// ─── User (Firebase Auth backed) ───────────────────────────────────────
+//
+// Source of truth is Firebase Auth. tatt:user localStorage is kept as a
+// UX cache so the nav can render the signed-in chip before Firebase's
+// onAuthStateChanged callback fires after hydration.
+//
+// signIn / signUp / signOut / updateUser are all async and surface
+// errors via the returned `error` field (null when OK).
 
-export function useDemoUser() {
+function firebaseToTattUser(fbUser: {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+}): TattUser {
+  return {
+    id: fbUser.uid,
+    email: (fbUser.email || "").toLowerCase(),
+    name: fbUser.displayName || undefined,
+    createdAt: Date.now(),
+  };
+}
+
+export function useUser() {
   const [user, setUserState] = useState<TattUser | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  // Hydrate from cache + subscribe to Firebase
   useEffect(() => {
+    // Read cache immediately so the nav doesn't flicker
     setUserState(safeRead<TattUser | null>(STORAGE_KEYS.user, null));
     setHydrated(true);
-    const sync = (e: Event) => {
-      if ("detail" in e && (e as CustomEvent).detail?.key !== STORAGE_KEYS.user) return;
-      setUserState(safeRead<TattUser | null>(STORAGE_KEYS.user, null));
-    };
+
+    let unsub: (() => void) | undefined;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const [
+          { onAuthStateChanged: fbOnAuthStateChanged },
+          { auth },
+        ] = await Promise.all([
+          import("firebase/auth"),
+          import("@/lib/firebase"),
+        ]);
+        if (cancelled) return;
+        unsub = fbOnAuthStateChanged(auth, (fbUser) => {
+          if (fbUser) {
+            const mapped = firebaseToTattUser(fbUser);
+            safeWrite(STORAGE_KEYS.user, mapped);
+            setUserState(mapped);
+          } else {
+            safeRemove(STORAGE_KEYS.user);
+            setUserState(null);
+          }
+        });
+      } catch (e) {
+        // If Firebase fails to load (offline dev, missing env), the
+        // localStorage cache stays as-is so the UI doesn't break.
+        console.warn("[tattStorage] Firebase auth unavailable:", e);
+      }
+    })();
+
+    // Cross-tab sync — picks up auth state changes from other tabs that
+    // hit onAuthStateChanged → safeWrite first.
     const storageSync = (e: StorageEvent) => {
       if (e.key === STORAGE_KEYS.user) {
         setUserState(safeRead<TattUser | null>(STORAGE_KEYS.user, null));
       }
     };
-    window.addEventListener(SAME_TAB_EVENT, sync);
     window.addEventListener("storage", storageSync);
+
     return () => {
-      window.removeEventListener(SAME_TAB_EVENT, sync);
+      cancelled = true;
+      if (unsub) unsub();
       window.removeEventListener("storage", storageSync);
     };
   }, []);
 
-  const signIn = useCallback((email: string, name?: string): TattUser => {
-    const u: TattUser = {
-      id: genId(),
-      email: email.trim().toLowerCase(),
-      name,
-      createdAt: Date.now(),
-    };
-    safeWrite(STORAGE_KEYS.user, u);
-    setUserState(u);
-    return u;
-  }, []);
-
-  const updateUser = useCallback(
-    (patch: Partial<Pick<TattUser, "name" | "email">>) => {
-      const current = safeRead<TattUser | null>(STORAGE_KEYS.user, null);
-      if (!current) return;
-      const next: TattUser = { ...current, ...patch };
-      safeWrite(STORAGE_KEYS.user, next);
-      setUserState(next);
+  const signIn = useCallback(
+    async (email: string, password: string): Promise<TattUser | null> => {
+      setError(null);
+      try {
+        const [{ signInWithEmail }] = await Promise.all([
+          import("@/services/authService"),
+        ]);
+        const fbUser = await signInWithEmail(email.trim(), password);
+        return firebaseToTattUser(fbUser);
+      } catch (err) {
+        const msg =
+          err instanceof Error ? err.message : "Sign-in failed";
+        setError(msg);
+        return null;
+      }
     },
     [],
   );
 
-  const signOut = useCallback(() => {
-    safeRemove(STORAGE_KEYS.user);
-    setUserState(null);
+  const signUp = useCallback(
+    async (email: string, password: string): Promise<TattUser | null> => {
+      setError(null);
+      try {
+        const { signUpWithEmail } = await import("@/services/authService");
+        const fbUser = await signUpWithEmail(email.trim(), password);
+        return firebaseToTattUser(fbUser);
+      } catch (err) {
+        const msg =
+          err instanceof Error ? err.message : "Sign-up failed";
+        setError(msg);
+        return null;
+      }
+    },
+    [],
+  );
+
+  const updateUser = useCallback(
+    async (patch: Partial<Pick<TattUser, "name" | "email">>) => {
+      setError(null);
+      try {
+        const [{ updateProfile }, { auth }] = await Promise.all([
+          import("firebase/auth"),
+          import("@/lib/firebase"),
+        ]);
+        if (!auth.currentUser) return;
+        if (patch.name !== undefined) {
+          await updateProfile(auth.currentUser, {
+            displayName: patch.name || null,
+          });
+        }
+        // Email updates need re-auth; intentionally not supported here.
+        // Sync cache from new Firebase state.
+        const next = firebaseToTattUser(auth.currentUser);
+        safeWrite(STORAGE_KEYS.user, next);
+        setUserState(next);
+      } catch (err) {
+        const msg =
+          err instanceof Error ? err.message : "Update failed";
+        setError(msg);
+      }
+    },
+    [],
+  );
+
+  const signOut = useCallback(async () => {
+    setError(null);
+    try {
+      const { signOut: fbSignOut } = await import("@/services/authService");
+      await fbSignOut();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Sign-out failed";
+      setError(msg);
+    }
   }, []);
 
-  return { user, hydrated, signIn, updateUser, signOut };
+  return { user, hydrated, error, signIn, signUp, updateUser, signOut };
 }
+
+/**
+ * Back-compat alias — `useDemoUser` was the localStorage-only hook before
+ * this file bridged to Firebase. Existing callsites (StudioShell, /login,
+ * /signup, /settings) keep working via the alias; new code should import
+ * useUser directly.
+ */
+export const useDemoUser = useUser;
