@@ -47,10 +47,10 @@ export default function BlendModeSelector({ value = 'normal', onChange, disabled
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 disabled={disabled}
-                className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`press w-full flex items-center justify-between gap-2 px-3 py-2 text-[12px] font-display uppercase tracking-[0.2em] transition-colors border-2 ${
                     disabled
-                        ? 'bg-white/5 text-white/30 cursor-not-allowed'
-                        : 'bg-white/10 text-white hover:bg-white/20'
+                        ? 'bg-black hairline-white text-white/30 cursor-not-allowed'
+                        : 'bg-black hairline-white text-white hover:border-pink hover:text-pink'
                 }`}
                 aria-label="Select blend mode"
                 aria-expanded={isOpen}
@@ -80,24 +80,24 @@ export default function BlendModeSelector({ value = 'normal', onChange, disabled
                     />
 
                     {/* Menu */}
-                    <div className="absolute top-full left-0 right-0 mt-2 z-20 bg-black border border-white/10 rounded-xl shadow-xl overflow-hidden">
+                    <div className="absolute top-full left-0 right-0 mt-2 z-20 bg-black border-2 border-pink overflow-hidden">
                         {BLEND_MODES.map((mode) => (
                             <button
                                 key={mode.value}
                                 onClick={() => handleSelect(mode)}
-                                className={`w-full px-4 py-3 text-left transition-colors ${
+                                className={`w-full px-4 py-3 text-left transition-colors border-b hairline last:border-b-0 ${
                                     mode.value === value
-                                        ? 'bg-ducks-green/20 border-l-2 border-ducks-green'
-                                        : 'hover:bg-white/10'
+                                        ? 'bg-pink text-black'
+                                        : 'hover:bg-pink hover:text-black'
                                 }`}
                             >
                                 <div className="flex items-center justify-between mb-1">
-                                    <span className="font-bold text-white text-sm">
+                                    <span className="font-display text-[14px] uppercase tracking-wide">
                                         {mode.label}
                                     </span>
                                     {mode.value === value && (
                                         <svg
-                                            className="w-4 h-4 text-ducks-green"
+                                            className="w-4 h-4 text-black"
                                             fill="currentColor"
                                             viewBox="0 0 20 20"
                                         >
@@ -109,7 +109,7 @@ export default function BlendModeSelector({ value = 'normal', onChange, disabled
                                         </svg>
                                     )}
                                 </div>
-                                <p className="text-xs text-white/60">{mode.description}</p>
+                                <p className="text-[10px] font-body uppercase tracking-[0.18em] opacity-80">{mode.description}</p>
                             </button>
                         ))}
                     </div>

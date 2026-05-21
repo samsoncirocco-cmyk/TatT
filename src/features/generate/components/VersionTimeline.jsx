@@ -30,28 +30,28 @@ export default function VersionTimeline({
   }, [canCompare, selectedIds]);
 
   return (
-    <div className="glass-panel rounded-3xl border border-white/10 p-4">
+    <div className="bg-black border-2 hairline p-4">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <p className="text-xs font-mono uppercase tracking-[0.3em] text-ducks-green">
-            Version Timeline
+          <p className="text-[10px] font-body uppercase tracking-[0.3em] text-pink">
+            <span className="text-pink">●</span>&nbsp;&nbsp;Version Timeline
           </p>
-          <p className="text-sm text-white/70">Auto-saved checkpoints</p>
+          <p className="text-[12px] text-white/70 font-body uppercase tracking-[0.18em] mt-1">Auto-saved checkpoints</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => comparePayload && onCompareVersions(comparePayload)}
             disabled={!canCompare}
-            className="text-xs font-mono uppercase tracking-wider px-3 py-1 rounded-full border border-white/10 text-white/60 hover:text-white hover:border-white/30 disabled:opacity-40"
+            className="press text-[10px] font-body uppercase tracking-[0.22em] px-3 py-1 border hairline-white text-white/70 hover:text-black hover:bg-pink hover:border-pink disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-white/70"
           >
-            <ArrowRightLeft size={12} className="inline mr-1" />
+            <ArrowRightLeft size={11} className="inline mr-1" />
             Compare
           </button>
         </div>
       </div>
 
       {versions.length === 0 ? (
-        <div className="text-xs text-white/40">
+        <div className="text-[10px] text-white/40 font-body uppercase tracking-[0.22em] border-2 border-dashed hairline p-4">
           No versions yet. Generate or refine to create checkpoints.
         </div>
       ) : (
@@ -59,17 +59,17 @@ export default function VersionTimeline({
           {versions.map((version) => (
             <div
               key={version.id}
-              className={`min-w-[140px] rounded-xl border p-2 ${
+              className={`min-w-[140px] border-2 p-2 ${
                 currentVersionId === version.id
-                  ? 'border-ducks-green bg-ducks-green/10'
-                  : 'border-white/10 bg-white/5'
+                  ? 'border-pink bg-black'
+                  : 'hairline-white bg-black'
               }`}
             >
               <button
                 onClick={() => onLoadVersion(version.id)}
                 className="w-full text-left"
               >
-                <div className="w-full h-20 rounded-lg overflow-hidden bg-black/40">
+                <div className="w-full h-20 overflow-hidden bg-black border hairline-white">
                   {version.thumbnail ? (
                     <img
                       src={version.thumbnail}
@@ -77,25 +77,26 @@ export default function VersionTimeline({
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-white/20 text-xs">
+                    <div className="w-full h-full flex items-center justify-center text-white/20 text-[10px] font-body uppercase tracking-[0.18em]">
                       No preview
                     </div>
                   )}
                 </div>
-                <div className="mt-2 text-xs text-white/70 font-mono uppercase tracking-wider">
+                <div className="mt-2 text-[12px] text-white font-display tracking-wide uppercase">
                   V{version.versionNumber}
                 </div>
-                <div className="text-[10px] text-white/40">
+                <div className="text-[10px] text-white/40 font-body tabular-nums tracking-[0.15em]">
                   {new Date(version.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>
               </button>
 
-              <div className="mt-2 flex items-center justify-between text-[10px] text-white/40">
-                <label className="flex items-center gap-1 cursor-pointer">
+              <div className="mt-2 flex items-center justify-between text-[10px] text-white/40 font-body uppercase tracking-[0.18em]">
+                <label className="flex items-center gap-1 cursor-pointer hover:text-pink">
                   <input
                     type="checkbox"
                     checked={selectedIds.includes(version.id)}
                     onChange={() => handleSelect(version.id)}
+                    className="accent-pink"
                     aria-label={`Select version ${version.versionNumber} for comparison`}
                   />
                   Compare
@@ -103,14 +104,14 @@ export default function VersionTimeline({
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => onBranchVersion(version.id)}
-                    className="hover:text-white"
+                    className="press hover:text-pink"
                     title="Branch from this version"
                   >
                     <GitBranch size={12} />
                   </button>
                   <button
                     onClick={() => onDeleteVersion(version.id)}
-                    className="hover:text-red-400"
+                    className="press hover:text-pink"
                     title="Delete version"
                   >
                     <Trash2 size={12} />

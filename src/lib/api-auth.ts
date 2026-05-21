@@ -1,14 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const FRONTEND_AUTH_TOKEN = process.env.FRONTEND_AUTH_TOKEN || 'dev-token-change-in-production';
+// Audit fix (2026-05-19): removed insecure default 'dev-token-change-in-production'.
+// If FRONTEND_AUTH_TOKEN is missing or blank, every request is rejected with 503
+// rather than silently accepting the literal default-string as a valid token.
+const FRONTEND_AUTH_TOKEN = process.env.FRONTEND_AUTH_TOKEN;
+const AUTH_CONFIGURED = typeof FRONTEND_AUTH_TOKEN === 'string' && FRONTEND_AUTH_TOKEN.trim().length > 0;
 
 /**
  * Verifies the Bearer token in the request headers.
  * Returns null if authorized, or a NextResponse with error if not.
  */
 export function verifyApiAuth(req: NextRequest): NextResponse | null {
-    // Skip auth for health check if needed, but usually we want it protected or public depending on route
-    // For now, this function is called explicitly by protected routes
+    // Fail-closed if the server is misconfigured. Better to 503 than to accept
+    // a hardcoded default token.
+    if (!AUTH_CONFIGURED) {
+        return NextResponse.json(
+            {
+                error: 'Server auth not configured. Set FRONTEND_AUTH_TOKEN env var.',
+                code: 'AUTH_NOT_CONFIGURED',
+            },
+            { status: 503 }
+        );
+    }
 
     const authHeader = req.headers.get('authorization');
 

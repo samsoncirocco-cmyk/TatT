@@ -117,13 +117,13 @@ export default function LayerContextMenu({
             aria-label="Layer actions menu"
         >
             {/* Context Menu Panel */}
-            <div className="glass-panel border border-white/10 rounded-xl shadow-2xl min-w-[220px] overflow-hidden backdrop-blur-xl">
+            <div className="bg-black border-2 border-pink min-w-[220px] overflow-hidden">
                 {/* Layer Info Header */}
-                <div className="px-4 py-3 border-b border-white/10 bg-black/30">
-                    <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-ducks-green">
-                        Layer Actions
+                <div className="px-4 py-3 border-b-2 hairline">
+                    <p className="text-[10px] font-body uppercase tracking-[0.28em] text-pink">
+                        <span className="text-pink">●</span>&nbsp;&nbsp;Layer Actions
                     </p>
-                    <p className="text-xs text-white/70 mt-1 truncate font-medium">
+                    <p className="text-[12px] text-white/80 mt-1 truncate font-display uppercase tracking-wide">
                         {layer.name}
                     </p>
                 </div>
@@ -135,31 +135,20 @@ export default function LayerContextMenu({
                             key={index}
                             onClick={item.onClick}
                             className={`
-                                w-full px-4 py-2.5 flex items-center justify-between gap-3
-                                transition-all duration-150
-                                ${item.primary
-                                    ? 'hover:bg-ducks-green/20 hover:text-ducks-yellow'
-                                    : item.highlight
-                                        ? 'hover:bg-ducks-yellow/20 hover:text-ducks-yellow'
-                                        : item.danger
-                                            ? 'hover:bg-red-500/20 hover:text-red-300'
-                                            : 'hover:bg-white/10 hover:text-white'
-                                }
-                                ${item.primary ? 'text-ducks-green' : item.highlight ? 'text-ducks-yellow/90' : item.danger ? 'text-red-400/80' : 'text-white/70'}
-                                focus-visible:outline focus-visible:outline-2 focus-visible:outline-ducks-yellow focus-visible:outline-offset-[-2px]
+                                press w-full px-4 py-2.5 flex items-center justify-between gap-3
+                                transition-colors duration-150
+                                text-white/80 hover:bg-pink hover:text-black
+                                focus-visible:outline focus-visible:outline-2 focus-visible:outline-pink focus-visible:outline-offset-[-2px]
                             `}
                             role="menuitem"
                         >
                             <div className="flex items-center gap-3">
-                                <item.icon
-                                    size={16}
-                                    className={item.primary ? 'text-ducks-green' : item.highlight ? 'text-ducks-yellow' : item.danger ? 'text-red-400' : 'text-white/60'}
-                                />
-                                <span className="text-sm font-medium tracking-wide">
+                                <item.icon size={14} />
+                                <span className="text-[12px] font-display uppercase tracking-[0.18em]">
                                     {item.label}
                                 </span>
                             </div>
-                            <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/40 border border-white/10 text-white/40">
+                            <kbd className="text-[10px] font-body px-1.5 py-0.5 border hairline-white text-white/50 tracking-[0.1em] uppercase">
                                 {item.shortcut}
                             </kbd>
                         </button>
@@ -167,9 +156,9 @@ export default function LayerContextMenu({
                 </div>
 
                 {/* Footer Hint */}
-                <div className="px-4 py-2 border-t border-white/10 bg-black/40">
-                    <p className="text-[9px] font-mono uppercase tracking-widest text-white/30">
-                        Right-click for quick actions
+                <div className="px-4 py-2 border-t-2 hairline">
+                    <p className="text-[10px] font-body uppercase tracking-[0.22em] text-white/40">
+                        <span className="text-pink">●</span>&nbsp;&nbsp;Right-click for quick actions
                     </p>
                 </div>
             </div>

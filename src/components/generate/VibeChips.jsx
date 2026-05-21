@@ -28,15 +28,15 @@ export default function VibeChips({
     };
 
     return (
-        <div className="space-y-6 animate-fade-in">
-            <div className="border-t border-white/5 pt-6">
-                <h3 className="text-xs font-mono uppercase tracking-widest text-gray-600 mb-4">
-                    Studio Suggestions
+        <div className="space-y-6">
+            <div className="border-t-2 hairline pt-6">
+                <h3 className="text-[10px] font-body uppercase tracking-[0.28em] text-pink mb-4">
+                    <span className="text-pink">●</span>&nbsp;&nbsp;Studio Suggestions
                 </h3>
 
                 {isLoading && (
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <div className="w-4 h-4 border-2 border-gray-600 border-t-ducks-green rounded-full animate-spin" />
+                    <div className="flex items-center gap-2 text-[11px] font-body uppercase tracking-[0.22em] text-white/60">
+                        <div className="w-3 h-3 border-2 border-white/20 border-t-pink rounded-full animate-spin" />
                         Thinking about your idea...
                     </div>
                 )}
@@ -82,7 +82,7 @@ export default function VibeChips({
 function ChipCategory({ title, chips, selectedChips, onChipClick }) {
     return (
         <div>
-            <p className="text-[10px] font-mono uppercase tracking-wider text-gray-600 mb-2">
+            <p className="text-[10px] font-body uppercase tracking-[0.25em] text-white/50 mb-2">
                 {title}
             </p>
             <div className="flex flex-wrap gap-2">
@@ -92,17 +92,16 @@ function ChipCategory({ title, chips, selectedChips, onChipClick }) {
                         <button
                             key={index}
                             onClick={() => onChipClick(chip)}
-                            className={`
-                px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200
-                ${isSelected
-                                    ? 'bg-ducks-green/10 text-ducks-green border-2 border-ducks-green shadow-glow-green'
-                                    : 'bg-white/5 text-gray-400 border border-white/10 hover:border-white/30 hover:bg-white/10'
+                            className={`press px-3 py-2 text-[10px] font-body uppercase tracking-[0.2em] transition-colors
+                                ${isSelected
+                                    ? 'bg-pink text-black border-2 border-pink'
+                                    : 'bg-black text-white/70 border hairline hover:text-black hover:bg-pink hover:border-pink'
                                 }
-              `}
+                            `}
                         >
                             <span className="flex items-center gap-2">
                                 {chip}
-                                {isSelected && <Check size={14} />}
+                                {isSelected && <Check size={12} />}
                             </span>
                         </button>
                     );

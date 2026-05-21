@@ -60,13 +60,13 @@ class ErrorBoundary extends Component {
 
             // Default fallback UI
             return (
-                <div className="min-h-screen flex items-center justify-center bg-black px-4">
+                <div className="halftone grain min-h-screen flex items-center justify-center bg-black px-4 font-body text-white">
                     <div className="max-w-2xl w-full">
-                        <div className="glass-panel rounded-3xl border border-white/10 p-8">
-                            {/* Icon */}
-                            <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mb-6">
+                        <div className="bg-black border-2 border-pink p-8">
+                            {/* Icon — sticker-style pink square */}
+                            <div className="w-12 h-12 bg-pink flex items-center justify-center mb-6">
                                 <svg
-                                    className="w-8 h-8 text-red-500"
+                                    className="w-6 h-6 text-black"
                                     fill="none"
                                     stroke="currentColor"
                                     viewBox="0 0 24 24"
@@ -81,23 +81,23 @@ class ErrorBoundary extends Component {
                             </div>
 
                             {/* Title */}
-                            <h1 className="text-3xl font-display font-black text-white mb-3">
-                                Something went wrong
+                            <h1 className="font-display text-[48px] sm:text-[64px] leading-[0.88] tracking-[0.005em] text-white mb-4 uppercase">
+                                Something<br/>broke<span className="text-pink">.</span>
                             </h1>
 
                             {/* Description */}
-                            <p className="text-white/70 mb-6">
-                                We encountered an unexpected error. This has been logged and we'll look into it.
-                                You can try reloading the page or returning to the home page.
+                            <p className="text-white/70 mb-6 text-[13px] font-body leading-[1.55]">
+                                We hit an unexpected error. It&apos;s been logged and we&apos;ll look into it.
+                                Try reloading the page or returning home.
                             </p>
 
                             {/* Error details (dev mode only) */}
                             {process.env.NODE_ENV === 'development' && this.state.error && (
-                                <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
-                                    <h3 className="text-sm font-bold text-red-400 mb-2 uppercase tracking-wider">
-                                        Error Details (Dev Mode)
+                                <div className="mb-6 p-4 bg-black border-2 border-pink">
+                                    <h3 className="text-[10px] font-body text-pink mb-2 uppercase tracking-[0.28em]">
+                                        <span className="text-pink">●</span>&nbsp;&nbsp;Error Details (Dev Mode)
                                     </h3>
-                                    <pre className="text-xs text-red-300 overflow-x-auto whitespace-pre-wrap break-words">
+                                    <pre className="text-[11px] text-white/70 overflow-x-auto whitespace-pre-wrap break-words font-body">
                                         {this.state.error.toString()}
                                         {this.state.errorInfo?.componentStack}
                                     </pre>
@@ -108,13 +108,13 @@ class ErrorBoundary extends Component {
                             <div className="flex flex-col sm:flex-row gap-3">
                                 <button
                                     onClick={this.handleReset}
-                                    className="px-6 py-3 bg-ducks-yellow text-black font-black rounded-xl hover:bg-white transition-colors"
+                                    className="tape press px-7 py-4 font-display text-[18px] uppercase tracking-[0.02em] text-black"
                                 >
-                                    Try Again
+                                    Try Again ▸
                                 </button>
                                 <button
                                     onClick={() => window.location.href = '/'}
-                                    className="px-6 py-3 bg-white/10 text-white font-bold rounded-xl hover:bg-white/20 transition-colors"
+                                    className="press px-7 py-4 bg-black text-white border-2 hairline-white hover:border-pink hover:text-pink font-display text-[14px] uppercase tracking-[0.22em] transition-colors"
                                 >
                                     Return Home
                                 </button>
