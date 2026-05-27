@@ -241,6 +241,7 @@ export async function buildPrompt(
             const fn = call.function;
             if (fn?.name === 'emit_prompt_plan' && fn.arguments) {
                 const plan = JSON.parse(fn.arguments) as PromptPlan;
+                injectCatalogUrls(plan, catalog);
                 plan._source = `openrouter:${MODEL}`;
                 return plan;
             }
@@ -254,4 +255,25 @@ export async function buildPrompt(
     const plan = fallbackPlan(userInput, catalog);
     plan._source = 'fallback-no-tool-call-in-response';
     return plan;
+}
+
+/**
+ * Trust the LLM's character selection, but pull lora_url + lora_strength from
+ * the catalog ourselves. The LLM only sees triggers + strengths in the system
+ * prompt summary (not URLs), so it hallucinates null. Source of truth = catalog.
+ */
+function injectCatalogUrls(plan: PromptPlan, catalog: LoraCatalog): void {
+    for (const sub of plan.subprompts) {
+        const key = sub.character;
+        if (!key) continue;
+        const entry = catalog.loras[key];
+        if (!entry) continue;
+        if (entry.lora_needed) {
+            sub.lora_url = entry.url;
+            sub.lora_strength = entry.default_strength;
+        } else {
+            sub.lora_url = null;
+            sub.lora_strength = null;
+        }
+    }
 }
