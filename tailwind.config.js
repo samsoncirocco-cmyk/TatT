@@ -23,9 +23,21 @@ export default {
         cream: {
           DEFAULT: '#e8d9b8',
         },
+        // Legacy migrated pages still use the old Ducks palette names.
+        // Keep those classes compiling, but force them into the pop-punk system.
+        ducks: {
+          green: '#ff1f6b',
+          yellow: '#e8d9b8',
+        },
         oxblood: {
           DEFAULT: '#ff1f6b', // legacy alias → pink so any stragglers stay loud
         },
+      },
+      boxShadow: {
+        'glow-green': '0 0 0 1px rgba(255,31,107,0.35), 8px 8px 0 rgba(245,245,240,0.18)',
+        glow: '0 0 0 1px rgba(255,31,107,0.35), 8px 8px 0 rgba(245,245,240,0.18)',
+        'glow-active': '0 0 0 2px rgba(255,31,107,0.65), 10px 10px 0 rgba(245,245,240,0.25)',
+        hard: '6px 6px 0 rgba(245,245,240,0.22)',
       },
       fontFamily: {
         display: ['"Anton"', 'Impact', 'Arial Narrow', 'sans-serif'],
