@@ -5,7 +5,7 @@
 # - Pull requests to main: Lint + tests only (no build/deploy)
 # - Manual workflow_dispatch: Full pipeline
 #
-# Required GitHub repository secrets:
+# Required GitHub repository secrets (for GCP build/deploy):
 # - GCP_PROJECT_ID: Google Cloud project ID
 # - WIF_PROVIDER: Workload Identity Federation provider resource name
 #   Example: projects/123456789/locations/global/workloadIdentityPools/github-pool/providers/github-provider
@@ -24,6 +24,9 @@
 # - REPLICATE_API_TOKEN (projects/{project}/secrets/replicate-api-token)
 # - NEO4J_PASSWORD (projects/{project}/secrets/neo4j-password)
 # - OPENROUTER_API_KEY (projects/{project}/secrets/openrouter-api-key)
+#
+# When GCP secrets are not configured, build/deploy jobs are skipped
+# and CI passes on lint + test only. Vercel handles deployment separately.
 
 name: CI/CD Pipeline
 
@@ -58,10 +61,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: 'npm'
@@ -77,10 +80,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: 'npm'
@@ -104,10 +107,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -130,10 +133,10 @@ jobs:
     name: Build Docker Image
     needs: [lint, test-js, test-python]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.WIF_PROVIDER != '' && secrets.GCP_PROJECT_ID != '' || github.event_name == 'workflow_dispatch' && secrets.WIF_PROVIDER != '' && secrets.GCP_PROJECT_ID != ''
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -182,10 +185,10 @@ jobs:
     name: Deploy to Cloud Run
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && secrets.WIF_PROVIDER != '' && secrets.GCP_PROJECT_ID != ''
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
