@@ -133,15 +133,31 @@ jobs:
     name: Build Docker Image
     needs: [lint, test-js, test-python]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.WIF_PROVIDER != '' && secrets.GCP_PROJECT_ID != '' || github.event_name == 'workflow_dispatch' && secrets.WIF_PROVIDER != '' && secrets.GCP_PROJECT_ID != ''
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     steps:
+      - name: Check GCP secrets configured
+        id: gcp
+        env:
+          WIF_PROVIDER: ${{ secrets.WIF_PROVIDER }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          if [ -n "$WIF_PROVIDER" ] && [ -n "$GCP_PROJECT_ID" ]; then
+            echo "configured=true" >> $GITHUB_OUTPUT
+          else
+            echo "configured=false" >> $GITHUB_OUTPUT
+            echo "GCP secrets not configured — skipping build/deploy (Vercel handles deployment)"
+          fi
+
       - name: Checkout code
+        if: steps.gcp.outputs.configured == 'true'
         uses: actions/checkout@v5
 
       - name: Setup Docker Buildx
+        if: steps.gcp.outputs.configured == 'true'
         uses: docker/setup-buildx-action@v3
 
       - name: Cache Docker layers
+        if: steps.gcp.outputs.configured == 'true'
         uses: actions/cache@v4
         with:
           path: /tmp/.buildx-cache
@@ -150,15 +166,18 @@ jobs:
             ${{ runner.os }}-buildx-
 
       - name: Authenticate to Google Cloud
+        if: steps.gcp.outputs.configured == 'true'
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
 
       - name: Configure Docker for GCR
+        if: steps.gcp.outputs.configured == 'true'
         run: gcloud auth configure-docker
 
       - name: Build and push Docker image
+        if: steps.gcp.outputs.configured == 'true'
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -169,14 +188,15 @@ jobs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
           build-args: |
-            NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
-            NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+            NEXT_PUBLIC_FIREBASE_API_KEY=*** secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+            NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=*** secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
             NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
             NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
             NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
             NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
 
       - name: Rotate cache to prevent unbounded growth
+        if: steps.gcp.outputs.configured == 'true'
         run: |
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
@@ -185,18 +205,34 @@ jobs:
     name: Deploy to Cloud Run
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && secrets.WIF_PROVIDER != '' && secrets.GCP_PROJECT_ID != ''
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     steps:
+      - name: Check GCP secrets configured
+        id: gcp
+        env:
+          WIF_PROVIDER: ${{ secrets.WIF_PROVIDER }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          if [ -n "$WIF_PROVIDER" ] && [ -n "$GCP_PROJECT_ID" ]; then
+            echo "configured=true" >> $GITHUB_OUTPUT
+          else
+            echo "configured=false" >> $GITHUB_OUTPUT
+            echo "GCP secrets not configured — skipping deploy"
+          fi
+
       - name: Checkout code
+        if: steps.gcp.outputs.configured == 'true'
         uses: actions/checkout@v5
 
       - name: Authenticate to Google Cloud
+        if: steps.gcp.outputs.configured == 'true'
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
 
       - name: Fetch secrets from Secret Manager
+        if: steps.gcp.outputs.configured == 'true'
         id: secrets
         uses: google-github-actions/get-secretmanager-secrets@v2
         with:
@@ -206,6 +242,7 @@ jobs:
             OPENROUTER_API_KEY:projects/${{ secrets.GCP_PROJECT_ID }}/secrets/openrouter-api-key/versions/latest
 
       - name: Deploy to Cloud Run
+        if: steps.gcp.outputs.configured == 'true'
         uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: pangyo-production
@@ -216,9 +253,10 @@ jobs:
             NODE_ENV=production
             GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
           secrets: |
-            REPLICATE_API_TOKEN=${{ steps.secrets.outputs.REPLICATE_API_TOKEN }}
-            NEO4J_PASSWORD=${{ steps.secrets.outputs.NEO4J_PASSWORD }}
-            OPENROUTER_API_KEY=${{ steps.secrets.outputs.OPENROUTER_API_KEY }}
+            REPLICATE_API_TOKEN=*** steps.secrets.outputs.REPLICATE_API_TOKEN }}
+            NEO4J_PASSWORD=*** steps.secrets.outputs.NEO4J_PASSWORD }}
+            OPENROUTER_API_KEY=*** steps.secrets.outputs.OPENROUTER_API_KEY }}
 
       - name: Output deployment URL
+        if: steps.gcp.outputs.configured == 'true'
         run: echo "Deployed to ${{ steps.deploy.outputs.url }}"
