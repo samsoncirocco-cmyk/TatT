@@ -1,3 +1,3 @@
 // Compatibility re-export for legacy imports from `src/features/generate/...`.
-export * from '@/services/storageService.js';
+export * from '@/services/storageService';
 

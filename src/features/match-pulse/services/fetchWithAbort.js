@@ -1,3 +1,3 @@
 // Compatibility re-export.
-export * from '@/services/fetchWithAbort.js';
+export * from '@/services/fetchWithAbort';
 
