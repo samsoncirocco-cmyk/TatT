@@ -11,7 +11,7 @@ import {
   getArtistsByIds,
   isNeo4jEnabled
 } from './neo4jService.ts';
-import { findMatchingArtistsForDemo } from './demoMatchService.js';
+import { findMatchingArtistsForDemo } from './demoMatchService';
 
 const RRF_K = 60;
 

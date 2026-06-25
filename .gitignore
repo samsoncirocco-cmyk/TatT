@@ -60,3 +60,4 @@ tsconfig.tsbuildinfo
 # Crawler runtime checkpoints — regenerated on every run, never commit
 scripts/data_acquisition/output/
 .env.firebase
+__pycache__/

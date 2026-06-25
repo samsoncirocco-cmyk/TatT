@@ -1,3 +1,3 @@
 // Compatibility re-export.
-export * from '@/services/vectorDbService.js';
+export * from '@/services/vectorDbService';
 

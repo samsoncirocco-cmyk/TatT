@@ -1,11 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { subscribeToMatches } from '@/services/firebase-match-service';
 import { requestMatchUpdate } from '../services/matchUpdateService';
-<<<<<<<< HEAD:src/hooks/useRealtimeMatchPulse.ts
-import { useMatchStore, ArtistMatch } from '../store/useMatchStore';
-========
-import { useMatchStore } from '@/store/useMatchStore';
->>>>>>>> origin/manama/next:src/features/match-pulse/hooks/useRealtimeMatchPulse.js
+import { useMatchStore, ArtistMatch } from '@/store/useMatchStore';
 
 // Types
 interface DesignContext {

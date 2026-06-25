@@ -5,7 +5,7 @@
  * This is the glue that makes Match Pulse work end-to-end.
  */
 
-import { findMatchingArtistsForDemo } from './demoMatchService.js';
+import { findMatchingArtistsForDemo } from './demoMatchService';
 import { updateMatches } from '@/services/firebase-match-service';
 
 // Debounce timer
