@@ -110,7 +110,7 @@ export const DEFAULT_WEIGHTS = {
  * Calculate composite score from multiple signals
  * @param {Object} signals - Individual scoring signals
  * @param {Object} weights - Custom weights (optional, uses defaults if not provided)
- * @returns {Object} { score: number, breakdown: Object }
+ * @returns {{ score: number, breakdown: Record<string, number> & { weights: Object } }}
  */
 export function calculateCompositeScore(signals, weights = DEFAULT_WEIGHTS) {
     // Ensure all signals are normalized (0-1)
@@ -134,7 +134,7 @@ export function calculateCompositeScore(signals, weights = DEFAULT_WEIGHTS) {
         score: compositeScore,
         breakdown: {
             ...normalizedSignals,
-            weights: weights
+            weights
         }
     };
 }

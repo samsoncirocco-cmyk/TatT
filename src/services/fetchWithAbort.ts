@@ -8,8 +8,9 @@
  * - Timeout support
  */
 
-// ===== Type Definitions =====
-
+/**
+ * Error codes for typed error handling
+ */
 export const ErrorCodes = {
   NETWORK_ERROR: 'NETWORK_ERROR',
   AUTH_REQUIRED: 'AUTH_REQUIRED',
@@ -20,39 +21,13 @@ export const ErrorCodes = {
   TIMEOUT: 'TIMEOUT',
   ABORTED: 'ABORTED',
   UNKNOWN: 'UNKNOWN'
-} as const;
-
-export type ErrorCode = typeof ErrorCodes[keyof typeof ErrorCodes];
-
-export interface FetchWithAbortOptions extends Omit<RequestInit, 'signal'> {
-  signal?: AbortSignal;
-  timeout?: number;
-  includeAuth?: boolean;
-}
-
-export interface ErrorData {
-  error?: string;
-  message?: string;
-  code?: string;
-  aborted?: boolean;
-  originalError?: unknown;
-  [key: string]: unknown;
-}
+};
 
 /**
  * Custom error class with structured data
  */
 export class FetchError extends Error {
-  readonly code: ErrorCode;
-  readonly status: number | null;
-  readonly data: ErrorData | null;
-
-  constructor(
-    message: string, 
-    code: ErrorCode, 
-    status: number | null = null, 
-    data: ErrorData | null = null
-  ) {
+  constructor(message, code, status = null, data = null) {
     super(message);
     this.name = 'FetchError';
     this.code = code;
@@ -64,15 +39,15 @@ export class FetchError extends Error {
 /**
  * Fetch with AbortController and error handling
  * 
- * @param url - URL to fetch
- * @param options - Fetch options
- * @returns Fetch response
- * @throws FetchError Structured error with code and details
+ * @param {string} url - URL to fetch
+ * @param {Object} options - Fetch options
+ * @param {AbortSignal} options.signal - Optional external abort signal
+ * @param {number} options.timeout - Request timeout in ms (default: 30000)
+ * @param {boolean} options.includeAuth - Whether to include auth header (default: true)
+ * @returns {Promise<Response>} Fetch response
+ * @throws {FetchError} Structured error with code and details
  */
-export async function fetchWithAbort(
-  url: string, 
-  options: FetchWithAbortOptions = {}
-): Promise<Response> {
+export async function fetchWithAbort(url, options = {}) {
   const {
     signal: externalSignal,
     timeout = 30000,
@@ -98,10 +73,14 @@ export async function fetchWithAbort(
 
   try {
     // Inject auth header if needed
-    const headers: Record<string, string> = { ...(fetchOptions.headers as Record<string, string> || {}) };
+    const headers = { ...fetchOptions.headers };
 
-    // Auth is handled via cookies (set by Firebase auth middleware).
-    // No explicit Authorization header needed for same-origin requests.
+    if (includeAuth) {
+      const authToken = process.env.NEXT_PUBLIC_FRONTEND_AUTH_TOKEN;
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+    }
 
     const response = await fetch(url, {
       ...fetchOptions,
@@ -114,19 +93,17 @@ export async function fetchWithAbort(
     // Handle HTTP error responses
     if (!response.ok) {
       const contentType = response.headers.get('content-type');
-      let errorData: ErrorData | null = null;
+      let errorData = null;
       let errorMessage = `HTTP ${response.status}`;
-      let errorCode: ErrorCode = ErrorCodes.UNKNOWN;
+      let errorCode = ErrorCodes.UNKNOWN;
 
       // Try to parse error response
       if (contentType && contentType.includes('application/json')) {
         try {
           errorData = await response.json();
-          errorMessage = errorData?.error || errorData?.message || errorMessage;
-          if (errorData?.code && Object.values(ErrorCodes).includes(errorData.code as ErrorCode)) {
-            errorCode = errorData.code as ErrorCode;
-          }
-        } catch {
+          errorMessage = errorData.error || errorData.message || errorMessage;
+          errorCode = errorData.code || errorCode;
+        } catch (e) {
           // Failed to parse error JSON
         }
       }
@@ -150,10 +127,8 @@ export async function fetchWithAbort(
   } catch (error) {
     clearTimeout(timeoutId);
 
-    const err = error as Error & { name?: string };
-
     // Handle abort
-    if (err.name === 'AbortError') {
+    if (error.name === 'AbortError') {
       throw new FetchError(
         'Request was cancelled',
         ErrorCodes.ABORTED,
@@ -163,12 +138,12 @@ export async function fetchWithAbort(
     }
 
     // Handle network errors
-    if (err instanceof TypeError && err.message.includes('fetch')) {
+    if (error instanceof TypeError && error.message.includes('fetch')) {
       throw new FetchError(
         'Network error - cannot connect to server',
         ErrorCodes.NETWORK_ERROR,
         null,
-        { originalError: err.message }
+        { originalError: error.message }
       );
     }
 
@@ -179,7 +154,7 @@ export async function fetchWithAbort(
 
     // Unknown error
     throw new FetchError(
-      err.message || 'Unknown error occurred',
+      error.message || 'Unknown error occurred',
       ErrorCodes.UNKNOWN,
       null,
       { originalError: error }
@@ -190,30 +165,23 @@ export async function fetchWithAbort(
 /**
  * Helper to fetch JSON with automatic parsing
  */
-export async function fetchJSON<T = unknown>(
-  url: string, 
-  options: FetchWithAbortOptions = {}
-): Promise<T> {
+export async function fetchJSON(url, options = {}) {
   const response = await fetchWithAbort(url, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string> || {})
+      ...options.headers
     }
   });
 
-  return response.json() as Promise<T>;
+  return response.json();
 }
 
 /**
  * Helper to post JSON data
  */
-export async function postJSON<T = unknown, D = unknown>(
-  url: string, 
-  data: D, 
-  options: FetchWithAbortOptions = {}
-): Promise<T> {
-  return fetchJSON<T>(url, {
+export async function postJSON(url, data, options = {}) {
+  return fetchJSON(url, {
     ...options,
     method: 'POST',
     body: JSON.stringify(data)
@@ -223,21 +191,21 @@ export async function postJSON<T = unknown, D = unknown>(
 /**
  * Create a reusable abort controller that can be passed to components
  */
-export function createAbortController(): AbortController {
+export function createAbortController() {
   return new AbortController();
 }
 
 /**
  * Check if error is a specific type
  */
-export function isErrorCode(error: unknown, code: ErrorCode): boolean {
+export function isErrorCode(error, code) {
   return error instanceof FetchError && error.code === code;
 }
 
 /**
  * Get user-friendly error message
  */
-export function getUserErrorMessage(error: unknown): string {
+export function getUserErrorMessage(error) {
   if (!(error instanceof FetchError)) {
     return 'An unexpected error occurred';
   }
@@ -269,3 +237,4 @@ export function getUserErrorMessage(error: unknown): string {
       return error.message || 'An error occurred';
   }
 }
+

@@ -3,7 +3,7 @@ import { generateMaskWithVertex } from './segmentation-vertex';
 
 // Initialize Replicate client
 const replicate = new Replicate({
-    auth: process.env.REPLICATE_API_TOKEN || process.env.VITE_REPLICATE_API_TOKEN,
+    auth: process.env.REPLICATE_API_TOKEN,
 });
 
 // SAM Model ID (Segment Anything Model)

@@ -1,31 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
 import crypto from 'crypto';
-// @ts-ignore
-import { uploadToGCS } from '@/services/gcs-service.js';
-import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
-
-// Type for GCS upload result (from gcs-service.js)
-interface GCSUploadResult {
-    success: boolean;
-    gcsPath: string;
-    url: string;
-    bucket: string;
-    path: string;
-    public: boolean;
-}
+import { uploadToGCS, type GCSUploadResult } from '@/services/gcs-service';
 
 export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
     const authError = verifyApiAuth(req);
     if (authError) return authError;
-
-    const rateResult = await checkRateLimit(req, 'upload');
-    if (!rateResult.allowed) {
-        return rateLimitResponse(rateResult);
-    }
 
     try {
         const { fileData, contentType = 'image/png', destinationPath } = await req.json();
@@ -49,10 +31,8 @@ export async function POST(req: NextRequest) {
         const path = destinationPath || `uploads/${Date.now()}_${hash}.png`;
 
         const result = await uploadToGCS(buffer, path, {
-            contentType,
-            metadata: {},
-            public: false
-        }) as GCSUploadResult;
+            contentType
+        });
 
         return NextResponse.json({
             success: true,

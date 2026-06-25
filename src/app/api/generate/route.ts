@@ -72,7 +72,7 @@ export async function POST(request: Request) {
 
     const result = await generateAndUploadImages(options);
     const usage = getUsageSnapshot();
-    const costPerImage = usage.costPerImage;
+    const costPerImage = Number(usage.costPerImage) || 0;
     const totalCost = Number((costPerImage * requestedCount).toFixed(4));
 
     return NextResponse.json({

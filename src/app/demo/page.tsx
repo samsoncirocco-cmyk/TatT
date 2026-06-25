@@ -2,324 +2,624 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Sparkles, ChevronRight, ChevronLeft, Zap, Eye,
+  Users, CheckCircle, Star, ArrowRight, Play, Wand2
+} from 'lucide-react';
+
+// ─── Mock demo data ────────────────────────────────────────────────────────
+const DEMO_CONCEPTS = [
+  {
+    id: 'cyberpunk-dragon',
+    title: 'Cyberpunk Dragon',
+    tags: ['Dark', 'Bold', 'Neon'],
+    desc: 'A circuit-wired dragon with neon accents',
+    emoji: '🐉',
+    color: 'from-purple-600 to-cyan-500',
+  },
+  {
+    id: 'fine-line-botanicals',
+    title: 'Fine-line Botanicals',
+    tags: ['Delicate', 'Nature', 'Minimal'],
+    desc: 'Airy ferns and peonies with single-needle linework',
+    emoji: '🌿',
+    color: 'from-emerald-600 to-teal-400',
+  },
+  {
+    id: 'geometric-wolf',
+    title: 'Geometric Wolf',
+    tags: ['Sacred', 'Geometric', 'Powerful'],
+    desc: 'Sacred geometry meets Northern spirit animal',
+    emoji: '🐺',
+    color: 'from-amber-600 to-yellow-400',
+  },
+];
+
+const DEMO_ENHANCEMENT = {
+  original: 'A wolf made of triangles',
+  enhanced:
+    'A majestic wolf composed of interlocking golden-ratio triangles — sacred geometry radiating outward from a fierce profile, negative space creating depth, mandala-inspired border, blackwork with selective white highlights, designed for upper arm placement with 6-inch diameter',
+  improvements: [
+    'Added golden-ratio geometry for mathematical precision',
+    'Specified sacred geometry motif for cultural resonance',
+    'Optimized placement (upper arm, 6-inch diameter)',
+    'Added blackwork + white highlight technique guidance',
+    'Incorporated negative space for depth and contrast',
+  ],
+};
+
+const DEMO_ARTISTS = [
+  {
+    name: 'Mia Chen',
+    specialty: 'Geometric / Blackwork',
+    location: 'Portland, OR',
+    match: 98,
+    available: true,
+    emoji: '⚫',
+    style: 'Precision lines, sacred geometry, 12 yrs experience',
+  },
+  {
+    name: 'Diego Ramos',
+    specialty: 'Neo-Traditional',
+    location: 'Phoenix, AZ',
+    match: 87,
+    available: true,
+    emoji: '🎨',
+    style: 'Bold color, fine shading, portfolio 400+ pieces',
+  },
+  {
+    name: 'Aiko Tanaka',
+    specialty: 'Fine-Line / Minimal',
+    location: 'Seattle, WA',
+    match: 82,
+    available: false,
+    emoji: '✏️',
+    style: 'Single-needle specialist, botanical & portrait',
+  },
+];
 
 const STEPS = [
-  {
-    id: 1,
-    title: 'Describe Your Vision',
-    subtitle: 'Tell the AI what you want',
-    icon: '✨',
-    content: (
-      <div className="space-y-4">
-        <div className="bg-white/5 rounded-xl p-6 border border-white/10">
-          <label className="text-sm text-gray-400 block mb-2">Your tattoo idea</label>
-          <div className="text-lg text-white font-medium leading-relaxed typing-animation">
-            Geometric wolf on forearm, blackwork style with sacred geometry patterns, 
-            moon phases wrapping around the design
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {['Blackwork', 'Geometric', 'Sacred Geometry', 'Nature'].map(tag => (
-            <span key={tag} className="px-3 py-1.5 bg-purple-500/20 text-purple-300 rounded-full text-sm border border-purple-500/30">
-              {tag}
-            </span>
-          ))}
-        </div>
-        <div className="flex items-center gap-3 text-sm text-gray-400">
-          <span className="flex items-center gap-1">📍 Forearm</span>
-          <span className="flex items-center gap-1">📐 Medium (4&quot; × 6&quot;)</span>
-          <span className="flex items-center gap-1">🎨 Black &amp; Gray</span>
-        </div>
-      </div>
-    ),
-  },
-  {
-    id: 2,
-    title: 'AI Generation',
-    subtitle: '4 unique variations in < 3 seconds',
-    icon: '🤖',
-    content: (
-      <div className="grid grid-cols-2 gap-3">
-        {[
-          { label: 'Variation A', score: 94, desc: 'Bold geometric lines' },
-          { label: 'Variation B', score: 91, desc: 'Flowing sacred patterns' },
-          { label: 'Variation C', score: 88, desc: 'Minimalist approach' },
-          { label: 'Variation D', score: 86, desc: 'Detailed dotwork fusion' },
-        ].map((v, i) => (
-          <div key={i} className={`relative bg-white/5 rounded-xl border ${i === 0 ? 'border-purple-500/50 ring-1 ring-purple-500/20' : 'border-white/10'} overflow-hidden group`}>
-            <div className="aspect-square bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
-              <div className="text-6xl opacity-30">🐺</div>
-            </div>
-            <div className="p-3">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-bold text-white">{v.label}</span>
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${v.score >= 90 ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
-                  {v.score}/100
-                </span>
-              </div>
-              <p className="text-xs text-gray-400">{v.desc}</p>
-            </div>
-            {i === 0 && (
-              <div className="absolute top-2 left-2 bg-purple-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                TOP PICK
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    ),
-  },
-  {
-    id: 3,
-    title: 'AR Preview',
-    subtitle: 'See it on your body before committing',
-    icon: '📱',
-    content: (
-      <div className="relative bg-white/5 rounded-xl border border-white/10 overflow-hidden">
-        <div className="aspect-[3/4] max-h-[400px] bg-gradient-to-b from-gray-800 to-gray-900 flex items-center justify-center relative">
-          <div className="text-center space-y-3">
-            <div className="text-8xl">💪</div>
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 border-2 border-purple-500/50 rounded-lg flex items-center justify-center bg-purple-500/5">
-              <span className="text-5xl opacity-60">🐺</span>
-            </div>
-          </div>
-          <div className="absolute bottom-4 left-4 right-4 flex justify-between">
-            <div className="bg-black/60 backdrop-blur-sm rounded-lg px-3 py-2 text-xs text-white flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-              AR Tracking Active
-            </div>
-            <div className="flex gap-2">
-              {['↻', '↔', '⊕'].map((icon, i) => (
-                <button key={i} className="w-8 h-8 bg-black/60 backdrop-blur-sm rounded-full flex items-center justify-center text-white text-sm">
-                  {icon}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    ),
-  },
-  {
-    id: 4,
-    title: 'Artist Match',
-    subtitle: 'AI-powered style matching with verified artists',
-    icon: '🎨',
-    content: (
-      <div className="space-y-3">
-        {[
-          { name: 'Alex Rivera', specialty: 'Geometric & Blackwork', match: 97, rating: 4.9, reviews: 342, price: '$$' },
-          { name: 'Kai Chen', specialty: 'Sacred Geometry & Dotwork', match: 94, rating: 4.8, reviews: 218, price: '$$$' },
-          { name: 'Sam Ortiz', specialty: 'Blackwork & Illustrative', match: 91, rating: 4.9, reviews: 567, price: '$$' },
-        ].map((artist, i) => (
-          <div key={i} className={`flex items-center gap-4 p-4 bg-white/5 rounded-xl border ${i === 0 ? 'border-purple-500/30' : 'border-white/10'}`}>
-            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-xl font-bold text-white shrink-0">
-              {artist.name[0]}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <h4 className="font-bold text-white text-sm">{artist.name}</h4>
-                <span className="text-xs bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full">{artist.match}% match</span>
-              </div>
-              <p className="text-xs text-gray-400">{artist.specialty}</p>
-              <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                <span>⭐ {artist.rating}</span>
-                <span>{artist.reviews} reviews</span>
-                <span>{artist.price}</span>
-              </div>
-            </div>
-            <button className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white text-sm font-bold rounded-lg transition-colors shrink-0">
-              Book
-            </button>
-          </div>
-        ))}
-      </div>
-    ),
-  },
-  {
-    id: 5,
-    title: 'Get Inked',
-    subtitle: 'Walk in with confidence',
-    icon: '✅',
-    content: (
-      <div className="bg-white/5 rounded-xl border border-green-500/20 p-6 text-center space-y-4">
-        <div className="w-16 h-16 mx-auto bg-green-500/20 rounded-full flex items-center justify-center">
-          <span className="text-3xl">✅</span>
-        </div>
-        <h3 className="text-xl font-bold text-white">Booking Confirmed</h3>
-        <div className="space-y-2 text-sm text-gray-400">
-          <p><strong className="text-white">Artist:</strong> Alex Rivera</p>
-          <p><strong className="text-white">Date:</strong> March 15, 2026 at 2:00 PM</p>
-          <p><strong className="text-white">Design:</strong> Geometric Wolf — Variation A</p>
-          <p><strong className="text-white">Placement:</strong> Left Forearm</p>
-          <p><strong className="text-white">Estimated:</strong> 3-4 hours · $450-$600</p>
-        </div>
-        <div className="pt-4 border-t border-white/10">
-          <p className="text-xs text-gray-500">Artist has your finalized design file, placement reference, and size specifications. No surprises.</p>
-        </div>
-      </div>
-    ),
-  },
+  { id: 0, label: 'Choose Concept', icon: Sparkles },
+  { id: 1, label: 'AI Enhancement', icon: Wand2 },
+  { id: 2, label: 'Visualize', icon: Eye },
+  { id: 3, label: 'Find Artist', icon: Users },
 ];
 
-const METRICS = [
-  { label: 'Designs Generated', value: '50K+' },
-  { label: 'Verified Artists', value: '2,400+' },
-  { label: 'Generation Time', value: '< 3s' },
-  { label: 'Cost per Design', value: '$0.005' },
-  { label: 'App Rating', value: '4.9★' },
-];
-
-export default function DemoPage() {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [autoPlay, setAutoPlay] = useState(false);
-  const [generating, setGenerating] = useState(false);
+// ─── Animated prompt typewriter ───────────────────────────────────────────
+function TypewriterText({ text, speed = 18 }: { text: string; speed?: number }) {
+  const [displayed, setDisplayed] = useState('');
+  const [done, setDone] = useState(false);
 
   useEffect(() => {
-    if (!autoPlay) return;
-    const timer = setInterval(() => {
-      setCurrentStep(prev => {
-        if (prev >= STEPS.length - 1) {
-          setAutoPlay(false);
-          return prev;
-        }
-        return prev + 1;
-      });
-    }, 4000);
-    return () => clearInterval(timer);
-  }, [autoPlay]);
-
-  // Simulate generation animation on step 2
-  useEffect(() => {
-    if (currentStep === 1) {
-      setGenerating(true);
-      const timer = setTimeout(() => setGenerating(false), 2500);
-      return () => clearTimeout(timer);
-    }
-  }, [currentStep]);
-
-  const step = STEPS[currentStep];
+    setDisplayed('');
+    setDone(false);
+    let i = 0;
+    const iv = setInterval(() => {
+      i++;
+      setDisplayed(text.slice(0, i));
+      if (i >= text.length) {
+        clearInterval(iv);
+        setDone(true);
+      }
+    }, speed);
+    return () => clearInterval(iv);
+  }, [text, speed]);
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      {/* Header */}
-      <div className="sticky top-0 z-50 bg-black/80 backdrop-blur-xl border-b border-white/10">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link href="/" className="text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-            TatT Demo
-          </Link>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => { setAutoPlay(!autoPlay); if (!autoPlay) setCurrentStep(0); }}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-                autoPlay 
-                  ? 'bg-purple-500 text-white' 
-                  : 'bg-white/10 text-gray-300 hover:bg-white/20'
-              }`}
+    <span>
+      {displayed}
+      {!done && <span className="animate-pulse">|</span>}
+    </span>
+  );
+}
+
+// ─── SVG tattoo preview (geometric wolf) ──────────────────────────────────
+function TattooPreview({ concept }: { concept: (typeof DEMO_CONCEPTS)[0] }) {
+  return (
+    <div className="relative w-full aspect-square max-w-xs mx-auto rounded-2xl overflow-hidden border border-white/10 bg-black/40">
+      <div className={`absolute inset-0 bg-gradient-to-br ${concept.color} opacity-10`} />
+      <svg
+        viewBox="0 0 200 200"
+        className="absolute inset-0 w-full h-full p-6 opacity-90"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        {/* Geometric wolf SVG — decorative stand-in */}
+        <polygon points="100,20 140,80 100,60 60,80" stroke="white" strokeWidth="1.5" fill="none" opacity="0.8" />
+        <polygon points="100,60 140,80 120,140 100,120 80,140 60,80" stroke="white" strokeWidth="1.5" fill="none" opacity="0.8" />
+        <polygon points="100,120 120,140 100,180 80,140" stroke="white" strokeWidth="1" fill="none" opacity="0.6" />
+        {/* Eyes */}
+        <circle cx="85" cy="72" r="4" stroke="#FEE123" strokeWidth="1.5" fill="none" />
+        <circle cx="115" cy="72" r="4" stroke="#FEE123" strokeWidth="1.5" fill="none" />
+        {/* Sacred geometry ring */}
+        <circle cx="100" cy="100" r="78" stroke="white" strokeWidth="0.5" strokeDasharray="4 6" opacity="0.3" />
+        <circle cx="100" cy="100" r="90" stroke="white" strokeWidth="0.3" strokeDasharray="2 8" opacity="0.2" />
+        {/* Triangle grid */}
+        <line x1="60" y1="80" x2="140" y2="80" stroke="white" strokeWidth="0.5" opacity="0.4" />
+        <line x1="80" y1="140" x2="120" y2="140" stroke="white" strokeWidth="0.5" opacity="0.4" />
+        <line x1="100" y1="20" x2="100" y2="180" stroke="white" strokeWidth="0.3" opacity="0.2" />
+      </svg>
+      {/* Skin overlay simulation */}
+      <div className="absolute bottom-3 right-3 text-xs text-white/40 font-mono">AR preview</div>
+    </div>
+  );
+}
+
+// ─── Steps ─────────────────────────────────────────────────────────────────
+function StepConceptPicker({
+  onSelect,
+}: {
+  onSelect: (c: (typeof DEMO_CONCEPTS)[0]) => void;
+}) {
+  const [selected, setSelected] = useState<string | null>(null);
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center space-y-2">
+        <p className="text-white/60 text-sm font-mono uppercase tracking-widest">Step 1 of 4</p>
+        <h2 className="text-3xl font-black text-white">What do you want?</h2>
+        <p className="text-white/50 text-sm">Pick a concept. TatT's AI takes it from here.</p>
+      </div>
+
+      <div className="grid gap-3">
+        {DEMO_CONCEPTS.map((c) => (
+          <motion.button
+            key={c.id}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => {
+              setSelected(c.id);
+              setTimeout(() => onSelect(c), 400);
+            }}
+            className={`w-full flex items-center gap-4 p-4 rounded-2xl border text-left transition-all ${
+              selected === c.id
+                ? 'border-ducks-green bg-ducks-green/20 shadow-lg'
+                : 'border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20'
+            }`}
+          >
+            <div
+              className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl bg-gradient-to-br ${c.color} flex-shrink-0`}
             >
-              {autoPlay ? '⏸ Pause' : '▶ Watch Demo'}
-            </button>
-            <Link
-              href="/generate"
-              className="px-4 py-1.5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
-            >
-              Try It Yourself →
-            </Link>
-          </div>
+              {c.emoji}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-bold text-white text-sm">{c.title}</div>
+              <div className="text-white/50 text-xs mt-0.5 truncate">{c.desc}</div>
+              <div className="flex gap-1 mt-2 flex-wrap">
+                {c.tags.map((t) => (
+                  <span
+                    key={t}
+                    className="px-2 py-0.5 rounded-full bg-white/10 text-white/60 text-[10px] font-mono"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+            </div>
+            {selected === c.id && <CheckCircle size={20} className="text-ducks-green flex-shrink-0" />}
+          </motion.button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function StepEnhancement({ concept, onNext }: { concept: (typeof DEMO_CONCEPTS)[0]; onNext: () => void }) {
+  const [phase, setPhase] = useState<'processing' | 'done'>('processing');
+
+  useEffect(() => {
+    const t = setTimeout(() => setPhase('done'), 2200);
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center space-y-2">
+        <p className="text-white/60 text-sm font-mono uppercase tracking-widest">Step 2 of 4</p>
+        <h2 className="text-3xl font-black text-white">AI Council at Work</h2>
+        <p className="text-white/50 text-sm">3 specialized AI agents enhance your prompt.</p>
+      </div>
+
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">
+        {/* Original */}
+        <div>
+          <div className="text-xs font-mono text-white/40 mb-1">YOUR IDEA</div>
+          <div className="text-white/70 text-sm italic">&ldquo;{DEMO_ENHANCEMENT.original}&rdquo;</div>
         </div>
 
-        {/* Progress Bar */}
-        <div className="flex gap-1 px-4 pb-3 max-w-4xl mx-auto">
-          {STEPS.map((s, i) => (
-            <button
-              key={s.id}
-              onClick={() => { setCurrentStep(i); setAutoPlay(false); }}
-              className={`flex-1 h-1.5 rounded-full transition-all duration-500 ${
-                i <= currentStep ? 'bg-purple-500' : 'bg-white/10'
-              }`}
-            />
+        {/* Council status */}
+        <div className="space-y-2 pt-2 border-t border-white/10">
+          {[
+            { role: 'Creative Director', model: 'Claude 3.5', delay: 0 },
+            { role: 'Technical Expert', model: 'GPT-4 Turbo', delay: 600 },
+            { role: 'Style Specialist', model: 'Gemini Pro', delay: 1200 },
+          ].map(({ role, model, delay }) => (
+            <CouncilMember key={role} role={role} model={model} delay={delay} phase={phase} />
           ))}
         </div>
+
+        {/* Enhanced output */}
+        <AnimatePresence>
+          {phase === 'done' && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="pt-2 border-t border-ducks-green/30"
+            >
+              <div className="text-xs font-mono text-ducks-green mb-2">✦ ENHANCED PROMPT</div>
+              <div className="text-white text-sm leading-relaxed">
+                <TypewriterText text={DEMO_ENHANCEMENT.enhanced} speed={14} />
+              </div>
+              <div className="mt-3 space-y-1">
+                {DEMO_ENHANCEMENT.improvements.map((imp, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.15 + 0.8 }}
+                    className="flex items-start gap-2 text-xs text-white/50"
+                  >
+                    <span className="text-ducks-yellow mt-0.5 flex-shrink-0">+</span>
+                    {imp}
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-8 flex flex-col lg:flex-row gap-8">
-        {/* Main Content */}
-        <div className="flex-1 space-y-6">
-          {/* Step Header */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl">{step.icon}</span>
-              <div>
-                <p className="text-xs text-purple-400 font-bold uppercase tracking-wider">
-                  Step {step.id} of {STEPS.length}
-                </p>
-                <h2 className="text-2xl font-bold">{step.title}</h2>
+      {phase === 'done' && (
+        <motion.button
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          onClick={onNext}
+          className="w-full py-3 rounded-2xl bg-ducks-green text-white font-bold flex items-center justify-center gap-2"
+        >
+          See it on skin <ChevronRight size={16} />
+        </motion.button>
+      )}
+    </div>
+  );
+}
+
+function CouncilMember({
+  role,
+  model,
+  delay,
+  phase,
+}: {
+  role: string;
+  model: string;
+  delay: number;
+  phase: 'processing' | 'done';
+}) {
+  const [status, setStatus] = useState<'waiting' | 'working' | 'done'>('waiting');
+
+  useEffect(() => {
+    if (phase === 'processing') {
+      const t1 = setTimeout(() => setStatus('working'), delay);
+      const t2 = setTimeout(() => setStatus('done'), delay + 700);
+      return () => { clearTimeout(t1); clearTimeout(t2); };
+    }
+    if (phase === 'done') setStatus('done');
+  }, [phase, delay]);
+
+  return (
+    <div className="flex items-center gap-3">
+      <div
+        className={`w-2 h-2 rounded-full flex-shrink-0 transition-colors duration-500 ${
+          status === 'waiting' ? 'bg-white/20' : status === 'working' ? 'bg-ducks-yellow animate-pulse' : 'bg-ducks-green'
+        }`}
+      />
+      <div className="flex-1 min-w-0">
+        <span className="text-xs text-white/70 font-medium">{role}</span>
+        <span className="text-xs text-white/30 ml-2 font-mono">{model}</span>
+      </div>
+      <div className="text-xs font-mono text-white/30">
+        {status === 'waiting' && 'queued'}
+        {status === 'working' && <span className="text-ducks-yellow animate-pulse">analyzing...</span>}
+        {status === 'done' && <span className="text-ducks-green">✓ done</span>}
+      </div>
+    </div>
+  );
+}
+
+function StepVisualize({ concept, onNext }: { concept: (typeof DEMO_CONCEPTS)[0]; onNext: () => void }) {
+  const [view, setView] = useState<'canvas' | 'ar'>('canvas');
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center space-y-2">
+        <p className="text-white/60 text-sm font-mono uppercase tracking-widest">Step 3 of 4</p>
+        <h2 className="text-3xl font-black text-white">See It On Skin</h2>
+        <p className="text-white/50 text-sm">AR-placed preview. No guesswork.</p>
+      </div>
+
+      {/* View toggle */}
+      <div className="flex gap-2 p-1 rounded-xl bg-white/5 border border-white/10">
+        {(['canvas', 'ar'] as const).map((v) => (
+          <button
+            key={v}
+            onClick={() => setView(v)}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+              view === v ? 'bg-ducks-green text-white' : 'text-white/50 hover:text-white'
+            }`}
+          >
+            {v === 'canvas' ? '🖼 Canvas' : '📱 AR Skin'}
+          </button>
+        ))}
+      </div>
+
+      <AnimatePresence mode="wait">
+        {view === 'canvas' ? (
+          <motion.div key="canvas" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <TattooPreview concept={concept} />
+            <p className="text-center text-white/40 text-xs mt-3">
+              AI-generated design preview — adjust placement, scale & rotation in the Forge
+            </p>
+          </motion.div>
+        ) : (
+          <motion.div key="ar" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <div className="relative w-full max-w-xs mx-auto aspect-[3/4] rounded-2xl overflow-hidden border border-white/10 bg-gradient-to-b from-amber-900/30 to-amber-800/20">
+              {/* Simulated skin/arm background */}
+              <div className="absolute inset-0 bg-gradient-to-b from-amber-100/10 via-amber-200/5 to-amber-100/10" />
+              {/* Arm outline */}
+              <svg viewBox="0 0 150 200" className="absolute inset-0 w-full h-full opacity-20" fill="none">
+                <ellipse cx="75" cy="100" rx="55" ry="90" stroke="white" strokeWidth="1" />
+              </svg>
+              {/* Tattoo overlaid on arm */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-28 h-28 opacity-85">
+                  <svg viewBox="0 0 200 200" className="w-full h-full" fill="none">
+                    <polygon points="100,20 140,80 100,60 60,80" stroke="white" strokeWidth="2" fill="none" />
+                    <polygon points="100,60 140,80 120,140 100,120 80,140 60,80" stroke="white" strokeWidth="2" fill="none" />
+                    <polygon points="100,120 120,140 100,180 80,140" stroke="white" strokeWidth="1.5" fill="none" />
+                    <circle cx="85" cy="72" r="4" stroke="#FEE123" strokeWidth="2" fill="none" />
+                    <circle cx="115" cy="72" r="4" stroke="#FEE123" strokeWidth="2" fill="none" />
+                    <circle cx="100" cy="100" r="78" stroke="white" strokeWidth="0.5" strokeDasharray="4 6" opacity="0.4" />
+                  </svg>
+                </div>
+              </div>
+              <div className="absolute top-3 right-3 px-2 py-1 rounded-full bg-ducks-green/80 text-white text-[10px] font-mono">
+                AR Live
+              </div>
+              <div className="absolute bottom-3 left-3 text-[10px] text-white/40 font-mono">
+                Upper arm · 6in · 0° rotation
               </div>
             </div>
-            <p className="text-gray-400">{step.subtitle}</p>
-          </div>
+            <p className="text-center text-white/40 text-xs mt-3">
+              Point your camera at your skin — TatT projects the design in real time
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-          {/* Step Content */}
-          <div className="relative">
-            {generating && currentStep === 1 ? (
-              <div className="flex flex-col items-center justify-center py-20 space-y-4">
-                <div className="w-16 h-16 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin"></div>
-                <p className="text-purple-400 font-medium animate-pulse">Generating 4 variations...</p>
-                <p className="text-xs text-gray-500">SDXL model running on GPU</p>
+      <button
+        onClick={onNext}
+        className="w-full py-3 rounded-2xl bg-ducks-green text-white font-bold flex items-center justify-center gap-2"
+      >
+        Match me with an artist <ChevronRight size={16} />
+      </button>
+    </div>
+  );
+}
+
+function StepArtistMatch({ concept }: { concept: (typeof DEMO_CONCEPTS)[0] }) {
+  const [selected, setSelected] = useState<string | null>(null);
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center space-y-2">
+        <p className="text-white/60 text-sm font-mono uppercase tracking-widest">Step 4 of 4</p>
+        <h2 className="text-3xl font-black text-white">Your Artist Matches</h2>
+        <p className="text-white/50 text-sm">
+          Ranked by style compatibility, availability & proximity.
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        {DEMO_ARTISTS.map((a, i) => (
+          <motion.div
+            key={a.name}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.15 }}
+          >
+            <button
+              onClick={() => setSelected(a.name)}
+              className={`w-full text-left p-4 rounded-2xl border transition-all ${
+                selected === a.name
+                  ? 'border-ducks-green bg-ducks-green/10'
+                  : 'border-white/10 bg-white/5 hover:bg-white/10'
+              } ${!a.available ? 'opacity-60' : ''}`}
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-2xl flex-shrink-0">
+                  {a.emoji}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-white text-sm">{a.name}</span>
+                    {!a.available && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/10 text-white/40">
+                        Waitlist
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-ducks-yellow font-medium mt-0.5">{a.specialty}</div>
+                  <div className="text-xs text-white/40 mt-0.5">{a.location}</div>
+                  <div className="text-xs text-white/50 mt-1">{a.style}</div>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <div
+                    className={`text-lg font-black ${
+                      a.match >= 95 ? 'text-ducks-green' : a.match >= 85 ? 'text-ducks-yellow' : 'text-white/60'
+                    }`}
+                  >
+                    {a.match}%
+                  </div>
+                  <div className="text-[10px] text-white/30">match</div>
+                </div>
               </div>
-            ) : (
-              step.content
-            )}
-          </div>
+            </button>
+          </motion.div>
+        ))}
+      </div>
 
-          {/* Navigation */}
-          <div className="flex items-center justify-between pt-4">
-            <button
-              onClick={() => { setCurrentStep(Math.max(0, currentStep - 1)); setAutoPlay(false); }}
-              disabled={currentStep === 0}
-              className="px-6 py-2.5 bg-white/10 rounded-lg text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/20 transition-colors"
-            >
-              ← Previous
-            </button>
-            <div className="flex gap-2">
-              {STEPS.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => { setCurrentStep(i); setAutoPlay(false); }}
-                  className={`w-2.5 h-2.5 rounded-full transition-all ${
-                    i === currentStep ? 'bg-purple-500 w-6' : 'bg-white/20 hover:bg-white/40'
-                  }`}
-                />
-              ))}
+      {/* CTA */}
+      <div className="space-y-3 pt-2">
+        {selected ? (
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
+            <div className="p-4 rounded-2xl bg-ducks-green/20 border border-ducks-green/40 text-center space-y-2">
+              <CheckCircle size={24} className="text-ducks-green mx-auto" />
+              <div className="text-white font-bold text-sm">
+                Booking request sent to {selected}!
+              </div>
+              <div className="text-white/50 text-xs">
+                They&apos;ll receive your enhanced design + brief automatically.
+              </div>
             </div>
-            <button
-              onClick={() => { setCurrentStep(Math.min(STEPS.length - 1, currentStep + 1)); setAutoPlay(false); }}
-              disabled={currentStep === STEPS.length - 1}
-              className="px-6 py-2.5 bg-purple-500 hover:bg-purple-600 rounded-lg text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              Next →
-            </button>
-          </div>
+          </motion.div>
+        ) : null}
+
+        <Link
+          href="/generate"
+          className="w-full py-3 rounded-2xl bg-gradient-to-r from-ducks-green to-teal-600 text-white font-bold flex items-center justify-center gap-2 text-sm"
+        >
+          <Sparkles size={16} />
+          Try the real Forge — build your design
+          <ArrowRight size={16} />
+        </Link>
+        <Link
+          href="/pitch"
+          className="w-full py-3 rounded-2xl border border-white/10 text-white/60 font-medium flex items-center justify-center gap-2 text-sm hover:bg-white/5"
+        >
+          View investor deck
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+// ─── Progress bar ──────────────────────────────────────────────────────────
+function ProgressBar({ step }: { step: number }) {
+  return (
+    <div className="flex gap-1.5 w-full">
+      {STEPS.map((s) => (
+        <div
+          key={s.id}
+          className={`h-1 flex-1 rounded-full transition-all duration-500 ${
+            s.id <= step ? 'bg-ducks-green' : 'bg-white/10'
+          }`}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ─── Main ──────────────────────────────────────────────────────────────────
+export default function DemoPage() {
+  const [step, setStep] = useState(0);
+  const [concept, setConcept] = useState<(typeof DEMO_CONCEPTS)[0] | null>(null);
+
+  return (
+    <div className="min-h-screen bg-background text-white flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 pt-6 pb-4">
+        <div>
+          <div className="text-lg font-black text-white">TatT</div>
+          <div className="text-xs text-white/40 font-mono">Interactive Demo</div>
         </div>
-
-        {/* Investor Metrics Sidebar */}
-        <div className="lg:w-56 shrink-0">
-          <div className="sticky top-24 space-y-3">
-            <h4 className="text-xs text-gray-500 font-bold uppercase tracking-wider">Key Metrics</h4>
-            {METRICS.map((m) => (
-              <div key={m.label} className="bg-white/5 rounded-xl border border-white/10 p-3">
-                <p className="text-lg font-bold text-white">{m.value}</p>
-                <p className="text-[10px] text-gray-500 uppercase tracking-wider">{m.label}</p>
-              </div>
-            ))}
-            <div className="pt-3 border-t border-white/10">
-              <p className="text-[10px] text-gray-600 leading-relaxed">
-                $3.5B US tattoo market · 145M Americans with tattoos · 10% YoY growth in 18-35 demo
-              </p>
-            </div>
-          </div>
+        <div className="flex items-center gap-2">
+          <Star size={12} className="text-ducks-yellow fill-ducks-yellow" />
+          <span className="text-xs text-white/50 font-mono">YC Demo Day 2026</span>
         </div>
       </div>
+
+      {/* Progress */}
+      <div className="px-5 pb-4 space-y-3">
+        <ProgressBar step={step} />
+        <div className="flex justify-between">
+          {STEPS.map((s) => {
+            const Icon = s.icon;
+            return (
+              <div
+                key={s.id}
+                className={`flex items-center gap-1 text-[10px] font-mono transition-colors ${
+                  s.id <= step ? 'text-ducks-green' : 'text-white/20'
+                }`}
+              >
+                <Icon size={10} />
+                <span className="hidden sm:inline">{s.label}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Step content */}
+      <div className="flex-1 px-5 pb-32 max-w-lg mx-auto w-full">
+        <AnimatePresence mode="wait">
+          {step === 0 && (
+            <motion.div
+              key="step0"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+            >
+              <StepConceptPicker
+                onSelect={(c) => {
+                  setConcept(c);
+                  setStep(1);
+                }}
+              />
+            </motion.div>
+          )}
+          {step === 1 && concept && (
+            <motion.div
+              key="step1"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+            >
+              <StepEnhancement concept={concept} onNext={() => setStep(2)} />
+            </motion.div>
+          )}
+          {step === 2 && concept && (
+            <motion.div
+              key="step2"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+            >
+              <StepVisualize concept={concept} onNext={() => setStep(3)} />
+            </motion.div>
+          )}
+          {step === 3 && concept && (
+            <motion.div
+              key="step3"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+            >
+              <StepArtistMatch concept={concept} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Back nav */}
+      {step > 0 && (
+        <motion.button
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          onClick={() => setStep((s) => s - 1)}
+          className="fixed bottom-28 left-5 flex items-center gap-1 text-white/40 text-xs hover:text-white/70 transition-colors"
+        >
+          <ChevronLeft size={14} /> Back
+        </motion.button>
+      )}
     </div>
   );
 }

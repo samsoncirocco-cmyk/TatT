@@ -1,25 +1,63 @@
+# Dependencies
 node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Next.js
 .next
-.git
-.env
-.env.*
-.planning
-docs
-.github
+out
+build
+.turbopack
+
+# Production
+dist
+
+# Misc
+.DS_Store
+*.pem
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local env files
+.env*.local
+.env.production
+
+# Vercel
+.vercel
+
+# Testing
 coverage
+.nyc_output
+
+# IDE
 .vscode
-Dockerfile
-.dockerignore
-vitest.config.*
-eslint.config.*
-tests
-*.test.js
-*.test.ts
-*.test.jsx
-*.test.tsx
+.idea
+*.swp
+*.swo
+*~
 
-# Keep execution/ and directives/ (needed in image)
-# Keep README.md at root but exclude other markdown
+# Git
+.git
+.gitignore
+
+# CI
+.github
+
+# Docs
 *.md
-!README.md
+docs/
 
+# Cache
+.cache
+.temp
+
+# Logs
+logs
+*.log
+
+# OS
+Thumbs.db

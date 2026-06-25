@@ -1,229 +1,279 @@
 # Coding Conventions
 
-**Analysis Date:** 2026-02-15
+**Analysis Date:** 2026-01-31
 
 ## Naming Patterns
 
 **Files:**
-- Services: `camelCaseService.ts` (e.g., `canvasService.ts`, `versionService.ts`, `councilService.ts`)
-- Hooks: `useCapitalizedName.ts` (e.g., `useLayerManagement.ts`, `useVersionHistory.ts`, `useImageGeneration.ts`)
-- Components: `CapitalizedName.tsx` (e.g., `DesignGenerator.jsx`)
-- Tests: `[service/component].test.js` or `.test.jsx` (e.g., `versionService.test.js`, `DesignGenerator.test.jsx`)
-- Utilities: `camelCaseName.ts` (e.g., `styleModelMapping.ts`, `layerUtils.js`)
+- React components: PascalCase (e.g., `DesignGenerator.jsx`, `BodyPartSelector.tsx`)
+- Services: camelCase with 'Service' suffix (e.g., `designLibraryService.js`, `councilService.js`)
+- Utilities: camelCase descriptive (e.g., `matching.js`, `layerUtils.js`)
+- Hooks: camelCase with 'use' prefix (e.g., `useToast.js`, `useVersionHistory.js`)
+- Config files: camelCase descriptive (e.g., `councilSkillPack.js`, `promptTemplates.js`)
+- Test files: Same name as source with `.test.js` or `.test.ts` suffix
+- API routes (Next.js): `route.ts` in nested folders following REST conventions
 
 **Functions:**
-- All functions use `camelCase` naming
-- Exported functions in services are verb-action patterns: `addVersion()`, `getVersions()`, `updateTransform()`, `deleteLayer()`
-- Private/internal functions use underscore prefix or remain unexported: `normalizeStyle()`, `parseQuery()`
-- Hook functions start with `use` prefix required by React: `useLayerManagement()`, `useVersionHistory()`
+- camelCase for all functions (e.g., `enhancePrompt`, `getAllDesigns`, `buildCharacterMap`)
+- Event handlers prefixed with `handle` or `on` (e.g., `handleSubmit`, `onSelect`)
+- Boolean functions prefixed with `is`, `has`, `should` (e.g., `isGenerating`, `hasCharacter`)
+- Custom hooks prefixed with `use` (e.g., `useToast`, `useArtistMatching`)
 
 **Variables:**
-- Constants use `SCREAMING_SNAKE_CASE`: `MAX_VERSIONS_PER_DESIGN`, `VERSION_STORAGE_KEY_PREFIX`, `DEFAULT_BODY_PART`
-- Local variables and parameters use `camelCase`: `sessionId`, `layerId`, `imageUrl`, `existingLayers`
-- Configuration objects use `camelCase` keys: `{ layerTypes: [], prompt: string }`
+- camelCase for local variables (e.g., `userInput`, `enhancedPrompts`, `apiUsage`)
+- SCREAMING_SNAKE_CASE for constants (e.g., `MAX_DESIGNS`, `LIBRARY_STORAGE_KEY`, `COUNCIL_SKILL_PACK`)
+- State variables descriptive with `set` prefix for setters (e.g., `[isGenerating, setIsGenerating]`)
 
 **Types:**
-- TypeScript interfaces use `CapitalizedPascalCase`: `Layer`, `DesignVersion`, `EnhancementResult`, `ModelSelection`
-- Type unions use `camelCase` keys: `type PromptLevel = 'simple' | 'detailed' | 'ultra'`
-- Generic type parameters use single letters or abbreviated names: `T`, `K`, `V`
+- PascalCase for TypeScript types and interfaces (e.g., `BodyPart`, `BodyPartSelectorProps`)
 
 ## Code Style
 
 **Formatting:**
-- Enforced by ESLint config: `.eslintrc.cjs` and Next.js defaults
-- Line length: No explicit limit enforced, but examples show ~80-100 character lines
-- Indentation: 2 spaces (TypeScript/JavaScript standard)
-- Trailing semicolons: Required in TypeScript files, optional in some JS files
+- No Prettier config detected - relies on Next.js defaults
+- 2-space indentation (observed in most files)
+- Single quotes preferred in JSX, double quotes in TypeScript
+- Trailing commas in multiline objects/arrays
+- Template literals for string interpolation
 
 **Linting:**
-- Tool: ESLint v9 with Next.js core-web-vitals and TypeScript presets
-- Key rules:
-  - `react-refresh/only-export-components`: Warn when exporting non-components from component files
-  - `react/prop-types`: Off (TypeScript replaces PropTypes)
-  - `react-hooks/recommended`: Enforces hook rules
-
-**TypeScript Configuration:**
-- Target: ES5 (transpiled for browser compatibility)
-- Strict mode: Enabled (`strict: true`)
-- Module resolution: `bundler` (for Next.js)
-- JSX: `react-jsx` (React 18+ without import)
-- Path aliases: `@/*` maps to `./src/*`
+- ESLint with Next.js config (`eslint.config.mjs`)
+- Legacy config also present (`.eslintrc.cjs`) for React
+- Key rules: React hooks recommended, no prop-types (TypeScript/JSDoc instead)
+- Strict TypeScript mode enabled in `tsconfig.json`
 
 ## Import Organization
 
 **Order:**
-1. External packages (React, Next.js, third-party libraries)
-2. Internal utilities and configs
-3. Services layer
-4. Types/interfaces (from local files)
-5. Constants
-
-**Example from `councilService.ts`:**
-```typescript
-import { buildCharacterMap, getAllCharacterNames } from '../config/characterDatabase.js';
-import {
-  selectModelWithFallback,
-  getModelPromptEnhancements
-} from '../utils/styleModelMapping.js';
-import { COUNCIL_SKILL_PACK } from '../config/councilSkillPack';
-```
+1. External packages (React, Next.js, third-party)
+2. Internal absolute imports using `@/` alias
+3. Relative imports (services, utils, components)
+4. Type imports (when using TypeScript)
+5. Assets/styles (if any)
 
 **Path Aliases:**
-- `@/*` resolves to `./src/*` allowing imports like `@/services/canvasService`
-- Relative imports used when `@/` alias is not needed
+- `@/*` maps to `./src/*` (configured in `tsconfig.json`)
+- Used extensively in API routes and Next.js app directory
 
-**Multi-line imports:** Group related imports together with blank lines separating categories
+**Examples:**
+```javascript
+// From src/app/api/v1/council/enhance/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { enhancePrompt } from '@/services/councilService';
+
+// From src/services/designLibraryService.js
+import {
+  safeLocalStorageGet,
+  safeLocalStorageSet,
+  validateDesign,
+  purgeExpiredDesigns
+} from './storageService.js';
+```
+
+**Import Extensions:**
+- `.js` extension explicit in ES modules
+- No extension in TypeScript files
+- Destructured imports on multiple lines when more than 3 items
 
 ## Error Handling
 
 **Patterns:**
-- Try-catch blocks used for I/O operations: API calls, localStorage, file operations
-- Console logging for error tracking with service prefixes: `console.error('[VersionService] Error message:', error)`
-- Functions return `null` for failed operations (graceful degradation):
-  ```typescript
-  export function addVersion(sessionId: string, versionData: Partial<DesignVersion>): DesignVersion | null {
-    if (!sessionId) {
-      console.warn('[VersionService] No session ID provided');
-      return null;
+- Try-catch blocks in service functions with console.error logging
+- Error objects thrown with descriptive messages
+- API routes return NextResponse with status codes and error codes
+- Validation before operations with early returns
+
+**Examples:**
+```javascript
+// Service pattern
+export function saveDesign(imageUrl, metadata, userInput) {
+  try {
+    const designs = getAllDesigns();
+    // ... validation
+    if (!validation.valid) {
+      throw new Error(`Invalid design: ${validation.errors.join(', ')}`);
     }
-    try {
-      // ... operation
-    } catch (error) {
-      console.error('[VersionService] Error adding version:', error);
-      return null;
+    // ... operation
+    return newDesign;
+  } catch (error) {
+    console.error('[DesignLibrary] Error saving design:', error);
+    throw error;
+  }
+}
+
+// API route pattern
+export async function POST(req: NextRequest) {
+  try {
+    const authError = verifyApiAuth(req);
+    if (authError) return authError;
+
+    const body = await req.json();
+    if (!body.user_prompt || body.user_prompt.length < 3) {
+      return NextResponse.json({ error: 'Invalid prompt', code: 'INVALID_REQUEST' }, { status: 400 });
     }
+    // ... operation
+  } catch (error: any) {
+    return NextResponse.json({
+      error: 'Enhancement failed',
+      code: 'ENHANCEMENT_FAILED',
+      message: error.message
+    }, { status: 500 });
   }
-  ```
-- Result objects with `success` flag for complex operations:
-  ```typescript
-  const result = safeLocalStorageSet(key, versions);
-  if (!result.success) {
-    console.error('[VersionService] Failed to save:', result.error);
-    return null;
-  }
-  ```
-- FetchError wrapper for HTTP errors with error codes: `isErrorCode(error, 'AUTH_REQUIRED')`, `getUserErrorMessage(error)`
+}
+```
 
 ## Logging
 
-**Framework:** `console` (no external logging library)
+**Framework:** Native console object
 
 **Patterns:**
-- Prefixed log messages with service name in square brackets: `[ServiceName]`
-- Three levels:
-  - `console.log()` - Informational, successful operations: `[DesignLibrary] Design saved: id`
-  - `console.warn()` - Non-critical issues: `[Firebase] Client initialization failed`
-  - `console.error()` - Critical failures: `[VersionService] Error adding version`
-- Include context in log messages: operation, IDs, and error details
-- Use error objects directly for stack traces: `console.error('[Service] Message:', error)`
+- Prefixed with component/service name in brackets (e.g., `[API]`, `[DesignLibrary]`, `[Inpainting]`)
+- `console.log` for operations, timing, and status updates
+- `console.error` for errors with full error objects
+- `console.warn` for warnings and degraded states
+- Performance timing included in key operations
 
-**Examples from codebase:**
-```typescript
-console.log('[VersionService] Purged expired history:', key);
-console.warn('[CouncilService] Error detecting characters:', error);
-console.error('[DesignLibrary] Error updating design:', error);
-console.log('[Firebase] Subscribed to matches for user:', userId);
+**Examples:**
+```javascript
+console.log('[API] Council enhancement request:', { prompt_length, style, body_part });
+console.log(`[API] Council enhancement completed in ${duration}ms`);
+console.error('[DesignLibrary] Error saving design:', error);
+console.warn('[StorageWarning] Check failed:', error);
 ```
 
 ## Comments
 
 **When to Comment:**
-- Function behavior that isn't obvious from the name
-- Complex algorithms or non-obvious logic
-- Section headers using `// ============...` decorators (common in larger services)
-- Type definitions and interfaces with JSDoc-style comments
-- Algorithm explanations: RRF scoring, layer composition, etc.
+- File-level JSDoc blocks describing module purpose
+- Complex algorithms with inline explanations
+- TODO markers for future work
+- Business logic explanations
+- Not used for obvious code
 
 **JSDoc/TSDoc:**
-- Block comments (/** ... */) used for functions and types in service files:
-  ```typescript
-  /**
-   * Version History Service
-   *
-   * Manages the version history of tattoo designs using localStorage.
-   * Handles auto-saving versions, branching, and comparison data retrieval.
-   */
-  ```
-- Param descriptions with types:
-  ```typescript
-  /**
-   * Add a new version to the history
-   */
-  export function addVersion(
-    sessionId: string,
-    versionData: Partial<DesignVersion>
-  ): DesignVersion | null
-  ```
-- Sparse usage in component files (more reliance on TypeScript types)
+- Used extensively for functions in service files
+- Parameter descriptions with types
+- Return value descriptions
+- Examples when helpful
+
+**Examples:**
+```javascript
+/**
+ * Design Library Service
+ *
+ * Manages user's saved tattoo designs using browser localStorage.
+ * In production, this will be replaced with proper database storage.
+ */
+
+/**
+ * Save design to library
+ *
+ * @param {string} imageUrl - URL or base64 of the image
+ * @param {Object} metadata - Design metadata from generation
+ * @param {Object} userInput - Original user input
+ * @returns {Object} Saved design object
+ */
+export function saveDesign(imageUrl, metadata, userInput) {
+  // ...
+}
+```
 
 ## Function Design
 
-**Size:** Typically 10-50 lines; larger functions broken into helper functions
-- `canvasService.ts` functions: 15-40 lines (pure layer operations)
-- `versionService.ts` functions: 20-80 lines (include localStorage operations)
-- Helper functions inline or prefixed with underscore: `normalizeStyle()`, `parseQuery()`
+**Size:** Functions generally 20-50 lines; complex operations broken into helpers
 
 **Parameters:**
-- Single object parameter for functions with multiple arguments (common in service APIs):
-  ```typescript
-  export function hybridMatch(params: {
-    query: string;
-    preferences: MatchPreferences;
-    maxResults: number;
-  })
-  ```
-- Spread operators for optional configs: `{ ...existingConfig, newProperty }`
+- Object destructuring for multiple related params
+- Optional parameters with defaults
+- Type annotations in TypeScript files
 
 **Return Values:**
-- Immutable updates return new arrays/objects (never mutate input):
-  ```typescript
-  // Wrong
-  layers[0].visible = false;
+- Explicit returns (no implicit undefined)
+- Objects for multiple values
+- Null/undefined for not-found cases
+- Throw errors for exceptional cases
 
-  // Correct
-  return layers.map(l => l.id === layerId ? { ...l, visible: !l.visible } : l);
-  ```
-- Functions returning undefined explicitly or implicitly return undefined for void operations
-- Type unions for success/failure: `DesignVersion | null`, `CacheEntry | undefined`
+**Examples:**
+```typescript
+// TypeScript with interface
+export function BodyPartSelector({
+    selectedBodyPart,
+    onSelect,
+    disabled = false
+}: BodyPartSelectorProps) {
+  // ...
+}
+
+// Service with object params
+export async function enhancePrompt({
+    userIdea,
+    style,
+    bodyPart,
+    isStencilMode
+}) {
+  // ...
+}
+```
 
 ## Module Design
 
 **Exports:**
-- Named exports required (no default exports in utility modules)
-- Services export pure functions at module root level
-- Types exported separately from implementations:
-  ```typescript
-  export interface Layer { ... }
-  export function createLayer(...): Layer { ... }
-  ```
+- Named exports preferred over default exports
+- Multiple functions exported from service modules
+- React components use default export
+- Barrel files not heavily used
 
-**Barrel Files:**
-- Minimal use; mostly direct imports from service files
-- `@/` alias used to simplify import paths
+**File Organization:**
+- Constants at top
+- Helper functions before exports
+- Main exports at bottom
+- Related functionality grouped together
 
-## Immutability Patterns
+**Examples:**
+```javascript
+// Constants
+const LIBRARY_STORAGE_KEY = 'tattester_design_library';
+const MAX_DESIGNS = 50;
 
-**State Updates:** All array/object mutations return new objects:
-```typescript
-// Layer operations in canvasService.ts
-export function reorderLayers(layers: Layer[], fromIndex: number, toIndex: number): Layer[] {
-  const reordered = [...layers];  // Copy array
-  const [movedLayer] = reordered.splice(fromIndex, 1);
-  reordered.splice(toIndex, 0, movedLayer);
-  return reordered.map((layer, index) => ({  // Return new objects
-    ...layer,
-    zIndex: index
-  }));
+// Helper functions
+function createDesign(imageUrl, metadata, userInput) {
+  // ...
 }
+
+function generateId() {
+  // ...
+}
+
+// Exports
+export function getAllDesigns() { }
+export function saveDesign() { }
+export function deleteDesign() { }
 ```
 
-**Zustand Store:** State mutations happen through actions, not direct property assignment
-```typescript
-// useLayerManagement.ts - facade over Zustand store
-const updateTransform = useForgeStore((store) => store.updateTransform);
-updateTransform(layerId, { x: 100, y: 50 });  // Action call
-```
+## React Patterns
+
+**Component Style:**
+- Functional components with hooks
+- State management with useState
+- Effects with useEffect
+- Custom hooks for reusable logic
+
+**Props:**
+- Destructured in function signature
+- TypeScript interfaces for prop types
+- Default values in destructuring
+- No PropTypes (disabled in ESLint)
+
+**State:**
+- Multiple useState calls (not single object)
+- Descriptive state names
+- Callbacks with useCallback where appropriate
+
+**Styling:**
+- Tailwind CSS utility classes
+- Template strings for conditional classes
+- Custom design tokens (e.g., `ducks-yellow`, `ducks-green`)
 
 ---
 
-*Convention analysis: 2026-02-15*
+*Convention analysis: 2026-01-31*

@@ -1,0 +1,69 @@
+[
+  {
+    "id": "artist_dvpyb68gp",
+    "handle": "tatthq",
+    "name": "tatthq",
+    "shop": "Saved Tattoo",
+    "styles": [
+      "Japanese (Irezumi)"
+    ],
+    "verified": true,
+    "quality_score": 0.96,
+    "is_apprentice": true,
+    "source": "crawled_verified"
+  },
+  {
+    "id": "artist_ao0nys2oj",
+    "handle": "atlastattoo",
+    "name": "atlastattoo",
+    "shop": "Atlas Tattoo",
+    "styles": [
+      "Cyber Sigilism"
+    ],
+    "verified": true,
+    "quality_score": 0.98,
+    "is_apprentice": false,
+    "source": "crawled_verified"
+  },
+  {
+    "id": "artist_jctyfjxmw",
+    "handle": "atlastattoo",
+    "name": "atlastattoo",
+    "shop": "Atlas Tattoo",
+    "styles": [
+      "American Traditional"
+    ],
+    "verified": true,
+    "quality_score": 0.84,
+    "is_apprentice": true,
+    "source": "crawled_verified"
+  },
+  {
+    "id": "artist_9wz2uyy7n",
+    "handle": "atlastattoo",
+    "name": "atlastattoo",
+    "shop": "Atlas Tattoo",
+    "styles": [
+      "Fine Line",
+      "Realism"
+    ],
+    "verified": true,
+    "quality_score": 0.91,
+    "is_apprentice": false,
+    "source": "crawled_verified"
+  },
+  {
+    "id": "artist_u0x88w5t0",
+    "handle": "atlastattoo",
+    "name": "atlastattoo",
+    "shop": "Atlas Tattoo",
+    "styles": [
+      "Japanese (Irezumi)",
+      "American Traditional"
+    ],
+    "verified": true,
+    "quality_score": 0.91,
+    "is_apprentice": false,
+    "source": "crawled_verified"
+  }
+]
