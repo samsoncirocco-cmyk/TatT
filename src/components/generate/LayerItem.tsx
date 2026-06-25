@@ -6,16 +6,17 @@
 
 import { useState } from 'react';
 import { Eye, EyeOff, GripVertical, Trash2, Image as ImageIcon } from 'lucide-react';
-import { Layer } from '../../services/canvasService';
+import { LayerWithImages } from '@/features/generate/services/canvasService';
+import { getImageUrl } from '../../services/forgeImageRegistry';
 
 interface LayerItemProps {
-    layer: Layer;
+    layer: LayerWithImages;
     isSelected: boolean;
     onSelect: (layerId: string) => void;
     onToggleVisibility: (layerId: string) => void;
     onRename: (layerId: string, newName: string) => void;
     onDelete: (layerId: string) => void;
-    onContextMenu?: (layer: Layer, x: number, y: number) => void;
+    onContextMenu?: (layer: LayerWithImages, x: number, y: number) => void;
     isDragging?: boolean;
 }
 
@@ -31,6 +32,7 @@ export default function LayerItem({
 }: LayerItemProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [editName, setEditName] = useState(layer.name);
+    const thumbnailUrl = layer.thumbnail || getImageUrl(layer.thumbnailRef);
 
     const handleNameSubmit = () => {
         if (editName.trim() && editName !== layer.name) {
@@ -49,9 +51,9 @@ export default function LayerItem({
     };
 
     const typeColors = {
-        subject: 'text-studio-accent',
-        background: 'text-white/60',
-        effect: 'text-studio-neon'
+        subject: 'text-pink',
+        background: 'text-white/70',
+        effect: 'text-white/50'
     };
 
     return (
@@ -71,33 +73,33 @@ export default function LayerItem({
             }}
             role="button"
             tabIndex={0}
-        className={`
-        group relative flex items-center gap-3 p-3 rounded-lg transition-all cursor-pointer
+            className={`
+        group relative flex items-center gap-3 p-3 transition-colors cursor-pointer
         ${isSelected
-                    ? 'bg-[rgba(0,255,65,0.12)] border-2 border-studio-neon shadow-[0_0_18px_rgba(0,255,65,0.35)]'
-                    : 'bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20'
+                    ? 'bg-black border-2 border-pink'
+                    : 'bg-black border hairline-white hover:border-pink'
                 }
-        ${isDragging ? 'opacity-50 scale-95' : ''}
+        ${isDragging ? 'opacity-50' : ''}
         ${!layer.visible ? 'opacity-60' : ''}
-        focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-studio-accent
+        focus-visible:outline focus-visible:outline-[2px] focus-visible:outline-pink
       `}
         >
             {/* Drag Handle */}
-            <div className="cursor-grab active:cursor-grabbing text-white/40 hover:text-white transition-colors">
-                <GripVertical size={16} />
+            <div className="cursor-grab active:cursor-grabbing text-white/40 hover:text-pink transition-colors">
+                <GripVertical size={14} />
             </div>
 
             {/* Thumbnail */}
-            <div className="w-12 h-12 rounded-lg overflow-hidden bg-black/50 border border-white/10 flex-shrink-0">
-                {layer.thumbnail ? (
+            <div className="w-12 h-12 overflow-hidden bg-black border hairline-white flex-shrink-0">
+                {thumbnailUrl ? (
                     <img
-                        src={layer.thumbnail}
+                        src={thumbnailUrl}
                         alt={layer.name}
                         className="w-full h-full object-cover"
                     />
                 ) : (
-                    <div className="w-full h-full flex items-center justify-center text-white/40">
-                        <ImageIcon size={20} />
+                    <div className="w-full h-full flex items-center justify-center text-white/20">
+                        <ImageIcon size={18} />
                     </div>
                 )}
             </div>
@@ -111,22 +113,22 @@ export default function LayerItem({
                         onChange={(e) => setEditName(e.target.value)}
                         onBlur={handleNameSubmit}
                         onKeyDown={handleKeyDown}
-                        className="w-full bg-black/50 border border-studio-neon rounded px-2 py-1 text-sm text-white focus:outline-none"
+                        className="w-full bg-black border-2 border-pink px-2 py-1 text-[13px] text-white font-display tracking-tight focus:outline-none"
                         autoFocus
                     />
                 ) : (
                     <div
                         onDoubleClick={() => setIsEditing(true)}
-                        className="text-sm font-medium text-white truncate"
+                        className="text-[13px] font-display tracking-wide uppercase text-white truncate"
                     >
                         {layer.name}
                     </div>
                 )}
                 <div className="flex items-center gap-2 mt-1">
-                    <span className={`text-[10px] font-mono uppercase tracking-wider ${typeColors[layer.type]}`}>
+                    <span className={`text-[10px] font-body uppercase tracking-[0.22em] ${typeColors[layer.type]}`}>
                         {layer.type}
                     </span>
-                    <span className="text-[10px] text-white/40 font-mono">
+                    <span className="text-[10px] text-white/30 font-body tabular-nums tracking-[0.15em]">
                         z:{layer.zIndex}
                     </span>
                 </div>
@@ -140,14 +142,14 @@ export default function LayerItem({
                         e.stopPropagation();
                         onToggleVisibility(layer.id);
                     }}
-                    className="p-1.5 rounded hover:bg-white/10 transition-colors"
+                    className="press p-1.5 hover:bg-pink hover:text-black transition-colors"
                     title={layer.visible ? 'Hide layer' : 'Show layer'}
                     aria-label={layer.visible ? 'Hide layer' : 'Show layer'}
                 >
                     {layer.visible ? (
-                        <Eye size={16} className="text-white/50 hover:text-white" />
+                        <Eye size={14} className="text-white/60" />
                     ) : (
-                        <EyeOff size={16} className="text-white/30" />
+                        <EyeOff size={14} className="text-white/30" />
                     )}
                 </button>
 
@@ -157,11 +159,11 @@ export default function LayerItem({
                         e.stopPropagation();
                         onDelete(layer.id);
                     }}
-                    className="p-1.5 rounded hover:bg-red-500/20 transition-colors opacity-0 group-hover:opacity-100"
+                    className="press p-1.5 hover:bg-pink hover:text-black transition-colors opacity-0 group-hover:opacity-100"
                     title="Delete layer"
                     aria-label="Delete layer"
                 >
-                    <Trash2 size={16} className="text-red-400 hover:text-red-300" />
+                    <Trash2 size={14} className="text-pink" />
                 </button>
             </div>
         </div>

@@ -1,0 +1,378 @@
+{
+  "project_root": "/Users/ciroccofam/conductor/workspaces/tatt-v1/manama-next",
+  "project_type": "single",
+  "services": {
+    "main": {
+      "name": "main",
+      "path": "/Users/ciroccofam/conductor/workspaces/tatt-v1/manama-next",
+      "language": "TypeScript",
+      "framework": "Next.js",
+      "type": "frontend",
+      "package_manager": "npm",
+      "default_port": 3000,
+      "styling": "Tailwind CSS",
+      "state_management": "Zustand",
+      "dev_command": "npm run dev",
+      "key_directories": {
+        "src": {
+          "path": "src",
+          "purpose": "Source code"
+        }
+      },
+      "dependencies": [
+        "@dnd-kit/core",
+        "@dnd-kit/sortable",
+        "@dnd-kit/utilities",
+        "@google-cloud/aiplatform",
+        "@google-cloud/storage",
+        "@google-cloud/vertexai",
+        "@google-cloud/vision",
+        "@react-spring/web",
+        "@supabase/supabase-js",
+        "firebase",
+        "firebase-admin",
+        "framer-motion",
+        "google-auth-library",
+        "jose",
+        "jspdf",
+        "konva",
+        "lucide-react",
+        "neo4j-driver",
+        "next",
+        "react"
+      ],
+      "dev_dependencies": [
+        "@tailwindcss/postcss",
+        "@types/node",
+        "@types/react",
+        "@types/react-dom",
+        "eslint",
+        "eslint-config-next",
+        "tailwindcss",
+        "typescript"
+      ],
+      "environment": {
+        "variables": {
+          "NEXT_PUBLIC_PROXY_URL": {
+            "value": "http://127.0.0.1:3002/api",
+            "source": ".env.local",
+            "type": "url",
+            "sensitive": false,
+            "required": false
+          },
+          "NEXT_PUBLIC_DEMO_MODE": {
+            "value": "false",
+            "source": ".env.local",
+            "type": "boolean",
+            "sensitive": false,
+            "required": false
+          },
+          "NEXT_PUBLIC_FIREBASE_API_KEY": {
+            "value": "<REDACTED>",
+            "source": ".env.local",
+            "type": "string",
+            "sensitive": true,
+            "required": false
+          },
+          "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN": {
+            "value": "<REDACTED>",
+            "source": ".env.local",
+            "type": "string",
+            "sensitive": true,
+            "required": false
+          },
+          "NEXT_PUBLIC_FIREBASE_DATABASE_URL": {
+            "value": "https://tatt-pro-default-rtdb.firebaseio.com",
+            "source": ".env.local",
+            "type": "url",
+            "sensitive": false,
+            "required": false
+          },
+          "NEXT_PUBLIC_FIREBASE_PROJECT_ID": {
+            "value": "tatt-pro",
+            "source": ".env.local",
+            "type": "string",
+            "sensitive": false,
+            "required": false
+          },
+          "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET": {
+            "value": "tatt-pro.firebasestorage.app",
+            "source": ".env.local",
+            "type": "string",
+            "sensitive": false,
+            "required": false
+          },
+          "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": {
+            "value": "762958140397",
+            "source": ".env.local",
+            "type": "number",
+            "sensitive": false,
+            "required": false
+          },
+          "NEXT_PUBLIC_FIREBASE_APP_ID": {
+            "value": "1:762958140397:web:6da1c328603d52cbfacde4",
+            "source": ".env.local",
+            "type": "string",
+            "sensitive": false,
+            "required": false
+          },
+          "NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID": {
+            "value": "G-C6MP4PTN82",
+            "source": ".env.local",
+            "type": "string",
+            "sensitive": false,
+            "required": false
+          },
+          "FIREBASE_DATABASE_URL": {
+            "value": "https://tatt-pro-default-rtdb.firebaseio.com",
+            "source": ".env.local",
+            "type": "url",
+            "sensitive": false,
+            "required": false
+          },
+          "NEXT_PUBLIC_FRONTEND_AUTH_TOKEN": {
+            "value": "<REDACTED>",
+            "source": ".env.local",
+            "type": "string",
+            "sensitive": true,
+            "required": false
+          },
+          "FRONTEND_AUTH_TOKEN": {
+            "value": "<REDACTED>",
+            "source": ".env.local",
+            "type": "string",
+            "sensitive": true,
+            "required": false
+          },
+          "NEO4J_URI": {
+            "value": "neo4j+s://36767c9d.databases.neo4j.io",
+            "source": ".env.local",
+            "type": "path",
+            "sensitive": false,
+            "required": false
+          },
+          "NEO4J_USERNAME": {
+            "value": "neo4j",
+            "source": ".env.local",
+            "type": "string",
+            "sensitive": false,
+            "required": false
+          },
+          "NEO4J_PASSWORD": {
+            "value": "<REDACTED>",
+            "source": ".env.local",
+            "type": "string",
+            "sensitive": true,
+            "required": false
+          },
+          "NEXT_PUBLIC_SUPABASE_URL": {
+            "value": "https://yfcmysjmoehcyszvkxsr.supabase.co",
+            "source": ".env.local",
+            "type": "url",
+            "sensitive": false,
+            "required": false
+          },
+          "NEXT_PUBLIC_SUPABASE_ANON_KEY": {
+            "value": "<REDACTED>",
+            "source": ".env.local",
+            "type": "string",
+            "sensitive": true,
+            "required": false
+          },
+          "SUPABASE_SERVICE_ROLE_KEY": {
+            "value": "<REDACTED>",
+            "source": ".env.local",
+            "type": "string",
+            "sensitive": true,
+            "required": false
+          },
+          "NEXT_PUBLIC_VERTEX_AI_ENABLED": {
+            "value": "true",
+            "source": ".env.local",
+            "type": "boolean",
+            "sensitive": false,
+            "required": false
+          },
+          "NEXT_PUBLIC_VERTEX_AI_PROJECT_ID": {
+            "value": "tatt-pro",
+            "source": ".env.local",
+            "type": "string",
+            "sensitive": false,
+            "required": false
+          },
+          "NEXT_PUBLIC_VERTEX_AI_REGION": {
+            "value": "us-central1",
+            "source": ".env.local",
+            "type": "string",
+            "sensitive": false,
+            "required": false
+          },
+          "NEXT_PUBLIC_ENABLE_INPAINTING": {
+            "value": "true",
+            "source": ".env.local",
+            "type": "boolean",
+            "sensitive": false,
+            "required": false
+          },
+          "NEXT_PUBLIC_ENABLE_STENCIL_EXPORT": {
+            "value": "true",
+            "source": ".env.local",
+            "type": "boolean",
+            "sensitive": false,
+            "required": false
+          },
+          "NEXT_PUBLIC_ENABLE_AR_PREVIEW": {
+            "value": "false",
+            "source": ".env.local",
+            "type": "boolean",
+            "sensitive": false,
+            "required": false
+          }
+        },
+        "required_count": 0,
+        "optional_count": 0,
+        "detected_count": 25
+      },
+      "api": {
+        "routes": [
+          {
+            "path": "/",
+            "methods": [
+              "POST"
+            ],
+            "file": "src/api/routes/stencilExport.js",
+            "framework": "Express",
+            "requires_auth": false
+          },
+          {
+            "path": "/",
+            "methods": [
+              "POST"
+            ],
+            "file": "src/api/routes/matchUpdate.js",
+            "framework": "Express",
+            "requires_auth": false
+          },
+          {
+            "path": "/",
+            "methods": [
+              "POST"
+            ],
+            "file": "src/api/routes/generate.js",
+            "framework": "Express",
+            "requires_auth": false
+          },
+          {
+            "path": "/",
+            "methods": [
+              "POST"
+            ],
+            "file": "src/api/routes/councilEnhancement.js",
+            "framework": "Express",
+            "requires_auth": false
+          },
+          {
+            "path": "/",
+            "methods": [
+              "POST"
+            ],
+            "file": "src/api/routes/layerUpload.js",
+            "framework": "Express",
+            "requires_auth": false
+          },
+          {
+            "path": "/:filename",
+            "methods": [
+              "DELETE"
+            ],
+            "file": "src/api/routes/layerUpload.js",
+            "framework": "Express",
+            "requires_auth": false
+          },
+          {
+            "path": "/",
+            "methods": [
+              "POST"
+            ],
+            "file": "src/api/routes/embeddingsGenerate.js",
+            "framework": "Express",
+            "requires_auth": false
+          },
+          {
+            "path": "/",
+            "methods": [
+              "POST"
+            ],
+            "file": "src/api/routes/layersDecompose.js",
+            "framework": "Express",
+            "requires_auth": false
+          },
+          {
+            "path": "/",
+            "methods": [
+              "POST"
+            ],
+            "file": "src/api/routes/arVisualization.js",
+            "framework": "Express",
+            "requires_auth": false
+          },
+          {
+            "path": "/",
+            "methods": [
+              "POST"
+            ],
+            "file": "src/api/routes/semanticMatch.js",
+            "framework": "Express",
+            "requires_auth": false
+          },
+          {
+            "path": "/upload",
+            "methods": [
+              "POST"
+            ],
+            "file": "src/api/routes/storage.js",
+            "framework": "Express",
+            "requires_auth": false
+          },
+          {
+            "path": "/get-signed-url",
+            "methods": [
+              "POST"
+            ],
+            "file": "src/api/routes/storage.js",
+            "framework": "Express",
+            "requires_auth": false
+          }
+        ],
+        "total_routes": 12,
+        "methods": [
+          "DELETE",
+          "POST"
+        ],
+        "protected_routes": []
+      },
+      "services": {
+        "storage": [
+          {
+            "provider": "google_cloud_storage",
+            "client": "@google-cloud/storage"
+          }
+        ]
+      },
+      "auth": {
+        "strategies": [
+          "jwt"
+        ],
+        "libraries": [
+          "jose"
+        ],
+        "user_model": null,
+        "middleware": []
+      }
+    }
+  },
+  "infrastructure": {},
+  "conventions": {
+    "typescript": true
+  }
+}

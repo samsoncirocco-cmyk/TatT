@@ -1,239 +1,200 @@
 /**
- * LLM Council API Service
+ * LLM Council API Service (Consolidated)
  *
- * Integrates with the LLM Council backend to enhance tattoo design prompts.
- * Uses the council's collective intelligence to generate rich, detailed prompts
- * from simple user ideas.
- *
- * Features:
- * - Prompt enhancement (Simple, Detailed, Ultra levels)
- * - Negative prompt generation
- * - Real-time discussion updates (optional)
- * - Style-aware prompt generation
- * - Placement-aware composition suggestions
+ * Single entry point for council prompt enhancement with Vertex AI, OpenRouter,
+ * and safe fallbacks.
  */
 
-// Import character database
 import { buildCharacterMap, getAllCharacterNames } from '../config/characterDatabase.js';
-
-// Import model selection utilities
-import {
-  selectModelWithFallback,
-  getModelPromptEnhancements
-} from '../utils/styleModelMapping.js';
+import { selectModelWithFallback, getModelPromptEnhancements } from '../utils/styleModelMapping.js';
 import { COUNCIL_SKILL_PACK } from '../config/councilSkillPack';
+import { getGcpAccessToken } from '@/lib/google-auth-edge';
+import { logEvent } from '@/lib/observability';
 
-// ============================================================================
-// TYPE DEFINITIONS
-// ============================================================================
-
-/**
- * Prompt detail levels
- */
-export type PromptLevel = 'simple' | 'detailed' | 'ultra';
+const COUNCIL_API_URL = process.env.NEXT_PUBLIC_COUNCIL_API_URL || 'http://localhost:8001/api';
+const DEMO_MODE = process.env.NEXT_PUBLIC_COUNCIL_DEMO_MODE === 'true' || process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
 /**
- * Enhanced prompts at different detail levels
+ * Structured error thrown when ALL real providers (Vertex AI + OpenRouter +
+ * external Council API) AND the in-memory cache are exhausted. Callers should
+ * catch this and surface a clear "temporarily unavailable" message — NEVER
+ * silently substitute mock data.
  */
-export interface EnhancedPrompts {
-  simple: string;
-  detailed: string;
-  ultra: string;
+export class CouncilProviderError extends Error {
+  provider: string;
+  cause?: Error;
+  retryAfterMs?: number;
+  constructor(
+    message: string,
+    opts: { provider?: string; cause?: Error; retryAfterMs?: number } = {}
+  ) {
+    super(message);
+    this.name = 'CouncilProviderError';
+    this.provider = opts.provider || 'all_providers_exhausted';
+    this.cause = opts.cause;
+    this.retryAfterMs = opts.retryAfterMs ?? 60_000;
+  }
 }
 
-/**
- * Model selection result
- */
-export interface ModelSelection {
-  modelId: string;
-  modelName: string;
-  reasoning: string;
-  estimatedTime: number;
-  cost: number;
-  isFallback: boolean;
-}
+/* ──────────────────────────────────────────────────────────────────────────
+ * In-memory response cache (TTL 1h, capacity 500, lazy eviction)
+ *
+ * Used as a brief shock-absorber so transient Vertex AI hiccups don't reach
+ * users on identical-shaped requests. On a healthy hit we return cached data
+ * with `cacheHit: true`. On total provider failure we re-check the cache as
+ * the last line of defense before throwing CouncilProviderError.
+ * ────────────────────────────────────────────────────────────────────────── */
+const CACHE_TTL_MS = 60 * 60 * 1000;
+const CACHE_MAX_ENTRIES = 500;
+type CacheEntry = { value: any; expiresAt: number };
+const councilCache: Map<string, CacheEntry> = new Map();
 
-/**
- * Enhancement metadata
- */
-export interface EnhancementMetadata {
-  userIdea: string;
-  style: string;
-  bodyPart: string;
-  generatedAt: string;
-  councilVersion?: string;
-  fallback?: boolean;
-  enhancementTime: number;
-}
-
-/**
- * Complete enhancement result
- */
-export interface EnhancementResult {
-  prompts: EnhancedPrompts;
-  negativePrompt: string;
-  modelSelection: ModelSelection;
-  metadata: EnhancementMetadata;
-}
-
-/**
- * Options for prompt enhancement
- */
-export interface EnhancePromptOptions {
-  userIdea: string;
+function cacheKey(parts: {
+  fn: string;
+  userIdea?: string;
   style?: string;
   bodyPart?: string;
-  onDiscussionUpdate?: ((message: string) => void) | null;
-  isStencilMode?: boolean | null;
+  complexity?: string;
+  prompt?: string;
+}): string {
+  const norm = (s?: string) => (s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  return [
+    parts.fn,
+    norm(parts.userIdea),
+    norm(parts.style),
+    norm(parts.bodyPart),
+    norm(parts.complexity),
+    norm(parts.prompt)
+  ].join('|');
 }
 
-/**
- * Context for Council Skill Pack hardening
- */
-interface SkillPackContext {
-  bodyPart: string;
-  isStencilMode: boolean;
-  characterMatches: string[];
+function cacheGet(key: string): any | undefined {
+  const entry = councilCache.get(key);
+  if (!entry) return undefined;
+  if (entry.expiresAt < Date.now()) {
+    councilCache.delete(key);
+    return undefined;
+  }
+  // Refresh LRU position
+  councilCache.delete(key);
+  councilCache.set(key, entry);
+  return entry.value;
 }
 
-/**
- * Anatomical flow mapping type
- */
-type AnatomicalFlowMap = {
-  [key: string]: string;
+function cacheSet(key: string, value: any) {
+  // Evict oldest entries when at capacity (Map iterates in insertion order)
+  while (councilCache.size >= CACHE_MAX_ENTRIES) {
+    const oldest = councilCache.keys().next().value;
+    if (oldest === undefined) break;
+    councilCache.delete(oldest);
+  }
+  councilCache.set(key, { value, expiresAt: Date.now() + CACHE_TTL_MS });
 }
 
-/**
- * Hardened prompts result
- */
-interface HardenedPromptsResult {
-  prompts: EnhancedPrompts;
-  negativePrompt: string;
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const OPENROUTER_SITE_URL = process.env.OPENROUTER_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://manama-next.vercel.app';
+
+const PROJECT_ID = process.env.NEXT_PUBLIC_VERTEX_AI_PROJECT_ID || process.env.GCP_PROJECT_ID || 'tatt-pro';
+const REGION = process.env.GCP_REGION || 'us-central1';
+const GEMINI_MODEL = 'gemini-2.0-flash-001'; // Updated 2026-03-17: gemini-2.0-flash-exp deprecated → stable gemini-2.0-flash-001
+
+const COUNCIL_MEMBERS = {
+  creative: {
+    model: 'anthropic/claude-3.5-sonnet',
+    role: 'Creative Director',
+    focus: 'Artistic vision, composition, and aesthetic appeal',
+    estimatedCostUsd: 0.03
+  },
+  technical: {
+    model: 'openai/gpt-4-turbo',
+    role: 'Technical Expert',
+    focus: 'Tattoo-specific technical details and feasibility',
+    estimatedCostUsd: 0.03
+  },
+  style: {
+    model: 'google/gemini-1.5-pro', // Updated 2026-03-17: fixed model ID format
+    role: 'Style Specialist',
+    focus: 'Style authenticity and cultural accuracy',
+    estimatedCostUsd: 0.02
+  }
+};
+
+const CHARACTER_MAP = buildCharacterMap() as Record<string, string>;
+const CHARACTER_NAMES = getAllCharacterNames() as string[];
+
+// 1) Token estimation (cheap approximation; avoids heavy tokenizers client-side)
+export function estimateTokenCount(text: string): number {
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  return Math.ceil(words * 1.3); // ~1.3 tokens per word (rough GPT-2-ish heuristic)
 }
 
-/**
- * Refinement result
- */
-export interface RefinementResult {
-  refinedPrompt: string;
-  suggestions: string[];
+// 2) Prompt validation with max token limit
+export function validatePromptLength(
+  prompt: string,
+  maxTokens: number = 450
+): { valid: boolean; error?: string; suggestion?: string; tokenCount: number } {
+  const tokenCount = estimateTokenCount(prompt || '');
+  if (tokenCount > maxTokens) {
+    return {
+      valid: false,
+      tokenCount,
+      error: `Prompt too long (${tokenCount} tokens, max ${maxTokens})`,
+      suggestion: 'Simplify your description or disable council enhancement'
+    };
+  }
+  return { valid: true, tokenCount };
 }
 
-/**
- * Options for prompt refinement
- */
-export interface RefinePromptOptions {
-  currentPrompt: string;
-  refinementRequest: string;
-}
-
-/**
- * Style recommendations
- */
-export interface StyleRecommendations {
-  keyCharacteristics: string[];
-  commonElements: string[];
-  promptTips: string[];
-}
-
-/**
- * Prompt validation result
- */
-export interface ValidationResult {
-  score: number;
-  isValid: boolean;
-  suggestions: string[];
-}
-
-/**
- * Council API response for prompt generation
- */
-interface CouncilApiResponse {
-  enhanced_prompts: {
-    simple?: string;
-    minimal?: string;
-    detailed?: string;
-    standard?: string;
-    ultra?: string;
-    comprehensive?: string;
+// 3) Body-specific aspect ratio guidance (used to bias composition in prompt enhancement)
+export function getAspectRatioGuidance(bodyPart: string): string {
+  const guidance: Record<string, string> = {
+    forearm: 'vertical orientation, tall narrow canvas (1:3 ratio)',
+    shin: 'vertical orientation, elongated (1:3 ratio)',
+    chest: 'square-ish format, slightly wider than tall (4:5 ratio)',
+    back: 'vertical rectangle, portrait orientation (2:3 ratio)',
+    thigh: 'vertical oval shape (1:2 ratio)',
+    shoulder: 'radial composition, follows joint curvature',
+    bicep: 'circular to oval, wraps around arm (1:1 ratio)',
+    calf: 'vertical elongated (1:2 ratio)',
+    ribcage: 'vertical, follows torso contour (2:3 ratio)',
+    neck: 'vertical narrow column (1:4 ratio)',
+    hand: 'square to slightly tall (4:5 ratio)',
+    foot: 'horizontal landscape (3:2 ratio)'
   };
-  negative_prompt?: string;
-  version?: string;
+
+  const key = (bodyPart || '').toLowerCase().trim();
+  return guidance[key] || 'balanced composition';
 }
 
-/**
- * Character match data
- */
-interface CharacterMatch {
-  name: string;
-  description: string;
+function parseJsonFromText(text: string) {
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    // Try to extract the first valid JSON object
+  }
+
+  const firstBrace = text.indexOf('{');
+  if (firstBrace === -1) return null;
+  let depth = 0;
+  for (let i = firstBrace; i < text.length; i += 1) {
+    const char = text[i];
+    if (char === '{') depth += 1;
+    if (char === '}') depth -= 1;
+    if (depth === 0) {
+      const candidate = text.slice(firstBrace, i + 1);
+      try {
+        return JSON.parse(candidate);
+      } catch {
+        return null;
+      }
+    }
+  }
+  return null;
 }
 
-/**
- * Vertex AI/OpenRouter council result (without modelSelection)
- */
-interface PartialEnhancementResult {
-  prompts: EnhancedPrompts;
-  negativePrompt: string;
-  metadata: {
-    userIdea: string;
-    style: string;
-    bodyPart: string;
-    generatedAt: string;
-    enhancementTime: number;
-    councilMembers?: any[];
-    provider?: string;
-  };
-}
-
-/**
- * Model selection from styleModelMapping
- */
-interface ModelSelectionResult {
-  modelId: string;
-  modelName: string;
-  reasoning: string;
-  estimatedTime: number;
-  cost: number;
-  isFallback?: boolean;
-}
-
-/**
- * Model prompt enhancements result
- */
-interface ModelEnhancements {
-  enhancedPrompt: string;
-  negativePrompt: string;
-}
-
-// ============================================================================
-// CONFIGURATION
-// ============================================================================
-
-// Council API configuration
-const COUNCIL_API_URL = process.env.NEXT_PUBLIC_COUNCIL_API_URL || 'http://localhost:8001/api';
-
-// Demo mode for testing without council backend.
-// Enabled by either the council-specific flag OR the master demo flag.
-const DEMO_MODE =
-  process.env.NEXT_PUBLIC_COUNCIL_DEMO_MODE === 'true' ||
-  process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
-
-// Build character lookup map on service initialization (one-time cost)
-const CHARACTER_MAP = buildCharacterMap();
-const CHARACTER_NAMES = getAllCharacterNames();
-
-// ============================================================================
-// DETECTION UTILITIES
-// ============================================================================
-
-/**
- * Detect if the user is requesting stencil-style artwork
- * @param userIdea - The user's design description
- * @param negativePrompt - Optional negative prompt
- * @returns True if stencil keywords are detected
- */
-function detectStencilMode(userIdea: string = '', negativePrompt: string = ''): boolean {
+function detectStencilMode(userIdea = '', negativePrompt = '') {
   try {
     const combined = `${userIdea} ${negativePrompt}`.toLowerCase();
     return (COUNCIL_SKILL_PACK.stencilKeywords || []).some(keyword => combined.includes(keyword));
@@ -243,12 +204,7 @@ function detectStencilMode(userIdea: string = '', negativePrompt: string = ''): 
   }
 }
 
-/**
- * Detect character names in the provided text
- * @param text - Text to search for character names
- * @returns Array of detected character names
- */
-function detectCharacters(text: string = ''): string[] {
+function detectCharacters(text = '') {
   try {
     return CHARACTER_NAMES.filter(name =>
       new RegExp(`\\b${name}\\b`, 'i').test(text)
@@ -259,15 +215,8 @@ function detectCharacters(text: string = ''): string[] {
   }
 }
 
-/**
- * Add a token to a prompt if it's not already present (case-insensitive check)
- * @param prompt - The base prompt
- * @param token - The token to add if missing
- * @returns Prompt with token added (if not already present)
- */
-function addIfMissing(prompt: string, token: string): string {
+function addIfMissing(prompt: string, token: string) {
   if (!token || !prompt) return prompt;
-
   try {
     const promptLower = prompt.toLowerCase();
     const tokenLower = token.toLowerCase();
@@ -283,30 +232,11 @@ function addIfMissing(prompt: string, token: string): string {
   }
 }
 
-// ============================================================================
-// SKILL PACK HARDENING
-// ============================================================================
-
-/**
- * Apply Council Skill Pack hardening rules to prompts
- * Adds anatomical flow, aesthetic anchors, positional anchoring for multi-character prompts,
- * and stencil-specific negative shielding
- *
- * @param prompts - Object containing simple, detailed, and ultra prompts
- * @param negativePrompt - The negative prompt to harden
- * @param context - Context object with bodyPart, isStencilMode, and characterMatches
- * @returns Object with hardened prompts and negativePrompt
- */
-function applyCouncilSkillPack(
-  prompts: EnhancedPrompts,
-  negativePrompt: string,
-  context: SkillPackContext
-): HardenedPromptsResult {
+function applyCouncilSkillPack(prompts: Record<string, string>, negativePrompt: string, context: any) {
   try {
-    // Validate inputs
     if (!prompts || typeof prompts !== 'object') {
       console.warn('[CouncilService] Invalid prompts object, skipping skill pack application');
-      return { prompts: prompts || {} as EnhancedPrompts, negativePrompt: negativePrompt || '' };
+      return { prompts: prompts || {}, negativePrompt: negativePrompt || '' };
     }
 
     if (!context || typeof context !== 'object') {
@@ -314,27 +244,23 @@ function applyCouncilSkillPack(
       context = { bodyPart: 'forearm', isStencilMode: false, characterMatches: [] };
     }
 
-    const anatomicalFlow = COUNCIL_SKILL_PACK.anatomicalFlow as AnatomicalFlowMap;
-    const flowToken = anatomicalFlow[context.bodyPart] || '';
+    const bodyPartKey =
+      typeof context.bodyPart === 'string' ? context.bodyPart.toLowerCase().trim() : '';
+    const anatomicalFlow = COUNCIL_SKILL_PACK.anatomicalFlow as Record<string, string>;
+    const flowToken = anatomicalFlow[bodyPartKey] || '';
     const spatialKeywords = COUNCIL_SKILL_PACK.spatialKeywords || [];
 
-    // Harden each prompt level
     const hardenedPrompts = Object.entries(prompts).reduce((acc, [level, prompt]) => {
       if (typeof prompt !== 'string') {
         console.warn(`[CouncilService] Invalid prompt at level ${level}, skipping`);
-        acc[level as PromptLevel] = prompt;
+        acc[level] = prompt;
         return acc;
       }
 
       let hardened = prompt;
-
-      // Add anatomical flow
       hardened = addIfMissing(hardened, flowToken);
-
-      // Add aesthetic anchors
       hardened = addIfMissing(hardened, COUNCIL_SKILL_PACK.aestheticAnchors);
 
-      // Handle multi-character positional anchoring
       const promptCharacters = detectCharacters(hardened);
       const characters = promptCharacters.length > 0 ? promptCharacters : (context.characterMatches || []);
 
@@ -348,18 +274,16 @@ function applyCouncilSkillPack(
         }
       }
 
-      acc[level as PromptLevel] = hardened;
+      acc[level] = hardened;
       return acc;
-    }, {} as EnhancedPrompts);
+    }, {} as Record<string, string>);
 
-    // Harden negative prompt for stencil mode
     let hardenedNegative = negativePrompt || '';
 
     if (context.isStencilMode) {
       const shield = COUNCIL_SKILL_PACK.negativeShield;
       const lower = hardenedNegative.toLowerCase();
 
-      // Only add shield if not already present
       if (!lower.includes('shading') || !lower.includes('gradients')) {
         hardenedNegative = hardenedNegative
           ? `${shield}, ${hardenedNegative}`
@@ -370,37 +294,24 @@ function applyCouncilSkillPack(
     return { prompts: hardenedPrompts, negativePrompt: hardenedNegative };
   } catch (error) {
     console.error('[CouncilService] Error applying skill pack:', error);
-    // Return original values on error
-    return { prompts: prompts || {} as EnhancedPrompts, negativePrompt: negativePrompt || '' };
+    return { prompts: prompts || {}, negativePrompt: negativePrompt || '' };
   }
 }
 
-// ============================================================================
-// CHARACTER ENHANCEMENT
-// ============================================================================
-
-/**
- * Enhance character descriptions with specific details from database
- * @param userIdea - Raw user input
- * @returns Enhanced description with character details
- */
-function enhanceCharacterDescription(userIdea: string): string {
-  // Find all character names mentioned in the user's idea
-  const characterMap = CHARACTER_MAP as Record<string, string>;
-  const sortedNames = Object.keys(characterMap).sort((a, b) => b.length - a.length);
-  const matchedCharacters: CharacterMatch[] = [];
+function enhanceCharacterDescription(userIdea: string) {
+  const sortedNames = Object.keys(CHARACTER_MAP).sort((a, b) => b.length - a.length);
+  const matchedCharacters: { name: string; description: string }[] = [];
 
   for (const characterName of sortedNames) {
     const regex = new RegExp(`\\b${characterName}\\b`, 'gi');
     if (regex.test(userIdea)) {
       matchedCharacters.push({
         name: characterName,
-        description: characterMap[characterName]
+        description: CHARACTER_MAP[characterName]
       });
     }
   }
 
-  // If multiple characters found, format them with clear separation
   if (matchedCharacters.length > 1) {
     const characterDescriptions = matchedCharacters.map((char, index) => {
       const position = index === 0 ? 'FIRST CHARACTER' : index === 1 ? 'SECOND CHARACTER' : `CHARACTER ${index + 1}`;
@@ -409,29 +320,20 @@ function enhanceCharacterDescription(userIdea: string): string {
     return characterDescriptions.join('. ');
   }
 
-  // Single character or no characters - use original simple replacement
   let enhanced = userIdea;
   for (const characterName of sortedNames) {
     const regex = new RegExp(`\\b${characterName}\\b`, 'gi');
-    enhanced = enhanced.replace(regex, characterMap[characterName]);
+    enhanced = enhanced.replace(regex, CHARACTER_MAP[characterName]);
   }
 
   return enhanced;
 }
 
-// ============================================================================
-// MOCK RESPONSES (DEMO MODE)
-// ============================================================================
-
-/**
- * Mock council responses for demo mode
- */
 const MOCK_RESPONSES = {
-  simple: (userIdea: string, style: string): string =>
+  simple: (userIdea: string, style: string) =>
     `A ${style} style tattoo of ${userIdea} with clean lines and bold composition`,
 
-  detailed: (userIdea: string, style: string): string => {
-    // Check if user input contains any known character names
+  detailed: (userIdea: string, style: string) => {
     const hasCharacters = CHARACTER_NAMES.some(name =>
       new RegExp(`\\b${name}\\b`, 'i').test(userIdea)
     );
@@ -440,13 +342,11 @@ const MOCK_RESPONSES = {
     return `A ${style} style tattoo featuring ${enhanced}, rendered with intricate detail and expert shading. ${hasCharacters ? 'Characters depicted with distinctive features, dynamic poses, and recognizable costumes/attributes. ' : ''}The composition emphasizes dynamic movement and visual balance, with careful attention to linework quality and traditional ${style} aesthetic principles. Designed for optimal placement and visual impact.`;
   },
 
-  ultra: (userIdea: string, style: string, bodyPart: string): string => {
-    // Enhanced character description logic using centralized database
+  ultra: (userIdea: string, style: string, bodyPart: string) => {
     const hasCharacters = CHARACTER_NAMES.some(name =>
       new RegExp(`\\b${name}\\b`, 'i').test(userIdea)
     );
 
-    // Count how many characters are mentioned to determine composition strategy
     const characterMatches = CHARACTER_NAMES.filter(name =>
       new RegExp(`\\b${name}\\b`, 'i').test(userIdea)
     );
@@ -464,9 +364,7 @@ const MOCK_RESPONSES = {
     return `A photorealistic ${style} style tattoo of ${userIdea}, masterfully composed for ${bodyPart} placement. The design features hyper-detailed linework with gradient shading from deep blacks to subtle grays, creating dimensional depth and texture. Artistic elements include: dramatic contrast between positive and negative space, flowing composition that wraps naturally around body contours, and carefully balanced visual weight. The style authentically captures traditional ${style} techniques with bold outlines, selective color placement, and atmospheric background elements. Lighting and perspective create a three-dimensional effect, with focal points strategically positioned for maximum visual impact. The overall aesthetic balances intricate character detail with clean, readable forms suitable for professional tattooing.`;
   },
 
-  negative: (userIdea: string = ''): string => {
-    // For multi-character scenes, don't use "multiple people" in negative prompt
-    // Instead focus on preventing merged/conjoined bodies
+  negative: (userIdea = '') => {
     const characterMatches = CHARACTER_NAMES.filter(name =>
       new RegExp(`\\b${name}\\b`, 'i').test(userIdea)
     );
@@ -480,52 +378,376 @@ const MOCK_RESPONSES = {
   }
 };
 
-// ============================================================================
-// PUBLIC API FUNCTIONS
-// ============================================================================
+function buildCouncilSystemPrompt({ bodyPart, isStencilMode }: { bodyPart: string; isStencilMode: boolean }) {
+  const flowToken = (COUNCIL_SKILL_PACK.anatomicalFlow as Record<string, string>)[bodyPart] || '';
+  const aspectRatioGuidance = getAspectRatioGuidance(bodyPart);
+  const stencilRule = isStencilMode
+    ? 'STENCIL INTEGRITY: prioritize binary line-art and avoid gradients or soft shading.'
+    : 'STENCIL INTEGRITY: only apply stencil rules when requested.';
 
-/**
- * Enhance a user's tattoo idea using the LLM Council
- *
- * @param options - Enhancement options
- * @returns Enhanced prompts at multiple detail levels
- */
+  return [
+    'You are a Senior Tattoo Architect on the TatT AI Council.',
+    'Your goal is to produce elite, tattoo-ready prompts.',
+    `COMPOSITION (ASPECT RATIO): ${aspectRatioGuidance}`,
+    `POSITIONAL ANCHORING: ${COUNCIL_SKILL_PACK.positionalInstructions}`,
+    `ANATOMICAL FLOW: ${flowToken || 'Use body-part appropriate flow guidance.'}`,
+    `AESTHETIC ANCHORS: ${COUNCIL_SKILL_PACK.aestheticAnchors}`,
+    stencilRule
+  ].join('\n');
+}
+
+async function callOpenRouter(model: string, systemPrompt: string, userPrompt: string) {
+  if (!OPENROUTER_API_KEY) {
+    throw new Error('OPENROUTER_API_KEY not configured in environment variables');
+  }
+
+  const response = await fetch(OPENROUTER_API_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': OPENROUTER_SITE_URL,
+      'X-Title': 'TatTester - AI Tattoo Design'
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.7,
+      max_tokens: 500
+    })
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(`OpenRouter API error: ${error.error?.message || response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.choices[0].message.content;
+}
+
+async function enhancePromptWithOpenRouter({
+  userIdea,
+  style = 'traditional',
+  bodyPart = 'forearm',
+  onDiscussionUpdate = null,
+  isStencilMode = false,
+  requestId
+}: any) {
+  const startTime = Date.now();
+  const councilSystemPrompt = buildCouncilSystemPrompt({ bodyPart, isStencilMode });
+  const flowToken = (COUNCIL_SKILL_PACK.anatomicalFlow as Record<string, string>)[bodyPart] || '';
+  const stencilHint = isStencilMode ? 'Stencil mode: prioritize clean, high-contrast linework.' : '';
+
+  if (onDiscussionUpdate) {
+    onDiscussionUpdate('Creative Director: Analyzing artistic vision...');
+  }
+
+  const creativePrompt = await callOpenRouter(
+    COUNCIL_MEMBERS.creative.model,
+    `${councilSystemPrompt}\nYou are a Creative Director specializing in tattoo design. Your role is to enhance user ideas into vivid, artistic prompts for AI image generation.`,
+    `Enhance this tattoo idea into a detailed prompt for ${style} style tattoo on ${bodyPart}:
+      
+User idea: "${userIdea}"
+Flow guidance: "${flowToken}"
+${stencilHint}
+
+Generate THREE versions:
+1. SIMPLE (1 sentence): Clean, minimal enhancement
+2. DETAILED (2-3 sentences): Rich artistic details
+3. ULTRA (4-5 sentences): Photorealistic composition guide
+
+Return as JSON:
+{
+  "simple": "...",
+  "detailed": "...",
+  "ultra": "..."
+}`
+  );
+
+  const creativeResult = parseJsonFromText(creativePrompt);
+  if (!creativeResult) {
+    throw new Error('Failed to parse OpenRouter creative response');
+  }
+
+  if (onDiscussionUpdate) {
+    onDiscussionUpdate('Technical Expert: Refining for tattoo execution...');
+  }
+
+  const technicalPrompt = await callOpenRouter(
+    COUNCIL_MEMBERS.technical.model,
+    `${councilSystemPrompt}\nYou are a Technical Expert in tattoo design. Your role is to ensure prompts are technically feasible and optimized for actual tattooing.`,
+    `Review and refine this DETAILED prompt for technical accuracy:
+
+"${creativeResult.detailed}"
+
+Consider:
+- Line weight and detail level for ${bodyPart} placement
+- Color saturation and contrast
+- Skin tone compatibility
+- Aging and longevity
+
+Return the refined prompt as plain text (not JSON).`
+  );
+
+  if (onDiscussionUpdate) {
+    onDiscussionUpdate('Style Specialist: Ensuring style authenticity...');
+  }
+
+  const stylePrompt = await callOpenRouter(
+    COUNCIL_MEMBERS.style.model,
+    `${councilSystemPrompt}\nYou are a Style Specialist with deep knowledge of tattoo styles and cultural traditions. Your role is to ensure style authenticity.`,
+    `Review this ULTRA prompt for ${style} style authenticity:
+
+"${creativeResult.ultra}"
+
+Enhance it with:
+- Style-specific techniques and characteristics
+- Cultural authenticity (if applicable)
+- Traditional vs modern interpretations
+- Signature elements of ${style} style
+
+Return the enhanced prompt as plain text (not JSON).`
+  );
+
+  const negativePrompt = await callOpenRouter(
+    COUNCIL_MEMBERS.technical.model,
+    `${councilSystemPrompt}\nYou are a Technical Expert. Generate a negative prompt (things to avoid) for tattoo image generation.`,
+    `For this tattoo idea: "${userIdea}"
+
+Generate a negative prompt listing things to AVOID in the image generation. Focus on:
+- Technical flaws (blurry, distorted, low quality)
+- Inappropriate elements for tattoos
+- Style-specific things to avoid
+
+Return as a comma-separated list.`
+  );
+
+  const enhancementTime = Date.now() - startTime;
+  const estimatedCost = Object.values(COUNCIL_MEMBERS).reduce((sum, member) => sum + member.estimatedCostUsd, 0);
+
+  logEvent('council.result', {
+    requestId,
+    provider: 'openrouter',
+    durationMs: enhancementTime,
+    estimatedCostUsd: estimatedCost
+  });
+
+  return {
+    prompts: {
+      simple: creativeResult.simple,
+      detailed: technicalPrompt.trim(),
+      ultra: stylePrompt.trim()
+    },
+    negativePrompt: negativePrompt.trim(),
+    metadata: {
+      userIdea,
+      style,
+      bodyPart,
+      generatedAt: new Date().toISOString(),
+      enhancementTime,
+      councilMembers: Object.keys(COUNCIL_MEMBERS).map(key => COUNCIL_MEMBERS[key as keyof typeof COUNCIL_MEMBERS].role),
+      provider: 'openrouter',
+      estimatedCostUsd: estimatedCost
+    }
+  };
+}
+
+function isOpenRouterConfigured() {
+  return !!OPENROUTER_API_KEY;
+}
+
+async function enhancePromptWithVertexAI({
+  userIdea,
+  style = 'traditional',
+  bodyPart = 'forearm',
+  onDiscussionUpdate = null,
+  isStencilMode = false,
+  requestId
+}: any) {
+  if (onDiscussionUpdate) {
+    setTimeout(() => onDiscussionUpdate('Gemini AI: Analyzing your tattoo concept...'), 300);
+    setTimeout(() => onDiscussionUpdate('Gemini AI: Considering style and placement...'), 800);
+    setTimeout(() => onDiscussionUpdate('Gemini AI: Generating detailed prompts...'), 1400);
+  }
+
+  const startTime = Date.now();
+  const accessToken = await getGcpAccessToken();
+  const endpoint = `https://${REGION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/publishers/google/models/${GEMINI_MODEL}:generateContent`;
+
+  const aspectGuidance = getAspectRatioGuidance(bodyPart);
+  const systemPrompt = `You are an expert tattoo design consultant. Your role is to enhance user ideas into detailed, professional tattoo prompts.
+
+Style: ${style}
+Body Part: ${bodyPart}
+Composition guidance: ${aspectGuidance}
+Stencil Mode: ${isStencilMode ? 'Yes (line art only)' : 'No (full color)'}
+
+Generate THREE versions of the prompt:
+1. SIMPLE: Basic description (1 sentence)
+2. DETAILED: Rich description with composition details (2-3 sentences)
+3. ULTRA: Comprehensive prompt with anatomical flow, character details, and technical specifications (4-5 sentences)
+
+Also generate a NEGATIVE PROMPT to avoid unwanted elements.
+
+Return as JSON:
+{
+  "simple": "...",
+  "detailed": "...",
+  "ultra": "...",
+  "negativePrompt": "..."
+}`;
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      contents: [{
+        role: 'user',
+        parts: [{ text: `${systemPrompt}\n\nUser Idea: ${userIdea}` }]
+      }],
+      generationConfig: {
+        responseMimeType: 'application/json'
+      }
+    })
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Gemini API Error: ${response.status} - ${errText}`);
+  }
+
+  const data = await response.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error('No content generated from Gemini');
+
+  const prompts = parseJsonFromText(text);
+  if (!prompts) {
+    throw new Error('Failed to parse Gemini response');
+  }
+
+  const enhancementTime = Date.now() - startTime;
+
+  logEvent('council.result', {
+    requestId,
+    provider: 'vertex-ai',
+    durationMs: enhancementTime,
+    estimatedCostUsd: 0
+  });
+
+  return {
+    prompts: {
+      simple: prompts.simple,
+      detailed: prompts.detailed,
+      ultra: prompts.ultra
+    },
+    negativePrompt: prompts.negativePrompt,
+    metadata: {
+      model: GEMINI_MODEL,
+      userIdea,
+      style,
+      bodyPart,
+      isStencilMode,
+      generatedAt: new Date().toISOString(),
+      enhancementTime,
+      provider: 'vertex-ai',
+      estimatedCostUsd: 0
+    }
+  };
+}
+
+function isVertexAIConfigured() {
+  const projectId = process.env.NEXT_PUBLIC_VERTEX_AI_PROJECT_ID || process.env.GCP_PROJECT_ID;
+  const credJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GCP_SERVICE_ACCOUNT_KEY;
+  const credPair = process.env.GCP_SERVICE_ACCOUNT_EMAIL && process.env.GCP_PRIVATE_KEY;
+  return Boolean(projectId && (credJson || credPair));
+}
+
 export async function enhancePrompt({
   userIdea,
   style = 'traditional',
   bodyPart = 'forearm',
   onDiscussionUpdate = null,
   isStencilMode = null
-}: EnhancePromptOptions): Promise<EnhancementResult> {
-  const startTime = performance.now();
-  console.log('[CouncilService] Enhancing prompt:', { userIdea, style, bodyPart });
+}: any) {
+  const startTime = Date.now();
+  const requestId = `council_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const characterMatches = detectCharacters(userIdea);
   const resolvedStencilMode = isStencilMode === null
     ? detectStencilMode(userIdea)
     : Boolean(isStencilMode);
 
-  // Step 1: Select optimal model (async, can run in parallel with prompt enhancement)
+  const validation = validatePromptLength(userIdea);
+  if (!validation.valid) {
+    const error: any = new Error(validation.error);
+    error.code = 'PROMPT_TOO_LONG';
+    error.suggestion = validation.suggestion;
+    error.tokenCount = validation.tokenCount;
+    throw error;
+  }
+
+  // ── Cache lookup (skipped in DEMO_MODE so the demo path stays deterministic)
+  const cKey = cacheKey({
+    fn: 'enhancePrompt',
+    userIdea,
+    style,
+    bodyPart,
+    complexity: String(resolvedStencilMode)
+  });
+  if (!DEMO_MODE) {
+    const cached = cacheGet(cKey);
+    if (cached) {
+      logEvent('council.result', {
+        requestId,
+        provider: 'cache',
+        durationMs: Date.now() - startTime,
+        estimatedCostUsd: 0,
+        cacheHit: true
+      });
+      return { ...cached, cacheHit: true };
+    }
+  }
+
+  // Track underlying failures so we can attach them to CouncilProviderError.cause
+  const providerErrors: Error[] = [];
   const modelSelectionPromise = selectModelWithFallback(style, userIdea, bodyPart);
 
-  // Try Vertex AI first (FREE, 60 RPM, 1M token context)
-  const USE_VERTEX_AI = process.env.NEXT_PUBLIC_VERTEX_AI_ENABLED !== 'false'; // Enabled by default
+  logEvent('council.request', {
+    requestId,
+    userIdeaLength: userIdea?.length || 0,
+    style,
+    bodyPart,
+    stencil: resolvedStencilMode
+  });
 
+  const USE_VERTEX_AI = process.env.NEXT_PUBLIC_VERTEX_AI_ENABLED !== 'false';
   if (USE_VERTEX_AI && !DEMO_MODE) {
     try {
-      const { enhancePromptWithVertexAI, isVertexAIConfigured } = await import('./vertexAICouncil.js');
-
       if (isVertexAIConfigured()) {
-        console.log('[CouncilService] Using Vertex AI Gemini council (FREE!)');
-        const result = await enhancePromptWithVertexAI({
+        const result: any = await enhancePromptWithVertexAI({
           userIdea,
           style,
           bodyPart,
-          onDiscussionUpdate: onDiscussionUpdate ?? null,
-          isStencilMode: resolvedStencilMode
-        } as any) as PartialEnhancementResult;
+          onDiscussionUpdate,
+          isStencilMode: resolvedStencilMode,
+          requestId
+        });
 
-        // Add model selection to result
-        const modelSelection = await modelSelectionPromise as ModelSelectionResult;
+        const modelSelection: any = await modelSelectionPromise;
+        result.modelSelection = {
+          modelId: modelSelection.modelId,
+          modelName: modelSelection.modelName,
+          reasoning: modelSelection.reasoning,
+          estimatedTime: modelSelection.estimatedTime,
+          cost: 0,
+          isFallback: modelSelection.isFallback || false
+        };
 
         const hardened = applyCouncilSkillPack(
           result.prompts,
@@ -533,45 +755,38 @@ export async function enhancePrompt({
           { bodyPart, isStencilMode: resolvedStencilMode, characterMatches }
         );
 
-        return {
-          ...result,
-          ...hardened,
-          modelSelection: {
-            modelId: modelSelection.modelId,
-            modelName: modelSelection.modelName,
-            reasoning: modelSelection.reasoning,
-            estimatedTime: modelSelection.estimatedTime,
-            cost: 0, // FREE!
-            isFallback: modelSelection.isFallback || false
-          }
-        };
-      } else {
-        console.warn('[CouncilService] Vertex AI not configured, trying fallback');
+        const finalResult = { ...result, ...hardened };
+        cacheSet(cKey, finalResult);
+        return finalResult;
       }
     } catch (error) {
       console.error('[CouncilService] Vertex AI failed, trying fallback:', error);
+      providerErrors.push(error instanceof Error ? error : new Error(String(error)));
     }
   }
 
-  // Try OpenRouter as fallback if configured
   const USE_OPENROUTER = process.env.NEXT_PUBLIC_USE_OPENROUTER === 'true';
-
   if (USE_OPENROUTER && !DEMO_MODE) {
     try {
-      const { enhancePromptWithOpenRouter, isOpenRouterConfigured } = await import('./openRouterCouncil.js');
-
       if (isOpenRouterConfigured()) {
-        console.log('[CouncilService] Using OpenRouter council');
-        const result = await enhancePromptWithOpenRouter({
+        const result: any = await enhancePromptWithOpenRouter({
           userIdea,
           style,
           bodyPart,
-          onDiscussionUpdate: onDiscussionUpdate ?? null,
-          isStencilMode: resolvedStencilMode
-        } as any) as PartialEnhancementResult;
+          onDiscussionUpdate,
+          isStencilMode: resolvedStencilMode,
+          requestId
+        });
 
-        // Add model selection to result
-        const modelSelection = await modelSelectionPromise as ModelSelectionResult;
+        const modelSelection: any = await modelSelectionPromise;
+        result.modelSelection = {
+          modelId: modelSelection.modelId,
+          modelName: modelSelection.modelName,
+          reasoning: modelSelection.reasoning,
+          estimatedTime: modelSelection.estimatedTime,
+          cost: modelSelection.cost,
+          isFallback: modelSelection.isFallback || false
+        };
 
         const hardened = applyCouncilSkillPack(
           result.prompts,
@@ -579,30 +794,18 @@ export async function enhancePrompt({
           { bodyPart, isStencilMode: resolvedStencilMode, characterMatches }
         );
 
-        return {
-          ...result,
-          ...hardened,
-          modelSelection: {
-            modelId: modelSelection.modelId,
-            modelName: modelSelection.modelName,
-            reasoning: modelSelection.reasoning,
-            estimatedTime: modelSelection.estimatedTime,
-            cost: modelSelection.cost,
-            isFallback: modelSelection.isFallback || false
-          }
-        };
-      } else {
-        console.warn('[CouncilService] OpenRouter not configured, falling back to demo mode');
+        const finalResult = { ...result, ...hardened };
+        cacheSet(cKey, finalResult);
+        return finalResult;
       }
     } catch (error) {
       console.error('[CouncilService] OpenRouter failed, falling back:', error);
+      providerErrors.push(error instanceof Error ? error : new Error(String(error)));
     }
   }
 
-  // Demo mode: return mock response
   if (DEMO_MODE) {
     return new Promise((resolve) => {
-      // Simulate council discussion
       if (onDiscussionUpdate) {
         setTimeout(() => onDiscussionUpdate('Creative Director: Analyzing style and composition...'), 500);
         setTimeout(() => onDiscussionUpdate('Technical Expert: Considering placement constraints...'), 1200);
@@ -611,10 +814,9 @@ export async function enhancePrompt({
         setTimeout(() => onDiscussionUpdate('Composition Guru: Finalizing visual balance...'), 2800);
       }
 
-      // Return mock enhanced prompts after 3 seconds
       setTimeout(async () => {
-        const modelSelection = await modelSelectionPromise as ModelSelectionResult;
-        const prompts: EnhancedPrompts = {
+        const modelSelection: any = await modelSelectionPromise;
+        const prompts = {
           simple: MOCK_RESPONSES.simple(userIdea, style),
           detailed: MOCK_RESPONSES.detailed(userIdea, style),
           ultra: MOCK_RESPONSES.ultra(userIdea, style, bodyPart)
@@ -642,17 +844,15 @@ export async function enhancePrompt({
             style,
             bodyPart,
             generatedAt: new Date().toISOString(),
-            enhancementTime: performance.now() - startTime
+            enhancementTime: Date.now() - startTime
           }
         });
       }, 3200);
     });
   }
 
-  // Real API call to LLM Council (original backend)
   try {
-    // Await model selection (started earlier)
-    const modelSelection = await modelSelectionPromise as ModelSelectionResult;
+    const modelSelection: any = await modelSelectionPromise;
 
     const response = await fetch(`${COUNCIL_API_URL}/prompt-generation`, {
       method: 'POST',
@@ -663,8 +863,8 @@ export async function enhancePrompt({
         user_idea: userIdea,
         style_preference: style,
         body_part: bodyPart,
-        detail_level: 'all', // Request all levels
-        discussion_mode: onDiscussionUpdate ? 'stream' : 'none'
+        detail_level: 'all',
+        onDiscussionUpdate: onDiscussionUpdate ? 'stream' : 'none'
       })
     });
 
@@ -672,23 +872,19 @@ export async function enhancePrompt({
       throw new Error(`Council API error: ${response.status} ${response.statusText}`);
     }
 
-    const data: CouncilApiResponse = await response.json();
-    const enhancementTime = performance.now() - startTime;
+    const data = await response.json();
+    const enhancementTime = Date.now() - startTime;
 
-    console.log('[CouncilService] Enhancement successful:', data);
-    console.log(`[CouncilService] Enhancement completed in ${enhancementTime.toFixed(0)}ms`);
-
-    // Apply model-specific prompt enhancements
-    const ultraPrompt = data.enhanced_prompts.ultra || data.enhanced_prompts.comprehensive || '';
-    const modelEnhancements = getModelPromptEnhancements(
+    const ultraPrompt = data.enhanced_prompts.ultra || data.enhanced_prompts.comprehensive;
+    const modelEnhancements: any = getModelPromptEnhancements(
       modelSelection.modelId,
       ultraPrompt,
-      true // Already council-enhanced
-    ) as ModelEnhancements;
+      true
+    );
 
-    const prompts: EnhancedPrompts = {
-      simple: data.enhanced_prompts.simple || data.enhanced_prompts.minimal || '',
-      detailed: data.enhanced_prompts.detailed || data.enhanced_prompts.standard || '',
+    const prompts = {
+      simple: data.enhanced_prompts.simple || data.enhanced_prompts.minimal,
+      detailed: data.enhanced_prompts.detailed || data.enhanced_prompts.standard,
       ultra: modelEnhancements.enhancedPrompt
     };
     const negativePrompt = modelEnhancements.negativePrompt || data.negative_prompt || MOCK_RESPONSES.negative(userIdea);
@@ -698,7 +894,7 @@ export async function enhancePrompt({
       { bodyPart, isStencilMode: resolvedStencilMode, characterMatches }
     );
 
-    return {
+    const finalResult = {
       prompts: hardened.prompts,
       negativePrompt: hardened.negativePrompt,
       modelSelection: {
@@ -718,59 +914,48 @@ export async function enhancePrompt({
         enhancementTime
       }
     };
+    cacheSet(cKey, finalResult);
+    return finalResult;
 
   } catch (error) {
     console.error('[CouncilService] Enhancement failed:', error);
+    providerErrors.push(error instanceof Error ? error : new Error(String(error)));
 
-    // Fallback to basic enhancement if API fails
-    console.warn('[CouncilService] Falling back to basic enhancement');
+    // Last-line-of-defense: re-check cache before hard-failing
+    const cached = cacheGet(cKey);
+    if (cached) {
+      logEvent('council.result', {
+        requestId,
+        provider: 'cache-rescue',
+        durationMs: Date.now() - startTime,
+        estimatedCostUsd: 0,
+        cacheHit: true,
+        rescued: true
+      }, 'warn');
+      return { ...cached, cacheHit: true };
+    }
 
-    // Still get model selection even in fallback
-    const modelSelection = await modelSelectionPromise as ModelSelectionResult;
-    const enhancementTime = performance.now() - startTime;
+    logEvent('council.result', {
+      requestId,
+      provider: 'none',
+      durationMs: Date.now() - startTime,
+      estimatedCostUsd: 0,
+      failed: true,
+      providerErrors: providerErrors.map(e => e.message)
+    }, 'error');
 
-    const prompts: EnhancedPrompts = {
-      simple: MOCK_RESPONSES.simple(userIdea, style),
-      detailed: MOCK_RESPONSES.detailed(userIdea, style),
-      ultra: MOCK_RESPONSES.ultra(userIdea, style, bodyPart)
-    };
-    const negativePrompt = MOCK_RESPONSES.negative(userIdea);
-    const hardened = applyCouncilSkillPack(
-      prompts,
-      negativePrompt,
-      { bodyPart, isStencilMode: resolvedStencilMode, characterMatches }
-    );
-
-    return {
-      prompts: hardened.prompts,
-      negativePrompt: hardened.negativePrompt,
-      modelSelection: {
-        modelId: modelSelection.modelId,
-        modelName: modelSelection.modelName,
-        reasoning: modelSelection.reasoning,
-        estimatedTime: modelSelection.estimatedTime,
-        cost: modelSelection.cost,
-        isFallback: modelSelection.isFallback || false
-      },
-      metadata: {
-        userIdea,
-        style,
-        bodyPart,
-        generatedAt: new Date().toISOString(),
-        fallback: true,
-        enhancementTime
+    throw new CouncilProviderError(
+      'all_providers_exhausted: AI Council temporarily unavailable',
+      {
+        provider: 'all_providers_exhausted',
+        cause: providerErrors[providerErrors.length - 1],
+        retryAfterMs: 60_000
       }
-    };
+    );
   }
 }
 
-/**
- * Refine an existing prompt using council feedback
- *
- * @param options - Refinement options
- * @returns Refined prompt and suggestions
- */
-export async function refinePrompt({ currentPrompt, refinementRequest }: RefinePromptOptions): Promise<RefinementResult> {
+export async function refinePrompt({ currentPrompt, refinementRequest }: any) {
   console.log('[CouncilService] Refining prompt:', { currentPrompt, refinementRequest });
 
   if (DEMO_MODE) {
@@ -812,13 +997,7 @@ export async function refinePrompt({ currentPrompt, refinementRequest }: RefineP
   }
 }
 
-/**
- * Get style-specific recommendations from the council
- *
- * @param style - Tattoo style to get recommendations for
- * @returns Style recommendations and guidelines
- */
-export async function getStyleRecommendations(style: string): Promise<StyleRecommendations | null> {
+export async function getStyleRecommendations(style: string) {
   console.log('[CouncilService] Getting style recommendations:', style);
 
   if (DEMO_MODE) {
@@ -841,6 +1020,12 @@ export async function getStyleRecommendations(style: string): Promise<StyleRecom
     };
   }
 
+  const cKey = cacheKey({ fn: 'getStyleRecommendations', style });
+  const cached = cacheGet(cKey);
+  if (cached) {
+    return { ...cached, cacheHit: true };
+  }
+
   try {
     const response = await fetch(`${COUNCIL_API_URL}/style-recommendations/${style}`);
 
@@ -848,21 +1033,27 @@ export async function getStyleRecommendations(style: string): Promise<StyleRecom
       throw new Error(`Council API error: ${response.status}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    cacheSet(cKey, data);
+    return data;
 
   } catch (error) {
     console.error('[CouncilService] Style recommendations failed:', error);
-    return null;
+    // Last-line-of-defense cache re-check before hard-fail
+    const rescue = cacheGet(cKey);
+    if (rescue) return { ...rescue, cacheHit: true };
+    throw new CouncilProviderError(
+      'all_providers_exhausted: style recommendations unavailable',
+      {
+        provider: 'council_api',
+        cause: error instanceof Error ? error : new Error(String(error)),
+        retryAfterMs: 60_000
+      }
+    );
   }
 }
 
-/**
- * Validate a prompt for tattoo generation suitability
- *
- * @param prompt - Prompt to validate
- * @returns Validation result with score and suggestions
- */
-export async function validatePrompt(prompt: string): Promise<ValidationResult> {
+export async function validatePrompt(prompt: string) {
   console.log('[CouncilService] Validating prompt:', prompt);
 
   if (DEMO_MODE) {
@@ -875,6 +1066,12 @@ export async function validatePrompt(prompt: string): Promise<ValidationResult> 
         'Consider adding shading direction'
       ]
     };
+  }
+
+  const cKey = cacheKey({ fn: 'validatePrompt', prompt });
+  const cached = cacheGet(cKey);
+  if (cached) {
+    return { ...cached, cacheHit: true };
   }
 
   try {
@@ -890,14 +1087,22 @@ export async function validatePrompt(prompt: string): Promise<ValidationResult> 
       throw new Error(`Council API error: ${response.status}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    cacheSet(cKey, data);
+    return data;
 
   } catch (error) {
     console.error('[CouncilService] Validation failed:', error);
-    return {
-      score: 70,
-      isValid: true,
-      suggestions: ['Validation service unavailable']
-    };
+    // Last-line-of-defense cache re-check before hard-fail
+    const rescue = cacheGet(cKey);
+    if (rescue) return { ...rescue, cacheHit: true };
+    throw new CouncilProviderError(
+      'all_providers_exhausted: prompt validation unavailable',
+      {
+        provider: 'council_api',
+        cause: error instanceof Error ? error : new Error(String(error)),
+        retryAfterMs: 60_000
+      }
+    );
   }
 }

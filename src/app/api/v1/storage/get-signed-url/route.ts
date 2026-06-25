@@ -1,20 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
-// @ts-ignore
-import { getSignedUrl } from '@/services/gcs-service.js';
-import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
+import { getSignedUrl } from '@/services/gcs-service';
 
 export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
     const authError = verifyApiAuth(req);
     if (authError) return authError;
-
-    const rateResult = await checkRateLimit(req, 'default');
-    if (!rateResult.allowed) {
-        return rateLimitResponse(rateResult);
-    }
 
     try {
         const { filePath, expirySeconds, action = 'read' } = await req.json();
@@ -32,8 +24,9 @@ export async function POST(req: NextRequest) {
             action
         });
 
-    } catch (error: any) {
-        console.error('[Storage] Signed URL failed:', error);
-        return NextResponse.json({ error: 'Signed URL failed', message: error.message }, { status: 500 });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('[Storage] Signed URL failed:', message);
+        return NextResponse.json({ error: 'Signed URL failed', message }, { status: 500 });
     }
 }

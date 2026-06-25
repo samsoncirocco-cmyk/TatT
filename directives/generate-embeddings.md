@@ -1,245 +1,140 @@
-# Directive: Generate Vertex AI Embeddings
+# Generate Embeddings
 
-**ID:** DIR-003
-**Owner:** Data Team
-**Last Updated:** 2026-02-16
-**Last Tested:** Not yet tested
-**Risk Level:** Medium
-**Estimated Duration:** 20-90 minutes (depends on data volume)
+> Directive for generating vector embeddings for artist portfolios and storing them in Supabase pgvector
 
-## Purpose
+## Goal
 
-Generate text and image embeddings using Google Vertex AI's `text-embedding-004` and `multimodal-embedding` models for portfolio descriptions, style tags, and images stored in Firestore. These embeddings power the semantic similarity component of TatTester's hybrid matching system.
+Generate text-based embeddings (768-dim, Vertex AI `text-embedding-005`) for each artist in `src/data/artists.json` and store them in the Supabase `portfolio_embeddings` table, enabling semantic search and artist-to-query matching.
 
-While Neo4j provides relationship-based matching (e.g., "artists specializing in Japanese style"), vector embeddings enable semantic discovery (e.g., "artists with portfolios visually similar to this dragon design even if not tagged as Japanese").
+## When to Use
+
+- After running **import-artists.md** for the first time
+- After updating artist data (new bios, styles, tags)
+- When migrating from the older CLIP image embeddings (1408-dim) to text embeddings (768-dim)
+- When the embedding model changes and embeddings need regeneration
 
 ## Prerequisites
 
-- [ ] GCP project has Vertex AI API enabled
-- [ ] `GCP_PROJECT_ID` environment variable set
-- [ ] GCP credentials available (`gcloud auth application-default login` or service account)
-- [ ] Firestore populated with portfolio data (see DIR-004: Migrate Data)
-- [ ] Python dependencies installed: `pip install -r execution/requirements.txt`
-- [ ] Budget awareness: Embedding generation costs ~$0.025 per 1,000 text embeddings, ~$0.0025 per image
+- **Supabase** project with `portfolio_embeddings` table (must support 768-dim `vector` column)
+- **Google Cloud** credentials configured for Vertex AI access
+- `src/data/artists.json` populated with artist records
+- Environment variables in `.env.local`:
+  - `NEXT_PUBLIC_SUPABASE_URL`
+  - `SUPABASE_SERVICE_ROLE_KEY` (required)
+  - `GCP_PROJECT_ID` (default: `tatt-pro`)
+  - `GCP_REGION` (default: `us-central1`)
+  - `GOOGLE_APPLICATION_CREDENTIALS` or `GCP_PROJECT_ID` for authentication
+- Node.js dependencies installed (`npm install`)
 
-## Procedure
+## Steps
 
-### Step 1: Estimate Cost and Volume
+### Option A: Text Embeddings (Recommended)
 
-```bash
-# Count documents needing embeddings
-python execution/count_embedding_targets.py
+Uses Vertex AI `text-embedding-005` to embed artist descriptions (name, styles, tags, bio, location).
+
+1. Run the migration script:
+
+   ```bash
+   node scripts/migrate-to-text-embeddings.js
+   ```
+
+2. Optional flags:
+   - `--limit=N` — process only the first N artists
+   - `--force` — re-generate embeddings even if artist already has a `text-embedding-005` entry
+   - `--dry-run` — print what would happen without writing to Supabase
+
+3. The script will:
+   - Build a descriptive text string per artist from name, city, state, styles, tags, bio, experience, and shop name
+   - Call Vertex AI `text-embedding-005` with `task_type: RETRIEVAL_DOCUMENT`
+   - Validate output is exactly 768 dimensions
+   - Delete any existing embedding for the artist, then insert the new one with `model_version: 'text-embedding-005'`
+   - Rate-limit: pauses 1 second every 5 artists
+
+### Option B: Image Embeddings (Legacy)
+
+Uses Replicate CLIP model to embed portfolio images. Only use if image-based matching is specifically needed.
+
+1. Ensure the Express proxy is running on port 3001:
+
+   ```bash
+   npm run proxy
+   ```
+
+2. Set additional env vars:
+   - `REPLICATE_API_TOKEN` (required)
+   - `SUPABASE_SERVICE_KEY` (required, note: different var name than Option A)
+
+3. Run:
+
+   ```bash
+   node scripts/generate-portfolio-embeddings.js
+   ```
+
+4. This script:
+   - Processes 1 portfolio image per artist (configurable via `MAX_IMAGES_PER_ARTIST`)
+   - Calls Replicate CLIP model (`75b337625c...`), polls for completion every 3 seconds
+   - Pads/truncates vectors to 1408 dimensions
+   - Stores in `portfolio_embeddings` with `model_version: 'clip-vit-base-patch32'`
+   - Also syncs `embedding_id` back to Neo4j via the proxy
+   - Saves progress to `artists.json` every 5 artists
+   - Delays: 1.5s between images, 2.5s between artists
+
+## Expected Output
+
+**Text embeddings (Option A):**
 ```
+======================================================================
+Migrate to Text-Based Embeddings (Vertex AI text-embedding-005)
+======================================================================
+Total artists:     100
+Processing:        100
+Mode:              NORMAL
+Embedding model:   text-embedding-005 (768 dimensions)
 
-**Expected output:**
-```
-📊 Embedding targets:
-   - Portfolio descriptions: 1,832 (text)
-   - Portfolio images: 1,832 (multimodal)
-   - Style tags: 47 (text)
-
-💰 Estimated cost:
-   - Text embeddings: 1,879 × $0.000025 = $0.047
-   - Image embeddings: 1,832 × $0.0025 = $4.58
-   - Total: ~$4.63
-
-⏱️  Estimated duration: ~35 minutes (at 60 req/min limit)
-```
-
-**Review costs before proceeding.** If cost exceeds budget, consider filtering to high-priority items only.
-
-### Step 2: Run Embedding Generation (Dry Run First)
-
-```bash
-cd execution/
-python generate_embeddings.py \
-  --target portfolios \
-  --batch-size 10 \
-  --delay 1.0 \
-  --dry-run
-```
-
-**Expected output (dry run):**
-```
-🔍 DRY RUN MODE - No embeddings will be generated
-🔄 Connecting to Firestore...
-✅ Connected
-🔄 Scanning portfolios collection...
-✅ Found 1,832 portfolio items needing embeddings
-📋 Batch plan:
-   - 184 batches of 10 items
-   - Estimated time: 31 minutes (1.0s delay between batches)
-   - Rate: ~59 requests/minute (within 60/min limit)
-```
-
-### Step 3: Run Actual Embedding Generation
-
-```bash
-python generate_embeddings.py \
-  --target portfolios \
-  --batch-size 10 \
-  --delay 1.0
-```
-
-**Parameters:**
-- `--target`: What to embed (`portfolios`, `styles`, or `all`)
-- `--batch-size`: Items per batch (default: 10, max: 50)
-- `--delay`: Seconds between batches (default: 1.0, min: 0.5)
-- `--dry-run`: Preview without generating embeddings
-- `--filter`: Only process items matching filter (e.g., `--filter "style=Japanese"`)
-- `--force`: Regenerate embeddings even if they already exist
-
-**Expected output:**
-```
-🔄 Connecting to Firestore...
-✅ Connected
-🔄 Connecting to Vertex AI...
-✅ Connected to textembedding-gecko@004
-🔄 Generating embeddings for 1,832 portfolios
-   ├─ Batch 1/184: 10 embeddings generated ✅
-   ├─ Batch 2/184: 10 embeddings generated ✅
-   ├─ Batch 3/184: 10 embeddings generated ✅
-   ...
-   ├─ Batch 183/184: 10 embeddings generated ✅
-   └─ Batch 184/184: 2 embeddings generated ✅
-
-✅ Total: 1,832 embeddings generated
-💰 Cost: ~$4.63
-⏱️  Completed in 32m 47s
-```
-
-**If generation fails:** Script checkpoints progress every 10 batches. Re-running will skip already-embedded items.
-
-### Step 4: Verify Embeddings
-
-```bash
-# Check that embeddings were written to Firestore
-python -c "
-from google.cloud import firestore
-db = firestore.Client()
-
-# Sample a few portfolio documents
-docs = db.collection('portfolios').limit(5).stream()
-for doc in docs:
-    data = doc.to_dict()
-    has_text_emb = 'textEmbedding' in data
-    has_img_emb = 'imageEmbedding' in data
-    print(f'{doc.id}: text={has_text_emb}, image={has_img_emb}')
-"
-```
-
-**Expected output:**
-```
-portfolio-uuid-1: text=True, image=True
-portfolio-uuid-2: text=True, image=True
-portfolio-uuid-3: text=True, image=True
+[1/100] Processing Artist Name (ID: 1)...
+  Description: "Artist Name, tattoo artist in Phoenix, AZ. Specializes in..."
+  Generating embedding...
+  Generated 768-dim embedding
+  Stored in Supabase
 ...
+======================================================================
+Summary
+======================================================================
+Processed:  100
+Skipped:    0
+Errors:     0
+Total:      100
+======================================================================
 ```
 
-**If embeddings missing:** Check logs for rate limit errors or API failures. May need to re-run with `--filter` to target missing items.
-
-### Step 5: Test Semantic Search
-
-```bash
-# Run a sample similarity search
-python execution/test_vector_search.py --query "dragon sleeve color"
+**Image embeddings (Option B):**
+```
+Starting embedding generation for 100 artists...
+[1/100] Processing Artist Name...
+  - Generating embedding for: https://...
+  Stored embedding in Supabase
+  Synced to Neo4j
+...
+Embedding Generation Complete!
+  Processed: 100
 ```
 
-**Expected output:**
-```
-🔍 Searching for: "dragon sleeve color"
+## Edge Cases
 
-📊 Top 5 matches:
-   1. portfolio-uuid-42 (similarity: 0.87)
-      "Full sleeve dragon piece with vibrant colors"
-   2. portfolio-uuid-128 (similarity: 0.82)
-      "Japanese dragon forearm in traditional color palette"
-   ...
-```
+- **Google Cloud auth failure**: Ensure `GOOGLE_APPLICATION_CREDENTIALS` points to a valid service account JSON, or that Application Default Credentials are configured (`gcloud auth application-default login`).
+- **Vertex AI API error 403**: The service account needs the `aiplatform.endpoints.predict` permission. Grant the `Vertex AI User` role.
+- **Dimension mismatch**: Text embeddings must be exactly 768-dim. If the `portfolio_embeddings` table column was created for 1408-dim (CLIP), you need to alter it or create a new column. The migration script validates dimensions before storing.
+- **Replicate rate limiting (Option B)**: The script retries up to 4 times with exponential backoff (1.5s base). If still failing, increase `RETRY_BASE_MS` or `IMAGE_DELAY_MS`.
+- **Proxy not running (Option B)**: The CLIP script requires the Express proxy at `localhost:3001`. Start with `npm run proxy`.
+- **Partial failure**: Both scripts are resumable. Text embedding script skips artists that already have `text-embedding-005` entries (unless `--force`). CLIP script skips artists with existing `embedding_id`.
 
-**Look for:** High similarity scores (> 0.7) for relevant results. Low scores may indicate poor embedding quality or need for more training data.
+## Cost
 
-## Rollback
-
-Embeddings are additive (write-only). To rollback:
-
-### Option 1: Delete Embedding Fields
-
-```bash
-# Remove embeddings from all portfolios
-python execution/generate_embeddings.py --clear --target portfolios
-```
-
-**Warning:** This does NOT refund API costs. Only use if embeddings are corrupted or schema changed.
-
-### Option 2: Restore Firestore from Backup
-
-```bash
-# Restore from yesterday's backup
-gcloud firestore import gs://[BACKUP_BUCKET]/firestore-[timestamp]/
-```
-
-See DIR-004: Migrate Data for full backup/restore procedures.
-
-## Known Issues
-
-### KI-001: Test mock expectations break when script error messages change
-**Discovered:** 2026-02-16 during Phase 6 Plan 02
-**Symptom:** 15 of 65 pytest tests fail with assertion errors on expected error message strings (e.g., expecting "Firestore accessible" but getting "Firestore connected")
-**Root cause:** Tests asserted on exact error message strings. When linter or developer modified the message text, assertions broke even though the underlying logic was correct.
-**Resolution:** Where possible, assert on behavior (exit code, function called, exception type) rather than exact message strings. For tests that must check messages, use `in` or regex matching instead of exact equality.
-**Prevention:** Prefer behavioral assertions (`assert result.returncode == 1`) over string assertions (`assert output == "Error: ..."`) in execution script tests. Use `assertIn` or `re.search` for message content checks.
-
-## Post-Operation
-
-- [ ] Verify embedding count matches target count
-- [ ] Test semantic search returns relevant results
-- [ ] Check GCP billing for actual cost vs estimated
-- [ ] Monitor Vertex AI quota usage in Cloud Console
-- [ ] If any issues occurred, update this directive's "Known Issues" section
-- [ ] If rate limits encountered, update `--delay` recommendation in this directive
+- **Vertex AI text-embedding-005**: Approximately $0.00002 per 1,000 characters. For 100 artists with ~200 chars each, total cost is under $0.01.
+- **Replicate CLIP (Option B)**: Approximately $0.002 per prediction. For 100 artists at 1 image each, total cost is ~$0.20.
+- **Supabase**: Free tier covers pgvector storage at this scale.
 
 ## Related Directives
 
-- **DIR-002: Seed Artists** - Run this directive after seeding Neo4j to embed portfolio data
-- **DIR-004: Migrate Data** - Embeddings are stored in Firestore alongside source data
-- **DIR-005: Monitor Budget** - Track embedding generation costs against Vertex AI budget
-
-## Appendix: Batch Size and Rate Limit Guidance
-
-Vertex AI has a default quota of **60 requests per minute** for text-embedding-004.
-
-| Batch Size | Delay (sec) | Effective Rate | Est. Time (1,832 items) | Notes |
-|------------|-------------|----------------|-------------------------|-------|
-| 10 | 1.0 | 60/min | 31 minutes | Recommended default |
-| 20 | 2.0 | 60/min | 31 minutes | Same rate, fewer requests, higher memory |
-| 10 | 0.5 | 120/min | 15 minutes | **Exceeds quota - will fail** |
-| 5 | 1.0 | 30/min | 61 minutes | Conservative, good for shared projects |
-
-**Cost breakdown (per 1,000 embeddings):**
-- Text embedding (text-embedding-004): $0.025
-- Image embedding (multimodal-embedding): $2.50 (100x more expensive)
-
-**Recommendation:** Start with text-only embeddings for MVP, add image embeddings only for high-value portfolios (e.g., artists with 4.5+ ratings).
-
-## Appendix: Embedding Dimensions
-
-| Model | Dimensions | Use Case | Cost per 1K |
-|-------|------------|----------|-------------|
-| text-embedding-004 | 768 | Portfolio descriptions, style tags, artist bios | $0.025 |
-| text-embedding-gecko | 768 | Older model, lower quality but slightly cheaper | $0.020 |
-| multimodal-embedding | 1408 | Portfolio images, supports text + image input | $2.50 |
-
-**Storage impact:** Each 768-dim embedding is ~3KB (as float32 array). 1,832 text embeddings = ~5.5MB total.
-
-## Appendix: Quota Increase Request
-
-If you need to embed large datasets (> 10,000 items):
-
-1. Navigate to [GCP Quotas page](https://console.cloud.google.com/iam-admin/quotas)
-2. Filter: Service = "Vertex AI API", Metric = "Generate text embeddings requests per minute"
-3. Click quota → Request increase
-4. Justification: "Generating embeddings for tattoo portfolio matching system (one-time batch)"
-5. Request: 300 requests/minute (5x increase)
-
-Approval typically takes 1-2 business days.
+- Run **import-artists.md** first to ensure `artists.json` and databases are populated
+- After embeddings are generated, the semantic match endpoint (`/api/v1/match/semantic`) becomes functional

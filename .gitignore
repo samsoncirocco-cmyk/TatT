@@ -1,110 +1,62 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# =============================================================================
 # Dependencies
-# =============================================================================
 /node_modules
 /.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+.pnp.js
 
-# =============================================================================
-# Build Output
-# =============================================================================
+# Testing
+/coverage
+
+# Next.js
 /.next/
 /out/
+
+# Production
 /build
-/dist
 
-# =============================================================================
-# Environment & Secrets (NEVER commit)
-# =============================================================================
-.env
-.env.*
-!.env.example
-
-# Credentials and service account keys
-firebase-admin-key.json
-gcp-service-account-key.json
-*-service-account-key.json
-*-adminsdk-*.json
-.context/attachments/
-*.pem
-*.key
-*.p12
-
-# =============================================================================
-# Testing & Coverage
-# =============================================================================
-/coverage
-*.lcov
-
-# =============================================================================
-# OS Files
-# =============================================================================
+# Misc
 .DS_Store
-Thumbs.db
-*.swp
-*.swo
-*~
+*.pem
 
-# =============================================================================
-# IDE & Editor
-# =============================================================================
-.idea/
-.vscode/
-*.code-workspace
-
-# =============================================================================
-# Debug Logs
-# =============================================================================
+# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
 
-# =============================================================================
+# Local .env files
+.env*.local
+.env
+
+# Editor directories and files
+.vscode
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Temporary files
+/artifacts
+/tmp
+/temp
+*.tmp
+*.temp
+*.log
+
+# Railway
+.railway/
+
 # Vercel
-# =============================================================================
-.vercel
+.vercel/
 
-# =============================================================================
+# Firebase
+firebase-admin-key.json
+gcp-service-account-key.json
+gcs-cors.json
+TATT_ENV_REFERENCE.md
+
 # TypeScript
-# =============================================================================
-*.tsbuildinfo
-next-env.d.ts
-
-# =============================================================================
-# Auto Claude / AI Tooling
-# =============================================================================
-.auto-claude/
-.auto-claude-security.json
-.auto-claude-status
-.claude_settings.json
-.worktrees/
-.security-key
-logs/security/
-
-# =============================================================================
-# Cursor
-# =============================================================================
-.cursor/
-
-# =============================================================================
-# Python Build Artifacts
-# =============================================================================
-*.egg-info/
-__pycache__/
-*.pyc
-
-# =============================================================================
-# Uploads (user-generated, not source)
-# =============================================================================
-/uploads/*
-!/uploads/.gitkeep
-firebase-service-account.json
-.legacy-pages/
+tsconfig.tsbuildinfo
+# Crawler runtime checkpoints — regenerated on every run, never commit
+scripts/data_acquisition/output/
+.env.firebase

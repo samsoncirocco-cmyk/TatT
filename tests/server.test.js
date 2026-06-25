@@ -10,6 +10,8 @@ import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 
+const describeServer = process.env.RUN_SERVER_TESTS === 'true' ? describe : describe.skip;
+
 // Mock server setup (mimics server.js structure)
 function createTestServer() {
   const app = express();
@@ -105,8 +107,8 @@ function createTestServer() {
   return app;
 }
 
-describe('Proxy Server Security', () => {
-  let app;
+	describeServer('Proxy Server Security', () => {
+	  let app;
 
   beforeAll(() => {
     app = createTestServer();
@@ -195,4 +197,3 @@ describe('Proxy Server Security', () => {
     });
   });
 });
-

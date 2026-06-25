@@ -1,438 +1,274 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-02-15
+**Analysis Date:** 2026-02-12 (updated)
 
 ## Tech Debt
 
-### Missing Text Embedding Implementation
+**~~Next.js/Vite Hybrid Architecture:~~ RESOLVED (2026-02-12)**
+- Deleted `src/main.jsx`, `src/App.jsx`, entire `src/pages/` directory (8 legacy route files)
+- Single canonical Generate at `src/features/Generate.jsx`, imported by `src/app/generate/page.tsx`
+- Zero VITE_ references remaining in source code
 
-**Issue:** Hybrid vector-graph matching uses mock embeddings instead of real text encoders
-- **Files:** `src/services/hybridMatchService.ts:144-160`
-- **Impact:** Semantic search quality degraded - artist recommendations based on deterministic hash instead of semantic meaning. Query "Japanese traditional" and "Japanese old-school" would have completely different embeddings despite similar meaning.
-- **Current State:** Uses sinusoidal hash-based mock embeddings (Math.sin(hash * (i + 1) * 0.001))
-- **Fix approach:**
-  - Implement Vertex AI text-embedding-004 integration (aligned with existing Vertex stack)
-  - Or use lightweight CLIP text encoder for client-side embedding
-  - Cache embeddings to avoid regenerating for repeated queries
-  - Test vector quality against ground truth artist similarities
+**Mixed JavaScript/TypeScript Codebase:**
+- Issue: 37,662 lines of code split between .js/.jsx (legacy) and .ts/.tsx (modern). Inconsistent type safety across codebase.
+- Files: 53+ .js/.jsx files in src/ including `src/components/DesignGenerator.jsx`, `src/services/councilService.js`, `src/config/characterDatabase.js`, `src/utils/matching.js`
+- Impact: Type errors caught only in TS files. No IntelliSense for JS files. Harder to refactor safely. Recent conversion effort (Phase 2) converted only 3 critical services.
+- Fix approach: Systematic conversion priority: (1) Services layer (councilService.js, multiLayerService.js, etc.), (2) Hooks, (3) Components. Use `allowJs: true` during transition. Add JSDoc type annotations as intermediate step.
 
-### Rate Limiting Not Implemented
+**~~Vite Environment Variables Still Present:~~ RESOLVED (2026-02-12)**
+- All VITE_ references migrated to NEXT_PUBLIC_ equivalents
+- Zero VITE_ references remaining in src/ (verified via grep)
 
-**Issue:** Server-side rate limiting is stubbed out and always returns true (allow)
-- **Files:** `src/lib/rate-limit.ts:9-11`
-- **Impact:** Budget exhaustion risk - no protection against automated requests burning $500 Replicate budget. Client-side rate limiting (10 req/min) alone is insufficient for production.
-- **Current State:** Function returns `true` (allowed) for all requests, comment indicates distributed rate limiting needed
-- **Fix approach:**
-  - Use Upstash Redis for distributed rate limiting (per IP, per user session, per endpoint)
-  - Implement sliding window: 20 requests/hr for council endpoint, 100 requests/hr for semantic match
-  - Add graceful degradation when rate limit hit (queue or error response)
-  - Monitor spending per user session with localStorage tracking
+**~~Duplicate Page Components:~~ RESOLVED (2026-02-12)**
+- Deleted `src/pages/Generate.jsx` and all legacy page duplicates
+- Single canonical `src/features/Generate.jsx` (1733 lines) imported by `src/app/generate/page.tsx`
 
-### Hardcoded Development Auth Token
+**Incomplete Embedding Migration: DEPLOYMENT PLAN READY (2026-02-12)**
+- Issue: Text embeddings migration fully implemented in code but never deployed to database
+- Status: Comprehensive deployment plan written at `EMBEDDING_DEPLOYMENT_PLAN.md`
+- Impact: Semantic artist matching still returns random results until deployment is executed
+- Next step: User executes the 7-step deployment plan manually (costs $0 under Vertex free tier)
 
-**Issue:** Fallback to 'dev-token-change-in-production' hardcoded across multiple services
-- **Files:**
-  - `src/lib/api-auth.ts:3`
-  - `src/services/layerDecompositionService.js:8`
-  - `src/services/multiLayerService.ts:10-12`
-  - `server.js:36`
-  - Multiple service files with same fallback
-- **Impact:** In production, if FRONTEND_AUTH_TOKEN env var missing, API becomes completely open. Any request without token or with wrong token still succeeds in services using fallback.
-- **Current State:** Each service independently implements fallback to hardcoded dev token
-- **Fix approach:**
-  - Remove all fallbacks - throw error if token not configured
-  - Use strict environment validation on server startup
-  - Add pre-flight check in both Next.js and Express servers
-  - Rotate token quarterly, log all token usage
+**TODO Comments Without Context:**
+- Issue: Multiple TODO comments lacking implementation details or priority
+- Files: `src/components/DesignGeneratorRefactored.jsx:153` ("Replace with toast notification"), `src/components/DesignGeneratorRefactored.jsx:183` (same), `src/features/match-pulse/components/Match/ArtistCard.jsx:30` ("Open artist profile modal"), `tests/setup.js:8` ("Fix jest-dom module resolution issue"), `src/lib/rate-limit.ts:9` ("Implement proper distributed rate limiting")
+- Impact: Forgotten technical debt, unclear what "proper" implementation means, blockers for production readiness
+- Fix approach: Convert to GitHub Issues with acceptance criteria. For toast notifications: integrate existing `src/hooks/useToast.js`. For rate limiting: implement Redis-backed rate limiter (Upstash recommended for Edge). For jest-dom: update vitest.config to properly resolve @testing-library/jest-dom.
+
+**Legacy API Endpoints Marked Deprecated:**
+- Issue: Legacy `/api/match/semantic` endpoint marked deprecated but still in use
+- Files: `server.js:341` (comment: "deprecated, use /api/v1/match/semantic"), `server.js:267` (endpoint map comment), `docs/CLAUDE.md:468` mentions migration needed
+- Impact: Two parallel implementations to maintain. Unclear migration path for existing clients. API versioning confusion.
+- Fix approach: Implement deprecation headers (X-API-Deprecated: true, Sunset: <date>). Add logging to track usage. Migrate all internal calls to /api/v1/match/semantic. Remove legacy endpoint after grace period. Document breaking changes.
+
+**Alert() Calls Instead of Toast System:**
+- Issue: Native alert() used for user notifications instead of proper toast component
+- Files: `src/components/DesignGeneratorRefactored.jsx:154` ("Design saved to your library!"), `src/components/DesignGeneratorRefactored.jsx:184` ("Design edited successfully!")
+- Impact: Poor UX (blocking modal), no error styling, interrupts user flow, not accessible
+- Fix approach: Replace all alert() with useToast hook (already exists at `src/hooks/useToast.js`). Import ToastContainer component. Pass severity levels (success, error, warning).
 
 ## Known Bugs
 
-### localStorage Quota Exceeded Handling
+**Jest-DOM Module Resolution:**
+- Symptoms: Testing library setup incomplete, jest-dom assertions unavailable in tests
+- Files: `tests/setup.js:8`
+- Trigger: Running npm test shows missing matchers like .toBeInTheDocument()
+- Workaround: Currently commented out, using basic Vitest assertions only
+- Fix: Update vitest.config.js to add @testing-library/jest-dom to setupFiles array. Verify import path matches installed version.
 
-**Issue:** Version history and design library store large amounts in localStorage without proper overflow handling
-- **Files:** `src/services/versionService.ts:56-84`, `src/services/designLibraryService.ts:122-179`
-- **Symptoms:** Design library shows "Library is full" error (50 design limit), but older versions aren't actually purged. Tab freeze when localStorage quota reached (~5-10MB browser limit).
-- **Trigger:** Save 30+ complex designs with layers, or load application in low-storage environment
-- **Current Handling:**
-  - versionService has 90-day auto-purge with 1-in-10 random trigger (non-deterministic cleanup)
-  - designLibraryService warns but doesn't aggressively clean
-  - No fallback to IndexedDB when localStorage full
-- **Workaround:** User must manually delete favorites or clear browser data
-- **Fix approach:**
-  - Add localStorage quota check before every write
-  - Migrate large blobs (images) to IndexedDB by default
-  - Store only metadata + references in localStorage
-  - Implement deterministic cleanup on startup (not random)
-  - Add UI warning when approaching 80% quota
+**Segmentation Endpoint Warning:**
+- Symptoms: Console warning "VERTEX_SEGMENTATION_ENDPOINT_ID not set" on every segmentation attempt
+- Files: `src/lib/segmentation-vertex.ts:21`
+- Trigger: Any layer decomposition or background removal operation
+- Workaround: Returns null, causing fallback to client-side segmentation or mock data
+- Fix: Either (1) Deploy Vertex AI Vision endpoint and set env var, or (2) Remove warning and gracefully degrade to alternative segmentation method without console noise.
 
-### Image Loading Race Condition in Canvas
-
-**Issue:** Thumbnail generation can timeout or fail silently
-- **Files:** `src/services/canvasService.ts:189-240`
-- **Symptoms:** Layer thumbnails appear blank, canvas exports missing layer images
-- **Trigger:** Large images (>5MB), slow network, or image URL becomes invalid during canvas render
-- **Current State:**
-  - Timeout set to 5s (hardcoded)
-  - onerror/onload handlers not guaranteed to fire
-  - Multiple timeouts not properly cleared in all paths
-- **Impact:** Affects export quality, makes version history visuals unreliable
-- **Fix approach:**
-  - Use Promise.race() with explicit timeout
-  - Implement image preloading queue with retry logic
-  - Add fallback thumbnail generation from canvas drawing directly
-  - Log failed image URLs for debugging
-
-### Version Comparison Silently Returns Empty
-
-**Issue:** compareVersions function returns empty diff if versions can't be serialized
-- **Files:** `src/services/versionService.ts` (line ~250)
-- **Symptoms:** "Compare Versions" button shows no difference even when designs changed
-- **Trigger:** Complex layer objects with circular references, or large image data structures
-- **Current Handling:** Catches error and returns null without logging
-- **Fix approach:**
-  - Implement deep equality check with better error messages
-  - Add logging for serialization failures
-  - Return partial diff even if some fields fail
-  - UI should show "Comparison unavailable - designs too complex"
+**Production Auth Placeholder:**
+- Symptoms: Development token "dev-token-change-in-production" may be in production env
+- Files: `.env.example:20`, `server.js` (FRONTEND_AUTH_TOKEN validation)
+- Trigger: If .env wasn't updated for production deployment, insecure token active
+- Workaround: None - security issue
+- Fix: Generate cryptographically secure token for production. Add startup validation to reject dev token in production mode. Document token rotation process.
 
 ## Security Considerations
 
-### Client-Side Secret Exposure Risk (MVPAcceptable, Production Critical)
+**Client-Side API Keys Exposure:**
+- Risk: VITE_ prefixed env vars are bundled into client JavaScript, exposing secrets
+- Files: 28 files using VITE_ vars including `src/services/councilService.ts`, `src/services/embeddingService.ts`
+- Current mitigation: Backend proxy (server.js) for Replicate API calls hides REPLICATE_API_TOKEN
+- Recommendations: (1) Audit all VITE_ vars for secrets, (2) Move Vertex AI calls to API routes (currently client-side), (3) Migrate OpenRouter council calls to server-side, (4) Use NEXT_PUBLIC_ only for non-sensitive config (URLs, feature flags)
 
-**Issue:** API tokens visible in client-side code for development
-- **Files:** All service files in `src/services/`
-- **Risk:** Replicate API token, OpenRouter key, GCS credentials used directly from client in demo mode
-- **Current Mitigation:**
-  - Backend proxy routes API calls (correct pattern for Replicate in production)
-  - FRONTEND_AUTH_TOKEN used as light auth between frontend/backend
-  - Demo mode explicitly disables real API calls
-- **CLAUDE.md Notes:** "Development MVP: API tokens visible in client (acceptable for prototyping)" and "Production TODO: Move all API calls to server-side"
-- **Recommendations:**
-  - Audit `NEXT_PUBLIC_*` env vars - only non-sensitive config should be exposed
-  - Remove any hardcoded `sk-` keys from source code
-  - Add pre-deploy check: grep for `VITE_*API_KEY` patterns
-  - Implement API key rotation mechanism for production
+**Weak Development Auth Token:**
+- Risk: Shared secret "dev-token-change-in-production" used for frontend ↔ backend auth
+- Files: `.env.example:20`, `server.js` (bearer token validation)
+- Current mitigation: CORS restricts allowed origins, production domain hopefully uses different token
+- Recommendations: (1) Implement JWT-based auth with short-lived tokens, (2) Add request signing/HMAC for API calls, (3) Rotate secrets on schedule, (4) Add startup check to reject dev token in production
 
-### Neo4j and Supabase Credentials Access
+**~~No Rate Limiting on Edge Routes:~~ RESOLVED (2026-02-12)**
+- Implemented Upstash Redis sliding window rate limiter in `src/lib/rate-limit.ts`
+- Per-endpoint limits: semantic 100/hr, council 20/hr, generation 10/min
+- In-memory fallback for local dev without Redis
+- Returns 429 with Retry-After + X-RateLimit-* headers
+- Requires UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN env vars for production
 
-**Issue:** Service credentials passed through multiple layers without encryption
-- **Files:**
-  - `src/services/neo4jService.ts:128` - Bearer token in fetch
-  - `src/services/vectorDbService.ts:82` - Service key usage
-  - `server.js:33-35` - Neo4j creds from env
-- **Risk:** If frontend can directly query Neo4j or Supabase, credentials become client-exposed. Actual risk currently mitigated by backend-routing approach.
-- **Current Pattern:** Correct - services route through `/api/*` endpoints
-- **Recommendations:**
-  - Keep all database clients server-only
-  - Never expose service keys to client
-  - Audit `firebase-match-service.ts` - mixing NEXT_PUBLIC and private creds
+**Credentials in Git History:**
+- Risk: Service account keys committed to repository
+- Files: `firebase-admin-key.json`, `gcp-service-account-key.json` (present in .gitignore but may be in history)
+- Current mitigation: Files in .gitignore for future commits
+- Recommendations: (1) Immediately rotate all credentials in those files, (2) Use git-filter-repo to purge from history, (3) Migrate to environment variable injection, (4) Enable secret scanning in GitHub, (5) Use Google Workload Identity instead of service account keys
 
-### CORS Overly Permissive for Vercel Subdomain
-
-**Issue:** CORS allows any `*.vercel.app` domain
-- **Files:** `server.js:60-62`
-- **Risk:** Any Vercel-hosted project can access your API (supply-chain attack vector)
-- **Current:**
-  ```javascript
-  if (origin.endsWith('.vercel.app')) {
-    console.log(`[CORS] Origin ${origin} allowed (Vercel domain)`);
-    return callback(null, true);
-  }
-  ```
-- **Fix approach:**
-  - Whitelist only specific Vercel URL: `https://tat-t-3x8t.vercel.app`
-  - Require explicit origin matching (no wildcard subdomains)
-  - Add per-endpoint CORS rules (stricter for sensitive endpoints like `/match/update`)
+**CORS Configuration Risk:**
+- Risk: ALLOWED_ORIGINS configured via environment variable, misconfiguration allows unauthorized domains
+- Files: `server.js` (CORS middleware), `.env.example:26`
+- Current mitigation: Explicit allowlist, defaults to localhost only
+- Recommendations: (1) Add validation for production origins (must be HTTPS), (2) Reject wildcard origins in production, (3) Log CORS failures for monitoring, (4) Add Origin header validation beyond CORS
 
 ## Performance Bottlenecks
 
-### Large Config Files Loaded at Runtime
+**Large Character Database File:**
+- Problem: 2,169 line characterDatabase.js loaded synchronously on app startup
+- Files: `src/config/characterDatabase.js`
+- Cause: Massive anime character reference database imported everywhere, not code-split
+- Improvement path: (1) Move to JSON file in public/, fetch on-demand, (2) Implement lazy loading, (3) Split by anime series, load only needed characters, (4) Consider moving to database table instead of static file
 
-**Issue:** Two large JSON-like config files loaded into memory on every page
-- **Files:**
-  - `src/config/characterDatabase.js` - 2,169 lines (character/style data)
-  - `src/config/promptTemplates.js` - 486 lines (prompt templates)
-- **Impact:** Slow initial bundle load, especially on slow networks. characterDatabase.js likely contains full content inline.
-- **Metrics:** 2K+ lines × 30-40 bytes/line ≈ 60-80KB uncompressed per file
-- **Fix approach:**
-  - Split characterDatabase into smaller modules by category
-  - Lazy load on demand (only load when Generate page opens)
-  - Consider server-side storage (Vercel KV, Supabase) for dynamic data
-  - Add code splitting boundaries in vite.config.js
+**Dual 1700+ Line Generate Components:**
+- Problem: Two massive page components loaded on generate route
+- Files: `src/pages/Generate.jsx` (1706 lines), `src/features/Generate.jsx` (1733 lines)
+- Cause: Monolithic components with 40+ import statements, inline logic, no code splitting
+- Improvement path: (1) Consolidate to single component, (2) Extract sub-features to lazy-loaded chunks, (3) Use React.lazy() for modals/panels, (4) Split canvas operations to web worker, (5) Target <500 lines per component
 
-### Hybrid Matching Timeout Risk
+**Synchronous Canvas Export:**
+- Problem: exportAsPNG() blocks main thread during large canvas compositing
+- Files: `src/features/generate/services/canvasService.ts:348`
+- Cause: HTML Canvas toBlob() synchronous operation, no offscreen canvas usage
+- Improvement path: Move to OffscreenCanvas in Web Worker. Use createImageBitmap() for layer compositing. Stream results back via MessageChannel. Add progress indicator for exports >2 seconds.
 
-**Issue:** Semantic match has 5-second timeout with no fallback
-- **Files:** `src/services/hybridMatchService.ts:392-397`
-- **Impact:** If vector DB slow, entire match request fails instead of gracefully degrading to graph-only results
-- **Current:** Warns if approaching timeout, but doesn't implement graceful degradation
-- **Metrics:** TIMEOUT_MS set to 5000ms (hardcoded)
-- **Fix approach:**
-  - Return partial results: "Graph results only (vector DB timeout)"
-  - Implement parallel timeout for vector + graph independently
-  - Cache vector results aggressively (5-min TTL)
-  - Add monitoring: log slow queries to identify vector DB issues
+**Neo4j Connection Pool:**
+- Problem: No connection pooling configuration visible for Neo4j driver
+- Files: `src/lib/neo4j.ts:16`
+- Cause: Default driver config may create excessive connections or fail to reuse
+- Improvement path: Configure maxConnectionPoolSize (default 100), connectionAcquisitionTimeout (60s recommended), add connection health checks, implement circuit breaker pattern for failures
 
-### Version History Random Cleanup
-
-**Issue:** Version history auto-purge triggered 1-in-10 calls with Math.random()
-- **Files:** `src/services/versionService.ts:39-42`
-- **Impact:** Non-deterministic performance - user sometimes gets 100ms lag on first action due to cleanup
-- **Current:** `if (Math.random() < 0.1) { purgeOldHistories(); }`
-- **Better Approach:**
-  - Move cleanup to service worker or background job
-  - Trigger on app boot, not on every getVersions call
-  - Add cleanup to version save logic only (batch cleanup)
+**Version History localStorage Growth:**
+- Problem: Version history stored in localStorage grows unbounded until 90-day purge
+- Files: `src/features/generate/services/versionService.js:81` (purge old histories)
+- Cause: Each version stores full layer data + image URLs as base64/data URIs. 50 versions × ~500KB = 25MB potential
+- Improvement path: (1) Store image refs only, not full base64, (2) Compress version data with LZ-string, (3) Implement LRU eviction before quota hit, (4) Warn user at 80% quota, (5) Consider IndexedDB for large datasets
 
 ## Fragile Areas
 
-### Multi-Layer Decomposition Service
+**Hybrid Match Service RRF Logic:**
+- Files: `src/features/match-pulse/services/hybridMatchService.ts`
+- Why fragile: Complex Reciprocal Rank Fusion algorithm combining Neo4j graph + Supabase vector results. Currently uses mock embeddings that return random vectors. Failure mode not clearly defined.
+- Safe modification: Never modify RRF scoring without A/B testing. Keep k=60 constant (RRF parameter). Add extensive logging before changing weight distribution. Ensure fallback to single-source (graph OR vector) if one fails.
+- Test coverage: No unit tests found for RRF implementation
 
-**Files:** `src/services/layerDecompositionService.js`, `src/services/multiLayerService.ts`
-- **Why Fragile:**
-  - Calls Vertex AI to decompose generated image into multiple layers
-  - No test coverage visible (12 test files total, none for decomposition)
-  - Depends on image quality and Vertex understanding of tattoo aesthetics
-  - Falls back to single-layer if decomposition fails (silent failure)
-- **Safe Modification:**
-  - Add unit tests for edge cases: blank images, low-contrast designs, solid colors
-  - Test with known good/bad images and capture expected outputs
-  - Add explicit logging when decomposition fails
-  - Version the decomposition model (could change output format)
-- **Test Coverage Gaps:** No tests for:
-  - Failure scenarios (bad image, API timeout)
-  - Layer ordering (should order by visual importance?)
-  - Edge cases (tiny image, pure white/black)
+**Canvas Layer Transform Operations:**
+- Files: `src/features/generate/services/canvasService.ts`, `src/hooks/useTransformOperations.ts`
+- Why fragile: Immutable state updates with deep object spreads. Easy to accidentally mutate. Transform matrix calculations prone to floating point errors.
+- Safe modification: Always use provided helper functions (updateTransform, etc.). Never directly mutate layer objects. Test edge cases: rotation at 360°, scale at 0, nested transforms. Verify immutability with Object.freeze in dev.
+- Test coverage: 0% - no tests for transform operations found
 
-### Hybrid Matching Score Merging
+**Version History Branching/Merging:**
+- Files: `src/features/generate/services/versionService.js:203` (compareVersions), `versionService.js:251` (mergeVersions)
+- Why fragile: Git-like version control implemented in localStorage with complex branching logic. Returns null on errors silently without throwing. Merge conflicts not handled.
+- Safe modification: Always validate version IDs exist before operations. Handle sessionStorage/localStorage quota exceeded errors. Add conflict resolution UI before merging. Never assume localStorage is available.
+- Test coverage: Basic tests exist at `src/features/generate/services/versionService.test.js` but don't cover merge conflicts
 
-**Files:** `src/utils/scoreAggregation.js`, `src/services/hybridMatchService.ts:320-360`
-- **Why Fragile:**
-  - Combines graph + vector scores with hardcoded weights (50/50)
-  - RRF algorithm (Reciprocal Rank Fusion) sensitive to tie-breaking
-  - If vector DB returns different ranking than graph DB, results inconsistent
-  - No unit tests for score calculation
-- **Safe Modification:**
-  - Add extensive unit tests for RRF with known inputs/outputs
-  - Make weights configurable (allow A/B testing)
-  - Test score distribution: do top matches cluster together or spread evenly?
-  - Document RRF assumptions (assumes independent ranking systems)
-- **Test Coverage Gaps:**
-  - No tests for RRF score calculation
-  - No test for tie-breaking behavior
-  - No test for weight sensitivity
-
-### Canvas Layer Rendering
-
-**Files:** `src/services/canvasService.ts`, `src/components/generate/ForgeCanvas.jsx`
-- **Why Fragile:**
-  - Konva canvas library version pinned at ^10.2.0
-  - Layer transforms (rotate, scale) calculated in JavaScript, not GPU
-  - No validation of transform values (could cause NaN cascades)
-  - Blend mode support depends on browser (some browsers don't support all modes)
-- **Safe Modification:**
-  - Validate all transform inputs before applying
-  - Test on Safari/Firefox for blend mode support
-  - Add performance monitoring: warn if >10 layers or complex transforms slow rendering
-  - Cache rendered layers to prevent recomputation
-- **Test Coverage Gaps:**
-  - No tests for transform accuracy
-  - No tests for blend mode fallbacks
-  - No performance regression tests for large layer counts
+**Server.js Express Proxy:**
+- Files: `server.js` (15,938 lines total)
+- Why fragile: Single-file Express server handling auth, rate limiting, CORS, proxy logic for multiple services. No error boundaries between routes. Legacy + modern endpoints mixed.
+- Safe modification: Test CORS changes with actual frontend origin. Verify rate limits don't affect health checks. Keep legacy endpoints until migration confirmed complete. Add integration tests before modifying auth middleware.
+- Test coverage: No tests found for server.js
 
 ## Scaling Limits
 
-### localStorage Capacity
+**localStorage Version History:**
+- Current capacity: ~50 versions per session before purge, ~5-10MB browser limit
+- Limit: High-resolution images stored as data URIs hit quota fast. Safari quota is ~5MB.
+- Scaling path: Migrate to IndexedDB (no practical limit). Implement cloud sync for cross-device access. Use object URLs instead of data URIs. Add compression. Progressive Web App cache API for offline.
 
-**Current Capacity:** ~5-10MB per browser (varies by browser, domain)
-**What's Stored:**
-- Design library: 50 designs × ~200KB (large base64 images) = ~10MB
-- Version history: 50 versions × ~100KB = ~5MB
-- Total: ~15MB needed for full features
+**Client-Side Rate Limiting:**
+- Current capacity: 10 requests/minute in replicateService.js (client-side only)
+- Limit: Trivially bypassed by opening new tab, clearing localStorage, or disabling JS rate limit
+- Scaling path: Move to server-side rate limiting with Redis. Implement per-user quotas tied to auth. Add distributed rate limiting across edge nodes. Use token bucket algorithm.
 
-**Limit Hit:** When user saves 30+ designs with multiple versions
-**Scaling Path:**
-- Migrate images to IndexedDB (unlimited by browser, slower)
-- Move design library to Supabase (unlimited, requires auth)
-- Implement cloud sync: localStorage as cache, server as source of truth
-- Add periodic cloud backup of localStorage data
+**Neo4j Connection Scaling:**
+- Current capacity: Single connection to Neo4j Aura, no pooling configuration visible
+- Limit: ~100 concurrent queries before connection pool exhaustion (default limit)
+- Scaling path: Configure connection pool size based on load testing. Implement read replicas for query distribution. Add caching layer (Redis) for frequent queries. Consider query result pagination.
 
-### Replicate API Budget ($500)
-
-**Current Consumption:**
-- SDXL: $0.0055 per generation × 4 variations = $0.022 per request
-- Budget breakdown: ~22,700 variations or ~5,675 requests
-- Client-side tracking in localStorage (vulnerable to manipulation)
-
-**Scaling Risk:** No real rate limiting, budget can be exceeded in one session
-**Scaling Path:**
-- Implement server-side budget tracking (Redis counter per user session)
-- Hard limit requests at API gateway level
-- Use cheaper models: image variants instead of full regeneration
-- Implement batch generation (generate once, show 4 variations)
-- Add user-level daily quota
-
-### Concurrent Generation Requests
-
-**Current Limit:** Replicate queue + Express rate limiting (30 req/min global)
-**Bottleneck:** If 100 users hit "Generate" simultaneously, queue backs up 3+ seconds
-**Scaling Path:**
-- Add job queue (Bull, RabbitMQ) for generation requests
-- Implement priority queue (premium users get priority)
-- Add request batching (combine similar requests)
-- Monitor API latency and reject early if queue too deep
-
-### Neo4j Database Connections
-
-**Current:** Driver created per `neo4jService.ts` call (connection pooling in driver)
-**Risk:** Graph traversal queries without pagination - could return 1000+ artists
-**Scaling Path:**
-- Enforce pagination (limit 50 results with offset)
-- Add query timeout (currently no timeout in Neo4j queries)
-- Cache query results (5-min TTL) to reduce DB load
-- Monitor slow queries: log queries >500ms
+**Supabase Vector Search:**
+- Current capacity: IVFFlat index on 768-dimensional vectors, 100 artists (post-migration)
+- Limit: IVFFlat performance degrades >100k vectors without reindexing. Current list/probe values unknown.
+- Scaling path: Monitor query latency at 1k, 10k, 100k artists. Re-tune IVFFlat lists parameter (sqrt of rows). Consider HNSW index for >100k vectors. Implement vector quantization for compression. Add caching for popular queries.
 
 ## Dependencies at Risk
 
-### Next.js 16.1.2 (Latest)
+**Deprecated domexception Package:**
+- Risk: Package marked deprecated in package-lock.json line 8098
+- Impact: Transitive dependency, likely from @google-cloud/* packages
+- Migration plan: Wait for upstream fix in Google Cloud SDK. Monitor npm audit warnings. No immediate action needed as it's indirect dependency. Platform-native DOMException available in modern Node.js.
 
-**Risk:** Major version recently released, potential instability
-**Impact:**
-  - Build issues with webpack --webpack flag
-  - Edge runtime compatibility (using for some routes)
-  - React 19 integration might have edge cases
-**Migration Plan:**
-  - Monitor Next.js GitHub releases for patch updates
-  - Test in staging before deploying new versions
-  - Keep separate dev/prod version pins to catch issues early
+**React 19.2.3 (Cutting Edge):**
+- Risk: React 19 is very recent (late 2024), ecosystem compatibility unknown
+- Impact: Third-party libraries may not support React 19 features/changes yet. Konva, react-konva, framer-motion compatibility uncertain.
+- Migration plan: Monitor breaking changes in patch releases. Test thoroughly before upgrading. Consider pinning to 19.2.x in package.json. Have rollback plan to React 18 LTS.
 
-### Zustand ^5.0.10 (Latest)
+**Next.js 16.1.2 (Latest):**
+- Risk: Next.js 16 recently released, potential instability in App Router
+- Impact: Edge Runtime bugs, middleware changes, breaking changes in incremental releases
+- Migration plan: Pin to 16.1.x minor version. Test deploys to Vercel preview before production. Subscribe to Next.js changelog. Budget for fixes after major releases.
 
-**Risk:** Added to dependencies but NOT used (checked src/ - no zustand imports)
-**Impact:** Dead dependency, adds unnecessary bundle size
-**Recommendation:** Remove from package.json if unused. Current state uses custom hooks + React Context instead.
-
-### neo4j-driver ^6.0.1
-
-**Risk:** Major version, API may have breaking changes
-**Impact:** Graph queries might fail silently if driver API changed
-**Monitoring:** Check Neo4j release notes for 6.x features. Currently no version lock on 6.0.1 specifically.
-
-### @google-cloud/vertexai ^1.10.0 (Semi-Recent)
-
-**Risk:** Rapid iteration, may be missing edge cases in new releases
-**Impact:** Image generation and embeddings depend on this SDK
-**Mitigation:** Pin to specific patch version (e.g., 1.10.2) once stable
-**Recommendation:** Test all Vertex AI features in staging before production deploy
-
-### firebase-admin ^13.6.0
-
-**Risk:** Different versions on client (firebase ^12.8.0) and admin (^13.6.0)
-**Impact:** Potential data format incompatibilities between Client SDK and Admin SDK
-**Current Handling:**
-  - Files: `src/services/firebase-match-service.ts` mixes both SDKs
-  - Uses environment variable mixing for dual-platform support
-**Fix:** Consider moving all Firebase to backend-only, or upgrade client to v13
+**Mixed Legacy Vite Dependencies:**
+- Risk: vite.config.js and vitest.config.js still present despite Next.js migration
+- Impact: Conflicting build tools, confusion about which runs in production, unnecessary dependencies
+- Migration plan: Remove Vite entirely once Next.js migration complete. Migrate tests to Next.js compatible test runner or update Vitest for Next.js. Remove vite, @vitejs/plugin-react from package.json.
 
 ## Missing Critical Features
 
-### User Authentication
+**~~No User Authentication:~~ RESOLVED (2026-02-12)**
+- Firebase Auth implemented: `src/services/authService.ts`, `src/hooks/useAuth.ts`, `src/components/AuthProvider.tsx`
+- Google + email/password sign-in via `src/components/auth/AuthModal.tsx`
+- Protected routes via `src/components/auth/ProtectedRoute.tsx`
+- AuthProvider added to `src/app/layout.tsx`
+- Remaining: Store user designs in Supabase with user_id foreign key, artist dashboard
 
-**Problem:** No user accounts, all data stored in browser localStorage
-**Blocks:**
-- Cross-device design sync
-- Cloud backup of designs
-- User-specific rate limiting
-- Personalized artist matching based on history
-**Why Missing:** MVP scope - "first-time tattoo seekers" don't require accounts
-**If Needed:** Add Firebase Auth or Supabase Auth integration (~5 hours work)
+**No Error Tracking/Monitoring:**
+- Problem: VITE_SENTRY_DSN commented out in .env.example, no error tracking configured
+- Blocks: Production debugging, crash reporting, performance monitoring
+- Priority: High - flying blind in production
+- Fix: Configure Sentry or similar (PostHog, LogRocket). Add error boundaries that report to service. Track performance metrics. Set up alerts for error rate spikes.
 
-### Real-Time Collaboration
+**~~No Distributed Rate Limiting:~~ RESOLVED (2026-02-12)**
+- See Security Considerations section above — Upstash Redis rate limiter implemented
+- Priority: High - budget protection critical ($500 bootstrap budget)
+- Fix: Implement Upstash Redis rate limiter for Edge. Add per-IP, per-user, per-endpoint limits. Return proper 429 responses. Add rate limit headers (X-RateLimit-*).
 
-**Problem:** Designs are single-user, stored in localStorage
-**Blocks:**
-- Multiple designers working on same design
-- Sharing designs with friends for feedback
-- Artist collaboration features
-**Why Missing:** MVP scope
-**If Needed:** Implement CRDTs (Yjs) + WebSocket sync (~10 hours work)
+**No E2E Test Coverage:**
+- Problem: Only unit tests exist, no integration/E2E tests for critical user flows
+- Blocks: Confident deployments, regression prevention, refactoring safety
+- Priority: Medium - manual testing currently required
+- Fix: Install Playwright (documented in REQUIREMENTS_AUDIT). Write E2E tests for: generate design, layer editing, version history, artist matching, stencil export. Run in CI/CD.
 
-### Export Format Support
-
-**Problem:** Only exports PNG and stencil format
-**Blocks:**
-- Vector export (SVG) for professional stencil use
-- PDF printing with multiple stencil pages
-- Direct printing to tattoo stencil paper
-**Current:** `src/services/stencilService.ts` - PNG only, converts to B&W
-**Impact:** Professional tattoo artists need SVG for resizing without quality loss
-**Fix:** Add svg.js library + vector trace implementation (~4 hours work)
+**No Analytics/Telemetry:**
+- Problem: VITE_ANALYTICS_ID commented out, no usage tracking
+- Blocks: Understanding user behavior, feature usage metrics, conversion tracking
+- Priority: Medium - operating blind on product-market fit
+- Fix: Implement PostHog or Mixpanel (privacy-friendly). Track key events: design generated, layer added, stencil exported, artist clicked. Add feature flags for experimentation.
 
 ## Test Coverage Gaps
 
-### Canvas Service
+**No Tests for Services Layer:**
+- What's not tested: councilService.ts, embeddingService.ts, gcs-service.ts, generationService.ts, imageProcessingService.js, multiLayerService.js (only test exists but may be outdated)
+- Files: Services in `src/services/` directory
+- Risk: Core business logic can break silently. API integration errors not caught. Regression when refactoring.
+- Priority: High - services are critical paths
 
-**What's Not Tested:** `src/services/canvasService.ts`
-- Layer rendering with different blend modes
-- Transform accuracy (rotate/scale/flip)
-- Export quality (PNG compression settings)
-- Thumbnail generation timeout handling
-- Image loading failures
+**No Tests for Canvas Operations:**
+- What's not tested: canvasService.ts transform functions, layer compositing, blend modes, export functions
+- Files: `src/features/generate/services/canvasService.ts` (470 lines, 0 tests)
+- Risk: Layer manipulation bugs in production. Export failures not caught. Transform matrix errors cause visual glitches.
+- Priority: High - core feature, high complexity
 
-**Files:** `src/services/canvasService.ts` (458 lines) - 0 test coverage
-**Risk:** Export feature could produce corrupted/blank images undetected
-**Priority:** High - core feature
+**No Tests for Hooks:**
+- What's not tested: useLayerManagement, useVersionHistory, useImageGeneration, useTransformOperations, useTransformShortcuts, useRealtimeMatchPulse
+- Files: `src/features/generate/hooks/`, `src/hooks/`
+- Risk: State management bugs. Race conditions in async operations. Memory leaks in subscriptions.
+- Priority: Medium - hooks are reusable, bugs affect multiple components
 
-### Version Service
+**No Tests for Next.js API Routes:**
+- What's not tested: All routes in src/app/api/v1/*, src/app/api/predictions/*, src/app/uploads/
+- Files: 10+ API route handlers
+- Risk: Auth bypass, validation failures, proxy errors, rate limit bypass
+- Priority: High - API security critical
 
-**What's Not Tested:** `src/services/versionService.ts`
-- Version comparison algorithm
-- 90-day purge logic
-- Edge case: 50-version limit enforcement
-- localStorage quota exceeded scenario
-- Corrupt version data recovery
-
-**Files:** `src/services/versionService.ts` (250+ lines)
-**Test File:** `src/services/versionService.test.js` - exists but likely incomplete
-**Priority:** Medium - affects user experience but not critical
-
-### Hybrid Matching Algorithm
-
-**What's Not Tested:** `src/services/hybridMatchService.ts`
-- RRF score calculation
-- Weight sensitivity (50/50 graph/vector split)
-- Timeout fallback behavior
-- Empty result handling (no matches found)
-- Score normalization across different artist databases
-
-**Files:** `src/services/hybridMatchService.ts` (467 lines) - NO test coverage
-**Risk:** Artist recommendations could be completely random without tests
-**Priority:** Critical - core feature
-
-### Council Enhancement Service
-
-**What's Not Tested:** `src/services/councilService.ts`
-- Multi-agent prompt refinement flow
-- Fallback to single agent when multi-agent fails
-- OpenRouter vs Vertex AI routing decision
-- Timeout handling (10-second limit)
-- Empty/invalid prompt handling
-
-**Files:** `src/services/councilService.ts` (900 lines)
-**Test Files:** `src/services/councilService.test.js`, `src/services/__tests__/councilService.test.js` - multiple test files exist
-**Priority:** High - expensive API calls, needs quality assurance
-
-### API Route Error Handling
-
-**What's Not Tested:**
-- `/api/v1/generate/route.ts` - Image generation API
-- `/api/v1/council/enhance/route.ts` - Prompt enhancement
-- `/api/neo4j/query/route.ts` - Neo4j queries
-- `/api/predictions/route.ts` - Replicate polling
-
-**Missing:** Error scenarios: missing env vars, invalid auth, timeout, malformed requests
-**Priority:** High - production stability
+**No Integration Tests for Hybrid Matching:**
+- What's not tested: End-to-end flow of Neo4j + Supabase → RRF → results
+- Files: `src/features/match-pulse/services/hybridMatchService.ts`
+- Risk: Integration between graph and vector DB can fail silently. RRF algorithm not validated against real data.
+- Priority: High - core value proposition
 
 ---
 
-*Concerns audit: 2026-02-15*
+*Concerns audit: 2026-01-31*

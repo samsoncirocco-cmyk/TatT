@@ -1,187 +1,156 @@
-# Directive: Deploy to Cloud Run
+# Deploy to Production
 
-**ID:** DIR-001
-**Owner:** Platform Team
-**Last Updated:** 2026-02-16
-**Last Tested:** Not yet tested
-**Risk Level:** High
-**Estimated Duration:** 15-20 minutes
+> Directive for deploying the TatTester frontend to Vercel and the backend proxy to Railway
 
-## Purpose
+## Goal
 
-Deploy the TatTester application to Google Cloud Run (staging or production environment). This directive covers both automated deployment via GitHub Actions (preferred) and manual deployment via `gcloud` CLI (emergency fallback).
+Deploy the Next.js frontend to Vercel and the Express.js backend proxy (`server.js`) to Railway, with all environment variables configured and CORS origins aligned between the two services.
 
-Cloud Run deployments create immutable revisions with traffic splitting capabilities, enabling zero-downtime updates and instant rollbacks.
+## When to Use
+
+- Initial production deployment
+- After merging features to `main` that need to go live
+- When setting up a new environment (staging, preview)
+- After changing environment variables that affect production
 
 ## Prerequisites
 
-- [ ] All tests passing in CI (for main branch deploys)
-- [ ] Change approved in team communication channel
-- [ ] Staging deployment validated and tested (for production deploys)
-- [ ] Environment variables and secrets configured in Secret Manager
-- [ ] GCP credentials available (Workload Identity for CI, `gcloud auth` for manual)
+- **Vercel account** with the project linked (current URL: `https://tat-t-3x8t.vercel.app`)
+- **Railway account** with the project created
+- **All database infrastructure** provisioned (see `database-setup.md`)
+- **Passing local build**: `npm run build` completes without errors
+- **Environment variables** ready for both platforms (see Steps)
 
-## Procedure
+## Steps
 
-### Automated Deployment (Preferred)
+### Part A: Deploy Frontend to Vercel
 
-**For staging:**
-1. Push to `staging` branch or manually trigger workflow:
+1. **Install the Vercel CLI (if not already)**
+
    ```bash
-   gh workflow run ci-cd.yml -f environment=staging
+   npm i -g vercel
    ```
 
-2. Monitor deployment progress:
+2. **Link the project (first time only)**
+
    ```bash
-   gh run list --workflow=ci-cd.yml --limit 1
-   gh run watch
+   vercel link
    ```
 
-3. Once complete, verify deployment:
+3. **Set environment variables in Vercel dashboard**
+
+   Required variables for the frontend:
+
+   | Variable | Value |
+   |----------|-------|
+   | `NEXT_PUBLIC_PROXY_URL` | Railway backend URL (e.g., `https://your-app.up.railway.app/api`) |
+   | `NEXT_PUBLIC_FRONTEND_AUTH_TOKEN` | Shared auth token (must match Railway) |
+   | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key |
+   | `NEXT_PUBLIC_DEMO_MODE` | `false` for production |
+   | `NEXT_PUBLIC_COUNCIL_DEMO_MODE` | `false` for real council |
+   | `NEXT_PUBLIC_USE_OPENROUTER` | `true` if using OpenRouter |
+   | `NEXT_PUBLIC_OPENROUTER_API_KEY` | OpenRouter API key |
+
+4. **Deploy**
+
    ```bash
-   python execution/run_health_checks.py --base-url https://pangyo-staging-[hash]-uc.a.run.app
+   vercel --prod
    ```
 
-**For production:**
-1. Merge approved PR to `main` branch (triggers automatic deployment)
+   Or push to `main` if Git integration is configured -- Vercel auto-deploys on push.
 
-2. Monitor deployment in GitHub Actions UI or CLI:
+5. **Verify the deployment**
+
+   Open `https://tat-t-3x8t.vercel.app` and confirm the app loads.
+
+### Part B: Deploy Backend to Railway
+
+1. **Install the Railway CLI (if not already)**
+
    ```bash
-   gh run watch
+   npm i -g @railway/cli
+   railway login
    ```
 
-3. Verify deployment health:
+2. **Link the project (first time only)**
+
    ```bash
-   python execution/run_health_checks.py --base-url https://pangyo-production-[hash]-uc.a.run.app
+   railway link
    ```
 
-4. Monitor logs for first 5 minutes:
+3. **Set environment variables in Railway dashboard**
+
+   Required variables for the backend:
+
+   | Variable | Value |
+   |----------|-------|
+   | `REPLICATE_API_TOKEN` | Replicate API token |
+   | `FRONTEND_AUTH_TOKEN` | Shared auth token (must match Vercel) |
+   | `ALLOWED_ORIGINS` | `https://tat-t-3x8t.vercel.app` (comma-separated if multiple) |
+   | `NEO4J_URI` | Production Neo4j URI |
+   | `NEO4J_USER` | Neo4j username |
+   | `NEO4J_PASSWORD` | Neo4j password |
+   | `SUPABASE_URL` | Supabase project URL |
+   | `SUPABASE_ANON_KEY` | Supabase anon key |
+   | `SUPABASE_SERVICE_KEY` | Supabase service role key |
+   | `GOOGLE_APPLICATION_CREDENTIALS` | Path to GCP key (or use `GOOGLE_CREDENTIALS` with JSON content) |
+
+   Railway sets `PORT` automatically -- do not set it manually.
+
+4. **Deploy**
+
    ```bash
-   gcloud run services logs read pangyo-production --limit 100 --region us-central1
+   railway up
    ```
 
-### Manual Deployment (Emergency Fallback)
+   Railway uses the `railway.json` configuration:
+   - Builder: Nixpacks
+   - Start command: `npm run server`
+   - Restart policy: on failure (max 10 retries)
 
-If GitHub Actions is unavailable:
+5. **Verify the backend**
 
-1. Authenticate with GCP:
    ```bash
-   gcloud auth login
-   gcloud config set project [PROJECT_ID]
+   curl https://your-app.up.railway.app/api/health
    ```
 
-2. Build Docker image:
-   ```bash
-   gcloud builds submit --tag gcr.io/[PROJECT_ID]/pangyo:$(git rev-parse --short HEAD)
-   ```
+### Part C: Align CORS and Auth
 
-3. Deploy to Cloud Run:
-   ```bash
-   gcloud run deploy pangyo-production \
-     --image gcr.io/[PROJECT_ID]/pangyo:$(git rev-parse --short HEAD) \
-     --region us-central1 \
-     --platform managed \
-     --allow-unauthenticated \
-     --set-env-vars NODE_ENV=production \
-     --update-secrets REPLICATE_API_TOKEN=replicate-api-token:latest,NEO4J_PASSWORD=neo4j-password:latest,OPENROUTER_API_KEY=openrouter-api-key:latest
-   ```
+1. **Ensure `FRONTEND_AUTH_TOKEN` matches** between Vercel and Railway
+2. **Ensure `ALLOWED_ORIGINS` on Railway** includes the Vercel deployment URL
+3. The backend automatically adds the `VERCEL_URL` env var to allowed origins if set
 
-4. Verify with health checks:
-   ```bash
-   python execution/run_health_checks.py --base-url https://pangyo-production-[hash]-uc.a.run.app
-   ```
+### Part D: Verify End-to-End
 
-## Verification
+1. Open the production frontend URL
+2. Generate a test design -- confirm it reaches the backend and returns an image
+3. Test artist matching -- confirm vector search returns results
+4. Check browser console for CORS errors
 
-After deployment completes:
+## Expected Output
 
-1. **Health endpoint check:**
-   ```bash
-   curl https://[SERVICE_URL]/api/health
-   # Expected: {"status":"healthy","timestamp":"..."}
-   ```
+- Vercel: Build succeeds, site accessible at `https://tat-t-3x8t.vercel.app`
+- Railway: Service running, health endpoint returns 200
+- End-to-end: Design generation, layer management, and artist matching all work from the production URL
 
-2. **Startup probe check:**
-   ```bash
-   curl https://[SERVICE_URL]/api/health/startup
-   # Expected: {"status":"healthy","checks":[...]}
-   ```
+## Edge Cases
 
-3. **Neo4j connectivity:**
-   ```bash
-   curl -X POST https://[SERVICE_URL]/api/neo4j/query \
-     -H "Content-Type: application/json" \
-     -d '{"query":"RETURN 1 AS num"}'
-   # Expected: {"records":[{"num":1}]}
-   ```
+- **Build fails on Vercel**: Check for missing `NEXT_PUBLIC_*` env vars; run `npm run build` locally first to catch issues
+- **Railway deploy fails**: Check `railway logs` for startup errors; common cause is missing env vars
+- **CORS errors**: Verify `ALLOWED_ORIGINS` on Railway includes the exact Vercel URL (no trailing slash)
+- **502 on Railway**: The backend may need a moment to start; check `railway logs` for port binding issues
+- **GCP auth on Railway**: You cannot upload a file directly; use the `GOOGLE_CREDENTIALS` env var with the JSON content as a string, or use Railway's secret file feature
+- **`vercel.json` SPA rewrite**: The current `vercel.json` has a catch-all rewrite to `index.html` -- this may need updating for Next.js API routes
 
-4. **Monitor error rate in Cloud Console:**
-   - Navigate to Cloud Run > pangyo-[environment] > Logs
-   - Filter: `severity>=ERROR`
-   - Should see zero errors in first 5 minutes
+## Cost
 
-## Rollback
-
-If deployment causes issues:
-
-### Quick Rollback (Traffic Split)
-
-```bash
-# Get previous revision name
-gcloud run revisions list --service pangyo-production --region us-central1 --limit 5
-
-# Route 100% traffic to previous revision
-gcloud run services update-traffic pangyo-production \
-  --to-revisions [PREVIOUS_REVISION]=100 \
-  --region us-central1
-```
-
-### Full Rollback (Redeploy Previous Image)
-
-```bash
-# Find previous working image
-gcloud container images list-tags gcr.io/[PROJECT_ID]/pangyo --limit 10
-
-# Redeploy previous image
-gcloud run deploy pangyo-production \
-  --image gcr.io/[PROJECT_ID]/pangyo:[PREVIOUS_SHA] \
-  --region us-central1
-```
-
-Rollback completes in < 30 seconds. Verify with health checks after rollback.
-
-## Known Issues
-
-### KI-001: Docker multi-stage Python venv portability between Debian and Alpine
-**Discovered:** 2026-02-16 during Phase 6 Plan 03
-**Symptom:** Python packages with C extensions (e.g., grpcio) compiled in python:3.12-slim (Debian) may segfault when copied to node:20-alpine (Alpine/musl)
-**Root cause:** Debian uses glibc while Alpine uses musl libc. Native extensions compiled against glibc are not binary-compatible with musl.
-**Resolution:** Current requirements.txt uses pure-Python packages or packages with pre-built musl wheels. If adding new Python dependencies with C extensions (numpy, grpcio, etc.), must either: (a) install from Alpine-compatible wheels, (b) compile in Alpine stage, or (c) add `apk add` for build dependencies in the runner stage.
-**Prevention:** Before adding new Python dependencies to requirements.txt, check if they have C extensions. Test the Docker build end-to-end with `docker build .` locally before merging.
-
-## Post-Operation
-
-- [ ] Verify health checks pass
-- [ ] Monitor error rates for 10 minutes post-deployment
-- [ ] Update team communication channel with deployment results
-- [ ] If any issues occurred, update this directive's "Known Issues" section
-- [ ] If procedure deviated from documented steps, update this directive
+- **Vercel**: Free tier covers hobby projects (100GB bandwidth, serverless functions)
+- **Railway**: Free trial with $5 credit; Hobby plan at $5/month for always-on services
+- **Per-request costs**: Same as local (Replicate, OpenRouter, Vertex AI charges apply)
 
 ## Related Directives
 
-- **DIR-007: Rotate Secrets** - Update secrets before deploying with new credentials
-- **DIR-006: Onboard Engineer** - New engineers should observe a deployment as part of onboarding
-- **DIR-005: Monitor Budget** - Check budget impact after high-traffic deployments
-
-## Appendix: Staging vs Production Differences
-
-| Aspect | Staging | Production |
-|--------|---------|------------|
-| **Service name** | `pangyo-staging` | `pangyo-production` |
-| **CPU/Memory** | 1 CPU / 1Gi | 2 CPU / 2Gi |
-| **Max instances** | 3 | 10 |
-| **Min instances** | 0 (scales to zero) | 1 (always warm) |
-| **Ingress** | All | All (add Cloud Armor later) |
-| **Secret versions** | `latest` | `latest` (rotate via DIR-007) |
-| **Traffic pattern** | Internal team testing | Real users |
-| **Deployment trigger** | Push to `staging` branch | Merge to `main` |
+- [setup-local-dev.md](./setup-local-dev.md) -- Test locally before deploying
+- [database-setup.md](./database-setup.md) -- Production databases must be provisioned first
+- [docker-dev.md](./docker-dev.md) -- Test the production Docker image locally before Railway deploy

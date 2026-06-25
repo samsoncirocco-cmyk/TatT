@@ -1,0 +1,4 @@
+{
+  "task_description": "Embeddings dimension mismatch\n\nCode is 1408-dim (Vertex multimodal). Requirement doc says 4096.\nIf “all requirements done” means the doc is authoritative, either the DB schema or the doc must be updated.",
+  "workflow_type": "feature"
+}

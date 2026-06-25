@@ -6,23 +6,10 @@ import path from 'path';
 import fs from 'fs/promises';
 import startCrypto from 'crypto';
 import os from 'os';
-// @ts-ignore
-import { uploadLayer, uploadLayerThumbnail } from '@/services/gcs-service.js';
+import { uploadLayer, uploadLayerThumbnail, type GCSUploadResult } from '@/services/gcs-service';
 import { generateMask } from '@/lib/segmentation';
-import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
-
-// Type for GCS upload result (from gcs-service.js)
-interface GCSUploadResult {
-    success: boolean;
-    gcsPath: string;
-    url: string;
-    bucket: string;
-    path: string;
-    public: boolean;
-}
 
 export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
 
 // Use temp dir for serverless functions
 const UPLOAD_DIR = path.join(os.tmpdir(), 'manama-uploads');
@@ -99,7 +86,7 @@ async function saveLocally(buffer: Buffer, filename: string) {
 
 async function uploadLayerWithFallback(buffer: Buffer, designId: string, layerType: string, metadata = {}) {
     try {
-        const result = await uploadLayer(buffer, designId, layerType, metadata) as GCSUploadResult;
+        const result = await uploadLayer(buffer, designId, layerType, metadata);
         return result.url;
     } catch (error) {
         console.warn('GCS upload failed, falling back to local temp storage', error);
@@ -111,7 +98,7 @@ async function uploadLayerWithFallback(buffer: Buffer, designId: string, layerTy
 
 async function uploadThumbnailWithFallback(buffer: Buffer, designId: string, layerType: string) {
     try {
-        const result = await uploadLayerThumbnail(buffer, designId, layerType) as GCSUploadResult;
+        const result = await uploadLayerThumbnail(buffer, designId, layerType);
         return result.url;
     } catch (error) {
         const hash = startCrypto.createHash('sha256').update(buffer).digest('hex').slice(0, 12);
@@ -121,16 +108,6 @@ async function uploadThumbnailWithFallback(buffer: Buffer, designId: string, lay
 }
 
 export async function POST(req: NextRequest) {
-    // Auth check
-    const { verifyApiAuth } = await import('@/lib/api-auth');
-    const authError = verifyApiAuth(req);
-    if (authError) return authError;
-
-    const rateResult = await checkRateLimit(req, 'default');
-    if (!rateResult.allowed) {
-        return rateLimitResponse(rateResult);
-    }
-
     const startTime = Date.now();
 
     try {
@@ -149,7 +126,10 @@ export async function POST(req: NextRequest) {
 
         // Vision API for Object Detection
         const visionClient = new ImageAnnotatorClient();
-        const [result] = await visionClient.objectLocalization!({
+        if (!visionClient.objectLocalization) {
+            return NextResponse.json({ error: 'Vision API objectLocalization not available' }, { status: 500 });
+        }
+        const [result] = await visionClient.objectLocalization({
             image: { content: imageBuffer }
         });
 

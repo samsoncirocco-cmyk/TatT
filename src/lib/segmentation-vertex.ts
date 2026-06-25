@@ -12,8 +12,8 @@ import { getGcpAccessToken } from './google-auth-edge';
  * Set VERTEX_SEGMENTATION_ENDPOINT_ID env var.
  */
 
-const PROJECT_ID = process.env.GCP_PROJECT_ID || process.env.VITE_VERTEX_AI_PROJECT_ID;
-const REGION = process.env.GCP_REGION || process.env.VITE_VERTEX_AI_REGION || 'us-central1';
+const PROJECT_ID = process.env.GCP_PROJECT_ID;
+const REGION = process.env.GCP_REGION || 'us-central1';
 const ENDPOINT_ID = process.env.VERTEX_SEGMENTATION_ENDPOINT_ID; // e.g. "1234567890"
 
 export async function generateMaskWithVertex(imageBase64: string, box?: number[]): Promise<string | null> {
