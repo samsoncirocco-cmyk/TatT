@@ -111,7 +111,15 @@ export default function SignupPage() {
             {PROVIDERS.map((p) => (
               <button
                 key={p}
-                onClick={() => console.log("oauth", p)}
+                onClick={async () => {
+                  const { signInWithGoogle } = await import("@/services/authService");
+                  try {
+                    await signInWithGoogle();
+                    router.push("/designs");
+                  } catch {
+                    // OAuth popup may be blocked — silently ignore
+                  }
+                }}
                 className="text-[10px] uppercase tracking-[0.2em] text-white/70 hover:text-black hover:bg-pink border-2 hairline px-3 py-3 press font-body"
               >
                 {p}
