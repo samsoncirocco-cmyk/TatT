@@ -7,7 +7,11 @@ import StudioShell from "@/components/studio/StudioShell";
 import SlashHeadline from "@/components/punk/SlashHeadline";
 import { useUser } from "@/lib/tattStorage";
 
-const PROVIDERS = ["Google", "Apple", "Github"];
+const PROVIDERS: { label: string; provider: "Google" | "Apple" | "Github"; icon: string }[] = [
+  { label: "Google", provider: "Google", icon: "G" },
+  { label: "Apple", provider: "Apple", icon: "" },
+  { label: "Github", provider: "Github", icon: "⌥" },
+];
 
 export default function LoginPage() {
   const router = useRouter();
@@ -117,13 +121,21 @@ export default function LoginPage() {
           </div>
 
           <div className="mt-8 grid grid-cols-3 gap-3">
-            {PROVIDERS.map((p) => (
+            {PROVIDERS.map(({ label, provider }) => (
               <button
-                key={p}
-                onClick={() => console.log("oauth", p)}
+                key={label}
+                onClick={async () => {
+                  const { signInWithGoogle } = await import("@/services/authService");
+                  try {
+                    await signInWithGoogle();
+                    router.push("/designs");
+                  } catch {
+                    // OAuth popup may be blocked — silently ignore
+                  }
+                }}
                 className="text-[10px] uppercase tracking-[0.2em] text-white/70 hover:text-black hover:bg-pink border-2 hairline px-3 py-3 press font-body"
               >
-                {p}
+                {label}
               </button>
             ))}
           </div>
