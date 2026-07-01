@@ -86,8 +86,12 @@ def health_check_post(url: str, payload: dict, timeout: int = 10) -> Dict[str, a
             "response_time_ms": None
         }
 
-def main() -> int:
-    """Main entry point."""
+def main(argv=None) -> int:
+    """Main entry point.
+
+    Accepts an explicit ``argv`` list (defaults to ``sys.argv[1:]``) so callers
+    such as tests can invoke it without leaking the host process arguments.
+    """
     parser = argparse.ArgumentParser(
         description="Run health checks on TatTester services"
     )
@@ -107,7 +111,7 @@ def main() -> int:
         choices=["health", "startup", "neo4j"],
         help="Run only a specific check"
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     base_url = args.base_url.rstrip("/")
 
@@ -147,7 +151,7 @@ def main() -> int:
     if all_passed:
         print("✅ All health checks passed")
     else:
-        print("❌ Some health checks failed", file=sys.stderr)
+        print("❌ Some health checks failed")
 
     return 0 if all_passed else 1
 
