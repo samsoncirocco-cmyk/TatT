@@ -4,7 +4,7 @@ import { verifyApiAuth } from '@/lib/api-auth';
 import { generateEmbedding } from '@/services/vertex-ai-service.js';
 // @ts-ignore
 import { storeEmbedding } from '@/services/vectorDbService';
-import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
+import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { createRequestLogger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     const authError = verifyApiAuth(req);
     if (authError) return authError;
 
-    const rateResult = await checkRateLimit(req, 'default');
+    const rateResult = await rateLimit(req, 'default');
     if (!rateResult.allowed) {
         return rateLimitResponse(rateResult);
     }
