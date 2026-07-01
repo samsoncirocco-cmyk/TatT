@@ -23,10 +23,12 @@ function isPeriodExpired(periodStartMs: number, config: BudgetConfig): boolean {
 }
 
 export async function checkBudget(_userId?: string, config: BudgetConfig = DEFAULT_BUDGET): Promise<BudgetResult> {
-  const db = getFirestore();
-  const ref = db.collection('budget').doc('global');
-
   try {
+    // Inside the try: getFirestore() throws synchronously when Firebase
+    // Admin isn't initialized, and budget checking must fail open.
+    const db = getFirestore();
+    const ref = db.collection('budget').doc('global');
+
     return await db.runTransaction(async (tx) => {
       const snap = await tx.get(ref);
       const data = snap.data() || {};
@@ -73,10 +75,10 @@ export async function checkBudget(_userId?: string, config: BudgetConfig = DEFAU
 }
 
 export async function recordSpend(amountCents: number, config: BudgetConfig = DEFAULT_BUDGET): Promise<void> {
-  const db = getFirestore();
-  const ref = db.collection('budget').doc('global');
-
   try {
+    const db = getFirestore();
+    const ref = db.collection('budget').doc('global');
+
     let newTotalCents = 0;
 
     await db.runTransaction(async (tx) => {
