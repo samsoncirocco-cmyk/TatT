@@ -6,7 +6,7 @@ import { Redis } from '@upstash/redis';
 // Types
 // ---------------------------------------------------------------------------
 
-export type LimitType = 'semantic-match' | 'council' | 'generation';
+export type LimitType = 'semantic-match' | 'council' | 'generation' | 'estimate' | 'default';
 
 interface RateLimitResult {
   allowed: boolean;
@@ -23,6 +23,8 @@ const LIMIT_CONFIG: Record<LimitType, { requests: number; window: string }> = {
   'semantic-match': { requests: 100, window: '1 h' },
   council:          { requests: 20,  window: '1 h' },
   generation:       { requests: 10,  window: '1 m' },
+  estimate:         { requests: 30,  window: '1 m' },
+  default:          { requests: 60,  window: '1 m' },
 };
 
 // ---------------------------------------------------------------------------
@@ -152,6 +154,11 @@ export async function rateLimit(
   req: NextRequest,
   limitType: LimitType,
 ): Promise<RateLimitResult> {
+  // Unknown type = no limit (fail-open like checkRateLimit).
+  if (!(limitType in LIMIT_CONFIG)) {
+    return { allowed: true, limit: 0, remaining: 0, reset: 0 };
+  }
+
   const identifier = getIdentifier(req);
   const limiters = getUpstashLimiters();
 

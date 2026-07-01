@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
-import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
+import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
     const authError = verifyApiAuth(req);
     if (authError) return authError;
 
-    const rateResult = await checkRateLimit(req, 'default');
+    const rateResult = await rateLimit(req, 'default');
     if (!rateResult.allowed) {
         return rateLimitResponse(rateResult);
     }
