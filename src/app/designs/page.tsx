@@ -82,10 +82,20 @@ export default function DesignsPage() {
                 <div key={d.id} className="group press relative">
                   <Link href={`/designs/${d.id}`} className="block">
                     <div
-                      className={`aspect-square ${d.color} border-2 hairline relative overflow-hidden`}
+                      className={`aspect-square ${d.image ? "bg-bone" : d.color} border-2 hairline relative overflow-hidden`}
                     >
-                      <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/50 mix-blend-multiply" />
-                      <span className="absolute top-2 left-2 text-[9px] uppercase tracking-[0.2em] text-white/70 font-body">
+                      {d.image ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={d.image}
+                          alt={deriveTitle(d)}
+                          className="absolute inset-0 w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/50 mix-blend-multiply" />
+                      )}
+                      <span className="absolute top-2 left-2 text-[9px] uppercase tracking-[0.2em] text-white/70 font-body bg-black/60 px-1.5 py-0.5">
                         v1
                       </span>
                     </div>

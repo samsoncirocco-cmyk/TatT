@@ -1,11 +1,13 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
 import SlashHeadline from "@/components/punk/SlashHeadline";
 import TapeCTA from "@/components/punk/TapeCTA";
+import OutputCard from "@/components/punk/OutputCard";
 import { useDesigns } from "@/lib/tattStorage";
+import { generateTattooDesign } from "@/features/generate/services/replicateService";
 
 const SUGGESTIONS = [
   { label: "Pop-punk flash" },
@@ -66,6 +68,11 @@ function RightSidebarContent() {
 
 function StencilPageInner() {
   const [prompt, setPrompt] = useState("");
+  const [cuts, setCuts] = useState<string[]>([]);
+  const [cutting, setCutting] = useState(false);
+  const [selected, setSelected] = useState(0);
+  const [savedCuts, setSavedCuts] = useState<Record<number, boolean>>({});
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { addDesign } = useDesigns();
@@ -85,11 +92,34 @@ function StencilPageInner() {
     setPrompt((p) => (p.trim() ? `${p.trim()}, ${s}` : s));
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = useCallback(async () => {
     const trimmed = prompt.trim();
-    if (!trimmed) return;
-    addDesign(trimmed);
-    router.push("/designs");
+    if (!trimmed || cutting) return;
+    setCutting(true);
+    setError(null);
+    try {
+      const result = await generateTattooDesign({
+        subject: trimmed,
+        style: "blackwork",
+        bodyPart: "forearm",
+        size: "medium",
+      });
+      const images: string[] = result?.images ?? [];
+      if (!images.length) throw new Error("No cuts came back");
+      setCuts(images.slice(0, 4));
+      setSelected(0);
+      setSavedCuts({});
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Generation failed");
+    } finally {
+      setCutting(false);
+    }
+  }, [prompt, cutting]);
+
+  const handleSaveCut = (i: number) => {
+    if (savedCuts[i]) return;
+    addDesign(prompt.trim(), { image: cuts[i] });
+    setSavedCuts((s) => ({ ...s, [i]: true }));
   };
 
   return (
@@ -185,25 +215,80 @@ function StencilPageInner() {
                     </span>
                   </div>
                   <p className="mt-4 text-[10px] uppercase tracking-[0.22em] leading-[1.6] text-white/45 font-body">
-                    Final generated art lands in the Forge. This page starts the
-                    stencil-ready brief and saves it to your designs.
+                    Hit generate and four cuts land below. Save the one that
+                    bites to your designs, or iterate until it does.
                   </p>
                 </div>
               </div>
 
               <div className="rise rise-5 mt-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5 border-t-2 hairline pt-6">
                 <div className="text-[10px] uppercase tracking-[0.24em] text-white/45 font-body">
-                  Status:&nbsp;<span className="text-pink">Ready</span>
+                  Status:&nbsp;
+                  <span className="text-pink">
+                    {error
+                      ? error
+                      : cutting
+                        ? "Cutting…"
+                        : cuts.length
+                          ? `${cuts.length} cuts ready`
+                          : "Ready"}
+                  </span>
                   &nbsp;/&nbsp;Model:&nbsp;SDXL&nbsp;Stencil&nbsp;v2
                 </div>
                 <TapeCTA
                   onClick={handleGenerate}
                   size="lg"
+                  disabled={cutting || !prompt.trim()}
+                  arrow={!cutting}
                   className="self-start sm:self-auto"
                 >
-                  GENERATE
+                  {cutting ? "Cutting…" : cuts.length ? "Regenerate" : "GENERATE"}
                 </TapeCTA>
               </div>
+
+              {/* FOUR CUTS — generation output grid */}
+              {cuts.length > 0 && (
+                <div className="mt-10">
+                  <div className="text-[10px] uppercase tracking-[0.28em] text-pink mb-4 font-body">
+                    ▸ Four cuts
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    {cuts.map((src, i) => (
+                      <OutputCard
+                        key={`${src}-${i}`}
+                        src={src}
+                        index={i + 1}
+                        selected={selected === i}
+                        onSelect={() => setSelected(i)}
+                        badge={
+                          savedCuts[i] ? (
+                            <span className="text-[9px] uppercase tracking-[0.2em] text-pink font-body bg-black/70 px-2 py-1">
+                              ★ Saved
+                            </span>
+                          ) : undefined
+                        }
+                        actions={[
+                          {
+                            label: "Layers",
+                            onClick: () => router.push("/generate"),
+                          },
+                          {
+                            label: savedCuts[i] ? "Saved" : "Save",
+                            onClick: () => handleSaveCut(i),
+                            accent: true,
+                            disabled: !!savedCuts[i],
+                          },
+                          {
+                            label: "Iterate",
+                            onClick: handleGenerate,
+                            disabled: cutting,
+                          },
+                        ]}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </section>
 
             <aside className="border-2 hairline bg-black p-6">
