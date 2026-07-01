@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
 import { estimateCost, quickEstimate } from '@/services/costEstimatorService';
-import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
+import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { createRequestLogger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     if (authError) return authError;
 
     // Rate limiting (more restrictive - vision API is expensive)
-    const rateResult = await checkRateLimit(req, 'estimate');
+    const rateResult = await rateLimit(req, 'estimate');
     if (!rateResult.allowed) {
         return rateLimitResponse(rateResult);
     }
