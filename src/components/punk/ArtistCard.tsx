@@ -23,6 +23,7 @@ type CommonProps = {
   name: string;
   city: string;
   color: string;            // tailwind bg class, e.g. "bg-pink"
+  image?: string;           // portfolio image URL; when set, replaces the color block
   href?: string;            // defaults to /artists/${slug}
   showFavorite?: boolean;   // defaults to false; /artists + /matches pass true
   favoriteSize?: number;    // forwards to FavoriteButton
@@ -57,6 +58,7 @@ export default function ArtistCard(props: Props) {
     name,
     city,
     color,
+    image,
     href = `/artists/${slug}`,
     showFavorite = false,
     favoriteSize,
@@ -71,8 +73,20 @@ export default function ArtistCard(props: Props) {
   return (
     <div className="relative group">
       <Link href={href} className="block press">
-        <div className={`aspect-[3/4] ${color} ${tileBorder} relative overflow-hidden`}>
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 mix-blend-multiply" />
+        <div
+          className={`aspect-[3/4] ${image ? "bg-bone" : color} ${tileBorder} relative overflow-hidden`}
+        >
+          {image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={image}
+              alt={`${name} portfolio work`}
+              className="absolute inset-0 w-full h-full object-cover"
+              loading="lazy"
+            />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 mix-blend-multiply" />
+          )}
 
           {/* match% sticker — match variant only. Inlined to preserve
               the original text-[11px] primary size (StickerPricetag's
@@ -95,15 +109,16 @@ export default function ArtistCard(props: Props) {
             </span>
           )}
 
-          {/* style label inside tile — default + compact variants
-             show it bottom-left. Match variant uses chips outside. */}
-          {!isMatch(props) && props.variant !== "compact" && (
-            <span className="absolute bottom-3 left-3 text-[9px] uppercase tracking-[0.2em] text-white/80 font-body">
-              {props.style}
-            </span>
-          )}
-          {!isMatch(props) && props.variant === "compact" && (
-            <span className="absolute bottom-3 left-3 text-[9px] uppercase tracking-[0.2em] text-white/80 font-body">
+          {/* style label inside tile — default + compact variants show it
+             bottom-left. Over a photo it sits on a cream chip for
+             legibility; over a color block it stays bare text. Match
+             variant uses chips outside. */}
+          {!isMatch(props) && (
+            <span
+              className={`absolute bottom-3 left-3 text-[9px] uppercase tracking-[0.2em] font-body ${
+                image ? "bg-cream text-black px-2 py-1" : "text-white/80"
+              }`}
+            >
               {props.style}
             </span>
           )}

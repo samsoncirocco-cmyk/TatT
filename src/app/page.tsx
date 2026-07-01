@@ -1,6 +1,7 @@
 import Link from "next/link";
 import StudioShell from "@/components/studio/StudioShell";
 import SlashHeadline from "@/components/punk/SlashHeadline";
+import ArtistCard from "@/components/punk/ArtistCard";
 
 const STEPS = [
   {
@@ -21,21 +22,55 @@ const STEPS = [
 ];
 
 const FEATURED = [
-  { name: "Kira Volkov", city: "Brooklyn, NY", style: "Fineline", color: "bg-pink" },
-  { name: "Diego Marin", city: "Mexico City", style: "Traditional", color: "bg-bone" },
-  { name: "Astrid Holm", city: "Berlin, DE", style: "Blackwork", color: "bg-cream" },
-  { name: "Yuki Tanaka", city: "Osaka, JP", style: "Irezumi", color: "bg-pink-deep" },
+  {
+    name: "Kira Volkov",
+    city: "Brooklyn, NY",
+    style: "Fineline",
+    color: "bg-pink",
+    image: "/portfolio/artist_12_1768520460086_0.png",
+  },
+  {
+    name: "Diego Marin",
+    city: "Mexico City",
+    style: "Traditional",
+    color: "bg-bone",
+    image: "/portfolio/artist_13_1768520473621_0.png",
+  },
+  {
+    name: "Astrid Holm",
+    city: "Berlin, DE",
+    style: "Blackwork",
+    color: "bg-cream",
+    image: "/portfolio/artist_11_1768520426807_2.png",
+  },
+  {
+    name: "Yuki Tanaka",
+    city: "Osaka, JP",
+    style: "Irezumi",
+    color: "bg-pink-deep",
+    image: "/portfolio/artist_100_1768521733754_0.png",
+  },
 ];
 
 export default function Home() {
   return (
     <StudioShell>
       <div className="flex flex-col">
-        {/* HERO */}
-        <section className="px-6 md:px-12 py-20 md:py-32 relative">
-          <div className="max-w-5xl mx-auto relative">
-            <div className="hidden md:block absolute -top-2 right-4 sticker px-3 py-1 z-10">
-              <div className="font-display text-[11px] tracking-widest leading-none">
+        {/* HERO — full-bleed studio photo, left-weighted scrim */}
+        <section className="relative min-h-[520px] md:min-h-[620px] overflow-hidden flex">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/hero.png"
+            alt="Tattoo in progress at the studio"
+            className="absolute inset-0 w-full h-full object-cover object-[center_35%]"
+          />
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,#0a0a0a_22%,rgba(10,10,10,0.5)_55%,rgba(10,10,10,0.15)_100%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(0deg,#0a0a0a_4%,transparent_40%)]" />
+          <div className="halftone absolute inset-0" />
+
+          <div className="relative z-[2] px-6 md:px-14 py-16 md:py-[70px] max-w-[820px] flex flex-col justify-center">
+            <div className="sticker self-start px-3.5 py-1.5 mb-6 rise rise-1">
+              <div className="font-display text-[12px] tracking-widest leading-none">
                 NEW
               </div>
               <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-0.5">
@@ -43,7 +78,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="text-[10px] uppercase tracking-[0.28em] text-pink mb-6 font-body rise rise-1">
+            <div className="text-[11px] uppercase tracking-[0.28em] text-pink mb-5 font-body rise rise-1">
               ▸&nbsp;Think it. Ink it.
             </div>
 
@@ -54,25 +89,25 @@ export default function Home() {
               className="rise rise-2 text-balance"
             />
 
-            <p className="rise rise-3 mt-10 max-w-xl text-[15px] leading-[1.55] text-white/70 font-body">
+            <p className="rise rise-3 mt-7 max-w-[40ch] text-[15px] leading-[1.55] text-white/70 font-body">
               The AI tattoo studio that doesn&rsquo;t flinch. Describe the ink you
               want, get four cuts back, then{" "}
               <span className="scribble text-pink">find the artist</span> who can land it.
             </p>
 
-            <div className="rise rise-4 mt-12 flex flex-col sm:flex-row sm:items-stretch gap-6">
+            <div className="rise rise-4 mt-10 flex flex-col sm:flex-row sm:items-stretch gap-5">
               <Link
                 href="/generate/stencil"
-                className="tape press inline-flex items-center justify-center px-10 py-5 font-display text-[28px] sm:text-[38px] leading-none tracking-[0.02em] self-start"
+                className="tape press inline-flex items-center justify-center px-9 py-[18px] font-display text-[28px] sm:text-[34px] leading-none tracking-[0.02em] self-start"
               >
-                Start Your Design
+                Start your design
                 <span className="ml-3 text-[20px]">▸</span>
               </Link>
               <Link
                 href="/artists"
                 className="text-[10px] uppercase tracking-[0.2em] text-white/70 hover:text-black hover:bg-pink border-2 hairline px-6 py-5 press font-body self-start inline-flex items-center"
               >
-                Browse Artists&nbsp;&nbsp;→
+                Browse artists&nbsp;&nbsp;→
               </Link>
             </div>
           </div>
@@ -140,26 +175,16 @@ export default function Home() {
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
               {FEATURED.map((a) => (
-                <Link
+                <ArtistCard
                   key={a.name}
-                  href={`/artists/${a.name.toLowerCase().replace(/\s+/g, "-")}`}
-                  className="block group press"
-                >
-                  <div
-                    className={`aspect-[3/4] ${a.color} border-2 hairline mb-4 relative overflow-hidden`}
-                  >
-                    <div className="absolute inset-0 mix-blend-multiply opacity-80 bg-gradient-to-b from-transparent to-black/60" />
-                    <span className="absolute bottom-3 left-3 text-[9px] uppercase tracking-[0.2em] text-white/80 font-body">
-                      {a.style}
-                    </span>
-                  </div>
-                  <div className="font-display text-[20px] tracking-wide text-white group-hover:text-pink">
-                    {a.name}
-                  </div>
-                  <div className="text-[10px] uppercase tracking-[0.2em] text-white/50 font-body mt-1">
-                    {a.city}
-                  </div>
-                </Link>
+                  variant="compact"
+                  slug={a.name.toLowerCase().replace(/\s+/g, "-")}
+                  name={a.name}
+                  city={a.city}
+                  style={a.style}
+                  color={a.color}
+                  image={a.image}
+                />
               ))}
             </div>
           </div>
