@@ -1,53 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import StudioShell from "@/components/studio/StudioShell";
 import ArtistCard from "@/components/punk/ArtistCard";
 import SlashHeadline from "@/components/punk/SlashHeadline";
+import { getAllArtists, getAllStyles } from "@/lib/artists";
 
 const COLORS = ["bg-pink", "bg-bone", "bg-cream", "bg-pink-deep", "bg-white/10", "bg-white/5"];
-const NAMES = [
-  "Kira Volkov", "Diego Marin", "Astrid Holm", "Yuki Tanaka",
-  "Marcus Reed", "Léa Dupont", "Sven Eriksson", "Priya Anand",
-  "Tomás Vega", "Hana Park", "Idris Khan", "Mira Bell",
-  "Jonas Weiss", "Camila Rojas", "Otto Lindqvist", "Naima Said",
-  "Ren Kobayashi", "Sasha Petrov", "Eli Sterling", "Zoe Marchetti",
-  "Bash Carter", "Nori Hayashi", "Pia Falk", "Quincy Drake",
-];
-const CITIES = [
-  "Brooklyn, NY", "Mexico City", "Berlin, DE", "Osaka, JP",
-  "Austin, TX", "Paris, FR", "Stockholm, SE", "Mumbai, IN",
-  "Lisbon, PT", "Seoul, KR", "Manchester, UK", "Portland, OR",
-  "Munich, DE", "Buenos Aires", "Helsinki, FI", "Cairo, EG",
-  "Tokyo, JP", "Kyiv, UA", "Toronto, CA", "Rome, IT",
-  "Dallas, TX", "Yokohama, JP", "Copenhagen, DK", "Atlanta, GA",
-];
-const STYLES = [
-  "Fineline", "Traditional", "Blackwork", "Irezumi", "Neo-Trad",
-  "Script", "Nordic", "Mehndi", "Surreal", "Soft Color", "Lettering", "Botanical",
-];
-
-const ARTISTS = Array.from({ length: 24 }).map((_, i) => ({
-  slug: NAMES[i].toLowerCase().replace(/\s+/g, "-"),
-  name: NAMES[i],
-  city: CITIES[i],
-  style: STYLES[i % STYLES.length],
-  color: COLORS[i % COLORS.length],
-}));
-
-const STYLE_FILTERS = ["All", ...STYLES] as const;
 
 export default function ArtistsPage() {
   const [q, setQ] = useState("");
   const [style, setStyle] = useState<string>("All");
+
+  const artists = useMemo(() => getAllArtists(), []);
+  const styleFilters = useMemo(() => ["All", ...getAllStyles()], []);
+
   const ql = q.trim().toLowerCase();
-  const filtered = ARTISTS.filter((a) => {
-    if (style !== "All" && a.style !== style) return false;
+  const filtered = artists.filter((a) => {
+    if (style !== "All" && !a.styles.includes(style)) return false;
     if (!ql) return true;
     return (
       a.name.toLowerCase().includes(ql) ||
-      a.city.toLowerCase().includes(ql) ||
-      a.style.toLowerCase().includes(ql)
+      a.location.toLowerCase().includes(ql) ||
+      a.shopName.toLowerCase().includes(ql) ||
+      a.styles.some((s) => s.toLowerCase().includes(ql))
     );
   });
 
@@ -88,7 +64,7 @@ export default function ArtistsPage() {
               type="text"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Name, city, or style…"
+              placeholder="Name, city, shop, or style…"
               className="w-full bg-black text-white placeholder-white/30 focus:outline-none text-[20px] md:text-[24px] leading-[1.4] tracking-tight border-2 hairline focus:border-pink p-5 transition-colors font-display"
             />
           </div>
@@ -99,7 +75,7 @@ export default function ArtistsPage() {
               <span className="text-[10px] uppercase tracking-[0.25em] text-pink font-body shrink-0">
                 Style
               </span>
-              {STYLE_FILTERS.map((s) => {
+              {styleFilters.map((s) => {
                 const active = style === s;
                 return (
                   <button
@@ -130,14 +106,15 @@ export default function ArtistsPage() {
           </div>
 
           <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filtered.map((a) => (
+            {filtered.map((a, i) => (
               <ArtistCard
                 key={a.slug}
                 slug={a.slug}
                 name={a.name}
-                city={a.city}
-                color={a.color}
-                style={a.style}
+                city={a.location}
+                color={COLORS[i % COLORS.length]}
+                image={a.portfolioImages[0]}
+                style={a.styles[0]}
                 showFavorite
                 favoriteSize={20}
                 favoritePosition="top-right"

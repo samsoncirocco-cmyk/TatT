@@ -1,18 +1,13 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
 import FavoriteButton from "@/components/punk/FavoriteButton";
+import SlashHeadline from "@/components/punk/SlashHeadline";
+import TapeCTA from "@/components/punk/TapeCTA";
+import { getAllArtists, getArtistBySlug } from "@/lib/artists";
 
-const TILE_COLORS = [
-  "bg-pink", "bg-bone", "bg-cream",
-  "bg-pink-deep", "bg-white/10", "bg-pink",
-  "bg-cream", "bg-bone", "bg-white/5",
-];
-
-function slugToName(slug: string) {
-  return slug
-    .split("-")
-    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
-    .join(" ");
+export function generateStaticParams() {
+  return getAllArtists().map((a) => ({ slug: a.slug }));
 }
 
 export default async function ArtistProfilePage({
@@ -21,72 +16,111 @@ export default async function ArtistProfilePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const name = slugToName(slug);
+  const artist = getArtistBySlug(slug);
+  if (!artist) notFound();
+
+  const nameParts = artist.name.split(" ");
+  const lastName = nameParts.pop() ?? artist.name;
+  const firstNames = nameParts.join(" ");
 
   return (
     <StudioShell>
+      {/* breadcrumb meta */}
       <div className="px-6 md:px-12 pt-6 pb-4 border-b hairline">
         <div className="max-w-6xl mx-auto flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/50 tabular-nums font-body">
           <Link href="/artists" className="hover:text-pink">
             ←&nbsp;Roster
           </Link>
           <span>
-            Profile&nbsp;/&nbsp;<span className="text-pink">{slug}</span>
+            Profile&nbsp;/&nbsp;<span className="text-pink">{artist.slug}</span>
           </span>
         </div>
       </div>
 
-      {/* HERO */}
+      {/* HERO — portfolio image | info panel */}
       <div className="px-6 md:px-12 py-12 md:py-16">
         <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12 items-start">
           <div className="md:col-span-5">
-            <div className="aspect-[3/4] bg-pink border-2 hairline relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/70 mix-blend-multiply" />
-              <div className="absolute top-3 right-3 sticker px-3 py-1 z-10">
-                <div className="font-display text-[11px] tracking-widest leading-none">
-                  Verified
-                </div>
-                <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-0.5">
-                  Studio&nbsp;Approved
-                </div>
-              </div>
+            <div className="aspect-[3/4] bg-bone border-2 hairline relative overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={artist.portfolioImages[0]}
+                alt={`${artist.name} portfolio work`}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+              <span className="absolute bottom-3 left-3 text-[9px] uppercase tracking-[0.2em] font-body bg-cream text-black px-2 py-1">
+                {artist.styles[0]}
+              </span>
             </div>
           </div>
-          <div className="md:col-span-7">
+
+          <div className="md:col-span-7 relative">
+            <div className="hidden sm:block absolute top-0 right-0 sticker px-3 py-1.5 z-10">
+              <div className="font-display text-[13px] tracking-widest leading-none tabular-nums">
+                ★&nbsp;{artist.rating.toFixed(1)}
+              </div>
+              <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-0.5 tabular-nums">
+                {artist.reviewCount}&nbsp;reviews
+              </div>
+            </div>
+
+            <div className="text-[10px] uppercase tracking-[0.28em] text-pink mb-5 font-body">
+              ▸&nbsp;{artist.styles.join(" · ")}
+            </div>
+
             <div className="flex items-start justify-between gap-4">
-              <h1 className="font-display text-white text-[56px] sm:text-[80px] md:text-[96px] leading-[0.88] tracking-[0.005em]">
-                {name}
-                <span className="text-pink">.</span>
-              </h1>
-              <FavoriteButton slug={slug} label={name} size={28} className="mt-2 shrink-0" />
+              <SlashHeadline
+                before={firstNames || undefined}
+                slashed={lastName}
+                sizeClassName="text-[48px] sm:text-[72px] md:text-[88px] leading-[0.88]"
+                className="text-balance"
+              />
+              <FavoriteButton
+                slug={artist.slug}
+                label={artist.name}
+                size={28}
+                className="mt-2 shrink-0"
+              />
             </div>
+
             <div className="mt-4 flex flex-wrap items-center gap-3 text-[10px] uppercase tracking-[0.25em] text-white/60 font-body">
-              <span>Brooklyn, NY</span>
+              <span>{artist.shopName}</span>
               <span className="text-pink">●</span>
-              <span>Fineline / Botanical</span>
-              <span className="text-pink">●</span>
-              <span>8&nbsp;yrs</span>
+              <span>{artist.location}</span>
             </div>
+
             <p className="mt-8 max-w-xl text-[15px] leading-[1.55] text-white/70 font-body">
-              Specializing in delicate fineline botanical work and bold blackwork.
-              {" "}
-              <span className="scribble text-pink">Walk-ins by appointment.</span>
+              {artist.bio}{" "}
+              {artist.bookingAvailable && (
+                <span className="scribble text-pink">Chair is open.</span>
+              )}
             </p>
 
-            {/* TABS */}
-            <div className="mt-10 flex gap-0 border-b-2 hairline overflow-x-auto -mx-6 px-6 sm:mx-0 sm:px-0">
-              {["Portfolio", "About", "Book"].map((t, i) => (
-                <button
-                  key={t}
-                  className={`px-5 py-3 font-display text-[16px] tracking-wide press border-r hairline shrink-0 ${
-                    i === 0
-                      ? "bg-pink text-black"
-                      : "text-white/70 hover:text-pink"
-                  }`}
-                >
-                  {t}
-                </button>
+            {/* STAT ROW */}
+            <div className="mt-10 grid grid-cols-3 max-w-md border-t hairline pt-6 gap-6">
+              {[
+                [`${artist.yearsExperience}yr`, "Experience"],
+                [`${artist.reviewCount}`, "Reviews"],
+                [`$${artist.hourlyRate}/hr`, "Rate"],
+              ].map(([n, label]) => (
+                <div key={label}>
+                  <div className="font-display text-[30px] sm:text-[38px] leading-none text-pink tabular-nums">
+                    {n}
+                  </div>
+                  <div className="mt-2 text-[9px] uppercase tracking-[0.22em] text-white/50 font-body">
+                    {label}
+                  </div>
+                </div>
               ))}
+            </div>
+
+            <div className="mt-10 flex flex-col sm:flex-row sm:items-stretch gap-5">
+              <TapeCTA href="/book" size="md" className="self-start">
+                Book the chair
+              </TapeCTA>
+              <span className="text-[10px] uppercase tracking-[0.2em] text-white/50 font-body self-start sm:self-center">
+                {artist.instagram}
+              </span>
             </div>
           </div>
         </div>
@@ -100,21 +134,39 @@ export default async function ArtistProfilePage({
               Portfolio
             </h2>
             <span className="text-[10px] uppercase tracking-[0.25em] text-pink font-body tabular-nums">
-              09&nbsp;pieces
+              {String(artist.portfolioImages.length).padStart(2, "0")}
+              &nbsp;pieces
             </span>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
-            {TILE_COLORS.map((c, i) => (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+            {artist.portfolioImages.map((src, i) => (
               <div
-                key={i}
-                className={`aspect-square ${c} border-2 hairline press relative overflow-hidden`}
+                key={src}
+                className="aspect-square bg-bone border-2 hairline press relative overflow-hidden"
               >
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/40 mix-blend-multiply" />
-                <span className="absolute bottom-2 left-2 text-[9px] uppercase tracking-[0.2em] text-white/70 font-body tabular-nums">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={src}
+                  alt={`${artist.name} piece ${i + 1}`}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  loading="lazy"
+                />
+                <span className="absolute bottom-2 left-2 text-[9px] uppercase tracking-[0.2em] text-white font-body tabular-nums bg-black/60 px-1.5 py-0.5">
                   #{String(i + 1).padStart(2, "0")}
                 </span>
               </div>
             ))}
+            <Link
+              href="/book"
+              className="aspect-square border-2 hairline press relative overflow-hidden flex flex-col items-center justify-center gap-3 hover:border-pink group"
+            >
+              <span className="font-display text-[40px] leading-none text-pink/40 group-hover:text-pink">
+                {"//"}
+              </span>
+              <span className="text-[10px] uppercase tracking-[0.22em] text-white/50 font-body group-hover:text-white">
+                More at the shop
+              </span>
+            </Link>
           </div>
         </div>
       </div>

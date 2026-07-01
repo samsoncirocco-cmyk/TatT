@@ -65,6 +65,7 @@ export type TattDesign = {
   createdAt: number; // epoch ms
   color: string;     // tailwind bg class for the placeholder tile
   title?: string;
+  image?: string;    // generated cut URL; tiles show it instead of color
 };
 
 export type TattBooking = {
