@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
 import { generateWithRetry } from '@/services/generationService';
-import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
+import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { checkBudget, recordSpend } from '@/lib/budget-tracker';
 import { createRequestLogger } from '@/lib/logger';
 
@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
         });
     }
 
-    const rateResult = await checkRateLimit(req, 'generation');
+    const rateResult = await rateLimit(req, 'generation');
     if (!rateResult.allowed) {
         return rateLimitResponse(rateResult);
     }
