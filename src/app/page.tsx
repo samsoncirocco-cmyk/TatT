@@ -2,6 +2,7 @@ import Link from "next/link";
 import StudioShell from "@/components/studio/StudioShell";
 import SlashHeadline from "@/components/punk/SlashHeadline";
 import ArtistCard from "@/components/punk/ArtistCard";
+import { getFeaturedArtists } from "@/lib/artists";
 
 const STEPS = [
   {
@@ -21,36 +22,7 @@ const STEPS = [
   },
 ];
 
-const FEATURED = [
-  {
-    name: "Kira Volkov",
-    city: "Brooklyn, NY",
-    style: "Fineline",
-    color: "bg-pink",
-    image: "/portfolio/artist_12_1768520460086_0.png",
-  },
-  {
-    name: "Diego Marin",
-    city: "Mexico City",
-    style: "Traditional",
-    color: "bg-bone",
-    image: "/portfolio/artist_13_1768520473621_0.png",
-  },
-  {
-    name: "Astrid Holm",
-    city: "Berlin, DE",
-    style: "Blackwork",
-    color: "bg-cream",
-    image: "/portfolio/artist_11_1768520426807_2.png",
-  },
-  {
-    name: "Yuki Tanaka",
-    city: "Osaka, JP",
-    style: "Irezumi",
-    color: "bg-pink-deep",
-    image: "/portfolio/artist_100_1768521733754_0.png",
-  },
-];
+const FEATURED = getFeaturedArtists(4);
 
 export default function Home() {
   return (
@@ -174,16 +146,16 @@ export default function Home() {
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
-              {FEATURED.map((a) => (
+              {FEATURED.map((a, i) => (
                 <ArtistCard
-                  key={a.name}
+                  key={a.slug}
                   variant="compact"
-                  slug={a.name.toLowerCase().replace(/\s+/g, "-")}
+                  slug={a.slug}
                   name={a.name}
-                  city={a.city}
-                  style={a.style}
-                  color={a.color}
-                  image={a.image}
+                  city={a.location}
+                  style={a.styles[0]}
+                  color={["bg-pink", "bg-bone", "bg-cream", "bg-pink-deep"][i % 4]}
+                  image={a.portfolioImages[0]}
                 />
               ))}
             </div>
