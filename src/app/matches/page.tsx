@@ -5,56 +5,25 @@ import StudioShell from "@/components/studio/StudioShell";
 import ArtistCard from "@/components/punk/ArtistCard";
 import SlashHeadline from "@/components/punk/SlashHeadline";
 import { useFavorites } from "@/lib/tattStorage";
+import { getAllArtists } from "@/lib/artists";
 
 const COLORS = ["bg-pink", "bg-bone", "bg-cream", "bg-pink-deep", "bg-white/10"];
+const MATCH_PERCENTS = [98, 96, 94, 92, 91, 89, 88, 86, 84, 83, 81, 79];
 
-const ARTISTS = Array.from({ length: 12 }).map((_, i) => ({
-  slug: `artist-${i + 1}`,
-  name: [
-    "Kira Volkov",
-    "Diego Marin",
-    "Astrid Holm",
-    "Yuki Tanaka",
-    "Marcus Reed",
-    "Léa Dupont",
-    "Sven Eriksson",
-    "Priya Anand",
-    "Tomás Vega",
-    "Hana Park",
-    "Idris Khan",
-    "Mira Bell",
-  ][i],
-  city: [
-    "Brooklyn, NY",
-    "Mexico City",
-    "Berlin, DE",
-    "Osaka, JP",
-    "Austin, TX",
-    "Paris, FR",
-    "Stockholm, SE",
-    "Mumbai, IN",
-    "Lisbon, PT",
-    "Seoul, KR",
-    "Manchester, UK",
-    "Portland, OR",
-  ][i],
-  styles: [
-    ["Fineline", "Floral", "Minimal"],
-    ["Traditional", "Bold", "Color"],
-    ["Blackwork", "Geometric", "Heavy"],
-    ["Irezumi", "Color", "Large"],
-    ["Neo-Trad", "Animal", "Color"],
-    ["Fineline", "Script", "Micro"],
-    ["Nordic", "Linework", "Pagan"],
-    ["Mehndi", "Ornamental", "Floral"],
-    ["Surreal", "Black/Grey", "Portrait"],
-    ["K-Trad", "Pastel", "Soft"],
-    ["Graffiti", "Lettering", "Bold"],
-    ["Botanical", "Fineline", "Soft"],
-  ][i],
-  match: [98, 96, 94, 92, 91, 89, 88, 86, 84, 83, 81, 79][i],
-  color: COLORS[i % COLORS.length],
-}));
+// Top 12 by review-weighted rating stand in for semantic matching until
+// the /api/v1/match pipeline is wired into this page.
+const ARTISTS = [...getAllArtists()]
+  .sort((a, b) => b.rating * b.reviewCount - a.rating * a.reviewCount)
+  .slice(0, 12)
+  .map((a, i) => ({
+    slug: a.slug,
+    name: a.name,
+    city: a.location,
+    styles: [...a.styles, ...a.tags].slice(0, 3),
+    image: a.portfolioImages[0],
+    match: MATCH_PERCENTS[i],
+    color: COLORS[i % COLORS.length],
+  }));
 
 const STYLE_FILTERS = ["All", "Fineline", "Traditional", "Blackwork", "Color", "Geometric"];
 const LOCATION_FILTERS = ["Anywhere", "USA", "Europe", "Asia"];
@@ -175,6 +144,7 @@ export default function MatchesPage() {
                 name={a.name}
                 city={a.city}
                 color={a.color}
+                image={a.image}
                 styles={a.styles}
                 matchPercent={a.match}
                 showFavorite
