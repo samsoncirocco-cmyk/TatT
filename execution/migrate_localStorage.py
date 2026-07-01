@@ -52,8 +52,9 @@ def upload_data_uri_to_storage(
     mime_type = match.group(1)
     base64_data = match.group(2)
 
-    # Decode
-    file_data = base64.b64decode(base64_data)
+    # Decode (localStorage exports sometimes strip base64 padding — restore it)
+    padded = base64_data + "=" * (-len(base64_data) % 4)
+    file_data = base64.b64decode(padded)
 
     # Generate filename from content hash
     content_hash = hashlib.sha256(file_data).hexdigest()[:16]
@@ -151,8 +152,12 @@ def migrate_version_to_firestore(
 
         layer_ref.set(layer_data)
 
-def main() -> int:
-    """Main entry point."""
+def main(argv=None) -> int:
+    """Main entry point.
+
+    Accepts an explicit ``argv`` list (defaults to ``sys.argv[1:]``) so callers
+    such as tests can invoke it without leaking the host process arguments.
+    """
     parser = argparse.ArgumentParser(
         description="Migrate localStorage version history to Firestore"
     )
@@ -179,16 +184,9 @@ def main() -> int:
         action="store_true",
         help="Parse and validate without writing to Firestore"
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     try:
-        project_id = args.project_id or os.environ.get("GCP_PROJECT_ID")
-        if not project_id:
-            print("ERROR: --project-id or GCP_PROJECT_ID must be set")
-            return 1
-
-        bucket_name = args.bucket or f"{project_id}-designs"
-
         print("=== localStorage to Firestore Migration ===\n")
         print(f"Reading {args.input}...")
 
@@ -217,7 +215,15 @@ def main() -> int:
 
             return 0
 
-        # Real migration
+        # Real migration — GCP credentials only required past this point,
+        # so dry runs work without a project ID.
+        project_id = args.project_id or os.environ.get("GCP_PROJECT_ID")
+        if not project_id:
+            print("ERROR: --project-id or GCP_PROJECT_ID must be set")
+            return 1
+
+        bucket_name = args.bucket or f"{project_id}-designs"
+
         migrated = 0
         for version in versions:
             # Generate design ID from version or use hash
