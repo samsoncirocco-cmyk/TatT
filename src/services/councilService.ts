@@ -576,7 +576,8 @@ async function enhancePromptWithVertexAI({
 
   const startTime = Date.now();
   const accessToken = await getGcpAccessToken();
-  const endpoint = `https://${REGION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/publishers/google/models/${GEMINI_MODEL}:generateContent`;
+  const projectId = resolveVertexProjectId() || PROJECT_ID;
+  const endpoint = `https://${REGION}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${REGION}/publishers/google/models/${GEMINI_MODEL}:generateContent`;
 
   const aspectGuidance = getAspectRatioGuidance(bodyPart);
   const systemPrompt = `You are an expert tattoo design consultant. Your role is to enhance user ideas into detailed, professional tattoo prompts.
@@ -662,11 +663,33 @@ Return as JSON:
   };
 }
 
+/**
+ * Resolve the Vertex project id from any of the names in use across the
+ * stack (the Imagen client reads VERTEX_PROJECT_ID; older code used
+ * NEXT_PUBLIC_VERTEX_AI_PROJECT_ID / GCP_PROJECT_ID), falling back to
+ * the project_id inside the service-account JSON itself.
+ */
+export function resolveVertexProjectId(): string | null {
+  const direct =
+    process.env.NEXT_PUBLIC_VERTEX_AI_PROJECT_ID ||
+    process.env.GCP_PROJECT_ID ||
+    process.env.VERTEX_PROJECT_ID;
+  if (direct) return direct;
+  const credJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GCP_SERVICE_ACCOUNT_KEY;
+  if (credJson) {
+    try {
+      return JSON.parse(credJson).project_id ?? null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 function isVertexAIConfigured() {
-  const projectId = process.env.NEXT_PUBLIC_VERTEX_AI_PROJECT_ID || process.env.GCP_PROJECT_ID;
   const credJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GCP_SERVICE_ACCOUNT_KEY;
   const credPair = process.env.GCP_SERVICE_ACCOUNT_EMAIL && process.env.GCP_PRIVATE_KEY;
-  return Boolean(projectId && (credJson || credPair));
+  return Boolean(resolveVertexProjectId() && (credJson || credPair));
 }
 
 export async function enhancePrompt({
