@@ -28,10 +28,12 @@ let initializedSource: AdminCredSource | null = null;
 export function ensureAdminApp(): AdminCredSource | false {
   if (getApps().length > 0) return initializedSource ?? 'pre-initialized';
 
-  // 1. Full service-account JSON in env
+  // 1. Full service-account JSON in env (all names in use across the
+  //    stack — google-auth-edge accepts GCP_SERVICE_ACCOUNT_KEY too)
   const json =
     process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON ||
-    process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+    process.env.FIREBASE_SERVICE_ACCOUNT_JSON ||
+    process.env.GCP_SERVICE_ACCOUNT_KEY;
   if (json) {
     try {
       const creds = JSON.parse(json);
@@ -52,12 +54,17 @@ export function ensureAdminApp(): AdminCredSource | false {
     }
   }
 
-  // 2. Individual FIREBASE_* vars
+  // 2. Individual vars — FIREBASE_* names, falling back to the GCP_*
+  //    names the Vertex/Council auth path uses (same service account)
   const projectId =
     process.env.FIREBASE_PROJECT_ID ||
-    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
+    process.env.GCP_PROJECT_ID;
+  const clientEmail =
+    process.env.FIREBASE_CLIENT_EMAIL || process.env.GCP_SERVICE_ACCOUNT_EMAIL;
+  const privateKey = (
+    process.env.FIREBASE_PRIVATE_KEY || process.env.GCP_PRIVATE_KEY
+  )?.replace(/\\n/g, '\n');
   if (projectId && clientEmail && privateKey) {
     try {
       initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) });
