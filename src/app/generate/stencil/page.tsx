@@ -6,7 +6,12 @@ import StudioShell from "@/components/studio/StudioShell";
 import SlashHeadline from "@/components/punk/SlashHeadline";
 import TapeCTA from "@/components/punk/TapeCTA";
 import OutputCard from "@/components/punk/OutputCard";
-import { useDesigns } from "@/lib/tattStorage";
+import { useDesigns, useUser } from "@/lib/tattStorage";
+import {
+  FREE_TIER_DAILY_CUTS,
+  getDailyUsage,
+  recordGeneration,
+} from "@/lib/cloudSync";
 import { generateTattooDesign } from "@/features/generate/services/replicateService";
 
 const SUGGESTIONS = [
@@ -28,7 +33,7 @@ function IterationRow({ label, time }: { label: string; time: string }) {
       <div className="aspect-square bg-black border-2 hairline mb-3 flex items-center justify-center overflow-hidden relative">
         <span className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_1px_1px,#ff1f6b_1px,transparent_1.5px)] bg-[length:10px_10px]" />
         <span className="font-display text-white/10 group-hover:text-pink transition-colors text-7xl relative">
-          //
+          {"//"}
         </span>
         <span className="absolute top-2 left-2 text-[9px] uppercase tracking-[0.2em] text-pink font-body">
           Queue
@@ -76,6 +81,8 @@ function StencilPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { addDesign } = useDesigns();
+  const { user, hydrated } = useUser();
+  const signedOut = hydrated && !user;
 
   // Allow deep-linking with a pre-filled prompt: /generate/stencil?prompt=...
   // Used by /designs/[id]'s "Iterate" CTA to pick up where a saved design
@@ -95,9 +102,20 @@ function StencilPageInner() {
   const handleGenerate = useCallback(async () => {
     const trimmed = prompt.trim();
     if (!trimmed || cutting) return;
+    if (!user) {
+      router.push("/login?redirect=/generate/stencil");
+      return;
+    }
     setCutting(true);
     setError(null);
     try {
+      const used = await getDailyUsage();
+      if (used >= FREE_TIER_DAILY_CUTS) {
+        setError(
+          `Free tier is ${FREE_TIER_DAILY_CUTS} cuts a day — back tomorrow, or go Pro`,
+        );
+        return;
+      }
       const result = await generateTattooDesign({
         subject: trimmed,
         style: "blackwork",
@@ -109,12 +127,13 @@ function StencilPageInner() {
       setCuts(images.slice(0, 4));
       setSelected(0);
       setSavedCuts({});
+      void recordGeneration();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Generation failed");
     } finally {
       setCutting(false);
     }
-  }, [prompt, cutting]);
+  }, [prompt, cutting, user, router]);
 
   const handleSaveCut = (i: number) => {
     if (savedCuts[i]) return;
@@ -235,15 +254,25 @@ function StencilPageInner() {
                   </span>
                   &nbsp;/&nbsp;Model:&nbsp;SDXL&nbsp;Stencil&nbsp;v2
                 </div>
-                <TapeCTA
-                  onClick={handleGenerate}
-                  size="lg"
-                  disabled={cutting || !prompt.trim()}
-                  arrow={!cutting}
-                  className="self-start sm:self-auto"
-                >
-                  {cutting ? "Cutting…" : cuts.length ? "Regenerate" : "GENERATE"}
-                </TapeCTA>
+                {signedOut ? (
+                  <TapeCTA
+                    href="/login?redirect=/generate/stencil"
+                    size="lg"
+                    className="self-start sm:self-auto"
+                  >
+                    Sign in to generate
+                  </TapeCTA>
+                ) : (
+                  <TapeCTA
+                    onClick={handleGenerate}
+                    size="lg"
+                    disabled={cutting || !prompt.trim()}
+                    arrow={!cutting}
+                    className="self-start sm:self-auto"
+                  >
+                    {cutting ? "Cutting…" : cuts.length ? "Regenerate" : "GENERATE"}
+                  </TapeCTA>
+                )}
               </div>
 
               {/* FOUR CUTS — generation output grid */}

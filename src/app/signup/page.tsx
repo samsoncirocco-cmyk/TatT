@@ -1,16 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
 import SlashHeadline from "@/components/punk/SlashHeadline";
 import FormField from "@/components/punk/FormField";
 import AuthBrandPanel from "@/components/punk/AuthBrandPanel";
 import { useUser } from "@/lib/tattStorage";
 
-export default function SignupPage() {
+/** Only same-site relative paths are allowed as post-auth destinations. */
+function safeRedirect(raw: string | null): string {
+  if (raw && raw.startsWith("/") && !raw.startsWith("//")) return raw;
+  return "/designs";
+}
+
+function SignupPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const destination = safeRedirect(searchParams?.get("redirect") ?? null);
   const { signUp, error: authError } = useUser();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,7 +30,7 @@ export default function SignupPage() {
     const { signInWithGoogle } = await import("@/services/authService");
     try {
       await signInWithGoogle();
-      router.push("/designs");
+      router.push(destination);
     } catch {
       setOauthError("Google sign-in didn't complete. Pop-up blocked?");
     }
@@ -43,7 +51,7 @@ export default function SignupPage() {
               <span>
                 <span className="text-pink">●</span>&nbsp;&nbsp;Sign Up
               </span>
-              <Link href="/login" className="hover:text-pink">
+              <Link href={destination !== "/designs" ? `/login?redirect=${encodeURIComponent(destination)}` : "/login"} className="hover:text-pink">
                 Have account?&nbsp;Log In
               </Link>
             </div>
@@ -64,7 +72,7 @@ export default function SignupPage() {
                 setSubmitting(true);
                 const user = await signUp(email, password);
                 setSubmitting(false);
-                if (user) router.push("/designs");
+                if (user) router.push(destination);
               }}
               className="mt-10 space-y-6"
             >
@@ -145,5 +153,14 @@ export default function SignupPage() {
         </div>
       </div>
     </StudioShell>
+  );
+}
+
+export default function SignupPage() {
+  // useSearchParams requires a Suspense boundary in the app router.
+  return (
+    <Suspense fallback={<SignupPageInner />}>
+      <SignupPageInner />
+    </Suspense>
   );
 }
