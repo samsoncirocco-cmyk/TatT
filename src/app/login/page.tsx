@@ -1,16 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
 import SlashHeadline from "@/components/punk/SlashHeadline";
 import FormField from "@/components/punk/FormField";
 import AuthBrandPanel from "@/components/punk/AuthBrandPanel";
 import { useUser } from "@/lib/tattStorage";
 
-export default function LoginPage() {
+/** Only same-site relative paths are allowed as post-auth destinations. */
+function safeRedirect(raw: string | null): string {
+  if (raw && raw.startsWith("/") && !raw.startsWith("//")) return raw;
+  return "/designs";
+}
+
+function LoginPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const destination = safeRedirect(searchParams?.get("redirect") ?? null);
   const { signIn, error: authError } = useUser();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,7 +30,7 @@ export default function LoginPage() {
     const { signInWithGoogle } = await import("@/services/authService");
     try {
       await signInWithGoogle();
-      router.push("/designs");
+      router.push(destination);
     } catch {
       setOauthError("Google sign-in didn't complete. Pop-up blocked?");
     }
@@ -42,7 +50,7 @@ export default function LoginPage() {
               <span>
                 <span className="text-pink">●</span>&nbsp;&nbsp;Log In
               </span>
-              <Link href="/signup" className="hover:text-pink">
+              <Link href={destination !== "/designs" ? `/signup?redirect=${encodeURIComponent(destination)}` : "/signup"} className="hover:text-pink">
                 New here?&nbsp;Sign Up
               </Link>
             </div>
@@ -63,7 +71,7 @@ export default function LoginPage() {
                 setSubmitting(true);
                 const user = await signIn(email, password);
                 setSubmitting(false);
-                if (user) router.push("/designs");
+                if (user) router.push(destination);
               }}
               className="mt-10 space-y-6"
             >
@@ -132,5 +140,14 @@ export default function LoginPage() {
         </div>
       </div>
     </StudioShell>
+  );
+}
+
+export default function LoginPage() {
+  // useSearchParams requires a Suspense boundary in the app router.
+  return (
+    <Suspense fallback={<LoginPageInner />}>
+      <LoginPageInner />
+    </Suspense>
   );
 }
