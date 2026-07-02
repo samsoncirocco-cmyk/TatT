@@ -22,13 +22,24 @@ interface HealthCheck {
 
 async function checkFirestore(): Promise<HealthCheck> {
   try {
-    // Shared bootstrap — same init path budget-tracker/quota-tracker use
-    // (explicit cert from env, not ADC), so this check now proves the
-    // budget-cap code path. Bare admin.initializeApp() relied on ADC and
-    // failed on serverless when GOOGLE_APPLICATION_CREDENTIALS points at
-    // a file that doesn't exist in the bundle.
-    if (!ensureAdminApp()) {
+    // Shared bootstrap — same init path budget-tracker/quota-tracker use,
+    // so this check proves the budget-cap code path. The source matters:
+    // 'project-only-adc' means no explicit credentials were usable and
+    // auth defers to ADC, which does not work on Vercel — report that as
+    // unhealthy with the reason instead of a misleading ENOENT.
+    const source = ensureAdminApp();
+    if (!source) {
       throw new Error('Firebase Admin credentials not configured');
+    }
+    if (source === 'project-only-adc') {
+      return {
+        service: 'firestore',
+        healthy: false,
+        message:
+          'Admin initialized without explicit credentials (project-only-adc): ' +
+          'GOOGLE_APPLICATION_CREDENTIALS_JSON was missing/unparseable and the ' +
+          'FIREBASE_* triplet was incomplete or invalid. Budget cap cannot enforce.',
+      };
     }
 
     const db = getFirestore();
@@ -45,7 +56,7 @@ async function checkFirestore(): Promise<HealthCheck> {
     return {
       service: 'firestore',
       healthy: true,
-      message: 'Firestore connected and writable'
+      message: `Firestore connected and writable (credentials: ${source})`
     };
   } catch (error) {
     return {
