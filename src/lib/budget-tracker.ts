@@ -1,4 +1,5 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import { ensureAdminApp } from './firebase-admin';
 import { logger } from './logger';
 import { writeBudgetMetric } from './monitoring-client';
 
@@ -24,8 +25,9 @@ function isPeriodExpired(periodStartMs: number, config: BudgetConfig): boolean {
 
 export async function checkBudget(_userId?: string, config: BudgetConfig = DEFAULT_BUDGET): Promise<BudgetResult> {
   try {
-    // Inside the try: getFirestore() throws synchronously when Firebase
-    // Admin isn't initialized, and budget checking must fail open.
+    // Inside the try: init/getFirestore throw when Firebase Admin isn't
+    // configured, and budget checking must fail open.
+    if (!ensureAdminApp()) throw new Error('Firebase Admin not configured');
     const db = getFirestore();
     const ref = db.collection('budget').doc('global');
 
@@ -76,6 +78,7 @@ export async function checkBudget(_userId?: string, config: BudgetConfig = DEFAU
 
 export async function recordSpend(amountCents: number, config: BudgetConfig = DEFAULT_BUDGET): Promise<void> {
   try {
+    if (!ensureAdminApp()) throw new Error('Firebase Admin not configured');
     const db = getFirestore();
     const ref = db.collection('budget').doc('global');
 
