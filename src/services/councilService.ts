@@ -982,11 +982,15 @@ export async function enhancePrompt({
       providerErrors: providerErrors.map(e => e.message)
     }, 'error');
 
+    const primaryProviderError =
+      providerErrors.find(error => !error.message.startsWith('External Council API')) ||
+      providerErrors[providerErrors.length - 1];
+
     throw new CouncilProviderError(
       'all_providers_exhausted: AI Council temporarily unavailable',
       {
         provider: 'all_providers_exhausted',
-        cause: providerErrors[providerErrors.length - 1],
+        cause: primaryProviderError,
         retryAfterMs: 60_000
       }
     );
