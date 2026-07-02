@@ -331,4 +331,44 @@ describe('CouncilService - Provider Fallbacks', () => {
       process.env = originalEnv;
     }
   });
+
+  it('reports provider failures ahead of external fallback failures', async () => {
+    const originalEnv = { ...process.env };
+    vi.resetModules();
+    vi.stubGlobal('fetch', vi.fn());
+
+    process.env.NEXT_PUBLIC_COUNCIL_API_URL = 'http://localhost:8001/api';
+    process.env.VERCEL = '1';
+    process.env.NODE_ENV = 'production';
+    process.env.NEXT_PUBLIC_COUNCIL_DEMO_MODE = 'false';
+    process.env.NEXT_PUBLIC_DEMO_MODE = 'false';
+    process.env.NEXT_PUBLIC_VERTEX_AI_ENABLED = 'true';
+    process.env.NEXT_PUBLIC_USE_OPENROUTER = 'false';
+    delete process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+    delete process.env.GCP_SERVICE_ACCOUNT_KEY;
+    delete process.env.GCP_SERVICE_ACCOUNT_EMAIL;
+    delete process.env.GCP_PRIVATE_KEY;
+    delete process.env.GCP_PROJECT_ID;
+    delete process.env.VERTEX_PROJECT_ID;
+    delete process.env.NEXT_PUBLIC_VERTEX_AI_PROJECT_ID;
+
+    try {
+      const { enhancePrompt: enhancePromptFresh } = await import('./councilService');
+
+      await expect(enhancePromptFresh({
+        userIdea: 'A dragon design',
+        style: 'traditional',
+        bodyPart: 'forearm'
+      })).rejects.toMatchObject({
+        cause: expect.objectContaining({
+          message: 'Vertex AI is not configured'
+        })
+      });
+
+      expect(fetch).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+      process.env = originalEnv;
+    }
+  });
 });
