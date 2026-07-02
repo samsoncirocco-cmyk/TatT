@@ -1,23 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from 'firebase-admin/auth';
-import { getApps, initializeApp, cert } from 'firebase-admin/app';
+import { ensureAdminApp } from './firebase-admin';
 
-// Initialize Firebase Admin (server-side only)
-if (getApps().length === 0) {
-  const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-
-  if (projectId && clientEmail && privateKey) {
-    initializeApp({
-      credential: cert({ projectId, clientEmail, privateKey }),
-    });
-  } else if (projectId) {
-    // Fallback: use Application Default Credentials (for local dev with gcloud auth)
-    initializeApp({ projectId });
-  } else {
-    console.warn('[Auth DAL] No Firebase Admin credentials configured. Token verification will fail.');
-  }
+// Initialize Firebase Admin (server-side only). Shared bootstrap also
+// supports GOOGLE_APPLICATION_CREDENTIALS_JSON.
+if (!ensureAdminApp()) {
+  console.warn('[Auth DAL] No Firebase Admin credentials configured. Token verification will fail.');
 }
 
 interface VerifiedUser {

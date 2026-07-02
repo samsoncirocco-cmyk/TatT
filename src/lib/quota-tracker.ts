@@ -1,4 +1,5 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import { ensureAdminApp } from './firebase-admin';
 
 export interface QuotaConfig {
   maxRequests: number;
@@ -20,13 +21,14 @@ export type QuotaResult = {
 };
 
 export async function checkQuota(userId: string, endpoint: string): Promise<QuotaResult> {
-  const db = getFirestore();
   const config = QUOTA_CONFIGS[endpoint] || QUOTA_CONFIGS.default;
   const windowStart = Date.now() - config.windowMs;
 
-  const quotaRef = db.collection('quotas').doc(userId).collection('endpoints').doc(endpoint);
-
   try {
+    if (!ensureAdminApp()) throw new Error('Firebase Admin not configured');
+    const db = getFirestore();
+    const quotaRef = db.collection('quotas').doc(userId).collection('endpoints').doc(endpoint);
+
     return await db.runTransaction(async (tx) => {
       const snapshot = await tx.get(quotaRef);
       const data = snapshot.data();
@@ -65,6 +67,7 @@ export async function checkQuota(userId: string, endpoint: string): Promise<Quot
 }
 
 export async function resetQuota(userId: string, endpoint: string): Promise<void> {
+  ensureAdminApp();
   const db = getFirestore();
   const quotaRef = db.collection('quotas').doc(userId).collection('endpoints').doc(endpoint);
   await quotaRef.delete();
