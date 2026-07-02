@@ -3,9 +3,33 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
+import PunkToggle from "@/components/punk/PunkToggle";
 import { useUser } from "@/lib/tattStorage";
 
 const NAV = ["Profile", "Notifications", "Billing", "Delete Account"];
+
+const NOTIF_KEY = "tatt:notification-prefs";
+
+const NOTIF_OPTIONS = [
+  {
+    key: "cuts",
+    label: "Generation done",
+    description: "Ping when your four cuts land in the Forge.",
+    default: true,
+  },
+  {
+    key: "artist",
+    label: "Artist replies",
+    description: "When a matched artist responds to your booking.",
+    default: true,
+  },
+  {
+    key: "drops",
+    label: "Side B drops",
+    description: "New features, new flash, no filler.",
+    default: false,
+  },
+] as const;
 
 const STYLES = [
   "Fineline", "Traditional", "Blackwork", "Japanese",
@@ -21,13 +45,35 @@ export default function SettingsPage() {
   const [email, setEmail] = useState("");
   const [picked, setPicked] = useState<string[]>(["Fineline", "Blackwork"]);
   const [saved, setSaved] = useState(false);
+  const [notifs, setNotifs] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(NOTIF_OPTIONS.map((o) => [o.key, o.default])),
+  );
 
   // Sync local form state from store on hydration / user change.
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot hydration sync from localStorage, same pattern as useStoredList
   useEffect(() => {
     if (!hydrated) return;
     setName(user?.name ?? "");
     setEmail(user?.email ?? "");
+    try {
+      const stored = window.localStorage.getItem(NOTIF_KEY);
+      if (stored) setNotifs((n) => ({ ...n, ...JSON.parse(stored) }));
+    } catch {
+      /* corrupted prefs — keep defaults */
+    }
   }, [hydrated, user]);
+
+  const setNotif = (key: string, value: boolean) => {
+    setNotifs((n) => {
+      const next = { ...n, [key]: value };
+      try {
+        window.localStorage.setItem(NOTIF_KEY, JSON.stringify(next));
+      } catch {
+        /* storage full/blocked — state still updates for the session */
+      }
+      return next;
+    });
+  };
 
   const toggle = (s: string) =>
     setPicked((p) => (p.includes(s) ? p.filter((x) => x !== s) : [...p, s]));
@@ -186,6 +232,27 @@ export default function SettingsPage() {
                       <a href="/login" className="text-pink hover:underline">log in</a>.
                     </p>
                   )}
+                </div>
+              ) : active === 1 ? (
+                <div className="space-y-8">
+                  <h2 className="font-display text-white text-[28px] tracking-wide border-b-2 hairline pb-4">
+                    Notifications
+                  </h2>
+                  <div>
+                    {NOTIF_OPTIONS.map((o) => (
+                      <PunkToggle
+                        key={o.key}
+                        id={`notif-${o.key}`}
+                        label={o.label}
+                        description={o.description}
+                        checked={!!notifs[o.key]}
+                        onChange={(v) => setNotif(o.key, v)}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-body">
+                    Saved on your device. Email delivery lands with accounts v2.
+                  </p>
                 </div>
               ) : (
                 <div className="py-16 text-center">
