@@ -14,25 +14,12 @@ import path from 'path';
 import neo4j from 'neo4j-driver';
 import 'dotenv/config';
 
-// Configuration — no insecure defaults. Fail loud if env is missing.
-// (Pre-port: NEO4J_PASSWORD fell back to literal 'password' which silently
-// connected to misconfigured envs and only failed at the network layer.)
-function requireEnv(name) {
-    const v = process.env[name];
-    if (!v || v.trim() === '') {
-        throw new Error(
-            `Missing required env var: ${name}. ` +
-            `Set it in .env.local before running import_to_neo4j.js.`
-        );
-    }
-    return v;
-}
-
+// Configuration
 const CONFIG = {
-    INPUT_FILE: process.env.VALIDATOR_INPUT || path.join(process.cwd(), 'scripts/data_acquisition/output/verified_artists.json'),
-    NEO4J_URI: requireEnv('NEO4J_URI'),
-    NEO4J_USER: requireEnv('NEO4J_USER'),
-    NEO4J_PASSWORD: requireEnv('NEO4J_PASSWORD'),
+    INPUT_FILE: process.env.VALIDATOR_INPUT || path.join(process.cwd(), 'src/scripts/data_acquisition/output/verified_artists_production.json'),
+    NEO4J_URI: process.env.NEO4J_URI || 'bolt://localhost:7687',
+    NEO4J_USER: process.env.NEO4J_USER || 'neo4j',
+    NEO4J_PASSWORD: process.env.NEO4J_PASSWORD || 'password' // Check your .env
 };
 
 async function importData() {
@@ -57,18 +44,9 @@ async function importData() {
         // await session.run('MATCH (n:Artist {source: "crawled_verified"}) DETACH DELETE n');
 
         // 3. Create Constraints (Idempotency)
-        // Pre-port: this catch swallowed ALL errors including auth/network failures.
-        // We only want to ignore the specific "already exists" case, not real problems.
         try {
             await session.run('CREATE CONSTRAINT artist_id IF NOT EXISTS FOR (a:Artist) REQUIRE a.id IS UNIQUE');
-        } catch (e) {
-            const msg = (e && e.message) || String(e);
-            if (msg.includes('already exists') || msg.includes('EquivalentSchemaRuleAlreadyExistsException')) {
-                // Expected on subsequent runs — constraint already in place.
-            } else {
-                throw new Error(`Failed to create artist_id constraint: ${msg}`);
-            }
-        }
+        } catch (e) { /* Ignore if exists */ }
 
         // 4. Import Nodes (Artists & Shops)
         console.log('[Importer] Creating Artist & Shop Nodes...');
