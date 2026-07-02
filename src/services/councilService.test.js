@@ -273,3 +273,33 @@ describe('CouncilService - Skill Pack Integration', () => {
     });
   });
 });
+
+describe('CouncilService - Provider Fallbacks', () => {
+  it('does not call localhost when the external Council API is not explicitly configured', async () => {
+    const originalEnv = { ...process.env };
+    vi.resetModules();
+    vi.stubGlobal('fetch', vi.fn());
+
+    delete process.env.NEXT_PUBLIC_COUNCIL_API_URL;
+    delete process.env.COUNCIL_API_URL;
+    process.env.NEXT_PUBLIC_COUNCIL_DEMO_MODE = 'false';
+    process.env.NEXT_PUBLIC_DEMO_MODE = 'false';
+    process.env.NEXT_PUBLIC_VERTEX_AI_ENABLED = 'false';
+    process.env.NEXT_PUBLIC_USE_OPENROUTER = 'false';
+
+    try {
+      const { enhancePrompt: enhancePromptFresh } = await import('./councilService');
+
+      await expect(enhancePromptFresh({
+        userIdea: 'A dragon design',
+        style: 'traditional',
+        bodyPart: 'forearm'
+      })).rejects.toThrow(/AI Council temporarily unavailable/);
+
+      expect(fetch).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+      process.env = originalEnv;
+    }
+  });
+});
