@@ -302,4 +302,33 @@ describe('CouncilService - Provider Fallbacks', () => {
       process.env = originalEnv;
     }
   });
+
+  it('does not call localhost in production even when the external Council API URL is set there', async () => {
+    const originalEnv = { ...process.env };
+    vi.resetModules();
+    vi.stubGlobal('fetch', vi.fn());
+
+    process.env.NEXT_PUBLIC_COUNCIL_API_URL = 'http://localhost:8001/api';
+    process.env.VERCEL = '1';
+    process.env.NODE_ENV = 'production';
+    process.env.NEXT_PUBLIC_COUNCIL_DEMO_MODE = 'false';
+    process.env.NEXT_PUBLIC_DEMO_MODE = 'false';
+    process.env.NEXT_PUBLIC_VERTEX_AI_ENABLED = 'false';
+    process.env.NEXT_PUBLIC_USE_OPENROUTER = 'false';
+
+    try {
+      const { enhancePrompt: enhancePromptFresh } = await import('./councilService');
+
+      await expect(enhancePromptFresh({
+        userIdea: 'A dragon design',
+        style: 'traditional',
+        bodyPart: 'forearm'
+      })).rejects.toThrow(/AI Council temporarily unavailable/);
+
+      expect(fetch).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+      process.env = originalEnv;
+    }
+  });
 });
