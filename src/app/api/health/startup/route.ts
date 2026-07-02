@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestore } from 'firebase-admin/firestore';
-import * as admin from 'firebase-admin';
 import neo4j from 'neo4j-driver';
+import { ensureAdminApp } from '@/lib/firebase-admin';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,9 +22,13 @@ interface HealthCheck {
 
 async function checkFirestore(): Promise<HealthCheck> {
   try {
-    // Initialize Firebase Admin if not already initialized
-    if (!admin.apps.length) {
-      admin.initializeApp();
+    // Shared bootstrap — same init path budget-tracker/quota-tracker use
+    // (explicit cert from env, not ADC), so this check now proves the
+    // budget-cap code path. Bare admin.initializeApp() relied on ADC and
+    // failed on serverless when GOOGLE_APPLICATION_CREDENTIALS points at
+    // a file that doesn't exist in the bundle.
+    if (!ensureAdminApp()) {
+      throw new Error('Firebase Admin credentials not configured');
     }
 
     const db = getFirestore();
