@@ -7,9 +7,9 @@ import SlashHeadline from "@/components/punk/SlashHeadline";
 import { useBookings, useDesigns, type TattDesign } from "@/lib/tattStorage";
 
 const STEPS = [
-  { n: "01", label: "Pick a Date" },
-  { n: "02", label: "Confirm Design" },
-  { n: "03", label: "Pay Deposit" },
+  { n: "01", label: "Pick a Date", hint: "When" },
+  { n: "02", label: "Confirm Design", hint: "Which cut" },
+  { n: "03", label: "Pay Deposit", hint: "Deposit + book" },
 ];
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
@@ -61,32 +61,60 @@ export default function BookPage() {
         <div className="max-w-5xl mx-auto">
           <SlashHeadline before="Book the" slashed="chair" size="section" />
 
-          {/* STEPPER */}
+          {/* STEP INDICATOR — full-width bar per design system */}
           <div className="mt-12 flex flex-col sm:flex-row sm:items-stretch gap-0 border-2 hairline">
-            {STEPS.map((s, i) => (
-              <button
-                key={s.n}
-                type="button"
-                onClick={() => {
-                  if (i <= step) setStep(i as 0 | 1 | 2);
-                }}
-                disabled={i > step}
-                className={`flex-1 px-5 py-4 border-b sm:border-b-0 sm:border-r hairline last:border-r-0 last:border-b-0 flex items-center gap-4 press text-left ${
-                  i === step
-                    ? "bg-pink text-black"
-                    : i < step
-                    ? "text-pink hover:bg-white/5"
-                    : "text-white/40"
-                }`}
-              >
-                <span className="font-display text-[28px] leading-none tabular-nums">
-                  {s.n}
-                </span>
-                <span className="text-[12px] uppercase tracking-[0.25em] font-body">
-                  {s.label}
-                </span>
-              </button>
-            ))}
+            {STEPS.map((s, i) => {
+              const active = i === step;
+              const done = i < step;
+              const doneDetail =
+                i === 0 && selected !== null
+                  ? `March ${selected}`
+                  : i === 1
+                  ? designId
+                    ? designs.find((d) => d.id === designId)?.prompt.split(/[\s,]+/).slice(0, 2).join(" ") ?? "Design set"
+                    : "No design"
+                  : "";
+              return (
+                <button
+                  key={s.n}
+                  type="button"
+                  onClick={() => {
+                    if (i <= step) setStep(i as 0 | 1 | 2);
+                  }}
+                  disabled={i > step}
+                  className={`relative flex-1 px-5 py-4 border-b sm:border-b-0 sm:border-r hairline last:border-r-0 last:border-b-0 flex items-center gap-4 press text-left ${
+                    active ? "bg-pink/[0.06]" : done ? "hover:bg-white/5" : ""
+                  }`}
+                >
+                  {active && (
+                    <span className="absolute top-0 left-0 right-0 h-1 bg-pink" />
+                  )}
+                  <span
+                    className={`font-display text-[26px] leading-none tabular-nums ${
+                      active ? "text-pink" : "text-white/30"
+                    }`}
+                  >
+                    {s.n}
+                  </span>
+                  <span className="min-w-0">
+                    <span
+                      className={`block text-[10px] uppercase tracking-[0.22em] font-body ${
+                        active ? "text-white" : done ? "text-white/70" : "text-white/50"
+                      }`}
+                    >
+                      {s.label}
+                    </span>
+                    <span
+                      className={`block text-[9px] uppercase tracking-[0.18em] font-body mt-0.5 truncate ${
+                        active ? "text-pink" : "text-white/35"
+                      }`}
+                    >
+                      {active ? "In progress" : done ? `✓ ${doneDetail}` : s.hint}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
           {/* STEP 01: CALENDAR */}
@@ -185,8 +213,18 @@ export default function BookPage() {
                         designId === d.id ? "border-pink" : "hairline"
                       }`}
                     >
-                      <div className={`aspect-square ${d.color} relative overflow-hidden`}>
-                        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/50 mix-blend-multiply" />
+                      <div className={`aspect-square ${d.image ? "bg-bone" : d.color} relative overflow-hidden`}>
+                        {d.image ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={d.image}
+                            alt=""
+                            className="absolute inset-0 w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/50 mix-blend-multiply" />
+                        )}
                       </div>
                       <div className="p-3">
                         <div className="font-display text-[14px] tracking-wide text-white line-clamp-1">

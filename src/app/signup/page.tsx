@@ -5,47 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
 import SlashHeadline from "@/components/punk/SlashHeadline";
+import FormField from "@/components/punk/FormField";
+import AuthBrandPanel from "@/components/punk/AuthBrandPanel";
 import { useUser } from "@/lib/tattStorage";
-
-/** Punk form field per handoff: mono micro-label, hard 2px border,
- *  pink focus. */
-function Field({
-  id,
-  label,
-  type,
-  value,
-  onChange,
-  placeholder,
-  autoComplete,
-}: {
-  id: string;
-  label: string;
-  type: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder: string;
-  autoComplete?: string;
-}) {
-  return (
-    <div>
-      <label
-        htmlFor={id}
-        className="block text-[10px] uppercase tracking-[0.24em] text-white/55 mb-3 font-body"
-      >
-        {label}
-      </label>
-      <input
-        id={id}
-        type={type}
-        value={value}
-        autoComplete={autoComplete}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full bg-black text-white placeholder-white/30 focus:outline-none text-[20px] leading-[1.4] tracking-tight border-2 hairline focus:border-pink p-4 transition-colors font-display"
-      />
-    </div>
-  );
-}
 
 export default function SignupPage() {
   const router = useRouter();
@@ -69,34 +31,10 @@ export default function SignupPage() {
   return (
     <StudioShell footer={false}>
       <div className="grid grid-cols-1 lg:grid-cols-2 min-h-[calc(100vh-140px)]">
-        {/* BRAND PANEL */}
-        <div className="relative hidden lg:block overflow-hidden border-r-2 hairline">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/hero.png"
-            alt=""
-            aria-hidden
-            className="absolute inset-0 w-full h-full object-cover opacity-50"
-          />
-          <div className="halftone absolute inset-0" />
-          <div className="absolute inset-0 bg-[linear-gradient(0deg,#0a0a0a_10%,transparent_55%)]" />
-          <div className="relative z-[2] h-full flex flex-col justify-end p-12">
-            <div className="font-display text-white text-[64px] xl:text-[80px] leading-[0.88]">
-              Think it.
-              <br />
-              <span className="slash"><span>Ink it</span></span>
-              <span className="text-pink">.</span>
-            </div>
-            <p className="mt-8 max-w-sm text-[13px] leading-[1.6] text-white/70 font-body">
-              &ldquo;Described my sleeve in one sentence, had four cuts before
-              my coffee went cold. My artist worked straight off the
-              stencil.&rdquo;
-            </p>
-            <div className="mt-4 text-[10px] uppercase tracking-[0.25em] text-pink font-body">
-              ▸&nbsp;River&nbsp;M. — Pro member
-            </div>
-          </div>
-        </div>
+        <AuthBrandPanel
+          quote="Described my sleeve in one sentence, had four cuts before my coffee went cold. My artist worked straight off the stencil."
+          attribution="River M. — Pro member"
+        />
 
         {/* FORM */}
         <div className="px-6 md:px-12 py-14 md:py-20 flex flex-col justify-center">
@@ -130,7 +68,7 @@ export default function SignupPage() {
               }}
               className="mt-10 space-y-6"
             >
-              <Field
+              <FormField
                 id="email"
                 label="Email"
                 type="email"
@@ -139,7 +77,7 @@ export default function SignupPage() {
                 placeholder="you@somewhere.com"
                 autoComplete="email"
               />
-              <Field
+              <FormField
                 id="password"
                 label="Password"
                 type="password"
