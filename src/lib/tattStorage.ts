@@ -10,6 +10,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { startCloudSync, stopCloudSync, queueCloudWrite } from "@/lib/cloudSync";
 
 export const STORAGE_KEYS = {
   designs: "tatt:designs",
@@ -41,8 +42,22 @@ function safeWrite<T>(key: string, value: T) {
   try {
     window.localStorage.setItem(key, JSON.stringify(value));
     emitChange(key);
+    // Mirror list writes to Firestore when signed in (no-op otherwise).
+    if (Array.isArray(value)) queueCloudWrite(key, value);
   } catch {
     /* quota / serialization failures are non-fatal in the demo */
+  }
+}
+
+/** Local write that skips the cloud mirror — used by cloudSync itself
+ *  when applying remote snapshots, to avoid write loops. */
+function applyRemoteWrite(key: string, items: unknown[]) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(items));
+    emitChange(key);
+  } catch {
+    /* noop */
   }
 }
 
@@ -297,7 +312,14 @@ export function useUser() {
             const mapped = firebaseToTattUser(fbUser);
             safeWrite(STORAGE_KEYS.user, mapped);
             setUserState(mapped);
+            // Mirror lists to the account (idempotent per uid).
+            void startCloudSync(
+              fbUser.uid,
+              (key) => safeRead<unknown[]>(key, []),
+              applyRemoteWrite,
+            );
           } else {
+            stopCloudSync();
             safeRemove(STORAGE_KEYS.user);
             setUserState(null);
           }
