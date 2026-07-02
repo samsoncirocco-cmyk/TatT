@@ -11,7 +11,7 @@ import { COUNCIL_SKILL_PACK } from '../config/councilSkillPack';
 import { getGcpAccessToken } from '@/lib/google-auth-edge';
 import { logEvent } from '@/lib/observability';
 
-const COUNCIL_API_URL = process.env.NEXT_PUBLIC_COUNCIL_API_URL || 'http://localhost:8001/api';
+const COUNCIL_API_URL = process.env.NEXT_PUBLIC_COUNCIL_API_URL || process.env.COUNCIL_API_URL;
 const DEMO_MODE = process.env.NEXT_PUBLIC_COUNCIL_DEMO_MODE === 'true' || process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
 /**
@@ -89,6 +89,13 @@ function cacheSet(key: string, value: any) {
     councilCache.delete(oldest);
   }
   councilCache.set(key, { value, expiresAt: Date.now() + CACHE_TTL_MS });
+}
+
+function requireCouncilApiUrl(): string {
+  if (!COUNCIL_API_URL) {
+    throw new Error('External Council API is not configured');
+  }
+  return COUNCIL_API_URL.replace(/\/$/, '');
 }
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
@@ -782,6 +789,7 @@ export async function enhancePrompt({
         cacheSet(cKey, finalResult);
         return finalResult;
       }
+      providerErrors.push(new Error('Vertex AI is not configured'));
     } catch (error) {
       console.error('[CouncilService] Vertex AI failed, trying fallback:', error);
       providerErrors.push(error instanceof Error ? error : new Error(String(error)));
@@ -821,6 +829,7 @@ export async function enhancePrompt({
         cacheSet(cKey, finalResult);
         return finalResult;
       }
+      providerErrors.push(new Error('OpenRouter is not configured'));
     } catch (error) {
       console.error('[CouncilService] OpenRouter failed, falling back:', error);
       providerErrors.push(error instanceof Error ? error : new Error(String(error)));
@@ -875,9 +884,10 @@ export async function enhancePrompt({
   }
 
   try {
+    const councilApiUrl = requireCouncilApiUrl();
     const modelSelection: any = await modelSelectionPromise;
 
-    const response = await fetch(`${COUNCIL_API_URL}/prompt-generation`, {
+    const response = await fetch(`${councilApiUrl}/prompt-generation`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -997,7 +1007,8 @@ export async function refinePrompt({ currentPrompt, refinementRequest }: any) {
   }
 
   try {
-    const response = await fetch(`${COUNCIL_API_URL}/prompt-refinement`, {
+    const councilApiUrl = requireCouncilApiUrl();
+    const response = await fetch(`${councilApiUrl}/prompt-refinement`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -1050,7 +1061,8 @@ export async function getStyleRecommendations(style: string) {
   }
 
   try {
-    const response = await fetch(`${COUNCIL_API_URL}/style-recommendations/${style}`);
+    const councilApiUrl = requireCouncilApiUrl();
+    const response = await fetch(`${councilApiUrl}/style-recommendations/${style}`);
 
     if (!response.ok) {
       throw new Error(`Council API error: ${response.status}`);
@@ -1098,7 +1110,8 @@ export async function validatePrompt(prompt: string) {
   }
 
   try {
-    const response = await fetch(`${COUNCIL_API_URL}/prompt-validation`, {
+    const councilApiUrl = requireCouncilApiUrl();
+    const response = await fetch(`${councilApiUrl}/prompt-validation`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
