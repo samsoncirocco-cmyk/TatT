@@ -181,7 +181,9 @@ def sample_version_history():
                 "prompt": "Dragon with fire",
                 "enhancedPrompt": "Japanese dragon breathing fire",
                 "parameters": {"model": "sdxl", "size": "1024x1024"},
-                "imageUrl": "data:image/png;base64,iVBORw0KGgoAAAANS",
+                # Valid 1x1 PNG — must be decodable base64 since the migration
+                # script uploads decoded bytes to Cloud Storage.
+                "imageUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
                 "isFavorite": True,
                 "layers": []
             }

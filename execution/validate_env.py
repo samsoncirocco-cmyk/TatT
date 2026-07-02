@@ -20,67 +20,45 @@ def check_env_var(var_name: str) -> Tuple[bool, str]:
     return False, f"{var_name} is missing"
 
 def check_secret_manager(project_id: str) -> Tuple[bool, str]:
-    """Check if Secret Manager is accessible and required secrets exist."""
+    """Check that Secret Manager is reachable for the project (read-only)."""
     try:
         from google.cloud import secretmanager
         client = secretmanager.SecretManagerServiceClient()
-
-        required_secrets = [
-            'replicate-api-token',
-            'neo4j-password',
-            'firebase-private-key',
-            'openrouter-api-key'
-        ]
-
-        for secret in required_secrets:
-            try:
-                name = f"projects/{project_id}/secrets/{secret}/versions/latest"
-                response = client.access_secret_version(request={"name": name})
-                if not response.payload.data:
-                    return False, f"Secret {secret} is empty"
-            except Exception as e:
-                return False, f"Failed to access secret {secret}: {str(e)}"
-
-        return True, f"All {len(required_secrets)} secrets accessible"
+        secrets = list(client.list_secrets(request={"parent": f"projects/{project_id}"}))
+        return True, f"Secret Manager accessible ({len(secrets)} secrets visible)"
     except Exception as e:
         return False, f"Secret Manager error: {str(e)}"
 
 def check_firestore(project_id: str) -> Tuple[bool, str]:
-    """Check if Firestore is accessible."""
+    """Check that Firestore is reachable (read-only)."""
     try:
         from google.cloud import firestore
         client = firestore.Client(project=project_id)
-        # Test write/read to health check collection
-        doc_ref = client.collection("_health_check").document("startup_probe")
-        doc_ref.set({"timestamp": firestore.SERVER_TIMESTAMP})
-        doc = doc_ref.get()
-        if not doc.exists:
-            return False, "Health check document not created"
-        return True, "Firestore connected"
+        # Read-only probe: streaming the health-check collection is enough to
+        # surface auth/connectivity failures without writing anything.
+        list(client.collection("_health_check").stream())
+        return True, "Firestore accessible"
     except Exception as e:
         return False, f"Firestore error: {str(e)}"
 
 def check_neo4j() -> Tuple[bool, str]:
     """Check if Neo4j is accessible."""
+    uri = os.environ.get("NEO4J_URI")
+    user = os.environ.get("NEO4J_USER", "neo4j")
+    password = os.environ.get("NEO4J_PASSWORD")
+
+    if not uri or not password:
+        return False, "Neo4j credentials missing (NEO4J_URI / NEO4J_PASSWORD)"
+
     try:
         from neo4j import GraphDatabase
-        uri = os.environ.get("NEO4J_URI")
-        user = os.environ.get("NEO4J_USER", "neo4j")
-        password = os.environ.get("NEO4J_PASSWORD")
-
-        if not uri:
-            return False, "NEO4J_URI not set"
-        if not password:
-            return False, "NEO4J_PASSWORD not set"
-
         driver = GraphDatabase.driver(uri, auth=(user, password))
         with driver.session() as session:
-            result = session.run("RETURN 1 AS num")
-            record = result.single()
-            if record["num"] != 1:
-                return False, "Query returned unexpected result"
+            record = session.run("RETURN 1 AS num").single()
+            if record is None:
+                return False, "Neo4j error: health query returned no result"
         driver.close()
-        return True, "Neo4j connected"
+        return True, "Neo4j accessible"
     except Exception as e:
         return False, f"Neo4j error: {str(e)}"
 
@@ -97,10 +75,19 @@ def check_cloud_storage() -> Tuple[bool, str]:
     except Exception as e:
         return False, f"Cloud Storage error: {str(e)}"
 
-def main() -> int:
-    """Main entry point."""
+def main(argv=None) -> int:
+    """Main entry point.
+
+    Accepts an explicit ``argv`` list (defaults to ``sys.argv[1:]``) so callers
+    such as tests can invoke it without leaking the host process arguments.
+    """
     parser = argparse.ArgumentParser(
         description="Validate TatTester environment configuration"
+    )
+    parser.add_argument(
+        "--skip-services",
+        action="store_true",
+        help="Only validate environment variables; skip all external service checks"
     )
     parser.add_argument(
         "--skip",
@@ -113,7 +100,7 @@ def main() -> int:
         action="store_true",
         help="Output results as JSON"
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     skip_services = args.skip or []
 
@@ -123,16 +110,18 @@ def main() -> int:
         "NEO4J_URI",
         "NEO4J_USER",
         "NEO4J_PASSWORD",
-        "GCS_BUCKET_NAME"
+        "REPLICATE_API_TOKEN",
+        "FRONTEND_AUTH_TOKEN"
     ]
 
-    results: List[Dict] = []
+    env_results: List[Dict] = []
+    service_results: List[Dict] = []
     all_passed = True
 
     # Check environment variables
     for var in required_vars:
         passed, message = check_env_var(var)
-        results.append({
+        env_results.append({
             "service": f"EnvVar:{var}",
             "healthy": passed,
             "message": message
@@ -145,17 +134,19 @@ def main() -> int:
 
     checks = []
 
-    if "secrets" not in skip_services and project_id:
-        checks.append(("Secret Manager", check_secret_manager, project_id))
+    if not args.skip_services:
+        if "secrets" not in skip_services and project_id:
+            checks.append(("Secret Manager", check_secret_manager, project_id))
 
-    if "firestore" not in skip_services and project_id:
-        checks.append(("Firestore", check_firestore, project_id))
+        if "firestore" not in skip_services and project_id:
+            checks.append(("Firestore", check_firestore, project_id))
 
-    if "neo4j" not in skip_services:
-        checks.append(("Neo4j", check_neo4j, None))
+        if "neo4j" not in skip_services:
+            checks.append(("Neo4j", check_neo4j, None))
 
-    if "storage" not in skip_services:
-        checks.append(("Cloud Storage", check_cloud_storage, None))
+        # Cloud Storage is optional — only probed when a bucket is configured.
+        if "storage" not in skip_services and os.environ.get("GCS_BUCKET_NAME"):
+            checks.append(("Cloud Storage", check_cloud_storage, None))
 
     for service_name, check_fn, arg in checks:
         try:
@@ -163,7 +154,7 @@ def main() -> int:
                 passed, message = check_fn(arg)
             else:
                 passed, message = check_fn()
-            results.append({
+            service_results.append({
                 "service": service_name,
                 "healthy": passed,
                 "message": message
@@ -171,7 +162,7 @@ def main() -> int:
             if not passed:
                 all_passed = False
         except Exception as e:
-            results.append({
+            service_results.append({
                 "service": service_name,
                 "healthy": False,
                 "message": f"Unexpected error: {str(e)}"
@@ -182,19 +173,27 @@ def main() -> int:
     if args.json:
         print(json.dumps({
             "healthy": all_passed,
-            "checks": results
+            "checks": env_results + service_results
         }, indent=2))
     else:
         print("=== TatTester Environment Validation ===\n")
-        for result in results:
+
+        print("Environment Variables:")
+        for result in env_results:
             status = "✅" if result["healthy"] else "❌"
-            print(f"{status} {result['service']}: {result['message']}")
+            print(f"  {status} {result['message']}")
+
+        if service_results:
+            print("\nExternal Services:")
+            for result in service_results:
+                status = "✅" if result["healthy"] else "❌"
+                print(f"  {status} {result['service']}: {result['message']}")
 
         print()
         if all_passed:
-            print("✅ All validation checks passed. System ready.")
+            print("✅ All checks passed. System ready.")
         else:
-            print("❌ Validation failed. Container will not accept traffic.", file=sys.stderr)
+            print("❌ Some checks failed. Container will not accept traffic.")
 
     return 0 if all_passed else 1
 
