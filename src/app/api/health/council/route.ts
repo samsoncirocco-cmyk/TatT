@@ -81,6 +81,8 @@ async function probeProvider(
 export async function GET() {
   // Probe Vertex only (disable OpenRouter for this probe)
   const vertex = await probeProvider({
+    COUNCIL_VERTEX_AI_ENABLED: 'true',
+    COUNCIL_USE_OPENROUTER: 'false',
     NEXT_PUBLIC_VERTEX_AI_ENABLED: 'true',
     NEXT_PUBLIC_USE_OPENROUTER: 'false',
     NEXT_PUBLIC_COUNCIL_DEMO_MODE: 'false',
@@ -89,6 +91,8 @@ export async function GET() {
 
   // Probe OpenRouter only (disable Vertex for this probe)
   const openrouter = await probeProvider({
+    COUNCIL_VERTEX_AI_ENABLED: 'false',
+    COUNCIL_USE_OPENROUTER: 'true',
     NEXT_PUBLIC_VERTEX_AI_ENABLED: 'false',
     NEXT_PUBLIC_USE_OPENROUTER: 'true',
     NEXT_PUBLIC_COUNCIL_DEMO_MODE: 'false',
