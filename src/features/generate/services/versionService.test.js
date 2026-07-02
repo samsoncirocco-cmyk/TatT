@@ -48,8 +48,10 @@ describe('versionService', () => {
     beforeEach(() => {
         // Vitest/node environment doesn't always provide a full localStorage implementation.
         // Provide minimal mocks for the localStorage-backed adapter.
-        globalThis.localStorage = createStorageMock();
-        globalThis.sessionStorage = createStorageMock();
+        // jsdom defines localStorage as a read-only global, so direct assignment
+        // throws — vi.stubGlobal handles it (and unstubs automatically between files).
+        vi.stubGlobal('localStorage', createStorageMock());
+        vi.stubGlobal('sessionStorage', createStorageMock());
 
         // Clear localStorage before each test
         localStorage.clear();

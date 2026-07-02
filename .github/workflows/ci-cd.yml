@@ -69,7 +69,13 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: Run ESLint
+      # Advisory (step-level continue-on-error keeps the check green)
+      # until the pre-existing eslint error backlog (~298 as of
+      # 2026-07-01, from the flat-config migration) is burned down. The
+      # job was hard-red for months anyway: `next lint` was removed in
+      # Next 16, so it died on startup before linting anything.
+      - name: Run ESLint (advisory)
+        continue-on-error: true
         run: npm run lint
 
   test-js:

@@ -9,7 +9,7 @@
     "build:clean": "rm -f .next/lock && next build --webpack",
     "start": "next start",
     "server": "node server.js",
-    "lint": "next lint",
+    "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest"
   },
