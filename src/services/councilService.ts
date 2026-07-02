@@ -109,7 +109,7 @@ const OPENROUTER_SITE_URL = process.env.OPENROUTER_SITE_URL || process.env.NEXT_
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_VERTEX_AI_PROJECT_ID || process.env.GCP_PROJECT_ID || 'tatt-pro';
 const REGION = process.env.GCP_REGION || 'us-central1';
-const GEMINI_MODEL = 'gemini-2.0-flash-001'; // Updated 2026-03-17: gemini-2.0-flash-exp deprecated → stable gemini-2.0-flash-001
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
 const COUNCIL_MEMBERS = {
   creative: {
@@ -761,7 +761,7 @@ export async function enhancePrompt({
     stencil: resolvedStencilMode
   });
 
-  const USE_VERTEX_AI = process.env.NEXT_PUBLIC_VERTEX_AI_ENABLED !== 'false';
+  const USE_VERTEX_AI = (process.env.COUNCIL_VERTEX_AI_ENABLED ?? process.env.NEXT_PUBLIC_VERTEX_AI_ENABLED) !== 'false';
   if (USE_VERTEX_AI && !DEMO_MODE) {
     try {
       if (isVertexAIConfigured()) {
@@ -801,7 +801,7 @@ export async function enhancePrompt({
     }
   }
 
-  const USE_OPENROUTER = process.env.NEXT_PUBLIC_USE_OPENROUTER === 'true';
+  const USE_OPENROUTER = (process.env.COUNCIL_USE_OPENROUTER ?? process.env.NEXT_PUBLIC_USE_OPENROUTER) === 'true';
   if (USE_OPENROUTER && !DEMO_MODE) {
     try {
       if (isOpenRouterConfigured()) {
