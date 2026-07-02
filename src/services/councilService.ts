@@ -95,7 +95,12 @@ function requireCouncilApiUrl(): string {
   if (!COUNCIL_API_URL) {
     throw new Error('External Council API is not configured');
   }
-  return COUNCIL_API_URL.replace(/\/$/, '');
+  const url = COUNCIL_API_URL.replace(/\/$/, '');
+  const isLocalUrl = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(url);
+  if (isLocalUrl && (process.env.VERCEL || process.env.NODE_ENV === 'production')) {
+    throw new Error('External Council API points to localhost in production');
+  }
+  return url;
 }
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
