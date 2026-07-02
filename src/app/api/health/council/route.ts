@@ -15,13 +15,26 @@ import { enhancePrompt } from '@/services/councilService';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const PROBE_TIMEOUT_MS = 5_000;
+// A real council enhancement is a multi-second LLM call; 5s produced
+// false "timeout" verdicts. 15s still bounds the handler well under
+// Vercel's function limit (two sequential probes).
+const PROBE_TIMEOUT_MS = 15_000;
 
 type ProviderStatus = 'up' | 'down' | 'timeout';
+type ProbeResult = { status: ProviderStatus; reason?: string };
+
+/** Strip anything token-shaped and truncate — this endpoint is public. */
+function sanitizeReason(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  return msg
+    .replace(/Bearer\s+\S+/gi, 'Bearer [redacted]')
+    .replace(/(key|token|secret|password)=[^&\s]+/gi, '$1=[redacted]')
+    .slice(0, 160);
+}
 
 async function probeProvider(
   envOverrides: Record<string, string | undefined>
-): Promise<ProviderStatus> {
+): Promise<ProbeResult> {
   // Snapshot + temporarily mutate env to coerce councilService into using only
   // the provider we're probing. We restore env in the finally block.
   const snapshot: Record<string, string | undefined> = {};
@@ -36,12 +49,12 @@ async function probeProvider(
   }
 
   try {
-    const result = await Promise.race<ProviderStatus>([
+    const result = await Promise.race<ProbeResult>([
       enhancePrompt({ userIdea: 'test', style: 'traditional', bodyPart: 'forearm' })
-        .then((): ProviderStatus => 'up')
-        .catch((): ProviderStatus => 'down'),
-      new Promise<ProviderStatus>(resolve =>
-        setTimeout(() => resolve('timeout'), PROBE_TIMEOUT_MS)
+        .then((): ProbeResult => ({ status: 'up' }))
+        .catch((err): ProbeResult => ({ status: 'down', reason: sanitizeReason(err) })),
+      new Promise<ProbeResult>(resolve =>
+        setTimeout(() => resolve({ status: 'timeout' }), PROBE_TIMEOUT_MS)
       )
     ]);
     return result;
@@ -59,7 +72,7 @@ async function probeProvider(
 
 export async function GET() {
   // Probe Vertex only (disable OpenRouter for this probe)
-  const vertex: ProviderStatus = await probeProvider({
+  const vertex = await probeProvider({
     NEXT_PUBLIC_VERTEX_AI_ENABLED: 'true',
     NEXT_PUBLIC_USE_OPENROUTER: 'false',
     NEXT_PUBLIC_COUNCIL_DEMO_MODE: 'false',
@@ -67,7 +80,7 @@ export async function GET() {
   });
 
   // Probe OpenRouter only (disable Vertex for this probe)
-  const openrouter: ProviderStatus = await probeProvider({
+  const openrouter = await probeProvider({
     NEXT_PUBLIC_VERTEX_AI_ENABLED: 'false',
     NEXT_PUBLIC_USE_OPENROUTER: 'true',
     NEXT_PUBLIC_COUNCIL_DEMO_MODE: 'false',
@@ -75,15 +88,17 @@ export async function GET() {
   });
 
   let overall: 'healthy' | 'degraded' | 'down';
-  const vUp = vertex === 'up';
-  const oUp = openrouter === 'up';
+  const vUp = vertex.status === 'up';
+  const oUp = openrouter.status === 'up';
   if (vUp && oUp) overall = 'healthy';
   else if (vUp || oUp) overall = 'degraded';
   else overall = 'down';
 
   const body = {
-    vertex,
-    openrouter,
+    vertex: vertex.status,
+    vertexReason: vertex.reason,
+    openrouter: openrouter.status,
+    openrouterReason: openrouter.reason,
     overall,
     checkedAt: new Date().toISOString()
   };
