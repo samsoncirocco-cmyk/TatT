@@ -23,13 +23,21 @@ const PROBE_TIMEOUT_MS = 15_000;
 type ProviderStatus = 'up' | 'down' | 'timeout';
 type ProbeResult = { status: ProviderStatus; reason?: string };
 
-/** Strip anything token-shaped and truncate — this endpoint is public. */
+/** Strip anything token-shaped and truncate — this endpoint is public.
+ *  Unwraps Error#cause so wrapper errors (all_providers_exhausted)
+ *  still show the underlying provider failure. */
 function sanitizeReason(err: unknown): string {
-  const msg = err instanceof Error ? err.message : String(err);
-  return msg
+  const parts: string[] = [];
+  let cur: unknown = err;
+  for (let depth = 0; depth < 3 && cur; depth++) {
+    parts.push(cur instanceof Error ? cur.message : String(cur));
+    cur = cur instanceof Error ? cur.cause : undefined;
+  }
+  return parts
+    .join(' <- ')
     .replace(/Bearer\s+\S+/gi, 'Bearer [redacted]')
     .replace(/(key|token|secret|password)=[^&\s]+/gi, '$1=[redacted]')
-    .slice(0, 160);
+    .slice(0, 240);
 }
 
 async function probeProvider(
