@@ -136,7 +136,11 @@ jobs:
     name: Build Docker Image
     needs: [lint, test-js, test-python]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    # Cloud Run is not the active deploy surface (Vercel is) and the WIF
+    # auth secrets are not configured, so this failed on every main push
+    # and made green unreachable. Manual dispatch only until Cloud Run is
+    # actually used — flip this back to the push condition then.
+    if: github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -188,7 +192,8 @@ jobs:
     name: Deploy to Cloud Run
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    # See build job — manual dispatch only while Vercel is the deploy surface.
+    if: github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
