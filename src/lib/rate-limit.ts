@@ -108,7 +108,9 @@ function checkMemory(identifier: string, limitType: LimitType): RateLimitResult 
 // Identifier extraction
 // ---------------------------------------------------------------------------
 
-function getIdentifier(req: NextRequest): string {
+function getIdentifier(req: NextRequest, userId?: string): string {
+  // Prefer a verified user id when the caller supplies one; fall back to IP.
+  if (userId && userId.trim()) return `user:${userId.trim()}`;
   return (
     req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
     req.headers.get('x-real-ip') ||
@@ -128,11 +130,14 @@ function getIdentifier(req: NextRequest): string {
 export async function checkRateLimit(
   req: NextRequest,
   limitType: string,
+  userId?: string,
 ): Promise<boolean> {
   const lt = limitType as LimitType;
-  if (!(lt in LIMIT_CONFIG)) return true; // unknown type = no limit
+  // Fail closed: an unknown limit type is a caller bug; deny rather than
+  // silently allow unlimited traffic.
+  if (!(lt in LIMIT_CONFIG)) return false;
 
-  const identifier = getIdentifier(req);
+  const identifier = getIdentifier(req, userId);
   const limiters = getUpstashLimiters();
 
   if (limiters) {
@@ -153,13 +158,15 @@ export async function checkRateLimit(
 export async function rateLimit(
   req: NextRequest,
   limitType: LimitType,
+  userId?: string,
 ): Promise<RateLimitResult> {
-  // Unknown type = no limit (fail-open like checkRateLimit).
+  // Fail closed: an unknown limit type is a caller bug; deny the request
+  // rather than granting unlimited access.
   if (!(limitType in LIMIT_CONFIG)) {
-    return { allowed: true, limit: 0, remaining: 0, reset: 0 };
+    return { allowed: false, limit: 0, remaining: 0, reset: 0 };
   }
 
-  const identifier = getIdentifier(req);
+  const identifier = getIdentifier(req, userId);
   const limiters = getUpstashLimiters();
 
   if (limiters) {

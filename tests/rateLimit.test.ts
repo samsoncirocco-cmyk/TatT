@@ -56,10 +56,10 @@ describe('checkRateLimit', () => {
     expect(blocked).toBe(false);
   });
 
-  it('returns true for unknown limit types', async () => {
+  it('fails closed (denies) for unknown limit types', async () => {
     const req = mockReq();
     const result = await checkRateLimit(req, 'unknown-type');
-    expect(result).toBe(true);
+    expect(result).toBe(false);
   });
 
   it('tracks limits independently per IP', async () => {

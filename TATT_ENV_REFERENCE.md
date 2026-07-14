@@ -1,6 +1,6 @@
 # 🔑 TatT Environment Variables Reference
 
-**Last Updated:** 2026-02-09
+**Last Updated:** 2026-07-14
 **Computer:** ciroccofam's MacBook
 **Location:** `~/conductor/workspaces/tatt-v1/`
 
@@ -59,6 +59,15 @@ VERTEX_LOCATION=us-central1
 VERTEX_IMAGEN_MODEL=imagegeneration@006
 ```
 **Usage:** Used by `vertex-imagen-client.js` for direct Vertex Imagen API calls (distinct from `GCP_PROJECT_ID`)
+
+### Cloud Tasks OIDC (Async Generation Handler)
+```bash
+CLOUD_TASKS_OIDC_AUDIENCE=https://<your-app-domain>/api/v1/tasks/generate
+CLOUD_TASKS_SERVICE_ACCOUNT_EMAIL=cloud-tasks-invoker@tatt-pro.iam.gserviceaccount.com
+# Local dev only — bypass OIDC verification. NEVER set in production.
+ALLOW_UNAUTHENTICATED_TASKS=false
+```
+**Usage:** `/api/v1/tasks/generate` verifies the Cloud Tasks OIDC bearer token via `google-auth-library`. `CLOUD_TASKS_OIDC_AUDIENCE` must match the `oidcToken.audience` configured on the Cloud Tasks queue, and `CLOUD_TASKS_SERVICE_ACCOUNT_EMAIL` the queue's invoker service account. Fails closed (401) unless `ALLOW_UNAUTHENTICATED_TASKS=true` (ignored when `NODE_ENV=production`).
 
 ### Google Cloud Storage (GCS)
 ```bash
@@ -164,6 +173,8 @@ NEXT_PUBLIC_COUNCIL_API_URL=http://localhost:8001/api
 ```bash
 NEXT_PUBLIC_USE_OPENROUTER=false
 # OPENROUTER_API_KEY=sk-or-v1-... (Get from: https://openrouter.ai/keys)
+# Estimated cost recorded per council pipeline run, in cents (default 10)
+COUNCIL_PIPELINE_COST_CENTS=10
 ```
 
 **Council Models:**
@@ -183,6 +194,28 @@ NEXT_PUBLIC_ENABLE_STENCIL_EXPORT=true
 NEXT_PUBLIC_ENABLE_AR_PREVIEW=false
 NEXT_PUBLIC_DEMO_MODE=false
 ```
+
+---
+
+## 💰 Budget & Spend Tracking
+
+```bash
+# Cost per Vertex AI (Imagen 3) generated image, in cents (default 4)
+VERTEX_IMAGEN_COST_CENTS=4
+```
+**Usage:** Recorded by `src/lib/budget-tracker.ts` against the global spend cap. `/api/v1/generate` charges this per image on the primary Vertex path; the council pipeline charges `COUNCIL_PIPELINE_COST_CENTS` per run.
+
+---
+
+## 💳 Stripe Webhooks
+
+```bash
+STRIPE_WEBHOOK_SECRET=whsec_...
+# Local dev only — accept unsigned webhooks when the secret is a placeholder.
+# NEVER honored when NODE_ENV=production.
+STRIPE_WEBHOOK_ALLOW_PLACEHOLDER=false
+```
+**Usage:** `/api/webhooks/stripe` verifies the `stripe-signature` header against `STRIPE_WEBHOOK_SECRET`. If the secret is missing or a `whsec_PLACEHOLDER`, the route fails closed with 503 unless `STRIPE_WEBHOOK_ALLOW_PLACEHOLDER=true` (dev only).
 
 ---
 
