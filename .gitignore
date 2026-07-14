@@ -52,7 +52,8 @@ yarn-error.log*
 # Firebase
 firebase-admin-key.json
 gcp-service-account-key.json
-gcs-cors.json
+# gcs-cors.json is a committed deploy artifact (referenced by docs/gcs-setup.md,
+# docs/GCP_MIGRATION_PROGRESS.md) — tracked intentionally, do not ignore.
 TATT_ENV_REFERENCE.md
 
 # TypeScript
