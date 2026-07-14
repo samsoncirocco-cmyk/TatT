@@ -1,5 +1,7 @@
 # 🔑 TatT Environment Variables Reference
 
+> **SECURITY NOTE (2026-07-14):** This file previously contained live credential values. They were exposed in a public repo and MUST be treated as compromised — rotate them and set real values only in deployment env vars / Secret Manager. Never commit real secrets to this file.
+
 **Last Updated:** 2026-07-14
 **Computer:** ciroccofam's MacBook
 **Location:** `~/conductor/workspaces/tatt-v1/`
@@ -18,8 +20,8 @@
 
 ### Frontend/Backend Auth Token
 ```bash
-FRONTEND_AUTH_TOKEN=ad7f20706528595fe5d39db3fd3d3e8b92ecab254bb8b6eda2e54f9b1a584a9b
-NEXT_PUBLIC_FRONTEND_AUTH_TOKEN=ad7f20706528595fe5d39db3fd3d3e8b92ecab254bb8b6eda2e54f9b1a584a9b
+FRONTEND_AUTH_TOKEN=<ROTATED — set in deployment env / Secret Manager, never commit>
+NEXT_PUBLIC_FRONTEND_AUTH_TOKEN=<ROTATED — set in deployment env / Secret Manager, never commit>
 ```
 **Usage:** Shared secret between frontend and backend
 **Security:** Change in production! Generate with: `openssl rand -hex 32`
@@ -87,7 +89,7 @@ GCS_LOCATION=us-central1
 
 ### Client Configuration (Public - Safe to Expose)
 ```bash
-NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyB6SB_XMwTMgADiDo9Jld08zAQVeSR7CBM
+NEXT_PUBLIC_FIREBASE_API_KEY=<set in deployment env — client-public value, kept out of repo for scanner hygiene>
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=tatt-pro.firebaseapp.com
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=tatt-pro
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=tatt-pro.firebasestorage.app
@@ -115,8 +117,8 @@ FIREBASE_DATABASE_URL=https://tatt-pro-default-rtdb.firebaseio.com
 ### URLs & Keys
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=https://yfcmysjmoehcyszvkxsr.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_4tPUrucza4SR1J-HCMzgoA_h-rnrFBn
-SUPABASE_SERVICE_ROLE_KEY=sb_secret_DBun_2vz-tGuNyF_lBLt8w_IFHf1KCV
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<set in deployment env — client-public value, kept out of repo for scanner hygiene>
+SUPABASE_SERVICE_ROLE_KEY=<ROTATED — set in deployment env / Secret Manager, never commit>
 ```
 
 **Dashboard:** https://supabase.com/dashboard/project/yfcmysjmoehcyszvkxsr
@@ -134,7 +136,7 @@ SUPABASE_SERVICE_ROLE_KEY=sb_secret_DBun_2vz-tGuNyF_lBLt8w_IFHf1KCV
 NEO4J_URI=neo4j+s://36767c9d.databases.neo4j.io
 NEO4J_USERNAME=neo4j
 NEO4J_USER=neo4j
-NEO4J_PASSWORD=hULhcSIK-88HtRg9A4t-Rourj9wEieVbWSStVfplRmg
+NEO4J_PASSWORD=<ROTATED — set in deployment env / Secret Manager, never commit>
 ```
 
 ### Client Settings
