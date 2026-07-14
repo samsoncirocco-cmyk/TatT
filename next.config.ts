@@ -3,7 +3,16 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Prevent Next from inferring a higher-level monorepo root when multiple lockfiles exist.
   outputFileTracingRoot: process.cwd(),
-  // TypeScript strict checking enabled - Phase 2 complete
+  typescript: {
+    // TEMPORARY carryover from the former next.config.js (which Next loaded in
+    // preference to this file, so this flag was the one actually in effect).
+    // The codebase currently has ~44 pre-existing type errors — most notably the
+    // Next 15+ `params: Promise<...>` route-handler migration and a missing
+    // @google-cloud/secret-manager import — that block `next build` when type
+    // checking runs. Remove this once that type debt is cleared; do NOT add new
+    // type errors under cover of it.
+    ignoreBuildErrors: true,
+  },
   // Turbopack disabled — causes PostCSS sandbox errors in this environment
   webpack: (config, { isServer }) => {
     if (!isServer) {

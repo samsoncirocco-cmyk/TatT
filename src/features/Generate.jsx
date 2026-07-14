@@ -45,7 +45,7 @@ import { useTransformShortcuts } from '../hooks/useTransformShortcuts';
 import { exportAsPNG, exportAsARAsset } from './generate/services/canvasService';
 import { convertToStencil } from './stencil/services/stencilService';
 import { decomposeLayers } from '../services/layerDecompositionService';
-import { useForgeStore } from '../stores/useForgeStore';
+import { useForgeStore } from '../store/useForgeStore';
 import {
     processGenerationResult,
     addMultipleLayers,

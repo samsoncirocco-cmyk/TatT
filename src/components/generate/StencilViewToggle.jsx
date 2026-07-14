@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { FileImage, Download } from 'lucide-react';
-import { generateStencil, downloadStencil, STENCIL_SIZES } from '../../services/stencilService.ts';
+import { generateStencil, downloadStencil, STENCIL_SIZES } from '../../features/stencil/services/stencilService';
 
 export default function StencilViewToggle({
     layers,
