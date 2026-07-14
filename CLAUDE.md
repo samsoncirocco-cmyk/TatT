@@ -270,5 +270,45 @@ NEXT_PUBLIC_COUNCIL_DEMO_MODE=false
 
 ---
 
-**Last Updated:** 2026-05-21  
-**Maintained by:** Samson via OpenClaw
+**Last Updated:** 2026-07-14
+**Maintained by:** Samson via Hermes
+
+---
+
+## Engineering Quality Standards
+
+All agents working in this repo must follow these rules. No exceptions.
+
+### Core Philosophy (Karpathy Rules)
+
+1. **Think Before Coding:** Analyze requirements deeply. If a request is ambiguous, stop and ask clarifying questions. Never make blind assumptions.
+2. **Simplicity First:** Write clean, readable, and minimal code. Avoid over-engineering. If a senior engineer would find a solution unnecessarily complex, simplify it.
+3. **Surgical Changes:** Make precise edits. Only modify lines directly relevant to the task. Avoid broad, messy, or cosmetic rewrites that bloat the Git diff.
+4. **Goal-Driven Execution:** Work toward clear, verifiable success criteria (e.g., a passing unit test or specific compiler output). Iterate on errors until the goal is met.
+
+### Development Workflow
+
+**Phase 1 — Architecture & Alignment:**
+- Do not jump straight into writing code.
+- Analyze the existing files first.
+- Present a high-level technical approach detailing pros, cons, and potential edge cases.
+- Wait for human approval before implementing the chosen solution.
+
+**Phase 2 — Micro-Incremental Implementation:**
+- Break large features down into the smallest possible logical steps.
+- Implement, run, and test one single micro-change at a time.
+- Verify the change works before moving to the next block of logic.
+
+**Phase 3 — Git & Commit Hygiene:**
+- Keep Git diffs highly isolated and clean.
+- Group changes into strictly atomic commits (one logical feature, fix, or step per commit).
+- Ensure code builds and passes tests at every single commit checkpoint.
+- Use precise, concise, and professional commit messages that describe what changed and why.
+
+### Code Quality Guardrails
+
+- **Self-Correction:** If a command or build fails, read the error stack trace completely, diagnose the root cause, and fix it systematically. Do not guess wildly.
+- **Maintain Consistency:** Match the existing codebase's architecture, design patterns, naming conventions, and file structures exactly.
+- **No Hallucinated Dependencies:** Do not invent or import external libraries unless explicitly instructed. Leverage built-in or already-installed tools first.
+- **No Vibe Coding:** Treat this repository with rigorous engineering discipline, judgment, and taste.
+- **Test Before and After:** Run `npm test` before AND after any change. Ensure `npm run build` passes before committing.
