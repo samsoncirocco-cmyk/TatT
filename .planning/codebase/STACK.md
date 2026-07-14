@@ -9,7 +9,7 @@
 - JavaScript (ES Module) - Legacy services in `src/services/*.js`
 
 **Secondary:**
-- Python 3.x - Artist generation scripts (`generate-artists.py`)
+- Python 3.x - Artist generation scripts (`scripts/generate-artists.py`)
 
 ## Runtime
 
