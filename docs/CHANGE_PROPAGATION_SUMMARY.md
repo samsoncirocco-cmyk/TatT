@@ -90,7 +90,7 @@ git pull origin manama/next
 Run this command anytime to verify everything is working:
 
 ```bash
-./verify-changes.sh
+./scripts/verify-changes.sh
 ```
 
 This checks:
@@ -260,13 +260,13 @@ I created these guides for you:
 
 1. **CHANGE_WORKFLOW.md** - Complete daily workflow guide
 2. **CHANGE_PROPAGATION_SUMMARY.md** - This file (quick reference)
-3. **verify-changes.sh** - Automated verification script
+3. **scripts/verify-changes.sh** - Automated verification script
 4. **VERIFY_DOCKER.md** - Docker concepts explained
 5. **DOCKER_VS_NATIVE.md** - Comparison of Docker vs native dev
 
 ## Need Help?
 
-1. Run: `./verify-changes.sh` - Automated diagnostics
+1. Run: `./scripts/verify-changes.sh` - Automated diagnostics
 2. Read: `CHANGE_WORKFLOW.md` - Full workflow documentation
 3. Check: `git status` - See what changed
 4. View: `docker-compose logs -f dev` - Docker output
