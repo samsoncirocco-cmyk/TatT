@@ -58,7 +58,15 @@ TATT_ENV_REFERENCE.md
 
 # TypeScript
 tsconfig.tsbuildinfo
+*.tsbuildinfo
 # Crawler runtime checkpoints — regenerated on every run, never commit
-scripts/data_acquisition/output/
+# (path lives under src/, so match at any depth)
+**/data_acquisition/output/
 .env.firebase
+
+# Python
 __pycache__/
+*.pyc
+
+# Expo
+.expo/
