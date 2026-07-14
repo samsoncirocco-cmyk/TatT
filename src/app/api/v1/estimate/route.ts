@@ -35,8 +35,11 @@ export async function POST(req: NextRequest) {
         return rateLimitResponse(rateResult);
     }
 
+    // Parse once, outside the try, so the catch fallback can reuse the body
+    // instead of re-reading the already-consumed request stream.
+    const body = await req.json().catch(() => ({} as Record<string, any>));
+
     try {
-        const body = await req.json();
         const { imageDataUrl, prompt, style, bodyPart, size, quick } = body;
 
         // Validation
@@ -91,8 +94,8 @@ export async function POST(req: NextRequest) {
     } catch (error: any) {
         reqLogger.error('estimate.failed', error);
 
-        // Fallback to quick estimate on error
-        const { style, bodyPart, size } = await req.json().catch(() => ({}));
+        // Fallback to quick estimate on error, reusing the already-parsed body.
+        const { style, bodyPart, size } = body;
         const fallback = quickEstimate(style || 'custom', bodyPart || 'forearm', size || 'medium');
 
         return NextResponse.json({
