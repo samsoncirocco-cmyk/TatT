@@ -52,12 +52,21 @@ yarn-error.log*
 # Firebase
 firebase-admin-key.json
 gcp-service-account-key.json
-gcs-cors.json
+# gcs-cors.json is a committed deploy artifact (referenced by docs/gcs-setup.md,
+# docs/GCP_MIGRATION_PROGRESS.md) — tracked intentionally, do not ignore.
 TATT_ENV_REFERENCE.md
 
 # TypeScript
 tsconfig.tsbuildinfo
+*.tsbuildinfo
 # Crawler runtime checkpoints — regenerated on every run, never commit
-scripts/data_acquisition/output/
+# (path lives under src/, so match at any depth)
+**/data_acquisition/output/
 .env.firebase
+
+# Python
 __pycache__/
+*.pyc
+
+# Expo
+.expo/

@@ -1,9 +1,9 @@
-import { generateMask } from './src/lib/segmentation';
+import { generateMask } from '../src/lib/segmentation';
 import * as fs from 'fs';
 import * as path from 'path';
 
 // Note: You need REPLICATE_API_TOKEN in env for this to work.
-// Run with: npx tsx test-segmentation.ts
+// Run with: npx tsx scripts/test-segmentation.ts
 
 async function test() {
     console.log('Testing generateMask...');
