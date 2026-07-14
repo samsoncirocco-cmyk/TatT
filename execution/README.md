@@ -130,8 +130,8 @@ Maps each directive to the scripts, services, and API routes that implement it. 
 | Docker (alt deploy) | `Dockerfile`, `docker-compose.yml` |
 | Env reference | `TATT_ENV_REFERENCE.md`, `.env.example` |
 | **Scripts** | |
-| Verify changes | `verify-changes.sh` |
-| Test Docker | `test-docker.sh` |
+| Verify changes | `scripts/verify-changes.sh` |
+| Test Docker | `scripts/test-docker.sh` |
 | Test GCP health | `scripts/test-gcp-health.js` |
 | Test Supabase | `scripts/test-supabase-connection.js` |
 

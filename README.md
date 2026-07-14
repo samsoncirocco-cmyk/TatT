@@ -88,8 +88,8 @@ Vercel project: `manama-next`. Production branch: `main`. Preview deploys run on
 ## Documentation
 
 - `DESIGN_SYSTEM.md` — punk design tokens, component patterns, do/don't. Read before touching any UI.
-- `HANDOFF.md` — Phase 1 handoff narrative.
-- `SESSION_RECAP_2026-05-19.md` — today's session log (deploy recovery, audit fixes, design iterations).
+- `docs/archive/HANDOFF.md` — Phase 1 handoff narrative.
+- `docs/archive/SESSION_RECAP_2026-05-19.md` — session log (deploy recovery, audit fixes, design iterations).
 - `CLAUDE.md` — agent instructions, env reference, service map.
 - `directives/` — workflow SOPs.
 - `~/audit/AUDIT-REPORT.md`, `~/audit/DEEP-INSIGHTS.md`, `~/audit/TATT-REALITY.md` — `/code-upgrade` audit findings from 2026-05-19.
