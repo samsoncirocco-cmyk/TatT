@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Unattended national scrape scheduler: one city per tick, stop at target.
+"""Unattended national scrape scheduler: city queue -> master.json, stop at target.
+
+Each tick processes cities for --time-budget seconds (default 17 min),
+crawling up to --workers shop sites concurrently (per-site request rate
+is still one per --delay seconds).
 
 Designed to run from cron/launchd every ~20 minutes with no model or human
 in the loop. All state lives in a workspace directory (default
@@ -30,6 +34,7 @@ import json
 import os
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -175,6 +180,64 @@ def merge_into_master(ws, dataset, shops):
     return len(new_artists), len(new_shops), master
 
 
+def crawl_city_shops(shops, max_pages, delay, workers):
+    """Crawl every shop's site; different sites concurrently, each site
+    still one request per `delay` seconds (per-site politeness unchanged)."""
+    def one(shop):
+        session = requests.Session()
+        session.headers["User-Agent"] = USER_AGENT
+        found = crawl_shop(session, shop, max_pages, delay)
+        out = dict(shop)
+        out["artists"] = list(found.values())
+        return out
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        return list(pool.map(one, shops))
+
+
+def process_city(ws, entry, queue, state, api_key, args):
+    """One city end-to-end. Returns True when the run should stop."""
+    city, st = entry["city"], entry["state"]
+    log_line(ws, f"tick: {city}, {st}")
+    try:
+        shops = places_search_city(city, st, api_key, args.max_shops)
+        raw_shops = crawl_city_shops(shops, args.max_pages, args.delay,
+                                     args.workers)
+        dataset = normalize_dataset(raw_shops)
+        new_a, new_s, master = merge_into_master(ws, dataset, shops)
+        entry["status"] = "done"
+        state["cities_done"] = state.get("cities_done", 0) + 1
+    except Exception as e:  # noqa: BLE001 — unattended: log, mark, move on
+        entry["status"] = "failed"
+        entry["error"] = f"{type(e).__name__}: {e}"
+        state["cities_failed"] = state.get("cities_failed", 0) + 1
+        log_line(ws, f"FAILED {city}, {st}: {entry['error']}")
+        (ws / "queue.json").write_text(json.dumps(queue, indent=1))
+        (ws / "state.json").write_text(json.dumps(state, indent=1))
+        return False
+
+    state["total_artists"] = len(master["artists"])
+    state["total_shops"] = len(master["shops"])
+    state.setdefault("history", []).append({
+        "city": f"{city}, {st}",
+        "new_artists": new_a,
+        "new_shops": new_s,
+        "at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+    })
+    (ws / "queue.json").write_text(json.dumps(queue, indent=1))
+    (ws / "state.json").write_text(json.dumps(state, indent=1))
+
+    total = state["total_artists"] + state["total_shops"]
+    log_line(ws, f"done: {city}, {st} +{new_a} artists +{new_s} shops "
+                 f"| total {state['total_artists']} artists + "
+                 f"{state['total_shops']} shops = {total}/{state.get('target', DEFAULT_TARGET)}")
+    if total >= state.get("target", DEFAULT_TARGET):
+        (ws / "DONE").write_text(f"target reached: {total}")
+        log_line(ws, f"TARGET REACHED ({total}); scheduler will idle")
+        return True
+    return False
+
+
 def cmd_tick(ws, args):
     if (ws / "DONE").exists():
         print("target reached; nothing to do (delete DONE to resume)")
@@ -197,57 +260,20 @@ def cmd_tick(ws, args):
             log_line(ws, "ERROR no Places API key (env or places-key.txt)")
             return
 
-        queue = load_json(ws / "queue.json", [])
-        state = load_json(ws / "state.json", {})
-        entry = next((c for c in queue if c["status"] == "pending"), None)
-        if entry is None:
-            log_line(ws, "queue exhausted before target; add more cities")
-            (ws / "DONE").write_text("queue exhausted")
-            return
-
-        city, st = entry["city"], entry["state"]
-        log_line(ws, f"tick: {city}, {st}")
-        try:
-            shops = places_search_city(city, st, api_key, args.max_shops)
-            session = requests.Session()
-            session.headers["User-Agent"] = USER_AGENT
-            raw_shops = []
-            for shop in shops:
-                found = crawl_shop(session, shop, args.max_pages, args.delay)
-                shop_out = dict(shop)
-                shop_out["artists"] = list(found.values())
-                raw_shops.append(shop_out)
-            dataset = normalize_dataset(raw_shops)
-            new_a, new_s, master = merge_into_master(ws, dataset, shops)
-            entry["status"] = "done"
-            state["cities_done"] = state.get("cities_done", 0) + 1
-        except Exception as e:  # noqa: BLE001 — unattended: log, mark, move on
-            entry["status"] = "failed"
-            entry["error"] = f"{type(e).__name__}: {e}"
-            state["cities_failed"] = state.get("cities_failed", 0) + 1
-            log_line(ws, f"FAILED {city}, {st}: {entry['error']}")
-            (ws / "queue.json").write_text(json.dumps(queue, indent=1))
-            (ws / "state.json").write_text(json.dumps(state, indent=1))
-            return
-
-        state["total_artists"] = len(master["artists"])
-        state["total_shops"] = len(master["shops"])
-        state.setdefault("history", []).append({
-            "city": f"{city}, {st}",
-            "new_artists": new_a,
-            "new_shops": new_s,
-            "at": time.strftime("%Y-%m-%dT%H:%M:%S"),
-        })
-        (ws / "queue.json").write_text(json.dumps(queue, indent=1))
-        (ws / "state.json").write_text(json.dumps(state, indent=1))
-
-        total = state["total_artists"] + state["total_shops"]
-        log_line(ws, f"done: {city}, {st} +{new_a} artists +{new_s} shops "
-                     f"| total {state['total_artists']} artists + "
-                     f"{state['total_shops']} shops = {total}/{state.get('target', DEFAULT_TARGET)}")
-        if total >= state.get("target", DEFAULT_TARGET):
-            (ws / "DONE").write_text(f"target reached: {total}")
-            log_line(ws, f"TARGET REACHED ({total}); scheduler will idle")
+        # Keep processing cities until the time budget runs out, so the
+        # scheduler stays busy regardless of the launchd interval.
+        started = time.time()
+        while time.time() - started < args.time_budget:
+            lock.write_text(str(os.getpid()))  # refresh mtime for staleness
+            queue = load_json(ws / "queue.json", [])
+            state = load_json(ws / "state.json", {})
+            entry = next((c for c in queue if c["status"] == "pending"), None)
+            if entry is None:
+                log_line(ws, "queue exhausted before target; add more cities")
+                (ws / "DONE").write_text("queue exhausted")
+                return
+            if process_city(ws, entry, queue, state, api_key, args):
+                return
     finally:
         lock.unlink(missing_ok=True)
 
@@ -279,6 +305,11 @@ def main():
     parser.add_argument("--max-shops", type=int, default=20)
     parser.add_argument("--max-pages", type=int, default=25)
     parser.add_argument("--delay", type=float, default=0.7)
+    parser.add_argument("--workers", type=int, default=8,
+                        help="shop sites crawled concurrently (per-site "
+                             "politeness is unaffected)")
+    parser.add_argument("--time-budget", type=int, default=1020,
+                        help="seconds a tick keeps processing cities")
     parser.add_argument("--reset-queue", action="store_true")
     args = parser.parse_args()
 
