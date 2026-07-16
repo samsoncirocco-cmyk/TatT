@@ -17,8 +17,7 @@ and the graph **metadata model** was expanded from a flat 4-node shape to a
 9-node model. Previously `Shop`, `State`, `Instagram` were flat *properties* on
 `Artist`; they are now first-class **nodes**, and `Tattoo`, `Website`, `Tag` were
 added. Connection credentials, the database name wiring, the import script, the
-runtime Cypher queries, all helper scripts, the docs, and the `ink-graph.html`
-visualization were all updated to match.
+runtime Cypher queries, all helper scripts, and the docs were updated to match.
 
 ---
 
@@ -78,11 +77,11 @@ Every node and relationship is derived strictly from **real fields** in
   code guards their creation (`websiteUrlsFor()` in `scripts/import-to-neo4j.js`),
   so they appear automatically if a `website`/`websites` field is added later.
 - **`bodyParts` was dropped** — not in the model and not in the real data.
-- The **`ink-graph.html` visualization is the one exception**: at the owner's
-  request it renders all 9 node types. `State` and `Instagram` there are real
-  (parsed from the snapshot); `Tattoo`, `Website`, and `Tag` are **clearly
-  labeled demo placeholders** (tooltips say "demo node"/"demo tag"). This applies
-  only to that standalone viz, never to the live database.
+- **`data/ink-graph.html` is unchanged**: it remains the standalone
+  visualization of the national scraped dataset (previous 4-node model).
+  The live database holds BOTH datasets: the 9-node seed model described here
+  and the national scraped data (Artist/Shop/City/Style/Tag with WORKS_AT,
+  LOCATED_IN, SPECIALIZES_IN, TAGGED_WITH). Runtime queries read both.
 
 ---
 
@@ -163,8 +162,8 @@ logic is still valid).
 `docs/TATTOO_ARTISTS_DATA_GENERATION_SUMMARY.md`, `generated/README.md`.
 `CHANGELOG.md` was left untouched (historical record).
 
-**Visualization** — `data/ink-graph.html` (all 9 node types; the 420 KB baked
-`DATA` blob was not modified).
+**Visualization** — `data/ink-graph.html` untouched (still the national-dataset
+visualization).
 
 ---
 
