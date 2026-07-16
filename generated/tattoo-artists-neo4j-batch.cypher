@@ -1,4 +1,4 @@
-// Neo4j Batch Import Script (Optimized)
+// Neo4j Batch Import Script (Optimized, canonical graph model)
 // Use this for better performance with large datasets
 
 // Clear existing data
@@ -6,57 +6,61 @@ MATCH (n) DETACH DELETE n;
 
 // Create indexes
 CREATE INDEX artist_id_index IF NOT EXISTS FOR (a:Artist) ON (a.id);
+CREATE INDEX state_name_index IF NOT EXISTS FOR (st:State) ON (st.name);
+CREATE INDEX city_name_index IF NOT EXISTS FOR (c:City) ON (c.name);
+CREATE INDEX shop_name_index IF NOT EXISTS FOR (sh:Shop) ON (sh.name);
 CREATE INDEX style_name_index IF NOT EXISTS FOR (s:Style) ON (s.name);
-CREATE INDEX color_name_index IF NOT EXISTS FOR (c:Color) ON (c.name);
-CREATE INDEX specialization_name_index IF NOT EXISTS FOR (sp:Specialization) ON (sp.name);
+
+// Create all State nodes
+UNWIND $states AS state
+MERGE (st:State {name: state.name});
+
+// Create all City nodes
+UNWIND $cities AS city
+MERGE (c:City {name: city.name, state: city.state});
+
+// Create all Shop nodes
+UNWIND $shops AS shop
+MERGE (sh:Shop {name: shop.name, city: shop.city, state: shop.state});
 
 // Create all Style nodes
 UNWIND $styles AS style
 MERGE (s:Style {name: style.name});
 
-// Create all Color nodes
-UNWIND $colors AS color
-MERGE (c:Color {name: color.name});
-
-// Create all Specialization nodes
-UNWIND $specializations AS spec
-MERGE (sp:Specialization {name: spec.name});
-
-// Create all Location nodes
-UNWIND $locations AS loc
-MERGE (l:Location {city: loc.city, region: loc.region, country: loc.country});
+// Create all Website nodes
+UNWIND $websites AS website
+MERGE (w:Website {url: website.url});
 
 // Create Artist nodes and relationships in batches
 UNWIND $artists AS artist
 MERGE (a:Artist {id: artist.id})
 SET a.name = artist.name,
-    a.location_city = artist.location_city,
-    a.location_region = artist.location_region,
-    a.location_country = artist.location_country,
     a.has_multiple_locations = artist.has_multiple_locations,
     a.profile_url = artist.profile_url,
     a.is_curated = artist.is_curated,
     a.created_at = datetime(artist.created_at)
 WITH a, artist
-MATCH (l:Location {city: artist.location_city, region: artist.location_region, country: artist.location_country})
-MERGE (a)-[:LOCATED_IN]->(l)
-WITH a, artist
+// State -> City -> Shop -> Artist
+MATCH (st:State {name: artist.location_region})
+MATCH (c:City {name: artist.location_city, state: artist.location_region})
+MATCH (sh:Shop {name: artist.shop_name, city: artist.location_city, state: artist.location_region})
+MERGE (st)-[:HAS_CITY]->(c)
+MERGE (c)-[:HAS_SHOP]->(sh)
+MERGE (sh)-[:HAS_ARTIST]->(a)
+WITH a, sh, artist
 UNWIND artist.styles AS styleName
 MATCH (s:Style {name: styleName})
-MERGE (a)-[:PRACTICES_STYLE]->(s)
+MERGE (a)-[:SPECIALIZES_IN]->(s)
+MERGE (sh)-[:FEATURES_STYLE]->(s)
 WITH a, artist
-UNWIND artist.color_palettes AS colorName
-MATCH (c:Color {name: colorName})
-MERGE (a)-[:USES_COLOR]->(c)
-WITH a, artist
-UNWIND artist.specializations AS specName
-MATCH (sp:Specialization {name: specName})
-MERGE (a)-[:SPECIALIZES_IN]->(sp);
+MATCH (w:Website {url: artist.profile_url})
+MERGE (a)-[:HAS_WEBSITE]->(w);
 
 // Note: This script requires parameterized queries. Use with Neo4j driver or client.
 // Parameters should be:
+// $states: [{name: "New York"}, ...]
+// $cities: [{name: "Manhattan", state: "New York"}, ...]
+// $shops: [{name: "Ink & Iron Studio", city: "Manhattan", state: "New York"}, ...]
 // $styles: [{name: "Fine Line"}, ...]
-// $colors: [{name: "Black & Grey"}, ...]
-// $specializations: [{name: "Portraits"}, ...]
-// $locations: [{city: "Manhattan", region: "New York", country: "United States"}, ...]
-// $artists: [{id: "...", name: "...", styles: ["Fine Line"], color_palettes: ["Black & Grey"], ...}, ...]
+// $websites: [{url: "https://..."}, ...]
+// $artists: [{id: "...", name: "...", shop_name: "...", location_city: "...", location_region: "...", styles: ["Fine Line"], profile_url: "https://...", ...}, ...]

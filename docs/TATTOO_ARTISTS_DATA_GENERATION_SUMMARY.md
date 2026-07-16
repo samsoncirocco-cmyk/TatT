@@ -60,17 +60,33 @@ CREATE TABLE tattoo_artists (
 ### Neo4j Graph Structure
 
 **Nodes:**
+- `State` - State/region nodes (top of the geography hierarchy)
+- `City` - City nodes
+- `Shop` - Tattoo shop / studio nodes
 - `Artist` - Artist nodes with all properties
 - `Style` - Tattoo style nodes (Fine Line, Traditional, etc.)
-- `Color` - Color palette nodes (Black & Grey, Full Color, etc.)
-- `Specialization` - Specialization nodes (Portraits, Lettering, etc.)
-- `Location` - Location nodes (city, region, country)
+- `Tattoo` - Individual tattoo / portfolio piece nodes
+- `Instagram` - Artist Instagram account nodes
+- `Tag` - Descriptive keyword nodes (attached to tattoos)
+- `Website` - Website URL nodes (created only when a URL exists; none currently)
 
 **Relationships:**
-- `(Artist)-[:PRACTICES_STYLE]->(Style)`
-- `(Artist)-[:USES_COLOR]->(Color)`
-- `(Artist)-[:SPECIALIZES_IN]->(Specialization)`
-- `(Artist)-[:LOCATED_IN]->(Location)`
+- `(State)-[:HAS_CITY]->(City)`
+- `(City)-[:HAS_SHOP]->(Shop)`
+- `(Shop)-[:HAS_ARTIST]->(Artist)`
+- `(Shop)-[:FEATURES_STYLE]->(Style)`
+- `(Shop)-[:HAS_WEBSITE]->(Website)` — only when a URL exists
+- `(Artist)-[:SPECIALIZES_IN]->(Style)`
+- `(Artist)-[:CREATED]->(Tattoo)`
+- `(Artist)-[:HAS_INSTAGRAM]->(Instagram)`
+- `(Artist)-[:HAS_WEBSITE]->(Website)` — only when a URL exists
+- `(Tattoo)-[:IN_STYLE]->(Style)`
+- `(Tattoo)-[:TAGGED_WITH]->(Tag)`
+- `(Instagram)-[:FEATURES]->(Tattoo)`
+- `(Artist)-[:APPRENTICED_UNDER]->(Artist)`
+- `(Artist)-[:INFLUENCED_BY]->(Artist)`
+
+> Geography is modeled as a hierarchy (`State → City → Shop → Artist`), replacing the former flat `(Artist)-[:LOCATED_IN]->(Location)` edge. Tags now attach to individual `Tattoo` nodes rather than directly to artists.
 
 ## 🚀 Next Steps: Using Supabase MCP
 

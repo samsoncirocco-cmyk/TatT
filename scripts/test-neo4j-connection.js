@@ -40,8 +40,10 @@ const driver = neo4j.driver(
   }
 );
 
+const NEO4J_DATABASE = process.env.NEO4J_DATABASE || undefined;
+
 async function testConnection() {
-  const session = driver.session();
+  const session = driver.session(NEO4J_DATABASE ? { database: NEO4J_DATABASE } : undefined);
 
   try {
     console.log('   Verifying connectivity...');
