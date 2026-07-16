@@ -945,8 +945,8 @@ CREATE TABLE bookings (
 
 ### Neo4j (Graph)
 
-**Current nodes:** `Artist`, `Style`, `BodyRegion`  
-**Current relationships:** `(Artist)-[:SPECIALIZES_IN]->(Style)`, `(Artist)-[:WORKS_ON]->(BodyRegion)`
+**Current nodes:** `State`, `City`, `Shop`, `Artist`, `Style`, `Tattoo`, `Instagram`, `Tag`, `Website`  
+**Current relationships:** geography hierarchy `(State)-[:HAS_CITY]->(City)-[:HAS_SHOP]->(Shop)-[:HAS_ARTIST]->(Artist)`, plus `(Shop)-[:FEATURES_STYLE]->(Style)`, `(Artist)-[:SPECIALIZES_IN]->(Style)`, `(Artist)-[:CREATED]->(Tattoo)`, `(Tattoo)-[:IN_STYLE]->(Style)`, `(Tattoo)-[:TAGGED_WITH]->(Tag)`, `(Artist)-[:HAS_INSTAGRAM]->(Instagram)`, `(Instagram)-[:FEATURES]->(Tattoo)`, and the artist-to-artist edges `(Artist)-[:APPRENTICED_UNDER]->(Artist)` / `(Artist)-[:INFLUENCED_BY]->(Artist)`
 
 **Migration M001 — add Design + User nodes:**
 ```cypher
@@ -974,9 +974,10 @@ CREATE CONSTRAINT user_id_unique IF NOT EXISTS
 // User → Artist (after booking)
 (User)-[:BOOKED {bookedAt: datetime, sessionDate: date}]->(Artist)
 
-// Artist geography
-(Artist)-[:LOCATED_IN]->(City)
-(City)-[:IN_REGION]->(Region)
+// Artist geography (hierarchy — replaces the former flat (Artist)-[:LOCATED_IN]->(City) edge)
+(State)-[:HAS_CITY]->(City)
+(City)-[:HAS_SHOP]->(Shop)
+(Shop)-[:HAS_ARTIST]->(Artist)
 ```
 
 **Recommendation traversal query (Artist Matchmaker uses this):**

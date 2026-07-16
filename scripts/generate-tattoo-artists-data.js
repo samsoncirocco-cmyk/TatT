@@ -81,6 +81,15 @@ const SPECIALIZATIONS = [
   'Medical Cover-up', 'Watercolor', 'Biomechanical'
 ];
 
+// Shop names (synthetic demo data — the canonical Neo4j model routes artists
+// through their shop: (City)-[:HAS_SHOP]->(Shop)-[:HAS_ARTIST]->(Artist))
+const SHOP_NAMES = [
+  'Black Anchor Collective', 'Ink & Iron Studio', 'Golden Needle Tattoo',
+  'Electric Rose Parlor', 'Midnight Owl Tattoo', 'Sacred Art Collective',
+  'Wildflower Ink', 'Steel & Bone Tattoo', 'Crimson Lotus Studio',
+  'Northern Lights Tattoo', 'Old Soul Tattoo Co.', 'Raven & Rose Ink'
+];
+
 // First names (tattoo artist style)
 const FIRST_NAMES = [
   'Miss Vampira', 'Blair', 'Raven', 'Luna', 'Phoenix', 'Zephyr', 'Kai',
@@ -148,6 +157,7 @@ function generateArtist(index) {
   return {
     id: randomUUID(),
     name: generateArtistName(),
+    shop_name: SHOP_NAMES[Math.floor(Math.random() * SHOP_NAMES.length)],
     location_city: location.city,
     location_region: location.region,
     location_country: location.country,
@@ -196,91 +206,105 @@ function formatForSupabase(artists) {
 }
 
 /**
- * Convert to Neo4j export format
- * Returns structure with nodes and relationships
+ * Convert to Neo4j export format using the canonical graph model:
+ *   (State)-[:HAS_CITY]->(City)-[:HAS_SHOP]->(Shop)-[:HAS_ARTIST]->(Artist)
+ *   (Artist)-[:SPECIALIZES_IN]->(Style), (Shop)-[:FEATURES_STYLE]->(Style)
+ *   (Artist)-[:HAS_WEBSITE]->(Website)   -- from profile_url
+ *
+ * Geography uses location_region as the State and the synthetic shop_name as the
+ * Shop. Color palettes / specializations have no home in the canonical model, so
+ * they are intentionally omitted from the graph (they remain in the Supabase
+ * export). Composite node keys are represented as `|`-joined strings so the
+ * Cypher generator can rebuild them.
  */
 function formatForNeo4j(artists) {
   const nodes = {
     artists: artists.map(artist => ({
       id: artist.id,
       name: artist.name,
-      location_city: artist.location_city,
-      location_region: artist.location_region,
-      location_country: artist.location_country,
       has_multiple_locations: artist.has_multiple_locations,
       profile_url: artist.profile_url,
       is_curated: artist.is_curated,
       created_at: artist.created_at
     })),
+    states: [],
+    cities: [],
+    shops: [],
     styles: [],
-    colors: [],
-    specializations: [],
-    locations: []
+    websites: []
   };
-  
+
   const relationships = {
-    PRACTICES_STYLE: [],
-    USES_COLOR: [],
+    HAS_CITY: [],
+    HAS_SHOP: [],
+    HAS_ARTIST: [],
     SPECIALIZES_IN: [],
-    LOCATED_IN: []
+    FEATURES_STYLE: [],
+    HAS_WEBSITE: []
   };
-  
-  // Extract unique styles, colors, specializations, locations
+
+  // Extract unique nodes
+  const stateSet = new Set();
+  const cityMap = new Map();   // `${city}|${state}` -> {name, state}
+  const shopMap = new Map();   // `${shop}|${city}|${state}` -> {name, city, state}
   const styleSet = new Set();
-  const colorSet = new Set();
-  const specSet = new Set();
-  const locationSet = new Set();
-  
+  const websiteSet = new Set();
+
   artists.forEach(artist => {
+    const state = artist.location_region;
+    const city = artist.location_city;
+    const shop = artist.shop_name;
+
+    stateSet.add(state);
+    cityMap.set(`${city}|${state}`, { name: city, state });
+    shopMap.set(`${shop}|${city}|${state}`, { name: shop, city, state });
     artist.styles.forEach(style => styleSet.add(style));
-    artist.color_palettes.forEach(color => colorSet.add(color));
-    artist.specializations.forEach(spec => specSet.add(spec));
-    const locKey = `${artist.location_city}, ${artist.location_region}, ${artist.location_country}`;
-    locationSet.add(locKey);
+    if (artist.profile_url) websiteSet.add(artist.profile_url);
   });
-  
+
+  nodes.states = Array.from(stateSet).map(name => ({ name }));
+  nodes.cities = Array.from(cityMap.values());
+  nodes.shops = Array.from(shopMap.values());
   nodes.styles = Array.from(styleSet).map(name => ({ name }));
-  nodes.colors = Array.from(colorSet).map(name => ({ name }));
-  nodes.specializations = Array.from(specSet).map(name => ({ name }));
-  nodes.locations = Array.from(locationSet).map(locKey => {
-    const [city, region, country] = locKey.split(', ');
-    return { city, region, country };
-  });
-  
-  // Generate relationships
+  nodes.websites = Array.from(websiteSet).map(url => ({ url }));
+
+  // Geography relationships (deduplicated)
+  const seenHasCity = new Set();
+  const seenHasShop = new Set();
+  const seenFeaturesStyle = new Set();
+
   artists.forEach(artist => {
+    const state = artist.location_region;
+    const city = artist.location_city;
+    const shop = artist.shop_name;
+    const cityKey = `${city}|${state}`;
+    const shopKey = `${shop}|${city}|${state}`;
+
+    if (!seenHasCity.has(cityKey)) {
+      seenHasCity.add(cityKey);
+      relationships.HAS_CITY.push({ state, city, cityState: state });
+    }
+    if (!seenHasShop.has(shopKey)) {
+      seenHasShop.add(shopKey);
+      relationships.HAS_SHOP.push({ city, cityState: state, shop, shopCity: city, shopState: state });
+    }
+
+    relationships.HAS_ARTIST.push({ shop, shopCity: city, shopState: state, artistId: artist.id });
+
     artist.styles.forEach(style => {
-      relationships.PRACTICES_STYLE.push({
-        from: artist.id,
-        to: style,
-        type: 'PRACTICES_STYLE'
-      });
+      relationships.SPECIALIZES_IN.push({ from: artist.id, to: style, type: 'SPECIALIZES_IN' });
+      const fsKey = `${shopKey}|${style}`;
+      if (!seenFeaturesStyle.has(fsKey)) {
+        seenFeaturesStyle.add(fsKey);
+        relationships.FEATURES_STYLE.push({ shop, shopCity: city, shopState: state, style });
+      }
     });
-    
-    artist.color_palettes.forEach(color => {
-      relationships.USES_COLOR.push({
-        from: artist.id,
-        to: color,
-        type: 'USES_COLOR'
-      });
-    });
-    
-    artist.specializations.forEach(spec => {
-      relationships.SPECIALIZES_IN.push({
-        from: artist.id,
-        to: spec,
-        type: 'SPECIALIZES_IN'
-      });
-    });
-    
-    const locKey = `${artist.location_city}, ${artist.location_region}, ${artist.location_country}`;
-    relationships.LOCATED_IN.push({
-      from: artist.id,
-      to: locKey,
-      type: 'LOCATED_IN'
-    });
+
+    if (artist.profile_url) {
+      relationships.HAS_WEBSITE.push({ from: artist.id, to: artist.profile_url, type: 'HAS_WEBSITE' });
+    }
   });
-  
+
   return { nodes, relationships };
 }
 
@@ -311,10 +335,11 @@ function main() {
   writeFileSync(neo4jPath, JSON.stringify(neo4jFormat, null, 2), 'utf-8');
   console.log(`✅ Saved Neo4j format to: ${neo4jPath}`);
   console.log(`   Artists: ${neo4jFormat.nodes.artists.length}`);
+  console.log(`   States: ${neo4jFormat.nodes.states.length}`);
+  console.log(`   Cities: ${neo4jFormat.nodes.cities.length}`);
+  console.log(`   Shops: ${neo4jFormat.nodes.shops.length}`);
   console.log(`   Styles: ${neo4jFormat.nodes.styles.length}`);
-  console.log(`   Colors: ${neo4jFormat.nodes.colors.length}`);
-  console.log(`   Specializations: ${neo4jFormat.nodes.specializations.length}`);
-  console.log(`   Locations: ${neo4jFormat.nodes.locations.length}`);
+  console.log(`   Websites: ${neo4jFormat.nodes.websites.length}`);
   
   // Save batch for initial insert (first 50)
   const batchPath = join(__dirname, '../generated/tattoo-artists-batch-50.json');

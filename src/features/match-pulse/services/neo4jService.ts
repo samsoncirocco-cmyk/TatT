@@ -220,13 +220,22 @@ export async function findMatchingArtists(preferences: ArtistPreferences): Promi
 
     const { styles = [], location, budget, keywords = [] } = preferences;
 
-    // Cypher query for artist matching
-    // This leverages Neo4j's graph capabilities for efficient matching
+    // Cypher query for artist matching.
+    // Styles, tags and portfolio are gathered by traversing the graph model:
+    //   (Artist)-[:SPECIALIZES_IN]->(Style)
+    //   (Artist)-[:CREATED]->(Tattoo)-[:TAGGED_WITH]->(Tag)
     const query = `
     MATCH (a:Artist)
+    OPTIONAL MATCH (a)-[:SPECIALIZES_IN]->(st:Style)
+    WITH a, collect(DISTINCT st.name) AS styles
+    OPTIONAL MATCH (a)-[:CREATED]->(t:Tattoo)
+    WITH a, styles, collect(DISTINCT t.imageUrl) AS portfolio
+    OPTIONAL MATCH (a)-[:CREATED]->(:Tattoo)-[:TAGGED_WITH]->(tag:Tag)
+    WITH a, styles, portfolio, collect(DISTINCT tag.name) AS tags
+
     WHERE
       // Style matching
-      (size($styles) = 0 OR any(style IN $styles WHERE style IN a.styles))
+      (size($styles) = 0 OR any(style IN $styles WHERE style IN styles))
 
       // Location matching (city-based for now)
       AND ($location IS NULL OR a.city = $location OR a.city CONTAINS $location)
@@ -235,17 +244,17 @@ export async function findMatchingArtists(preferences: ArtistPreferences): Promi
       AND ($budget IS NULL OR a.hourlyRate <= $budget * 1.5)
 
     // Calculate match score using Cypher
-    WITH a,
+    WITH a, styles, portfolio, tags,
       // Style overlap score (40%)
       CASE
         WHEN size($styles) = 0 THEN 0.4
-        ELSE size([style IN $styles WHERE style IN a.styles]) * 0.4 / size($styles)
+        ELSE size([style IN $styles WHERE style IN styles]) * 0.4 / size($styles)
       END AS styleScore,
 
       // Keyword match score (25%)
       CASE
         WHEN size($keywords) = 0 THEN 0.125
-        ELSE size([kw IN $keywords WHERE any(tag IN a.tags WHERE toLower(tag) CONTAINS toLower(kw))]) * 0.25 / size($keywords)
+        ELSE size([kw IN $keywords WHERE any(tag IN tags WHERE toLower(tag) CONTAINS toLower(kw))]) * 0.25 / size($keywords)
       END AS keywordScore,
 
       // Location score (15%)
@@ -268,7 +277,7 @@ export async function findMatchingArtists(preferences: ArtistPreferences): Promi
       rand() * 0.1 AS randomScore
 
     // Calculate total score
-    WITH a,
+    WITH a, styles, portfolio, tags,
       (styleScore + keywordScore + locationScore + budgetScore + randomScore) AS totalScore
 
     // Return top matches
@@ -276,12 +285,12 @@ export async function findMatchingArtists(preferences: ArtistPreferences): Promi
       a.id AS id,
       a.name AS name,
       a.city AS city,
-      a.styles AS styles,
+      styles AS styles,
       a.hourlyRate AS hourlyRate,
-      a.portfolio AS portfolio,
+      portfolio AS portfolio,
       a.instagram AS instagram,
       a.embedding_id AS embedding_id,
-      a.tags AS tags,
+      tags AS tags,
       totalScore * 100 AS score
     ORDER BY totalScore DESC
     LIMIT 20
@@ -345,43 +354,47 @@ export async function findArtistMatchesForPulse(preferences: ArtistPreferences):
 
     const query = `
     MATCH (a:Artist)
+    OPTIONAL MATCH (a)-[:SPECIALIZES_IN]->(st:Style)
+    WITH a, collect(DISTINCT st.name) AS styles
+    OPTIONAL MATCH (a)-[:CREATED]->(t:Tattoo)
+    WITH a, styles, collect(DISTINCT t.imageUrl) AS portfolioImages
+    OPTIONAL MATCH (a)-[:CREATED]->(:Tattoo)-[:TAGGED_WITH]->(tag:Tag)
+    WITH a, styles, portfolioImages, collect(DISTINCT tag.name) AS tags,
+         (coalesce(a.city, '') + CASE WHEN a.state IS NULL THEN '' ELSE ', ' + a.state END) AS locationText
     WHERE
-      ($style IS NULL OR any(s IN coalesce(a.styles, []) WHERE toLower(s) = toLower($style)))
-      AND ($bodyPart IS NULL OR any(bp IN coalesce(a.bodyParts, []) WHERE toLower(bp) = toLower($bodyPart)))
+      ($style IS NULL OR any(s IN styles WHERE toLower(s) = toLower($style)))
       AND (
         $location IS NULL OR
-        toLower(coalesce(a.location, '')) CONTAINS toLower($location) OR
+        toLower(locationText) CONTAINS toLower($location) OR
         toLower(coalesce(a.city, '')) CONTAINS toLower($location)
       )
-    WITH a,
+    WITH a, styles, portfolioImages, tags, locationText,
       CASE
         WHEN $style IS NULL THEN 0.4
-        WHEN any(s IN coalesce(a.styles, []) WHERE toLower(s) = toLower($style)) THEN 0.4
+        WHEN any(s IN styles WHERE toLower(s) = toLower($style)) THEN 0.4
         ELSE 0.2
       END AS styleScore,
-      CASE
-        WHEN $bodyPart IS NULL THEN 0.2
-        WHEN any(bp IN coalesce(a.bodyParts, []) WHERE toLower(bp) = toLower($bodyPart)) THEN 0.2
-        ELSE 0.1
-      END AS bodyPartScore,
+      // bodyPart is not part of the graph model; neutral contribution
+      CASE WHEN $bodyPart IS NULL THEN 0.2 ELSE 0.1 END AS bodyPartScore,
       CASE
         WHEN $location IS NULL THEN 0.1
-        WHEN toLower(coalesce(a.location, '')) CONTAINS toLower($location) THEN 0.1
+        WHEN toLower(locationText) CONTAINS toLower($location) THEN 0.1
         ELSE 0.05
       END AS locationScore,
       rand() * 0.1 AS varietyScore
-    WITH a, (styleScore + bodyPartScore + locationScore + varietyScore) AS totalScore
+    WITH a, styles, portfolioImages, tags, locationText,
+         (styleScore + bodyPartScore + locationScore + varietyScore) AS totalScore
     RETURN
       a.id AS id,
       a.name AS name,
       a.city AS city,
-      a.location AS location,
-      a.styles AS styles,
-      a.bodyParts AS bodyParts,
-      a.portfolio AS portfolio,
-      a.portfolioImages AS portfolioImages,
+      locationText AS location,
+      styles AS styles,
+      [] AS bodyParts,
+      portfolioImages AS portfolio,
+      portfolioImages AS portfolioImages,
       a.instagram AS instagram,
-      a.tags AS tags,
+      tags AS tags,
       totalScore * 100 AS score
     ORDER BY totalScore DESC
     LIMIT $limit
@@ -451,7 +464,19 @@ export function isNeo4jEnabled(): boolean {
 export async function getArtistById(artistId: string): Promise<any | null> {
     const query = `
     MATCH (a:Artist {id: $artistId})
-    RETURN a
+    OPTIONAL MATCH (a)-[:SPECIALIZES_IN]->(st:Style)
+    WITH a, collect(DISTINCT st.name) AS styles
+    OPTIONAL MATCH (a)-[:CREATED]->(t:Tattoo)
+    WITH a, styles, collect(DISTINCT t.imageUrl) AS portfolioImages
+    OPTIONAL MATCH (a)-[:CREATED]->(:Tattoo)-[:TAGGED_WITH]->(tag:Tag)
+    WITH a, styles, portfolioImages, collect(DISTINCT tag.name) AS tags
+    RETURN a {
+      .*,
+      styles: styles,
+      portfolio: portfolioImages,
+      portfolioImages: portfolioImages,
+      tags: tags
+    } AS a
   `;
 
     const results = await executeCypherQuery(query, { artistId });
@@ -467,17 +492,23 @@ export async function getArtistsByIds(artistIds: Array<string | number> = []): P
     const query = `
     MATCH (a:Artist)
     WHERE a.id IN $artistIds
+    OPTIONAL MATCH (a)-[:SPECIALIZES_IN]->(st:Style)
+    WITH a, collect(DISTINCT st.name) AS styles
+    OPTIONAL MATCH (a)-[:CREATED]->(t:Tattoo)
+    WITH a, styles, collect(DISTINCT t.imageUrl) AS portfolioImages
+    OPTIONAL MATCH (a)-[:CREATED]->(:Tattoo)-[:TAGGED_WITH]->(tag:Tag)
+    WITH a, styles, portfolioImages, collect(DISTINCT tag.name) AS tags
     RETURN
       a.id AS id,
       a.name AS name,
       a.city AS city,
-      a.location AS location,
-      a.styles AS styles,
-      a.bodyParts AS bodyParts,
-      a.portfolio AS portfolio,
-      a.portfolioImages AS portfolioImages,
+      (coalesce(a.city, '') + CASE WHEN a.state IS NULL THEN '' ELSE ', ' + a.state END) AS location,
+      styles AS styles,
+      [] AS bodyParts,
+      portfolioImages AS portfolio,
+      portfolioImages AS portfolioImages,
       a.instagram AS instagram,
-      a.tags AS tags
+      tags AS tags
   `;
 
     const results = await executeCypherQuery(query, { artistIds });
