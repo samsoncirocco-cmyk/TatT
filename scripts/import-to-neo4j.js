@@ -37,7 +37,9 @@
  * artists.json. No values are fabricated. Website nodes are only created when an
  * explicit URL is present (none exist in the current dataset, so none are made).
  *
- * The script is idempotent (MERGE-based) and cleans the DB before importing.
+ * The script is idempotent (MERGE-based). Pass --wipe to delete ALL existing
+ * data first — never do this casually: the live DB also holds the national
+ * scraped dataset, which this seed file does not contain.
  */
 
 import neo4j from 'neo4j-driver';
@@ -478,7 +480,11 @@ async function main() {
     console.log('✅ Connected to Neo4j successfully');
 
     await createIndexes(session);
-    await cleanDatabase(session);
+    if (process.argv.includes('--wipe')) {
+      await cleanDatabase(session);
+    } else {
+      console.log('ℹ️  Skipping database clean (pass --wipe to delete all existing data first)');
+    }
 
     await importStyles(session, artistsData.styles);
     await importArtists(session, artistsData.artists);
