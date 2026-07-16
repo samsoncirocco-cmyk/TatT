@@ -113,8 +113,8 @@ NEXT_PUBLIC_FRONTEND_AUTH_TOKEN=tatt-local-dev-token   # must equal the server t
 NEXT_PUBLIC_DEMO_MODE=false
 ```
 
-The source of truth for the credentials is
-`Neo4j-c86c5faa-Created-2026-07-15.txt` in the repo root.
+The credentials live only in the gitignored `.env` / `.env.local` files (and
+the Aura console). They are never committed to the repo.
 
 ### Connection path
 
