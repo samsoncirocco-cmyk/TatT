@@ -223,15 +223,19 @@ export async function findMatchingArtists(preferences: ArtistPreferences): Promi
     // Cypher query for artist matching.
     // Styles, tags and portfolio are gathered by traversing the graph model:
     //   (Artist)-[:SPECIALIZES_IN]->(Style)
-    //   (Artist)-[:CREATED]->(Tattoo)-[:TAGGED_WITH]->(Tag)
+    //   (Artist)-[:CREATED]->(Tattoo)-[:TAGGED_WITH]->(Tag)  (seed data)
+    //   (Artist)-[:TAGGED_WITH]->(Tag)                        (national dataset)
     const query = `
     MATCH (a:Artist)
     OPTIONAL MATCH (a)-[:SPECIALIZES_IN]->(st:Style)
     WITH a, collect(DISTINCT st.name) AS styles
     OPTIONAL MATCH (a)-[:CREATED]->(t:Tattoo)
     WITH a, styles, collect(DISTINCT t.imageUrl) AS portfolio
-    OPTIONAL MATCH (a)-[:CREATED]->(:Tattoo)-[:TAGGED_WITH]->(tag:Tag)
-    WITH a, styles, portfolio, collect(DISTINCT tag.name) AS tags
+    OPTIONAL MATCH (a)-[:CREATED]->(:Tattoo)-[:TAGGED_WITH]->(ttag:Tag)
+    WITH a, styles, portfolio, collect(DISTINCT ttag.name) AS tattooTags
+    OPTIONAL MATCH (a)-[:TAGGED_WITH]->(atag:Tag)
+    WITH a, styles, portfolio, tattooTags, collect(DISTINCT atag.name) AS artistTags
+    WITH a, styles, portfolio, tattooTags + artistTags AS tags
 
     WHERE
       // Style matching
@@ -240,8 +244,9 @@ export async function findMatchingArtists(preferences: ArtistPreferences): Promi
       // Location matching (city-based for now)
       AND ($location IS NULL OR a.city = $location OR a.city CONTAINS $location)
 
-      // Budget matching (optional filter)
-      AND ($budget IS NULL OR a.hourlyRate <= $budget * 1.5)
+      // Budget matching (optional filter). Real scraped artists have no
+      // published rate (hourlyRate IS NULL) — never exclude them on budget.
+      AND ($budget IS NULL OR a.hourlyRate IS NULL OR a.hourlyRate <= $budget * 1.5)
 
     // Calculate match score using Cypher
     WITH a, styles, portfolio, tags,
@@ -268,6 +273,7 @@ export async function findMatchingArtists(preferences: ArtistPreferences): Promi
       // Budget score (10%)
       CASE
         WHEN $budget IS NULL THEN 0.05
+        WHEN a.hourlyRate IS NULL THEN 0.05
         WHEN a.hourlyRate <= $budget THEN 0.1
         WHEN a.hourlyRate <= $budget * 1.5 THEN 0.05
         ELSE 0.02
@@ -358,8 +364,11 @@ export async function findArtistMatchesForPulse(preferences: ArtistPreferences):
     WITH a, collect(DISTINCT st.name) AS styles
     OPTIONAL MATCH (a)-[:CREATED]->(t:Tattoo)
     WITH a, styles, collect(DISTINCT t.imageUrl) AS portfolioImages
-    OPTIONAL MATCH (a)-[:CREATED]->(:Tattoo)-[:TAGGED_WITH]->(tag:Tag)
-    WITH a, styles, portfolioImages, collect(DISTINCT tag.name) AS tags,
+    OPTIONAL MATCH (a)-[:CREATED]->(:Tattoo)-[:TAGGED_WITH]->(ttag:Tag)
+    WITH a, styles, portfolioImages, collect(DISTINCT ttag.name) AS tattooTags
+    OPTIONAL MATCH (a)-[:TAGGED_WITH]->(atag:Tag)
+    WITH a, styles, portfolioImages, tattooTags, collect(DISTINCT atag.name) AS artistTags
+    WITH a, styles, portfolioImages, tattooTags + artistTags AS tags,
          (coalesce(a.city, '') + CASE WHEN a.state IS NULL THEN '' ELSE ', ' + a.state END) AS locationText
     WHERE
       ($style IS NULL OR any(s IN styles WHERE toLower(s) = toLower($style)))
