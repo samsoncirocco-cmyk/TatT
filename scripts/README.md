@@ -70,12 +70,12 @@ node scripts/import-to-neo4j.js
 
 ### What the Script Does
 
-1. **Creates Indexes** - Optimizes queries for Artist ID, name, city, and styles
+1. **Creates Indexes** - Optimizes queries for Artist ID, name, State/City/Shop names, and styles
 2. **Cleans Database** - Removes all existing nodes (use caution!)
-3. **Imports Cities** - Creates 20 City nodes for Arizona locations
+3. **Imports Geography** - Creates the State → City → Shop hierarchy for Arizona locations
 4. **Imports Styles** - Creates 15 Style nodes (Traditional, Realism, etc.)
-5. **Imports Artists** - Batch imports 100 artists with all properties
-6. **Creates Relationships** - Links artists to cities, styles, and tags
+5. **Imports Artists** - Batch imports 100 artists with all properties, attaching each to its Shop
+6. **Creates Relationships** - Links shops to artists/styles, artists to styles/tattoos/instagram, and tattoos to styles/tags
 7. **Verifies Import** - Runs sample queries to confirm success
 
 ### Expected Output
@@ -85,9 +85,11 @@ node scripts/import-to-neo4j.js
 ✅ Connected to Neo4j successfully
 
 📊 Creating indexes...
+  ✓ state_name_index
+  ✓ city_name_index
+  ✓ shop_name_index
   ✓ artist_id_index
   ✓ artist_name_index
-  ✓ city_name_index
   ✓ style_name_index
   ✓ tag_name_index
   ✓ artist_location_index
@@ -95,7 +97,7 @@ node scripts/import-to-neo4j.js
 🧹 Cleaning existing data...
   ✓ All existing nodes and relationships deleted
 
-🏙️  Importing cities...
+🏙️  Importing geography (State → City → Shop)...
   ✓ 20 cities imported
 
 🎨 Importing styles...
@@ -113,7 +115,7 @@ node scripts/import-to-neo4j.js
   ✓ Cities: 20
   ✓ Styles: 15
   ✓ Tags: 59
-  ✓ LOCATED_IN relationships: 100
+  ✓ HAS_ARTIST relationships: 100
   ✓ SPECIALIZES_IN relationships: 198
   ✓ TAGGED_WITH relationships: 563
 
@@ -130,48 +132,84 @@ Note: The batch counts (336, 295, etc.) are relationship counts, not artist coun
 Properties:
 - `id` (Integer) - Unique identifier
 - `name` (String) - Artist name
-- `shopName` (String) - Tattoo shop name
-- `city` (String) - City name
-- `state` (String) - State abbreviation (AZ)
 - `location` (Point) - Spatial coordinates for distance queries
 - `lat` (Float) - Latitude
 - `lng` (Float) - Longitude
-- `instagram` (String) - Instagram handle
 - `hourlyRate` (Integer) - Hourly rate in USD
 - `rating` (Float) - Average rating (0-5)
 - `reviewCount` (Integer) - Number of reviews
 - `bio` (String) - Artist biography
 - `yearsExperience` (Integer) - Years of experience
 - `bookingAvailable` (Boolean) - Booking availability
-- `portfolioImages` (Array[String]) - URLs to portfolio images
+
+> The former flat `shopName`, `city`, `state`, `instagram`, and `portfolioImages` fields are now modeled as related nodes (`Shop`, `City`, `State`, `Instagram`, `Tattoo`) rather than string/array properties.
+
+#### State
+Properties:
+- `name` (String) - State abbreviation (AZ)
 
 #### City
 Properties:
 - `name` (String) - City name
-- `state` (String) - State abbreviation
+
+#### Shop
+Properties:
+- `name` (String) - Tattoo shop name
 
 #### Style
 Properties:
 - `name` (String) - Style name (Traditional, Realism, etc.)
 
+#### Tattoo
+Properties:
+- `id` (String) - Tattoo/portfolio piece identifier
+- `imageUrl` (String) - Portfolio image URL
+
+#### Instagram
+Properties:
+- `handle` (String) - Instagram handle (@username)
+
 #### Tag
 Properties:
 - `name` (String) - Tag/keyword name
 
+#### Website
+Properties:
+- `url` (String) - Website URL (nodes created only when a URL exists; none currently)
+
 ### Relationships
 
-- `(Artist)-[:LOCATED_IN]->(City)` - Artist's location
+Geography hierarchy (replaces the former flat `(Artist)-[:LOCATED_IN]->(City)` edge):
+- `(State)-[:HAS_CITY]->(City)`
+- `(City)-[:HAS_SHOP]->(Shop)`
+- `(Shop)-[:HAS_ARTIST]->(Artist)`
+
+Shop and artist:
+- `(Shop)-[:FEATURES_STYLE]->(Style)` - Styles offered at the shop
+- `(Shop)-[:HAS_WEBSITE]->(Website)` - Shop website (only when a URL exists)
 - `(Artist)-[:SPECIALIZES_IN]->(Style)` - Artist's specialties (multiple)
-- `(Artist)-[:TAGGED_WITH]->(Tag)` - Artist's tags/keywords (multiple)
+- `(Artist)-[:CREATED]->(Tattoo)` - Portfolio pieces created by the artist
+- `(Artist)-[:HAS_INSTAGRAM]->(Instagram)` - Artist's Instagram account
+- `(Artist)-[:HAS_WEBSITE]->(Website)` - Artist website (only when a URL exists)
+
+Tattoo and Instagram:
+- `(Tattoo)-[:IN_STYLE]->(Style)` - Style of the tattoo
+- `(Tattoo)-[:TAGGED_WITH]->(Tag)` - Tattoo's tags/keywords (multiple; tags attach to tattoos, not artists)
+- `(Instagram)-[:FEATURES]->(Tattoo)` - Tattoos featured on the account
+
+Artist-to-artist:
+- `(Artist)-[:APPRENTICED_UNDER]->(Artist)`
+- `(Artist)-[:INFLUENCED_BY]->(Artist)`
 
 ### Indexes
 
 The script creates these indexes for optimal query performance:
 
+- `state_name_index` - State lookups
+- `city_name_index` - City lookups
+- `shop_name_index` - Shop lookups
 - `artist_id_index` - Fast lookup by artist ID
 - `artist_name_index` - Artist name searches
-- `artist_city_index` - Filter by city
-- `city_name_index` - City lookups
 - `style_name_index` - Style filtering
 - `tag_name_index` - Tag searches
 - `artist_location_index` - Spatial queries (distance-based matching)
@@ -181,9 +219,9 @@ The script creates these indexes for optimal query performance:
 ### Find artists in a specific city with a style
 
 ```cypher
-MATCH (a:Artist)-[:LOCATED_IN]->(c:City {name: 'Phoenix'})
+MATCH (c:City {name: 'Phoenix'})-[:HAS_SHOP]->(shop:Shop)-[:HAS_ARTIST]->(a:Artist)
 MATCH (a)-[:SPECIALIZES_IN]->(s:Style {name: 'Traditional'})
-RETURN a.name, a.shopName, a.hourlyRate, a.rating
+RETURN a.name, shop.name AS shopName, a.hourlyRate, a.rating
 ORDER BY a.rating DESC
 ```
 
@@ -193,7 +231,8 @@ ORDER BY a.rating DESC
 WITH point({latitude: 33.4484, longitude: -112.074}) AS phoenixDowntown
 MATCH (a:Artist)
 WHERE point.distance(a.location, phoenixDowntown) < 50000
-RETURN a.name, a.city, a.shopName,
+OPTIONAL MATCH (c:City)-[:HAS_SHOP]->(shop:Shop)-[:HAS_ARTIST]->(a)
+RETURN a.name, c.name AS city, shop.name AS shopName,
        round(point.distance(a.location, phoenixDowntown) / 1000) AS distanceKm
 ORDER BY distanceKm
 LIMIT 10
@@ -202,9 +241,9 @@ LIMIT 10
 ### Find artists by budget and style
 
 ```cypher
-MATCH (a:Artist)-[:SPECIALIZES_IN]->(s:Style {name: 'Watercolor'})
+MATCH (shop:Shop)-[:HAS_ARTIST]->(a:Artist)-[:SPECIALIZES_IN]->(s:Style {name: 'Watercolor'})
 WHERE a.hourlyRate <= 200 AND a.bookingAvailable = true
-RETURN a.name, a.shopName, a.hourlyRate, a.rating
+RETURN a.name, shop.name AS shopName, a.hourlyRate, a.rating
 ORDER BY a.rating DESC
 ```
 
@@ -212,9 +251,9 @@ ORDER BY a.rating DESC
 
 ```cypher
 MATCH (a:Artist {id: 1})
-OPTIONAL MATCH (a)-[:LOCATED_IN]->(c:City)
+OPTIONAL MATCH (c:City)-[:HAS_SHOP]->(:Shop)-[:HAS_ARTIST]->(a)
 OPTIONAL MATCH (a)-[:SPECIALIZES_IN]->(s:Style)
-OPTIONAL MATCH (a)-[:TAGGED_WITH]->(t:Tag)
+OPTIONAL MATCH (a)-[:CREATED]->(:Tattoo)-[:TAGGED_WITH]->(t:Tag)
 RETURN a,
        c.name AS city,
        collect(DISTINCT s.name) AS styles,
@@ -238,8 +277,8 @@ OPTIONAL MATCH (a)-[:SPECIALIZES_IN]->(s:Style)
 WHERE s.name IN userStyles
 WITH a, userLocation, userKeywords, count(DISTINCT s) AS styleScore
 
-// Calculate keyword match score
-OPTIONAL MATCH (a)-[:TAGGED_WITH]->(t:Tag)
+// Calculate keyword match score (tags live on the artist's tattoos)
+OPTIONAL MATCH (a)-[:CREATED]->(:Tattoo)-[:TAGGED_WITH]->(t:Tag)
 WHERE t.name IN userKeywords
 WITH a, userLocation, styleScore, count(DISTINCT t) AS keywordScore
 
@@ -257,7 +296,10 @@ WITH a,
 WITH a, styleWeight + keywordWeight + distanceWeight AS matchScore,
      styleScore, keywordScore, distanceKm
 
-RETURN a.name, a.shopName, a.city, a.hourlyRate, a.rating,
+// Resolve shop + city from the geography hierarchy
+OPTIONAL MATCH (c:City)-[:HAS_SHOP]->(shop:Shop)-[:HAS_ARTIST]->(a)
+
+RETURN a.name, shop.name AS shopName, c.name AS city, a.hourlyRate, a.rating,
        round(matchScore * 100) AS matchPercentage,
        styleScore, keywordScore, round(distanceKm) AS distanceKm
 ORDER BY matchScore DESC

@@ -70,3 +70,4 @@ __pycache__/
 
 # Expo
 .expo/
+Neo4j-*.txt

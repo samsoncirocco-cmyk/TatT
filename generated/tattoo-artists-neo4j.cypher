@@ -1,5 +1,5 @@
 // Neo4j Import Script for Tattoo Artists
-// Generated from Supabase-compatible dataset
+// Generated from Supabase-compatible dataset (canonical graph model)
 
 // Clear existing data (optional - remove if you want to merge)
 MATCH (n) DETACH DELETE n;
@@ -7,153 +7,486 @@ MATCH (n) DETACH DELETE n;
 // Create indexes
 CREATE INDEX artist_id_index IF NOT EXISTS FOR (a:Artist) ON (a.id);
 CREATE INDEX artist_name_index IF NOT EXISTS FOR (a:Artist) ON (a.name);
+CREATE INDEX state_name_index IF NOT EXISTS FOR (st:State) ON (st.name);
+CREATE INDEX city_name_index IF NOT EXISTS FOR (c:City) ON (c.name);
+CREATE INDEX shop_name_index IF NOT EXISTS FOR (sh:Shop) ON (sh.name);
 CREATE INDEX style_name_index IF NOT EXISTS FOR (s:Style) ON (s.name);
-CREATE INDEX color_name_index IF NOT EXISTS FOR (c:Color) ON (c.name);
-CREATE INDEX specialization_name_index IF NOT EXISTS FOR (sp:Specialization) ON (sp.name);
-CREATE INDEX location_city_index IF NOT EXISTS FOR (l:Location) ON (l.city);
+CREATE INDEX website_url_index IF NOT EXISTS FOR (w:Website) ON (w.url);
+
+// Create State nodes
+MERGE (st:State {name: 'Texas'});
+MERGE (st:State {name: 'Colorado'});
+MERGE (st:State {name: 'Quebec'});
+MERGE (st:State {name: 'New Jersey'});
+MERGE (st:State {name: 'Florida'});
+MERGE (st:State {name: 'Oregon'});
+MERGE (st:State {name: 'New York'});
+MERGE (st:State {name: 'California'});
+MERGE (st:State {name: 'Arizona'});
+MERGE (st:State {name: 'Vermont'});
+MERGE (st:State {name: 'New South Wales'});
+MERGE (st:State {name: 'Victoria'});
+MERGE (st:State {name: 'Ontario'});
+MERGE (st:State {name: 'Western Australia'});
+MERGE (st:State {name: 'British Columbia'});
+
+// Create City nodes
+MERGE (c:City {name: 'Austin', state: 'Texas'});
+MERGE (c:City {name: 'Denver', state: 'Colorado'});
+MERGE (c:City {name: 'Montreal', state: 'Quebec'});
+MERGE (c:City {name: 'Newark', state: 'New Jersey'});
+MERGE (c:City {name: 'Tampa', state: 'Florida'});
+MERGE (c:City {name: 'Portland', state: 'Oregon'});
+MERGE (c:City {name: 'Houston', state: 'Texas'});
+MERGE (c:City {name: 'Ewing Township', state: 'New Jersey'});
+MERGE (c:City {name: 'Brooklyn', state: 'New York'});
+MERGE (c:City {name: 'San Diego', state: 'California'});
+MERGE (c:City {name: 'Tucson', state: 'Arizona'});
+MERGE (c:City {name: 'Manhattan', state: 'New York'});
+MERGE (c:City {name: 'Dallas', state: 'Texas'});
+MERGE (c:City {name: 'Burlington', state: 'Vermont'});
+MERGE (c:City {name: 'Sydney', state: 'New South Wales'});
+MERGE (c:City {name: 'Miami', state: 'Florida'});
+MERGE (c:City {name: 'Jersey City', state: 'New Jersey'});
+MERGE (c:City {name: 'Melbourne', state: 'Victoria'});
+MERGE (c:City {name: 'Toronto', state: 'Ontario'});
+MERGE (c:City {name: 'Perth', state: 'Western Australia'});
+MERGE (c:City {name: 'Phoenix', state: 'Arizona'});
+MERGE (c:City {name: 'Vancouver', state: 'British Columbia'});
+MERGE (c:City {name: 'Los Angeles', state: 'California'});
+MERGE (c:City {name: 'San Francisco', state: 'California'});
+
+// Create Shop nodes
+MERGE (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Austin', state: 'Texas'});
+MERGE (sh:Shop {name: 'Crimson Lotus Studio', city: 'Denver', state: 'Colorado'});
+MERGE (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Montreal', state: 'Quebec'});
+MERGE (sh:Shop {name: 'Electric Rose Parlor', city: 'Newark', state: 'New Jersey'});
+MERGE (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Tampa', state: 'Florida'});
+MERGE (sh:Shop {name: 'Golden Needle Tattoo', city: 'Austin', state: 'Texas'});
+MERGE (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Portland', state: 'Oregon'});
+MERGE (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Austin', state: 'Texas'});
+MERGE (sh:Shop {name: 'Golden Needle Tattoo', city: 'Houston', state: 'Texas'});
+MERGE (sh:Shop {name: 'Northern Lights Tattoo', city: 'Ewing Township', state: 'New Jersey'});
+MERGE (sh:Shop {name: 'Black Anchor Collective', city: 'Brooklyn', state: 'New York'});
+MERGE (sh:Shop {name: 'Crimson Lotus Studio', city: 'San Diego', state: 'California'});
+MERGE (sh:Shop {name: 'Wildflower Ink', city: 'Tucson', state: 'Arizona'});
+MERGE (sh:Shop {name: 'Black Anchor Collective', city: 'Manhattan', state: 'New York'});
+MERGE (sh:Shop {name: 'Ink & Iron Studio', city: 'Dallas', state: 'Texas'});
+MERGE (sh:Shop {name: 'Raven & Rose Ink', city: 'Burlington', state: 'Vermont'});
+MERGE (sh:Shop {name: 'Raven & Rose Ink', city: 'Sydney', state: 'New South Wales'});
+MERGE (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Ewing Township', state: 'New Jersey'});
+MERGE (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Miami', state: 'Florida'});
+MERGE (sh:Shop {name: 'Sacred Art Collective', city: 'Dallas', state: 'Texas'});
+MERGE (sh:Shop {name: 'Raven & Rose Ink', city: 'San Diego', state: 'California'});
+MERGE (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Jersey City', state: 'New Jersey'});
+MERGE (sh:Shop {name: 'Crimson Lotus Studio', city: 'Melbourne', state: 'Victoria'});
+MERGE (sh:Shop {name: 'Golden Needle Tattoo', city: 'Toronto', state: 'Ontario'});
+MERGE (sh:Shop {name: 'Sacred Art Collective', city: 'Tampa', state: 'Florida'});
+MERGE (sh:Shop {name: 'Crimson Lotus Studio', city: 'Perth', state: 'Western Australia'});
+MERGE (sh:Shop {name: 'Crimson Lotus Studio', city: 'Houston', state: 'Texas'});
+MERGE (sh:Shop {name: 'Northern Lights Tattoo', city: 'Montreal', state: 'Quebec'});
+MERGE (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Newark', state: 'New Jersey'});
+MERGE (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Denver', state: 'Colorado'});
+MERGE (sh:Shop {name: 'Golden Needle Tattoo', city: 'Tucson', state: 'Arizona'});
+MERGE (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Tucson', state: 'Arizona'});
+MERGE (sh:Shop {name: 'Golden Needle Tattoo', city: 'Dallas', state: 'Texas'});
+MERGE (sh:Shop {name: 'Northern Lights Tattoo', city: 'Dallas', state: 'Texas'});
+MERGE (sh:Shop {name: 'Wildflower Ink', city: 'Manhattan', state: 'New York'});
+MERGE (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Jersey City', state: 'New Jersey'});
+MERGE (sh:Shop {name: 'Electric Rose Parlor', city: 'Perth', state: 'Western Australia'});
+MERGE (sh:Shop {name: 'Golden Needle Tattoo', city: 'Melbourne', state: 'Victoria'});
+MERGE (sh:Shop {name: 'Black Anchor Collective', city: 'Phoenix', state: 'Arizona'});
+MERGE (sh:Shop {name: 'Electric Rose Parlor', city: 'Toronto', state: 'Ontario'});
+MERGE (sh:Shop {name: 'Electric Rose Parlor', city: 'Vancouver', state: 'British Columbia'});
+MERGE (sh:Shop {name: 'Electric Rose Parlor', city: 'Austin', state: 'Texas'});
+MERGE (sh:Shop {name: 'Golden Needle Tattoo', city: 'Los Angeles', state: 'California'});
+MERGE (sh:Shop {name: 'Raven & Rose Ink', city: 'Newark', state: 'New Jersey'});
+MERGE (sh:Shop {name: 'Black Anchor Collective', city: 'Tucson', state: 'Arizona'});
+MERGE (sh:Shop {name: 'Northern Lights Tattoo', city: 'Burlington', state: 'Vermont'});
+MERGE (sh:Shop {name: 'Ink & Iron Studio', city: 'Toronto', state: 'Ontario'});
+MERGE (sh:Shop {name: 'Sacred Art Collective', city: 'Montreal', state: 'Quebec'});
+MERGE (sh:Shop {name: 'Black Anchor Collective', city: 'Melbourne', state: 'Victoria'});
+MERGE (sh:Shop {name: 'Sacred Art Collective', city: 'Sydney', state: 'New South Wales'});
+MERGE (sh:Shop {name: 'Ink & Iron Studio', city: 'Denver', state: 'Colorado'});
+MERGE (sh:Shop {name: 'Crimson Lotus Studio', city: 'Montreal', state: 'Quebec'});
+MERGE (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Perth', state: 'Western Australia'});
+MERGE (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Manhattan', state: 'New York'});
+MERGE (sh:Shop {name: 'Crimson Lotus Studio', city: 'Dallas', state: 'Texas'});
+MERGE (sh:Shop {name: 'Golden Needle Tattoo', city: 'Vancouver', state: 'British Columbia'});
+MERGE (sh:Shop {name: 'Golden Needle Tattoo', city: 'Denver', state: 'Colorado'});
+MERGE (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Houston', state: 'Texas'});
+MERGE (sh:Shop {name: 'Black Anchor Collective', city: 'Vancouver', state: 'British Columbia'});
+MERGE (sh:Shop {name: 'Golden Needle Tattoo', city: 'Sydney', state: 'New South Wales'});
+MERGE (sh:Shop {name: 'Golden Needle Tattoo', city: 'Jersey City', state: 'New Jersey'});
+MERGE (sh:Shop {name: 'Crimson Lotus Studio', city: 'Tucson', state: 'Arizona'});
+MERGE (sh:Shop {name: 'Raven & Rose Ink', city: 'Brooklyn', state: 'New York'});
+MERGE (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Portland', state: 'Oregon'});
+MERGE (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Toronto', state: 'Ontario'});
+MERGE (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'San Francisco', state: 'California'});
+MERGE (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Denver', state: 'Colorado'});
+MERGE (sh:Shop {name: 'Ink & Iron Studio', city: 'Newark', state: 'New Jersey'});
+MERGE (sh:Shop {name: 'Black Anchor Collective', city: 'Dallas', state: 'Texas'});
+MERGE (sh:Shop {name: 'Raven & Rose Ink', city: 'Tampa', state: 'Florida'});
+MERGE (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Sydney', state: 'New South Wales'});
+MERGE (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Burlington', state: 'Vermont'});
+MERGE (sh:Shop {name: 'Black Anchor Collective', city: 'Jersey City', state: 'New Jersey'});
+MERGE (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Denver', state: 'Colorado'});
+MERGE (sh:Shop {name: 'Raven & Rose Ink', city: 'Los Angeles', state: 'California'});
+MERGE (sh:Shop {name: 'Sacred Art Collective', city: 'Toronto', state: 'Ontario'});
+MERGE (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Montreal', state: 'Quebec'});
+MERGE (sh:Shop {name: 'Ink & Iron Studio', city: 'San Francisco', state: 'California'});
+MERGE (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Tampa', state: 'Florida'});
+MERGE (sh:Shop {name: 'Sacred Art Collective', city: 'Tucson', state: 'Arizona'});
+MERGE (sh:Shop {name: 'Ink & Iron Studio', city: 'Los Angeles', state: 'California'});
+MERGE (sh:Shop {name: 'Raven & Rose Ink', city: 'Montreal', state: 'Quebec'});
+MERGE (sh:Shop {name: 'Golden Needle Tattoo', city: 'Perth', state: 'Western Australia'});
+MERGE (sh:Shop {name: 'Electric Rose Parlor', city: 'Phoenix', state: 'Arizona'});
+MERGE (sh:Shop {name: 'Ink & Iron Studio', city: 'Tampa', state: 'Florida'});
+MERGE (sh:Shop {name: 'Electric Rose Parlor', city: 'Montreal', state: 'Quebec'});
+MERGE (sh:Shop {name: 'Golden Needle Tattoo', city: 'Miami', state: 'Florida'});
+MERGE (sh:Shop {name: 'Electric Rose Parlor', city: 'Jersey City', state: 'New Jersey'});
+MERGE (sh:Shop {name: 'Wildflower Ink', city: 'Portland', state: 'Oregon'});
+MERGE (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Perth', state: 'Western Australia'});
+MERGE (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Austin', state: 'Texas'});
+MERGE (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Sydney', state: 'New South Wales'});
+MERGE (sh:Shop {name: 'Sacred Art Collective', city: 'Phoenix', state: 'Arizona'});
+MERGE (sh:Shop {name: 'Wildflower Ink', city: 'Brooklyn', state: 'New York'});
+MERGE (sh:Shop {name: 'Northern Lights Tattoo', city: 'Tucson', state: 'Arizona'});
+MERGE (sh:Shop {name: 'Wildflower Ink', city: 'Houston', state: 'Texas'});
+MERGE (sh:Shop {name: 'Electric Rose Parlor', city: 'Ewing Township', state: 'New Jersey'});
+MERGE (sh:Shop {name: 'Steel & Bone Tattoo', city: 'San Diego', state: 'California'});
+MERGE (sh:Shop {name: 'Black Anchor Collective', city: 'San Francisco', state: 'California'});
+MERGE (sh:Shop {name: 'Crimson Lotus Studio', city: 'Vancouver', state: 'British Columbia'});
+MERGE (sh:Shop {name: 'Crimson Lotus Studio', city: 'Toronto', state: 'Ontario'});
+MERGE (sh:Shop {name: 'Ink & Iron Studio', city: 'Jersey City', state: 'New Jersey'});
+MERGE (sh:Shop {name: 'Raven & Rose Ink', city: 'San Francisco', state: 'California'});
+MERGE (sh:Shop {name: 'Midnight Owl Tattoo', city: 'San Francisco', state: 'California'});
+MERGE (sh:Shop {name: 'Electric Rose Parlor', city: 'Burlington', state: 'Vermont'});
+MERGE (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Sydney', state: 'New South Wales'});
+MERGE (sh:Shop {name: 'Northern Lights Tattoo', city: 'Brooklyn', state: 'New York'});
+MERGE (sh:Shop {name: 'Northern Lights Tattoo', city: 'Newark', state: 'New Jersey'});
+MERGE (sh:Shop {name: 'Crimson Lotus Studio', city: 'Burlington', state: 'Vermont'});
+MERGE (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Brooklyn', state: 'New York'});
+MERGE (sh:Shop {name: 'Sacred Art Collective', city: 'Jersey City', state: 'New Jersey'});
+MERGE (sh:Shop {name: 'Crimson Lotus Studio', city: 'Austin', state: 'Texas'});
+MERGE (sh:Shop {name: 'Wildflower Ink', city: 'Phoenix', state: 'Arizona'});
+MERGE (sh:Shop {name: 'Electric Rose Parlor', city: 'Manhattan', state: 'New York'});
+MERGE (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Tucson', state: 'Arizona'});
+MERGE (sh:Shop {name: 'Black Anchor Collective', city: 'San Diego', state: 'California'});
+MERGE (sh:Shop {name: 'Ink & Iron Studio', city: 'Phoenix', state: 'Arizona'});
+MERGE (sh:Shop {name: 'Sacred Art Collective', city: 'San Diego', state: 'California'});
+MERGE (sh:Shop {name: 'Wildflower Ink', city: 'Denver', state: 'Colorado'});
+MERGE (sh:Shop {name: 'Electric Rose Parlor', city: 'Los Angeles', state: 'California'});
+MERGE (sh:Shop {name: 'Ink & Iron Studio', city: 'Manhattan', state: 'New York'});
+MERGE (sh:Shop {name: 'Ink & Iron Studio', city: 'Houston', state: 'Texas'});
+MERGE (sh:Shop {name: 'Black Anchor Collective', city: 'Montreal', state: 'Quebec'});
+MERGE (sh:Shop {name: 'Black Anchor Collective', city: 'Ewing Township', state: 'New Jersey'});
+MERGE (sh:Shop {name: 'Wildflower Ink', city: 'Melbourne', state: 'Victoria'});
+MERGE (sh:Shop {name: 'Electric Rose Parlor', city: 'Dallas', state: 'Texas'});
+MERGE (sh:Shop {name: 'Black Anchor Collective', city: 'Miami', state: 'Florida'});
+MERGE (sh:Shop {name: 'Wildflower Ink', city: 'Ewing Township', state: 'New Jersey'});
+MERGE (sh:Shop {name: 'Sacred Art Collective', city: 'Burlington', state: 'Vermont'});
+MERGE (sh:Shop {name: 'Electric Rose Parlor', city: 'Tucson', state: 'Arizona'});
+MERGE (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'San Diego', state: 'California'});
+MERGE (sh:Shop {name: 'Raven & Rose Ink', city: 'Tucson', state: 'Arizona'});
+MERGE (sh:Shop {name: 'Wildflower Ink', city: 'Sydney', state: 'New South Wales'});
+MERGE (sh:Shop {name: 'Sacred Art Collective', city: 'Brooklyn', state: 'New York'});
+MERGE (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Melbourne', state: 'Victoria'});
+MERGE (sh:Shop {name: 'Northern Lights Tattoo', city: 'Austin', state: 'Texas'});
+MERGE (sh:Shop {name: 'Raven & Rose Ink', city: 'Toronto', state: 'Ontario'});
+MERGE (sh:Shop {name: 'Crimson Lotus Studio', city: 'Jersey City', state: 'New Jersey'});
+MERGE (sh:Shop {name: 'Golden Needle Tattoo', city: 'Manhattan', state: 'New York'});
+MERGE (sh:Shop {name: 'Ink & Iron Studio', city: 'San Diego', state: 'California'});
+MERGE (sh:Shop {name: 'Northern Lights Tattoo', city: 'Manhattan', state: 'New York'});
+MERGE (sh:Shop {name: 'Wildflower Ink', city: 'San Francisco', state: 'California'});
+MERGE (sh:Shop {name: 'Sacred Art Collective', city: 'Newark', state: 'New Jersey'});
+MERGE (sh:Shop {name: 'Golden Needle Tattoo', city: 'Portland', state: 'Oregon'});
+MERGE (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Vancouver', state: 'British Columbia'});
+MERGE (sh:Shop {name: 'Golden Needle Tattoo', city: 'Ewing Township', state: 'New Jersey'});
+MERGE (sh:Shop {name: 'Wildflower Ink', city: 'Austin', state: 'Texas'});
+MERGE (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Burlington', state: 'Vermont'});
 
 // Create Style nodes
-MERGE (s:Style {name: 'Photo Realism'});
-MERGE (s:Style {name: 'Realism'});
 MERGE (s:Style {name: 'Fine Line'});
-MERGE (s:Style {name: 'Dotwork'});
-MERGE (s:Style {name: 'New School'});
-MERGE (s:Style {name: 'Geometric'});
-MERGE (s:Style {name: 'Watercolor'});
-MERGE (s:Style {name: 'Illustrative'});
-MERGE (s:Style {name: 'Tribal'});
-MERGE (s:Style {name: 'Minimalist'});
-MERGE (s:Style {name: 'Lettering'});
-MERGE (s:Style {name: 'Traditional'});
-MERGE (s:Style {name: 'Neo-Traditional'});
-MERGE (s:Style {name: 'Blackwork'});
 MERGE (s:Style {name: 'Japanese'});
-MERGE (s:Style {name: 'Portrait'});
-MERGE (s:Style {name: 'Biomechanical'});
-MERGE (s:Style {name: 'Abstract'});
-MERGE (s:Style {name: 'Surrealism'});
+MERGE (s:Style {name: 'Realism'});
+MERGE (s:Style {name: 'Watercolor'});
 MERGE (s:Style {name: 'Old School'});
+MERGE (s:Style {name: 'Illustrative'});
+MERGE (s:Style {name: 'Geometric'});
+MERGE (s:Style {name: 'Minimalist'});
+MERGE (s:Style {name: 'Dotwork'});
+MERGE (s:Style {name: 'Traditional'});
+MERGE (s:Style {name: 'Lettering'});
+MERGE (s:Style {name: 'Surrealism'});
+MERGE (s:Style {name: 'Blackwork'});
+MERGE (s:Style {name: 'Tribal'});
+MERGE (s:Style {name: 'Portrait'});
+MERGE (s:Style {name: 'New School'});
+MERGE (s:Style {name: 'Abstract'});
+MERGE (s:Style {name: 'Neo-Traditional'});
+MERGE (s:Style {name: 'Photo Realism'});
+MERGE (s:Style {name: 'Biomechanical'});
 
-// Create Color nodes
-MERGE (c:Color {name: 'Earth Tones'});
-MERGE (c:Color {name: 'Black & Grey'});
-MERGE (c:Color {name: 'Full Color'});
-MERGE (c:Color {name: 'Pastel'});
-MERGE (c:Color {name: 'Bold Colors'});
-MERGE (c:Color {name: 'Neon'});
-MERGE (c:Color {name: 'Monochrome'});
-MERGE (c:Color {name: 'Black Only'});
-MERGE (c:Color {name: 'Muted'});
-MERGE (c:Color {name: 'Vibrant'});
-
-// Create Specialization nodes
-MERGE (sp:Specialization {name: 'Horror'});
-MERGE (sp:Specialization {name: 'Medical Cover-up'});
-MERGE (sp:Specialization {name: 'Portraits'});
-MERGE (sp:Specialization {name: 'Floral'});
-MERGE (sp:Specialization {name: 'Cover-ups'});
-MERGE (sp:Specialization {name: 'Lettering'});
-MERGE (sp:Specialization {name: 'Mandala'});
-MERGE (sp:Specialization {name: 'Nature'});
-MERGE (sp:Specialization {name: 'Biomechanical'});
-MERGE (sp:Specialization {name: 'Large Scale'});
-MERGE (sp:Specialization {name: 'Cultural'});
-MERGE (sp:Specialization {name: 'Watercolor'});
-MERGE (sp:Specialization {name: 'Abstract'});
-MERGE (sp:Specialization {name: 'Minimalist'});
-MERGE (sp:Specialization {name: 'Religious'});
-MERGE (sp:Specialization {name: 'Animal'});
-MERGE (sp:Specialization {name: 'Small Delicate'});
-MERGE (sp:Specialization {name: 'Geometric'});
-MERGE (sp:Specialization {name: 'Fantasy'});
-MERGE (sp:Specialization {name: 'Memorial'});
-
-// Create Location nodes
-MERGE (l:Location {city: 'Perth', region: 'Western Australia', country: 'Australia'});
-MERGE (l:Location {city: 'San Diego', region: 'California', country: 'United States'});
-MERGE (l:Location {city: 'Tucson', region: 'Arizona', country: 'United States'});
-MERGE (l:Location {city: 'Brooklyn', region: 'New York', country: 'United States'});
-MERGE (l:Location {city: 'Ewing Township', region: 'New Jersey', country: 'United States'});
-MERGE (l:Location {city: 'Denver', region: 'Colorado', country: 'United States'});
-MERGE (l:Location {city: 'San Francisco', region: 'California', country: 'United States'});
-MERGE (l:Location {city: 'Melbourne', region: 'Victoria', country: 'Australia'});
-MERGE (l:Location {city: 'Austin', region: 'Texas', country: 'United States'});
-MERGE (l:Location {city: 'Vancouver', region: 'British Columbia', country: 'Canada'});
-MERGE (l:Location {city: 'Houston', region: 'Texas', country: 'United States'});
-MERGE (l:Location {city: 'Tampa', region: 'Florida', country: 'United States'});
-MERGE (l:Location {city: 'Newark', region: 'New Jersey', country: 'United States'});
-MERGE (l:Location {city: 'Montreal', region: 'Quebec', country: 'Canada'});
-MERGE (l:Location {city: 'Jersey City', region: 'New Jersey', country: 'United States'});
-MERGE (l:Location {city: 'Portland', region: 'Oregon', country: 'United States'});
-MERGE (l:Location {city: 'Manhattan', region: 'New York', country: 'United States'});
-MERGE (l:Location {city: 'Sydney', region: 'New South Wales', country: 'Australia'});
-MERGE (l:Location {city: 'Burlington', region: 'Vermont', country: 'United States'});
-MERGE (l:Location {city: 'Dallas', region: 'Texas', country: 'United States'});
-MERGE (l:Location {city: 'Phoenix', region: 'Arizona', country: 'United States'});
-MERGE (l:Location {city: 'Los Angeles', region: 'California', country: 'United States'});
-MERGE (l:Location {city: 'Miami', region: 'Florida', country: 'United States'});
-MERGE (l:Location {city: 'Toronto', region: 'Ontario', country: 'Canada'});
+// Create Website nodes
+MERGE (w:Website {url: 'https://tatt.example.com/artists/02ec4ea7-b5ab-4d24-b392-91c639a33e2c'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/e1875c2c-10a3-4039-b377-03978aaaf373'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/27d4efd6-8f1a-4a40-8ab5-8a41d6b1fc06'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/80de89fd-be02-4b1e-ac16-46f1f39a0c91'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/6b1ec7db-c0fc-4fb1-a8ff-3077bb0af9f6'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/40813085-13b6-4a29-b879-f01f040a9939'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/e03838cc-1a98-438a-8e06-2666a9eb254c'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/df298d63-7296-4996-aae2-ffc6b08604a9'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/74a64337-b7a5-41fc-bb68-e1d70eb26de1'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/b7c2d56c-a819-4af8-9d64-7cd95195fe24'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/db05903d-9ce1-4cac-997e-74a7f2416c09'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/dfeead78-eb22-4fa6-9525-c3fd4a96691b'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/825b7e04-23a3-4e8f-9f09-efb1917f5110'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/582b5060-279d-4995-9c17-fefd69cd4d78'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/57b00981-0e8d-4dac-8994-11934525e36f'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/45d109a6-31da-4142-809e-ecc715deac1f'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/f3bfb91c-d8cf-4cff-8f29-64328eb90817'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/cd699690-83de-4c2e-af86-e2e83282aa74'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/d28d6312-d613-453a-8ecc-9b8570e58290'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/aa0f045a-7ba9-4bb2-9906-d15fdcce3f87'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/01d3bac0-42a3-4c93-a21e-ab7035644e58'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/ca3ba148-37cb-438c-83e1-194ea1460121'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/eabc1032-2b0e-4c55-88a8-94376675f5b5'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/01c1415e-279d-4505-b702-7a79bf9c4daf'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/cb7836ef-4a07-4681-a2f3-b5e6b9dbe0fb'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/a1de1fef-071e-4bed-a493-7466a2f7536e'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/f2ee6f1c-ed20-4077-a0c9-485c07b01ea7'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/e603bf28-89ce-45e6-b4f4-dc6bd294ebd8'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/efb44674-b3a1-413c-a264-a2b098cbe12d'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/0d4b1025-61bd-47a8-9afc-4ec6078ad116'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/873ea4ff-f072-414d-b8df-2ff42238a937'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/bc73b9c9-97d9-425e-8744-e720c77a5e03'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/f9d652ac-4a01-43b4-850c-95825322894c'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/0a28b513-2c11-457c-9c68-9e0ae3ef5660'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/166bd7f3-2003-4837-a9ce-d9e10ee90581'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/f1a0b768-0472-443e-8a23-9473725f85b9'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/b0171ad5-23ea-4255-ac2b-b8f57ba5755a'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/4bffb4db-abca-4353-959d-769162a2108b'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/9fdb55b9-09d7-4b91-93b1-16b0cb5d9131'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/cdfe7071-2ccb-47c2-81c3-5dd33a81155d'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/0d202717-ec86-4522-93be-a317df75e43b'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/ffab5f09-8dec-4eb5-94ab-05d05ce1b19c'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/5dc40bc5-bb87-4962-878e-adfa856eb29a'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/89ae036f-c4f9-457e-8e06-c56a0932f4c7'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/b99f3948-6226-48c6-8028-37e618993ac8'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/17055dd8-eac3-42ff-8d4b-5344f396a8d0'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/daf9d710-8413-49a6-8e1d-32bf0a168442'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/21c8ce76-3865-4b52-bc53-6e7f69e589f0'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/1fea2547-2a89-47b1-ab05-8975debbb4d2'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/80486930-efc8-4fda-8929-243fba50bf32'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/0aebd6ab-76d6-49d4-a6a9-a21db2ff101b'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/c7c0dd8c-2501-4c26-8683-4efa31d67dc3'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/7b01beca-822b-4d70-a36a-cb71f521558d'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/f7750213-8481-4fae-a637-9b37f9d203a8'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/89b6748c-9d6a-49b0-820c-04c49d357a92'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/fedc8f0a-aab3-4875-9474-71bd5fce3a81'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/dc08cc84-4a59-48a1-aa74-9c5dd4207c7b'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/7d0d6a41-84b1-4de4-86f9-9198b9948b47'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/12e293e3-d08c-4053-a1d4-17ba1d640cd2'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/c8a212d2-3e9f-43de-87cb-c83e9c137184'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/8167c8af-370e-4440-8f32-cb7f10a73a40'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/dea89f6b-9d56-4250-b865-2220dc93e55b'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/1edbb126-1090-4b69-9ebd-f1f6064fdc44'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/c686ad25-7d2b-4a9d-9c8b-b909112d67fe'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/30273995-8751-4031-879d-bd042197df09'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/bba06ada-0794-4ac1-9957-cd2aeaa3bcf4'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/7ba9a7b1-aa79-496a-8ef9-691fe6d32a03'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/1702a915-e2d8-4a0e-baab-358a21c32243'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/1c6ef356-585f-4cba-afee-dbecffa24c5e'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/f0bac8f5-4ab3-4ff0-b3f6-d23e82b9259f'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/a1746a2e-ab33-4aaa-8316-5b9521d1b51f'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/c05a8efc-216e-4dad-a8c4-f8c6ebb073c4'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/f867bf09-1f37-493e-a6eb-c9900fb67be9'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/e2927c19-3bc8-489f-90e2-e1db441fb3f8'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/87b101fa-70d7-4e08-a587-3f93bda1fc2c'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/a4db8488-9bab-401d-9865-717f3eec405b'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/527e872f-eb50-4032-87f9-8fbc319d35f8'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/0e02fddd-9a6b-4e43-a9e1-5b552b9df443'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/51796989-7206-411a-8de1-e435f7ec5645'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/b8193036-f2eb-493f-badb-c7aa6bd62557'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/12e8774b-56c9-45a0-8717-cc086c4f074c'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/1241a38a-a335-4298-a24f-9c5ea28c52ea'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/19898389-5351-4e8c-aae5-d0aba0a876bb'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/32b2bc5f-5bf9-4a83-8b44-def4b518dc16'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/1e85273b-e2ca-4626-aa5a-a79f69d51e4a'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/d06d1a66-61c4-4c6a-8783-044f4942e389'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/631b64cc-f4b0-4703-9ab1-8200999c4e15'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/25322e36-4532-4377-a51d-eda2090bdc94'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/3d28083b-38c4-4ab1-84fa-03eb362b0b49'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/f43bd8a4-e87c-40d3-87aa-928f14138df9'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/8b1547e9-f41a-439e-b360-a25361db81dd'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/58f516c7-63f1-42a4-9898-81da20be338c'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/f99194a9-4b09-4a60-9eee-b5459994a904'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/2821c6df-f1fa-4db3-84b0-1a8dad489cac'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/e2e69714-2a4e-480c-adc4-ad809d91df91'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/c2d5d3d7-4be1-4f39-84cc-d95732bb5e83'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/27a81df8-a503-48df-ab73-b8cb477ea768'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/868d428b-c166-46f0-b84f-a3a8c2d0b1c1'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/a50af504-6a63-408d-9bad-74ad4962cf23'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/164c2abb-edd0-4113-8824-d5265664a054'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/d5b29c10-a0a3-4514-9e9b-786ccd3f65ff'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/985dae58-33c8-493e-a2a8-5f69bf56aae7'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/9eda7756-9de2-4e66-a29f-049045a48f2b'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/0cde749e-41c9-4ef6-8461-416f5a41fcf4'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/da891e8d-aaf6-4f31-aa37-8459d0f3b7c6'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/27fcf78f-966e-4c5f-98e7-6270abaf15ec'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/695ac992-26c6-4294-b8bb-769799ae83ba'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/85944c04-a6d4-42b1-ae46-c5161092ea1c'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/2227decc-aa11-4d51-836b-62c909163050'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/abddb203-989d-47df-b2af-40675117e7ba'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/667a9960-fba3-4e7c-8af2-1f743e38f80d'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/ab93473e-9c5b-46ac-ab3b-cea9395262b7'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/44ec0c78-504e-46af-bdfb-86ed59356088'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/12c8b512-e2c0-4ceb-a7bf-15700be85042'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/54a96639-0554-41c7-8960-b8c2e3c83ef5'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/e2fac8ae-7ff9-47a6-8a0a-81de7df33895'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/00a4b0ca-6c76-43b4-9b2a-f5c70e068df6'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/a0cbb42b-e8b1-4c88-8f18-17940e114812'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/9f42d080-9683-4db3-acf7-82ec80574137'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/3c2ac00b-e108-4a9c-97a8-3b981ed0a7cd'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/90a2cd84-b6c4-446f-962c-a0325707942c'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/971003c5-5357-4de5-897e-822d12b249f0'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/9879dab7-1558-4c5c-9dd7-244d655fa75c'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/e1a65f0c-be0a-43f0-b24b-dcf2a9f974bc'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/cec6c64a-468c-45eb-afed-3e8ff3e15c4e'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/0f14220f-c32d-477b-8c1e-4b1ea5ea0cdf'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/61da5699-6d49-4f94-a3ae-46416658f110'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/1ca2b168-ee11-46dc-be4d-90bac01ae025'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/da589d6e-aa23-4d66-93d3-55dfad15807c'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/1365a247-d8e9-4d5f-ba99-ea40d41eaac7'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/58f771ab-3585-4b39-b315-93462735fead'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/0a9f6720-0262-4b5e-b66f-9812014046da'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/f1fbfd69-cc2c-43ef-adc2-110382f208d8'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/16b95029-b95c-44d5-9df1-8b47dc018af9'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/dc8e9a11-40a7-4591-a6af-52dc4107c430'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/20166476-37a4-4dd7-9202-6c5fc7c9b08e'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/ce8173d1-e14e-4d6f-9cb3-52803c18f9c2'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/48eddb39-3fee-4096-a334-5b03b36eb252'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/80dca9eb-b033-4581-bfd7-c209771ca541'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/e78fd9ce-2cdb-41d6-b0ec-c232d3fcad3c'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/91cb3435-177b-4564-b66a-801550556b56'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/d167a7ba-6e57-4762-8160-3a1ce4a192f1'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/93a422a6-450f-411a-a5fd-61ef185fa978'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/300295f7-6c15-4390-9571-16f5abc95406'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/2e2029ca-2b24-4c73-9792-d6ba824c28f4'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/71397102-522c-4894-9b50-41919acb12fb'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/ab019fb6-e5d7-40da-9d65-cd591c0d5ce1'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/c42b54ea-4716-4551-995e-fa1b6bcd7912'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/62cc7776-049a-4f86-968e-ad101dcffcc9'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/87ced077-1918-469f-b118-9e0f38f9c99e'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/a5e289d0-833d-45c9-90d8-7d5d32cd6201'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/f7c375a2-7024-4f46-9b83-0840daf44459'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/75369ae7-5c09-42a4-83ea-a1c81a432af1'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/aad8ded2-d01d-4b8e-a378-b0e41bd5e889'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/e98eb0d8-4337-4baa-ae12-5bfa85c0b219'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/5ea5a8ee-0233-4af7-83f0-4e74201328a1'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/ea3f0b0e-5d3d-4d47-a3d7-9ee9d7d827c5'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/f174b88c-155f-4e71-9910-720e7fe33339'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/59d18bb3-eab9-4bad-aa87-c571325ea306'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/3f46c9f5-885b-4cb8-b1e4-2b7654206b81'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/f5953d06-51eb-4e88-b86a-08a5d58d2c43'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/c7f77e33-924e-4960-a6b9-7a1e0b0d83cc'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/457d61e8-007e-45bd-abaf-d035a9271607'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/9e7a47e3-86f8-4aff-baa2-50d3638478e6'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/aa113bdf-a516-424f-aeea-15b4ac131491'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/10e25bd4-4ee4-4b4e-bdf4-7d62e57e8883'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/2cea32cc-caac-40a2-8679-7c5c7328abf3'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/cca11848-3d63-442a-8055-947949e39a2b'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/1cc34038-da24-49f5-b781-95ba2b3972e5'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/b0278e78-061f-4257-8ec9-f8950eab2497'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/e67a1410-0ca6-4342-a5e3-6a31b5a785c5'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/99d2586e-08c4-4302-955f-246e7fcfdd2d'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/9045c809-4eba-4233-81a1-7175804b8aba'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/934b8d79-4dc4-46af-b2e9-2032be8898da'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/9a6f8382-33ca-43d8-b9c4-14cc140cbc5c'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/87631753-e0dd-4d97-ba5f-b4404ac10425'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/365d0d16-3446-43a8-bc2e-2703dea78bb0'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/265bb8f2-e146-432c-99c5-c866bc0e2485'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/5f09911f-2e40-4223-82da-913c143a0d00'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/c9448b0f-e0b0-47e2-bb68-7c27e40792e1'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/b0b69619-da71-4271-9ef9-ced7ec2c1c62'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/b6d8b52d-5d1e-46f5-a20c-0f58d716e79f'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/9f1f9f32-c699-4c24-b693-b737147539ea'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/f1a0e477-549a-431b-947c-0dfbcc618aca'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/f23c0c71-2f55-4ec2-b889-4aca73c2f3ed'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/1df00960-e3e9-4885-a5c0-9272adb6d60e'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/1216d0b3-e46f-45ea-8c9f-03d9cafc5f5d'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/77d49da9-1d3b-42a8-b526-02c1b0751da0'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/e915aca8-e04c-4d57-be41-3e0922ed1012'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/0b6e430d-5094-439d-a6f8-58325b7a0d5f'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/206c9fb1-35fa-4690-b52a-632c42c04b83'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/360d72d9-e52d-4ebb-b67c-d485fbb2cab4'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/f1ef63d2-1b47-4a9f-8d61-f6098cce68f4'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/6ff8257a-ce95-4cfb-90c1-c11abb968a5c'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/878058d9-439c-4e59-adfe-b7441b632546'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/886dfcde-b319-4c11-bece-17d43d270649'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/d437cec3-d13e-4d42-939d-a33d4d6e335f'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/d4a3c029-bd91-43a4-abbd-7c07b9a82c21'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/e40cbb22-605d-4f19-9cd0-26a97cc73989'});
+MERGE (w:Website {url: 'https://tatt.example.com/artists/f127017c-4e98-4315-b293-42d870bcb941'});
 
 // Create Artist nodes with properties
 
 // Batch 1
 UNWIND [
-  {id: '3bd06f61-bdf4-4147-9411-ec0fcff0cea4', name: 'Aria Rivers', location_city: 'Perth', location_region: 'Western Australia', location_country: 'Australia', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/53c3b017-2e65-4a4e-9d3c-f3660f961cf3', is_curated: false, created_at: datetime('2025-09-29T13:28:22.034Z')},
-  {id: '6026f7ac-5b01-4891-b47f-ae32f4ddf09b', name: 'Aurora Moon', location_city: 'Perth', location_region: 'Western Australia', location_country: 'Australia', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/d0a61dae-4ead-4974-ae4c-1e516bb48c29', is_curated: true, created_at: datetime('2025-06-22T05:46:12.242Z')},
-  {id: 'a9436f14-53f9-4056-953e-29f560dab5a9', name: 'Violet Cross', location_city: 'San Diego', location_region: 'California', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/92506718-1ed4-457c-9a3e-6c4304c574cc', is_curated: false, created_at: datetime('2025-05-15T11:52:59.950Z')},
-  {id: '92824bf4-f3b6-41c8-89bd-97eb1e600d1b', name: 'Lyra Frost', location_city: 'Tucson', location_region: 'Arizona', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/022de882-02d8-43cb-9a33-951cb97c1445', is_curated: false, created_at: datetime('2025-11-30T10:32:25.672Z')},
-  {id: '759e2449-2616-4d3a-a327-7e3bbd57083e', name: 'Violet Black', location_city: 'Brooklyn', location_region: 'New York', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/807dd6f0-26e8-4d0b-a20c-4db149e234da', is_curated: true, created_at: datetime('2025-07-03T01:13:38.427Z')},
-  {id: '942d3fd3-2fad-4074-adc9-abb76e638665', name: 'Phoenix Bright', location_city: 'Ewing Township', location_region: 'New Jersey', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/da79af62-1316-4aa6-ae35-39c14289e2de', is_curated: false, created_at: datetime('2025-04-11T13:38:52.742Z')},
-  {id: '81d10875-d68a-4e58-aef7-b29e5f8e48ce', name: 'Luna Phillips', location_city: 'Denver', location_region: 'Colorado', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/db843d6f-e83d-4d2b-bcf0-bc2e220f938e', is_curated: true, created_at: datetime('2025-10-28T06:21:07.579Z')},
-  {id: '43ea7a24-622c-4402-8780-2acdcbe6d9cb', name: 'Knox Frost', location_city: 'San Francisco', location_region: 'California', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/4c7ea194-1f50-4b2a-8f24-d2d0b24bc66b', is_curated: true, created_at: datetime('2025-10-16T02:40:17.576Z')},
-  {id: 'ba5e7645-45d8-4acb-b1b4-cdbceb38a10a', name: 'Ivy Star', location_city: 'San Diego', location_region: 'California', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/d1d32641-c7b5-4aaf-881b-b831259fdba6', is_curated: false, created_at: datetime('2025-08-08T11:54:40.454Z')},
-  {id: '018e0cac-4608-46ab-a3ad-474a9b9ab7de', name: 'Amara Schwartz', location_city: 'Melbourne', location_region: 'Victoria', location_country: 'Australia', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/96774666-98cf-41ca-a810-84327bacfaa5', is_curated: false, created_at: datetime('2025-11-01T19:25:37.480Z')},
-  {id: 'ce1fe16c-7d7b-43fb-aa11-51c027f3152c', name: 'Orion Fox', location_city: 'Tucson', location_region: 'Arizona', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/8a8c0c3d-3d2a-4d3e-9198-57851dcc0ceb', is_curated: true, created_at: datetime('2025-07-14T07:30:57.719Z')},
-  {id: 'e614a27f-bb8b-4bb8-8afa-cb4f74751eb7', name: 'Blair Cloud', location_city: 'Melbourne', location_region: 'Victoria', location_country: 'Australia', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/a19bff64-1736-465b-b987-906c54fe5d9e', is_curated: false, created_at: datetime('2025-02-10T03:45:27.252Z')},
-  {id: 'da6e554a-27e5-493f-a31a-b579036e52bb', name: 'Sky Silver', location_city: 'Austin', location_region: 'Texas', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/27bc6c83-04cc-440b-90d5-4622bb74442a', is_curated: false, created_at: datetime('2025-02-03T08:41:42.120Z')},
-  {id: 'b21a3922-5c2c-4286-a7f3-c586ee2e927b', name: 'Phoenix Flame', location_city: 'Perth', location_region: 'Western Australia', location_country: 'Australia', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/a0b966fc-adbf-480a-bcb0-b6e86873b27e', is_curated: true, created_at: datetime('2025-06-03T02:15:10.934Z')},
-  {id: '25ad22ab-c8db-439a-81b7-1e48b85314ba', name: 'Tyler Wilson', location_city: 'Vancouver', location_region: 'British Columbia', location_country: 'Canada', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/3c501813-5cc2-4dcb-baff-f5ea34060efa', is_curated: true, created_at: datetime('2025-01-12T02:46:30.172Z')},
-  {id: '80dd0ffe-7841-4a7b-9920-68c84e20409f', name: 'Cruz Gray', location_city: 'Tucson', location_region: 'Arizona', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/a5a7f7d1-fa8a-4b71-b7b5-fa833d421878', is_curated: true, created_at: datetime('2025-04-11T04:39:11.749Z')},
-  {id: '35908fd7-da81-4848-bac3-9c2a2b336b4b', name: 'Kane Cloud', location_city: 'Austin', location_region: 'Texas', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/219c2b18-b3e3-4810-9f31-c58aa7221b25', is_curated: true, created_at: datetime('2025-12-18T18:32:11.751Z')},
-  {id: 'b72a8e3a-18b6-4311-a23f-e7ec5092e619', name: 'Sky Flame', location_city: 'Vancouver', location_region: 'British Columbia', location_country: 'Canada', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/1102a9cd-7f97-4a17-96ce-924c970e5237', is_curated: true, created_at: datetime('2025-12-08T05:38:11.596Z')},
-  {id: '259dea08-04a7-4119-95ac-f5d2b3ba153d', name: 'Storm Storm', location_city: 'Houston', location_region: 'Texas', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/dc4f3dc3-cfa8-4e6f-aff0-1fa7e7192db6', is_curated: false, created_at: datetime('2025-10-18T13:14:21.444Z')},
-  {id: 'aae32407-b25d-401e-8c80-aa744a523230', name: 'Phoenix Wild', location_city: 'San Francisco', location_region: 'California', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/b31a10a5-48ac-4872-9e02-235c421a1bc9', is_curated: true, created_at: datetime('2025-12-08T20:21:12.054Z')},
-  {id: 'd985253d-7364-4aea-9efb-ab094935b1d1', name: 'Phoenix Bright', location_city: 'San Diego', location_region: 'California', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/06be1648-1d85-4a09-b9c2-0fa5f69da6e1', is_curated: true, created_at: datetime('2025-05-19T12:12:54.276Z')},
-  {id: '27346ff0-e86f-4c73-be87-d19d2691d7c7', name: 'Lyra Knight', location_city: 'Tampa', location_region: 'Florida', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/fa0a370c-2b54-4e26-8251-bc025845d352', is_curated: false, created_at: datetime('2025-11-01T16:13:01.772Z')},
-  {id: 'f6677d34-df32-444d-a4f9-07414f2ccb71', name: 'Ryder Moon', location_city: 'Newark', location_region: 'New Jersey', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/c6dfcf05-b43a-437a-a0d1-0923c9fbefbf', is_curated: false, created_at: datetime('2025-12-22T12:23:51.153Z')},
-  {id: '839b9086-cf3f-4b42-98c5-68dfb89655cb', name: 'Amara Thorn', location_city: 'Montreal', location_region: 'Quebec', location_country: 'Canada', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/d7352e27-7df4-47ab-98aa-55e628070e5f', is_curated: false, created_at: datetime('2025-05-13T06:28:48.876Z')},
-  {id: '20929771-d891-4b6a-944a-ae6ccf5fd67f', name: 'Ryder Sharp', location_city: 'Montreal', location_region: 'Quebec', location_country: 'Canada', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/717c2e18-4308-4b99-85a4-7357c62ccf7d', is_curated: true, created_at: datetime('2025-10-26T02:52:08.583Z')},
-  {id: '9ccf2900-6eae-4e31-941a-537fd076b26e', name: 'Knox Bright', location_city: 'Houston', location_region: 'Texas', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/fc16b65f-e0d1-4200-a0d2-412eba6d989e', is_curated: false, created_at: datetime('2025-02-08T03:21:10.644Z')},
-  {id: '543f2e52-b849-4819-a72e-670a0bb837b3', name: 'Jade Iron', location_city: 'Jersey City', location_region: 'New Jersey', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/e440b55b-e9d7-43f8-b339-74b306692b4d', is_curated: false, created_at: datetime('2025-11-03T23:17:42.392Z')},
-  {id: '0aa0d199-c0e9-461e-b98f-682dad5469ec', name: 'Blair Light', location_city: 'San Diego', location_region: 'California', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/10c2fed3-ce1f-4d1f-8d80-5b124bb19b80', is_curated: true, created_at: datetime('2025-04-08T09:07:36.067Z')},
-  {id: '05c1794a-a723-44c1-a5b6-4415c7bf2647', name: 'Kane Fox', location_city: 'Montreal', location_region: 'Quebec', location_country: 'Canada', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/8ce9d182-673f-4abd-9766-a32fafb6c8f7', is_curated: true, created_at: datetime('2025-12-04T06:05:05.973Z')},
-  {id: 'd6a9930c-68ed-4f33-a8a5-7d44b441fe1e', name: 'Dante Moon', location_city: 'Portland', location_region: 'Oregon', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/1033bcb3-34a4-49cd-a4a4-c21eda3bc05a', is_curated: false, created_at: datetime('2025-09-19T02:58:28.946Z')},
-  {id: 'eb333b79-aec6-4da1-b88d-08665d05fd3a', name: 'Axel Anderson', location_city: 'Ewing Township', location_region: 'New Jersey', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/7f1a180e-69ab-4bc9-a4b9-f73571b4dfe1', is_curated: false, created_at: datetime('2025-11-03T21:04:17.941Z')},
-  {id: '5845f507-6538-4cd8-b271-eb8aa11c53cd', name: 'Zephyr Silver', location_city: 'Tucson', location_region: 'Arizona', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/23f9cd1e-5816-4976-89e0-84da5ccf822a', is_curated: true, created_at: datetime('2025-01-08T07:15:41.593Z')},
-  {id: '8354ec80-dfe5-454e-ae06-224f4550b263', name: 'Ember Thorn', location_city: 'Melbourne', location_region: 'Victoria', location_country: 'Australia', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/6e2ff849-074f-4dc5-9b7b-a80a43b0844a', is_curated: true, created_at: datetime('2025-04-13T15:29:28.258Z')},
-  {id: 'f091156c-5130-48b2-93ee-78ecdb2dc131', name: 'Jade Silver', location_city: 'Jersey City', location_region: 'New Jersey', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/b334496f-b822-4bc9-b4e4-5c918107c96b', is_curated: true, created_at: datetime('2025-12-13T19:32:09.863Z')},
-  {id: '3e9af287-58da-40bc-bb97-131be29803b1', name: 'Dante Black', location_city: 'Melbourne', location_region: 'Victoria', location_country: 'Australia', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/ffb7b151-1172-47da-a00c-0d3d4df72398', is_curated: false, created_at: datetime('2025-07-21T14:10:15.319Z')},
-  {id: '0cc00470-5afc-457d-825e-38cad7829982', name: 'Seraphina Blade', location_city: 'Tampa', location_region: 'Florida', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/8c612d06-e7e7-4f63-89ab-17659592fcd8', is_curated: true, created_at: datetime('2025-09-28T23:07:20.900Z')},
-  {id: '2a0c04ba-e135-4ff4-9a27-a20a2e68ce15', name: 'Axel Steele', location_city: 'Newark', location_region: 'New Jersey', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/4dc103cc-4797-480e-9268-08ce7b984fb3', is_curated: false, created_at: datetime('2025-05-17T16:52:18.487Z')},
-  {id: 'e952f62a-2618-4286-92a5-dc01dd686041', name: 'Amara Steele', location_city: 'Manhattan', location_region: 'New York', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/847afe37-ff73-491e-881b-b65483879dd8', is_curated: false, created_at: datetime('2025-06-12T01:33:06.339Z')},
-  {id: 'b11c8811-91d2-44b8-bf6d-2c0be4b127a6', name: 'Kai Rivers', location_city: 'Sydney', location_region: 'New South Wales', location_country: 'Australia', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/174bb876-c645-43cb-bf8d-7cc9af5ee781', is_curated: false, created_at: datetime('2025-01-14T18:19:25.098Z')},
-  {id: 'cd5c9e8b-5610-4487-a22c-b09459ea4c91', name: 'Blaze Hart', location_city: 'Burlington', location_region: 'Vermont', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/5746b626-d41c-43b4-9998-3831728b273c', is_curated: false, created_at: datetime('2025-10-06T08:46:08.331Z')},
-  {id: 'dc20c1aa-b217-4ecb-85e4-a13fa5f4f10b', name: 'Storm Stone', location_city: 'Dallas', location_region: 'Texas', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/36bff623-8338-4cc4-82d8-373df9ccd392', is_curated: false, created_at: datetime('2025-01-06T13:31:23.155Z')},
-  {id: '1f88ee60-8728-472f-a0fa-9f54afbfda10', name: 'Jade Rivers', location_city: 'Dallas', location_region: 'Texas', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/551367de-97a7-4c0a-ab4b-cea011bf17ad', is_curated: true, created_at: datetime('2025-07-15T22:16:47.203Z')},
-  {id: 'e4bd1bff-e8d8-49e9-b491-574e7a76d155', name: 'Willow Anderson', location_city: 'Phoenix', location_region: 'Arizona', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/0122daed-2dc9-4eec-9751-7c57eb033241', is_curated: false, created_at: datetime('2025-08-04T14:57:36.236Z')},
-  {id: 'aeffaf5a-5e2e-455b-bfde-9ea0ab74fb87', name: 'Storm Star', location_city: 'Tampa', location_region: 'Florida', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/233f9df2-9130-4312-948b-147605992319', is_curated: false, created_at: datetime('2025-03-09T21:05:58.141Z')},
-  {id: 'b86e99cc-5956-4f68-9fe3-1d7bb1a2ef0f', name: 'Blair Silver', location_city: 'San Diego', location_region: 'California', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/ae03fa28-7aa7-4d09-96af-1d96832a1072', is_curated: true, created_at: datetime('2025-06-09T03:28:32.911Z')},
-  {id: 'e8fe54b1-6a86-496f-b69d-71a357d8f92f', name: 'Sophia Silver', location_city: 'Vancouver', location_region: 'British Columbia', location_country: 'Canada', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/e759abb2-c5c7-47ed-8c62-620410176c69', is_curated: true, created_at: datetime('2025-12-17T06:31:47.916Z')},
-  {id: '05668c66-56b9-460b-a950-a57552b65358', name: 'Zephyr Reed', location_city: 'Houston', location_region: 'Texas', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/7bc8b137-2595-433b-a95d-b684ebe77c86', is_curated: true, created_at: datetime('2025-05-15T12:09:11.497Z')},
-  {id: '53360081-cb1d-4b9e-ab1a-aeb1f647aa35', name: 'Tyler Black', location_city: 'Manhattan', location_region: 'New York', location_country: 'United States', has_multiple_locations: true, profile_url: 'https://tatt.example.com/artists/6a1b14c6-36c6-43a0-9240-34ab16b32b53', is_curated: false, created_at: datetime('2025-09-15T03:25:42.890Z')},
-  {id: 'ebf28709-0a85-4601-a684-6609c07dde60', name: 'Willow Storm', location_city: 'Tampa', location_region: 'Florida', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/2816697c-c448-45c1-8a93-5b3918d5b593', is_curated: false, created_at: datetime('2025-02-14T07:26:45.854Z')},
-  {id: 'ce067719-0280-4116-8d74-76eb38094bd7', name: 'Drake Iron', location_city: 'Los Angeles', location_region: 'California', location_country: 'United States', has_multiple_locations: true, profile_url: 'https://tatt.example.com/artists/c0e5b0d8-234a-448a-a1a4-08dc9b2e8ffb', is_curated: true, created_at: datetime('2025-08-20T05:03:11.994Z')}
+  {id: '5835eaa6-f203-43b9-af47-485c58a2e52c', name: 'Sky Storm', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/02ec4ea7-b5ab-4d24-b392-91c639a33e2c', is_curated: true, created_at: datetime('2026-04-10T20:54:30.116Z')},
+  {id: '8e8045d7-4f3f-4e4e-8bd8-a93d8b478ca6', name: 'Ryder Blade', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/e1875c2c-10a3-4039-b377-03978aaaf373', is_curated: false, created_at: datetime('2026-05-14T14:34:02.036Z')},
+  {id: '6f3591de-bea3-4e00-8039-64981a8e099d', name: 'Zane Cross', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/27d4efd6-8f1a-4a40-8ab5-8a41d6b1fc06', is_curated: false, created_at: datetime('2026-07-02T06:45:30.288Z')},
+  {id: '095ab55f-df1b-45b9-be2e-d7305c7ebd23', name: 'Luna Cloud', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/80de89fd-be02-4b1e-ac16-46f1f39a0c91', is_curated: true, created_at: datetime('2026-05-13T21:27:30.281Z')},
+  {id: 'c10e9891-b537-4baf-a0a2-d63e9edba3d1', name: 'Felix Frost', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/6b1ec7db-c0fc-4fb1-a8ff-3077bb0af9f6', is_curated: false, created_at: datetime('2025-12-08T14:36:03.345Z')},
+  {id: 'c623ff67-bbf3-44e7-916c-550ec58ff314', name: 'Lyra Gray', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/40813085-13b6-4a29-b879-f01f040a9939', is_curated: false, created_at: datetime('2026-01-25T08:04:07.909Z')},
+  {id: '3557a401-d44d-430d-a755-cccdef2af361', name: 'Marcus Rivers', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/e03838cc-1a98-438a-8e06-2666a9eb254c', is_curated: false, created_at: datetime('2025-10-30T01:09:46.720Z')},
+  {id: 'c665b9b3-f4d8-4449-a57d-c188e8aa3e61', name: 'Lilith Hart', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/df298d63-7296-4996-aae2-ffc6b08604a9', is_curated: true, created_at: datetime('2026-01-09T00:36:59.919Z')},
+  {id: 'db89ef64-3441-4646-a7c2-faa56526db5e', name: 'Knox Bold', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/74a64337-b7a5-41fc-bb68-e1d70eb26de1', is_curated: false, created_at: datetime('2025-07-18T22:21:06.855Z')},
+  {id: '98c29f7a-256f-41b0-b416-3e3c57ace18c', name: 'Asher Stone', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/b7c2d56c-a819-4af8-9d64-7cd95195fe24', is_curated: true, created_at: datetime('2026-03-03T08:41:01.582Z')},
+  {id: '40e41e2f-13df-4b25-ac45-b9db1f4b1275', name: 'Sky Thorn', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/db05903d-9ce1-4cac-997e-74a7f2416c09', is_curated: true, created_at: datetime('2025-09-24T16:48:51.850Z')},
+  {id: 'ee555676-f8d8-4c34-a264-a08750fb9996', name: 'Ivy Anderson', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/dfeead78-eb22-4fa6-9525-c3fd4a96691b', is_curated: false, created_at: datetime('2025-12-08T04:10:10.695Z')},
+  {id: '7663cd0d-12e6-460f-9dec-78f1a8985d58', name: 'Orion Knight', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/825b7e04-23a3-4e8f-9f09-efb1917f5110', is_curated: false, created_at: datetime('2025-10-20T01:46:56.676Z')},
+  {id: '9c7ac04d-02d0-4f02-aa3d-da135da588bd', name: 'Zara Black', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/582b5060-279d-4995-9c17-fefd69cd4d78', is_curated: false, created_at: datetime('2026-06-22T20:33:33.688Z')},
+  {id: '6303c217-5dba-42d3-a9bc-ee609565cae9', name: 'Sky Flame', has_multiple_locations: true, profile_url: 'https://tatt.example.com/artists/57b00981-0e8d-4dac-8994-11934525e36f', is_curated: true, created_at: datetime('2025-12-02T15:01:44.250Z')},
+  {id: '9e31580e-c264-41de-989f-11751be0a56e', name: 'Lyra Wild', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/45d109a6-31da-4142-809e-ecc715deac1f', is_curated: false, created_at: datetime('2026-06-23T15:06:15.200Z')},
+  {id: '3c57a451-d6c5-49ca-bf46-c94786215e54', name: 'Sky Black', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/f3bfb91c-d8cf-4cff-8f29-64328eb90817', is_curated: false, created_at: datetime('2025-12-01T03:38:23.126Z')},
+  {id: '3f752f02-2847-46f4-a184-6e8d5bc1b776', name: 'Cruz Star', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/cd699690-83de-4c2e-af86-e2e83282aa74', is_curated: true, created_at: datetime('2026-01-06T06:18:28.004Z')},
+  {id: '1f3d84a1-292f-4836-86d3-cb0bf803193d', name: 'Seraphina Stone', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/d28d6312-d613-453a-8ecc-9b8570e58290', is_curated: false, created_at: datetime('2025-11-13T16:38:37.044Z')},
+  {id: '919a288d-b342-4dc4-a0cc-a3b38585a5fe', name: 'Violet Bright', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/aa0f045a-7ba9-4bb2-9906-d15fdcce3f87', is_curated: false, created_at: datetime('2026-03-05T14:35:30.331Z')},
+  {id: '366bda7c-009b-469c-a03f-6258fdc81bcd', name: 'Ivy Wild', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/01d3bac0-42a3-4c93-a21e-ab7035644e58', is_curated: false, created_at: datetime('2026-07-14T10:19:21.734Z')},
+  {id: '19b09e4e-efcd-4863-bc43-a0cb266de01a', name: 'Phoenix Cross', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/ca3ba148-37cb-438c-83e1-194ea1460121', is_curated: true, created_at: datetime('2025-07-22T01:35:39.829Z')},
+  {id: '79484512-840c-4529-93dc-de79d425043e', name: 'Cruz Storm', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/eabc1032-2b0e-4c55-88a8-94376675f5b5', is_curated: true, created_at: datetime('2026-06-15T00:55:07.775Z')},
+  {id: 'fe4eb917-6028-4878-b390-65ed795619b3', name: 'Sage Gray', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/01c1415e-279d-4505-b702-7a79bf9c4daf', is_curated: false, created_at: datetime('2026-06-02T07:07:36.589Z')},
+  {id: '77e6476e-db9a-4fce-bae7-123645e89d81', name: 'Kane Rivers', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/cb7836ef-4a07-4681-a2f3-b5e6b9dbe0fb', is_curated: true, created_at: datetime('2026-06-27T11:43:56.494Z')},
+  {id: '76bb3f0b-5533-43f4-8fee-7e36fe369ada', name: 'Blaze Fox', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/a1de1fef-071e-4bed-a493-7466a2f7536e', is_curated: false, created_at: datetime('2025-12-31T17:52:07.437Z')},
+  {id: '6bedcf48-0868-45f6-b021-329047a42b10', name: 'Aria Iron', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/f2ee6f1c-ed20-4077-a0c9-485c07b01ea7', is_curated: true, created_at: datetime('2026-01-06T16:51:27.330Z')},
+  {id: '6556f12c-c8fb-4268-9680-c7ddc546e86c', name: 'Aurora Moon', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/e603bf28-89ce-45e6-b4f4-dc6bd294ebd8', is_curated: false, created_at: datetime('2025-09-19T11:44:33.584Z')},
+  {id: '3e2706ad-9e33-4d43-9338-c6992f074067', name: 'Drake Hart', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/efb44674-b3a1-413c-a264-a2b098cbe12d', is_curated: false, created_at: datetime('2025-12-23T08:02:20.954Z')},
+  {id: 'b9d5e3be-5f5f-43de-85eb-20d27e7244ee', name: 'Zane Chen', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/0d4b1025-61bd-47a8-9afc-4ec6078ad116', is_curated: false, created_at: datetime('2026-02-21T20:47:12.503Z')},
+  {id: '9801da5b-9906-4073-8df4-8bd1b58d327f', name: 'Orion Rivers', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/873ea4ff-f072-414d-b8df-2ff42238a937', is_curated: false, created_at: datetime('2026-05-04T10:07:05.317Z')},
+  {id: '2a605cce-a668-4c76-8f31-839076c4db46', name: 'Ryder Reed', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/bc73b9c9-97d9-425e-8744-e720c77a5e03', is_curated: false, created_at: datetime('2025-11-13T23:55:29.798Z')},
+  {id: '4e2c2df5-b4ed-4fb2-8052-7e3876b2268d', name: 'Luna Moon', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/f9d652ac-4a01-43b4-850c-95825322894c', is_curated: true, created_at: datetime('2026-01-02T18:29:03.841Z')},
+  {id: '6e763c3a-25fb-46ef-af92-355bfa7a48e3', name: 'Jaxon Chen', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/0a28b513-2c11-457c-9c68-9e0ae3ef5660', is_curated: false, created_at: datetime('2025-10-22T06:07:25.604Z')},
+  {id: '985e2349-3b59-4cc8-a9ef-d33507d0f4bb', name: 'Lyra Knight', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/166bd7f3-2003-4837-a9ce-d9e10ee90581', is_curated: false, created_at: datetime('2026-07-08T17:07:38.048Z')},
+  {id: 'd06b59c9-b214-4103-92df-34b79116142c', name: 'Jaxon Thorn', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/f1a0b768-0472-443e-8a23-9473725f85b9', is_curated: false, created_at: datetime('2026-05-06T03:22:20.559Z')},
+  {id: '15192239-10a2-4de0-a8e2-351cbdaf7f47', name: 'Zane Dark', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/b0171ad5-23ea-4255-ac2b-b8f57ba5755a', is_curated: true, created_at: datetime('2026-05-30T08:57:26.679Z')},
+  {id: 'a38f78ac-6d8c-4b3d-be7d-20e9317551db', name: 'Aurora Bright', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/4bffb4db-abca-4353-959d-769162a2108b', is_curated: false, created_at: datetime('2026-01-05T08:04:02.829Z')},
+  {id: 'a1e331ce-411c-4f15-bd74-72fe0610957b', name: 'Kane Blade', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/9fdb55b9-09d7-4b91-93b1-16b0cb5d9131', is_curated: false, created_at: datetime('2026-04-03T04:11:52.391Z')},
+  {id: '9dd88c6f-e2e3-4530-af79-24a047e0146f', name: 'Aurora Chen', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/cdfe7071-2ccb-47c2-81c3-5dd33a81155d', is_curated: true, created_at: datetime('2025-10-16T19:03:43.848Z')},
+  {id: '071f7135-68bb-4301-9a86-3b9301d7eeeb', name: 'Aurora Silver', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/0d202717-ec86-4522-93be-a317df75e43b', is_curated: false, created_at: datetime('2025-12-16T03:00:10.256Z')},
+  {id: '6f26011c-bb1b-443a-9d87-3af8167cf938', name: 'Raven Storm', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/ffab5f09-8dec-4eb5-94ab-05d05ce1b19c', is_curated: true, created_at: datetime('2025-10-20T20:46:33.216Z')},
+  {id: '86270e8f-d059-476a-b82f-9ac5e616e365', name: 'Aurora Bright', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/5dc40bc5-bb87-4962-878e-adfa856eb29a', is_curated: false, created_at: datetime('2025-12-18T02:59:26.444Z')},
+  {id: '129fa57a-898f-460e-8352-88131f701f0e', name: 'Storm Sharp', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/89ae036f-c4f9-457e-8e06-c56a0932f4c7', is_curated: true, created_at: datetime('2026-05-01T21:31:56.706Z')},
+  {id: '73d8f021-b367-4f3d-86b6-752ff6920b45', name: 'Blaze Blade', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/b99f3948-6226-48c6-8028-37e618993ac8', is_curated: true, created_at: datetime('2026-03-21T07:16:36.512Z')},
+  {id: '57de2a11-9ad5-4586-91c1-8d2b825d6199', name: 'Felix Stone', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/17055dd8-eac3-42ff-8d4b-5344f396a8d0', is_curated: true, created_at: datetime('2025-11-04T05:42:20.076Z')},
+  {id: '0d7e41e5-abeb-4725-bded-8f1c44335b29', name: 'Lilith Sharp', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/daf9d710-8413-49a6-8e1d-32bf0a168442', is_curated: false, created_at: datetime('2026-03-28T13:52:20.901Z')},
+  {id: '29be8331-46b2-441e-88ba-1bed9a611435', name: 'Kai Martinez', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/21c8ce76-3865-4b52-bc53-6e7f69e589f0', is_curated: false, created_at: datetime('2025-09-01T01:51:25.165Z')},
+  {id: '5215b296-2512-48ad-a73a-7716ec0c18a5', name: 'Sky Martinez', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/1fea2547-2a89-47b1-ab05-8975debbb4d2', is_curated: false, created_at: datetime('2026-03-22T12:56:23.518Z')},
+  {id: '39d0c0b4-ab78-4c70-a369-12dc368a5671', name: 'Dante Flame', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/80486930-efc8-4fda-8929-243fba50bf32', is_curated: false, created_at: datetime('2025-09-04T03:53:05.679Z')}
 ] AS artist
 MERGE (a:Artist {id: artist.id})
 SET a.name = artist.name,
-    a.location_city = artist.location_city,
-    a.location_region = artist.location_region,
-    a.location_country = artist.location_country,
     a.has_multiple_locations = artist.has_multiple_locations,
     a.profile_url = artist.profile_url,
     a.is_curated = artist.is_curated,
@@ -161,62 +494,59 @@ SET a.name = artist.name,
 
 // Batch 2
 UNWIND [
-  {id: 'e1331c41-8c4c-4059-ab26-837343e58cfb', name: 'Dante Bright', location_city: 'Houston', location_region: 'Texas', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/4f2ccfb9-ac95-43a2-a2b9-e3e81d71e470', is_curated: false, created_at: datetime('2025-06-17T12:55:06.851Z')},
-  {id: '7b5085f9-dcc7-46a6-867a-1c2392f545d9', name: 'Elena Cross', location_city: 'Vancouver', location_region: 'British Columbia', location_country: 'Canada', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/f5cfa61c-cef4-40b5-8d20-50574f191746', is_curated: true, created_at: datetime('2025-04-27T05:09:44.435Z')},
-  {id: '557b2eaf-3729-40b4-9b06-de327bad29e0', name: 'Zara Steele', location_city: 'Ewing Township', location_region: 'New Jersey', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/091f89af-87e5-4c3c-8d92-dfc820eb66ef', is_curated: true, created_at: datetime('2025-04-27T12:56:48.871Z')},
-  {id: '25d0b38d-5e7c-435b-8cfc-e258cc2f634e', name: 'Dante Rivers', location_city: 'Newark', location_region: 'New Jersey', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/afee277b-f55b-4cf0-9d1b-7be9195b7e44', is_curated: false, created_at: datetime('2026-01-01T22:47:54.467Z')},
-  {id: '507bc2db-223c-4f1f-9989-d8f9d4d2fae7', name: 'Ivy Storm', location_city: 'Tampa', location_region: 'Florida', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/8c834909-4c41-4612-9a55-8890441d1690', is_curated: false, created_at: datetime('2025-07-17T22:43:05.421Z')},
-  {id: '1829395c-6eeb-4333-a3ca-ff3477f0ce59', name: 'Cruz Thorn', location_city: 'Phoenix', location_region: 'Arizona', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/ed84eb4e-8605-40d0-a6c1-a668f128ca63', is_curated: true, created_at: datetime('2025-10-16T17:24:32.764Z')},
-  {id: '4db61d7c-ea3c-435e-8e80-3a5072d47b95', name: 'Blair Martinez', location_city: 'Jersey City', location_region: 'New Jersey', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/44417908-d176-4c8a-9557-8eca152e655c', is_curated: true, created_at: datetime('2025-08-20T09:14:20.429Z')},
-  {id: '93aa7ff5-ad26-4e31-aa8b-5feebb29ffa9', name: 'Luna Chen', location_city: 'Burlington', location_region: 'Vermont', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/3b5a6ff3-d53e-41f3-a5b7-3b94b529e99a', is_curated: true, created_at: datetime('2025-05-26T18:06:13.200Z')},
-  {id: 'f9c85952-2c2a-49bb-afcf-f5e5c5a0d3ae', name: 'Felix Star', location_city: 'Phoenix', location_region: 'Arizona', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/3ab8fac2-e3fc-4958-bb17-86e3e25a4807', is_curated: false, created_at: datetime('2025-03-26T05:55:13.694Z')},
-  {id: 'd71f64e5-762c-43ca-bc40-da66f6f69da3', name: 'Elena Flame', location_city: 'Austin', location_region: 'Texas', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/f2d16efe-faad-46a5-8f80-15f0f692b643', is_curated: true, created_at: datetime('2025-01-25T22:13:59.796Z')},
-  {id: '6d8893ea-4f62-49ba-bb41-a187abf5e0c2', name: 'Drake Young', location_city: 'Newark', location_region: 'New Jersey', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/b90c6a6d-1acb-45c7-9f26-db666843a1e7', is_curated: true, created_at: datetime('2025-06-30T12:23:36.063Z')},
-  {id: 'eaf4182a-a3af-4fa9-b3b4-eb55c58bcc53', name: 'Willow Wild', location_city: 'Tampa', location_region: 'Florida', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/b781ac40-7dd2-4661-9492-1b66dc180051', is_curated: false, created_at: datetime('2025-03-17T10:15:36.515Z')},
-  {id: 'b91c1d62-f7ec-42fa-a043-772be31be891', name: 'Seraphina Star', location_city: 'Tucson', location_region: 'Arizona', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/824a1065-7cb6-417e-8b1b-a967913fc458', is_curated: false, created_at: datetime('2025-07-07T03:01:45.631Z')},
-  {id: '856208ab-49d0-4a3a-ac98-339eb6ce631f', name: 'Zara Wild', location_city: 'Brooklyn', location_region: 'New York', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/d8609f33-1b0f-4baf-ac03-64802a12a3a3', is_curated: false, created_at: datetime('2025-11-14T21:29:45.296Z')},
-  {id: '0d440b3f-4f9c-4a7d-bd1f-8103262c1cd2', name: 'Knox Martinez', location_city: 'San Diego', location_region: 'California', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/1aca1fc5-b0ea-4a4c-88f2-dea1e3273130', is_curated: false, created_at: datetime('2025-12-13T16:14:03.035Z')},
-  {id: '114b0700-13ad-4a0f-86a3-2930b595ca2d', name: 'Blair Knight', location_city: 'Manhattan', location_region: 'New York', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/a6823f23-e472-4dc7-a9dc-f1b9e79fefdf', is_curated: false, created_at: datetime('2025-07-09T06:57:38.566Z')},
-  {id: '387217c0-aec5-43b0-8d8a-357c08424317', name: 'Aurora Gray', location_city: 'Sydney', location_region: 'New South Wales', location_country: 'Australia', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/5da0085c-5356-493e-931c-38ee66ed610b', is_curated: true, created_at: datetime('2025-09-14T20:49:53.043Z')},
-  {id: 'a3b85462-dbd6-4539-b3e8-e9b725483c91', name: 'Axel Silver', location_city: 'Tampa', location_region: 'Florida', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/1cae83ba-9cd4-4c33-92f1-867c68fe8de9', is_curated: false, created_at: datetime('2025-09-28T12:46:44.926Z')},
-  {id: 'c2fc072c-9dc0-4c90-9243-586c064a909f', name: 'Kane Gray', location_city: 'Newark', location_region: 'New Jersey', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/979b1de6-808b-474d-8fac-7a603a2ecef2', is_curated: true, created_at: datetime('2025-01-29T07:15:24.380Z')},
-  {id: '4d1fd05a-2bc3-4898-bba9-8af1d67c170b', name: 'Dante Cloud', location_city: 'Melbourne', location_region: 'Victoria', location_country: 'Australia', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/d62b8059-1b8f-4c2b-b3bd-a0db4a2421f9', is_curated: false, created_at: datetime('2025-10-04T10:57:36.260Z')},
-  {id: '5aa37a69-bb5e-467f-b2fc-9b087bcf7ef2', name: 'Miss Vampira Frost', location_city: 'Houston', location_region: 'Texas', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/6634deed-c3e0-4c50-9b06-cfcaf8358772', is_curated: false, created_at: datetime('2025-07-02T07:16:39.584Z')},
-  {id: '24aa166e-43d9-4f88-904e-05c59bc689af', name: 'Drake Phillips', location_city: 'Tucson', location_region: 'Arizona', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/b9fb1bb9-f816-404d-b3d6-deda25ead10a', is_curated: false, created_at: datetime('2025-09-27T18:10:11.953Z')},
-  {id: '33485588-ed73-49a8-ad21-e279480614ab', name: 'Jaxon Anderson', location_city: 'Tucson', location_region: 'Arizona', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/61082895-82dd-47cf-b435-3dbf58ff7b75', is_curated: true, created_at: datetime('2025-03-29T17:33:31.019Z')},
-  {id: 'b3925d7a-cc93-4cf3-af38-55d263055f2c', name: 'Sky Silver', location_city: 'Austin', location_region: 'Texas', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/3f3f9d7c-d358-4f56-a33d-52869eade454', is_curated: false, created_at: datetime('2025-04-06T06:44:24.817Z')},
-  {id: '0c133bba-7318-4405-ad52-0499289bfe38', name: 'Lilith Frost', location_city: 'Miami', location_region: 'Florida', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/28d82e03-40a5-4441-aad0-3e9993901a81', is_curated: true, created_at: datetime('2025-02-01T02:18:29.245Z')},
-  {id: '30a4c0cb-bc9f-4794-8519-a2496d5076c5', name: 'Lilith Blade', location_city: 'Manhattan', location_region: 'New York', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/86d229d8-0cf3-4335-9648-ecd49d346582', is_curated: false, created_at: datetime('2025-11-06T06:42:57.380Z')},
-  {id: '61a2924d-df0c-45e6-a6df-89082cd04f15', name: 'Sky Star', location_city: 'San Diego', location_region: 'California', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/97937552-68cc-471f-8a4d-7209fab5f74a', is_curated: false, created_at: datetime('2025-09-09T11:17:36.852Z')},
-  {id: '8aac5809-88eb-4010-9c1c-af99ca1fccbd', name: 'Wolf Young', location_city: 'Phoenix', location_region: 'Arizona', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/228136a3-fb01-4601-9583-3c78660f9763', is_curated: true, created_at: datetime('2025-12-12T13:14:20.737Z')},
-  {id: '5ee5b329-70d4-41ec-900e-e7217adec545', name: 'Elena Steele', location_city: 'Perth', location_region: 'Western Australia', location_country: 'Australia', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/b6ab0f1e-1d31-41b3-bc17-fdcfc9adb8fa', is_curated: false, created_at: datetime('2025-10-09T14:10:02.238Z')},
-  {id: 'e128c511-54b7-4414-bdd3-1bc22f5637b4', name: 'Willow Wild', location_city: 'Austin', location_region: 'Texas', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/77966d2f-ce4a-4e2b-8765-401b0817484e', is_curated: false, created_at: datetime('2025-05-16T14:58:09.364Z')},
-  {id: '5cd6c2a8-7d49-4c9f-ac79-530581f4b7ab', name: 'Jaxon Wild', location_city: 'Phoenix', location_region: 'Arizona', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/931f6c6c-da28-4dd3-818f-efd9e0b7baa1', is_curated: false, created_at: datetime('2025-03-10T23:12:33.689Z')},
-  {id: 'c29e6c49-17f9-4c9f-91bc-f4c95a7c8ab8', name: 'Ivy Wolfe', location_city: 'Denver', location_region: 'Colorado', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/95cb31b2-1148-4392-b77a-1bb439db83cc', is_curated: true, created_at: datetime('2025-10-24T21:19:29.355Z')},
-  {id: '95849b42-47a5-4f59-85d2-eebf491ed3fb', name: 'Jade Cloud', location_city: 'Denver', location_region: 'Colorado', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/7f098919-dbdb-47a0-b1fa-72d13d34648e', is_curated: false, created_at: datetime('2025-04-25T00:46:22.213Z')},
-  {id: '6cc9777f-78c4-4f6a-a901-93da54f614bf', name: 'Blaze Reed', location_city: 'San Francisco', location_region: 'California', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/9eb378f0-eede-42fb-8108-51ec8fe95e41', is_curated: true, created_at: datetime('2025-11-26T21:35:04.564Z')},
-  {id: '0aafa0b8-cb74-4648-8746-12e2119ea4f2', name: 'Lilith Rivers', location_city: 'Brooklyn', location_region: 'New York', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/38a854ec-fc67-45ae-9da4-249d21c41968', is_curated: true, created_at: datetime('2025-12-10T22:27:51.351Z')},
-  {id: 'e62d5ebb-3267-42c0-bfde-3a48fac0ac52', name: 'Zephyr Rivers', location_city: 'Los Angeles', location_region: 'California', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/7a756843-8640-436b-94ab-52ab1c6e16e1', is_curated: false, created_at: datetime('2025-06-04T19:09:14.335Z')},
-  {id: 'e0412dd7-bdaa-49e2-ad97-4213cf6a68f9', name: 'Kane Gray', location_city: 'Tucson', location_region: 'Arizona', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/916b450b-edaf-459f-8e01-0441c8c027b3', is_curated: false, created_at: datetime('2025-06-18T12:51:45.414Z')},
-  {id: 'bc83de6f-08e0-4b37-8300-08b105622431', name: 'Marcus Black', location_city: 'Austin', location_region: 'Texas', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/9fc0443d-59ea-49b5-9449-f4218327ca4e', is_curated: false, created_at: datetime('2025-05-19T22:24:21.102Z')},
-  {id: 'cf54fb41-0aba-45ca-96ca-783b369b94d6', name: 'Violet Steele', location_city: 'Jersey City', location_region: 'New Jersey', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/33e4fc9e-f296-455c-aade-98888e3bb6d0', is_curated: true, created_at: datetime('2025-04-08T20:26:12.413Z')},
-  {id: 'ac27cae0-1716-4dc4-9eea-c5224ce38055', name: 'Jaxon Schwartz', location_city: 'Sydney', location_region: 'New South Wales', location_country: 'Australia', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/6c95a609-4429-464f-ae33-2f02a882de37', is_curated: false, created_at: datetime('2025-04-04T19:37:40.406Z')},
-  {id: 'ed4e628e-7125-4186-870d-2f0190be9996', name: 'Sage Steele', location_city: 'Portland', location_region: 'Oregon', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/9ea5ebac-4661-404b-a5af-92a851dea85a', is_curated: false, created_at: datetime('2025-08-11T11:51:25.910Z')},
-  {id: 'c22be413-20c9-4fd2-b304-49baf076b5cf', name: 'Kai Fox', location_city: 'Tucson', location_region: 'Arizona', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/4e6087b7-bd16-4b29-bbac-29d3e600f7bf', is_curated: true, created_at: datetime('2025-05-05T05:54:19.759Z')},
-  {id: 'cfe811ef-c7c7-455f-a040-6652e36ef6f1', name: 'Knox Storm', location_city: 'Jersey City', location_region: 'New Jersey', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/a76cf0db-8681-4038-b991-e78aec96b3b9', is_curated: true, created_at: datetime('2025-07-15T02:59:37.390Z')},
-  {id: '193ee80b-94c5-4588-99b6-5aa2f26a1822', name: 'Steel Cross', location_city: 'Phoenix', location_region: 'Arizona', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/18982c6c-fe28-42e4-85f6-9081a81747de', is_curated: false, created_at: datetime('2025-04-14T22:05:04.869Z')},
-  {id: '2bafc835-8784-4965-8d56-9b40bbca55e7', name: 'Raven Storm', location_city: 'Ewing Township', location_region: 'New Jersey', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/0f478546-4c07-4f3d-bd57-e4e2f57dd358', is_curated: true, created_at: datetime('2025-04-20T00:11:43.034Z')},
-  {id: 'ac5c8489-28cd-42ce-8e18-3ff47c1c95b6', name: 'Axel Bold', location_city: 'Phoenix', location_region: 'Arizona', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/f34f2f05-855c-4d69-91f6-1bf5dd436975', is_curated: true, created_at: datetime('2025-12-24T08:48:09.644Z')},
-  {id: '38de6885-8e7f-4b3c-952e-93e15bd0c404', name: 'Nova Hart', location_city: 'Denver', location_region: 'Colorado', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/09df5f58-7213-4697-8cda-8a67c654d253', is_curated: false, created_at: datetime('2025-05-02T15:37:33.771Z')},
-  {id: 'f9b3477c-d7a4-4191-8485-427b18cc565e', name: 'Tyler Gray', location_city: 'Los Angeles', location_region: 'California', location_country: 'United States', has_multiple_locations: true, profile_url: 'https://tatt.example.com/artists/0b32fee3-6cbb-4e05-bc04-e44d58c784ec', is_curated: true, created_at: datetime('2025-02-21T14:36:36.845Z')},
-  {id: 'a326e7ce-d265-48ab-878d-819b2edddb7b', name: 'Zephyr Wolfe', location_city: 'Toronto', location_region: 'Ontario', location_country: 'Canada', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/0739a843-9c71-48b7-8aca-79a29c56bc91', is_curated: true, created_at: datetime('2025-11-22T03:31:45.942Z')},
-  {id: '3b6fb1d8-f1fb-4fd3-80ee-d71463d6c868', name: 'Ryder Fox', location_city: 'Portland', location_region: 'Oregon', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/6d3567fc-401c-4e6a-b750-7d59fe5f76cc', is_curated: false, created_at: datetime('2025-01-22T13:25:10.762Z')}
+  {id: '6e346c96-f77e-41b3-9304-c12cb9214cb5', name: 'Sky Young', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/0aebd6ab-76d6-49d4-a6a9-a21db2ff101b', is_curated: true, created_at: datetime('2025-07-26T15:37:09.821Z')},
+  {id: 'c6efd895-9169-402c-87f2-9a2087afd503', name: 'Luna Steele', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/c7c0dd8c-2501-4c26-8683-4efa31d67dc3', is_curated: false, created_at: datetime('2025-11-22T23:03:31.501Z')},
+  {id: '0055ab2e-f215-499a-aaba-6b8694d85aaf', name: 'Lilith Knight', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/7b01beca-822b-4d70-a36a-cb71f521558d', is_curated: false, created_at: datetime('2026-02-07T07:29:37.896Z')},
+  {id: '29321bbb-7c48-4036-921b-330e2fe9814c', name: 'River Schwartz', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/f7750213-8481-4fae-a637-9b37f9d203a8', is_curated: false, created_at: datetime('2026-06-14T16:56:59.550Z')},
+  {id: '32354ba5-13ac-4a0d-b624-3d081a49e65a', name: 'Sky Cloud', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/89b6748c-9d6a-49b0-820c-04c49d357a92', is_curated: false, created_at: datetime('2026-03-14T21:28:29.670Z')},
+  {id: 'f6baf290-e80b-4ebb-88de-b8c225f12d71', name: 'Dante Knight', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/fedc8f0a-aab3-4875-9474-71bd5fce3a81', is_curated: true, created_at: datetime('2025-10-30T23:44:49.689Z')},
+  {id: '82f14b6c-2aa8-4d66-ae6e-057131e9f322', name: 'Violet Sharp', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/dc08cc84-4a59-48a1-aa74-9c5dd4207c7b', is_curated: true, created_at: datetime('2025-08-14T23:27:25.807Z')},
+  {id: 'b1c08501-25ca-4058-866b-e0129e8d9234', name: 'Kane Sharp', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/7d0d6a41-84b1-4de4-86f9-9198b9948b47', is_curated: false, created_at: datetime('2026-06-22T12:36:08.579Z')},
+  {id: '4135d823-5762-4c20-b6a0-0a3f4eb9a0bd', name: 'Jaxon Anderson', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/12e293e3-d08c-4053-a1d4-17ba1d640cd2', is_curated: false, created_at: datetime('2026-04-21T04:25:10.590Z')},
+  {id: '60352c84-b8fe-4378-ae2d-474b5c90360f', name: 'Jaxon Gray', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/c8a212d2-3e9f-43de-87cb-c83e9c137184', is_curated: false, created_at: datetime('2025-09-15T12:30:13.952Z')},
+  {id: '3730e63d-6a38-4d1e-bca3-ff67ce0c82c7', name: 'Ember Cross', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/8167c8af-370e-4440-8f32-cb7f10a73a40', is_curated: true, created_at: datetime('2025-12-22T00:21:20.205Z')},
+  {id: '7767ea76-b34d-4beb-beb8-29d51c4ac230', name: 'Blaze Chen', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/dea89f6b-9d56-4250-b865-2220dc93e55b', is_curated: false, created_at: datetime('2026-03-19T10:03:22.931Z')},
+  {id: 'c913f16b-0604-4f63-bbb7-ade8866b2c0d', name: 'Nova Young', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/1edbb126-1090-4b69-9ebd-f1f6064fdc44', is_curated: false, created_at: datetime('2025-08-25T02:39:27.512Z')},
+  {id: 'f1121635-0622-4078-9195-36eb0e4b02d3', name: 'Wolf Frost', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/c686ad25-7d2b-4a9d-9c8b-b909112d67fe', is_curated: false, created_at: datetime('2026-03-28T05:50:04.317Z')},
+  {id: 'fa08bb8b-5f9e-4a40-b195-26b701d2794f', name: 'Zephyr Frost', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/30273995-8751-4031-879d-bd042197df09', is_curated: false, created_at: datetime('2026-05-19T11:46:41.319Z')},
+  {id: '41624bfe-ebb9-48cf-bcde-01490e2fffdc', name: 'Axel Young', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/bba06ada-0794-4ac1-9957-cd2aeaa3bcf4', is_curated: false, created_at: datetime('2026-01-29T07:06:19.341Z')},
+  {id: 'dca7e8d3-fa07-4d4d-8e34-b433a6180727', name: 'Knox Iron', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/7ba9a7b1-aa79-496a-8ef9-691fe6d32a03', is_curated: false, created_at: datetime('2025-09-13T23:12:27.572Z')},
+  {id: 'd6067ab0-40cd-4717-8c4e-d0b67a66f1d2', name: 'Cruz Blade', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/1702a915-e2d8-4a0e-baab-358a21c32243', is_curated: false, created_at: datetime('2026-05-05T11:22:53.821Z')},
+  {id: '1574381a-482d-42e0-b777-e00c9af45ea0', name: 'Orion Cross', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/1c6ef356-585f-4cba-afee-dbecffa24c5e', is_curated: true, created_at: datetime('2025-11-20T06:54:42.872Z')},
+  {id: 'df0f254e-b58c-46ad-a541-b74dee3c05a8', name: 'Nova Frost', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/f0bac8f5-4ab3-4ff0-b3f6-d23e82b9259f', is_curated: false, created_at: datetime('2026-05-11T11:44:00.536Z')},
+  {id: 'be689759-e106-4667-9d5a-ceebd5ed4aee', name: 'Orion Wolfe', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/a1746a2e-ab33-4aaa-8316-5b9521d1b51f', is_curated: true, created_at: datetime('2026-01-30T01:49:44.177Z')},
+  {id: '3d03e544-fbe3-44ec-9f10-99b660316b18', name: 'Aria Storm', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/c05a8efc-216e-4dad-a8c4-f8c6ebb073c4', is_curated: false, created_at: datetime('2025-12-27T06:33:31.309Z')},
+  {id: '07eaaeeb-1540-4670-b82d-b14e29dc1042', name: 'Amara Storm', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/f867bf09-1f37-493e-a6eb-c9900fb67be9', is_curated: true, created_at: datetime('2026-04-19T20:43:35.841Z')},
+  {id: '02fb2183-6746-4782-9596-6c93810f137f', name: 'Lyra Cloud', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/e2927c19-3bc8-489f-90e2-e1db441fb3f8', is_curated: false, created_at: datetime('2025-09-22T20:55:25.653Z')},
+  {id: 'f2851c38-245b-4f47-a1cd-79f24f164f98', name: 'Dante Martinez', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/87b101fa-70d7-4e08-a587-3f93bda1fc2c', is_curated: true, created_at: datetime('2025-07-25T13:18:40.946Z')},
+  {id: 'a578a976-0c1d-483f-a614-f17bcacfaa18', name: 'Ember Silver', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/a4db8488-9bab-401d-9865-717f3eec405b', is_curated: true, created_at: datetime('2026-04-19T16:43:38.646Z')},
+  {id: '48b5c5cc-f48b-4eec-b7c3-a9bee19ca85e', name: 'Luna Wolfe', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/527e872f-eb50-4032-87f9-8fbc319d35f8', is_curated: false, created_at: datetime('2025-08-12T14:51:36.791Z')},
+  {id: '67035968-3e7f-43cd-a6cc-2a135688b3a9', name: 'Marcus Storm', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/0e02fddd-9a6b-4e43-a9e1-5b552b9df443', is_curated: true, created_at: datetime('2026-01-26T15:26:11.604Z')},
+  {id: '5b691f1b-5ff9-4c39-a199-32b7b4613bbc', name: 'Wolf Wilson', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/51796989-7206-411a-8de1-e435f7ec5645', is_curated: false, created_at: datetime('2026-05-12T13:16:18.213Z')},
+  {id: '391e8d41-1d15-4d0e-a98f-51f4975fd182', name: 'Knox Knight', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/b8193036-f2eb-493f-badb-c7aa6bd62557', is_curated: false, created_at: datetime('2025-09-09T11:22:34.824Z')},
+  {id: '67f173fe-83d1-4b74-98ba-40321fadadef', name: 'Steel Light', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/12e8774b-56c9-45a0-8717-cc086c4f074c', is_curated: true, created_at: datetime('2025-08-18T18:15:08.284Z')},
+  {id: 'dd4b1bd3-ff34-4f30-8154-a3fd9b60e98e', name: 'River Reed', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/1241a38a-a335-4298-a24f-9c5ea28c52ea', is_curated: true, created_at: datetime('2025-12-28T10:07:26.844Z')},
+  {id: 'd1b73eb1-da92-40a5-ab9c-0329957c95ea', name: 'Asher Reed', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/19898389-5351-4e8c-aae5-d0aba0a876bb', is_curated: true, created_at: datetime('2026-05-29T22:58:19.687Z')},
+  {id: 'a3ff3e81-7682-4e54-833c-bce10f645131', name: 'Zara Bold', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/32b2bc5f-5bf9-4a83-8b44-def4b518dc16', is_curated: false, created_at: datetime('2025-07-24T19:47:53.550Z')},
+  {id: 'dc65325e-bf12-4aea-966f-7b8576127878', name: 'Blaze Frost', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/1e85273b-e2ca-4626-aa5a-a79f69d51e4a', is_curated: true, created_at: datetime('2026-05-09T09:58:22.102Z')},
+  {id: 'a239a071-a365-44f6-8c6e-8cd92d643c15', name: 'Ember Flame', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/d06d1a66-61c4-4c6a-8783-044f4942e389', is_curated: false, created_at: datetime('2026-06-09T07:03:58.473Z')},
+  {id: '821e5518-b280-4007-8766-82e67d7cb3c4', name: 'Orion Cross', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/631b64cc-f4b0-4703-9ab1-8200999c4e15', is_curated: false, created_at: datetime('2026-03-06T19:02:29.223Z')},
+  {id: 'be121454-0452-4220-8608-421a04ddb03e', name: 'Phoenix Flame', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/25322e36-4532-4377-a51d-eda2090bdc94', is_curated: false, created_at: datetime('2026-07-13T08:38:48.208Z')},
+  {id: '9b1d83b0-9584-4721-babf-47722b212c4b', name: 'Miss Vampira Cross', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/3d28083b-38c4-4ab1-84fa-03eb362b0b49', is_curated: true, created_at: datetime('2026-02-17T19:05:37.365Z')},
+  {id: 'd05b8c77-0686-42ee-b93d-0090d0f9ba9c', name: 'Steel Star', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/f43bd8a4-e87c-40d3-87aa-928f14138df9', is_curated: false, created_at: datetime('2026-03-28T19:36:05.806Z')},
+  {id: 'fc8cbd08-a294-40df-b95f-478801416b2c', name: 'River Fox', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/8b1547e9-f41a-439e-b360-a25361db81dd', is_curated: false, created_at: datetime('2025-11-25T03:05:09.417Z')},
+  {id: 'bd7cf9f6-cfc2-4f5f-a91c-3c23ada0b2e0', name: 'Tyler Cross', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/58f516c7-63f1-42a4-9898-81da20be338c', is_curated: false, created_at: datetime('2026-02-05T02:48:26.160Z')},
+  {id: 'd93d6fe2-9bc4-40da-8e2e-97cdc4a90bad', name: 'Zephyr Anderson', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/f99194a9-4b09-4a60-9eee-b5459994a904', is_curated: false, created_at: datetime('2025-10-05T03:35:57.258Z')},
+  {id: '87c1816e-28ff-48da-be7c-56fde3d2d452', name: 'Kane Cross', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/2821c6df-f1fa-4db3-84b0-1a8dad489cac', is_curated: false, created_at: datetime('2026-02-16T11:07:59.159Z')},
+  {id: '33f924ba-843b-4f82-98d2-141c46bc31c3', name: 'Axel Anderson', has_multiple_locations: true, profile_url: 'https://tatt.example.com/artists/e2e69714-2a4e-480c-adc4-ad809d91df91', is_curated: false, created_at: datetime('2026-05-13T17:51:07.248Z')},
+  {id: '4ce8b98f-ca2d-4f65-97b6-de578c33315d', name: 'Jade Schwartz', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/c2d5d3d7-4be1-4f39-84cc-d95732bb5e83', is_curated: true, created_at: datetime('2026-03-12T11:17:34.254Z')},
+  {id: '3559c9a3-da74-4310-b318-2fd5e63597a8', name: 'Jade Star', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/27a81df8-a503-48df-ab73-b8cb477ea768', is_curated: false, created_at: datetime('2025-11-19T02:57:52.874Z')},
+  {id: '040f96b0-e49a-4769-90a0-379551c5ee2d', name: 'Ivy Thorn', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/868d428b-c166-46f0-b84f-a3a8c2d0b1c1', is_curated: false, created_at: datetime('2026-01-07T06:10:11.646Z')},
+  {id: '2c188c54-7ab6-431b-8084-16a8c4b2ff04', name: 'Seraphina Wild', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/a50af504-6a63-408d-9bad-74ad4962cf23', is_curated: false, created_at: datetime('2026-05-22T16:56:41.037Z')},
+  {id: 'e9272d93-2d2b-4e42-a752-a686a35ab2a8', name: 'Drake Cross', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/164c2abb-edd0-4113-8824-d5265664a054', is_curated: false, created_at: datetime('2025-08-12T00:26:19.868Z')}
 ] AS artist
 MERGE (a:Artist {id: artist.id})
 SET a.name = artist.name,
-    a.location_city = artist.location_city,
-    a.location_region = artist.location_region,
-    a.location_country = artist.location_country,
     a.has_multiple_locations = artist.has_multiple_locations,
     a.profile_url = artist.profile_url,
     a.is_curated = artist.is_curated,
@@ -224,62 +554,59 @@ SET a.name = artist.name,
 
 // Batch 3
 UNWIND [
-  {id: 'cfe93205-8a1d-4d07-a493-859cc38cce8f', name: 'Zane Frost', location_city: 'Newark', location_region: 'New Jersey', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/4b314e89-6a4e-4835-b2dc-56751efac939', is_curated: false, created_at: datetime('2025-08-13T17:31:30.062Z')},
-  {id: 'c01b1464-4235-42ca-9984-7e87212c5b67', name: 'Elena Moon', location_city: 'Miami', location_region: 'Florida', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/e71c745f-94f9-4cbb-9d0a-c571ef656623', is_curated: false, created_at: datetime('2025-10-11T05:45:22.830Z')},
-  {id: 'a24c194f-93d0-473b-96ec-fbe6d0e80228', name: 'Amara Hart', location_city: 'Tampa', location_region: 'Florida', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/feb8c1c4-c47b-4754-8c75-aaf589f73511', is_curated: false, created_at: datetime('2025-02-06T14:42:18.842Z')},
-  {id: '583c03f9-30ef-465f-a7dc-3d36503aaf72', name: 'Luna Cloud', location_city: 'Miami', location_region: 'Florida', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/e989e4de-b424-4abc-ac7d-3622be738378', is_curated: true, created_at: datetime('2025-01-19T12:41:32.390Z')},
-  {id: '2f06b07b-b52e-45f9-9ec1-e509b6a15fed', name: 'Tyler Star', location_city: 'San Francisco', location_region: 'California', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/4f3def2c-3a3a-406f-96d4-0daef5177aa8', is_curated: false, created_at: datetime('2025-05-29T17:22:52.969Z')},
-  {id: '2f30b515-9c74-4cd7-90a5-23acd17607a9', name: 'Elena Flame', location_city: 'Perth', location_region: 'Western Australia', location_country: 'Australia', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/e75a02f7-2d94-4734-97e1-2ec299508506', is_curated: false, created_at: datetime('2025-07-04T04:27:10.243Z')},
-  {id: '40a56e76-f6bc-488d-a3c6-434f39791e97', name: 'Ryder Storm', location_city: 'Miami', location_region: 'Florida', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/9b585494-e811-40a8-b5dd-2fa38bbc0308', is_curated: false, created_at: datetime('2025-03-23T18:16:49.598Z')},
-  {id: '5ff32a33-48d1-461c-bd6a-4bacde579c3d', name: 'Luna Storm', location_city: 'Austin', location_region: 'Texas', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/a92db33f-90d9-4263-8fc8-de102b96c094', is_curated: true, created_at: datetime('2025-06-24T17:16:54.646Z')},
-  {id: 'f2ce2c6b-8e12-431e-ae78-321ddf5021a0', name: 'Amara Light', location_city: 'Manhattan', location_region: 'New York', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/77b53222-fceb-4cfc-a004-652c8a69e184', is_curated: true, created_at: datetime('2025-08-29T05:04:07.528Z')},
-  {id: 'e9736890-e56c-4e9f-82a5-5ec4efc0b2e1', name: 'Kai Iron', location_city: 'Brooklyn', location_region: 'New York', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/8a75dd22-bb1b-4d2a-928e-54dd925d240c', is_curated: false, created_at: datetime('2025-01-31T00:26:04.991Z')},
-  {id: 'e5cc5199-78c9-4271-8a9e-fc36cddc3a2c', name: 'Lyra Moon', location_city: 'San Francisco', location_region: 'California', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/098ecc99-4953-4fed-a09f-5ac2afdeb846', is_curated: true, created_at: datetime('2025-08-08T15:00:21.178Z')},
-  {id: 'a836ba3e-912a-46b9-8537-ee260ad3ebbf', name: 'Jaxon Anderson', location_city: 'Burlington', location_region: 'Vermont', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/67f40cb3-7aa4-42e8-af8f-c34a27a64283', is_curated: false, created_at: datetime('2025-02-12T16:12:35.076Z')},
-  {id: 'd12ece4e-2895-47a0-a999-b81e8e57f998', name: 'Felix Star', location_city: 'Manhattan', location_region: 'New York', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/1a23985c-6073-40e6-8d3a-9ff0bae2365c', is_curated: false, created_at: datetime('2025-03-23T01:40:19.355Z')},
-  {id: 'de7471f0-eb08-430f-a039-d076773cc291', name: 'Miss Vampira Cloud', location_city: 'Sydney', location_region: 'New South Wales', location_country: 'Australia', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/b95baa3f-5f73-433c-85c0-284ef6e557a3', is_curated: true, created_at: datetime('2025-12-29T17:40:55.327Z')},
-  {id: '8c9a497f-28b2-4463-80cd-a824de75309b', name: 'Raven Cloud', location_city: 'Toronto', location_region: 'Ontario', location_country: 'Canada', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/08347fe0-e515-4b88-956f-d332b95eb6e8', is_curated: false, created_at: datetime('2025-09-10T07:50:38.169Z')},
-  {id: '866f2c37-2a5d-4d0e-bf47-28999f9f40a0', name: 'Felix Gray', location_city: 'Ewing Township', location_region: 'New Jersey', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/f8187358-01e6-45b5-82cc-cb7a32c7236e', is_curated: true, created_at: datetime('2025-12-06T06:56:06.168Z')},
-  {id: '36dfaf4b-be9b-4b2d-8a5b-2aa93d26c1cf', name: 'Felix Reed', location_city: 'Brooklyn', location_region: 'New York', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/934ddfe6-4c14-41b2-8b7f-924927859d7c', is_curated: true, created_at: datetime('2025-03-17T18:21:13.472Z')},
-  {id: '623141ca-9ee8-456b-8516-ed997dc40fdc', name: 'Elena Bright', location_city: 'San Diego', location_region: 'California', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/4ee012fa-9d45-43de-b79e-8c25c961ce14', is_curated: true, created_at: datetime('2025-01-16T14:53:03.754Z')},
-  {id: '819a9310-fad3-4062-8534-057c17f90d84', name: 'Axel Bold', location_city: 'San Francisco', location_region: 'California', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/a8868a3b-f01a-4538-966d-df20c516d4a1', is_curated: false, created_at: datetime('2025-09-10T21:53:10.112Z')},
-  {id: 'bd49022d-a395-4a7a-87bd-5bb80576e281', name: 'Blaze Star', location_city: 'San Francisco', location_region: 'California', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/42630cfa-3063-4a28-80d9-ad0a034552d5', is_curated: false, created_at: datetime('2025-07-22T06:58:17.363Z')},
-  {id: '6db44ecb-2cda-4eb9-bdf4-989a7a1b8797', name: 'Storm Cross', location_city: 'Dallas', location_region: 'Texas', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/6eb4f36e-cec0-4f39-ba72-1c8b50dd6218', is_curated: true, created_at: datetime('2025-05-31T01:50:50.995Z')},
-  {id: '47a1f895-3ac0-41f2-832e-765193815ad3', name: 'Jaxon Schwartz', location_city: 'Los Angeles', location_region: 'California', location_country: 'United States', has_multiple_locations: true, profile_url: 'https://tatt.example.com/artists/70d313dc-257f-4d33-81cd-efb1599ac0b7', is_curated: false, created_at: datetime('2025-12-16T15:39:07.629Z')},
-  {id: 'c3fbb1f1-e91e-445f-8a65-ae495d28e9fe', name: 'Marcus Thorn', location_city: 'Austin', location_region: 'Texas', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/0044496d-a325-427f-82d6-b76ec860e0cc', is_curated: false, created_at: datetime('2025-08-02T09:36:01.270Z')},
-  {id: '50aa5ba5-2609-46a8-8315-127504a6b0ab', name: 'Ember Flame', location_city: 'Phoenix', location_region: 'Arizona', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/714b741f-40bd-4be9-b199-12f8fafa16d7', is_curated: false, created_at: datetime('2025-10-17T02:00:12.857Z')},
-  {id: 'df1e9684-b150-4ad4-a806-4d14367a43b0', name: 'Seraphina Phillips', location_city: 'Tampa', location_region: 'Florida', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/8dc76a22-ec5d-4707-92ab-a1e9d6820cad', is_curated: true, created_at: datetime('2025-10-11T03:51:40.049Z')},
-  {id: 'b23f0fde-0147-4416-91f0-90e5491929d3', name: 'Jade Knight', location_city: 'Portland', location_region: 'Oregon', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/d8f12e7a-2e21-4f21-baee-5c03f653037e', is_curated: false, created_at: datetime('2025-10-01T02:43:17.767Z')},
-  {id: '842bb415-dcde-4020-8769-2d33424abac5', name: 'Sky Flame', location_city: 'Miami', location_region: 'Florida', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/3e6ef0ce-410e-4148-8caf-4286a1a7ae32', is_curated: false, created_at: datetime('2025-11-09T23:31:13.549Z')},
-  {id: '6155742e-c89e-44d7-91c7-492be6fa243f', name: 'Luna Anderson', location_city: 'Tucson', location_region: 'Arizona', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/13080343-8ce5-440e-8db7-e5999a55ec7b', is_curated: false, created_at: datetime('2025-10-20T15:34:51.039Z')},
-  {id: '388b2f3d-0088-450d-9583-4c46a837a962', name: 'Phoenix Cross', location_city: 'Burlington', location_region: 'Vermont', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/575ad532-c524-44d2-83ac-07181ce62358', is_curated: false, created_at: datetime('2025-11-29T23:07:52.196Z')},
-  {id: 'fdb75be5-0260-49e3-bee8-3c6b94db952a', name: 'Raven Wolfe', location_city: 'Portland', location_region: 'Oregon', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/b96fd03e-0314-4d56-83fb-79d9b502da86', is_curated: false, created_at: datetime('2025-12-07T03:54:08.953Z')},
-  {id: '0e7b6fae-c843-4648-be4c-265b5450594c', name: 'Blair Chen', location_city: 'Denver', location_region: 'Colorado', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/d516d97c-7431-4579-b939-b28a79429fe0', is_curated: false, created_at: datetime('2025-08-31T08:01:36.720Z')},
-  {id: '59538def-8743-47b7-9ec6-41718ba66421', name: 'Violet Wilson', location_city: 'Los Angeles', location_region: 'California', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/e200f814-2e80-43bf-87fb-9d09434b5f72', is_curated: false, created_at: datetime('2025-09-10T06:57:33.492Z')},
-  {id: 'a6541ecd-7add-4e4c-81c0-8e69bf5af624', name: 'Amara Knight', location_city: 'San Francisco', location_region: 'California', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/7ee72cbd-83a8-492a-82d1-c49333499e6b', is_curated: true, created_at: datetime('2025-04-23T20:51:37.739Z')},
-  {id: 'd3b49103-479a-4e29-a2d1-effeff3bb086', name: 'River Bold', location_city: 'Melbourne', location_region: 'Victoria', location_country: 'Australia', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/717b2444-64fa-4bdc-a8f8-4a54a2551223', is_curated: false, created_at: datetime('2025-04-07T07:29:19.785Z')},
-  {id: '6d9b7fdd-4d80-4bf2-a5e2-3a62047db9e2', name: 'Amara Phillips', location_city: 'Melbourne', location_region: 'Victoria', location_country: 'Australia', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/f6c0f4b7-46cf-4d1a-bcec-70fab63abe6d', is_curated: false, created_at: datetime('2025-02-06T06:11:50.655Z')},
-  {id: 'ac1c4917-5ee7-40fa-9ba9-222367462b92', name: 'Sophia Black', location_city: 'Denver', location_region: 'Colorado', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/6396d2e7-ae12-4090-a644-36260d57e86b', is_curated: true, created_at: datetime('2025-01-16T06:42:47.150Z')},
-  {id: 'cb40be59-7cd8-41a6-83d9-e474253e92b5', name: 'Blair Steele', location_city: 'Dallas', location_region: 'Texas', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/31f50305-05b6-4267-a71e-29115a027f83', is_curated: false, created_at: datetime('2025-03-05T05:47:00.356Z')},
-  {id: '340c8da6-de8b-4be9-873b-1ea579afd71d', name: 'Luna Star', location_city: 'Houston', location_region: 'Texas', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/0c87744d-7ea5-4fd7-9b6b-cbc98ea765c0', is_curated: true, created_at: datetime('2025-09-21T20:53:12.732Z')},
-  {id: 'd29570b4-4fe0-4dea-b9fb-c1045054d39a', name: 'Sky Bold', location_city: 'Houston', location_region: 'Texas', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/7e586bdf-a1ed-44fd-b9a7-3d139501f11d', is_curated: false, created_at: datetime('2025-07-16T04:10:21.770Z')},
-  {id: '8639cc95-0939-43bf-947b-667e5c5aebcc', name: 'Nova Martinez', location_city: 'Manhattan', location_region: 'New York', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/73cf9b12-1df8-4f80-94c4-61a8405ae312', is_curated: false, created_at: datetime('2025-07-23T04:39:23.713Z')},
-  {id: 'a14178ae-3b12-4252-9db2-7916aea7c188', name: 'Drake Chen', location_city: 'Houston', location_region: 'Texas', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/8e99dff2-bbf8-4916-915b-f00bdbe940fc', is_curated: false, created_at: datetime('2025-01-28T19:14:42.450Z')},
-  {id: 'eebc3fe2-3fa3-43cc-973c-9955ff9d4ab3', name: 'Lyra Iron', location_city: 'Brooklyn', location_region: 'New York', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/9c87a3e6-3800-4639-b49b-497b1f354aa3', is_curated: true, created_at: datetime('2025-06-11T03:47:13.519Z')},
-  {id: 'e9e439d5-459f-4230-8c1c-e0890b90cb35', name: 'Storm Blade', location_city: 'Miami', location_region: 'Florida', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/d6a53721-07b4-46c8-97db-7786f271f5b9', is_curated: true, created_at: datetime('2025-12-05T05:56:07.216Z')},
-  {id: '7f3124b1-2895-4109-9532-44319dd7e6dc', name: 'Sage Phillips', location_city: 'Brooklyn', location_region: 'New York', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/41af9580-1277-4d74-b610-e5f74d2844bc', is_curated: true, created_at: datetime('2025-03-25T19:17:34.682Z')},
-  {id: 'd6c31b01-a477-440d-830c-298d3e8e46df', name: 'Ember Iron', location_city: 'Jersey City', location_region: 'New Jersey', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/3af98590-1dd7-4033-b816-342e0a4df71a', is_curated: false, created_at: datetime('2025-04-08T10:57:12.759Z')},
-  {id: 'c70bd1c9-0d33-45e9-937a-aec4eee8d832', name: 'Luna Wild', location_city: 'Dallas', location_region: 'Texas', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/403a2d8b-ae3b-4960-bb6f-879c12a5cb40', is_curated: true, created_at: datetime('2025-10-02T03:33:40.498Z')},
-  {id: '2b8e6136-e0c0-4b39-974d-566d3d6cf123', name: 'Zane Bright', location_city: 'Portland', location_region: 'Oregon', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/46629bc4-d670-4c0e-b3c7-0410e0f36723', is_curated: true, created_at: datetime('2025-02-23T22:35:41.155Z')},
-  {id: '53ba4bdb-c4a1-4a21-b4b7-ac7939e8ed65', name: 'Ember Light', location_city: 'Tampa', location_region: 'Florida', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/6558d9f6-0666-46bc-8311-954686be2c41', is_curated: false, created_at: datetime('2025-07-03T06:31:23.117Z')},
-  {id: '9e0f33c7-f8e2-4dcc-82ae-d5dbe42aad00', name: 'Jade Reed', location_city: 'Toronto', location_region: 'Ontario', location_country: 'Canada', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/7ba50dcd-aa49-4955-8eb1-3c4cc3bdd232', is_curated: false, created_at: datetime('2025-10-08T15:17:04.981Z')},
-  {id: '8987dcec-e4c4-4a0c-9fe2-4cb4dfe9c692', name: 'Aurora Iron', location_city: 'Tampa', location_region: 'Florida', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/ac8d960e-040a-4038-bb93-f068f1c66034', is_curated: false, created_at: datetime('2025-05-29T19:05:46.179Z')}
+  {id: '5643b371-ebc2-4eb5-8c59-9f1eec546cfa', name: 'Amara Wilson', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/d5b29c10-a0a3-4514-9e9b-786ccd3f65ff', is_curated: false, created_at: datetime('2026-02-26T00:16:57.709Z')},
+  {id: '1476005b-7377-4e74-bf86-655d31be404d', name: 'Sky Storm', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/985dae58-33c8-493e-a2a8-5f69bf56aae7', is_curated: true, created_at: datetime('2025-11-04T11:49:06.822Z')},
+  {id: '92ec73d4-b380-46e9-8af2-065ae9055257', name: 'Lilith Light', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/9eda7756-9de2-4e66-a29f-049045a48f2b', is_curated: true, created_at: datetime('2026-04-27T16:46:09.954Z')},
+  {id: 'e5534c1c-980b-4691-b8cf-526599bbbdd0', name: 'Storm Frost', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/0cde749e-41c9-4ef6-8461-416f5a41fcf4', is_curated: false, created_at: datetime('2026-03-24T17:45:08.562Z')},
+  {id: '236e6a8c-ebb6-4eaf-8686-158168e0ed58', name: 'Elena Rivers', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/da891e8d-aaf6-4f31-aa37-8459d0f3b7c6', is_curated: false, created_at: datetime('2026-03-03T07:04:00.868Z')},
+  {id: '02455515-3b73-4a33-a236-e6c06a6bb9fd', name: 'Zara Phillips', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/27fcf78f-966e-4c5f-98e7-6270abaf15ec', is_curated: true, created_at: datetime('2025-07-30T15:20:07.307Z')},
+  {id: 'f18a5789-de8e-430b-97ad-a1452c34f4bd', name: 'Steel Flame', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/695ac992-26c6-4294-b8bb-769799ae83ba', is_curated: true, created_at: datetime('2025-08-09T11:52:19.609Z')},
+  {id: 'dd814727-b29c-4dd8-909d-5ca6488c8eb5', name: 'Elena Steele', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/85944c04-a6d4-42b1-ae46-c5161092ea1c', is_curated: true, created_at: datetime('2025-10-14T01:07:32.551Z')},
+  {id: '6527611b-e793-43e4-8005-b72fd675347f', name: 'Zara Chen', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/2227decc-aa11-4d51-836b-62c909163050', is_curated: false, created_at: datetime('2025-07-17T22:07:03.294Z')},
+  {id: '19f5edd4-2c58-4165-9504-58bc6e0565f7', name: 'Amara Wolfe', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/abddb203-989d-47df-b2af-40675117e7ba', is_curated: false, created_at: datetime('2025-09-23T01:58:34.115Z')},
+  {id: 'c73bb7e7-b5e7-4534-b488-abbebe56e359', name: 'Jade Dark', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/667a9960-fba3-4e7c-8af2-1f743e38f80d', is_curated: true, created_at: datetime('2026-06-26T06:41:45.908Z')},
+  {id: '51a32e86-838e-40ae-a9c4-cedcf8160fc7', name: 'Seraphina Silver', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/ab93473e-9c5b-46ac-ab3b-cea9395262b7', is_curated: false, created_at: datetime('2026-02-08T06:35:00.198Z')},
+  {id: '8d21659c-c8c7-4414-b2a2-847989a9533a', name: 'Nova Anderson', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/44ec0c78-504e-46af-bdfb-86ed59356088', is_curated: true, created_at: datetime('2026-03-24T02:42:18.302Z')},
+  {id: '2df99554-ea53-4d18-8639-c5e3f800ea1f', name: 'Wolf Chen', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/12c8b512-e2c0-4ceb-a7bf-15700be85042', is_curated: false, created_at: datetime('2025-09-14T14:06:13.075Z')},
+  {id: '4f5960ef-eb70-4c80-86cb-cd54d652d129', name: 'Tyler Star', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/54a96639-0554-41c7-8960-b8c2e3c83ef5', is_curated: false, created_at: datetime('2025-10-03T13:35:45.042Z')},
+  {id: 'f22a5477-40a0-46c7-bb4c-d8757da3f42e', name: 'Nova Phillips', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/e2fac8ae-7ff9-47a6-8a0a-81de7df33895', is_curated: true, created_at: datetime('2026-03-13T14:28:03.523Z')},
+  {id: '08907aa8-4bb7-4e68-a3f1-054e65e96b64', name: 'Sky Young', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/00a4b0ca-6c76-43b4-9b2a-f5c70e068df6', is_curated: false, created_at: datetime('2025-12-28T08:56:46.118Z')},
+  {id: '0862292a-4cb7-477c-88a8-01572b02edc1', name: 'Nova Rivers', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/a0cbb42b-e8b1-4c88-8f18-17940e114812', is_curated: true, created_at: datetime('2026-06-18T19:33:19.759Z')},
+  {id: 'b797fbad-4a03-4b15-8767-43efd16881f1', name: 'River Flame', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/9f42d080-9683-4db3-acf7-82ec80574137', is_curated: true, created_at: datetime('2026-06-17T02:50:58.674Z')},
+  {id: '39ac7737-d6ec-43c4-ba53-8eab2f4b02c0', name: 'Steel Flame', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/3c2ac00b-e108-4a9c-97a8-3b981ed0a7cd', is_curated: false, created_at: datetime('2026-03-30T06:23:29.884Z')},
+  {id: '69a4c31d-40d6-4991-8636-e1e6a57a8017', name: 'Lyra Chen', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/90a2cd84-b6c4-446f-962c-a0325707942c', is_curated: false, created_at: datetime('2026-07-06T15:09:58.450Z')},
+  {id: '82e31eb2-3d75-4877-a80c-7e86396c2738', name: 'River Wolfe', has_multiple_locations: true, profile_url: 'https://tatt.example.com/artists/971003c5-5357-4de5-897e-822d12b249f0', is_curated: false, created_at: datetime('2025-07-27T22:38:52.616Z')},
+  {id: 'ecc6d387-73ac-4e35-a323-e752ad5bd4c7', name: 'Lilith Knight', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/9879dab7-1558-4c5c-9dd7-244d655fa75c', is_curated: false, created_at: datetime('2026-01-17T15:56:04.319Z')},
+  {id: '0b1157a1-a3ad-4406-a0d2-0cbe3f66d08d', name: 'Wolf Light', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/e1a65f0c-be0a-43f0-b24b-dcf2a9f974bc', is_curated: false, created_at: datetime('2025-12-17T02:53:38.811Z')},
+  {id: '55a505f3-e689-4df4-b1bd-b9c90b63de9e', name: 'Amara Thorn', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/cec6c64a-468c-45eb-afed-3e8ff3e15c4e', is_curated: true, created_at: datetime('2026-04-05T08:50:30.977Z')},
+  {id: '5c8ce1cf-2505-4bce-b529-4a1a9bee3fa5', name: 'Sophia Schwartz', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/0f14220f-c32d-477b-8c1e-4b1ea5ea0cdf', is_curated: true, created_at: datetime('2026-06-02T12:15:24.220Z')},
+  {id: '7153ecff-8d28-4fc9-b208-004e909a6156', name: 'Zephyr Light', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/61da5699-6d49-4f94-a3ae-46416658f110', is_curated: false, created_at: datetime('2026-02-04T11:01:29.057Z')},
+  {id: 'f885ac74-713c-43eb-9dbf-2f6096889fd3', name: 'Aurora Stone', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/1ca2b168-ee11-46dc-be4d-90bac01ae025', is_curated: true, created_at: datetime('2025-10-02T08:13:46.655Z')},
+  {id: '20aa526f-b01b-45fb-afd1-a6d510e06e35', name: 'Lyra Thorn', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/da589d6e-aa23-4d66-93d3-55dfad15807c', is_curated: true, created_at: datetime('2026-03-05T09:48:36.342Z')},
+  {id: '18502e2f-b038-41b7-9cd8-4a5a1ddd417c', name: 'River Cross', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/1365a247-d8e9-4d5f-ba99-ea40d41eaac7', is_curated: false, created_at: datetime('2025-11-04T15:30:06.371Z')},
+  {id: '8ff5f808-23e7-45b3-8cee-12c224568702', name: 'River Wolfe', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/58f771ab-3585-4b39-b315-93462735fead', is_curated: true, created_at: datetime('2026-07-10T15:18:46.508Z')},
+  {id: '24cac96d-848a-46b3-bf52-796ee3f35c94', name: 'Elena Moon', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/0a9f6720-0262-4b5e-b66f-9812014046da', is_curated: true, created_at: datetime('2026-05-29T20:35:12.405Z')},
+  {id: '52bc3f64-e3f6-44b2-a850-d7f71e7673a9', name: 'Axel Wolfe', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/f1fbfd69-cc2c-43ef-adc2-110382f208d8', is_curated: true, created_at: datetime('2026-01-12T18:04:59.566Z')},
+  {id: '40f46778-2b70-49ea-a641-9515c6bf8135', name: 'Sky Iron', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/16b95029-b95c-44d5-9df1-8b47dc018af9', is_curated: true, created_at: datetime('2026-02-23T14:19:03.624Z')},
+  {id: '7d95846f-e496-4420-8d67-830e2e5aea74', name: 'Ryder Chen', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/dc8e9a11-40a7-4591-a6af-52dc4107c430', is_curated: true, created_at: datetime('2025-08-23T20:34:13.445Z')},
+  {id: 'edc8a80b-1215-4ae1-a6da-e7869fa1ea70', name: 'Drake Stone', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/20166476-37a4-4dd7-9202-6c5fc7c9b08e', is_curated: false, created_at: datetime('2026-04-23T18:19:39.947Z')},
+  {id: '5e4cb69a-f376-410b-a630-a1024cb16bac', name: 'Orion Young', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/ce8173d1-e14e-4d6f-9cb3-52803c18f9c2', is_curated: true, created_at: datetime('2025-08-03T09:24:40.840Z')},
+  {id: '3852f0b4-2806-4de7-bca8-25aa3dbbe1a4', name: 'Zara Black', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/48eddb39-3fee-4096-a334-5b03b36eb252', is_curated: false, created_at: datetime('2026-02-20T05:19:09.206Z')},
+  {id: 'e4b97ef5-743e-4efc-8bad-526e2cd3f8b9', name: 'Miss Vampira Flame', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/80dca9eb-b033-4581-bfd7-c209771ca541', is_curated: true, created_at: datetime('2026-04-28T11:17:50.817Z')},
+  {id: '567fdf8c-ab6b-4928-8d9f-8ca3acadd4ef', name: 'Kane Light', has_multiple_locations: true, profile_url: 'https://tatt.example.com/artists/e78fd9ce-2cdb-41d6-b0ec-c232d3fcad3c', is_curated: false, created_at: datetime('2026-02-01T04:05:18.098Z')},
+  {id: 'cc678e75-6237-4283-b32b-f24ac53b94ad', name: 'Cruz Frost', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/91cb3435-177b-4564-b66a-801550556b56', is_curated: true, created_at: datetime('2026-03-20T01:23:31.621Z')},
+  {id: '3df464b3-b275-4f1f-950c-6844591a7348', name: 'Axel Hart', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/d167a7ba-6e57-4762-8160-3a1ce4a192f1', is_curated: false, created_at: datetime('2025-11-10T21:44:31.265Z')},
+  {id: '7c9c2ee6-6e3e-4bb7-857b-3df12bc96cc2', name: 'Sky Frost', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/93a422a6-450f-411a-a5fd-61ef185fa978', is_curated: false, created_at: datetime('2026-02-01T16:34:54.296Z')},
+  {id: '7b4512c1-82c5-444e-9718-6989ead08acc', name: 'Sky Gray', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/300295f7-6c15-4390-9571-16f5abc95406', is_curated: true, created_at: datetime('2025-09-21T17:05:41.164Z')},
+  {id: 'a8d6d6b0-6e69-4751-9c11-d44073011ce2', name: 'Blaze Thorn', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/2e2029ca-2b24-4c73-9792-d6ba824c28f4', is_curated: true, created_at: datetime('2026-02-27T17:42:09.363Z')},
+  {id: 'a1c01f96-d2a0-45e8-9d75-58f037fe05d4', name: 'Sage Young', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/71397102-522c-4894-9b50-41919acb12fb', is_curated: false, created_at: datetime('2025-10-14T18:57:36.776Z')},
+  {id: '76ffe280-c21b-4096-aa17-e6608b81641c', name: 'Blaze Frost', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/ab019fb6-e5d7-40da-9d65-cd591c0d5ce1', is_curated: true, created_at: datetime('2026-04-23T13:32:38.997Z')},
+  {id: '5d5505c8-c2af-49d7-b7ed-e00111ddcad3', name: 'Violet Blade', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/c42b54ea-4716-4551-995e-fa1b6bcd7912', is_curated: false, created_at: datetime('2025-12-14T05:32:18.210Z')},
+  {id: '3278b9ab-5e84-4203-a5d3-3f0f5c53ebf6', name: 'Sophia Flame', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/62cc7776-049a-4f86-968e-ad101dcffcc9', is_curated: false, created_at: datetime('2026-07-10T16:19:37.632Z')},
+  {id: 'e2e295df-cd98-48f5-bf75-1ecd3a938b14', name: 'Ryder Sharp', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/87ced077-1918-469f-b118-9e0f38f9c99e', is_curated: false, created_at: datetime('2025-09-10T12:04:04.108Z')}
 ] AS artist
 MERGE (a:Artist {id: artist.id})
 SET a.name = artist.name,
-    a.location_city = artist.location_city,
-    a.location_region = artist.location_region,
-    a.location_country = artist.location_country,
     a.has_multiple_locations = artist.has_multiple_locations,
     a.profile_url = artist.profile_url,
     a.is_curated = artist.is_curated,
@@ -287,1589 +614,1673 @@ SET a.name = artist.name,
 
 // Batch 4
 UNWIND [
-  {id: 'a87cce35-b813-47ca-9323-99b4392f8337', name: 'Elena Martinez', location_city: 'Newark', location_region: 'New Jersey', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/2cdfbf4e-6873-4e52-9af4-42a13f70647c', is_curated: true, created_at: datetime('2025-09-08T04:09:15.574Z')},
-  {id: '3a6002ff-712a-441e-a483-e2b81e3294ef', name: 'Ryder Steele', location_city: 'Manhattan', location_region: 'New York', location_country: 'United States', has_multiple_locations: true, profile_url: 'https://tatt.example.com/artists/33ee99df-aac4-4eec-a2a9-68d3503f230e', is_curated: true, created_at: datetime('2025-04-30T07:15:07.823Z')},
-  {id: '1c837b81-33cb-48d6-bf1f-786973a2c500', name: 'Blaze Storm', location_city: 'Portland', location_region: 'Oregon', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/cd80584c-8535-46ae-944c-5b1a6204f8c3', is_curated: false, created_at: datetime('2025-09-01T03:02:45.486Z')},
-  {id: '0f54b3c8-c2d3-4414-9c5a-63f3943ffb95', name: 'Zane Wilson', location_city: 'Denver', location_region: 'Colorado', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/2a8a2040-d875-4f5e-b1c5-9dc4ebab998c', is_curated: false, created_at: datetime('2025-09-28T08:17:09.931Z')},
-  {id: '873cc4c0-d115-4725-8746-1539f86ef19a', name: 'Sky Cross', location_city: 'Burlington', location_region: 'Vermont', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/0ea84aa8-853c-4c16-a10f-c2dbd493910e', is_curated: true, created_at: datetime('2025-01-31T22:17:52.212Z')},
-  {id: '0e032094-22d1-44a0-9d5a-c8fd63c4515a', name: 'Kai Fox', location_city: 'Montreal', location_region: 'Quebec', location_country: 'Canada', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/2dbe6d40-31a9-43f2-aca8-f0d642ae80ec', is_curated: false, created_at: datetime('2025-06-01T05:02:50.470Z')},
-  {id: 'f122d140-03a0-451e-93e4-c2cb23683c75', name: 'Violet Phillips', location_city: 'Austin', location_region: 'Texas', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/9c8a55f8-6549-4189-89a0-3213f61ac3c8', is_curated: true, created_at: datetime('2025-03-30T21:55:42.614Z')},
-  {id: '6c331293-5e07-4bca-a7f6-76835d8b598a', name: 'Amara Phillips', location_city: 'Los Angeles', location_region: 'California', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/49cc7ab9-eddf-4241-b810-55259a3d9bba', is_curated: true, created_at: datetime('2025-05-21T02:34:32.621Z')},
-  {id: '2dc45f68-d209-4674-bdf7-fac60eac77be', name: 'Sage Light', location_city: 'Ewing Township', location_region: 'New Jersey', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/2d235180-86e3-4d5a-a3f3-650af8a646b9', is_curated: false, created_at: datetime('2025-11-14T17:51:51.192Z')},
-  {id: '41fb2502-0534-4c3e-a9cf-6eab81351e02', name: 'Aria Frost', location_city: 'Toronto', location_region: 'Ontario', location_country: 'Canada', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/744b79cf-fdde-4ad3-acbf-8dc7a87f17be', is_curated: true, created_at: datetime('2025-12-25T12:45:32.810Z')},
-  {id: 'd547a2c5-cdcd-46e8-8605-4b1ea1e09a1e', name: 'Raven Flame', location_city: 'San Diego', location_region: 'California', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/c7ac9b63-1643-430b-b6ae-7d601b0c8d51', is_curated: true, created_at: datetime('2025-03-17T04:22:31.192Z')},
-  {id: '48a0c6d9-3bef-4d40-a654-7fd229191d89', name: 'Cruz Stone', location_city: 'Ewing Township', location_region: 'New Jersey', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/d085de18-0ed6-400e-9cef-2d4ff72376c1', is_curated: false, created_at: datetime('2025-12-16T00:13:48.885Z')},
-  {id: 'b36730ba-387a-4ce0-93a9-dd4d84960f09', name: 'Cruz Dark', location_city: 'Houston', location_region: 'Texas', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/abe4c68b-2f2c-4452-91af-641a50962c82', is_curated: true, created_at: datetime('2025-07-20T03:33:32.846Z')},
-  {id: 'a2435552-8403-4d90-98fa-391502aa7e1a', name: 'Kane Reed', location_city: 'Austin', location_region: 'Texas', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/725fba60-1d5d-4b75-9a9f-c7d506b20046', is_curated: false, created_at: datetime('2025-01-14T03:54:22.208Z')},
-  {id: '8686b250-2926-43df-8678-e204d3d3a9df', name: 'Seraphina Sharp', location_city: 'Denver', location_region: 'Colorado', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/9ced4f02-e8d5-43a9-a937-58d8fe541182', is_curated: false, created_at: datetime('2025-10-29T06:16:57.825Z')},
-  {id: '4fe7264b-6cf1-4957-a560-785159b50c30', name: 'Blair Stone', location_city: 'Toronto', location_region: 'Ontario', location_country: 'Canada', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/0d3ac98c-9b21-46c8-aa94-ee0f9c129dc2', is_curated: false, created_at: datetime('2025-09-22T05:26:38.052Z')},
-  {id: '5eda1c3d-7486-4438-9056-8814e7ce65b6', name: 'Miss Vampira Rivers', location_city: 'San Francisco', location_region: 'California', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/31234065-5839-457a-a126-46dea4a8d29b', is_curated: true, created_at: datetime('2025-01-31T12:47:13.526Z')},
-  {id: '98c6c5d4-12cd-4434-b875-77ea66c46342', name: 'Drake Reed', location_city: 'Austin', location_region: 'Texas', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/f783942b-f4d0-401b-acb5-5f8ffb7fc506', is_curated: false, created_at: datetime('2025-02-04T17:18:40.307Z')},
-  {id: 'bae3c29b-cba3-457d-a2df-b53e8198d5bc', name: 'Ember Young', location_city: 'Toronto', location_region: 'Ontario', location_country: 'Canada', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/00354a3b-990f-4510-9c9b-aef98ec1ae7c', is_curated: false, created_at: datetime('2025-04-10T14:44:08.611Z')},
-  {id: '427e1174-bc2a-4dd0-8e20-e34f35de4283', name: 'Lyra Cross', location_city: 'San Diego', location_region: 'California', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/1fe81967-ed55-4ba9-862b-264b6bc53a77', is_curated: false, created_at: datetime('2025-02-22T21:09:23.766Z')},
-  {id: '25707142-b1b6-4699-829a-6acb685b29e7', name: 'Asher Schwartz', location_city: 'Perth', location_region: 'Western Australia', location_country: 'Australia', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/b5a2c92b-ee4c-4ee1-b5f2-26f75fa667bf', is_curated: false, created_at: datetime('2025-07-05T20:34:42.484Z')},
-  {id: 'daabc26e-bb55-447d-8356-0f7a833b6104', name: 'Miss Vampira Phillips', location_city: 'Jersey City', location_region: 'New Jersey', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/e6687f29-e497-4ac7-839a-95ea61f8fb10', is_curated: false, created_at: datetime('2025-11-06T00:09:48.784Z')},
-  {id: 'd2d11c0d-2487-4c30-bc6b-506392a6a98e', name: 'Dante Thorn', location_city: 'Manhattan', location_region: 'New York', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/ff8840c4-511d-4535-812f-18af9089c5e3', is_curated: false, created_at: datetime('2025-06-21T02:52:34.974Z')},
-  {id: '37174f32-5038-46c0-92ef-4629ca6234d8', name: 'Raven Rivers', location_city: 'Burlington', location_region: 'Vermont', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/f88e9d26-a2fd-440f-8b8b-7a8f0220152d', is_curated: false, created_at: datetime('2025-07-20T07:58:57.839Z')},
-  {id: '33afdffc-0751-48ec-bbbb-e7c76ae4c786', name: 'Violet Cross', location_city: 'Miami', location_region: 'Florida', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/5e575848-163c-42b2-88ea-ab3d0602b1c0', is_curated: false, created_at: datetime('2025-01-23T02:17:38.370Z')},
-  {id: '81fbbf5c-35da-4952-b02a-c8e0e9791c8a', name: 'Wolf Dark', location_city: 'Miami', location_region: 'Florida', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/e0eda7ed-466d-4cd7-9585-76be36a8e075', is_curated: false, created_at: datetime('2025-04-10T21:13:23.120Z')},
-  {id: '064d66cc-5d95-46ee-9139-403c71fdd16e', name: 'Marcus Bold', location_city: 'Austin', location_region: 'Texas', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/8b75ee80-e411-4805-a82d-cb45eb9a339f', is_curated: true, created_at: datetime('2025-03-18T21:17:42.754Z')},
-  {id: '6bfb7fc8-b187-4484-998d-6031b10f6371', name: 'Raven Star', location_city: 'San Diego', location_region: 'California', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/6535d9d6-5ba2-4340-9a8c-ee1e6e9d36a0', is_curated: false, created_at: datetime('2025-04-10T16:07:23.427Z')},
-  {id: '8c74b725-b915-4b40-925c-45d3ca1e5dcb', name: 'Cruz Flame', location_city: 'Ewing Township', location_region: 'New Jersey', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/e996798c-faff-4eab-b252-f1086e9d496c', is_curated: true, created_at: datetime('2025-11-23T07:05:58.944Z')},
-  {id: '117b8dbf-19bd-4fa1-b1f4-57e0bcaee126', name: 'Luna Martinez', location_city: 'Houston', location_region: 'Texas', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/e8ec508b-e000-4715-b740-a8c49b8e8336', is_curated: false, created_at: datetime('2025-03-24T19:27:38.174Z')},
-  {id: '62e09fb8-95db-47c9-9752-a2e6814cd910', name: 'Tyler Cloud', location_city: 'Los Angeles', location_region: 'California', location_country: 'United States', has_multiple_locations: true, profile_url: 'https://tatt.example.com/artists/29dd88ad-152f-4bb0-ae35-bdce1d705950', is_curated: false, created_at: datetime('2025-12-10T09:58:51.115Z')},
-  {id: '696209f0-58d1-45b5-95c3-d8e59b7c5d35', name: 'Steel Wild', location_city: 'Tampa', location_region: 'Florida', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/cd5baa8b-788b-4776-81b8-2b6018e86461', is_curated: false, created_at: datetime('2025-07-21T04:16:46.803Z')},
-  {id: '6cf0c158-2361-4019-b58e-0a697db8f056', name: 'Aria Steele', location_city: 'Vancouver', location_region: 'British Columbia', location_country: 'Canada', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/6d5399cc-9a60-40b4-adf5-975cf606954e', is_curated: false, created_at: datetime('2025-11-02T22:35:26.669Z')},
-  {id: '44f377a4-5490-4aca-9112-92fce03d5ff6', name: 'Luna Wolfe', location_city: 'Brooklyn', location_region: 'New York', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/8f5ca844-65da-4abd-a472-13004f6cecfd', is_curated: true, created_at: datetime('2025-02-12T23:37:36.465Z')},
-  {id: '1d558228-498d-4496-b3e1-78286c675e71', name: 'Ryder Cloud', location_city: 'Tucson', location_region: 'Arizona', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/d57d1915-0c27-4b27-9ff1-a9f80a6952ec', is_curated: true, created_at: datetime('2025-08-26T19:25:28.298Z')},
-  {id: 'e8724aea-dbd3-4a9c-aafa-408ff8cac6de', name: 'Luna Chen', location_city: 'Burlington', location_region: 'Vermont', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/eac42a4a-15bb-419e-888c-57dd7ddade28', is_curated: false, created_at: datetime('2025-02-01T08:40:06.987Z')},
-  {id: 'a10c47be-07d7-4795-9079-807a494a6258', name: 'Blaze Knight', location_city: 'Perth', location_region: 'Western Australia', location_country: 'Australia', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/814eb61d-6177-45f0-8543-d970ec6df79b', is_curated: true, created_at: datetime('2025-08-12T07:07:14.177Z')},
-  {id: '8ed7958a-b935-47f7-a6bc-4ab319f662a4', name: 'Raven Iron', location_city: 'San Francisco', location_region: 'California', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/6bd57a9a-6ffc-4f61-9357-3afaaf68e2db', is_curated: false, created_at: datetime('2025-05-07T15:44:06.814Z')},
-  {id: 'a6fe90d3-5f30-4541-bb8e-9f7e005f3a49', name: 'Zara Cross', location_city: 'Ewing Township', location_region: 'New Jersey', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/84f54fa9-a5e7-4464-9f76-f1853b91750a', is_curated: true, created_at: datetime('2025-09-01T23:20:42.362Z')},
-  {id: '00a038b1-524d-480c-b634-a50593081c8c', name: 'Luna Light', location_city: 'Miami', location_region: 'Florida', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/bad43734-cb4d-4abc-9697-a9ff37153c32', is_curated: true, created_at: datetime('2025-04-13T22:22:34.855Z')},
-  {id: 'd7319521-ca55-4c66-937b-28d4307b32d7', name: 'Zephyr Fox', location_city: 'Brooklyn', location_region: 'New York', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/41e18ece-fb8d-4ec8-9f86-4fd80586c3d2', is_curated: true, created_at: datetime('2025-04-28T14:12:09.589Z')},
-  {id: 'ed7eba39-c91d-445e-a98e-7259bdb6eacb', name: 'Knox Black', location_city: 'Portland', location_region: 'Oregon', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/13e1e9d5-eb98-4275-9a15-9872d99f6d76', is_curated: true, created_at: datetime('2025-03-20T09:49:11.790Z')},
-  {id: 'df5edcdc-2cf0-44ed-9c36-ba2459054f2d', name: 'Luna Wilson', location_city: 'Austin', location_region: 'Texas', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/a21289bc-73db-4b46-9e46-85e76ceec34e', is_curated: false, created_at: datetime('2025-06-13T20:13:33.304Z')},
-  {id: '0f5b18ee-ff0a-48f4-93fa-cb47ab9ad27b', name: 'Ryder Gray', location_city: 'Ewing Township', location_region: 'New Jersey', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/f68db921-5aac-486a-9430-cfa047f60042', is_curated: false, created_at: datetime('2025-06-04T13:29:23.279Z')},
-  {id: '12f9f8b5-4422-4151-8dcb-076529349277', name: 'Blair Dark', location_city: 'Melbourne', location_region: 'Victoria', location_country: 'Australia', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/429603d1-ae10-46e6-b623-ab7840d64e2a', is_curated: true, created_at: datetime('2025-04-18T10:44:29.459Z')},
-  {id: 'd9550683-6866-4dec-a927-c82ba207eac4', name: 'Drake Bold', location_city: 'Los Angeles', location_region: 'California', location_country: 'United States', has_multiple_locations: true, profile_url: 'https://tatt.example.com/artists/e6581548-efd8-4a68-bc28-2826cc3d7fae', is_curated: true, created_at: datetime('2025-03-10T15:10:04.789Z')},
-  {id: '3e13af16-5597-4b2e-bea7-1c59f3c53730', name: 'Steel Wolfe', location_city: 'Ewing Township', location_region: 'New Jersey', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/8c791c5b-ec4e-4d97-ba89-3c6631e9fee2', is_curated: true, created_at: datetime('2025-11-25T07:22:03.867Z')},
-  {id: 'f567514d-2e0f-4588-9960-4bc04fa0d423', name: 'Knox Phillips', location_city: 'Brooklyn', location_region: 'New York', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/f8123689-de7c-4d10-8788-48c39e418e21', is_curated: false, created_at: datetime('2025-11-11T19:28:53.503Z')},
-  {id: '0df583e5-8422-4995-84c3-6b0d33ce732f', name: 'River Wilson', location_city: 'Denver', location_region: 'Colorado', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/e8dc9af8-d2ae-4a59-bed9-b47941a20a3a', is_curated: true, created_at: datetime('2025-04-23T09:02:58.963Z')},
-  {id: '1bd804dc-7da1-405d-8da9-61257ae42e27', name: 'Blair Iron', location_city: 'Ewing Township', location_region: 'New Jersey', location_country: 'United States', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/6b6bd98d-f869-46f7-9b05-475f0ee46679', is_curated: true, created_at: datetime('2025-01-13T17:22:22.450Z')}
+  {id: '866d79b4-882e-4610-908d-65f1abddce66', name: 'Elena Fox', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/a5e289d0-833d-45c9-90d8-7d5d32cd6201', is_curated: false, created_at: datetime('2025-08-25T07:14:06.189Z')},
+  {id: '11dc59a3-6dd7-4f81-b719-a1f98447ca2e', name: 'Raven Iron', has_multiple_locations: true, profile_url: 'https://tatt.example.com/artists/f7c375a2-7024-4f46-9b83-0840daf44459', is_curated: false, created_at: datetime('2025-09-28T02:25:56.351Z')},
+  {id: '39da1ffe-73dc-4ac0-a22e-a9eda5ebdf31', name: 'Zane Storm', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/75369ae7-5c09-42a4-83ea-a1c81a432af1', is_curated: false, created_at: datetime('2026-02-06T21:09:33.494Z')},
+  {id: 'bd2cfcbb-faea-4215-92c8-c132bf8da238', name: 'Elena Dark', has_multiple_locations: true, profile_url: 'https://tatt.example.com/artists/aad8ded2-d01d-4b8e-a378-b0e41bd5e889', is_curated: false, created_at: datetime('2026-02-05T12:57:31.622Z')},
+  {id: '4505d6e4-7924-4b4f-b842-e266de7a9a0b', name: 'Felix Moon', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/e98eb0d8-4337-4baa-ae12-5bfa85c0b219', is_curated: false, created_at: datetime('2025-12-25T15:45:24.400Z')},
+  {id: '1d782048-86c4-44ad-b250-8d0e34d5561e', name: 'River Wild', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/5ea5a8ee-0233-4af7-83f0-4e74201328a1', is_curated: false, created_at: datetime('2026-06-09T19:41:41.839Z')},
+  {id: '7528da8e-5e08-4cf5-bbfc-4162ba4c1e57', name: 'Orion Blade', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/ea3f0b0e-5d3d-4d47-a3d7-9ee9d7d827c5', is_curated: true, created_at: datetime('2026-07-04T16:19:11.360Z')},
+  {id: 'f676d9fc-e893-4ff7-aed1-2725a03b7b69', name: 'Willow Steele', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/f174b88c-155f-4e71-9910-720e7fe33339', is_curated: true, created_at: datetime('2026-01-21T16:02:59.072Z')},
+  {id: 'e4bc3fa9-df8b-476f-b489-48228a714fa2', name: 'Sage Reed', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/59d18bb3-eab9-4bad-aa87-c571325ea306', is_curated: true, created_at: datetime('2026-04-24T03:42:31.814Z')},
+  {id: '3e41b67a-36ca-4486-a6c0-8ed471a24a9f', name: 'Phoenix Chen', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/3f46c9f5-885b-4cb8-b1e4-2b7654206b81', is_curated: false, created_at: datetime('2025-12-12T15:33:45.081Z')},
+  {id: '1b9da0c9-ca52-43fb-8d45-446a80f3cf23', name: 'Sky Wolfe', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/f5953d06-51eb-4e88-b86a-08a5d58d2c43', is_curated: false, created_at: datetime('2026-04-21T20:50:04.665Z')},
+  {id: '772bbc78-e611-45ed-b252-c62c89a58184', name: 'Asher Wolfe', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/c7f77e33-924e-4960-a6b9-7a1e0b0d83cc', is_curated: true, created_at: datetime('2026-03-16T01:32:32.158Z')},
+  {id: 'a872ddeb-b14b-4205-88a7-2afd5774fff0', name: 'Zephyr Iron', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/457d61e8-007e-45bd-abaf-d035a9271607', is_curated: false, created_at: datetime('2025-08-17T15:03:48.254Z')},
+  {id: '56087216-8a98-4df8-a16c-4dbf99c94e9c', name: 'Zephyr Storm', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/9e7a47e3-86f8-4aff-baa2-50d3638478e6', is_curated: false, created_at: datetime('2026-06-11T04:19:57.514Z')},
+  {id: '26aae468-b0d2-41f7-b6f6-7380dd67a60c', name: 'Zara Steele', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/aa113bdf-a516-424f-aeea-15b4ac131491', is_curated: true, created_at: datetime('2025-12-11T14:56:00.900Z')},
+  {id: '794a7f8b-1904-48a5-b407-4b85b6613ed3', name: 'Felix Steele', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/10e25bd4-4ee4-4b4e-bdf4-7d62e57e8883', is_curated: false, created_at: datetime('2026-06-02T15:49:52.580Z')},
+  {id: '1e61ba1e-046d-4044-9784-704d8cd4a725', name: 'Drake Iron', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/2cea32cc-caac-40a2-8679-7c5c7328abf3', is_curated: false, created_at: datetime('2026-02-05T18:42:03.428Z')},
+  {id: 'a83936a8-f6fe-4615-9030-b0fdebfc81a0', name: 'Blair Thorn', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/cca11848-3d63-442a-8055-947949e39a2b', is_curated: true, created_at: datetime('2026-03-19T12:52:31.543Z')},
+  {id: '0b5aae9e-7115-4be6-a571-c8328a1117e7', name: 'Cruz Gray', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/1cc34038-da24-49f5-b781-95ba2b3972e5', is_curated: false, created_at: datetime('2025-10-28T10:57:58.157Z')},
+  {id: 'a3ab9151-1259-483c-887a-388948f01cf8', name: 'Sky Silver', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/b0278e78-061f-4257-8ec9-f8950eab2497', is_curated: true, created_at: datetime('2025-08-04T08:35:01.477Z')},
+  {id: '3edbc498-55b5-485d-81a7-2902da3f6893', name: 'Blair Fox', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/e67a1410-0ca6-4342-a5e3-6a31b5a785c5', is_curated: false, created_at: datetime('2025-10-10T21:30:58.620Z')},
+  {id: '5c63871c-c87f-40d6-8eff-7582ffecb7ed', name: 'Aria Bright', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/99d2586e-08c4-4302-955f-246e7fcfdd2d', is_curated: false, created_at: datetime('2025-08-31T10:58:34.453Z')},
+  {id: '5ee83f4c-3812-422e-8969-e6f9d71d2d25', name: 'Zephyr Chen', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/9045c809-4eba-4233-81a1-7175804b8aba', is_curated: true, created_at: datetime('2026-02-28T08:33:44.976Z')},
+  {id: '85c8b8c3-91e1-4577-a4d6-36ba2338af44', name: 'Seraphina Rivers', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/934b8d79-4dc4-46af-b2e9-2032be8898da', is_curated: false, created_at: datetime('2026-05-27T13:08:59.847Z')},
+  {id: 'c05fbe90-288a-4bc9-a099-b06f81ce2c92', name: 'Storm Bright', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/9a6f8382-33ca-43d8-b9c4-14cc140cbc5c', is_curated: true, created_at: datetime('2026-06-21T00:40:47.613Z')},
+  {id: 'a8984ae8-1699-4190-b367-6cd3134953d2', name: 'Wolf Schwartz', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/87631753-e0dd-4d97-ba5f-b4404ac10425', is_curated: false, created_at: datetime('2025-10-06T01:05:12.725Z')},
+  {id: '3000a0b8-e841-4a45-a7af-cdbc1ac555fd', name: 'Zara Storm', has_multiple_locations: true, profile_url: 'https://tatt.example.com/artists/365d0d16-3446-43a8-bc2e-2703dea78bb0', is_curated: true, created_at: datetime('2026-02-26T11:24:01.590Z')},
+  {id: '546acb61-e7e5-43c0-9434-a53a0781c89a', name: 'Ember Frost', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/265bb8f2-e146-432c-99c5-c866bc0e2485', is_curated: false, created_at: datetime('2026-03-17T01:00:51.829Z')},
+  {id: 'e2741d5d-76fd-4aa9-80ce-c895a4bc5726', name: 'Asher Hart', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/5f09911f-2e40-4223-82da-913c143a0d00', is_curated: true, created_at: datetime('2026-02-20T17:25:37.937Z')},
+  {id: 'ef41eded-9b52-4124-8575-a2018ed200db', name: 'Kane Young', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/c9448b0f-e0b0-47e2-bb68-7c27e40792e1', is_curated: true, created_at: datetime('2025-08-29T09:01:44.593Z')},
+  {id: 'f57663d2-7d36-4407-ab69-4ce308865e70', name: 'Sophia Steele', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/b0b69619-da71-4271-9ef9-ced7ec2c1c62', is_curated: false, created_at: datetime('2025-09-04T13:27:47.530Z')},
+  {id: '52cfc283-3d3f-478f-8e69-5497c0a21240', name: 'Dante Iron', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/b6d8b52d-5d1e-46f5-a20c-0f58d716e79f', is_curated: true, created_at: datetime('2026-04-19T11:37:43.080Z')},
+  {id: '3890674b-a870-4abb-b32e-b7cc18548349', name: 'Nova Fox', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/9f1f9f32-c699-4c24-b693-b737147539ea', is_curated: false, created_at: datetime('2026-02-27T17:30:40.140Z')},
+  {id: '7d1920ae-0df9-4727-b459-352346efd0bd', name: 'Knox Light', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/f1a0e477-549a-431b-947c-0dfbcc618aca', is_curated: false, created_at: datetime('2026-02-23T12:27:16.417Z')},
+  {id: 'ed91da3c-a198-45ad-97ed-b3160be1192d', name: 'Jade Stone', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/f23c0c71-2f55-4ec2-b889-4aca73c2f3ed', is_curated: true, created_at: datetime('2026-02-10T15:14:29.791Z')},
+  {id: '97db48a6-0c51-4c89-88f7-4b941569e0a9', name: 'Orion Wolfe', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/1df00960-e3e9-4885-a5c0-9272adb6d60e', is_curated: false, created_at: datetime('2025-07-29T06:28:33.850Z')},
+  {id: 'd12a0be6-78af-40cb-a398-f6f2d1df4baf', name: 'Aurora Silver', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/1216d0b3-e46f-45ea-8c9f-03d9cafc5f5d', is_curated: false, created_at: datetime('2026-04-11T21:38:22.819Z')},
+  {id: '434098b1-bccd-49c8-b771-4683a861fcea', name: 'Aurora Reed', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/77d49da9-1d3b-42a8-b526-02c1b0751da0', is_curated: false, created_at: datetime('2026-01-27T16:49:16.462Z')},
+  {id: '386bf3d6-f358-4738-9ddb-5079ebca7909', name: 'Asher Gray', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/e915aca8-e04c-4d57-be41-3e0922ed1012', is_curated: true, created_at: datetime('2025-09-02T08:17:53.295Z')},
+  {id: 'fc8bcf0b-fb25-422f-877c-ac1c7a13d57d', name: 'Lilith Gray', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/0b6e430d-5094-439d-a6f8-58325b7a0d5f', is_curated: true, created_at: datetime('2026-05-01T08:49:22.275Z')},
+  {id: '8df11dfe-b26b-4299-82c9-269c9b3ad476', name: 'Aurora Star', has_multiple_locations: true, profile_url: 'https://tatt.example.com/artists/206c9fb1-35fa-4690-b52a-632c42c04b83', is_curated: true, created_at: datetime('2025-10-21T16:33:10.556Z')},
+  {id: '1e242c36-a916-4c94-ab2d-1265f74dd48b', name: 'Elena Martinez', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/360d72d9-e52d-4ebb-b67c-d485fbb2cab4', is_curated: false, created_at: datetime('2025-07-31T12:08:06.322Z')},
+  {id: 'f56e08f5-7a4c-4b77-95f6-1cdebcf1938f', name: 'Wolf Star', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/f1ef63d2-1b47-4a9f-8d61-f6098cce68f4', is_curated: true, created_at: datetime('2026-05-18T06:29:53.908Z')},
+  {id: 'c8f53513-6e40-43f0-9d0f-81fe16302e20', name: 'Seraphina Stone', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/6ff8257a-ce95-4cfb-90c1-c11abb968a5c', is_curated: true, created_at: datetime('2025-08-28T02:25:49.281Z')},
+  {id: '1371fabb-9b03-4bbe-810d-e9d9c92bbcd3', name: 'Violet Steele', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/878058d9-439c-4e59-adfe-b7441b632546', is_curated: false, created_at: datetime('2025-10-28T01:45:03.244Z')},
+  {id: 'c30d7b12-4802-4ea3-8105-c4a45c013cea', name: 'Wolf Anderson', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/886dfcde-b319-4c11-bece-17d43d270649', is_curated: false, created_at: datetime('2026-04-03T14:22:40.117Z')},
+  {id: '8cf15fea-bb4f-42ba-9e13-aac5ad7df738', name: 'Amara Wilson', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/d437cec3-d13e-4d42-939d-a33d4d6e335f', is_curated: false, created_at: datetime('2026-06-26T00:22:27.955Z')},
+  {id: '2510c2ea-ff53-4f3e-9c28-b456e5384fa6', name: 'Phoenix Thorn', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/d4a3c029-bd91-43a4-abbd-7c07b9a82c21', is_curated: true, created_at: datetime('2026-06-13T14:01:58.796Z')},
+  {id: 'd294198f-f290-4db6-904d-ee2ff4cf30a1', name: 'Orion Wilson', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/e40cbb22-605d-4f19-9cd0-26a97cc73989', is_curated: true, created_at: datetime('2026-06-06T08:15:05.825Z')},
+  {id: '2c994788-0cd3-454a-b46b-5399baabff99', name: 'Blair Frost', has_multiple_locations: false, profile_url: 'https://tatt.example.com/artists/f127017c-4e98-4315-b293-42d870bcb941', is_curated: true, created_at: datetime('2026-06-17T13:28:36.971Z')}
 ] AS artist
 MERGE (a:Artist {id: artist.id})
 SET a.name = artist.name,
-    a.location_city = artist.location_city,
-    a.location_region = artist.location_region,
-    a.location_country = artist.location_country,
     a.has_multiple_locations = artist.has_multiple_locations,
     a.profile_url = artist.profile_url,
     a.is_curated = artist.is_curated,
     a.created_at = artist.created_at;
 
-// Create LOCATED_IN relationships
-MATCH (a:Artist), (l:Location)
-WHERE a.location_city = l.city AND a.location_region = l.region AND a.location_country = l.country
-MERGE (a)-[:LOCATED_IN]->(l);
+// Create HAS_CITY relationships (State -> City)
+MATCH (st:State {name: 'Texas'}), (c:City {name: 'Austin', state: 'Texas'}) MERGE (st)-[:HAS_CITY]->(c);
+MATCH (st:State {name: 'Colorado'}), (c:City {name: 'Denver', state: 'Colorado'}) MERGE (st)-[:HAS_CITY]->(c);
+MATCH (st:State {name: 'Quebec'}), (c:City {name: 'Montreal', state: 'Quebec'}) MERGE (st)-[:HAS_CITY]->(c);
+MATCH (st:State {name: 'New Jersey'}), (c:City {name: 'Newark', state: 'New Jersey'}) MERGE (st)-[:HAS_CITY]->(c);
+MATCH (st:State {name: 'Florida'}), (c:City {name: 'Tampa', state: 'Florida'}) MERGE (st)-[:HAS_CITY]->(c);
+MATCH (st:State {name: 'Oregon'}), (c:City {name: 'Portland', state: 'Oregon'}) MERGE (st)-[:HAS_CITY]->(c);
+MATCH (st:State {name: 'Texas'}), (c:City {name: 'Houston', state: 'Texas'}) MERGE (st)-[:HAS_CITY]->(c);
+MATCH (st:State {name: 'New Jersey'}), (c:City {name: 'Ewing Township', state: 'New Jersey'}) MERGE (st)-[:HAS_CITY]->(c);
+MATCH (st:State {name: 'New York'}), (c:City {name: 'Brooklyn', state: 'New York'}) MERGE (st)-[:HAS_CITY]->(c);
+MATCH (st:State {name: 'California'}), (c:City {name: 'San Diego', state: 'California'}) MERGE (st)-[:HAS_CITY]->(c);
+MATCH (st:State {name: 'Arizona'}), (c:City {name: 'Tucson', state: 'Arizona'}) MERGE (st)-[:HAS_CITY]->(c);
+MATCH (st:State {name: 'New York'}), (c:City {name: 'Manhattan', state: 'New York'}) MERGE (st)-[:HAS_CITY]->(c);
+MATCH (st:State {name: 'Texas'}), (c:City {name: 'Dallas', state: 'Texas'}) MERGE (st)-[:HAS_CITY]->(c);
+MATCH (st:State {name: 'Vermont'}), (c:City {name: 'Burlington', state: 'Vermont'}) MERGE (st)-[:HAS_CITY]->(c);
+MATCH (st:State {name: 'New South Wales'}), (c:City {name: 'Sydney', state: 'New South Wales'}) MERGE (st)-[:HAS_CITY]->(c);
+MATCH (st:State {name: 'Florida'}), (c:City {name: 'Miami', state: 'Florida'}) MERGE (st)-[:HAS_CITY]->(c);
+MATCH (st:State {name: 'New Jersey'}), (c:City {name: 'Jersey City', state: 'New Jersey'}) MERGE (st)-[:HAS_CITY]->(c);
+MATCH (st:State {name: 'Victoria'}), (c:City {name: 'Melbourne', state: 'Victoria'}) MERGE (st)-[:HAS_CITY]->(c);
+MATCH (st:State {name: 'Ontario'}), (c:City {name: 'Toronto', state: 'Ontario'}) MERGE (st)-[:HAS_CITY]->(c);
+MATCH (st:State {name: 'Western Australia'}), (c:City {name: 'Perth', state: 'Western Australia'}) MERGE (st)-[:HAS_CITY]->(c);
+MATCH (st:State {name: 'Arizona'}), (c:City {name: 'Phoenix', state: 'Arizona'}) MERGE (st)-[:HAS_CITY]->(c);
+MATCH (st:State {name: 'British Columbia'}), (c:City {name: 'Vancouver', state: 'British Columbia'}) MERGE (st)-[:HAS_CITY]->(c);
+MATCH (st:State {name: 'California'}), (c:City {name: 'Los Angeles', state: 'California'}) MERGE (st)-[:HAS_CITY]->(c);
+MATCH (st:State {name: 'California'}), (c:City {name: 'San Francisco', state: 'California'}) MERGE (st)-[:HAS_CITY]->(c);
 
-// Create PRACTICES_STYLE relationships
-MATCH (a:Artist {id: '3bd06f61-bdf4-4147-9411-ec0fcff0cea4'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '3bd06f61-bdf4-4147-9411-ec0fcff0cea4'}), (s:Style {name: 'Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '3bd06f61-bdf4-4147-9411-ec0fcff0cea4'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '3bd06f61-bdf4-4147-9411-ec0fcff0cea4'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '6026f7ac-5b01-4891-b47f-ae32f4ddf09b'}), (s:Style {name: 'New School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '6026f7ac-5b01-4891-b47f-ae32f4ddf09b'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'a9436f14-53f9-4056-953e-29f560dab5a9'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'a9436f14-53f9-4056-953e-29f560dab5a9'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'a9436f14-53f9-4056-953e-29f560dab5a9'}), (s:Style {name: 'New School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'a9436f14-53f9-4056-953e-29f560dab5a9'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '92824bf4-f3b6-41c8-89bd-97eb1e600d1b'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '759e2449-2616-4d3a-a327-7e3bbd57083e'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '759e2449-2616-4d3a-a327-7e3bbd57083e'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '759e2449-2616-4d3a-a327-7e3bbd57083e'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '942d3fd3-2fad-4074-adc9-abb76e638665'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '942d3fd3-2fad-4074-adc9-abb76e638665'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '81d10875-d68a-4e58-aef7-b29e5f8e48ce'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '81d10875-d68a-4e58-aef7-b29e5f8e48ce'}), (s:Style {name: 'New School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '81d10875-d68a-4e58-aef7-b29e5f8e48ce'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '81d10875-d68a-4e58-aef7-b29e5f8e48ce'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '43ea7a24-622c-4402-8780-2acdcbe6d9cb'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'ba5e7645-45d8-4acb-b1b4-cdbceb38a10a'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'ba5e7645-45d8-4acb-b1b4-cdbceb38a10a'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'ba5e7645-45d8-4acb-b1b4-cdbceb38a10a'}), (s:Style {name: 'Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'ba5e7645-45d8-4acb-b1b4-cdbceb38a10a'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '018e0cac-4608-46ab-a3ad-474a9b9ab7de'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '018e0cac-4608-46ab-a3ad-474a9b9ab7de'}), (s:Style {name: 'Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '018e0cac-4608-46ab-a3ad-474a9b9ab7de'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'ce1fe16c-7d7b-43fb-aa11-51c027f3152c'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'ce1fe16c-7d7b-43fb-aa11-51c027f3152c'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'ce1fe16c-7d7b-43fb-aa11-51c027f3152c'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e614a27f-bb8b-4bb8-8afa-cb4f74751eb7'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e614a27f-bb8b-4bb8-8afa-cb4f74751eb7'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e614a27f-bb8b-4bb8-8afa-cb4f74751eb7'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'da6e554a-27e5-493f-a31a-b579036e52bb'}), (s:Style {name: 'New School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'b21a3922-5c2c-4286-a7f3-c586ee2e927b'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'b21a3922-5c2c-4286-a7f3-c586ee2e927b'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'b21a3922-5c2c-4286-a7f3-c586ee2e927b'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '25ad22ab-c8db-439a-81b7-1e48b85314ba'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '25ad22ab-c8db-439a-81b7-1e48b85314ba'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '25ad22ab-c8db-439a-81b7-1e48b85314ba'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '80dd0ffe-7841-4a7b-9920-68c84e20409f'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '35908fd7-da81-4848-bac3-9c2a2b336b4b'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '35908fd7-da81-4848-bac3-9c2a2b336b4b'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '35908fd7-da81-4848-bac3-9c2a2b336b4b'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '35908fd7-da81-4848-bac3-9c2a2b336b4b'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'b72a8e3a-18b6-4311-a23f-e7ec5092e619'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'b72a8e3a-18b6-4311-a23f-e7ec5092e619'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'b72a8e3a-18b6-4311-a23f-e7ec5092e619'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'b72a8e3a-18b6-4311-a23f-e7ec5092e619'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '259dea08-04a7-4119-95ac-f5d2b3ba153d'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'aae32407-b25d-401e-8c80-aa744a523230'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'aae32407-b25d-401e-8c80-aa744a523230'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'aae32407-b25d-401e-8c80-aa744a523230'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'aae32407-b25d-401e-8c80-aa744a523230'}), (s:Style {name: 'New School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'd985253d-7364-4aea-9efb-ab094935b1d1'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'd985253d-7364-4aea-9efb-ab094935b1d1'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '27346ff0-e86f-4c73-be87-d19d2691d7c7'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '27346ff0-e86f-4c73-be87-d19d2691d7c7'}), (s:Style {name: 'New School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '27346ff0-e86f-4c73-be87-d19d2691d7c7'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '27346ff0-e86f-4c73-be87-d19d2691d7c7'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'f6677d34-df32-444d-a4f9-07414f2ccb71'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'f6677d34-df32-444d-a4f9-07414f2ccb71'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '839b9086-cf3f-4b42-98c5-68dfb89655cb'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '839b9086-cf3f-4b42-98c5-68dfb89655cb'}), (s:Style {name: 'Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '839b9086-cf3f-4b42-98c5-68dfb89655cb'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '20929771-d891-4b6a-944a-ae6ccf5fd67f'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '20929771-d891-4b6a-944a-ae6ccf5fd67f'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '9ccf2900-6eae-4e31-941a-537fd076b26e'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '9ccf2900-6eae-4e31-941a-537fd076b26e'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '9ccf2900-6eae-4e31-941a-537fd076b26e'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '543f2e52-b849-4819-a72e-670a0bb837b3'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '543f2e52-b849-4819-a72e-670a0bb837b3'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '543f2e52-b849-4819-a72e-670a0bb837b3'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '0aa0d199-c0e9-461e-b98f-682dad5469ec'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '0aa0d199-c0e9-461e-b98f-682dad5469ec'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '05c1794a-a723-44c1-a5b6-4415c7bf2647'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '05c1794a-a723-44c1-a5b6-4415c7bf2647'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '05c1794a-a723-44c1-a5b6-4415c7bf2647'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'd6a9930c-68ed-4f33-a8a5-7d44b441fe1e'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'd6a9930c-68ed-4f33-a8a5-7d44b441fe1e'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'd6a9930c-68ed-4f33-a8a5-7d44b441fe1e'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'eb333b79-aec6-4da1-b88d-08665d05fd3a'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'eb333b79-aec6-4da1-b88d-08665d05fd3a'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'eb333b79-aec6-4da1-b88d-08665d05fd3a'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '5845f507-6538-4cd8-b271-eb8aa11c53cd'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '5845f507-6538-4cd8-b271-eb8aa11c53cd'}), (s:Style {name: 'New School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '8354ec80-dfe5-454e-ae06-224f4550b263'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '8354ec80-dfe5-454e-ae06-224f4550b263'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '8354ec80-dfe5-454e-ae06-224f4550b263'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'f091156c-5130-48b2-93ee-78ecdb2dc131'}), (s:Style {name: 'New School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'f091156c-5130-48b2-93ee-78ecdb2dc131'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '3e9af287-58da-40bc-bb97-131be29803b1'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '0cc00470-5afc-457d-825e-38cad7829982'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '0cc00470-5afc-457d-825e-38cad7829982'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '0cc00470-5afc-457d-825e-38cad7829982'}), (s:Style {name: 'Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '0cc00470-5afc-457d-825e-38cad7829982'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '2a0c04ba-e135-4ff4-9a27-a20a2e68ce15'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '2a0c04ba-e135-4ff4-9a27-a20a2e68ce15'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e952f62a-2618-4286-92a5-dc01dd686041'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e952f62a-2618-4286-92a5-dc01dd686041'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'b11c8811-91d2-44b8-bf6d-2c0be4b127a6'}), (s:Style {name: 'New School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'b11c8811-91d2-44b8-bf6d-2c0be4b127a6'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'cd5c9e8b-5610-4487-a22c-b09459ea4c91'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'cd5c9e8b-5610-4487-a22c-b09459ea4c91'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'cd5c9e8b-5610-4487-a22c-b09459ea4c91'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'cd5c9e8b-5610-4487-a22c-b09459ea4c91'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'dc20c1aa-b217-4ecb-85e4-a13fa5f4f10b'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'dc20c1aa-b217-4ecb-85e4-a13fa5f4f10b'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'dc20c1aa-b217-4ecb-85e4-a13fa5f4f10b'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '1f88ee60-8728-472f-a0fa-9f54afbfda10'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '1f88ee60-8728-472f-a0fa-9f54afbfda10'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e4bd1bff-e8d8-49e9-b491-574e7a76d155'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e4bd1bff-e8d8-49e9-b491-574e7a76d155'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e4bd1bff-e8d8-49e9-b491-574e7a76d155'}), (s:Style {name: 'Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'aeffaf5a-5e2e-455b-bfde-9ea0ab74fb87'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'aeffaf5a-5e2e-455b-bfde-9ea0ab74fb87'}), (s:Style {name: 'Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'aeffaf5a-5e2e-455b-bfde-9ea0ab74fb87'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'aeffaf5a-5e2e-455b-bfde-9ea0ab74fb87'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'b86e99cc-5956-4f68-9fe3-1d7bb1a2ef0f'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e8fe54b1-6a86-496f-b69d-71a357d8f92f'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e8fe54b1-6a86-496f-b69d-71a357d8f92f'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '05668c66-56b9-460b-a950-a57552b65358'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '05668c66-56b9-460b-a950-a57552b65358'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '05668c66-56b9-460b-a950-a57552b65358'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '53360081-cb1d-4b9e-ab1a-aeb1f647aa35'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '53360081-cb1d-4b9e-ab1a-aeb1f647aa35'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'ebf28709-0a85-4601-a684-6609c07dde60'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'ebf28709-0a85-4601-a684-6609c07dde60'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'ce067719-0280-4116-8d74-76eb38094bd7'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e1331c41-8c4c-4059-ab26-837343e58cfb'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e1331c41-8c4c-4059-ab26-837343e58cfb'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e1331c41-8c4c-4059-ab26-837343e58cfb'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '7b5085f9-dcc7-46a6-867a-1c2392f545d9'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '557b2eaf-3729-40b4-9b06-de327bad29e0'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '557b2eaf-3729-40b4-9b06-de327bad29e0'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '25d0b38d-5e7c-435b-8cfc-e258cc2f634e'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '25d0b38d-5e7c-435b-8cfc-e258cc2f634e'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '507bc2db-223c-4f1f-9989-d8f9d4d2fae7'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '507bc2db-223c-4f1f-9989-d8f9d4d2fae7'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '1829395c-6eeb-4333-a3ca-ff3477f0ce59'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '4db61d7c-ea3c-435e-8e80-3a5072d47b95'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '4db61d7c-ea3c-435e-8e80-3a5072d47b95'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '4db61d7c-ea3c-435e-8e80-3a5072d47b95'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '4db61d7c-ea3c-435e-8e80-3a5072d47b95'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '93aa7ff5-ad26-4e31-aa8b-5feebb29ffa9'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '93aa7ff5-ad26-4e31-aa8b-5feebb29ffa9'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '93aa7ff5-ad26-4e31-aa8b-5feebb29ffa9'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '93aa7ff5-ad26-4e31-aa8b-5feebb29ffa9'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'f9c85952-2c2a-49bb-afcf-f5e5c5a0d3ae'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'f9c85952-2c2a-49bb-afcf-f5e5c5a0d3ae'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'f9c85952-2c2a-49bb-afcf-f5e5c5a0d3ae'}), (s:Style {name: 'New School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'd71f64e5-762c-43ca-bc40-da66f6f69da3'}), (s:Style {name: 'Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'd71f64e5-762c-43ca-bc40-da66f6f69da3'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '6d8893ea-4f62-49ba-bb41-a187abf5e0c2'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '6d8893ea-4f62-49ba-bb41-a187abf5e0c2'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '6d8893ea-4f62-49ba-bb41-a187abf5e0c2'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '6d8893ea-4f62-49ba-bb41-a187abf5e0c2'}), (s:Style {name: 'New School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'eaf4182a-a3af-4fa9-b3b4-eb55c58bcc53'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'b91c1d62-f7ec-42fa-a043-772be31be891'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'b91c1d62-f7ec-42fa-a043-772be31be891'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '856208ab-49d0-4a3a-ac98-339eb6ce631f'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '856208ab-49d0-4a3a-ac98-339eb6ce631f'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '856208ab-49d0-4a3a-ac98-339eb6ce631f'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '856208ab-49d0-4a3a-ac98-339eb6ce631f'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '0d440b3f-4f9c-4a7d-bd1f-8103262c1cd2'}), (s:Style {name: 'New School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '0d440b3f-4f9c-4a7d-bd1f-8103262c1cd2'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '114b0700-13ad-4a0f-86a3-2930b595ca2d'}), (s:Style {name: 'New School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '114b0700-13ad-4a0f-86a3-2930b595ca2d'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '114b0700-13ad-4a0f-86a3-2930b595ca2d'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '387217c0-aec5-43b0-8d8a-357c08424317'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'a3b85462-dbd6-4539-b3e8-e9b725483c91'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'a3b85462-dbd6-4539-b3e8-e9b725483c91'}), (s:Style {name: 'Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'c2fc072c-9dc0-4c90-9243-586c064a909f'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'c2fc072c-9dc0-4c90-9243-586c064a909f'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'c2fc072c-9dc0-4c90-9243-586c064a909f'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '4d1fd05a-2bc3-4898-bba9-8af1d67c170b'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '4d1fd05a-2bc3-4898-bba9-8af1d67c170b'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '4d1fd05a-2bc3-4898-bba9-8af1d67c170b'}), (s:Style {name: 'New School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '5aa37a69-bb5e-467f-b2fc-9b087bcf7ef2'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '5aa37a69-bb5e-467f-b2fc-9b087bcf7ef2'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '5aa37a69-bb5e-467f-b2fc-9b087bcf7ef2'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '5aa37a69-bb5e-467f-b2fc-9b087bcf7ef2'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '24aa166e-43d9-4f88-904e-05c59bc689af'}), (s:Style {name: 'Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '33485588-ed73-49a8-ad21-e279480614ab'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'b3925d7a-cc93-4cf3-af38-55d263055f2c'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'b3925d7a-cc93-4cf3-af38-55d263055f2c'}), (s:Style {name: 'New School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'b3925d7a-cc93-4cf3-af38-55d263055f2c'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'b3925d7a-cc93-4cf3-af38-55d263055f2c'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '0c133bba-7318-4405-ad52-0499289bfe38'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '0c133bba-7318-4405-ad52-0499289bfe38'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '30a4c0cb-bc9f-4794-8519-a2496d5076c5'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '61a2924d-df0c-45e6-a6df-89082cd04f15'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '61a2924d-df0c-45e6-a6df-89082cd04f15'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '61a2924d-df0c-45e6-a6df-89082cd04f15'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '8aac5809-88eb-4010-9c1c-af99ca1fccbd'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '8aac5809-88eb-4010-9c1c-af99ca1fccbd'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '8aac5809-88eb-4010-9c1c-af99ca1fccbd'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '8aac5809-88eb-4010-9c1c-af99ca1fccbd'}), (s:Style {name: 'Old School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '5ee5b329-70d4-41ec-900e-e7217adec545'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '5ee5b329-70d4-41ec-900e-e7217adec545'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e128c511-54b7-4414-bdd3-1bc22f5637b4'}), (s:Style {name: 'New School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e128c511-54b7-4414-bdd3-1bc22f5637b4'}), (s:Style {name: 'Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '5cd6c2a8-7d49-4c9f-ac79-530581f4b7ab'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '5cd6c2a8-7d49-4c9f-ac79-530581f4b7ab'}), (s:Style {name: 'Old School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'c29e6c49-17f9-4c9f-91bc-f4c95a7c8ab8'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '95849b42-47a5-4f59-85d2-eebf491ed3fb'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '95849b42-47a5-4f59-85d2-eebf491ed3fb'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '95849b42-47a5-4f59-85d2-eebf491ed3fb'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '95849b42-47a5-4f59-85d2-eebf491ed3fb'}), (s:Style {name: 'New School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '6cc9777f-78c4-4f6a-a901-93da54f614bf'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '0aafa0b8-cb74-4648-8746-12e2119ea4f2'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e62d5ebb-3267-42c0-bfde-3a48fac0ac52'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e62d5ebb-3267-42c0-bfde-3a48fac0ac52'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e0412dd7-bdaa-49e2-ad97-4213cf6a68f9'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e0412dd7-bdaa-49e2-ad97-4213cf6a68f9'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e0412dd7-bdaa-49e2-ad97-4213cf6a68f9'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e0412dd7-bdaa-49e2-ad97-4213cf6a68f9'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'bc83de6f-08e0-4b37-8300-08b105622431'}), (s:Style {name: 'Old School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'bc83de6f-08e0-4b37-8300-08b105622431'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'bc83de6f-08e0-4b37-8300-08b105622431'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'bc83de6f-08e0-4b37-8300-08b105622431'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'cf54fb41-0aba-45ca-96ca-783b369b94d6'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'ac27cae0-1716-4dc4-9eea-c5224ce38055'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'ac27cae0-1716-4dc4-9eea-c5224ce38055'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'ac27cae0-1716-4dc4-9eea-c5224ce38055'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'ed4e628e-7125-4186-870d-2f0190be9996'}), (s:Style {name: 'Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'ed4e628e-7125-4186-870d-2f0190be9996'}), (s:Style {name: 'Old School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'c22be413-20c9-4fd2-b304-49baf076b5cf'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'c22be413-20c9-4fd2-b304-49baf076b5cf'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'cfe811ef-c7c7-455f-a040-6652e36ef6f1'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '193ee80b-94c5-4588-99b6-5aa2f26a1822'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '2bafc835-8784-4965-8d56-9b40bbca55e7'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '2bafc835-8784-4965-8d56-9b40bbca55e7'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '2bafc835-8784-4965-8d56-9b40bbca55e7'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'ac5c8489-28cd-42ce-8e18-3ff47c1c95b6'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '38de6885-8e7f-4b3c-952e-93e15bd0c404'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '38de6885-8e7f-4b3c-952e-93e15bd0c404'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '38de6885-8e7f-4b3c-952e-93e15bd0c404'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '38de6885-8e7f-4b3c-952e-93e15bd0c404'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'f9b3477c-d7a4-4191-8485-427b18cc565e'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'a326e7ce-d265-48ab-878d-819b2edddb7b'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '3b6fb1d8-f1fb-4fd3-80ee-d71463d6c868'}), (s:Style {name: 'Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '3b6fb1d8-f1fb-4fd3-80ee-d71463d6c868'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '3b6fb1d8-f1fb-4fd3-80ee-d71463d6c868'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'cfe93205-8a1d-4d07-a493-859cc38cce8f'}), (s:Style {name: 'Old School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'cfe93205-8a1d-4d07-a493-859cc38cce8f'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'cfe93205-8a1d-4d07-a493-859cc38cce8f'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'c01b1464-4235-42ca-9984-7e87212c5b67'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'c01b1464-4235-42ca-9984-7e87212c5b67'}), (s:Style {name: 'Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'c01b1464-4235-42ca-9984-7e87212c5b67'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'c01b1464-4235-42ca-9984-7e87212c5b67'}), (s:Style {name: 'Old School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'a24c194f-93d0-473b-96ec-fbe6d0e80228'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'a24c194f-93d0-473b-96ec-fbe6d0e80228'}), (s:Style {name: 'Old School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'a24c194f-93d0-473b-96ec-fbe6d0e80228'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'a24c194f-93d0-473b-96ec-fbe6d0e80228'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '583c03f9-30ef-465f-a7dc-3d36503aaf72'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '583c03f9-30ef-465f-a7dc-3d36503aaf72'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '583c03f9-30ef-465f-a7dc-3d36503aaf72'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '2f06b07b-b52e-45f9-9ec1-e509b6a15fed'}), (s:Style {name: 'New School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '2f06b07b-b52e-45f9-9ec1-e509b6a15fed'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '2f06b07b-b52e-45f9-9ec1-e509b6a15fed'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '2f30b515-9c74-4cd7-90a5-23acd17607a9'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '2f30b515-9c74-4cd7-90a5-23acd17607a9'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '2f30b515-9c74-4cd7-90a5-23acd17607a9'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '2f30b515-9c74-4cd7-90a5-23acd17607a9'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '40a56e76-f6bc-488d-a3c6-434f39791e97'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '40a56e76-f6bc-488d-a3c6-434f39791e97'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '5ff32a33-48d1-461c-bd6a-4bacde579c3d'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'f2ce2c6b-8e12-431e-ae78-321ddf5021a0'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'f2ce2c6b-8e12-431e-ae78-321ddf5021a0'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'f2ce2c6b-8e12-431e-ae78-321ddf5021a0'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e9736890-e56c-4e9f-82a5-5ec4efc0b2e1'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e9736890-e56c-4e9f-82a5-5ec4efc0b2e1'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e5cc5199-78c9-4271-8a9e-fc36cddc3a2c'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e5cc5199-78c9-4271-8a9e-fc36cddc3a2c'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'a836ba3e-912a-46b9-8537-ee260ad3ebbf'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'a836ba3e-912a-46b9-8537-ee260ad3ebbf'}), (s:Style {name: 'New School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'a836ba3e-912a-46b9-8537-ee260ad3ebbf'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'd12ece4e-2895-47a0-a999-b81e8e57f998'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'd12ece4e-2895-47a0-a999-b81e8e57f998'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'd12ece4e-2895-47a0-a999-b81e8e57f998'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'd12ece4e-2895-47a0-a999-b81e8e57f998'}), (s:Style {name: 'Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'de7471f0-eb08-430f-a039-d076773cc291'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'de7471f0-eb08-430f-a039-d076773cc291'}), (s:Style {name: 'New School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '8c9a497f-28b2-4463-80cd-a824de75309b'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '866f2c37-2a5d-4d0e-bf47-28999f9f40a0'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '36dfaf4b-be9b-4b2d-8a5b-2aa93d26c1cf'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '36dfaf4b-be9b-4b2d-8a5b-2aa93d26c1cf'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '36dfaf4b-be9b-4b2d-8a5b-2aa93d26c1cf'}), (s:Style {name: 'Old School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '36dfaf4b-be9b-4b2d-8a5b-2aa93d26c1cf'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '623141ca-9ee8-456b-8516-ed997dc40fdc'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '819a9310-fad3-4062-8534-057c17f90d84'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'bd49022d-a395-4a7a-87bd-5bb80576e281'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'bd49022d-a395-4a7a-87bd-5bb80576e281'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'bd49022d-a395-4a7a-87bd-5bb80576e281'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'bd49022d-a395-4a7a-87bd-5bb80576e281'}), (s:Style {name: 'Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '6db44ecb-2cda-4eb9-bdf4-989a7a1b8797'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '6db44ecb-2cda-4eb9-bdf4-989a7a1b8797'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '6db44ecb-2cda-4eb9-bdf4-989a7a1b8797'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '47a1f895-3ac0-41f2-832e-765193815ad3'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '47a1f895-3ac0-41f2-832e-765193815ad3'}), (s:Style {name: 'Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '47a1f895-3ac0-41f2-832e-765193815ad3'}), (s:Style {name: 'New School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '47a1f895-3ac0-41f2-832e-765193815ad3'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'c3fbb1f1-e91e-445f-8a65-ae495d28e9fe'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'c3fbb1f1-e91e-445f-8a65-ae495d28e9fe'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '50aa5ba5-2609-46a8-8315-127504a6b0ab'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '50aa5ba5-2609-46a8-8315-127504a6b0ab'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '50aa5ba5-2609-46a8-8315-127504a6b0ab'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '50aa5ba5-2609-46a8-8315-127504a6b0ab'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'df1e9684-b150-4ad4-a806-4d14367a43b0'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'b23f0fde-0147-4416-91f0-90e5491929d3'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'b23f0fde-0147-4416-91f0-90e5491929d3'}), (s:Style {name: 'Old School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'b23f0fde-0147-4416-91f0-90e5491929d3'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '842bb415-dcde-4020-8769-2d33424abac5'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '842bb415-dcde-4020-8769-2d33424abac5'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '842bb415-dcde-4020-8769-2d33424abac5'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '842bb415-dcde-4020-8769-2d33424abac5'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '6155742e-c89e-44d7-91c7-492be6fa243f'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '6155742e-c89e-44d7-91c7-492be6fa243f'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '388b2f3d-0088-450d-9583-4c46a837a962'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '388b2f3d-0088-450d-9583-4c46a837a962'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '388b2f3d-0088-450d-9583-4c46a837a962'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '388b2f3d-0088-450d-9583-4c46a837a962'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'fdb75be5-0260-49e3-bee8-3c6b94db952a'}), (s:Style {name: 'Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'fdb75be5-0260-49e3-bee8-3c6b94db952a'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '0e7b6fae-c843-4648-be4c-265b5450594c'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '0e7b6fae-c843-4648-be4c-265b5450594c'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '59538def-8743-47b7-9ec6-41718ba66421'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'a6541ecd-7add-4e4c-81c0-8e69bf5af624'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'd3b49103-479a-4e29-a2d1-effeff3bb086'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'd3b49103-479a-4e29-a2d1-effeff3bb086'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'd3b49103-479a-4e29-a2d1-effeff3bb086'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '6d9b7fdd-4d80-4bf2-a5e2-3a62047db9e2'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '6d9b7fdd-4d80-4bf2-a5e2-3a62047db9e2'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '6d9b7fdd-4d80-4bf2-a5e2-3a62047db9e2'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '6d9b7fdd-4d80-4bf2-a5e2-3a62047db9e2'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'ac1c4917-5ee7-40fa-9ba9-222367462b92'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'ac1c4917-5ee7-40fa-9ba9-222367462b92'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'ac1c4917-5ee7-40fa-9ba9-222367462b92'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'ac1c4917-5ee7-40fa-9ba9-222367462b92'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'cb40be59-7cd8-41a6-83d9-e474253e92b5'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'cb40be59-7cd8-41a6-83d9-e474253e92b5'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'cb40be59-7cd8-41a6-83d9-e474253e92b5'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'cb40be59-7cd8-41a6-83d9-e474253e92b5'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '340c8da6-de8b-4be9-873b-1ea579afd71d'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '340c8da6-de8b-4be9-873b-1ea579afd71d'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '340c8da6-de8b-4be9-873b-1ea579afd71d'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '340c8da6-de8b-4be9-873b-1ea579afd71d'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'd29570b4-4fe0-4dea-b9fb-c1045054d39a'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'd29570b4-4fe0-4dea-b9fb-c1045054d39a'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '8639cc95-0939-43bf-947b-667e5c5aebcc'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'a14178ae-3b12-4252-9db2-7916aea7c188'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'a14178ae-3b12-4252-9db2-7916aea7c188'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'a14178ae-3b12-4252-9db2-7916aea7c188'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'eebc3fe2-3fa3-43cc-973c-9955ff9d4ab3'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'eebc3fe2-3fa3-43cc-973c-9955ff9d4ab3'}), (s:Style {name: 'Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'eebc3fe2-3fa3-43cc-973c-9955ff9d4ab3'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e9e439d5-459f-4230-8c1c-e0890b90cb35'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e9e439d5-459f-4230-8c1c-e0890b90cb35'}), (s:Style {name: 'Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e9e439d5-459f-4230-8c1c-e0890b90cb35'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e9e439d5-459f-4230-8c1c-e0890b90cb35'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '7f3124b1-2895-4109-9532-44319dd7e6dc'}), (s:Style {name: 'Old School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'd6c31b01-a477-440d-830c-298d3e8e46df'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'd6c31b01-a477-440d-830c-298d3e8e46df'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'd6c31b01-a477-440d-830c-298d3e8e46df'}), (s:Style {name: 'New School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'c70bd1c9-0d33-45e9-937a-aec4eee8d832'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'c70bd1c9-0d33-45e9-937a-aec4eee8d832'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '2b8e6136-e0c0-4b39-974d-566d3d6cf123'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '2b8e6136-e0c0-4b39-974d-566d3d6cf123'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '2b8e6136-e0c0-4b39-974d-566d3d6cf123'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '2b8e6136-e0c0-4b39-974d-566d3d6cf123'}), (s:Style {name: 'Old School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '53ba4bdb-c4a1-4a21-b4b7-ac7939e8ed65'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '9e0f33c7-f8e2-4dcc-82ae-d5dbe42aad00'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '9e0f33c7-f8e2-4dcc-82ae-d5dbe42aad00'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '9e0f33c7-f8e2-4dcc-82ae-d5dbe42aad00'}), (s:Style {name: 'New School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '9e0f33c7-f8e2-4dcc-82ae-d5dbe42aad00'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '8987dcec-e4c4-4a0c-9fe2-4cb4dfe9c692'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'a87cce35-b813-47ca-9323-99b4392f8337'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'a87cce35-b813-47ca-9323-99b4392f8337'}), (s:Style {name: 'New School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'a87cce35-b813-47ca-9323-99b4392f8337'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '3a6002ff-712a-441e-a483-e2b81e3294ef'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '3a6002ff-712a-441e-a483-e2b81e3294ef'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '3a6002ff-712a-441e-a483-e2b81e3294ef'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '3a6002ff-712a-441e-a483-e2b81e3294ef'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '1c837b81-33cb-48d6-bf1f-786973a2c500'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '1c837b81-33cb-48d6-bf1f-786973a2c500'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '1c837b81-33cb-48d6-bf1f-786973a2c500'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '0f54b3c8-c2d3-4414-9c5a-63f3943ffb95'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '873cc4c0-d115-4725-8746-1539f86ef19a'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '873cc4c0-d115-4725-8746-1539f86ef19a'}), (s:Style {name: 'Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '873cc4c0-d115-4725-8746-1539f86ef19a'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '0e032094-22d1-44a0-9d5a-c8fd63c4515a'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '0e032094-22d1-44a0-9d5a-c8fd63c4515a'}), (s:Style {name: 'Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '0e032094-22d1-44a0-9d5a-c8fd63c4515a'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'f122d140-03a0-451e-93e4-c2cb23683c75'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'f122d140-03a0-451e-93e4-c2cb23683c75'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'f122d140-03a0-451e-93e4-c2cb23683c75'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'f122d140-03a0-451e-93e4-c2cb23683c75'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '6c331293-5e07-4bca-a7f6-76835d8b598a'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '6c331293-5e07-4bca-a7f6-76835d8b598a'}), (s:Style {name: 'Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '6c331293-5e07-4bca-a7f6-76835d8b598a'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '2dc45f68-d209-4674-bdf7-fac60eac77be'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '2dc45f68-d209-4674-bdf7-fac60eac77be'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '2dc45f68-d209-4674-bdf7-fac60eac77be'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '41fb2502-0534-4c3e-a9cf-6eab81351e02'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '41fb2502-0534-4c3e-a9cf-6eab81351e02'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'd547a2c5-cdcd-46e8-8605-4b1ea1e09a1e'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '48a0c6d9-3bef-4d40-a654-7fd229191d89'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '48a0c6d9-3bef-4d40-a654-7fd229191d89'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '48a0c6d9-3bef-4d40-a654-7fd229191d89'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '48a0c6d9-3bef-4d40-a654-7fd229191d89'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'b36730ba-387a-4ce0-93a9-dd4d84960f09'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'a2435552-8403-4d90-98fa-391502aa7e1a'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'a2435552-8403-4d90-98fa-391502aa7e1a'}), (s:Style {name: 'Old School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'a2435552-8403-4d90-98fa-391502aa7e1a'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'a2435552-8403-4d90-98fa-391502aa7e1a'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '8686b250-2926-43df-8678-e204d3d3a9df'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '8686b250-2926-43df-8678-e204d3d3a9df'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '8686b250-2926-43df-8678-e204d3d3a9df'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '4fe7264b-6cf1-4957-a560-785159b50c30'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '4fe7264b-6cf1-4957-a560-785159b50c30'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '4fe7264b-6cf1-4957-a560-785159b50c30'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '5eda1c3d-7486-4438-9056-8814e7ce65b6'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '5eda1c3d-7486-4438-9056-8814e7ce65b6'}), (s:Style {name: 'Old School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '98c6c5d4-12cd-4434-b875-77ea66c46342'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '98c6c5d4-12cd-4434-b875-77ea66c46342'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '98c6c5d4-12cd-4434-b875-77ea66c46342'}), (s:Style {name: 'Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '98c6c5d4-12cd-4434-b875-77ea66c46342'}), (s:Style {name: 'Old School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'bae3c29b-cba3-457d-a2df-b53e8198d5bc'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'bae3c29b-cba3-457d-a2df-b53e8198d5bc'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '427e1174-bc2a-4dd0-8e20-e34f35de4283'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '427e1174-bc2a-4dd0-8e20-e34f35de4283'}), (s:Style {name: 'New School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '427e1174-bc2a-4dd0-8e20-e34f35de4283'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '25707142-b1b6-4699-829a-6acb685b29e7'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '25707142-b1b6-4699-829a-6acb685b29e7'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'daabc26e-bb55-447d-8356-0f7a833b6104'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'daabc26e-bb55-447d-8356-0f7a833b6104'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'daabc26e-bb55-447d-8356-0f7a833b6104'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'daabc26e-bb55-447d-8356-0f7a833b6104'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'd2d11c0d-2487-4c30-bc6b-506392a6a98e'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'd2d11c0d-2487-4c30-bc6b-506392a6a98e'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'd2d11c0d-2487-4c30-bc6b-506392a6a98e'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'd2d11c0d-2487-4c30-bc6b-506392a6a98e'}), (s:Style {name: 'Old School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '37174f32-5038-46c0-92ef-4629ca6234d8'}), (s:Style {name: 'Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '37174f32-5038-46c0-92ef-4629ca6234d8'}), (s:Style {name: 'New School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '37174f32-5038-46c0-92ef-4629ca6234d8'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '33afdffc-0751-48ec-bbbb-e7c76ae4c786'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '33afdffc-0751-48ec-bbbb-e7c76ae4c786'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '33afdffc-0751-48ec-bbbb-e7c76ae4c786'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '81fbbf5c-35da-4952-b02a-c8e0e9791c8a'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '81fbbf5c-35da-4952-b02a-c8e0e9791c8a'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '81fbbf5c-35da-4952-b02a-c8e0e9791c8a'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '81fbbf5c-35da-4952-b02a-c8e0e9791c8a'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '064d66cc-5d95-46ee-9139-403c71fdd16e'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '064d66cc-5d95-46ee-9139-403c71fdd16e'}), (s:Style {name: 'New School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '064d66cc-5d95-46ee-9139-403c71fdd16e'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '6bfb7fc8-b187-4484-998d-6031b10f6371'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '6bfb7fc8-b187-4484-998d-6031b10f6371'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '6bfb7fc8-b187-4484-998d-6031b10f6371'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '8c74b725-b915-4b40-925c-45d3ca1e5dcb'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '8c74b725-b915-4b40-925c-45d3ca1e5dcb'}), (s:Style {name: 'Old School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '117b8dbf-19bd-4fa1-b1f4-57e0bcaee126'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '117b8dbf-19bd-4fa1-b1f4-57e0bcaee126'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '62e09fb8-95db-47c9-9752-a2e6814cd910'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '62e09fb8-95db-47c9-9752-a2e6814cd910'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '696209f0-58d1-45b5-95c3-d8e59b7c5d35'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '696209f0-58d1-45b5-95c3-d8e59b7c5d35'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '696209f0-58d1-45b5-95c3-d8e59b7c5d35'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '696209f0-58d1-45b5-95c3-d8e59b7c5d35'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '6cf0c158-2361-4019-b58e-0a697db8f056'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '44f377a4-5490-4aca-9112-92fce03d5ff6'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '1d558228-498d-4496-b3e1-78286c675e71'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e8724aea-dbd3-4a9c-aafa-408ff8cac6de'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e8724aea-dbd3-4a9c-aafa-408ff8cac6de'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'e8724aea-dbd3-4a9c-aafa-408ff8cac6de'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'a10c47be-07d7-4795-9079-807a494a6258'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '8ed7958a-b935-47f7-a6bc-4ab319f662a4'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '8ed7958a-b935-47f7-a6bc-4ab319f662a4'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '8ed7958a-b935-47f7-a6bc-4ab319f662a4'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '8ed7958a-b935-47f7-a6bc-4ab319f662a4'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'a6fe90d3-5f30-4541-bb8e-9f7e005f3a49'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'a6fe90d3-5f30-4541-bb8e-9f7e005f3a49'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '00a038b1-524d-480c-b634-a50593081c8c'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'd7319521-ca55-4c66-937b-28d4307b32d7'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'd7319521-ca55-4c66-937b-28d4307b32d7'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'ed7eba39-c91d-445e-a98e-7259bdb6eacb'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'ed7eba39-c91d-445e-a98e-7259bdb6eacb'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'ed7eba39-c91d-445e-a98e-7259bdb6eacb'}), (s:Style {name: 'New School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'df5edcdc-2cf0-44ed-9c36-ba2459054f2d'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '0f5b18ee-ff0a-48f4-93fa-cb47ab9ad27b'}), (s:Style {name: 'Old School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '0f5b18ee-ff0a-48f4-93fa-cb47ab9ad27b'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '0f5b18ee-ff0a-48f4-93fa-cb47ab9ad27b'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '12f9f8b5-4422-4151-8dcb-076529349277'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '12f9f8b5-4422-4151-8dcb-076529349277'}), (s:Style {name: 'Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'd9550683-6866-4dec-a927-c82ba207eac4'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'd9550683-6866-4dec-a927-c82ba207eac4'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '3e13af16-5597-4b2e-bea7-1c59f3c53730'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '3e13af16-5597-4b2e-bea7-1c59f3c53730'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '3e13af16-5597-4b2e-bea7-1c59f3c53730'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'f567514d-2e0f-4588-9960-4bc04fa0d423'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'f567514d-2e0f-4588-9960-4bc04fa0d423'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: 'f567514d-2e0f-4588-9960-4bc04fa0d423'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '0df583e5-8422-4995-84c3-6b0d33ce732f'}), (s:Style {name: 'New School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '0df583e5-8422-4995-84c3-6b0d33ce732f'}), (s:Style {name: 'Realism'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '1bd804dc-7da1-405d-8da9-61257ae42e27'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '1bd804dc-7da1-405d-8da9-61257ae42e27'}), (s:Style {name: 'Old School'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
-MATCH (a:Artist {id: '1bd804dc-7da1-405d-8da9-61257ae42e27'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:PRACTICES_STYLE]->(s);
+// Create HAS_SHOP relationships (City -> Shop)
+MATCH (c:City {name: 'Austin', state: 'Texas'}), (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Austin', state: 'Texas'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Denver', state: 'Colorado'}), (sh:Shop {name: 'Crimson Lotus Studio', city: 'Denver', state: 'Colorado'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Montreal', state: 'Quebec'}), (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Montreal', state: 'Quebec'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Newark', state: 'New Jersey'}), (sh:Shop {name: 'Electric Rose Parlor', city: 'Newark', state: 'New Jersey'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Tampa', state: 'Florida'}), (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Tampa', state: 'Florida'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Austin', state: 'Texas'}), (sh:Shop {name: 'Golden Needle Tattoo', city: 'Austin', state: 'Texas'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Portland', state: 'Oregon'}), (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Portland', state: 'Oregon'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Austin', state: 'Texas'}), (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Austin', state: 'Texas'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Houston', state: 'Texas'}), (sh:Shop {name: 'Golden Needle Tattoo', city: 'Houston', state: 'Texas'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Ewing Township', state: 'New Jersey'}), (sh:Shop {name: 'Northern Lights Tattoo', city: 'Ewing Township', state: 'New Jersey'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Brooklyn', state: 'New York'}), (sh:Shop {name: 'Black Anchor Collective', city: 'Brooklyn', state: 'New York'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'San Diego', state: 'California'}), (sh:Shop {name: 'Crimson Lotus Studio', city: 'San Diego', state: 'California'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Tucson', state: 'Arizona'}), (sh:Shop {name: 'Wildflower Ink', city: 'Tucson', state: 'Arizona'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Manhattan', state: 'New York'}), (sh:Shop {name: 'Black Anchor Collective', city: 'Manhattan', state: 'New York'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Dallas', state: 'Texas'}), (sh:Shop {name: 'Ink & Iron Studio', city: 'Dallas', state: 'Texas'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Burlington', state: 'Vermont'}), (sh:Shop {name: 'Raven & Rose Ink', city: 'Burlington', state: 'Vermont'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Sydney', state: 'New South Wales'}), (sh:Shop {name: 'Raven & Rose Ink', city: 'Sydney', state: 'New South Wales'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Ewing Township', state: 'New Jersey'}), (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Ewing Township', state: 'New Jersey'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Miami', state: 'Florida'}), (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Miami', state: 'Florida'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Dallas', state: 'Texas'}), (sh:Shop {name: 'Sacred Art Collective', city: 'Dallas', state: 'Texas'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'San Diego', state: 'California'}), (sh:Shop {name: 'Raven & Rose Ink', city: 'San Diego', state: 'California'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Jersey City', state: 'New Jersey'}), (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Jersey City', state: 'New Jersey'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Melbourne', state: 'Victoria'}), (sh:Shop {name: 'Crimson Lotus Studio', city: 'Melbourne', state: 'Victoria'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Toronto', state: 'Ontario'}), (sh:Shop {name: 'Golden Needle Tattoo', city: 'Toronto', state: 'Ontario'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Tampa', state: 'Florida'}), (sh:Shop {name: 'Sacred Art Collective', city: 'Tampa', state: 'Florida'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Perth', state: 'Western Australia'}), (sh:Shop {name: 'Crimson Lotus Studio', city: 'Perth', state: 'Western Australia'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Houston', state: 'Texas'}), (sh:Shop {name: 'Crimson Lotus Studio', city: 'Houston', state: 'Texas'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Montreal', state: 'Quebec'}), (sh:Shop {name: 'Northern Lights Tattoo', city: 'Montreal', state: 'Quebec'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Newark', state: 'New Jersey'}), (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Newark', state: 'New Jersey'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Denver', state: 'Colorado'}), (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Denver', state: 'Colorado'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Tucson', state: 'Arizona'}), (sh:Shop {name: 'Golden Needle Tattoo', city: 'Tucson', state: 'Arizona'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Tucson', state: 'Arizona'}), (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Tucson', state: 'Arizona'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Dallas', state: 'Texas'}), (sh:Shop {name: 'Golden Needle Tattoo', city: 'Dallas', state: 'Texas'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Dallas', state: 'Texas'}), (sh:Shop {name: 'Northern Lights Tattoo', city: 'Dallas', state: 'Texas'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Manhattan', state: 'New York'}), (sh:Shop {name: 'Wildflower Ink', city: 'Manhattan', state: 'New York'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Jersey City', state: 'New Jersey'}), (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Jersey City', state: 'New Jersey'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Perth', state: 'Western Australia'}), (sh:Shop {name: 'Electric Rose Parlor', city: 'Perth', state: 'Western Australia'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Melbourne', state: 'Victoria'}), (sh:Shop {name: 'Golden Needle Tattoo', city: 'Melbourne', state: 'Victoria'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Phoenix', state: 'Arizona'}), (sh:Shop {name: 'Black Anchor Collective', city: 'Phoenix', state: 'Arizona'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Toronto', state: 'Ontario'}), (sh:Shop {name: 'Electric Rose Parlor', city: 'Toronto', state: 'Ontario'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Vancouver', state: 'British Columbia'}), (sh:Shop {name: 'Electric Rose Parlor', city: 'Vancouver', state: 'British Columbia'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Austin', state: 'Texas'}), (sh:Shop {name: 'Electric Rose Parlor', city: 'Austin', state: 'Texas'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Los Angeles', state: 'California'}), (sh:Shop {name: 'Golden Needle Tattoo', city: 'Los Angeles', state: 'California'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Newark', state: 'New Jersey'}), (sh:Shop {name: 'Raven & Rose Ink', city: 'Newark', state: 'New Jersey'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Tucson', state: 'Arizona'}), (sh:Shop {name: 'Black Anchor Collective', city: 'Tucson', state: 'Arizona'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Burlington', state: 'Vermont'}), (sh:Shop {name: 'Northern Lights Tattoo', city: 'Burlington', state: 'Vermont'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Toronto', state: 'Ontario'}), (sh:Shop {name: 'Ink & Iron Studio', city: 'Toronto', state: 'Ontario'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Montreal', state: 'Quebec'}), (sh:Shop {name: 'Sacred Art Collective', city: 'Montreal', state: 'Quebec'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Melbourne', state: 'Victoria'}), (sh:Shop {name: 'Black Anchor Collective', city: 'Melbourne', state: 'Victoria'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Sydney', state: 'New South Wales'}), (sh:Shop {name: 'Sacred Art Collective', city: 'Sydney', state: 'New South Wales'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Denver', state: 'Colorado'}), (sh:Shop {name: 'Ink & Iron Studio', city: 'Denver', state: 'Colorado'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Montreal', state: 'Quebec'}), (sh:Shop {name: 'Crimson Lotus Studio', city: 'Montreal', state: 'Quebec'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Perth', state: 'Western Australia'}), (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Perth', state: 'Western Australia'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Manhattan', state: 'New York'}), (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Manhattan', state: 'New York'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Dallas', state: 'Texas'}), (sh:Shop {name: 'Crimson Lotus Studio', city: 'Dallas', state: 'Texas'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Vancouver', state: 'British Columbia'}), (sh:Shop {name: 'Golden Needle Tattoo', city: 'Vancouver', state: 'British Columbia'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Denver', state: 'Colorado'}), (sh:Shop {name: 'Golden Needle Tattoo', city: 'Denver', state: 'Colorado'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Houston', state: 'Texas'}), (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Houston', state: 'Texas'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Vancouver', state: 'British Columbia'}), (sh:Shop {name: 'Black Anchor Collective', city: 'Vancouver', state: 'British Columbia'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Sydney', state: 'New South Wales'}), (sh:Shop {name: 'Golden Needle Tattoo', city: 'Sydney', state: 'New South Wales'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Jersey City', state: 'New Jersey'}), (sh:Shop {name: 'Golden Needle Tattoo', city: 'Jersey City', state: 'New Jersey'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Tucson', state: 'Arizona'}), (sh:Shop {name: 'Crimson Lotus Studio', city: 'Tucson', state: 'Arizona'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Brooklyn', state: 'New York'}), (sh:Shop {name: 'Raven & Rose Ink', city: 'Brooklyn', state: 'New York'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Portland', state: 'Oregon'}), (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Portland', state: 'Oregon'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Toronto', state: 'Ontario'}), (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Toronto', state: 'Ontario'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'San Francisco', state: 'California'}), (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'San Francisco', state: 'California'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Denver', state: 'Colorado'}), (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Denver', state: 'Colorado'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Newark', state: 'New Jersey'}), (sh:Shop {name: 'Ink & Iron Studio', city: 'Newark', state: 'New Jersey'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Dallas', state: 'Texas'}), (sh:Shop {name: 'Black Anchor Collective', city: 'Dallas', state: 'Texas'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Tampa', state: 'Florida'}), (sh:Shop {name: 'Raven & Rose Ink', city: 'Tampa', state: 'Florida'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Sydney', state: 'New South Wales'}), (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Sydney', state: 'New South Wales'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Burlington', state: 'Vermont'}), (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Burlington', state: 'Vermont'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Jersey City', state: 'New Jersey'}), (sh:Shop {name: 'Black Anchor Collective', city: 'Jersey City', state: 'New Jersey'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Denver', state: 'Colorado'}), (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Denver', state: 'Colorado'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Los Angeles', state: 'California'}), (sh:Shop {name: 'Raven & Rose Ink', city: 'Los Angeles', state: 'California'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Toronto', state: 'Ontario'}), (sh:Shop {name: 'Sacred Art Collective', city: 'Toronto', state: 'Ontario'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Montreal', state: 'Quebec'}), (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Montreal', state: 'Quebec'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'San Francisco', state: 'California'}), (sh:Shop {name: 'Ink & Iron Studio', city: 'San Francisco', state: 'California'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Tampa', state: 'Florida'}), (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Tampa', state: 'Florida'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Tucson', state: 'Arizona'}), (sh:Shop {name: 'Sacred Art Collective', city: 'Tucson', state: 'Arizona'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Los Angeles', state: 'California'}), (sh:Shop {name: 'Ink & Iron Studio', city: 'Los Angeles', state: 'California'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Montreal', state: 'Quebec'}), (sh:Shop {name: 'Raven & Rose Ink', city: 'Montreal', state: 'Quebec'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Perth', state: 'Western Australia'}), (sh:Shop {name: 'Golden Needle Tattoo', city: 'Perth', state: 'Western Australia'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Phoenix', state: 'Arizona'}), (sh:Shop {name: 'Electric Rose Parlor', city: 'Phoenix', state: 'Arizona'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Tampa', state: 'Florida'}), (sh:Shop {name: 'Ink & Iron Studio', city: 'Tampa', state: 'Florida'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Montreal', state: 'Quebec'}), (sh:Shop {name: 'Electric Rose Parlor', city: 'Montreal', state: 'Quebec'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Miami', state: 'Florida'}), (sh:Shop {name: 'Golden Needle Tattoo', city: 'Miami', state: 'Florida'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Jersey City', state: 'New Jersey'}), (sh:Shop {name: 'Electric Rose Parlor', city: 'Jersey City', state: 'New Jersey'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Portland', state: 'Oregon'}), (sh:Shop {name: 'Wildflower Ink', city: 'Portland', state: 'Oregon'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Perth', state: 'Western Australia'}), (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Perth', state: 'Western Australia'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Austin', state: 'Texas'}), (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Austin', state: 'Texas'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Sydney', state: 'New South Wales'}), (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Sydney', state: 'New South Wales'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Phoenix', state: 'Arizona'}), (sh:Shop {name: 'Sacred Art Collective', city: 'Phoenix', state: 'Arizona'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Brooklyn', state: 'New York'}), (sh:Shop {name: 'Wildflower Ink', city: 'Brooklyn', state: 'New York'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Tucson', state: 'Arizona'}), (sh:Shop {name: 'Northern Lights Tattoo', city: 'Tucson', state: 'Arizona'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Houston', state: 'Texas'}), (sh:Shop {name: 'Wildflower Ink', city: 'Houston', state: 'Texas'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Ewing Township', state: 'New Jersey'}), (sh:Shop {name: 'Electric Rose Parlor', city: 'Ewing Township', state: 'New Jersey'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'San Diego', state: 'California'}), (sh:Shop {name: 'Steel & Bone Tattoo', city: 'San Diego', state: 'California'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'San Francisco', state: 'California'}), (sh:Shop {name: 'Black Anchor Collective', city: 'San Francisco', state: 'California'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Vancouver', state: 'British Columbia'}), (sh:Shop {name: 'Crimson Lotus Studio', city: 'Vancouver', state: 'British Columbia'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Toronto', state: 'Ontario'}), (sh:Shop {name: 'Crimson Lotus Studio', city: 'Toronto', state: 'Ontario'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Jersey City', state: 'New Jersey'}), (sh:Shop {name: 'Ink & Iron Studio', city: 'Jersey City', state: 'New Jersey'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'San Francisco', state: 'California'}), (sh:Shop {name: 'Raven & Rose Ink', city: 'San Francisco', state: 'California'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'San Francisco', state: 'California'}), (sh:Shop {name: 'Midnight Owl Tattoo', city: 'San Francisco', state: 'California'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Burlington', state: 'Vermont'}), (sh:Shop {name: 'Electric Rose Parlor', city: 'Burlington', state: 'Vermont'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Sydney', state: 'New South Wales'}), (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Sydney', state: 'New South Wales'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Brooklyn', state: 'New York'}), (sh:Shop {name: 'Northern Lights Tattoo', city: 'Brooklyn', state: 'New York'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Newark', state: 'New Jersey'}), (sh:Shop {name: 'Northern Lights Tattoo', city: 'Newark', state: 'New Jersey'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Burlington', state: 'Vermont'}), (sh:Shop {name: 'Crimson Lotus Studio', city: 'Burlington', state: 'Vermont'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Brooklyn', state: 'New York'}), (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Brooklyn', state: 'New York'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Jersey City', state: 'New Jersey'}), (sh:Shop {name: 'Sacred Art Collective', city: 'Jersey City', state: 'New Jersey'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Austin', state: 'Texas'}), (sh:Shop {name: 'Crimson Lotus Studio', city: 'Austin', state: 'Texas'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Phoenix', state: 'Arizona'}), (sh:Shop {name: 'Wildflower Ink', city: 'Phoenix', state: 'Arizona'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Manhattan', state: 'New York'}), (sh:Shop {name: 'Electric Rose Parlor', city: 'Manhattan', state: 'New York'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Tucson', state: 'Arizona'}), (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Tucson', state: 'Arizona'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'San Diego', state: 'California'}), (sh:Shop {name: 'Black Anchor Collective', city: 'San Diego', state: 'California'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Phoenix', state: 'Arizona'}), (sh:Shop {name: 'Ink & Iron Studio', city: 'Phoenix', state: 'Arizona'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'San Diego', state: 'California'}), (sh:Shop {name: 'Sacred Art Collective', city: 'San Diego', state: 'California'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Denver', state: 'Colorado'}), (sh:Shop {name: 'Wildflower Ink', city: 'Denver', state: 'Colorado'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Los Angeles', state: 'California'}), (sh:Shop {name: 'Electric Rose Parlor', city: 'Los Angeles', state: 'California'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Manhattan', state: 'New York'}), (sh:Shop {name: 'Ink & Iron Studio', city: 'Manhattan', state: 'New York'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Houston', state: 'Texas'}), (sh:Shop {name: 'Ink & Iron Studio', city: 'Houston', state: 'Texas'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Montreal', state: 'Quebec'}), (sh:Shop {name: 'Black Anchor Collective', city: 'Montreal', state: 'Quebec'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Ewing Township', state: 'New Jersey'}), (sh:Shop {name: 'Black Anchor Collective', city: 'Ewing Township', state: 'New Jersey'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Melbourne', state: 'Victoria'}), (sh:Shop {name: 'Wildflower Ink', city: 'Melbourne', state: 'Victoria'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Dallas', state: 'Texas'}), (sh:Shop {name: 'Electric Rose Parlor', city: 'Dallas', state: 'Texas'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Miami', state: 'Florida'}), (sh:Shop {name: 'Black Anchor Collective', city: 'Miami', state: 'Florida'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Ewing Township', state: 'New Jersey'}), (sh:Shop {name: 'Wildflower Ink', city: 'Ewing Township', state: 'New Jersey'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Burlington', state: 'Vermont'}), (sh:Shop {name: 'Sacred Art Collective', city: 'Burlington', state: 'Vermont'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Tucson', state: 'Arizona'}), (sh:Shop {name: 'Electric Rose Parlor', city: 'Tucson', state: 'Arizona'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'San Diego', state: 'California'}), (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'San Diego', state: 'California'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Tucson', state: 'Arizona'}), (sh:Shop {name: 'Raven & Rose Ink', city: 'Tucson', state: 'Arizona'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Sydney', state: 'New South Wales'}), (sh:Shop {name: 'Wildflower Ink', city: 'Sydney', state: 'New South Wales'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Brooklyn', state: 'New York'}), (sh:Shop {name: 'Sacred Art Collective', city: 'Brooklyn', state: 'New York'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Melbourne', state: 'Victoria'}), (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Melbourne', state: 'Victoria'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Austin', state: 'Texas'}), (sh:Shop {name: 'Northern Lights Tattoo', city: 'Austin', state: 'Texas'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Toronto', state: 'Ontario'}), (sh:Shop {name: 'Raven & Rose Ink', city: 'Toronto', state: 'Ontario'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Jersey City', state: 'New Jersey'}), (sh:Shop {name: 'Crimson Lotus Studio', city: 'Jersey City', state: 'New Jersey'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Manhattan', state: 'New York'}), (sh:Shop {name: 'Golden Needle Tattoo', city: 'Manhattan', state: 'New York'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'San Diego', state: 'California'}), (sh:Shop {name: 'Ink & Iron Studio', city: 'San Diego', state: 'California'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Manhattan', state: 'New York'}), (sh:Shop {name: 'Northern Lights Tattoo', city: 'Manhattan', state: 'New York'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'San Francisco', state: 'California'}), (sh:Shop {name: 'Wildflower Ink', city: 'San Francisco', state: 'California'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Newark', state: 'New Jersey'}), (sh:Shop {name: 'Sacred Art Collective', city: 'Newark', state: 'New Jersey'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Portland', state: 'Oregon'}), (sh:Shop {name: 'Golden Needle Tattoo', city: 'Portland', state: 'Oregon'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Vancouver', state: 'British Columbia'}), (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Vancouver', state: 'British Columbia'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Ewing Township', state: 'New Jersey'}), (sh:Shop {name: 'Golden Needle Tattoo', city: 'Ewing Township', state: 'New Jersey'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Austin', state: 'Texas'}), (sh:Shop {name: 'Wildflower Ink', city: 'Austin', state: 'Texas'}) MERGE (c)-[:HAS_SHOP]->(sh);
+MATCH (c:City {name: 'Burlington', state: 'Vermont'}), (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Burlington', state: 'Vermont'}) MERGE (c)-[:HAS_SHOP]->(sh);
 
-// Create USES_COLOR relationships
-MATCH (a:Artist {id: '3bd06f61-bdf4-4147-9411-ec0fcff0cea4'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '6026f7ac-5b01-4891-b47f-ae32f4ddf09b'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '6026f7ac-5b01-4891-b47f-ae32f4ddf09b'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'a9436f14-53f9-4056-953e-29f560dab5a9'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'a9436f14-53f9-4056-953e-29f560dab5a9'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'a9436f14-53f9-4056-953e-29f560dab5a9'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '92824bf4-f3b6-41c8-89bd-97eb1e600d1b'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '759e2449-2616-4d3a-a327-7e3bbd57083e'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '942d3fd3-2fad-4074-adc9-abb76e638665'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '81d10875-d68a-4e58-aef7-b29e5f8e48ce'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '81d10875-d68a-4e58-aef7-b29e5f8e48ce'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '43ea7a24-622c-4402-8780-2acdcbe6d9cb'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '43ea7a24-622c-4402-8780-2acdcbe6d9cb'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'ba5e7645-45d8-4acb-b1b4-cdbceb38a10a'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '018e0cac-4608-46ab-a3ad-474a9b9ab7de'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '018e0cac-4608-46ab-a3ad-474a9b9ab7de'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'ce1fe16c-7d7b-43fb-aa11-51c027f3152c'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'ce1fe16c-7d7b-43fb-aa11-51c027f3152c'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'e614a27f-bb8b-4bb8-8afa-cb4f74751eb7'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'e614a27f-bb8b-4bb8-8afa-cb4f74751eb7'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'e614a27f-bb8b-4bb8-8afa-cb4f74751eb7'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'da6e554a-27e5-493f-a31a-b579036e52bb'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'da6e554a-27e5-493f-a31a-b579036e52bb'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'b21a3922-5c2c-4286-a7f3-c586ee2e927b'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '25ad22ab-c8db-439a-81b7-1e48b85314ba'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '25ad22ab-c8db-439a-81b7-1e48b85314ba'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '25ad22ab-c8db-439a-81b7-1e48b85314ba'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '80dd0ffe-7841-4a7b-9920-68c84e20409f'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '80dd0ffe-7841-4a7b-9920-68c84e20409f'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '80dd0ffe-7841-4a7b-9920-68c84e20409f'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '35908fd7-da81-4848-bac3-9c2a2b336b4b'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'b72a8e3a-18b6-4311-a23f-e7ec5092e619'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '259dea08-04a7-4119-95ac-f5d2b3ba153d'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '259dea08-04a7-4119-95ac-f5d2b3ba153d'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '259dea08-04a7-4119-95ac-f5d2b3ba153d'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'aae32407-b25d-401e-8c80-aa744a523230'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'aae32407-b25d-401e-8c80-aa744a523230'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'aae32407-b25d-401e-8c80-aa744a523230'}), (c:Color {name: 'Vibrant'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'd985253d-7364-4aea-9efb-ab094935b1d1'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'd985253d-7364-4aea-9efb-ab094935b1d1'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '27346ff0-e86f-4c73-be87-d19d2691d7c7'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'f6677d34-df32-444d-a4f9-07414f2ccb71'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'f6677d34-df32-444d-a4f9-07414f2ccb71'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '839b9086-cf3f-4b42-98c5-68dfb89655cb'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '20929771-d891-4b6a-944a-ae6ccf5fd67f'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '20929771-d891-4b6a-944a-ae6ccf5fd67f'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '20929771-d891-4b6a-944a-ae6ccf5fd67f'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '9ccf2900-6eae-4e31-941a-537fd076b26e'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '9ccf2900-6eae-4e31-941a-537fd076b26e'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '543f2e52-b849-4819-a72e-670a0bb837b3'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '543f2e52-b849-4819-a72e-670a0bb837b3'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '543f2e52-b849-4819-a72e-670a0bb837b3'}), (c:Color {name: 'Vibrant'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '0aa0d199-c0e9-461e-b98f-682dad5469ec'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '0aa0d199-c0e9-461e-b98f-682dad5469ec'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '0aa0d199-c0e9-461e-b98f-682dad5469ec'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '05c1794a-a723-44c1-a5b6-4415c7bf2647'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '05c1794a-a723-44c1-a5b6-4415c7bf2647'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'd6a9930c-68ed-4f33-a8a5-7d44b441fe1e'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'eb333b79-aec6-4da1-b88d-08665d05fd3a'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'eb333b79-aec6-4da1-b88d-08665d05fd3a'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'eb333b79-aec6-4da1-b88d-08665d05fd3a'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '5845f507-6538-4cd8-b271-eb8aa11c53cd'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '8354ec80-dfe5-454e-ae06-224f4550b263'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '8354ec80-dfe5-454e-ae06-224f4550b263'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '8354ec80-dfe5-454e-ae06-224f4550b263'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'f091156c-5130-48b2-93ee-78ecdb2dc131'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'f091156c-5130-48b2-93ee-78ecdb2dc131'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '3e9af287-58da-40bc-bb97-131be29803b1'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '3e9af287-58da-40bc-bb97-131be29803b1'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '0cc00470-5afc-457d-825e-38cad7829982'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '0cc00470-5afc-457d-825e-38cad7829982'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '0cc00470-5afc-457d-825e-38cad7829982'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '2a0c04ba-e135-4ff4-9a27-a20a2e68ce15'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '2a0c04ba-e135-4ff4-9a27-a20a2e68ce15'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'e952f62a-2618-4286-92a5-dc01dd686041'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'e952f62a-2618-4286-92a5-dc01dd686041'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'e952f62a-2618-4286-92a5-dc01dd686041'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'b11c8811-91d2-44b8-bf6d-2c0be4b127a6'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'b11c8811-91d2-44b8-bf6d-2c0be4b127a6'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'b11c8811-91d2-44b8-bf6d-2c0be4b127a6'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'cd5c9e8b-5610-4487-a22c-b09459ea4c91'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'cd5c9e8b-5610-4487-a22c-b09459ea4c91'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'dc20c1aa-b217-4ecb-85e4-a13fa5f4f10b'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'dc20c1aa-b217-4ecb-85e4-a13fa5f4f10b'}), (c:Color {name: 'Vibrant'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'dc20c1aa-b217-4ecb-85e4-a13fa5f4f10b'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '1f88ee60-8728-472f-a0fa-9f54afbfda10'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'e4bd1bff-e8d8-49e9-b491-574e7a76d155'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'aeffaf5a-5e2e-455b-bfde-9ea0ab74fb87'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'aeffaf5a-5e2e-455b-bfde-9ea0ab74fb87'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'b86e99cc-5956-4f68-9fe3-1d7bb1a2ef0f'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'b86e99cc-5956-4f68-9fe3-1d7bb1a2ef0f'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'b86e99cc-5956-4f68-9fe3-1d7bb1a2ef0f'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'e8fe54b1-6a86-496f-b69d-71a357d8f92f'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'e8fe54b1-6a86-496f-b69d-71a357d8f92f'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'e8fe54b1-6a86-496f-b69d-71a357d8f92f'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '05668c66-56b9-460b-a950-a57552b65358'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '05668c66-56b9-460b-a950-a57552b65358'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '53360081-cb1d-4b9e-ab1a-aeb1f647aa35'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '53360081-cb1d-4b9e-ab1a-aeb1f647aa35'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '53360081-cb1d-4b9e-ab1a-aeb1f647aa35'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'ebf28709-0a85-4601-a684-6609c07dde60'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'ebf28709-0a85-4601-a684-6609c07dde60'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'ebf28709-0a85-4601-a684-6609c07dde60'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'ce067719-0280-4116-8d74-76eb38094bd7'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'ce067719-0280-4116-8d74-76eb38094bd7'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'e1331c41-8c4c-4059-ab26-837343e58cfb'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '7b5085f9-dcc7-46a6-867a-1c2392f545d9'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '7b5085f9-dcc7-46a6-867a-1c2392f545d9'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '7b5085f9-dcc7-46a6-867a-1c2392f545d9'}), (c:Color {name: 'Vibrant'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '557b2eaf-3729-40b4-9b06-de327bad29e0'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '557b2eaf-3729-40b4-9b06-de327bad29e0'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '557b2eaf-3729-40b4-9b06-de327bad29e0'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '25d0b38d-5e7c-435b-8cfc-e258cc2f634e'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '25d0b38d-5e7c-435b-8cfc-e258cc2f634e'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '507bc2db-223c-4f1f-9989-d8f9d4d2fae7'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '507bc2db-223c-4f1f-9989-d8f9d4d2fae7'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '1829395c-6eeb-4333-a3ca-ff3477f0ce59'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '4db61d7c-ea3c-435e-8e80-3a5072d47b95'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '4db61d7c-ea3c-435e-8e80-3a5072d47b95'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '93aa7ff5-ad26-4e31-aa8b-5feebb29ffa9'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'f9c85952-2c2a-49bb-afcf-f5e5c5a0d3ae'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'f9c85952-2c2a-49bb-afcf-f5e5c5a0d3ae'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'd71f64e5-762c-43ca-bc40-da66f6f69da3'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'd71f64e5-762c-43ca-bc40-da66f6f69da3'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'd71f64e5-762c-43ca-bc40-da66f6f69da3'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '6d8893ea-4f62-49ba-bb41-a187abf5e0c2'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '6d8893ea-4f62-49ba-bb41-a187abf5e0c2'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '6d8893ea-4f62-49ba-bb41-a187abf5e0c2'}), (c:Color {name: 'Vibrant'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'eaf4182a-a3af-4fa9-b3b4-eb55c58bcc53'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'eaf4182a-a3af-4fa9-b3b4-eb55c58bcc53'}), (c:Color {name: 'Vibrant'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'b91c1d62-f7ec-42fa-a043-772be31be891'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'b91c1d62-f7ec-42fa-a043-772be31be891'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'b91c1d62-f7ec-42fa-a043-772be31be891'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '856208ab-49d0-4a3a-ac98-339eb6ce631f'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '856208ab-49d0-4a3a-ac98-339eb6ce631f'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '0d440b3f-4f9c-4a7d-bd1f-8103262c1cd2'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '0d440b3f-4f9c-4a7d-bd1f-8103262c1cd2'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '0d440b3f-4f9c-4a7d-bd1f-8103262c1cd2'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '114b0700-13ad-4a0f-86a3-2930b595ca2d'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '114b0700-13ad-4a0f-86a3-2930b595ca2d'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '114b0700-13ad-4a0f-86a3-2930b595ca2d'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '387217c0-aec5-43b0-8d8a-357c08424317'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'a3b85462-dbd6-4539-b3e8-e9b725483c91'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'a3b85462-dbd6-4539-b3e8-e9b725483c91'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'a3b85462-dbd6-4539-b3e8-e9b725483c91'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'c2fc072c-9dc0-4c90-9243-586c064a909f'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'c2fc072c-9dc0-4c90-9243-586c064a909f'}), (c:Color {name: 'Vibrant'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'c2fc072c-9dc0-4c90-9243-586c064a909f'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '4d1fd05a-2bc3-4898-bba9-8af1d67c170b'}), (c:Color {name: 'Vibrant'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '4d1fd05a-2bc3-4898-bba9-8af1d67c170b'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '5aa37a69-bb5e-467f-b2fc-9b087bcf7ef2'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '5aa37a69-bb5e-467f-b2fc-9b087bcf7ef2'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '24aa166e-43d9-4f88-904e-05c59bc689af'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '24aa166e-43d9-4f88-904e-05c59bc689af'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '24aa166e-43d9-4f88-904e-05c59bc689af'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '33485588-ed73-49a8-ad21-e279480614ab'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '33485588-ed73-49a8-ad21-e279480614ab'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '33485588-ed73-49a8-ad21-e279480614ab'}), (c:Color {name: 'Vibrant'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'b3925d7a-cc93-4cf3-af38-55d263055f2c'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '0c133bba-7318-4405-ad52-0499289bfe38'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '0c133bba-7318-4405-ad52-0499289bfe38'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '0c133bba-7318-4405-ad52-0499289bfe38'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '30a4c0cb-bc9f-4794-8519-a2496d5076c5'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '61a2924d-df0c-45e6-a6df-89082cd04f15'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '61a2924d-df0c-45e6-a6df-89082cd04f15'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '8aac5809-88eb-4010-9c1c-af99ca1fccbd'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '8aac5809-88eb-4010-9c1c-af99ca1fccbd'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '8aac5809-88eb-4010-9c1c-af99ca1fccbd'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '5ee5b329-70d4-41ec-900e-e7217adec545'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '5ee5b329-70d4-41ec-900e-e7217adec545'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'e128c511-54b7-4414-bdd3-1bc22f5637b4'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'e128c511-54b7-4414-bdd3-1bc22f5637b4'}), (c:Color {name: 'Vibrant'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'e128c511-54b7-4414-bdd3-1bc22f5637b4'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '5cd6c2a8-7d49-4c9f-ac79-530581f4b7ab'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '5cd6c2a8-7d49-4c9f-ac79-530581f4b7ab'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '5cd6c2a8-7d49-4c9f-ac79-530581f4b7ab'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'c29e6c49-17f9-4c9f-91bc-f4c95a7c8ab8'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '95849b42-47a5-4f59-85d2-eebf491ed3fb'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '6cc9777f-78c4-4f6a-a901-93da54f614bf'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '6cc9777f-78c4-4f6a-a901-93da54f614bf'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '6cc9777f-78c4-4f6a-a901-93da54f614bf'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '0aafa0b8-cb74-4648-8746-12e2119ea4f2'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '0aafa0b8-cb74-4648-8746-12e2119ea4f2'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'e62d5ebb-3267-42c0-bfde-3a48fac0ac52'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'e62d5ebb-3267-42c0-bfde-3a48fac0ac52'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'e0412dd7-bdaa-49e2-ad97-4213cf6a68f9'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'e0412dd7-bdaa-49e2-ad97-4213cf6a68f9'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'bc83de6f-08e0-4b37-8300-08b105622431'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'cf54fb41-0aba-45ca-96ca-783b369b94d6'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'ac27cae0-1716-4dc4-9eea-c5224ce38055'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'ed4e628e-7125-4186-870d-2f0190be9996'}), (c:Color {name: 'Vibrant'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'ed4e628e-7125-4186-870d-2f0190be9996'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'ed4e628e-7125-4186-870d-2f0190be9996'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'c22be413-20c9-4fd2-b304-49baf076b5cf'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'cfe811ef-c7c7-455f-a040-6652e36ef6f1'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'cfe811ef-c7c7-455f-a040-6652e36ef6f1'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'cfe811ef-c7c7-455f-a040-6652e36ef6f1'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '193ee80b-94c5-4588-99b6-5aa2f26a1822'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '193ee80b-94c5-4588-99b6-5aa2f26a1822'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '193ee80b-94c5-4588-99b6-5aa2f26a1822'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '2bafc835-8784-4965-8d56-9b40bbca55e7'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'ac5c8489-28cd-42ce-8e18-3ff47c1c95b6'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'ac5c8489-28cd-42ce-8e18-3ff47c1c95b6'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'ac5c8489-28cd-42ce-8e18-3ff47c1c95b6'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '38de6885-8e7f-4b3c-952e-93e15bd0c404'}), (c:Color {name: 'Vibrant'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '38de6885-8e7f-4b3c-952e-93e15bd0c404'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'f9b3477c-d7a4-4191-8485-427b18cc565e'}), (c:Color {name: 'Vibrant'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'f9b3477c-d7a4-4191-8485-427b18cc565e'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'a326e7ce-d265-48ab-878d-819b2edddb7b'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '3b6fb1d8-f1fb-4fd3-80ee-d71463d6c868'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '3b6fb1d8-f1fb-4fd3-80ee-d71463d6c868'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'cfe93205-8a1d-4d07-a493-859cc38cce8f'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'c01b1464-4235-42ca-9984-7e87212c5b67'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'c01b1464-4235-42ca-9984-7e87212c5b67'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'c01b1464-4235-42ca-9984-7e87212c5b67'}), (c:Color {name: 'Vibrant'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'a24c194f-93d0-473b-96ec-fbe6d0e80228'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'a24c194f-93d0-473b-96ec-fbe6d0e80228'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'a24c194f-93d0-473b-96ec-fbe6d0e80228'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '583c03f9-30ef-465f-a7dc-3d36503aaf72'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '583c03f9-30ef-465f-a7dc-3d36503aaf72'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '2f06b07b-b52e-45f9-9ec1-e509b6a15fed'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '2f06b07b-b52e-45f9-9ec1-e509b6a15fed'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '2f30b515-9c74-4cd7-90a5-23acd17607a9'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '40a56e76-f6bc-488d-a3c6-434f39791e97'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '5ff32a33-48d1-461c-bd6a-4bacde579c3d'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'f2ce2c6b-8e12-431e-ae78-321ddf5021a0'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'f2ce2c6b-8e12-431e-ae78-321ddf5021a0'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'e9736890-e56c-4e9f-82a5-5ec4efc0b2e1'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'e5cc5199-78c9-4271-8a9e-fc36cddc3a2c'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'a836ba3e-912a-46b9-8537-ee260ad3ebbf'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'd12ece4e-2895-47a0-a999-b81e8e57f998'}), (c:Color {name: 'Vibrant'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'd12ece4e-2895-47a0-a999-b81e8e57f998'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'd12ece4e-2895-47a0-a999-b81e8e57f998'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'de7471f0-eb08-430f-a039-d076773cc291'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '8c9a497f-28b2-4463-80cd-a824de75309b'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '8c9a497f-28b2-4463-80cd-a824de75309b'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '866f2c37-2a5d-4d0e-bf47-28999f9f40a0'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '866f2c37-2a5d-4d0e-bf47-28999f9f40a0'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '866f2c37-2a5d-4d0e-bf47-28999f9f40a0'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '36dfaf4b-be9b-4b2d-8a5b-2aa93d26c1cf'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '36dfaf4b-be9b-4b2d-8a5b-2aa93d26c1cf'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '623141ca-9ee8-456b-8516-ed997dc40fdc'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '819a9310-fad3-4062-8534-057c17f90d84'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '819a9310-fad3-4062-8534-057c17f90d84'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '819a9310-fad3-4062-8534-057c17f90d84'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'bd49022d-a395-4a7a-87bd-5bb80576e281'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'bd49022d-a395-4a7a-87bd-5bb80576e281'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '6db44ecb-2cda-4eb9-bdf4-989a7a1b8797'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '47a1f895-3ac0-41f2-832e-765193815ad3'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '47a1f895-3ac0-41f2-832e-765193815ad3'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'c3fbb1f1-e91e-445f-8a65-ae495d28e9fe'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '50aa5ba5-2609-46a8-8315-127504a6b0ab'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'df1e9684-b150-4ad4-a806-4d14367a43b0'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'b23f0fde-0147-4416-91f0-90e5491929d3'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '842bb415-dcde-4020-8769-2d33424abac5'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '842bb415-dcde-4020-8769-2d33424abac5'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '842bb415-dcde-4020-8769-2d33424abac5'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '6155742e-c89e-44d7-91c7-492be6fa243f'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '388b2f3d-0088-450d-9583-4c46a837a962'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '388b2f3d-0088-450d-9583-4c46a837a962'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'fdb75be5-0260-49e3-bee8-3c6b94db952a'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'fdb75be5-0260-49e3-bee8-3c6b94db952a'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '0e7b6fae-c843-4648-be4c-265b5450594c'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '0e7b6fae-c843-4648-be4c-265b5450594c'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '0e7b6fae-c843-4648-be4c-265b5450594c'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '59538def-8743-47b7-9ec6-41718ba66421'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'a6541ecd-7add-4e4c-81c0-8e69bf5af624'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'a6541ecd-7add-4e4c-81c0-8e69bf5af624'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'd3b49103-479a-4e29-a2d1-effeff3bb086'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'd3b49103-479a-4e29-a2d1-effeff3bb086'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '6d9b7fdd-4d80-4bf2-a5e2-3a62047db9e2'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'ac1c4917-5ee7-40fa-9ba9-222367462b92'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'ac1c4917-5ee7-40fa-9ba9-222367462b92'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'ac1c4917-5ee7-40fa-9ba9-222367462b92'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'cb40be59-7cd8-41a6-83d9-e474253e92b5'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'cb40be59-7cd8-41a6-83d9-e474253e92b5'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '340c8da6-de8b-4be9-873b-1ea579afd71d'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '340c8da6-de8b-4be9-873b-1ea579afd71d'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '340c8da6-de8b-4be9-873b-1ea579afd71d'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'd29570b4-4fe0-4dea-b9fb-c1045054d39a'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '8639cc95-0939-43bf-947b-667e5c5aebcc'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '8639cc95-0939-43bf-947b-667e5c5aebcc'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '8639cc95-0939-43bf-947b-667e5c5aebcc'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'a14178ae-3b12-4252-9db2-7916aea7c188'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'a14178ae-3b12-4252-9db2-7916aea7c188'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'eebc3fe2-3fa3-43cc-973c-9955ff9d4ab3'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'eebc3fe2-3fa3-43cc-973c-9955ff9d4ab3'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'eebc3fe2-3fa3-43cc-973c-9955ff9d4ab3'}), (c:Color {name: 'Vibrant'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'e9e439d5-459f-4230-8c1c-e0890b90cb35'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '7f3124b1-2895-4109-9532-44319dd7e6dc'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '7f3124b1-2895-4109-9532-44319dd7e6dc'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'd6c31b01-a477-440d-830c-298d3e8e46df'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'd6c31b01-a477-440d-830c-298d3e8e46df'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'd6c31b01-a477-440d-830c-298d3e8e46df'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'c70bd1c9-0d33-45e9-937a-aec4eee8d832'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'c70bd1c9-0d33-45e9-937a-aec4eee8d832'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '2b8e6136-e0c0-4b39-974d-566d3d6cf123'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '2b8e6136-e0c0-4b39-974d-566d3d6cf123'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '53ba4bdb-c4a1-4a21-b4b7-ac7939e8ed65'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '9e0f33c7-f8e2-4dcc-82ae-d5dbe42aad00'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '8987dcec-e4c4-4a0c-9fe2-4cb4dfe9c692'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'a87cce35-b813-47ca-9323-99b4392f8337'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'a87cce35-b813-47ca-9323-99b4392f8337'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'a87cce35-b813-47ca-9323-99b4392f8337'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '3a6002ff-712a-441e-a483-e2b81e3294ef'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '1c837b81-33cb-48d6-bf1f-786973a2c500'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '0f54b3c8-c2d3-4414-9c5a-63f3943ffb95'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '0f54b3c8-c2d3-4414-9c5a-63f3943ffb95'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '873cc4c0-d115-4725-8746-1539f86ef19a'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '873cc4c0-d115-4725-8746-1539f86ef19a'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '0e032094-22d1-44a0-9d5a-c8fd63c4515a'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '0e032094-22d1-44a0-9d5a-c8fd63c4515a'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'f122d140-03a0-451e-93e4-c2cb23683c75'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'f122d140-03a0-451e-93e4-c2cb23683c75'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '6c331293-5e07-4bca-a7f6-76835d8b598a'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '6c331293-5e07-4bca-a7f6-76835d8b598a'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '6c331293-5e07-4bca-a7f6-76835d8b598a'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '2dc45f68-d209-4674-bdf7-fac60eac77be'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '41fb2502-0534-4c3e-a9cf-6eab81351e02'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '41fb2502-0534-4c3e-a9cf-6eab81351e02'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'd547a2c5-cdcd-46e8-8605-4b1ea1e09a1e'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'd547a2c5-cdcd-46e8-8605-4b1ea1e09a1e'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'd547a2c5-cdcd-46e8-8605-4b1ea1e09a1e'}), (c:Color {name: 'Vibrant'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '48a0c6d9-3bef-4d40-a654-7fd229191d89'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '48a0c6d9-3bef-4d40-a654-7fd229191d89'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'b36730ba-387a-4ce0-93a9-dd4d84960f09'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'a2435552-8403-4d90-98fa-391502aa7e1a'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'a2435552-8403-4d90-98fa-391502aa7e1a'}), (c:Color {name: 'Vibrant'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '8686b250-2926-43df-8678-e204d3d3a9df'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '4fe7264b-6cf1-4957-a560-785159b50c30'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '5eda1c3d-7486-4438-9056-8814e7ce65b6'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '98c6c5d4-12cd-4434-b875-77ea66c46342'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'bae3c29b-cba3-457d-a2df-b53e8198d5bc'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'bae3c29b-cba3-457d-a2df-b53e8198d5bc'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'bae3c29b-cba3-457d-a2df-b53e8198d5bc'}), (c:Color {name: 'Vibrant'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '427e1174-bc2a-4dd0-8e20-e34f35de4283'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '25707142-b1b6-4699-829a-6acb685b29e7'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '25707142-b1b6-4699-829a-6acb685b29e7'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '25707142-b1b6-4699-829a-6acb685b29e7'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'daabc26e-bb55-447d-8356-0f7a833b6104'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'daabc26e-bb55-447d-8356-0f7a833b6104'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'daabc26e-bb55-447d-8356-0f7a833b6104'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'd2d11c0d-2487-4c30-bc6b-506392a6a98e'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'd2d11c0d-2487-4c30-bc6b-506392a6a98e'}), (c:Color {name: 'Vibrant'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'd2d11c0d-2487-4c30-bc6b-506392a6a98e'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '37174f32-5038-46c0-92ef-4629ca6234d8'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '37174f32-5038-46c0-92ef-4629ca6234d8'}), (c:Color {name: 'Vibrant'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '37174f32-5038-46c0-92ef-4629ca6234d8'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '33afdffc-0751-48ec-bbbb-e7c76ae4c786'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '81fbbf5c-35da-4952-b02a-c8e0e9791c8a'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '81fbbf5c-35da-4952-b02a-c8e0e9791c8a'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '81fbbf5c-35da-4952-b02a-c8e0e9791c8a'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '064d66cc-5d95-46ee-9139-403c71fdd16e'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '064d66cc-5d95-46ee-9139-403c71fdd16e'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '6bfb7fc8-b187-4484-998d-6031b10f6371'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '6bfb7fc8-b187-4484-998d-6031b10f6371'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '8c74b725-b915-4b40-925c-45d3ca1e5dcb'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '8c74b725-b915-4b40-925c-45d3ca1e5dcb'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '117b8dbf-19bd-4fa1-b1f4-57e0bcaee126'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '117b8dbf-19bd-4fa1-b1f4-57e0bcaee126'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '62e09fb8-95db-47c9-9752-a2e6814cd910'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '696209f0-58d1-45b5-95c3-d8e59b7c5d35'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '696209f0-58d1-45b5-95c3-d8e59b7c5d35'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '696209f0-58d1-45b5-95c3-d8e59b7c5d35'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '6cf0c158-2361-4019-b58e-0a697db8f056'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '6cf0c158-2361-4019-b58e-0a697db8f056'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '6cf0c158-2361-4019-b58e-0a697db8f056'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '44f377a4-5490-4aca-9112-92fce03d5ff6'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '1d558228-498d-4496-b3e1-78286c675e71'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '1d558228-498d-4496-b3e1-78286c675e71'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'e8724aea-dbd3-4a9c-aafa-408ff8cac6de'}), (c:Color {name: 'Vibrant'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'a10c47be-07d7-4795-9079-807a494a6258'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'a10c47be-07d7-4795-9079-807a494a6258'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'a10c47be-07d7-4795-9079-807a494a6258'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '8ed7958a-b935-47f7-a6bc-4ab319f662a4'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '8ed7958a-b935-47f7-a6bc-4ab319f662a4'}), (c:Color {name: 'Monochrome'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '8ed7958a-b935-47f7-a6bc-4ab319f662a4'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'a6fe90d3-5f30-4541-bb8e-9f7e005f3a49'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'a6fe90d3-5f30-4541-bb8e-9f7e005f3a49'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '00a038b1-524d-480c-b634-a50593081c8c'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '00a038b1-524d-480c-b634-a50593081c8c'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'd7319521-ca55-4c66-937b-28d4307b32d7'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'd7319521-ca55-4c66-937b-28d4307b32d7'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'ed7eba39-c91d-445e-a98e-7259bdb6eacb'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'ed7eba39-c91d-445e-a98e-7259bdb6eacb'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'df5edcdc-2cf0-44ed-9c36-ba2459054f2d'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'df5edcdc-2cf0-44ed-9c36-ba2459054f2d'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'df5edcdc-2cf0-44ed-9c36-ba2459054f2d'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '0f5b18ee-ff0a-48f4-93fa-cb47ab9ad27b'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '12f9f8b5-4422-4151-8dcb-076529349277'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'd9550683-6866-4dec-a927-c82ba207eac4'}), (c:Color {name: 'Neon'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'd9550683-6866-4dec-a927-c82ba207eac4'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '3e13af16-5597-4b2e-bea7-1c59f3c53730'}), (c:Color {name: 'Bold Colors'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '3e13af16-5597-4b2e-bea7-1c59f3c53730'}), (c:Color {name: 'Pastel'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'f567514d-2e0f-4588-9960-4bc04fa0d423'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'f567514d-2e0f-4588-9960-4bc04fa0d423'}), (c:Color {name: 'Earth Tones'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: 'f567514d-2e0f-4588-9960-4bc04fa0d423'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '0df583e5-8422-4995-84c3-6b0d33ce732f'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '0df583e5-8422-4995-84c3-6b0d33ce732f'}), (c:Color {name: 'Black Only'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '0df583e5-8422-4995-84c3-6b0d33ce732f'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '1bd804dc-7da1-405d-8da9-61257ae42e27'}), (c:Color {name: 'Black & Grey'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '1bd804dc-7da1-405d-8da9-61257ae42e27'}), (c:Color {name: 'Full Color'}) MERGE (a)-[:USES_COLOR]->(c);
-MATCH (a:Artist {id: '1bd804dc-7da1-405d-8da9-61257ae42e27'}), (c:Color {name: 'Muted'}) MERGE (a)-[:USES_COLOR]->(c);
+// Create HAS_ARTIST relationships (Shop -> Artist)
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Austin', state: 'Texas'}), (a:Artist {id: '5835eaa6-f203-43b9-af47-485c58a2e52c'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Denver', state: 'Colorado'}), (a:Artist {id: '8e8045d7-4f3f-4e4e-8bd8-a93d8b478ca6'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Montreal', state: 'Quebec'}), (a:Artist {id: '6f3591de-bea3-4e00-8039-64981a8e099d'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Newark', state: 'New Jersey'}), (a:Artist {id: '095ab55f-df1b-45b9-be2e-d7305c7ebd23'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Tampa', state: 'Florida'}), (a:Artist {id: 'c10e9891-b537-4baf-a0a2-d63e9edba3d1'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Austin', state: 'Texas'}), (a:Artist {id: 'c623ff67-bbf3-44e7-916c-550ec58ff314'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Portland', state: 'Oregon'}), (a:Artist {id: '3557a401-d44d-430d-a755-cccdef2af361'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Austin', state: 'Texas'}), (a:Artist {id: 'c665b9b3-f4d8-4449-a57d-c188e8aa3e61'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Houston', state: 'Texas'}), (a:Artist {id: 'db89ef64-3441-4646-a7c2-faa56526db5e'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Ewing Township', state: 'New Jersey'}), (a:Artist {id: '98c29f7a-256f-41b0-b416-3e3c57ace18c'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Brooklyn', state: 'New York'}), (a:Artist {id: '40e41e2f-13df-4b25-ac45-b9db1f4b1275'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'San Diego', state: 'California'}), (a:Artist {id: 'ee555676-f8d8-4c34-a264-a08750fb9996'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Denver', state: 'Colorado'}), (a:Artist {id: '7663cd0d-12e6-460f-9dec-78f1a8985d58'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Tucson', state: 'Arizona'}), (a:Artist {id: '9c7ac04d-02d0-4f02-aa3d-da135da588bd'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Manhattan', state: 'New York'}), (a:Artist {id: '6303c217-5dba-42d3-a9bc-ee609565cae9'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Dallas', state: 'Texas'}), (a:Artist {id: '9e31580e-c264-41de-989f-11751be0a56e'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Burlington', state: 'Vermont'}), (a:Artist {id: '3c57a451-d6c5-49ca-bf46-c94786215e54'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Sydney', state: 'New South Wales'}), (a:Artist {id: '3f752f02-2847-46f4-a184-6e8d5bc1b776'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Ewing Township', state: 'New Jersey'}), (a:Artist {id: '1f3d84a1-292f-4836-86d3-cb0bf803193d'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Miami', state: 'Florida'}), (a:Artist {id: '919a288d-b342-4dc4-a0cc-a3b38585a5fe'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Austin', state: 'Texas'}), (a:Artist {id: '366bda7c-009b-469c-a03f-6258fdc81bcd'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Dallas', state: 'Texas'}), (a:Artist {id: '19b09e4e-efcd-4863-bc43-a0cb266de01a'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'San Diego', state: 'California'}), (a:Artist {id: '79484512-840c-4529-93dc-de79d425043e'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Jersey City', state: 'New Jersey'}), (a:Artist {id: 'fe4eb917-6028-4878-b390-65ed795619b3'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Melbourne', state: 'Victoria'}), (a:Artist {id: '77e6476e-db9a-4fce-bae7-123645e89d81'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Toronto', state: 'Ontario'}), (a:Artist {id: '76bb3f0b-5533-43f4-8fee-7e36fe369ada'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Tampa', state: 'Florida'}), (a:Artist {id: '6bedcf48-0868-45f6-b021-329047a42b10'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Perth', state: 'Western Australia'}), (a:Artist {id: '6556f12c-c8fb-4268-9680-c7ddc546e86c'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Houston', state: 'Texas'}), (a:Artist {id: '3e2706ad-9e33-4d43-9338-c6992f074067'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Montreal', state: 'Quebec'}), (a:Artist {id: 'b9d5e3be-5f5f-43de-85eb-20d27e7244ee'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Newark', state: 'New Jersey'}), (a:Artist {id: '9801da5b-9906-4073-8df4-8bd1b58d327f'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Denver', state: 'Colorado'}), (a:Artist {id: '2a605cce-a668-4c76-8f31-839076c4db46'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Miami', state: 'Florida'}), (a:Artist {id: '4e2c2df5-b4ed-4fb2-8052-7e3876b2268d'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Tucson', state: 'Arizona'}), (a:Artist {id: '6e763c3a-25fb-46ef-af92-355bfa7a48e3'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Tucson', state: 'Arizona'}), (a:Artist {id: '985e2349-3b59-4cc8-a9ef-d33507d0f4bb'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Dallas', state: 'Texas'}), (a:Artist {id: 'd06b59c9-b214-4103-92df-34b79116142c'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Montreal', state: 'Quebec'}), (a:Artist {id: '15192239-10a2-4de0-a8e2-351cbdaf7f47'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Dallas', state: 'Texas'}), (a:Artist {id: 'a38f78ac-6d8c-4b3d-be7d-20e9317551db'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Manhattan', state: 'New York'}), (a:Artist {id: 'a1e331ce-411c-4f15-bd74-72fe0610957b'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Jersey City', state: 'New Jersey'}), (a:Artist {id: '9dd88c6f-e2e3-4530-af79-24a047e0146f'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Perth', state: 'Western Australia'}), (a:Artist {id: '071f7135-68bb-4301-9a86-3b9301d7eeeb'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Melbourne', state: 'Victoria'}), (a:Artist {id: '6f26011c-bb1b-443a-9d87-3af8167cf938'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Phoenix', state: 'Arizona'}), (a:Artist {id: '86270e8f-d059-476a-b82f-9ac5e616e365'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Toronto', state: 'Ontario'}), (a:Artist {id: '129fa57a-898f-460e-8352-88131f701f0e'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Vancouver', state: 'British Columbia'}), (a:Artist {id: '73d8f021-b367-4f3d-86b6-752ff6920b45'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Austin', state: 'Texas'}), (a:Artist {id: '57de2a11-9ad5-4586-91c1-8d2b825d6199'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Los Angeles', state: 'California'}), (a:Artist {id: '0d7e41e5-abeb-4725-bded-8f1c44335b29'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Newark', state: 'New Jersey'}), (a:Artist {id: '29be8331-46b2-441e-88ba-1bed9a611435'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Tucson', state: 'Arizona'}), (a:Artist {id: '5215b296-2512-48ad-a73a-7716ec0c18a5'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Tucson', state: 'Arizona'}), (a:Artist {id: '39d0c0b4-ab78-4c70-a369-12dc368a5671'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Burlington', state: 'Vermont'}), (a:Artist {id: '6e346c96-f77e-41b3-9304-c12cb9214cb5'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Toronto', state: 'Ontario'}), (a:Artist {id: 'c6efd895-9169-402c-87f2-9a2087afd503'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Montreal', state: 'Quebec'}), (a:Artist {id: '0055ab2e-f215-499a-aaba-6b8694d85aaf'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Melbourne', state: 'Victoria'}), (a:Artist {id: '29321bbb-7c48-4036-921b-330e2fe9814c'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Sydney', state: 'New South Wales'}), (a:Artist {id: '32354ba5-13ac-4a0d-b624-3d081a49e65a'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Perth', state: 'Western Australia'}), (a:Artist {id: 'f6baf290-e80b-4ebb-88de-b8c225f12d71'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Denver', state: 'Colorado'}), (a:Artist {id: '82f14b6c-2aa8-4d66-ae6e-057131e9f322'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Montreal', state: 'Quebec'}), (a:Artist {id: 'b1c08501-25ca-4058-866b-e0129e8d9234'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Perth', state: 'Western Australia'}), (a:Artist {id: '4135d823-5762-4c20-b6a0-0a3f4eb9a0bd'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Manhattan', state: 'New York'}), (a:Artist {id: '60352c84-b8fe-4378-ae2d-474b5c90360f'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Dallas', state: 'Texas'}), (a:Artist {id: '3730e63d-6a38-4d1e-bca3-ff67ce0c82c7'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Vancouver', state: 'British Columbia'}), (a:Artist {id: '7767ea76-b34d-4beb-beb8-29d51c4ac230'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Denver', state: 'Colorado'}), (a:Artist {id: 'c913f16b-0604-4f63-bbb7-ade8866b2c0d'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Houston', state: 'Texas'}), (a:Artist {id: 'f1121635-0622-4078-9195-36eb0e4b02d3'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Vancouver', state: 'British Columbia'}), (a:Artist {id: 'fa08bb8b-5f9e-4a40-b195-26b701d2794f'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Sydney', state: 'New South Wales'}), (a:Artist {id: '41624bfe-ebb9-48cf-bcde-01490e2fffdc'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Jersey City', state: 'New Jersey'}), (a:Artist {id: 'dca7e8d3-fa07-4d4d-8e34-b433a6180727'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Tucson', state: 'Arizona'}), (a:Artist {id: 'd6067ab0-40cd-4717-8c4e-d0b67a66f1d2'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Brooklyn', state: 'New York'}), (a:Artist {id: '1574381a-482d-42e0-b777-e00c9af45ea0'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Portland', state: 'Oregon'}), (a:Artist {id: 'df0f254e-b58c-46ad-a541-b74dee3c05a8'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Portland', state: 'Oregon'}), (a:Artist {id: 'be689759-e106-4667-9d5a-ceebd5ed4aee'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Toronto', state: 'Ontario'}), (a:Artist {id: '3d03e544-fbe3-44ec-9f10-99b660316b18'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'San Francisco', state: 'California'}), (a:Artist {id: '07eaaeeb-1540-4670-b82d-b14e29dc1042'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Houston', state: 'Texas'}), (a:Artist {id: '02fb2183-6746-4782-9596-6c93810f137f'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Denver', state: 'Colorado'}), (a:Artist {id: 'f2851c38-245b-4f47-a1cd-79f24f164f98'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Newark', state: 'New Jersey'}), (a:Artist {id: 'a578a976-0c1d-483f-a614-f17bcacfaa18'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Dallas', state: 'Texas'}), (a:Artist {id: '48b5c5cc-f48b-4eec-b7c3-a9bee19ca85e'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Tampa', state: 'Florida'}), (a:Artist {id: '67035968-3e7f-43cd-a6cc-2a135688b3a9'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Burlington', state: 'Vermont'}), (a:Artist {id: '5b691f1b-5ff9-4c39-a199-32b7b4613bbc'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Sydney', state: 'New South Wales'}), (a:Artist {id: '391e8d41-1d15-4d0e-a98f-51f4975fd182'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Houston', state: 'Texas'}), (a:Artist {id: '67f173fe-83d1-4b74-98ba-40321fadadef'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Burlington', state: 'Vermont'}), (a:Artist {id: 'dd4b1bd3-ff34-4f30-8154-a3fd9b60e98e'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Jersey City', state: 'New Jersey'}), (a:Artist {id: 'd1b73eb1-da92-40a5-ab9c-0329957c95ea'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Denver', state: 'Colorado'}), (a:Artist {id: 'a3ff3e81-7682-4e54-833c-bce10f645131'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Los Angeles', state: 'California'}), (a:Artist {id: 'dc65325e-bf12-4aea-966f-7b8576127878'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Toronto', state: 'Ontario'}), (a:Artist {id: 'a239a071-a365-44f6-8c6e-8cd92d643c15'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Burlington', state: 'Vermont'}), (a:Artist {id: '821e5518-b280-4007-8766-82e67d7cb3c4'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Montreal', state: 'Quebec'}), (a:Artist {id: 'be121454-0452-4220-8608-421a04ddb03e'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Houston', state: 'Texas'}), (a:Artist {id: '9b1d83b0-9584-4721-babf-47722b212c4b'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Toronto', state: 'Ontario'}), (a:Artist {id: 'd05b8c77-0686-42ee-b93d-0090d0f9ba9c'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'San Francisco', state: 'California'}), (a:Artist {id: 'fc8cbd08-a294-40df-b95f-478801416b2c'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Tampa', state: 'Florida'}), (a:Artist {id: 'bd7cf9f6-cfc2-4f5f-a91c-3c23ada0b2e0'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Tucson', state: 'Arizona'}), (a:Artist {id: 'd93d6fe2-9bc4-40da-8e2e-97cdc4a90bad'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Jersey City', state: 'New Jersey'}), (a:Artist {id: '87c1816e-28ff-48da-be7c-56fde3d2d452'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Los Angeles', state: 'California'}), (a:Artist {id: '33f924ba-843b-4f82-98d2-141c46bc31c3'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Montreal', state: 'Quebec'}), (a:Artist {id: '4ce8b98f-ca2d-4f65-97b6-de578c33315d'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Perth', state: 'Western Australia'}), (a:Artist {id: '3559c9a3-da74-4310-b318-2fd5e63597a8'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Phoenix', state: 'Arizona'}), (a:Artist {id: '040f96b0-e49a-4769-90a0-379551c5ee2d'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Tampa', state: 'Florida'}), (a:Artist {id: '2c188c54-7ab6-431b-8084-16a8c4b2ff04'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Montreal', state: 'Quebec'}), (a:Artist {id: 'e9272d93-2d2b-4e42-a752-a686a35ab2a8'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Houston', state: 'Texas'}), (a:Artist {id: '5643b371-ebc2-4eb5-8c59-9f1eec546cfa'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Miami', state: 'Florida'}), (a:Artist {id: '1476005b-7377-4e74-bf86-655d31be404d'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Jersey City', state: 'New Jersey'}), (a:Artist {id: '92ec73d4-b380-46e9-8af2-065ae9055257'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Portland', state: 'Oregon'}), (a:Artist {id: 'e5534c1c-980b-4691-b8cf-526599bbbdd0'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Perth', state: 'Western Australia'}), (a:Artist {id: '236e6a8c-ebb6-4eaf-8686-158168e0ed58'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Ewing Township', state: 'New Jersey'}), (a:Artist {id: '02455515-3b73-4a33-a236-e6c06a6bb9fd'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Austin', state: 'Texas'}), (a:Artist {id: 'f18a5789-de8e-430b-97ad-a1452c34f4bd'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Sydney', state: 'New South Wales'}), (a:Artist {id: 'dd814727-b29c-4dd8-909d-5ca6488c8eb5'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Dallas', state: 'Texas'}), (a:Artist {id: '6527611b-e793-43e4-8005-b72fd675347f'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Phoenix', state: 'Arizona'}), (a:Artist {id: '19f5edd4-2c58-4165-9504-58bc6e0565f7'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Melbourne', state: 'Victoria'}), (a:Artist {id: 'c73bb7e7-b5e7-4534-b488-abbebe56e359'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Brooklyn', state: 'New York'}), (a:Artist {id: '51a32e86-838e-40ae-a9c4-cedcf8160fc7'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Tucson', state: 'Arizona'}), (a:Artist {id: '8d21659c-c8c7-4414-b2a2-847989a9533a'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Burlington', state: 'Vermont'}), (a:Artist {id: '2df99554-ea53-4d18-8639-c5e3f800ea1f'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Houston', state: 'Texas'}), (a:Artist {id: '4f5960ef-eb70-4c80-86cb-cd54d652d129'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Ewing Township', state: 'New Jersey'}), (a:Artist {id: 'f22a5477-40a0-46c7-bb4c-d8757da3f42e'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Perth', state: 'Western Australia'}), (a:Artist {id: '08907aa8-4bb7-4e68-a3f1-054e65e96b64'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Montreal', state: 'Quebec'}), (a:Artist {id: '0862292a-4cb7-477c-88a8-01572b02edc1'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'San Diego', state: 'California'}), (a:Artist {id: 'b797fbad-4a03-4b15-8767-43efd16881f1'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'San Francisco', state: 'California'}), (a:Artist {id: '39ac7737-d6ec-43c4-ba53-8eab2f4b02c0'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Vancouver', state: 'British Columbia'}), (a:Artist {id: '69a4c31d-40d6-4991-8636-e1e6a57a8017'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Los Angeles', state: 'California'}), (a:Artist {id: '82e31eb2-3d75-4877-a80c-7e86396c2738'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Toronto', state: 'Ontario'}), (a:Artist {id: 'ecc6d387-73ac-4e35-a323-e752ad5bd4c7'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Burlington', state: 'Vermont'}), (a:Artist {id: '0b1157a1-a3ad-4406-a0d2-0cbe3f66d08d'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Jersey City', state: 'New Jersey'}), (a:Artist {id: '55a505f3-e689-4df4-b1bd-b9c90b63de9e'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'San Francisco', state: 'California'}), (a:Artist {id: '5c8ce1cf-2505-4bce-b529-4a1a9bee3fa5'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Burlington', state: 'Vermont'}), (a:Artist {id: '7153ecff-8d28-4fc9-b208-004e909a6156'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'San Francisco', state: 'California'}), (a:Artist {id: 'f885ac74-713c-43eb-9dbf-2f6096889fd3'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Burlington', state: 'Vermont'}), (a:Artist {id: '20aa526f-b01b-45fb-afd1-a6d510e06e35'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Sydney', state: 'New South Wales'}), (a:Artist {id: '18502e2f-b038-41b7-9cd8-4a5a1ddd417c'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Brooklyn', state: 'New York'}), (a:Artist {id: '8ff5f808-23e7-45b3-8cee-12c224568702'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Newark', state: 'New Jersey'}), (a:Artist {id: '24cac96d-848a-46b3-bf52-796ee3f35c94'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Burlington', state: 'Vermont'}), (a:Artist {id: '52bc3f64-e3f6-44b2-a850-d7f71e7673a9'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Burlington', state: 'Vermont'}), (a:Artist {id: '40f46778-2b70-49ea-a641-9515c6bf8135'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Brooklyn', state: 'New York'}), (a:Artist {id: '7d95846f-e496-4420-8d67-830e2e5aea74'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Jersey City', state: 'New Jersey'}), (a:Artist {id: 'edc8a80b-1215-4ae1-a6da-e7869fa1ea70'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Austin', state: 'Texas'}), (a:Artist {id: '5e4cb69a-f376-410b-a630-a1024cb16bac'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Tampa', state: 'Florida'}), (a:Artist {id: '3852f0b4-2806-4de7-bca8-25aa3dbbe1a4'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Phoenix', state: 'Arizona'}), (a:Artist {id: 'e4b97ef5-743e-4efc-8bad-526e2cd3f8b9'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Manhattan', state: 'New York'}), (a:Artist {id: '567fdf8c-ab6b-4928-8d9f-8ca3acadd4ef'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Tucson', state: 'Arizona'}), (a:Artist {id: 'cc678e75-6237-4283-b32b-f24ac53b94ad'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'San Diego', state: 'California'}), (a:Artist {id: '3df464b3-b275-4f1f-950c-6844591a7348'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'San Francisco', state: 'California'}), (a:Artist {id: '7c9c2ee6-6e3e-4bb7-857b-3df12bc96cc2'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Phoenix', state: 'Arizona'}), (a:Artist {id: '7b4512c1-82c5-444e-9718-6989ead08acc'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'San Diego', state: 'California'}), (a:Artist {id: 'a8d6d6b0-6e69-4751-9c11-d44073011ce2'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Tampa', state: 'Florida'}), (a:Artist {id: 'a1c01f96-d2a0-45e8-9d75-58f037fe05d4'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Austin', state: 'Texas'}), (a:Artist {id: '76ffe280-c21b-4096-aa17-e6608b81641c'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Miami', state: 'Florida'}), (a:Artist {id: '5d5505c8-c2af-49d7-b7ed-e00111ddcad3'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Denver', state: 'Colorado'}), (a:Artist {id: '3278b9ab-5e84-4203-a5d3-3f0f5c53ebf6'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Austin', state: 'Texas'}), (a:Artist {id: 'e2e295df-cd98-48f5-bf75-1ecd3a938b14'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Melbourne', state: 'Victoria'}), (a:Artist {id: '866d79b4-882e-4610-908d-65f1abddce66'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Los Angeles', state: 'California'}), (a:Artist {id: '11dc59a3-6dd7-4f81-b719-a1f98447ca2e'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Newark', state: 'New Jersey'}), (a:Artist {id: '39da1ffe-73dc-4ac0-a22e-a9eda5ebdf31'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Manhattan', state: 'New York'}), (a:Artist {id: 'bd2cfcbb-faea-4215-92c8-c132bf8da238'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Ewing Township', state: 'New Jersey'}), (a:Artist {id: '4505d6e4-7924-4b4f-b842-e266de7a9a0b'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Denver', state: 'Colorado'}), (a:Artist {id: '1d782048-86c4-44ad-b250-8d0e34d5561e'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Houston', state: 'Texas'}), (a:Artist {id: '7528da8e-5e08-4cf5-bbfc-4162ba4c1e57'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'San Francisco', state: 'California'}), (a:Artist {id: 'f676d9fc-e893-4ff7-aed1-2725a03b7b69'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Montreal', state: 'Quebec'}), (a:Artist {id: 'e4bc3fa9-df8b-476f-b489-48228a714fa2'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Ewing Township', state: 'New Jersey'}), (a:Artist {id: '3e41b67a-36ca-4486-a6c0-8ed471a24a9f'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Melbourne', state: 'Victoria'}), (a:Artist {id: '1b9da0c9-ca52-43fb-8d45-446a80f3cf23'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Phoenix', state: 'Arizona'}), (a:Artist {id: '772bbc78-e611-45ed-b252-c62c89a58184'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Toronto', state: 'Ontario'}), (a:Artist {id: 'a872ddeb-b14b-4205-88a7-2afd5774fff0'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Dallas', state: 'Texas'}), (a:Artist {id: '56087216-8a98-4df8-a16c-4dbf99c94e9c'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Miami', state: 'Florida'}), (a:Artist {id: '26aae468-b0d2-41f7-b6f6-7380dd67a60c'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Houston', state: 'Texas'}), (a:Artist {id: '794a7f8b-1904-48a5-b407-4b85b6613ed3'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Jersey City', state: 'New Jersey'}), (a:Artist {id: '1e61ba1e-046d-4044-9784-704d8cd4a725'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Manhattan', state: 'New York'}), (a:Artist {id: 'a83936a8-f6fe-4615-9030-b0fdebfc81a0'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Montreal', state: 'Quebec'}), (a:Artist {id: '0b5aae9e-7115-4be6-a571-c8328a1117e7'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Ewing Township', state: 'New Jersey'}), (a:Artist {id: 'a3ab9151-1259-483c-887a-388948f01cf8'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Burlington', state: 'Vermont'}), (a:Artist {id: '3edbc498-55b5-485d-81a7-2902da3f6893'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Jersey City', state: 'New Jersey'}), (a:Artist {id: '5c63871c-c87f-40d6-8eff-7582ffecb7ed'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Tucson', state: 'Arizona'}), (a:Artist {id: '5ee83f4c-3812-422e-8969-e6f9d71d2d25'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Ewing Township', state: 'New Jersey'}), (a:Artist {id: '85c8b8c3-91e1-4577-a4d6-36ba2338af44'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'San Diego', state: 'California'}), (a:Artist {id: 'c05fbe90-288a-4bc9-a099-b06f81ce2c92'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Tucson', state: 'Arizona'}), (a:Artist {id: 'a8984ae8-1699-4190-b367-6cd3134953d2'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Manhattan', state: 'New York'}), (a:Artist {id: '3000a0b8-e841-4a45-a7af-cdbc1ac555fd'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Sydney', state: 'New South Wales'}), (a:Artist {id: '546acb61-e7e5-43c0-9434-a53a0781c89a'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Brooklyn', state: 'New York'}), (a:Artist {id: 'e2741d5d-76fd-4aa9-80ce-c895a4bc5726'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Melbourne', state: 'Victoria'}), (a:Artist {id: 'ef41eded-9b52-4124-8575-a2018ed200db'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Austin', state: 'Texas'}), (a:Artist {id: 'f57663d2-7d36-4407-ab69-4ce308865e70'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Montreal', state: 'Quebec'}), (a:Artist {id: '52cfc283-3d3f-478f-8e69-5497c0a21240'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Toronto', state: 'Ontario'}), (a:Artist {id: '3890674b-a870-4abb-b32e-b7cc18548349'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Miami', state: 'Florida'}), (a:Artist {id: '7d1920ae-0df9-4727-b459-352346efd0bd'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Houston', state: 'Texas'}), (a:Artist {id: 'ed91da3c-a198-45ad-97ed-b3160be1192d'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Burlington', state: 'Vermont'}), (a:Artist {id: '97db48a6-0c51-4c89-88f7-4b941569e0a9'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Jersey City', state: 'New Jersey'}), (a:Artist {id: 'd12a0be6-78af-40cb-a398-f6f2d1df4baf'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Manhattan', state: 'New York'}), (a:Artist {id: '434098b1-bccd-49c8-b771-4683a861fcea'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'San Diego', state: 'California'}), (a:Artist {id: '386bf3d6-f358-4738-9ddb-5079ebca7909'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Tucson', state: 'Arizona'}), (a:Artist {id: 'fc8bcf0b-fb25-422f-877c-ac1c7a13d57d'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Manhattan', state: 'New York'}), (a:Artist {id: '8df11dfe-b26b-4299-82c9-269c9b3ad476'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'San Francisco', state: 'California'}), (a:Artist {id: '1e242c36-a916-4c94-ab2d-1265f74dd48b'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Newark', state: 'New Jersey'}), (a:Artist {id: 'f56e08f5-7a4c-4b77-95f6-1cdebcf1938f'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Ewing Township', state: 'New Jersey'}), (a:Artist {id: 'c8f53513-6e40-43f0-9d0f-81fe16302e20'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Portland', state: 'Oregon'}), (a:Artist {id: '1371fabb-9b03-4bbe-810d-e9d9c92bbcd3'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Vancouver', state: 'British Columbia'}), (a:Artist {id: 'c30d7b12-4802-4ea3-8105-c4a45c013cea'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Ewing Township', state: 'New Jersey'}), (a:Artist {id: '8cf15fea-bb4f-42ba-9e13-aac5ad7df738'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Austin', state: 'Texas'}), (a:Artist {id: '2510c2ea-ff53-4f3e-9c28-b456e5384fa6'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Burlington', state: 'Vermont'}), (a:Artist {id: 'd294198f-f290-4db6-904d-ee2ff4cf30a1'}) MERGE (sh)-[:HAS_ARTIST]->(a);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Melbourne', state: 'Victoria'}), (a:Artist {id: '2c994788-0cd3-454a-b46b-5399baabff99'}) MERGE (sh)-[:HAS_ARTIST]->(a);
 
-// Create SPECIALIZES_IN relationships
-MATCH (a:Artist {id: '3bd06f61-bdf4-4147-9411-ec0fcff0cea4'}), (sp:Specialization {name: 'Horror'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '3bd06f61-bdf4-4147-9411-ec0fcff0cea4'}), (sp:Specialization {name: 'Medical Cover-up'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6026f7ac-5b01-4891-b47f-ae32f4ddf09b'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6026f7ac-5b01-4891-b47f-ae32f4ddf09b'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6026f7ac-5b01-4891-b47f-ae32f4ddf09b'}), (sp:Specialization {name: 'Medical Cover-up'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a9436f14-53f9-4056-953e-29f560dab5a9'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a9436f14-53f9-4056-953e-29f560dab5a9'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a9436f14-53f9-4056-953e-29f560dab5a9'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a9436f14-53f9-4056-953e-29f560dab5a9'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a9436f14-53f9-4056-953e-29f560dab5a9'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '92824bf4-f3b6-41c8-89bd-97eb1e600d1b'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '92824bf4-f3b6-41c8-89bd-97eb1e600d1b'}), (sp:Specialization {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '92824bf4-f3b6-41c8-89bd-97eb1e600d1b'}), (sp:Specialization {name: 'Medical Cover-up'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '92824bf4-f3b6-41c8-89bd-97eb1e600d1b'}), (sp:Specialization {name: 'Large Scale'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '759e2449-2616-4d3a-a327-7e3bbd57083e'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '759e2449-2616-4d3a-a327-7e3bbd57083e'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '759e2449-2616-4d3a-a327-7e3bbd57083e'}), (sp:Specialization {name: 'Cultural'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '759e2449-2616-4d3a-a327-7e3bbd57083e'}), (sp:Specialization {name: 'Horror'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '942d3fd3-2fad-4074-adc9-abb76e638665'}), (sp:Specialization {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '942d3fd3-2fad-4074-adc9-abb76e638665'}), (sp:Specialization {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '942d3fd3-2fad-4074-adc9-abb76e638665'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '942d3fd3-2fad-4074-adc9-abb76e638665'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '81d10875-d68a-4e58-aef7-b29e5f8e48ce'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '81d10875-d68a-4e58-aef7-b29e5f8e48ce'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '81d10875-d68a-4e58-aef7-b29e5f8e48ce'}), (sp:Specialization {name: 'Horror'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '81d10875-d68a-4e58-aef7-b29e5f8e48ce'}), (sp:Specialization {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '81d10875-d68a-4e58-aef7-b29e5f8e48ce'}), (sp:Specialization {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '43ea7a24-622c-4402-8780-2acdcbe6d9cb'}), (sp:Specialization {name: 'Cultural'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '43ea7a24-622c-4402-8780-2acdcbe6d9cb'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '43ea7a24-622c-4402-8780-2acdcbe6d9cb'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ba5e7645-45d8-4acb-b1b4-cdbceb38a10a'}), (sp:Specialization {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ba5e7645-45d8-4acb-b1b4-cdbceb38a10a'}), (sp:Specialization {name: 'Medical Cover-up'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '018e0cac-4608-46ab-a3ad-474a9b9ab7de'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '018e0cac-4608-46ab-a3ad-474a9b9ab7de'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '018e0cac-4608-46ab-a3ad-474a9b9ab7de'}), (sp:Specialization {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '018e0cac-4608-46ab-a3ad-474a9b9ab7de'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ce1fe16c-7d7b-43fb-aa11-51c027f3152c'}), (sp:Specialization {name: 'Animal'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ce1fe16c-7d7b-43fb-aa11-51c027f3152c'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ce1fe16c-7d7b-43fb-aa11-51c027f3152c'}), (sp:Specialization {name: 'Small Delicate'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ce1fe16c-7d7b-43fb-aa11-51c027f3152c'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e614a27f-bb8b-4bb8-8afa-cb4f74751eb7'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e614a27f-bb8b-4bb8-8afa-cb4f74751eb7'}), (sp:Specialization {name: 'Horror'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e614a27f-bb8b-4bb8-8afa-cb4f74751eb7'}), (sp:Specialization {name: 'Small Delicate'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e614a27f-bb8b-4bb8-8afa-cb4f74751eb7'}), (sp:Specialization {name: 'Animal'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e614a27f-bb8b-4bb8-8afa-cb4f74751eb7'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'da6e554a-27e5-493f-a31a-b579036e52bb'}), (sp:Specialization {name: 'Animal'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'b21a3922-5c2c-4286-a7f3-c586ee2e927b'}), (sp:Specialization {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '25ad22ab-c8db-439a-81b7-1e48b85314ba'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '25ad22ab-c8db-439a-81b7-1e48b85314ba'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '80dd0ffe-7841-4a7b-9920-68c84e20409f'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '80dd0ffe-7841-4a7b-9920-68c84e20409f'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '80dd0ffe-7841-4a7b-9920-68c84e20409f'}), (sp:Specialization {name: 'Small Delicate'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '80dd0ffe-7841-4a7b-9920-68c84e20409f'}), (sp:Specialization {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '35908fd7-da81-4848-bac3-9c2a2b336b4b'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'b72a8e3a-18b6-4311-a23f-e7ec5092e619'}), (sp:Specialization {name: 'Small Delicate'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'b72a8e3a-18b6-4311-a23f-e7ec5092e619'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'b72a8e3a-18b6-4311-a23f-e7ec5092e619'}), (sp:Specialization {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '259dea08-04a7-4119-95ac-f5d2b3ba153d'}), (sp:Specialization {name: 'Small Delicate'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '259dea08-04a7-4119-95ac-f5d2b3ba153d'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '259dea08-04a7-4119-95ac-f5d2b3ba153d'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '259dea08-04a7-4119-95ac-f5d2b3ba153d'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '259dea08-04a7-4119-95ac-f5d2b3ba153d'}), (sp:Specialization {name: 'Large Scale'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'aae32407-b25d-401e-8c80-aa744a523230'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'aae32407-b25d-401e-8c80-aa744a523230'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'aae32407-b25d-401e-8c80-aa744a523230'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'aae32407-b25d-401e-8c80-aa744a523230'}), (sp:Specialization {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'd985253d-7364-4aea-9efb-ab094935b1d1'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'd985253d-7364-4aea-9efb-ab094935b1d1'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'd985253d-7364-4aea-9efb-ab094935b1d1'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '27346ff0-e86f-4c73-be87-d19d2691d7c7'}), (sp:Specialization {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '27346ff0-e86f-4c73-be87-d19d2691d7c7'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '27346ff0-e86f-4c73-be87-d19d2691d7c7'}), (sp:Specialization {name: 'Horror'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '27346ff0-e86f-4c73-be87-d19d2691d7c7'}), (sp:Specialization {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'f6677d34-df32-444d-a4f9-07414f2ccb71'}), (sp:Specialization {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'f6677d34-df32-444d-a4f9-07414f2ccb71'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '839b9086-cf3f-4b42-98c5-68dfb89655cb'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '839b9086-cf3f-4b42-98c5-68dfb89655cb'}), (sp:Specialization {name: 'Large Scale'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '839b9086-cf3f-4b42-98c5-68dfb89655cb'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '839b9086-cf3f-4b42-98c5-68dfb89655cb'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '20929771-d891-4b6a-944a-ae6ccf5fd67f'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '20929771-d891-4b6a-944a-ae6ccf5fd67f'}), (sp:Specialization {name: 'Large Scale'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '20929771-d891-4b6a-944a-ae6ccf5fd67f'}), (sp:Specialization {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '20929771-d891-4b6a-944a-ae6ccf5fd67f'}), (sp:Specialization {name: 'Medical Cover-up'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '20929771-d891-4b6a-944a-ae6ccf5fd67f'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '9ccf2900-6eae-4e31-941a-537fd076b26e'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '9ccf2900-6eae-4e31-941a-537fd076b26e'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '9ccf2900-6eae-4e31-941a-537fd076b26e'}), (sp:Specialization {name: 'Horror'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '9ccf2900-6eae-4e31-941a-537fd076b26e'}), (sp:Specialization {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '543f2e52-b849-4819-a72e-670a0bb837b3'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0aa0d199-c0e9-461e-b98f-682dad5469ec'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0aa0d199-c0e9-461e-b98f-682dad5469ec'}), (sp:Specialization {name: 'Fantasy'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0aa0d199-c0e9-461e-b98f-682dad5469ec'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0aa0d199-c0e9-461e-b98f-682dad5469ec'}), (sp:Specialization {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '05c1794a-a723-44c1-a5b6-4415c7bf2647'}), (sp:Specialization {name: 'Cultural'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '05c1794a-a723-44c1-a5b6-4415c7bf2647'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '05c1794a-a723-44c1-a5b6-4415c7bf2647'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '05c1794a-a723-44c1-a5b6-4415c7bf2647'}), (sp:Specialization {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'd6a9930c-68ed-4f33-a8a5-7d44b441fe1e'}), (sp:Specialization {name: 'Fantasy'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'd6a9930c-68ed-4f33-a8a5-7d44b441fe1e'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'eb333b79-aec6-4da1-b88d-08665d05fd3a'}), (sp:Specialization {name: 'Small Delicate'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'eb333b79-aec6-4da1-b88d-08665d05fd3a'}), (sp:Specialization {name: 'Fantasy'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '5845f507-6538-4cd8-b271-eb8aa11c53cd'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '8354ec80-dfe5-454e-ae06-224f4550b263'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'f091156c-5130-48b2-93ee-78ecdb2dc131'}), (sp:Specialization {name: 'Large Scale'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'f091156c-5130-48b2-93ee-78ecdb2dc131'}), (sp:Specialization {name: 'Cultural'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'f091156c-5130-48b2-93ee-78ecdb2dc131'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '3e9af287-58da-40bc-bb97-131be29803b1'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0cc00470-5afc-457d-825e-38cad7829982'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0cc00470-5afc-457d-825e-38cad7829982'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0cc00470-5afc-457d-825e-38cad7829982'}), (sp:Specialization {name: 'Cultural'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '2a0c04ba-e135-4ff4-9a27-a20a2e68ce15'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '2a0c04ba-e135-4ff4-9a27-a20a2e68ce15'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '2a0c04ba-e135-4ff4-9a27-a20a2e68ce15'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '2a0c04ba-e135-4ff4-9a27-a20a2e68ce15'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e952f62a-2618-4286-92a5-dc01dd686041'}), (sp:Specialization {name: 'Large Scale'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e952f62a-2618-4286-92a5-dc01dd686041'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e952f62a-2618-4286-92a5-dc01dd686041'}), (sp:Specialization {name: 'Medical Cover-up'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e952f62a-2618-4286-92a5-dc01dd686041'}), (sp:Specialization {name: 'Horror'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e952f62a-2618-4286-92a5-dc01dd686041'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'b11c8811-91d2-44b8-bf6d-2c0be4b127a6'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'cd5c9e8b-5610-4487-a22c-b09459ea4c91'}), (sp:Specialization {name: 'Fantasy'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'cd5c9e8b-5610-4487-a22c-b09459ea4c91'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'dc20c1aa-b217-4ecb-85e4-a13fa5f4f10b'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '1f88ee60-8728-472f-a0fa-9f54afbfda10'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '1f88ee60-8728-472f-a0fa-9f54afbfda10'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e4bd1bff-e8d8-49e9-b491-574e7a76d155'}), (sp:Specialization {name: 'Horror'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'aeffaf5a-5e2e-455b-bfde-9ea0ab74fb87'}), (sp:Specialization {name: 'Medical Cover-up'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'aeffaf5a-5e2e-455b-bfde-9ea0ab74fb87'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'b86e99cc-5956-4f68-9fe3-1d7bb1a2ef0f'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e8fe54b1-6a86-496f-b69d-71a357d8f92f'}), (sp:Specialization {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e8fe54b1-6a86-496f-b69d-71a357d8f92f'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e8fe54b1-6a86-496f-b69d-71a357d8f92f'}), (sp:Specialization {name: 'Horror'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '05668c66-56b9-460b-a950-a57552b65358'}), (sp:Specialization {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '05668c66-56b9-460b-a950-a57552b65358'}), (sp:Specialization {name: 'Large Scale'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '05668c66-56b9-460b-a950-a57552b65358'}), (sp:Specialization {name: 'Small Delicate'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '53360081-cb1d-4b9e-ab1a-aeb1f647aa35'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '53360081-cb1d-4b9e-ab1a-aeb1f647aa35'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '53360081-cb1d-4b9e-ab1a-aeb1f647aa35'}), (sp:Specialization {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '53360081-cb1d-4b9e-ab1a-aeb1f647aa35'}), (sp:Specialization {name: 'Horror'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '53360081-cb1d-4b9e-ab1a-aeb1f647aa35'}), (sp:Specialization {name: 'Cultural'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ebf28709-0a85-4601-a684-6609c07dde60'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ebf28709-0a85-4601-a684-6609c07dde60'}), (sp:Specialization {name: 'Memorial'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ebf28709-0a85-4601-a684-6609c07dde60'}), (sp:Specialization {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ebf28709-0a85-4601-a684-6609c07dde60'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ebf28709-0a85-4601-a684-6609c07dde60'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ce067719-0280-4116-8d74-76eb38094bd7'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ce067719-0280-4116-8d74-76eb38094bd7'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ce067719-0280-4116-8d74-76eb38094bd7'}), (sp:Specialization {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ce067719-0280-4116-8d74-76eb38094bd7'}), (sp:Specialization {name: 'Memorial'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e1331c41-8c4c-4059-ab26-837343e58cfb'}), (sp:Specialization {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e1331c41-8c4c-4059-ab26-837343e58cfb'}), (sp:Specialization {name: 'Cultural'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '7b5085f9-dcc7-46a6-867a-1c2392f545d9'}), (sp:Specialization {name: 'Large Scale'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '7b5085f9-dcc7-46a6-867a-1c2392f545d9'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '7b5085f9-dcc7-46a6-867a-1c2392f545d9'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '557b2eaf-3729-40b4-9b06-de327bad29e0'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '557b2eaf-3729-40b4-9b06-de327bad29e0'}), (sp:Specialization {name: 'Medical Cover-up'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '557b2eaf-3729-40b4-9b06-de327bad29e0'}), (sp:Specialization {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '557b2eaf-3729-40b4-9b06-de327bad29e0'}), (sp:Specialization {name: 'Horror'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '25d0b38d-5e7c-435b-8cfc-e258cc2f634e'}), (sp:Specialization {name: 'Memorial'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '25d0b38d-5e7c-435b-8cfc-e258cc2f634e'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '25d0b38d-5e7c-435b-8cfc-e258cc2f634e'}), (sp:Specialization {name: 'Cultural'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '25d0b38d-5e7c-435b-8cfc-e258cc2f634e'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '507bc2db-223c-4f1f-9989-d8f9d4d2fae7'}), (sp:Specialization {name: 'Fantasy'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '507bc2db-223c-4f1f-9989-d8f9d4d2fae7'}), (sp:Specialization {name: 'Memorial'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '507bc2db-223c-4f1f-9989-d8f9d4d2fae7'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '507bc2db-223c-4f1f-9989-d8f9d4d2fae7'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '507bc2db-223c-4f1f-9989-d8f9d4d2fae7'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '1829395c-6eeb-4333-a3ca-ff3477f0ce59'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '1829395c-6eeb-4333-a3ca-ff3477f0ce59'}), (sp:Specialization {name: 'Horror'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '4db61d7c-ea3c-435e-8e80-3a5072d47b95'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '4db61d7c-ea3c-435e-8e80-3a5072d47b95'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '4db61d7c-ea3c-435e-8e80-3a5072d47b95'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '4db61d7c-ea3c-435e-8e80-3a5072d47b95'}), (sp:Specialization {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '4db61d7c-ea3c-435e-8e80-3a5072d47b95'}), (sp:Specialization {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '93aa7ff5-ad26-4e31-aa8b-5feebb29ffa9'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '93aa7ff5-ad26-4e31-aa8b-5feebb29ffa9'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '93aa7ff5-ad26-4e31-aa8b-5feebb29ffa9'}), (sp:Specialization {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '93aa7ff5-ad26-4e31-aa8b-5feebb29ffa9'}), (sp:Specialization {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'f9c85952-2c2a-49bb-afcf-f5e5c5a0d3ae'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'f9c85952-2c2a-49bb-afcf-f5e5c5a0d3ae'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'f9c85952-2c2a-49bb-afcf-f5e5c5a0d3ae'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'd71f64e5-762c-43ca-bc40-da66f6f69da3'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'd71f64e5-762c-43ca-bc40-da66f6f69da3'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6d8893ea-4f62-49ba-bb41-a187abf5e0c2'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6d8893ea-4f62-49ba-bb41-a187abf5e0c2'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6d8893ea-4f62-49ba-bb41-a187abf5e0c2'}), (sp:Specialization {name: 'Small Delicate'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6d8893ea-4f62-49ba-bb41-a187abf5e0c2'}), (sp:Specialization {name: 'Medical Cover-up'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'eaf4182a-a3af-4fa9-b3b4-eb55c58bcc53'}), (sp:Specialization {name: 'Horror'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'eaf4182a-a3af-4fa9-b3b4-eb55c58bcc53'}), (sp:Specialization {name: 'Large Scale'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'eaf4182a-a3af-4fa9-b3b4-eb55c58bcc53'}), (sp:Specialization {name: 'Medical Cover-up'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'eaf4182a-a3af-4fa9-b3b4-eb55c58bcc53'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'eaf4182a-a3af-4fa9-b3b4-eb55c58bcc53'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'b91c1d62-f7ec-42fa-a043-772be31be891'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'b91c1d62-f7ec-42fa-a043-772be31be891'}), (sp:Specialization {name: 'Animal'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '856208ab-49d0-4a3a-ac98-339eb6ce631f'}), (sp:Specialization {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '856208ab-49d0-4a3a-ac98-339eb6ce631f'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '856208ab-49d0-4a3a-ac98-339eb6ce631f'}), (sp:Specialization {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '856208ab-49d0-4a3a-ac98-339eb6ce631f'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0d440b3f-4f9c-4a7d-bd1f-8103262c1cd2'}), (sp:Specialization {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0d440b3f-4f9c-4a7d-bd1f-8103262c1cd2'}), (sp:Specialization {name: 'Fantasy'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0d440b3f-4f9c-4a7d-bd1f-8103262c1cd2'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0d440b3f-4f9c-4a7d-bd1f-8103262c1cd2'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0d440b3f-4f9c-4a7d-bd1f-8103262c1cd2'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '114b0700-13ad-4a0f-86a3-2930b595ca2d'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '114b0700-13ad-4a0f-86a3-2930b595ca2d'}), (sp:Specialization {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '387217c0-aec5-43b0-8d8a-357c08424317'}), (sp:Specialization {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '387217c0-aec5-43b0-8d8a-357c08424317'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a3b85462-dbd6-4539-b3e8-e9b725483c91'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a3b85462-dbd6-4539-b3e8-e9b725483c91'}), (sp:Specialization {name: 'Large Scale'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a3b85462-dbd6-4539-b3e8-e9b725483c91'}), (sp:Specialization {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a3b85462-dbd6-4539-b3e8-e9b725483c91'}), (sp:Specialization {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'c2fc072c-9dc0-4c90-9243-586c064a909f'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '4d1fd05a-2bc3-4898-bba9-8af1d67c170b'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '4d1fd05a-2bc3-4898-bba9-8af1d67c170b'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '5aa37a69-bb5e-467f-b2fc-9b087bcf7ef2'}), (sp:Specialization {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '5aa37a69-bb5e-467f-b2fc-9b087bcf7ef2'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '24aa166e-43d9-4f88-904e-05c59bc689af'}), (sp:Specialization {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '33485588-ed73-49a8-ad21-e279480614ab'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '33485588-ed73-49a8-ad21-e279480614ab'}), (sp:Specialization {name: 'Small Delicate'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'b3925d7a-cc93-4cf3-af38-55d263055f2c'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'b3925d7a-cc93-4cf3-af38-55d263055f2c'}), (sp:Specialization {name: 'Large Scale'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'b3925d7a-cc93-4cf3-af38-55d263055f2c'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0c133bba-7318-4405-ad52-0499289bfe38'}), (sp:Specialization {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0c133bba-7318-4405-ad52-0499289bfe38'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0c133bba-7318-4405-ad52-0499289bfe38'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '30a4c0cb-bc9f-4794-8519-a2496d5076c5'}), (sp:Specialization {name: 'Large Scale'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '30a4c0cb-bc9f-4794-8519-a2496d5076c5'}), (sp:Specialization {name: 'Cultural'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '61a2924d-df0c-45e6-a6df-89082cd04f15'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '8aac5809-88eb-4010-9c1c-af99ca1fccbd'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '8aac5809-88eb-4010-9c1c-af99ca1fccbd'}), (sp:Specialization {name: 'Fantasy'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '8aac5809-88eb-4010-9c1c-af99ca1fccbd'}), (sp:Specialization {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '8aac5809-88eb-4010-9c1c-af99ca1fccbd'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '8aac5809-88eb-4010-9c1c-af99ca1fccbd'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '5ee5b329-70d4-41ec-900e-e7217adec545'}), (sp:Specialization {name: 'Memorial'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '5ee5b329-70d4-41ec-900e-e7217adec545'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '5ee5b329-70d4-41ec-900e-e7217adec545'}), (sp:Specialization {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '5ee5b329-70d4-41ec-900e-e7217adec545'}), (sp:Specialization {name: 'Horror'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '5ee5b329-70d4-41ec-900e-e7217adec545'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e128c511-54b7-4414-bdd3-1bc22f5637b4'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '5cd6c2a8-7d49-4c9f-ac79-530581f4b7ab'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'c29e6c49-17f9-4c9f-91bc-f4c95a7c8ab8'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '95849b42-47a5-4f59-85d2-eebf491ed3fb'}), (sp:Specialization {name: 'Large Scale'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '95849b42-47a5-4f59-85d2-eebf491ed3fb'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '95849b42-47a5-4f59-85d2-eebf491ed3fb'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '95849b42-47a5-4f59-85d2-eebf491ed3fb'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6cc9777f-78c4-4f6a-a901-93da54f614bf'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6cc9777f-78c4-4f6a-a901-93da54f614bf'}), (sp:Specialization {name: 'Animal'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6cc9777f-78c4-4f6a-a901-93da54f614bf'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6cc9777f-78c4-4f6a-a901-93da54f614bf'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0aafa0b8-cb74-4648-8746-12e2119ea4f2'}), (sp:Specialization {name: 'Cultural'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e62d5ebb-3267-42c0-bfde-3a48fac0ac52'}), (sp:Specialization {name: 'Medical Cover-up'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e62d5ebb-3267-42c0-bfde-3a48fac0ac52'}), (sp:Specialization {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e62d5ebb-3267-42c0-bfde-3a48fac0ac52'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e62d5ebb-3267-42c0-bfde-3a48fac0ac52'}), (sp:Specialization {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e0412dd7-bdaa-49e2-ad97-4213cf6a68f9'}), (sp:Specialization {name: 'Medical Cover-up'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'bc83de6f-08e0-4b37-8300-08b105622431'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'cf54fb41-0aba-45ca-96ca-783b369b94d6'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'cf54fb41-0aba-45ca-96ca-783b369b94d6'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ac27cae0-1716-4dc4-9eea-c5224ce38055'}), (sp:Specialization {name: 'Large Scale'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ac27cae0-1716-4dc4-9eea-c5224ce38055'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ac27cae0-1716-4dc4-9eea-c5224ce38055'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ac27cae0-1716-4dc4-9eea-c5224ce38055'}), (sp:Specialization {name: 'Cultural'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ed4e628e-7125-4186-870d-2f0190be9996'}), (sp:Specialization {name: 'Animal'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ed4e628e-7125-4186-870d-2f0190be9996'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ed4e628e-7125-4186-870d-2f0190be9996'}), (sp:Specialization {name: 'Medical Cover-up'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'c22be413-20c9-4fd2-b304-49baf076b5cf'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'c22be413-20c9-4fd2-b304-49baf076b5cf'}), (sp:Specialization {name: 'Horror'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'c22be413-20c9-4fd2-b304-49baf076b5cf'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'c22be413-20c9-4fd2-b304-49baf076b5cf'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'cfe811ef-c7c7-455f-a040-6652e36ef6f1'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'cfe811ef-c7c7-455f-a040-6652e36ef6f1'}), (sp:Specialization {name: 'Small Delicate'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'cfe811ef-c7c7-455f-a040-6652e36ef6f1'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'cfe811ef-c7c7-455f-a040-6652e36ef6f1'}), (sp:Specialization {name: 'Animal'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'cfe811ef-c7c7-455f-a040-6652e36ef6f1'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '193ee80b-94c5-4588-99b6-5aa2f26a1822'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '193ee80b-94c5-4588-99b6-5aa2f26a1822'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '2bafc835-8784-4965-8d56-9b40bbca55e7'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '2bafc835-8784-4965-8d56-9b40bbca55e7'}), (sp:Specialization {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '2bafc835-8784-4965-8d56-9b40bbca55e7'}), (sp:Specialization {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ac5c8489-28cd-42ce-8e18-3ff47c1c95b6'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '38de6885-8e7f-4b3c-952e-93e15bd0c404'}), (sp:Specialization {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '38de6885-8e7f-4b3c-952e-93e15bd0c404'}), (sp:Specialization {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '38de6885-8e7f-4b3c-952e-93e15bd0c404'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '38de6885-8e7f-4b3c-952e-93e15bd0c404'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '38de6885-8e7f-4b3c-952e-93e15bd0c404'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'f9b3477c-d7a4-4191-8485-427b18cc565e'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'f9b3477c-d7a4-4191-8485-427b18cc565e'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'f9b3477c-d7a4-4191-8485-427b18cc565e'}), (sp:Specialization {name: 'Horror'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'f9b3477c-d7a4-4191-8485-427b18cc565e'}), (sp:Specialization {name: 'Memorial'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'f9b3477c-d7a4-4191-8485-427b18cc565e'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a326e7ce-d265-48ab-878d-819b2edddb7b'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a326e7ce-d265-48ab-878d-819b2edddb7b'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a326e7ce-d265-48ab-878d-819b2edddb7b'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a326e7ce-d265-48ab-878d-819b2edddb7b'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '3b6fb1d8-f1fb-4fd3-80ee-d71463d6c868'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '3b6fb1d8-f1fb-4fd3-80ee-d71463d6c868'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'cfe93205-8a1d-4d07-a493-859cc38cce8f'}), (sp:Specialization {name: 'Animal'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'c01b1464-4235-42ca-9984-7e87212c5b67'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'c01b1464-4235-42ca-9984-7e87212c5b67'}), (sp:Specialization {name: 'Fantasy'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'c01b1464-4235-42ca-9984-7e87212c5b67'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'c01b1464-4235-42ca-9984-7e87212c5b67'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a24c194f-93d0-473b-96ec-fbe6d0e80228'}), (sp:Specialization {name: 'Cultural'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a24c194f-93d0-473b-96ec-fbe6d0e80228'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a24c194f-93d0-473b-96ec-fbe6d0e80228'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a24c194f-93d0-473b-96ec-fbe6d0e80228'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '583c03f9-30ef-465f-a7dc-3d36503aaf72'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '2f06b07b-b52e-45f9-9ec1-e509b6a15fed'}), (sp:Specialization {name: 'Fantasy'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '2f06b07b-b52e-45f9-9ec1-e509b6a15fed'}), (sp:Specialization {name: 'Large Scale'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '2f06b07b-b52e-45f9-9ec1-e509b6a15fed'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '2f30b515-9c74-4cd7-90a5-23acd17607a9'}), (sp:Specialization {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '2f30b515-9c74-4cd7-90a5-23acd17607a9'}), (sp:Specialization {name: 'Fantasy'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '2f30b515-9c74-4cd7-90a5-23acd17607a9'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '2f30b515-9c74-4cd7-90a5-23acd17607a9'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '40a56e76-f6bc-488d-a3c6-434f39791e97'}), (sp:Specialization {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '40a56e76-f6bc-488d-a3c6-434f39791e97'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '40a56e76-f6bc-488d-a3c6-434f39791e97'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '5ff32a33-48d1-461c-bd6a-4bacde579c3d'}), (sp:Specialization {name: 'Animal'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '5ff32a33-48d1-461c-bd6a-4bacde579c3d'}), (sp:Specialization {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'f2ce2c6b-8e12-431e-ae78-321ddf5021a0'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'f2ce2c6b-8e12-431e-ae78-321ddf5021a0'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'f2ce2c6b-8e12-431e-ae78-321ddf5021a0'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'f2ce2c6b-8e12-431e-ae78-321ddf5021a0'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'f2ce2c6b-8e12-431e-ae78-321ddf5021a0'}), (sp:Specialization {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e9736890-e56c-4e9f-82a5-5ec4efc0b2e1'}), (sp:Specialization {name: 'Cultural'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e9736890-e56c-4e9f-82a5-5ec4efc0b2e1'}), (sp:Specialization {name: 'Small Delicate'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e9736890-e56c-4e9f-82a5-5ec4efc0b2e1'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e9736890-e56c-4e9f-82a5-5ec4efc0b2e1'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e9736890-e56c-4e9f-82a5-5ec4efc0b2e1'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e5cc5199-78c9-4271-8a9e-fc36cddc3a2c'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e5cc5199-78c9-4271-8a9e-fc36cddc3a2c'}), (sp:Specialization {name: 'Horror'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e5cc5199-78c9-4271-8a9e-fc36cddc3a2c'}), (sp:Specialization {name: 'Medical Cover-up'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a836ba3e-912a-46b9-8537-ee260ad3ebbf'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a836ba3e-912a-46b9-8537-ee260ad3ebbf'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a836ba3e-912a-46b9-8537-ee260ad3ebbf'}), (sp:Specialization {name: 'Fantasy'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'd12ece4e-2895-47a0-a999-b81e8e57f998'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'd12ece4e-2895-47a0-a999-b81e8e57f998'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'de7471f0-eb08-430f-a039-d076773cc291'}), (sp:Specialization {name: 'Large Scale'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'de7471f0-eb08-430f-a039-d076773cc291'}), (sp:Specialization {name: 'Medical Cover-up'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '8c9a497f-28b2-4463-80cd-a824de75309b'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '866f2c37-2a5d-4d0e-bf47-28999f9f40a0'}), (sp:Specialization {name: 'Fantasy'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '866f2c37-2a5d-4d0e-bf47-28999f9f40a0'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '866f2c37-2a5d-4d0e-bf47-28999f9f40a0'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '36dfaf4b-be9b-4b2d-8a5b-2aa93d26c1cf'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '36dfaf4b-be9b-4b2d-8a5b-2aa93d26c1cf'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '36dfaf4b-be9b-4b2d-8a5b-2aa93d26c1cf'}), (sp:Specialization {name: 'Cultural'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '623141ca-9ee8-456b-8516-ed997dc40fdc'}), (sp:Specialization {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '623141ca-9ee8-456b-8516-ed997dc40fdc'}), (sp:Specialization {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '623141ca-9ee8-456b-8516-ed997dc40fdc'}), (sp:Specialization {name: 'Memorial'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '623141ca-9ee8-456b-8516-ed997dc40fdc'}), (sp:Specialization {name: 'Medical Cover-up'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '819a9310-fad3-4062-8534-057c17f90d84'}), (sp:Specialization {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '819a9310-fad3-4062-8534-057c17f90d84'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '819a9310-fad3-4062-8534-057c17f90d84'}), (sp:Specialization {name: 'Animal'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'bd49022d-a395-4a7a-87bd-5bb80576e281'}), (sp:Specialization {name: 'Medical Cover-up'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6db44ecb-2cda-4eb9-bdf4-989a7a1b8797'}), (sp:Specialization {name: 'Medical Cover-up'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6db44ecb-2cda-4eb9-bdf4-989a7a1b8797'}), (sp:Specialization {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6db44ecb-2cda-4eb9-bdf4-989a7a1b8797'}), (sp:Specialization {name: 'Animal'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6db44ecb-2cda-4eb9-bdf4-989a7a1b8797'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6db44ecb-2cda-4eb9-bdf4-989a7a1b8797'}), (sp:Specialization {name: 'Small Delicate'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '47a1f895-3ac0-41f2-832e-765193815ad3'}), (sp:Specialization {name: 'Animal'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'c3fbb1f1-e91e-445f-8a65-ae495d28e9fe'}), (sp:Specialization {name: 'Memorial'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'c3fbb1f1-e91e-445f-8a65-ae495d28e9fe'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'c3fbb1f1-e91e-445f-8a65-ae495d28e9fe'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'c3fbb1f1-e91e-445f-8a65-ae495d28e9fe'}), (sp:Specialization {name: 'Animal'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '50aa5ba5-2609-46a8-8315-127504a6b0ab'}), (sp:Specialization {name: 'Animal'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '50aa5ba5-2609-46a8-8315-127504a6b0ab'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '50aa5ba5-2609-46a8-8315-127504a6b0ab'}), (sp:Specialization {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'df1e9684-b150-4ad4-a806-4d14367a43b0'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'df1e9684-b150-4ad4-a806-4d14367a43b0'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'b23f0fde-0147-4416-91f0-90e5491929d3'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'b23f0fde-0147-4416-91f0-90e5491929d3'}), (sp:Specialization {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'b23f0fde-0147-4416-91f0-90e5491929d3'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'b23f0fde-0147-4416-91f0-90e5491929d3'}), (sp:Specialization {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '842bb415-dcde-4020-8769-2d33424abac5'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '842bb415-dcde-4020-8769-2d33424abac5'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '842bb415-dcde-4020-8769-2d33424abac5'}), (sp:Specialization {name: 'Memorial'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '842bb415-dcde-4020-8769-2d33424abac5'}), (sp:Specialization {name: 'Fantasy'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6155742e-c89e-44d7-91c7-492be6fa243f'}), (sp:Specialization {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '388b2f3d-0088-450d-9583-4c46a837a962'}), (sp:Specialization {name: 'Animal'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '388b2f3d-0088-450d-9583-4c46a837a962'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '388b2f3d-0088-450d-9583-4c46a837a962'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '388b2f3d-0088-450d-9583-4c46a837a962'}), (sp:Specialization {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'fdb75be5-0260-49e3-bee8-3c6b94db952a'}), (sp:Specialization {name: 'Animal'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'fdb75be5-0260-49e3-bee8-3c6b94db952a'}), (sp:Specialization {name: 'Cultural'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'fdb75be5-0260-49e3-bee8-3c6b94db952a'}), (sp:Specialization {name: 'Memorial'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0e7b6fae-c843-4648-be4c-265b5450594c'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0e7b6fae-c843-4648-be4c-265b5450594c'}), (sp:Specialization {name: 'Large Scale'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0e7b6fae-c843-4648-be4c-265b5450594c'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0e7b6fae-c843-4648-be4c-265b5450594c'}), (sp:Specialization {name: 'Memorial'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '59538def-8743-47b7-9ec6-41718ba66421'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '59538def-8743-47b7-9ec6-41718ba66421'}), (sp:Specialization {name: 'Large Scale'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a6541ecd-7add-4e4c-81c0-8e69bf5af624'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a6541ecd-7add-4e4c-81c0-8e69bf5af624'}), (sp:Specialization {name: 'Medical Cover-up'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a6541ecd-7add-4e4c-81c0-8e69bf5af624'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a6541ecd-7add-4e4c-81c0-8e69bf5af624'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'd3b49103-479a-4e29-a2d1-effeff3bb086'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'd3b49103-479a-4e29-a2d1-effeff3bb086'}), (sp:Specialization {name: 'Large Scale'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6d9b7fdd-4d80-4bf2-a5e2-3a62047db9e2'}), (sp:Specialization {name: 'Horror'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6d9b7fdd-4d80-4bf2-a5e2-3a62047db9e2'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6d9b7fdd-4d80-4bf2-a5e2-3a62047db9e2'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6d9b7fdd-4d80-4bf2-a5e2-3a62047db9e2'}), (sp:Specialization {name: 'Medical Cover-up'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6d9b7fdd-4d80-4bf2-a5e2-3a62047db9e2'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ac1c4917-5ee7-40fa-9ba9-222367462b92'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ac1c4917-5ee7-40fa-9ba9-222367462b92'}), (sp:Specialization {name: 'Animal'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'cb40be59-7cd8-41a6-83d9-e474253e92b5'}), (sp:Specialization {name: 'Cultural'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '340c8da6-de8b-4be9-873b-1ea579afd71d'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'd29570b4-4fe0-4dea-b9fb-c1045054d39a'}), (sp:Specialization {name: 'Horror'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'd29570b4-4fe0-4dea-b9fb-c1045054d39a'}), (sp:Specialization {name: 'Cultural'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'd29570b4-4fe0-4dea-b9fb-c1045054d39a'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '8639cc95-0939-43bf-947b-667e5c5aebcc'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a14178ae-3b12-4252-9db2-7916aea7c188'}), (sp:Specialization {name: 'Large Scale'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'eebc3fe2-3fa3-43cc-973c-9955ff9d4ab3'}), (sp:Specialization {name: 'Large Scale'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e9e439d5-459f-4230-8c1c-e0890b90cb35'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e9e439d5-459f-4230-8c1c-e0890b90cb35'}), (sp:Specialization {name: 'Fantasy'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '7f3124b1-2895-4109-9532-44319dd7e6dc'}), (sp:Specialization {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '7f3124b1-2895-4109-9532-44319dd7e6dc'}), (sp:Specialization {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '7f3124b1-2895-4109-9532-44319dd7e6dc'}), (sp:Specialization {name: 'Memorial'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '7f3124b1-2895-4109-9532-44319dd7e6dc'}), (sp:Specialization {name: 'Small Delicate'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'd6c31b01-a477-440d-830c-298d3e8e46df'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'c70bd1c9-0d33-45e9-937a-aec4eee8d832'}), (sp:Specialization {name: 'Large Scale'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'c70bd1c9-0d33-45e9-937a-aec4eee8d832'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'c70bd1c9-0d33-45e9-937a-aec4eee8d832'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'c70bd1c9-0d33-45e9-937a-aec4eee8d832'}), (sp:Specialization {name: 'Medical Cover-up'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'c70bd1c9-0d33-45e9-937a-aec4eee8d832'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '2b8e6136-e0c0-4b39-974d-566d3d6cf123'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '2b8e6136-e0c0-4b39-974d-566d3d6cf123'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '53ba4bdb-c4a1-4a21-b4b7-ac7939e8ed65'}), (sp:Specialization {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '53ba4bdb-c4a1-4a21-b4b7-ac7939e8ed65'}), (sp:Specialization {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '53ba4bdb-c4a1-4a21-b4b7-ac7939e8ed65'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '53ba4bdb-c4a1-4a21-b4b7-ac7939e8ed65'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '9e0f33c7-f8e2-4dcc-82ae-d5dbe42aad00'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '9e0f33c7-f8e2-4dcc-82ae-d5dbe42aad00'}), (sp:Specialization {name: 'Small Delicate'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '9e0f33c7-f8e2-4dcc-82ae-d5dbe42aad00'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '8987dcec-e4c4-4a0c-9fe2-4cb4dfe9c692'}), (sp:Specialization {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '8987dcec-e4c4-4a0c-9fe2-4cb4dfe9c692'}), (sp:Specialization {name: 'Horror'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '8987dcec-e4c4-4a0c-9fe2-4cb4dfe9c692'}), (sp:Specialization {name: 'Memorial'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '8987dcec-e4c4-4a0c-9fe2-4cb4dfe9c692'}), (sp:Specialization {name: 'Small Delicate'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a87cce35-b813-47ca-9323-99b4392f8337'}), (sp:Specialization {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a87cce35-b813-47ca-9323-99b4392f8337'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '3a6002ff-712a-441e-a483-e2b81e3294ef'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '3a6002ff-712a-441e-a483-e2b81e3294ef'}), (sp:Specialization {name: 'Animal'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '3a6002ff-712a-441e-a483-e2b81e3294ef'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '1c837b81-33cb-48d6-bf1f-786973a2c500'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '1c837b81-33cb-48d6-bf1f-786973a2c500'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '1c837b81-33cb-48d6-bf1f-786973a2c500'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0f54b3c8-c2d3-4414-9c5a-63f3943ffb95'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0f54b3c8-c2d3-4414-9c5a-63f3943ffb95'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0f54b3c8-c2d3-4414-9c5a-63f3943ffb95'}), (sp:Specialization {name: 'Memorial'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0f54b3c8-c2d3-4414-9c5a-63f3943ffb95'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '873cc4c0-d115-4725-8746-1539f86ef19a'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '873cc4c0-d115-4725-8746-1539f86ef19a'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '873cc4c0-d115-4725-8746-1539f86ef19a'}), (sp:Specialization {name: 'Cultural'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '873cc4c0-d115-4725-8746-1539f86ef19a'}), (sp:Specialization {name: 'Memorial'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '873cc4c0-d115-4725-8746-1539f86ef19a'}), (sp:Specialization {name: 'Small Delicate'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0e032094-22d1-44a0-9d5a-c8fd63c4515a'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0e032094-22d1-44a0-9d5a-c8fd63c4515a'}), (sp:Specialization {name: 'Horror'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0e032094-22d1-44a0-9d5a-c8fd63c4515a'}), (sp:Specialization {name: 'Large Scale'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'f122d140-03a0-451e-93e4-c2cb23683c75'}), (sp:Specialization {name: 'Horror'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'f122d140-03a0-451e-93e4-c2cb23683c75'}), (sp:Specialization {name: 'Animal'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'f122d140-03a0-451e-93e4-c2cb23683c75'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'f122d140-03a0-451e-93e4-c2cb23683c75'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'f122d140-03a0-451e-93e4-c2cb23683c75'}), (sp:Specialization {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6c331293-5e07-4bca-a7f6-76835d8b598a'}), (sp:Specialization {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6c331293-5e07-4bca-a7f6-76835d8b598a'}), (sp:Specialization {name: 'Animal'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6c331293-5e07-4bca-a7f6-76835d8b598a'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6c331293-5e07-4bca-a7f6-76835d8b598a'}), (sp:Specialization {name: 'Fantasy'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '2dc45f68-d209-4674-bdf7-fac60eac77be'}), (sp:Specialization {name: 'Large Scale'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '2dc45f68-d209-4674-bdf7-fac60eac77be'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '2dc45f68-d209-4674-bdf7-fac60eac77be'}), (sp:Specialization {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '2dc45f68-d209-4674-bdf7-fac60eac77be'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '2dc45f68-d209-4674-bdf7-fac60eac77be'}), (sp:Specialization {name: 'Memorial'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '41fb2502-0534-4c3e-a9cf-6eab81351e02'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '41fb2502-0534-4c3e-a9cf-6eab81351e02'}), (sp:Specialization {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '41fb2502-0534-4c3e-a9cf-6eab81351e02'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '41fb2502-0534-4c3e-a9cf-6eab81351e02'}), (sp:Specialization {name: 'Small Delicate'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'd547a2c5-cdcd-46e8-8605-4b1ea1e09a1e'}), (sp:Specialization {name: 'Animal'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'd547a2c5-cdcd-46e8-8605-4b1ea1e09a1e'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'd547a2c5-cdcd-46e8-8605-4b1ea1e09a1e'}), (sp:Specialization {name: 'Horror'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '48a0c6d9-3bef-4d40-a654-7fd229191d89'}), (sp:Specialization {name: 'Large Scale'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'b36730ba-387a-4ce0-93a9-dd4d84960f09'}), (sp:Specialization {name: 'Animal'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a2435552-8403-4d90-98fa-391502aa7e1a'}), (sp:Specialization {name: 'Animal'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a2435552-8403-4d90-98fa-391502aa7e1a'}), (sp:Specialization {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a2435552-8403-4d90-98fa-391502aa7e1a'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a2435552-8403-4d90-98fa-391502aa7e1a'}), (sp:Specialization {name: 'Cultural'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '8686b250-2926-43df-8678-e204d3d3a9df'}), (sp:Specialization {name: 'Small Delicate'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '4fe7264b-6cf1-4957-a560-785159b50c30'}), (sp:Specialization {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '4fe7264b-6cf1-4957-a560-785159b50c30'}), (sp:Specialization {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '5eda1c3d-7486-4438-9056-8814e7ce65b6'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '5eda1c3d-7486-4438-9056-8814e7ce65b6'}), (sp:Specialization {name: 'Large Scale'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '5eda1c3d-7486-4438-9056-8814e7ce65b6'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '5eda1c3d-7486-4438-9056-8814e7ce65b6'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '5eda1c3d-7486-4438-9056-8814e7ce65b6'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '98c6c5d4-12cd-4434-b875-77ea66c46342'}), (sp:Specialization {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '98c6c5d4-12cd-4434-b875-77ea66c46342'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '98c6c5d4-12cd-4434-b875-77ea66c46342'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'bae3c29b-cba3-457d-a2df-b53e8198d5bc'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'bae3c29b-cba3-457d-a2df-b53e8198d5bc'}), (sp:Specialization {name: 'Large Scale'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'bae3c29b-cba3-457d-a2df-b53e8198d5bc'}), (sp:Specialization {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'bae3c29b-cba3-457d-a2df-b53e8198d5bc'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '427e1174-bc2a-4dd0-8e20-e34f35de4283'}), (sp:Specialization {name: 'Fantasy'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '427e1174-bc2a-4dd0-8e20-e34f35de4283'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '25707142-b1b6-4699-829a-6acb685b29e7'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'daabc26e-bb55-447d-8356-0f7a833b6104'}), (sp:Specialization {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'd2d11c0d-2487-4c30-bc6b-506392a6a98e'}), (sp:Specialization {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '37174f32-5038-46c0-92ef-4629ca6234d8'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '37174f32-5038-46c0-92ef-4629ca6234d8'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '37174f32-5038-46c0-92ef-4629ca6234d8'}), (sp:Specialization {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '37174f32-5038-46c0-92ef-4629ca6234d8'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '33afdffc-0751-48ec-bbbb-e7c76ae4c786'}), (sp:Specialization {name: 'Memorial'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '81fbbf5c-35da-4952-b02a-c8e0e9791c8a'}), (sp:Specialization {name: 'Animal'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '81fbbf5c-35da-4952-b02a-c8e0e9791c8a'}), (sp:Specialization {name: 'Fantasy'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '064d66cc-5d95-46ee-9139-403c71fdd16e'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '064d66cc-5d95-46ee-9139-403c71fdd16e'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '064d66cc-5d95-46ee-9139-403c71fdd16e'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '064d66cc-5d95-46ee-9139-403c71fdd16e'}), (sp:Specialization {name: 'Medical Cover-up'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '064d66cc-5d95-46ee-9139-403c71fdd16e'}), (sp:Specialization {name: 'Small Delicate'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6bfb7fc8-b187-4484-998d-6031b10f6371'}), (sp:Specialization {name: 'Cultural'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6bfb7fc8-b187-4484-998d-6031b10f6371'}), (sp:Specialization {name: 'Animal'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6bfb7fc8-b187-4484-998d-6031b10f6371'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6bfb7fc8-b187-4484-998d-6031b10f6371'}), (sp:Specialization {name: 'Horror'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6bfb7fc8-b187-4484-998d-6031b10f6371'}), (sp:Specialization {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '8c74b725-b915-4b40-925c-45d3ca1e5dcb'}), (sp:Specialization {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '8c74b725-b915-4b40-925c-45d3ca1e5dcb'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '117b8dbf-19bd-4fa1-b1f4-57e0bcaee126'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '117b8dbf-19bd-4fa1-b1f4-57e0bcaee126'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '117b8dbf-19bd-4fa1-b1f4-57e0bcaee126'}), (sp:Specialization {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '117b8dbf-19bd-4fa1-b1f4-57e0bcaee126'}), (sp:Specialization {name: 'Memorial'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '62e09fb8-95db-47c9-9752-a2e6814cd910'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '62e09fb8-95db-47c9-9752-a2e6814cd910'}), (sp:Specialization {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '62e09fb8-95db-47c9-9752-a2e6814cd910'}), (sp:Specialization {name: 'Horror'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '62e09fb8-95db-47c9-9752-a2e6814cd910'}), (sp:Specialization {name: 'Large Scale'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '62e09fb8-95db-47c9-9752-a2e6814cd910'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '696209f0-58d1-45b5-95c3-d8e59b7c5d35'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6cf0c158-2361-4019-b58e-0a697db8f056'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '6cf0c158-2361-4019-b58e-0a697db8f056'}), (sp:Specialization {name: 'Animal'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '44f377a4-5490-4aca-9112-92fce03d5ff6'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '44f377a4-5490-4aca-9112-92fce03d5ff6'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '44f377a4-5490-4aca-9112-92fce03d5ff6'}), (sp:Specialization {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '44f377a4-5490-4aca-9112-92fce03d5ff6'}), (sp:Specialization {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '1d558228-498d-4496-b3e1-78286c675e71'}), (sp:Specialization {name: 'Horror'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '1d558228-498d-4496-b3e1-78286c675e71'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e8724aea-dbd3-4a9c-aafa-408ff8cac6de'}), (sp:Specialization {name: 'Animal'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e8724aea-dbd3-4a9c-aafa-408ff8cac6de'}), (sp:Specialization {name: 'Fantasy'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e8724aea-dbd3-4a9c-aafa-408ff8cac6de'}), (sp:Specialization {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'e8724aea-dbd3-4a9c-aafa-408ff8cac6de'}), (sp:Specialization {name: 'Large Scale'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a10c47be-07d7-4795-9079-807a494a6258'}), (sp:Specialization {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a10c47be-07d7-4795-9079-807a494a6258'}), (sp:Specialization {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a10c47be-07d7-4795-9079-807a494a6258'}), (sp:Specialization {name: 'Memorial'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a10c47be-07d7-4795-9079-807a494a6258'}), (sp:Specialization {name: 'Horror'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '8ed7958a-b935-47f7-a6bc-4ab319f662a4'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '8ed7958a-b935-47f7-a6bc-4ab319f662a4'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '8ed7958a-b935-47f7-a6bc-4ab319f662a4'}), (sp:Specialization {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '8ed7958a-b935-47f7-a6bc-4ab319f662a4'}), (sp:Specialization {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a6fe90d3-5f30-4541-bb8e-9f7e005f3a49'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a6fe90d3-5f30-4541-bb8e-9f7e005f3a49'}), (sp:Specialization {name: 'Cultural'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'a6fe90d3-5f30-4541-bb8e-9f7e005f3a49'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '00a038b1-524d-480c-b634-a50593081c8c'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '00a038b1-524d-480c-b634-a50593081c8c'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'd7319521-ca55-4c66-937b-28d4307b32d7'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'd7319521-ca55-4c66-937b-28d4307b32d7'}), (sp:Specialization {name: 'Medical Cover-up'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'd7319521-ca55-4c66-937b-28d4307b32d7'}), (sp:Specialization {name: 'Fantasy'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'd7319521-ca55-4c66-937b-28d4307b32d7'}), (sp:Specialization {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ed7eba39-c91d-445e-a98e-7259bdb6eacb'}), (sp:Specialization {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ed7eba39-c91d-445e-a98e-7259bdb6eacb'}), (sp:Specialization {name: 'Cultural'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ed7eba39-c91d-445e-a98e-7259bdb6eacb'}), (sp:Specialization {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ed7eba39-c91d-445e-a98e-7259bdb6eacb'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'ed7eba39-c91d-445e-a98e-7259bdb6eacb'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'df5edcdc-2cf0-44ed-9c36-ba2459054f2d'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'df5edcdc-2cf0-44ed-9c36-ba2459054f2d'}), (sp:Specialization {name: 'Religious'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'df5edcdc-2cf0-44ed-9c36-ba2459054f2d'}), (sp:Specialization {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0f5b18ee-ff0a-48f4-93fa-cb47ab9ad27b'}), (sp:Specialization {name: 'Memorial'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0f5b18ee-ff0a-48f4-93fa-cb47ab9ad27b'}), (sp:Specialization {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0f5b18ee-ff0a-48f4-93fa-cb47ab9ad27b'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0f5b18ee-ff0a-48f4-93fa-cb47ab9ad27b'}), (sp:Specialization {name: 'Cultural'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0f5b18ee-ff0a-48f4-93fa-cb47ab9ad27b'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '12f9f8b5-4422-4151-8dcb-076529349277'}), (sp:Specialization {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '12f9f8b5-4422-4151-8dcb-076529349277'}), (sp:Specialization {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'd9550683-6866-4dec-a927-c82ba207eac4'}), (sp:Specialization {name: 'Medical Cover-up'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'd9550683-6866-4dec-a927-c82ba207eac4'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'd9550683-6866-4dec-a927-c82ba207eac4'}), (sp:Specialization {name: 'Memorial'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'd9550683-6866-4dec-a927-c82ba207eac4'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'd9550683-6866-4dec-a927-c82ba207eac4'}), (sp:Specialization {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '3e13af16-5597-4b2e-bea7-1c59f3c53730'}), (sp:Specialization {name: 'Mandala'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '3e13af16-5597-4b2e-bea7-1c59f3c53730'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '3e13af16-5597-4b2e-bea7-1c59f3c53730'}), (sp:Specialization {name: 'Nature'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '3e13af16-5597-4b2e-bea7-1c59f3c53730'}), (sp:Specialization {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: 'f567514d-2e0f-4588-9960-4bc04fa0d423'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0df583e5-8422-4995-84c3-6b0d33ce732f'}), (sp:Specialization {name: 'Animal'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0df583e5-8422-4995-84c3-6b0d33ce732f'}), (sp:Specialization {name: 'Floral'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '0df583e5-8422-4995-84c3-6b0d33ce732f'}), (sp:Specialization {name: 'Cover-ups'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '1bd804dc-7da1-405d-8da9-61257ae42e27'}), (sp:Specialization {name: 'Animal'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '1bd804dc-7da1-405d-8da9-61257ae42e27'}), (sp:Specialization {name: 'Portraits'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '1bd804dc-7da1-405d-8da9-61257ae42e27'}), (sp:Specialization {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
-MATCH (a:Artist {id: '1bd804dc-7da1-405d-8da9-61257ae42e27'}), (sp:Specialization {name: 'Memorial'}) MERGE (a)-[:SPECIALIZES_IN]->(sp);
+// Create SPECIALIZES_IN relationships (Artist -> Style)
+MATCH (a:Artist {id: '5835eaa6-f203-43b9-af47-485c58a2e52c'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '5835eaa6-f203-43b9-af47-485c58a2e52c'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '8e8045d7-4f3f-4e4e-8bd8-a93d8b478ca6'}), (s:Style {name: 'Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '8e8045d7-4f3f-4e4e-8bd8-a93d8b478ca6'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '8e8045d7-4f3f-4e4e-8bd8-a93d8b478ca6'}), (s:Style {name: 'Old School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '6f3591de-bea3-4e00-8039-64981a8e099d'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '6f3591de-bea3-4e00-8039-64981a8e099d'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '095ab55f-df1b-45b9-be2e-d7305c7ebd23'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '095ab55f-df1b-45b9-be2e-d7305c7ebd23'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'c10e9891-b537-4baf-a0a2-d63e9edba3d1'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'c10e9891-b537-4baf-a0a2-d63e9edba3d1'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'c623ff67-bbf3-44e7-916c-550ec58ff314'}), (s:Style {name: 'Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'c623ff67-bbf3-44e7-916c-550ec58ff314'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'c623ff67-bbf3-44e7-916c-550ec58ff314'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3557a401-d44d-430d-a755-cccdef2af361'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3557a401-d44d-430d-a755-cccdef2af361'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3557a401-d44d-430d-a755-cccdef2af361'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3557a401-d44d-430d-a755-cccdef2af361'}), (s:Style {name: 'Old School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'c665b9b3-f4d8-4449-a57d-c188e8aa3e61'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'c665b9b3-f4d8-4449-a57d-c188e8aa3e61'}), (s:Style {name: 'Old School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'c665b9b3-f4d8-4449-a57d-c188e8aa3e61'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'c665b9b3-f4d8-4449-a57d-c188e8aa3e61'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'db89ef64-3441-4646-a7c2-faa56526db5e'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'db89ef64-3441-4646-a7c2-faa56526db5e'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'db89ef64-3441-4646-a7c2-faa56526db5e'}), (s:Style {name: 'Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '98c29f7a-256f-41b0-b416-3e3c57ace18c'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '98c29f7a-256f-41b0-b416-3e3c57ace18c'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '98c29f7a-256f-41b0-b416-3e3c57ace18c'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '40e41e2f-13df-4b25-ac45-b9db1f4b1275'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '40e41e2f-13df-4b25-ac45-b9db1f4b1275'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '40e41e2f-13df-4b25-ac45-b9db1f4b1275'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'ee555676-f8d8-4c34-a264-a08750fb9996'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '7663cd0d-12e6-460f-9dec-78f1a8985d58'}), (s:Style {name: 'Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '7663cd0d-12e6-460f-9dec-78f1a8985d58'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '9c7ac04d-02d0-4f02-aa3d-da135da588bd'}), (s:Style {name: 'Old School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '9c7ac04d-02d0-4f02-aa3d-da135da588bd'}), (s:Style {name: 'Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '9c7ac04d-02d0-4f02-aa3d-da135da588bd'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '9c7ac04d-02d0-4f02-aa3d-da135da588bd'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '6303c217-5dba-42d3-a9bc-ee609565cae9'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '6303c217-5dba-42d3-a9bc-ee609565cae9'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '6303c217-5dba-42d3-a9bc-ee609565cae9'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '6303c217-5dba-42d3-a9bc-ee609565cae9'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '9e31580e-c264-41de-989f-11751be0a56e'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3c57a451-d6c5-49ca-bf46-c94786215e54'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3c57a451-d6c5-49ca-bf46-c94786215e54'}), (s:Style {name: 'New School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3c57a451-d6c5-49ca-bf46-c94786215e54'}), (s:Style {name: 'Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3f752f02-2847-46f4-a184-6e8d5bc1b776'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3f752f02-2847-46f4-a184-6e8d5bc1b776'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3f752f02-2847-46f4-a184-6e8d5bc1b776'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3f752f02-2847-46f4-a184-6e8d5bc1b776'}), (s:Style {name: 'Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '1f3d84a1-292f-4836-86d3-cb0bf803193d'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '1f3d84a1-292f-4836-86d3-cb0bf803193d'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '919a288d-b342-4dc4-a0cc-a3b38585a5fe'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '919a288d-b342-4dc4-a0cc-a3b38585a5fe'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '919a288d-b342-4dc4-a0cc-a3b38585a5fe'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '919a288d-b342-4dc4-a0cc-a3b38585a5fe'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '366bda7c-009b-469c-a03f-6258fdc81bcd'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '366bda7c-009b-469c-a03f-6258fdc81bcd'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '366bda7c-009b-469c-a03f-6258fdc81bcd'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '366bda7c-009b-469c-a03f-6258fdc81bcd'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '19b09e4e-efcd-4863-bc43-a0cb266de01a'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '19b09e4e-efcd-4863-bc43-a0cb266de01a'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '79484512-840c-4529-93dc-de79d425043e'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '79484512-840c-4529-93dc-de79d425043e'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '79484512-840c-4529-93dc-de79d425043e'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '79484512-840c-4529-93dc-de79d425043e'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'fe4eb917-6028-4878-b390-65ed795619b3'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'fe4eb917-6028-4878-b390-65ed795619b3'}), (s:Style {name: 'New School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'fe4eb917-6028-4878-b390-65ed795619b3'}), (s:Style {name: 'Old School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '77e6476e-db9a-4fce-bae7-123645e89d81'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '77e6476e-db9a-4fce-bae7-123645e89d81'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '77e6476e-db9a-4fce-bae7-123645e89d81'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '77e6476e-db9a-4fce-bae7-123645e89d81'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '76bb3f0b-5533-43f4-8fee-7e36fe369ada'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '6bedcf48-0868-45f6-b021-329047a42b10'}), (s:Style {name: 'Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '6bedcf48-0868-45f6-b021-329047a42b10'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '6bedcf48-0868-45f6-b021-329047a42b10'}), (s:Style {name: 'Old School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '6556f12c-c8fb-4268-9680-c7ddc546e86c'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '6556f12c-c8fb-4268-9680-c7ddc546e86c'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '6556f12c-c8fb-4268-9680-c7ddc546e86c'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '6556f12c-c8fb-4268-9680-c7ddc546e86c'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3e2706ad-9e33-4d43-9338-c6992f074067'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3e2706ad-9e33-4d43-9338-c6992f074067'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'b9d5e3be-5f5f-43de-85eb-20d27e7244ee'}), (s:Style {name: 'Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'b9d5e3be-5f5f-43de-85eb-20d27e7244ee'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'b9d5e3be-5f5f-43de-85eb-20d27e7244ee'}), (s:Style {name: 'New School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '9801da5b-9906-4073-8df4-8bd1b58d327f'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '9801da5b-9906-4073-8df4-8bd1b58d327f'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '9801da5b-9906-4073-8df4-8bd1b58d327f'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '2a605cce-a668-4c76-8f31-839076c4db46'}), (s:Style {name: 'Old School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '2a605cce-a668-4c76-8f31-839076c4db46'}), (s:Style {name: 'Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '2a605cce-a668-4c76-8f31-839076c4db46'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '2a605cce-a668-4c76-8f31-839076c4db46'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '4e2c2df5-b4ed-4fb2-8052-7e3876b2268d'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '6e763c3a-25fb-46ef-af92-355bfa7a48e3'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '6e763c3a-25fb-46ef-af92-355bfa7a48e3'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '985e2349-3b59-4cc8-a9ef-d33507d0f4bb'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '985e2349-3b59-4cc8-a9ef-d33507d0f4bb'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '985e2349-3b59-4cc8-a9ef-d33507d0f4bb'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'd06b59c9-b214-4103-92df-34b79116142c'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '15192239-10a2-4de0-a8e2-351cbdaf7f47'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'a38f78ac-6d8c-4b3d-be7d-20e9317551db'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'a38f78ac-6d8c-4b3d-be7d-20e9317551db'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'a1e331ce-411c-4f15-bd74-72fe0610957b'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'a1e331ce-411c-4f15-bd74-72fe0610957b'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '9dd88c6f-e2e3-4530-af79-24a047e0146f'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '9dd88c6f-e2e3-4530-af79-24a047e0146f'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '9dd88c6f-e2e3-4530-af79-24a047e0146f'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '071f7135-68bb-4301-9a86-3b9301d7eeeb'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '071f7135-68bb-4301-9a86-3b9301d7eeeb'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '071f7135-68bb-4301-9a86-3b9301d7eeeb'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '071f7135-68bb-4301-9a86-3b9301d7eeeb'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '6f26011c-bb1b-443a-9d87-3af8167cf938'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '86270e8f-d059-476a-b82f-9ac5e616e365'}), (s:Style {name: 'New School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '129fa57a-898f-460e-8352-88131f701f0e'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '129fa57a-898f-460e-8352-88131f701f0e'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '73d8f021-b367-4f3d-86b6-752ff6920b45'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '57de2a11-9ad5-4586-91c1-8d2b825d6199'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '57de2a11-9ad5-4586-91c1-8d2b825d6199'}), (s:Style {name: 'Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '57de2a11-9ad5-4586-91c1-8d2b825d6199'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '57de2a11-9ad5-4586-91c1-8d2b825d6199'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '0d7e41e5-abeb-4725-bded-8f1c44335b29'}), (s:Style {name: 'Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '0d7e41e5-abeb-4725-bded-8f1c44335b29'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '0d7e41e5-abeb-4725-bded-8f1c44335b29'}), (s:Style {name: 'New School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '29be8331-46b2-441e-88ba-1bed9a611435'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '29be8331-46b2-441e-88ba-1bed9a611435'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '5215b296-2512-48ad-a73a-7716ec0c18a5'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '5215b296-2512-48ad-a73a-7716ec0c18a5'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '5215b296-2512-48ad-a73a-7716ec0c18a5'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '39d0c0b4-ab78-4c70-a369-12dc368a5671'}), (s:Style {name: 'New School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '39d0c0b4-ab78-4c70-a369-12dc368a5671'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '39d0c0b4-ab78-4c70-a369-12dc368a5671'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '39d0c0b4-ab78-4c70-a369-12dc368a5671'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '6e346c96-f77e-41b3-9304-c12cb9214cb5'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '6e346c96-f77e-41b3-9304-c12cb9214cb5'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '6e346c96-f77e-41b3-9304-c12cb9214cb5'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'c6efd895-9169-402c-87f2-9a2087afd503'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'c6efd895-9169-402c-87f2-9a2087afd503'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'c6efd895-9169-402c-87f2-9a2087afd503'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '0055ab2e-f215-499a-aaba-6b8694d85aaf'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '0055ab2e-f215-499a-aaba-6b8694d85aaf'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '0055ab2e-f215-499a-aaba-6b8694d85aaf'}), (s:Style {name: 'Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '29321bbb-7c48-4036-921b-330e2fe9814c'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '29321bbb-7c48-4036-921b-330e2fe9814c'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '32354ba5-13ac-4a0d-b624-3d081a49e65a'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '32354ba5-13ac-4a0d-b624-3d081a49e65a'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '32354ba5-13ac-4a0d-b624-3d081a49e65a'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '32354ba5-13ac-4a0d-b624-3d081a49e65a'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'f6baf290-e80b-4ebb-88de-b8c225f12d71'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '82f14b6c-2aa8-4d66-ae6e-057131e9f322'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'b1c08501-25ca-4058-866b-e0129e8d9234'}), (s:Style {name: 'New School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'b1c08501-25ca-4058-866b-e0129e8d9234'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'b1c08501-25ca-4058-866b-e0129e8d9234'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '4135d823-5762-4c20-b6a0-0a3f4eb9a0bd'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '4135d823-5762-4c20-b6a0-0a3f4eb9a0bd'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '4135d823-5762-4c20-b6a0-0a3f4eb9a0bd'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '60352c84-b8fe-4378-ae2d-474b5c90360f'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '60352c84-b8fe-4378-ae2d-474b5c90360f'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3730e63d-6a38-4d1e-bca3-ff67ce0c82c7'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '7767ea76-b34d-4beb-beb8-29d51c4ac230'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '7767ea76-b34d-4beb-beb8-29d51c4ac230'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '7767ea76-b34d-4beb-beb8-29d51c4ac230'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'c913f16b-0604-4f63-bbb7-ade8866b2c0d'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'c913f16b-0604-4f63-bbb7-ade8866b2c0d'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'c913f16b-0604-4f63-bbb7-ade8866b2c0d'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'f1121635-0622-4078-9195-36eb0e4b02d3'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'f1121635-0622-4078-9195-36eb0e4b02d3'}), (s:Style {name: 'Old School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'f1121635-0622-4078-9195-36eb0e4b02d3'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'f1121635-0622-4078-9195-36eb0e4b02d3'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'fa08bb8b-5f9e-4a40-b195-26b701d2794f'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '41624bfe-ebb9-48cf-bcde-01490e2fffdc'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '41624bfe-ebb9-48cf-bcde-01490e2fffdc'}), (s:Style {name: 'Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '41624bfe-ebb9-48cf-bcde-01490e2fffdc'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'dca7e8d3-fa07-4d4d-8e34-b433a6180727'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'dca7e8d3-fa07-4d4d-8e34-b433a6180727'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'd6067ab0-40cd-4717-8c4e-d0b67a66f1d2'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'd6067ab0-40cd-4717-8c4e-d0b67a66f1d2'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '1574381a-482d-42e0-b777-e00c9af45ea0'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '1574381a-482d-42e0-b777-e00c9af45ea0'}), (s:Style {name: 'New School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'df0f254e-b58c-46ad-a541-b74dee3c05a8'}), (s:Style {name: 'New School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'df0f254e-b58c-46ad-a541-b74dee3c05a8'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'df0f254e-b58c-46ad-a541-b74dee3c05a8'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'be689759-e106-4667-9d5a-ceebd5ed4aee'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'be689759-e106-4667-9d5a-ceebd5ed4aee'}), (s:Style {name: 'Old School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3d03e544-fbe3-44ec-9f10-99b660316b18'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3d03e544-fbe3-44ec-9f10-99b660316b18'}), (s:Style {name: 'New School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '07eaaeeb-1540-4670-b82d-b14e29dc1042'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '02fb2183-6746-4782-9596-6c93810f137f'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '02fb2183-6746-4782-9596-6c93810f137f'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '02fb2183-6746-4782-9596-6c93810f137f'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'f2851c38-245b-4f47-a1cd-79f24f164f98'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'f2851c38-245b-4f47-a1cd-79f24f164f98'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'f2851c38-245b-4f47-a1cd-79f24f164f98'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'f2851c38-245b-4f47-a1cd-79f24f164f98'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'a578a976-0c1d-483f-a614-f17bcacfaa18'}), (s:Style {name: 'New School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'a578a976-0c1d-483f-a614-f17bcacfaa18'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '48b5c5cc-f48b-4eec-b7c3-a9bee19ca85e'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '48b5c5cc-f48b-4eec-b7c3-a9bee19ca85e'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '48b5c5cc-f48b-4eec-b7c3-a9bee19ca85e'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '67035968-3e7f-43cd-a6cc-2a135688b3a9'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '5b691f1b-5ff9-4c39-a199-32b7b4613bbc'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '5b691f1b-5ff9-4c39-a199-32b7b4613bbc'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '391e8d41-1d15-4d0e-a98f-51f4975fd182'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '67f173fe-83d1-4b74-98ba-40321fadadef'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '67f173fe-83d1-4b74-98ba-40321fadadef'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '67f173fe-83d1-4b74-98ba-40321fadadef'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '67f173fe-83d1-4b74-98ba-40321fadadef'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'dd4b1bd3-ff34-4f30-8154-a3fd9b60e98e'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'dd4b1bd3-ff34-4f30-8154-a3fd9b60e98e'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'dd4b1bd3-ff34-4f30-8154-a3fd9b60e98e'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'dd4b1bd3-ff34-4f30-8154-a3fd9b60e98e'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'd1b73eb1-da92-40a5-ab9c-0329957c95ea'}), (s:Style {name: 'New School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'a3ff3e81-7682-4e54-833c-bce10f645131'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'dc65325e-bf12-4aea-966f-7b8576127878'}), (s:Style {name: 'New School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'dc65325e-bf12-4aea-966f-7b8576127878'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'a239a071-a365-44f6-8c6e-8cd92d643c15'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '821e5518-b280-4007-8766-82e67d7cb3c4'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '821e5518-b280-4007-8766-82e67d7cb3c4'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'be121454-0452-4220-8608-421a04ddb03e'}), (s:Style {name: 'New School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'be121454-0452-4220-8608-421a04ddb03e'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'be121454-0452-4220-8608-421a04ddb03e'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'be121454-0452-4220-8608-421a04ddb03e'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '9b1d83b0-9584-4721-babf-47722b212c4b'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '9b1d83b0-9584-4721-babf-47722b212c4b'}), (s:Style {name: 'New School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'd05b8c77-0686-42ee-b93d-0090d0f9ba9c'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'd05b8c77-0686-42ee-b93d-0090d0f9ba9c'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'd05b8c77-0686-42ee-b93d-0090d0f9ba9c'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'd05b8c77-0686-42ee-b93d-0090d0f9ba9c'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'fc8cbd08-a294-40df-b95f-478801416b2c'}), (s:Style {name: 'Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'fc8cbd08-a294-40df-b95f-478801416b2c'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'fc8cbd08-a294-40df-b95f-478801416b2c'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'fc8cbd08-a294-40df-b95f-478801416b2c'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'bd7cf9f6-cfc2-4f5f-a91c-3c23ada0b2e0'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'bd7cf9f6-cfc2-4f5f-a91c-3c23ada0b2e0'}), (s:Style {name: 'Old School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'd93d6fe2-9bc4-40da-8e2e-97cdc4a90bad'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'd93d6fe2-9bc4-40da-8e2e-97cdc4a90bad'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '87c1816e-28ff-48da-be7c-56fde3d2d452'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '87c1816e-28ff-48da-be7c-56fde3d2d452'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '33f924ba-843b-4f82-98d2-141c46bc31c3'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '33f924ba-843b-4f82-98d2-141c46bc31c3'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '33f924ba-843b-4f82-98d2-141c46bc31c3'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '4ce8b98f-ca2d-4f65-97b6-de578c33315d'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '4ce8b98f-ca2d-4f65-97b6-de578c33315d'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '4ce8b98f-ca2d-4f65-97b6-de578c33315d'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3559c9a3-da74-4310-b318-2fd5e63597a8'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3559c9a3-da74-4310-b318-2fd5e63597a8'}), (s:Style {name: 'Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3559c9a3-da74-4310-b318-2fd5e63597a8'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '040f96b0-e49a-4769-90a0-379551c5ee2d'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '2c188c54-7ab6-431b-8084-16a8c4b2ff04'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '2c188c54-7ab6-431b-8084-16a8c4b2ff04'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '2c188c54-7ab6-431b-8084-16a8c4b2ff04'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '2c188c54-7ab6-431b-8084-16a8c4b2ff04'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'e9272d93-2d2b-4e42-a752-a686a35ab2a8'}), (s:Style {name: 'Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'e9272d93-2d2b-4e42-a752-a686a35ab2a8'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '5643b371-ebc2-4eb5-8c59-9f1eec546cfa'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '5643b371-ebc2-4eb5-8c59-9f1eec546cfa'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '5643b371-ebc2-4eb5-8c59-9f1eec546cfa'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '5643b371-ebc2-4eb5-8c59-9f1eec546cfa'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '1476005b-7377-4e74-bf86-655d31be404d'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '1476005b-7377-4e74-bf86-655d31be404d'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '1476005b-7377-4e74-bf86-655d31be404d'}), (s:Style {name: 'New School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '1476005b-7377-4e74-bf86-655d31be404d'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '92ec73d4-b380-46e9-8af2-065ae9055257'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '92ec73d4-b380-46e9-8af2-065ae9055257'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '92ec73d4-b380-46e9-8af2-065ae9055257'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '92ec73d4-b380-46e9-8af2-065ae9055257'}), (s:Style {name: 'Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'e5534c1c-980b-4691-b8cf-526599bbbdd0'}), (s:Style {name: 'Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'e5534c1c-980b-4691-b8cf-526599bbbdd0'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '236e6a8c-ebb6-4eaf-8686-158168e0ed58'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '02455515-3b73-4a33-a236-e6c06a6bb9fd'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '02455515-3b73-4a33-a236-e6c06a6bb9fd'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '02455515-3b73-4a33-a236-e6c06a6bb9fd'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'f18a5789-de8e-430b-97ad-a1452c34f4bd'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'f18a5789-de8e-430b-97ad-a1452c34f4bd'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'f18a5789-de8e-430b-97ad-a1452c34f4bd'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'f18a5789-de8e-430b-97ad-a1452c34f4bd'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'dd814727-b29c-4dd8-909d-5ca6488c8eb5'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'dd814727-b29c-4dd8-909d-5ca6488c8eb5'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '6527611b-e793-43e4-8005-b72fd675347f'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '19f5edd4-2c58-4165-9504-58bc6e0565f7'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '19f5edd4-2c58-4165-9504-58bc6e0565f7'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '19f5edd4-2c58-4165-9504-58bc6e0565f7'}), (s:Style {name: 'Old School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '19f5edd4-2c58-4165-9504-58bc6e0565f7'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'c73bb7e7-b5e7-4534-b488-abbebe56e359'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '51a32e86-838e-40ae-a9c4-cedcf8160fc7'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '51a32e86-838e-40ae-a9c4-cedcf8160fc7'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '51a32e86-838e-40ae-a9c4-cedcf8160fc7'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '8d21659c-c8c7-4414-b2a2-847989a9533a'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '8d21659c-c8c7-4414-b2a2-847989a9533a'}), (s:Style {name: 'Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '8d21659c-c8c7-4414-b2a2-847989a9533a'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '2df99554-ea53-4d18-8639-c5e3f800ea1f'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '2df99554-ea53-4d18-8639-c5e3f800ea1f'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '2df99554-ea53-4d18-8639-c5e3f800ea1f'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '2df99554-ea53-4d18-8639-c5e3f800ea1f'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '4f5960ef-eb70-4c80-86cb-cd54d652d129'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '4f5960ef-eb70-4c80-86cb-cd54d652d129'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'f22a5477-40a0-46c7-bb4c-d8757da3f42e'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'f22a5477-40a0-46c7-bb4c-d8757da3f42e'}), (s:Style {name: 'New School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'f22a5477-40a0-46c7-bb4c-d8757da3f42e'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'f22a5477-40a0-46c7-bb4c-d8757da3f42e'}), (s:Style {name: 'Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '08907aa8-4bb7-4e68-a3f1-054e65e96b64'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '08907aa8-4bb7-4e68-a3f1-054e65e96b64'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '08907aa8-4bb7-4e68-a3f1-054e65e96b64'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '0862292a-4cb7-477c-88a8-01572b02edc1'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '0862292a-4cb7-477c-88a8-01572b02edc1'}), (s:Style {name: 'Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '0862292a-4cb7-477c-88a8-01572b02edc1'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'b797fbad-4a03-4b15-8767-43efd16881f1'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '39ac7737-d6ec-43c4-ba53-8eab2f4b02c0'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '39ac7737-d6ec-43c4-ba53-8eab2f4b02c0'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '39ac7737-d6ec-43c4-ba53-8eab2f4b02c0'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '39ac7737-d6ec-43c4-ba53-8eab2f4b02c0'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '69a4c31d-40d6-4991-8636-e1e6a57a8017'}), (s:Style {name: 'New School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '69a4c31d-40d6-4991-8636-e1e6a57a8017'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '82e31eb2-3d75-4877-a80c-7e86396c2738'}), (s:Style {name: 'Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '82e31eb2-3d75-4877-a80c-7e86396c2738'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '82e31eb2-3d75-4877-a80c-7e86396c2738'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '82e31eb2-3d75-4877-a80c-7e86396c2738'}), (s:Style {name: 'Old School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'ecc6d387-73ac-4e35-a323-e752ad5bd4c7'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '0b1157a1-a3ad-4406-a0d2-0cbe3f66d08d'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '0b1157a1-a3ad-4406-a0d2-0cbe3f66d08d'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '0b1157a1-a3ad-4406-a0d2-0cbe3f66d08d'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '55a505f3-e689-4df4-b1bd-b9c90b63de9e'}), (s:Style {name: 'New School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '55a505f3-e689-4df4-b1bd-b9c90b63de9e'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '55a505f3-e689-4df4-b1bd-b9c90b63de9e'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '5c8ce1cf-2505-4bce-b529-4a1a9bee3fa5'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '5c8ce1cf-2505-4bce-b529-4a1a9bee3fa5'}), (s:Style {name: 'Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '7153ecff-8d28-4fc9-b208-004e909a6156'}), (s:Style {name: 'New School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '7153ecff-8d28-4fc9-b208-004e909a6156'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'f885ac74-713c-43eb-9dbf-2f6096889fd3'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'f885ac74-713c-43eb-9dbf-2f6096889fd3'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '20aa526f-b01b-45fb-afd1-a6d510e06e35'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '20aa526f-b01b-45fb-afd1-a6d510e06e35'}), (s:Style {name: 'Old School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '20aa526f-b01b-45fb-afd1-a6d510e06e35'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '20aa526f-b01b-45fb-afd1-a6d510e06e35'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '18502e2f-b038-41b7-9cd8-4a5a1ddd417c'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '18502e2f-b038-41b7-9cd8-4a5a1ddd417c'}), (s:Style {name: 'Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '18502e2f-b038-41b7-9cd8-4a5a1ddd417c'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '18502e2f-b038-41b7-9cd8-4a5a1ddd417c'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '8ff5f808-23e7-45b3-8cee-12c224568702'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '8ff5f808-23e7-45b3-8cee-12c224568702'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '8ff5f808-23e7-45b3-8cee-12c224568702'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '8ff5f808-23e7-45b3-8cee-12c224568702'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '24cac96d-848a-46b3-bf52-796ee3f35c94'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '24cac96d-848a-46b3-bf52-796ee3f35c94'}), (s:Style {name: 'Old School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '24cac96d-848a-46b3-bf52-796ee3f35c94'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '24cac96d-848a-46b3-bf52-796ee3f35c94'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '52bc3f64-e3f6-44b2-a850-d7f71e7673a9'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '52bc3f64-e3f6-44b2-a850-d7f71e7673a9'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '40f46778-2b70-49ea-a641-9515c6bf8135'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '40f46778-2b70-49ea-a641-9515c6bf8135'}), (s:Style {name: 'New School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '40f46778-2b70-49ea-a641-9515c6bf8135'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '7d95846f-e496-4420-8d67-830e2e5aea74'}), (s:Style {name: 'Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '7d95846f-e496-4420-8d67-830e2e5aea74'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '7d95846f-e496-4420-8d67-830e2e5aea74'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '7d95846f-e496-4420-8d67-830e2e5aea74'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'edc8a80b-1215-4ae1-a6da-e7869fa1ea70'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'edc8a80b-1215-4ae1-a6da-e7869fa1ea70'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'edc8a80b-1215-4ae1-a6da-e7869fa1ea70'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'edc8a80b-1215-4ae1-a6da-e7869fa1ea70'}), (s:Style {name: 'New School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '5e4cb69a-f376-410b-a630-a1024cb16bac'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '5e4cb69a-f376-410b-a630-a1024cb16bac'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '5e4cb69a-f376-410b-a630-a1024cb16bac'}), (s:Style {name: 'Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3852f0b4-2806-4de7-bca8-25aa3dbbe1a4'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'e4b97ef5-743e-4efc-8bad-526e2cd3f8b9'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'e4b97ef5-743e-4efc-8bad-526e2cd3f8b9'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'e4b97ef5-743e-4efc-8bad-526e2cd3f8b9'}), (s:Style {name: 'New School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'e4b97ef5-743e-4efc-8bad-526e2cd3f8b9'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '567fdf8c-ab6b-4928-8d9f-8ca3acadd4ef'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'cc678e75-6237-4283-b32b-f24ac53b94ad'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'cc678e75-6237-4283-b32b-f24ac53b94ad'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3df464b3-b275-4f1f-950c-6844591a7348'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3df464b3-b275-4f1f-950c-6844591a7348'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3df464b3-b275-4f1f-950c-6844591a7348'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '7c9c2ee6-6e3e-4bb7-857b-3df12bc96cc2'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '7c9c2ee6-6e3e-4bb7-857b-3df12bc96cc2'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '7b4512c1-82c5-444e-9718-6989ead08acc'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '7b4512c1-82c5-444e-9718-6989ead08acc'}), (s:Style {name: 'Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '7b4512c1-82c5-444e-9718-6989ead08acc'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '7b4512c1-82c5-444e-9718-6989ead08acc'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'a8d6d6b0-6e69-4751-9c11-d44073011ce2'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'a8d6d6b0-6e69-4751-9c11-d44073011ce2'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'a1c01f96-d2a0-45e8-9d75-58f037fe05d4'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'a1c01f96-d2a0-45e8-9d75-58f037fe05d4'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '76ffe280-c21b-4096-aa17-e6608b81641c'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '76ffe280-c21b-4096-aa17-e6608b81641c'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '76ffe280-c21b-4096-aa17-e6608b81641c'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '5d5505c8-c2af-49d7-b7ed-e00111ddcad3'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '5d5505c8-c2af-49d7-b7ed-e00111ddcad3'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '5d5505c8-c2af-49d7-b7ed-e00111ddcad3'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '5d5505c8-c2af-49d7-b7ed-e00111ddcad3'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3278b9ab-5e84-4203-a5d3-3f0f5c53ebf6'}), (s:Style {name: 'New School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3278b9ab-5e84-4203-a5d3-3f0f5c53ebf6'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3278b9ab-5e84-4203-a5d3-3f0f5c53ebf6'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3278b9ab-5e84-4203-a5d3-3f0f5c53ebf6'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'e2e295df-cd98-48f5-bf75-1ecd3a938b14'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '866d79b4-882e-4610-908d-65f1abddce66'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '866d79b4-882e-4610-908d-65f1abddce66'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '11dc59a3-6dd7-4f81-b719-a1f98447ca2e'}), (s:Style {name: 'Old School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '11dc59a3-6dd7-4f81-b719-a1f98447ca2e'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '11dc59a3-6dd7-4f81-b719-a1f98447ca2e'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '11dc59a3-6dd7-4f81-b719-a1f98447ca2e'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '39da1ffe-73dc-4ac0-a22e-a9eda5ebdf31'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '39da1ffe-73dc-4ac0-a22e-a9eda5ebdf31'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '39da1ffe-73dc-4ac0-a22e-a9eda5ebdf31'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '39da1ffe-73dc-4ac0-a22e-a9eda5ebdf31'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'bd2cfcbb-faea-4215-92c8-c132bf8da238'}), (s:Style {name: 'Old School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'bd2cfcbb-faea-4215-92c8-c132bf8da238'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'bd2cfcbb-faea-4215-92c8-c132bf8da238'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '4505d6e4-7924-4b4f-b842-e266de7a9a0b'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '4505d6e4-7924-4b4f-b842-e266de7a9a0b'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '4505d6e4-7924-4b4f-b842-e266de7a9a0b'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '4505d6e4-7924-4b4f-b842-e266de7a9a0b'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '1d782048-86c4-44ad-b250-8d0e34d5561e'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '7528da8e-5e08-4cf5-bbfc-4162ba4c1e57'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '7528da8e-5e08-4cf5-bbfc-4162ba4c1e57'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'f676d9fc-e893-4ff7-aed1-2725a03b7b69'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'f676d9fc-e893-4ff7-aed1-2725a03b7b69'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'f676d9fc-e893-4ff7-aed1-2725a03b7b69'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'f676d9fc-e893-4ff7-aed1-2725a03b7b69'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'e4bc3fa9-df8b-476f-b489-48228a714fa2'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'e4bc3fa9-df8b-476f-b489-48228a714fa2'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3e41b67a-36ca-4486-a6c0-8ed471a24a9f'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3e41b67a-36ca-4486-a6c0-8ed471a24a9f'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '1b9da0c9-ca52-43fb-8d45-446a80f3cf23'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '1b9da0c9-ca52-43fb-8d45-446a80f3cf23'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '1b9da0c9-ca52-43fb-8d45-446a80f3cf23'}), (s:Style {name: 'Old School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '772bbc78-e611-45ed-b252-c62c89a58184'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '772bbc78-e611-45ed-b252-c62c89a58184'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '772bbc78-e611-45ed-b252-c62c89a58184'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '772bbc78-e611-45ed-b252-c62c89a58184'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'a872ddeb-b14b-4205-88a7-2afd5774fff0'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'a872ddeb-b14b-4205-88a7-2afd5774fff0'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'a872ddeb-b14b-4205-88a7-2afd5774fff0'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '56087216-8a98-4df8-a16c-4dbf99c94e9c'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '56087216-8a98-4df8-a16c-4dbf99c94e9c'}), (s:Style {name: 'New School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '26aae468-b0d2-41f7-b6f6-7380dd67a60c'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '26aae468-b0d2-41f7-b6f6-7380dd67a60c'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '26aae468-b0d2-41f7-b6f6-7380dd67a60c'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '794a7f8b-1904-48a5-b407-4b85b6613ed3'}), (s:Style {name: 'New School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '794a7f8b-1904-48a5-b407-4b85b6613ed3'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '794a7f8b-1904-48a5-b407-4b85b6613ed3'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '1e61ba1e-046d-4044-9784-704d8cd4a725'}), (s:Style {name: 'Old School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'a83936a8-f6fe-4615-9030-b0fdebfc81a0'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'a83936a8-f6fe-4615-9030-b0fdebfc81a0'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '0b5aae9e-7115-4be6-a571-c8328a1117e7'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '0b5aae9e-7115-4be6-a571-c8328a1117e7'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '0b5aae9e-7115-4be6-a571-c8328a1117e7'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'a3ab9151-1259-483c-887a-388948f01cf8'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'a3ab9151-1259-483c-887a-388948f01cf8'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'a3ab9151-1259-483c-887a-388948f01cf8'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3edbc498-55b5-485d-81a7-2902da3f6893'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3edbc498-55b5-485d-81a7-2902da3f6893'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '5c63871c-c87f-40d6-8eff-7582ffecb7ed'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '5ee83f4c-3812-422e-8969-e6f9d71d2d25'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '85c8b8c3-91e1-4577-a4d6-36ba2338af44'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '85c8b8c3-91e1-4577-a4d6-36ba2338af44'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'c05fbe90-288a-4bc9-a099-b06f81ce2c92'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'a8984ae8-1699-4190-b367-6cd3134953d2'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'a8984ae8-1699-4190-b367-6cd3134953d2'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3000a0b8-e841-4a45-a7af-cdbc1ac555fd'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3000a0b8-e841-4a45-a7af-cdbc1ac555fd'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3000a0b8-e841-4a45-a7af-cdbc1ac555fd'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '546acb61-e7e5-43c0-9434-a53a0781c89a'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '546acb61-e7e5-43c0-9434-a53a0781c89a'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'e2741d5d-76fd-4aa9-80ce-c895a4bc5726'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'ef41eded-9b52-4124-8575-a2018ed200db'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'ef41eded-9b52-4124-8575-a2018ed200db'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'ef41eded-9b52-4124-8575-a2018ed200db'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'ef41eded-9b52-4124-8575-a2018ed200db'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'f57663d2-7d36-4407-ab69-4ce308865e70'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'f57663d2-7d36-4407-ab69-4ce308865e70'}), (s:Style {name: 'Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '52cfc283-3d3f-478f-8e69-5497c0a21240'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '52cfc283-3d3f-478f-8e69-5497c0a21240'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '52cfc283-3d3f-478f-8e69-5497c0a21240'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '52cfc283-3d3f-478f-8e69-5497c0a21240'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3890674b-a870-4abb-b32e-b7cc18548349'}), (s:Style {name: 'Surrealism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '3890674b-a870-4abb-b32e-b7cc18548349'}), (s:Style {name: 'New School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '7d1920ae-0df9-4727-b459-352346efd0bd'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '7d1920ae-0df9-4727-b459-352346efd0bd'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'ed91da3c-a198-45ad-97ed-b3160be1192d'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '97db48a6-0c51-4c89-88f7-4b941569e0a9'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '97db48a6-0c51-4c89-88f7-4b941569e0a9'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'd12a0be6-78af-40cb-a398-f6f2d1df4baf'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'd12a0be6-78af-40cb-a398-f6f2d1df4baf'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'd12a0be6-78af-40cb-a398-f6f2d1df4baf'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'd12a0be6-78af-40cb-a398-f6f2d1df4baf'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '434098b1-bccd-49c8-b771-4683a861fcea'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '434098b1-bccd-49c8-b771-4683a861fcea'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '386bf3d6-f358-4738-9ddb-5079ebca7909'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '386bf3d6-f358-4738-9ddb-5079ebca7909'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'fc8bcf0b-fb25-422f-877c-ac1c7a13d57d'}), (s:Style {name: 'Tribal'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'fc8bcf0b-fb25-422f-877c-ac1c7a13d57d'}), (s:Style {name: 'Illustrative'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'fc8bcf0b-fb25-422f-877c-ac1c7a13d57d'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '8df11dfe-b26b-4299-82c9-269c9b3ad476'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '8df11dfe-b26b-4299-82c9-269c9b3ad476'}), (s:Style {name: 'Blackwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '1e242c36-a916-4c94-ab2d-1265f74dd48b'}), (s:Style {name: 'New School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '1e242c36-a916-4c94-ab2d-1265f74dd48b'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '1e242c36-a916-4c94-ab2d-1265f74dd48b'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'f56e08f5-7a4c-4b77-95f6-1cdebcf1938f'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'f56e08f5-7a4c-4b77-95f6-1cdebcf1938f'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'f56e08f5-7a4c-4b77-95f6-1cdebcf1938f'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'c8f53513-6e40-43f0-9d0f-81fe16302e20'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'c8f53513-6e40-43f0-9d0f-81fe16302e20'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'c8f53513-6e40-43f0-9d0f-81fe16302e20'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '1371fabb-9b03-4bbe-810d-e9d9c92bbcd3'}), (s:Style {name: 'Abstract'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '1371fabb-9b03-4bbe-810d-e9d9c92bbcd3'}), (s:Style {name: 'Portrait'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'c30d7b12-4802-4ea3-8105-c4a45c013cea'}), (s:Style {name: 'Dotwork'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'c30d7b12-4802-4ea3-8105-c4a45c013cea'}), (s:Style {name: 'Geometric'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '8cf15fea-bb4f-42ba-9e13-aac5ad7df738'}), (s:Style {name: 'Photo Realism'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '8cf15fea-bb4f-42ba-9e13-aac5ad7df738'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '8cf15fea-bb4f-42ba-9e13-aac5ad7df738'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '8cf15fea-bb4f-42ba-9e13-aac5ad7df738'}), (s:Style {name: 'Watercolor'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '2510c2ea-ff53-4f3e-9c28-b456e5384fa6'}), (s:Style {name: 'New School'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '2510c2ea-ff53-4f3e-9c28-b456e5384fa6'}), (s:Style {name: 'Lettering'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '2510c2ea-ff53-4f3e-9c28-b456e5384fa6'}), (s:Style {name: 'Neo-Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'd294198f-f290-4db6-904d-ee2ff4cf30a1'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: 'd294198f-f290-4db6-904d-ee2ff4cf30a1'}), (s:Style {name: 'Japanese'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '2c994788-0cd3-454a-b46b-5399baabff99'}), (s:Style {name: 'Fine Line'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '2c994788-0cd3-454a-b46b-5399baabff99'}), (s:Style {name: 'Minimalist'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '2c994788-0cd3-454a-b46b-5399baabff99'}), (s:Style {name: 'Traditional'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+MATCH (a:Artist {id: '2c994788-0cd3-454a-b46b-5399baabff99'}), (s:Style {name: 'Biomechanical'}) MERGE (a)-[:SPECIALIZES_IN]->(s);
+
+// Create FEATURES_STYLE relationships (Shop -> Style)
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Japanese'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Denver', state: 'Colorado'}), (s:Style {name: 'Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Denver', state: 'Colorado'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Denver', state: 'Colorado'}), (s:Style {name: 'Old School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'Illustrative'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'Geometric'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Newark', state: 'New Jersey'}), (s:Style {name: 'Minimalist'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Newark', state: 'New Jersey'}), (s:Style {name: 'Dotwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Tampa', state: 'Florida'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Tampa', state: 'Florida'}), (s:Style {name: 'Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Geometric'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Portland', state: 'Oregon'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Portland', state: 'Oregon'}), (s:Style {name: 'Lettering'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Portland', state: 'Oregon'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Portland', state: 'Oregon'}), (s:Style {name: 'Old School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Old School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Surrealism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Geometric'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Houston', state: 'Texas'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Houston', state: 'Texas'}), (s:Style {name: 'Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Houston', state: 'Texas'}), (s:Style {name: 'Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Ewing Township', state: 'New Jersey'}), (s:Style {name: 'Geometric'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Ewing Township', state: 'New Jersey'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Ewing Township', state: 'New Jersey'}), (s:Style {name: 'Blackwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Brooklyn', state: 'New York'}), (s:Style {name: 'Tribal'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Brooklyn', state: 'New York'}), (s:Style {name: 'Portrait'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Brooklyn', state: 'New York'}), (s:Style {name: 'Geometric'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'San Diego', state: 'California'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Denver', state: 'Colorado'}), (s:Style {name: 'Illustrative'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'Old School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'Illustrative'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Manhattan', state: 'New York'}), (s:Style {name: 'Japanese'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Manhattan', state: 'New York'}), (s:Style {name: 'Lettering'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Manhattan', state: 'New York'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Manhattan', state: 'New York'}), (s:Style {name: 'Surrealism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Dallas', state: 'Texas'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Dotwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'New School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Sydney', state: 'New South Wales'}), (s:Style {name: 'Illustrative'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Sydney', state: 'New South Wales'}), (s:Style {name: 'Geometric'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Sydney', state: 'New South Wales'}), (s:Style {name: 'Abstract'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Sydney', state: 'New South Wales'}), (s:Style {name: 'Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Ewing Township', state: 'New Jersey'}), (s:Style {name: 'Portrait'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Ewing Township', state: 'New Jersey'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Miami', state: 'Florida'}), (s:Style {name: 'Geometric'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Miami', state: 'Florida'}), (s:Style {name: 'Lettering'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Miami', state: 'Florida'}), (s:Style {name: 'Dotwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Miami', state: 'Florida'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Blackwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Dallas', state: 'Texas'}), (s:Style {name: 'Japanese'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Dallas', state: 'Texas'}), (s:Style {name: 'Neo-Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'San Diego', state: 'California'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'San Diego', state: 'California'}), (s:Style {name: 'Portrait'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'San Diego', state: 'California'}), (s:Style {name: 'Blackwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'San Diego', state: 'California'}), (s:Style {name: 'Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Jersey City', state: 'New Jersey'}), (s:Style {name: 'Illustrative'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Jersey City', state: 'New Jersey'}), (s:Style {name: 'New School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Jersey City', state: 'New Jersey'}), (s:Style {name: 'Old School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Melbourne', state: 'Victoria'}), (s:Style {name: 'Japanese'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Melbourne', state: 'Victoria'}), (s:Style {name: 'Geometric'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Melbourne', state: 'Victoria'}), (s:Style {name: 'Abstract'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Melbourne', state: 'Victoria'}), (s:Style {name: 'Lettering'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Toronto', state: 'Ontario'}), (s:Style {name: 'Illustrative'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Tampa', state: 'Florida'}), (s:Style {name: 'Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Tampa', state: 'Florida'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Tampa', state: 'Florida'}), (s:Style {name: 'Old School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Perth', state: 'Western Australia'}), (s:Style {name: 'Surrealism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Perth', state: 'Western Australia'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Perth', state: 'Western Australia'}), (s:Style {name: 'Blackwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Perth', state: 'Western Australia'}), (s:Style {name: 'Abstract'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Houston', state: 'Texas'}), (s:Style {name: 'Illustrative'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Houston', state: 'Texas'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'Lettering'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'New School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Newark', state: 'New Jersey'}), (s:Style {name: 'Tribal'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Newark', state: 'New Jersey'}), (s:Style {name: 'Photo Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Newark', state: 'New Jersey'}), (s:Style {name: 'Portrait'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Denver', state: 'Colorado'}), (s:Style {name: 'Old School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Denver', state: 'Colorado'}), (s:Style {name: 'Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Denver', state: 'Colorado'}), (s:Style {name: 'Illustrative'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Denver', state: 'Colorado'}), (s:Style {name: 'Tribal'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Miami', state: 'Florida'}), (s:Style {name: 'Biomechanical'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'Japanese'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'Japanese'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'Illustrative'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Dallas', state: 'Texas'}), (s:Style {name: 'Tribal'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Dallas', state: 'Texas'}), (s:Style {name: 'Dotwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Dallas', state: 'Texas'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Manhattan', state: 'New York'}), (s:Style {name: 'Illustrative'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Manhattan', state: 'New York'}), (s:Style {name: 'Japanese'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Jersey City', state: 'New Jersey'}), (s:Style {name: 'Lettering'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Jersey City', state: 'New Jersey'}), (s:Style {name: 'Japanese'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Jersey City', state: 'New Jersey'}), (s:Style {name: 'Blackwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Perth', state: 'Western Australia'}), (s:Style {name: 'Neo-Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Perth', state: 'Western Australia'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Perth', state: 'Western Australia'}), (s:Style {name: 'Biomechanical'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Perth', state: 'Western Australia'}), (s:Style {name: 'Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Melbourne', state: 'Victoria'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Phoenix', state: 'Arizona'}), (s:Style {name: 'New School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Toronto', state: 'Ontario'}), (s:Style {name: 'Photo Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Toronto', state: 'Ontario'}), (s:Style {name: 'Minimalist'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Vancouver', state: 'British Columbia'}), (s:Style {name: 'Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Portrait'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Minimalist'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Los Angeles', state: 'California'}), (s:Style {name: 'Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Los Angeles', state: 'California'}), (s:Style {name: 'Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Los Angeles', state: 'California'}), (s:Style {name: 'New School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Newark', state: 'New Jersey'}), (s:Style {name: 'Japanese'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Newark', state: 'New Jersey'}), (s:Style {name: 'Biomechanical'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'Biomechanical'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'Lettering'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'New School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'Portrait'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'Biomechanical'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Portrait'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Illustrative'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Toronto', state: 'Ontario'}), (s:Style {name: 'Biomechanical'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Toronto', state: 'Ontario'}), (s:Style {name: 'Portrait'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Toronto', state: 'Ontario'}), (s:Style {name: 'Abstract'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'Dotwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Melbourne', state: 'Victoria'}), (s:Style {name: 'Tribal'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Melbourne', state: 'Victoria'}), (s:Style {name: 'Dotwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Sydney', state: 'New South Wales'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Sydney', state: 'New South Wales'}), (s:Style {name: 'Japanese'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Sydney', state: 'New South Wales'}), (s:Style {name: 'Abstract'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Sydney', state: 'New South Wales'}), (s:Style {name: 'Tribal'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Perth', state: 'Western Australia'}), (s:Style {name: 'Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Denver', state: 'Colorado'}), (s:Style {name: 'Photo Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'New School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'Dotwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Perth', state: 'Western Australia'}), (s:Style {name: 'Tribal'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Perth', state: 'Western Australia'}), (s:Style {name: 'Geometric'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Perth', state: 'Western Australia'}), (s:Style {name: 'Surrealism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Manhattan', state: 'New York'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Manhattan', state: 'New York'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Dallas', state: 'Texas'}), (s:Style {name: 'Dotwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Vancouver', state: 'British Columbia'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Vancouver', state: 'British Columbia'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Vancouver', state: 'British Columbia'}), (s:Style {name: 'Surrealism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Denver', state: 'Colorado'}), (s:Style {name: 'Blackwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Denver', state: 'Colorado'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Denver', state: 'Colorado'}), (s:Style {name: 'Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Houston', state: 'Texas'}), (s:Style {name: 'Neo-Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Houston', state: 'Texas'}), (s:Style {name: 'Old School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Houston', state: 'Texas'}), (s:Style {name: 'Tribal'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Houston', state: 'Texas'}), (s:Style {name: 'Lettering'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Vancouver', state: 'British Columbia'}), (s:Style {name: 'Portrait'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Sydney', state: 'New South Wales'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Sydney', state: 'New South Wales'}), (s:Style {name: 'Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Sydney', state: 'New South Wales'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Jersey City', state: 'New Jersey'}), (s:Style {name: 'Tribal'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Jersey City', state: 'New Jersey'}), (s:Style {name: 'Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'Abstract'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Brooklyn', state: 'New York'}), (s:Style {name: 'Minimalist'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Brooklyn', state: 'New York'}), (s:Style {name: 'New School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Portland', state: 'Oregon'}), (s:Style {name: 'New School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Portland', state: 'Oregon'}), (s:Style {name: 'Tribal'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Portland', state: 'Oregon'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Portland', state: 'Oregon'}), (s:Style {name: 'Old School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Toronto', state: 'Ontario'}), (s:Style {name: 'Geometric'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Toronto', state: 'Ontario'}), (s:Style {name: 'New School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'San Francisco', state: 'California'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Houston', state: 'Texas'}), (s:Style {name: 'Portrait'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Houston', state: 'Texas'}), (s:Style {name: 'Dotwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Denver', state: 'Colorado'}), (s:Style {name: 'Tribal'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Denver', state: 'Colorado'}), (s:Style {name: 'Geometric'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Denver', state: 'Colorado'}), (s:Style {name: 'Surrealism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Denver', state: 'Colorado'}), (s:Style {name: 'Portrait'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Newark', state: 'New Jersey'}), (s:Style {name: 'New School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Newark', state: 'New Jersey'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Dallas', state: 'Texas'}), (s:Style {name: 'Illustrative'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Dallas', state: 'Texas'}), (s:Style {name: 'Dotwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Dallas', state: 'Texas'}), (s:Style {name: 'Lettering'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Tampa', state: 'Florida'}), (s:Style {name: 'Abstract'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Abstract'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Japanese'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Sydney', state: 'New South Wales'}), (s:Style {name: 'Geometric'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Houston', state: 'Texas'}), (s:Style {name: 'Tribal'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Houston', state: 'Texas'}), (s:Style {name: 'Geometric'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Houston', state: 'Texas'}), (s:Style {name: 'Blackwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Houston', state: 'Texas'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Blackwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Photo Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Portrait'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Jersey City', state: 'New Jersey'}), (s:Style {name: 'New School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Denver', state: 'Colorado'}), (s:Style {name: 'Japanese'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Los Angeles', state: 'California'}), (s:Style {name: 'New School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Los Angeles', state: 'California'}), (s:Style {name: 'Lettering'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Toronto', state: 'Ontario'}), (s:Style {name: 'Abstract'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Minimalist'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'New School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'Illustrative'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Houston', state: 'Texas'}), (s:Style {name: 'New School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Toronto', state: 'Ontario'}), (s:Style {name: 'Japanese'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Toronto', state: 'Ontario'}), (s:Style {name: 'Tribal'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Toronto', state: 'Ontario'}), (s:Style {name: 'Blackwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Toronto', state: 'Ontario'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'San Francisco', state: 'California'}), (s:Style {name: 'Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'San Francisco', state: 'California'}), (s:Style {name: 'Surrealism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'San Francisco', state: 'California'}), (s:Style {name: 'Tribal'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'San Francisco', state: 'California'}), (s:Style {name: 'Photo Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Tampa', state: 'Florida'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Tampa', state: 'Florida'}), (s:Style {name: 'Old School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'Surrealism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'Biomechanical'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Jersey City', state: 'New Jersey'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Jersey City', state: 'New Jersey'}), (s:Style {name: 'Abstract'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Los Angeles', state: 'California'}), (s:Style {name: 'Blackwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Los Angeles', state: 'California'}), (s:Style {name: 'Minimalist'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Los Angeles', state: 'California'}), (s:Style {name: 'Tribal'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'Geometric'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'Surrealism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Perth', state: 'Western Australia'}), (s:Style {name: 'Dotwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Perth', state: 'Western Australia'}), (s:Style {name: 'Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Perth', state: 'Western Australia'}), (s:Style {name: 'Neo-Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Phoenix', state: 'Arizona'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Tampa', state: 'Florida'}), (s:Style {name: 'Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Tampa', state: 'Florida'}), (s:Style {name: 'Blackwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Tampa', state: 'Florida'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Tampa', state: 'Florida'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'Minimalist'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Houston', state: 'Texas'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Houston', state: 'Texas'}), (s:Style {name: 'Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Houston', state: 'Texas'}), (s:Style {name: 'Minimalist'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Miami', state: 'Florida'}), (s:Style {name: 'Abstract'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Miami', state: 'Florida'}), (s:Style {name: 'Biomechanical'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Miami', state: 'Florida'}), (s:Style {name: 'New School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Miami', state: 'Florida'}), (s:Style {name: 'Lettering'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Jersey City', state: 'New Jersey'}), (s:Style {name: 'Neo-Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Jersey City', state: 'New Jersey'}), (s:Style {name: 'Japanese'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Jersey City', state: 'New Jersey'}), (s:Style {name: 'Illustrative'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Jersey City', state: 'New Jersey'}), (s:Style {name: 'Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Portland', state: 'Oregon'}), (s:Style {name: 'Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Portland', state: 'Oregon'}), (s:Style {name: 'Lettering'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Perth', state: 'Western Australia'}), (s:Style {name: 'Geometric'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Ewing Township', state: 'New Jersey'}), (s:Style {name: 'Neo-Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Ewing Township', state: 'New Jersey'}), (s:Style {name: 'Lettering'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Blackwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Illustrative'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Tribal'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Dotwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Sydney', state: 'New South Wales'}), (s:Style {name: 'Neo-Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Sydney', state: 'New South Wales'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Dallas', state: 'Texas'}), (s:Style {name: 'Portrait'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Phoenix', state: 'Arizona'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Phoenix', state: 'Arizona'}), (s:Style {name: 'Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Phoenix', state: 'Arizona'}), (s:Style {name: 'Old School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Phoenix', state: 'Arizona'}), (s:Style {name: 'Dotwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Melbourne', state: 'Victoria'}), (s:Style {name: 'Biomechanical'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Brooklyn', state: 'New York'}), (s:Style {name: 'Lettering'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Brooklyn', state: 'New York'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Brooklyn', state: 'New York'}), (s:Style {name: 'Surrealism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'Lettering'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Neo-Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Houston', state: 'Texas'}), (s:Style {name: 'Lettering'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Houston', state: 'Texas'}), (s:Style {name: 'Minimalist'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Ewing Township', state: 'New Jersey'}), (s:Style {name: 'Tribal'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Ewing Township', state: 'New Jersey'}), (s:Style {name: 'New School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Ewing Township', state: 'New Jersey'}), (s:Style {name: 'Neo-Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Ewing Township', state: 'New Jersey'}), (s:Style {name: 'Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Perth', state: 'Western Australia'}), (s:Style {name: 'Dotwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Perth', state: 'Western Australia'}), (s:Style {name: 'Lettering'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Perth', state: 'Western Australia'}), (s:Style {name: 'Surrealism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'Lettering'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'San Diego', state: 'California'}), (s:Style {name: 'Tribal'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'San Francisco', state: 'California'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'San Francisco', state: 'California'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'San Francisco', state: 'California'}), (s:Style {name: 'Tribal'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'San Francisco', state: 'California'}), (s:Style {name: 'Photo Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Vancouver', state: 'British Columbia'}), (s:Style {name: 'New School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Vancouver', state: 'British Columbia'}), (s:Style {name: 'Tribal'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Los Angeles', state: 'California'}), (s:Style {name: 'Portrait'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Los Angeles', state: 'California'}), (s:Style {name: 'Abstract'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Los Angeles', state: 'California'}), (s:Style {name: 'Old School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Toronto', state: 'Ontario'}), (s:Style {name: 'Biomechanical'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Geometric'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Jersey City', state: 'New Jersey'}), (s:Style {name: 'New School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Jersey City', state: 'New Jersey'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Jersey City', state: 'New Jersey'}), (s:Style {name: 'Geometric'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'San Francisco', state: 'California'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'San Francisco', state: 'California'}), (s:Style {name: 'Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'New School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Biomechanical'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'San Francisco', state: 'California'}), (s:Style {name: 'Photo Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'San Francisco', state: 'California'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Geometric'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Old School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Sydney', state: 'New South Wales'}), (s:Style {name: 'Portrait'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Sydney', state: 'New South Wales'}), (s:Style {name: 'Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Sydney', state: 'New South Wales'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Sydney', state: 'New South Wales'}), (s:Style {name: 'Geometric'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Brooklyn', state: 'New York'}), (s:Style {name: 'Biomechanical'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Brooklyn', state: 'New York'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Brooklyn', state: 'New York'}), (s:Style {name: 'Japanese'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Brooklyn', state: 'New York'}), (s:Style {name: 'Illustrative'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Newark', state: 'New Jersey'}), (s:Style {name: 'Minimalist'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Newark', state: 'New Jersey'}), (s:Style {name: 'Old School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Newark', state: 'New Jersey'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Newark', state: 'New Jersey'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Biomechanical'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'New School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Brooklyn', state: 'New York'}), (s:Style {name: 'Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Brooklyn', state: 'New York'}), (s:Style {name: 'Blackwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Brooklyn', state: 'New York'}), (s:Style {name: 'Dotwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Brooklyn', state: 'New York'}), (s:Style {name: 'Abstract'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Jersey City', state: 'New Jersey'}), (s:Style {name: 'Geometric'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Jersey City', state: 'New Jersey'}), (s:Style {name: 'Illustrative'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Jersey City', state: 'New Jersey'}), (s:Style {name: 'Photo Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Jersey City', state: 'New Jersey'}), (s:Style {name: 'New School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Biomechanical'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Tampa', state: 'Florida'}), (s:Style {name: 'Lettering'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Phoenix', state: 'Arizona'}), (s:Style {name: 'Minimalist'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Phoenix', state: 'Arizona'}), (s:Style {name: 'Portrait'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Phoenix', state: 'Arizona'}), (s:Style {name: 'New School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Phoenix', state: 'Arizona'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Manhattan', state: 'New York'}), (s:Style {name: 'Minimalist'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'Illustrative'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'San Diego', state: 'California'}), (s:Style {name: 'Dotwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'San Diego', state: 'California'}), (s:Style {name: 'Minimalist'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'San Diego', state: 'California'}), (s:Style {name: 'Abstract'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'San Francisco', state: 'California'}), (s:Style {name: 'Japanese'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'San Francisco', state: 'California'}), (s:Style {name: 'Biomechanical'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Phoenix', state: 'Arizona'}), (s:Style {name: 'Japanese'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Phoenix', state: 'Arizona'}), (s:Style {name: 'Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Phoenix', state: 'Arizona'}), (s:Style {name: 'Neo-Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Phoenix', state: 'Arizona'}), (s:Style {name: 'Dotwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'San Diego', state: 'California'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'San Diego', state: 'California'}), (s:Style {name: 'Minimalist'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Minimalist'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Photo Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Miami', state: 'Florida'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Miami', state: 'Florida'}), (s:Style {name: 'Neo-Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Miami', state: 'Florida'}), (s:Style {name: 'Portrait'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Denver', state: 'Colorado'}), (s:Style {name: 'New School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Denver', state: 'Colorado'}), (s:Style {name: 'Blackwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Denver', state: 'Colorado'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Denver', state: 'Colorado'}), (s:Style {name: 'Surrealism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Lettering'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Melbourne', state: 'Victoria'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Los Angeles', state: 'California'}), (s:Style {name: 'Old School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Los Angeles', state: 'California'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Los Angeles', state: 'California'}), (s:Style {name: 'Surrealism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Los Angeles', state: 'California'}), (s:Style {name: 'Geometric'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Newark', state: 'New Jersey'}), (s:Style {name: 'Japanese'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Newark', state: 'New Jersey'}), (s:Style {name: 'Abstract'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Newark', state: 'New Jersey'}), (s:Style {name: 'Blackwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Newark', state: 'New Jersey'}), (s:Style {name: 'Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Manhattan', state: 'New York'}), (s:Style {name: 'Old School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Manhattan', state: 'New York'}), (s:Style {name: 'Dotwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Manhattan', state: 'New York'}), (s:Style {name: 'Illustrative'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Ewing Township', state: 'New Jersey'}), (s:Style {name: 'Abstract'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Ewing Township', state: 'New Jersey'}), (s:Style {name: 'Illustrative'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Denver', state: 'Colorado'}), (s:Style {name: 'Portrait'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Houston', state: 'Texas'}), (s:Style {name: 'Tribal'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Houston', state: 'Texas'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'San Francisco', state: 'California'}), (s:Style {name: 'Lettering'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'San Francisco', state: 'California'}), (s:Style {name: 'Illustrative'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'San Francisco', state: 'California'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'Neo-Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'Portrait'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Ewing Township', state: 'New Jersey'}), (s:Style {name: 'Geometric'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Ewing Township', state: 'New Jersey'}), (s:Style {name: 'Minimalist'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Melbourne', state: 'Victoria'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Melbourne', state: 'Victoria'}), (s:Style {name: 'Blackwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Melbourne', state: 'Victoria'}), (s:Style {name: 'Old School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Phoenix', state: 'Arizona'}), (s:Style {name: 'Blackwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Phoenix', state: 'Arizona'}), (s:Style {name: 'Illustrative'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Phoenix', state: 'Arizona'}), (s:Style {name: 'Biomechanical'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Phoenix', state: 'Arizona'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Toronto', state: 'Ontario'}), (s:Style {name: 'Japanese'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Toronto', state: 'Ontario'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Toronto', state: 'Ontario'}), (s:Style {name: 'Illustrative'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Dallas', state: 'Texas'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Dallas', state: 'Texas'}), (s:Style {name: 'New School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Miami', state: 'Florida'}), (s:Style {name: 'Illustrative'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Miami', state: 'Florida'}), (s:Style {name: 'Geometric'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Black Anchor Collective', city: 'Miami', state: 'Florida'}), (s:Style {name: 'Japanese'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Houston', state: 'Texas'}), (s:Style {name: 'New School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'Houston', state: 'Texas'}), (s:Style {name: 'Biomechanical'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Jersey City', state: 'New Jersey'}), (s:Style {name: 'Old School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Manhattan', state: 'New York'}), (s:Style {name: 'Minimalist'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Manhattan', state: 'New York'}), (s:Style {name: 'Photo Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'Surrealism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'Japanese'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Ewing Township', state: 'New Jersey'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Ewing Township', state: 'New Jersey'}), (s:Style {name: 'Dotwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Ewing Township', state: 'New Jersey'}), (s:Style {name: 'Portrait'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Surrealism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Tribal'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Jersey City', state: 'New Jersey'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Electric Rose Parlor', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Ewing Township', state: 'New Jersey'}), (s:Style {name: 'Japanese'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'San Diego', state: 'California'}), (s:Style {name: 'Blackwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'Tribal'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Manhattan', state: 'New York'}), (s:Style {name: 'Tribal'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Manhattan', state: 'New York'}), (s:Style {name: 'Abstract'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Sydney', state: 'New South Wales'}), (s:Style {name: 'Blackwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Sydney', state: 'New South Wales'}), (s:Style {name: 'Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Brooklyn', state: 'New York'}), (s:Style {name: 'Dotwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Melbourne', state: 'Victoria'}), (s:Style {name: 'Geometric'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Melbourne', state: 'Victoria'}), (s:Style {name: 'Tribal'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Melbourne', state: 'Victoria'}), (s:Style {name: 'Minimalist'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Melbourne', state: 'Victoria'}), (s:Style {name: 'Blackwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Minimalist'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'Geometric'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Montreal', state: 'Quebec'}), (s:Style {name: 'Neo-Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Toronto', state: 'Ontario'}), (s:Style {name: 'Surrealism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Raven & Rose Ink', city: 'Toronto', state: 'Ontario'}), (s:Style {name: 'New School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Miami', state: 'Florida'}), (s:Style {name: 'Japanese'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Miami', state: 'Florida'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Houston', state: 'Texas'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Japanese'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Old Soul Tattoo Co.', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Illustrative'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Jersey City', state: 'New Jersey'}), (s:Style {name: 'Tribal'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Jersey City', state: 'New Jersey'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Jersey City', state: 'New Jersey'}), (s:Style {name: 'Lettering'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Crimson Lotus Studio', city: 'Jersey City', state: 'New Jersey'}), (s:Style {name: 'Illustrative'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Manhattan', state: 'New York'}), (s:Style {name: 'Blackwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Manhattan', state: 'New York'}), (s:Style {name: 'Tribal'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'San Diego', state: 'California'}), (s:Style {name: 'Photo Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Ink & Iron Studio', city: 'San Diego', state: 'California'}), (s:Style {name: 'Geometric'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'Tribal'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Steel & Bone Tattoo', city: 'Tucson', state: 'Arizona'}), (s:Style {name: 'Minimalist'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Manhattan', state: 'New York'}), (s:Style {name: 'Biomechanical'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Northern Lights Tattoo', city: 'Manhattan', state: 'New York'}), (s:Style {name: 'Blackwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'San Francisco', state: 'California'}), (s:Style {name: 'New School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'San Francisco', state: 'California'}), (s:Style {name: 'Neo-Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'San Francisco', state: 'California'}), (s:Style {name: 'Abstract'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Newark', state: 'New Jersey'}), (s:Style {name: 'Neo-Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Newark', state: 'New Jersey'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Sacred Art Collective', city: 'Newark', state: 'New Jersey'}), (s:Style {name: 'Abstract'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Ewing Township', state: 'New Jersey'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Ewing Township', state: 'New Jersey'}), (s:Style {name: 'Biomechanical'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Ewing Township', state: 'New Jersey'}), (s:Style {name: 'Neo-Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Portland', state: 'Oregon'}), (s:Style {name: 'Abstract'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Portland', state: 'Oregon'}), (s:Style {name: 'Portrait'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Vancouver', state: 'British Columbia'}), (s:Style {name: 'Dotwork'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Vancouver', state: 'British Columbia'}), (s:Style {name: 'Geometric'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Ewing Township', state: 'New Jersey'}), (s:Style {name: 'Photo Realism'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Ewing Township', state: 'New Jersey'}), (s:Style {name: 'Biomechanical'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Ewing Township', state: 'New Jersey'}), (s:Style {name: 'Minimalist'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Golden Needle Tattoo', city: 'Ewing Township', state: 'New Jersey'}), (s:Style {name: 'Watercolor'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Austin', state: 'Texas'}), (s:Style {name: 'New School'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Lettering'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Wildflower Ink', city: 'Austin', state: 'Texas'}), (s:Style {name: 'Neo-Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Burlington', state: 'Vermont'}), (s:Style {name: 'Japanese'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Melbourne', state: 'Victoria'}), (s:Style {name: 'Fine Line'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Melbourne', state: 'Victoria'}), (s:Style {name: 'Traditional'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+MATCH (sh:Shop {name: 'Midnight Owl Tattoo', city: 'Melbourne', state: 'Victoria'}), (s:Style {name: 'Biomechanical'}) MERGE (sh)-[:FEATURES_STYLE]->(s);
+
+// Create HAS_WEBSITE relationships (Artist -> Website)
+MATCH (a:Artist {id: '5835eaa6-f203-43b9-af47-485c58a2e52c'}), (w:Website {url: 'https://tatt.example.com/artists/02ec4ea7-b5ab-4d24-b392-91c639a33e2c'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '8e8045d7-4f3f-4e4e-8bd8-a93d8b478ca6'}), (w:Website {url: 'https://tatt.example.com/artists/e1875c2c-10a3-4039-b377-03978aaaf373'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '6f3591de-bea3-4e00-8039-64981a8e099d'}), (w:Website {url: 'https://tatt.example.com/artists/27d4efd6-8f1a-4a40-8ab5-8a41d6b1fc06'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '095ab55f-df1b-45b9-be2e-d7305c7ebd23'}), (w:Website {url: 'https://tatt.example.com/artists/80de89fd-be02-4b1e-ac16-46f1f39a0c91'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'c10e9891-b537-4baf-a0a2-d63e9edba3d1'}), (w:Website {url: 'https://tatt.example.com/artists/6b1ec7db-c0fc-4fb1-a8ff-3077bb0af9f6'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'c623ff67-bbf3-44e7-916c-550ec58ff314'}), (w:Website {url: 'https://tatt.example.com/artists/40813085-13b6-4a29-b879-f01f040a9939'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '3557a401-d44d-430d-a755-cccdef2af361'}), (w:Website {url: 'https://tatt.example.com/artists/e03838cc-1a98-438a-8e06-2666a9eb254c'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'c665b9b3-f4d8-4449-a57d-c188e8aa3e61'}), (w:Website {url: 'https://tatt.example.com/artists/df298d63-7296-4996-aae2-ffc6b08604a9'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'db89ef64-3441-4646-a7c2-faa56526db5e'}), (w:Website {url: 'https://tatt.example.com/artists/74a64337-b7a5-41fc-bb68-e1d70eb26de1'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '98c29f7a-256f-41b0-b416-3e3c57ace18c'}), (w:Website {url: 'https://tatt.example.com/artists/b7c2d56c-a819-4af8-9d64-7cd95195fe24'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '40e41e2f-13df-4b25-ac45-b9db1f4b1275'}), (w:Website {url: 'https://tatt.example.com/artists/db05903d-9ce1-4cac-997e-74a7f2416c09'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'ee555676-f8d8-4c34-a264-a08750fb9996'}), (w:Website {url: 'https://tatt.example.com/artists/dfeead78-eb22-4fa6-9525-c3fd4a96691b'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '7663cd0d-12e6-460f-9dec-78f1a8985d58'}), (w:Website {url: 'https://tatt.example.com/artists/825b7e04-23a3-4e8f-9f09-efb1917f5110'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '9c7ac04d-02d0-4f02-aa3d-da135da588bd'}), (w:Website {url: 'https://tatt.example.com/artists/582b5060-279d-4995-9c17-fefd69cd4d78'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '6303c217-5dba-42d3-a9bc-ee609565cae9'}), (w:Website {url: 'https://tatt.example.com/artists/57b00981-0e8d-4dac-8994-11934525e36f'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '9e31580e-c264-41de-989f-11751be0a56e'}), (w:Website {url: 'https://tatt.example.com/artists/45d109a6-31da-4142-809e-ecc715deac1f'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '3c57a451-d6c5-49ca-bf46-c94786215e54'}), (w:Website {url: 'https://tatt.example.com/artists/f3bfb91c-d8cf-4cff-8f29-64328eb90817'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '3f752f02-2847-46f4-a184-6e8d5bc1b776'}), (w:Website {url: 'https://tatt.example.com/artists/cd699690-83de-4c2e-af86-e2e83282aa74'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '1f3d84a1-292f-4836-86d3-cb0bf803193d'}), (w:Website {url: 'https://tatt.example.com/artists/d28d6312-d613-453a-8ecc-9b8570e58290'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '919a288d-b342-4dc4-a0cc-a3b38585a5fe'}), (w:Website {url: 'https://tatt.example.com/artists/aa0f045a-7ba9-4bb2-9906-d15fdcce3f87'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '366bda7c-009b-469c-a03f-6258fdc81bcd'}), (w:Website {url: 'https://tatt.example.com/artists/01d3bac0-42a3-4c93-a21e-ab7035644e58'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '19b09e4e-efcd-4863-bc43-a0cb266de01a'}), (w:Website {url: 'https://tatt.example.com/artists/ca3ba148-37cb-438c-83e1-194ea1460121'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '79484512-840c-4529-93dc-de79d425043e'}), (w:Website {url: 'https://tatt.example.com/artists/eabc1032-2b0e-4c55-88a8-94376675f5b5'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'fe4eb917-6028-4878-b390-65ed795619b3'}), (w:Website {url: 'https://tatt.example.com/artists/01c1415e-279d-4505-b702-7a79bf9c4daf'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '77e6476e-db9a-4fce-bae7-123645e89d81'}), (w:Website {url: 'https://tatt.example.com/artists/cb7836ef-4a07-4681-a2f3-b5e6b9dbe0fb'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '76bb3f0b-5533-43f4-8fee-7e36fe369ada'}), (w:Website {url: 'https://tatt.example.com/artists/a1de1fef-071e-4bed-a493-7466a2f7536e'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '6bedcf48-0868-45f6-b021-329047a42b10'}), (w:Website {url: 'https://tatt.example.com/artists/f2ee6f1c-ed20-4077-a0c9-485c07b01ea7'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '6556f12c-c8fb-4268-9680-c7ddc546e86c'}), (w:Website {url: 'https://tatt.example.com/artists/e603bf28-89ce-45e6-b4f4-dc6bd294ebd8'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '3e2706ad-9e33-4d43-9338-c6992f074067'}), (w:Website {url: 'https://tatt.example.com/artists/efb44674-b3a1-413c-a264-a2b098cbe12d'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'b9d5e3be-5f5f-43de-85eb-20d27e7244ee'}), (w:Website {url: 'https://tatt.example.com/artists/0d4b1025-61bd-47a8-9afc-4ec6078ad116'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '9801da5b-9906-4073-8df4-8bd1b58d327f'}), (w:Website {url: 'https://tatt.example.com/artists/873ea4ff-f072-414d-b8df-2ff42238a937'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '2a605cce-a668-4c76-8f31-839076c4db46'}), (w:Website {url: 'https://tatt.example.com/artists/bc73b9c9-97d9-425e-8744-e720c77a5e03'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '4e2c2df5-b4ed-4fb2-8052-7e3876b2268d'}), (w:Website {url: 'https://tatt.example.com/artists/f9d652ac-4a01-43b4-850c-95825322894c'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '6e763c3a-25fb-46ef-af92-355bfa7a48e3'}), (w:Website {url: 'https://tatt.example.com/artists/0a28b513-2c11-457c-9c68-9e0ae3ef5660'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '985e2349-3b59-4cc8-a9ef-d33507d0f4bb'}), (w:Website {url: 'https://tatt.example.com/artists/166bd7f3-2003-4837-a9ce-d9e10ee90581'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'd06b59c9-b214-4103-92df-34b79116142c'}), (w:Website {url: 'https://tatt.example.com/artists/f1a0b768-0472-443e-8a23-9473725f85b9'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '15192239-10a2-4de0-a8e2-351cbdaf7f47'}), (w:Website {url: 'https://tatt.example.com/artists/b0171ad5-23ea-4255-ac2b-b8f57ba5755a'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'a38f78ac-6d8c-4b3d-be7d-20e9317551db'}), (w:Website {url: 'https://tatt.example.com/artists/4bffb4db-abca-4353-959d-769162a2108b'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'a1e331ce-411c-4f15-bd74-72fe0610957b'}), (w:Website {url: 'https://tatt.example.com/artists/9fdb55b9-09d7-4b91-93b1-16b0cb5d9131'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '9dd88c6f-e2e3-4530-af79-24a047e0146f'}), (w:Website {url: 'https://tatt.example.com/artists/cdfe7071-2ccb-47c2-81c3-5dd33a81155d'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '071f7135-68bb-4301-9a86-3b9301d7eeeb'}), (w:Website {url: 'https://tatt.example.com/artists/0d202717-ec86-4522-93be-a317df75e43b'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '6f26011c-bb1b-443a-9d87-3af8167cf938'}), (w:Website {url: 'https://tatt.example.com/artists/ffab5f09-8dec-4eb5-94ab-05d05ce1b19c'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '86270e8f-d059-476a-b82f-9ac5e616e365'}), (w:Website {url: 'https://tatt.example.com/artists/5dc40bc5-bb87-4962-878e-adfa856eb29a'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '129fa57a-898f-460e-8352-88131f701f0e'}), (w:Website {url: 'https://tatt.example.com/artists/89ae036f-c4f9-457e-8e06-c56a0932f4c7'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '73d8f021-b367-4f3d-86b6-752ff6920b45'}), (w:Website {url: 'https://tatt.example.com/artists/b99f3948-6226-48c6-8028-37e618993ac8'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '57de2a11-9ad5-4586-91c1-8d2b825d6199'}), (w:Website {url: 'https://tatt.example.com/artists/17055dd8-eac3-42ff-8d4b-5344f396a8d0'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '0d7e41e5-abeb-4725-bded-8f1c44335b29'}), (w:Website {url: 'https://tatt.example.com/artists/daf9d710-8413-49a6-8e1d-32bf0a168442'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '29be8331-46b2-441e-88ba-1bed9a611435'}), (w:Website {url: 'https://tatt.example.com/artists/21c8ce76-3865-4b52-bc53-6e7f69e589f0'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '5215b296-2512-48ad-a73a-7716ec0c18a5'}), (w:Website {url: 'https://tatt.example.com/artists/1fea2547-2a89-47b1-ab05-8975debbb4d2'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '39d0c0b4-ab78-4c70-a369-12dc368a5671'}), (w:Website {url: 'https://tatt.example.com/artists/80486930-efc8-4fda-8929-243fba50bf32'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '6e346c96-f77e-41b3-9304-c12cb9214cb5'}), (w:Website {url: 'https://tatt.example.com/artists/0aebd6ab-76d6-49d4-a6a9-a21db2ff101b'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'c6efd895-9169-402c-87f2-9a2087afd503'}), (w:Website {url: 'https://tatt.example.com/artists/c7c0dd8c-2501-4c26-8683-4efa31d67dc3'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '0055ab2e-f215-499a-aaba-6b8694d85aaf'}), (w:Website {url: 'https://tatt.example.com/artists/7b01beca-822b-4d70-a36a-cb71f521558d'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '29321bbb-7c48-4036-921b-330e2fe9814c'}), (w:Website {url: 'https://tatt.example.com/artists/f7750213-8481-4fae-a637-9b37f9d203a8'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '32354ba5-13ac-4a0d-b624-3d081a49e65a'}), (w:Website {url: 'https://tatt.example.com/artists/89b6748c-9d6a-49b0-820c-04c49d357a92'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'f6baf290-e80b-4ebb-88de-b8c225f12d71'}), (w:Website {url: 'https://tatt.example.com/artists/fedc8f0a-aab3-4875-9474-71bd5fce3a81'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '82f14b6c-2aa8-4d66-ae6e-057131e9f322'}), (w:Website {url: 'https://tatt.example.com/artists/dc08cc84-4a59-48a1-aa74-9c5dd4207c7b'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'b1c08501-25ca-4058-866b-e0129e8d9234'}), (w:Website {url: 'https://tatt.example.com/artists/7d0d6a41-84b1-4de4-86f9-9198b9948b47'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '4135d823-5762-4c20-b6a0-0a3f4eb9a0bd'}), (w:Website {url: 'https://tatt.example.com/artists/12e293e3-d08c-4053-a1d4-17ba1d640cd2'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '60352c84-b8fe-4378-ae2d-474b5c90360f'}), (w:Website {url: 'https://tatt.example.com/artists/c8a212d2-3e9f-43de-87cb-c83e9c137184'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '3730e63d-6a38-4d1e-bca3-ff67ce0c82c7'}), (w:Website {url: 'https://tatt.example.com/artists/8167c8af-370e-4440-8f32-cb7f10a73a40'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '7767ea76-b34d-4beb-beb8-29d51c4ac230'}), (w:Website {url: 'https://tatt.example.com/artists/dea89f6b-9d56-4250-b865-2220dc93e55b'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'c913f16b-0604-4f63-bbb7-ade8866b2c0d'}), (w:Website {url: 'https://tatt.example.com/artists/1edbb126-1090-4b69-9ebd-f1f6064fdc44'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'f1121635-0622-4078-9195-36eb0e4b02d3'}), (w:Website {url: 'https://tatt.example.com/artists/c686ad25-7d2b-4a9d-9c8b-b909112d67fe'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'fa08bb8b-5f9e-4a40-b195-26b701d2794f'}), (w:Website {url: 'https://tatt.example.com/artists/30273995-8751-4031-879d-bd042197df09'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '41624bfe-ebb9-48cf-bcde-01490e2fffdc'}), (w:Website {url: 'https://tatt.example.com/artists/bba06ada-0794-4ac1-9957-cd2aeaa3bcf4'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'dca7e8d3-fa07-4d4d-8e34-b433a6180727'}), (w:Website {url: 'https://tatt.example.com/artists/7ba9a7b1-aa79-496a-8ef9-691fe6d32a03'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'd6067ab0-40cd-4717-8c4e-d0b67a66f1d2'}), (w:Website {url: 'https://tatt.example.com/artists/1702a915-e2d8-4a0e-baab-358a21c32243'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '1574381a-482d-42e0-b777-e00c9af45ea0'}), (w:Website {url: 'https://tatt.example.com/artists/1c6ef356-585f-4cba-afee-dbecffa24c5e'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'df0f254e-b58c-46ad-a541-b74dee3c05a8'}), (w:Website {url: 'https://tatt.example.com/artists/f0bac8f5-4ab3-4ff0-b3f6-d23e82b9259f'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'be689759-e106-4667-9d5a-ceebd5ed4aee'}), (w:Website {url: 'https://tatt.example.com/artists/a1746a2e-ab33-4aaa-8316-5b9521d1b51f'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '3d03e544-fbe3-44ec-9f10-99b660316b18'}), (w:Website {url: 'https://tatt.example.com/artists/c05a8efc-216e-4dad-a8c4-f8c6ebb073c4'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '07eaaeeb-1540-4670-b82d-b14e29dc1042'}), (w:Website {url: 'https://tatt.example.com/artists/f867bf09-1f37-493e-a6eb-c9900fb67be9'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '02fb2183-6746-4782-9596-6c93810f137f'}), (w:Website {url: 'https://tatt.example.com/artists/e2927c19-3bc8-489f-90e2-e1db441fb3f8'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'f2851c38-245b-4f47-a1cd-79f24f164f98'}), (w:Website {url: 'https://tatt.example.com/artists/87b101fa-70d7-4e08-a587-3f93bda1fc2c'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'a578a976-0c1d-483f-a614-f17bcacfaa18'}), (w:Website {url: 'https://tatt.example.com/artists/a4db8488-9bab-401d-9865-717f3eec405b'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '48b5c5cc-f48b-4eec-b7c3-a9bee19ca85e'}), (w:Website {url: 'https://tatt.example.com/artists/527e872f-eb50-4032-87f9-8fbc319d35f8'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '67035968-3e7f-43cd-a6cc-2a135688b3a9'}), (w:Website {url: 'https://tatt.example.com/artists/0e02fddd-9a6b-4e43-a9e1-5b552b9df443'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '5b691f1b-5ff9-4c39-a199-32b7b4613bbc'}), (w:Website {url: 'https://tatt.example.com/artists/51796989-7206-411a-8de1-e435f7ec5645'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '391e8d41-1d15-4d0e-a98f-51f4975fd182'}), (w:Website {url: 'https://tatt.example.com/artists/b8193036-f2eb-493f-badb-c7aa6bd62557'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '67f173fe-83d1-4b74-98ba-40321fadadef'}), (w:Website {url: 'https://tatt.example.com/artists/12e8774b-56c9-45a0-8717-cc086c4f074c'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'dd4b1bd3-ff34-4f30-8154-a3fd9b60e98e'}), (w:Website {url: 'https://tatt.example.com/artists/1241a38a-a335-4298-a24f-9c5ea28c52ea'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'd1b73eb1-da92-40a5-ab9c-0329957c95ea'}), (w:Website {url: 'https://tatt.example.com/artists/19898389-5351-4e8c-aae5-d0aba0a876bb'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'a3ff3e81-7682-4e54-833c-bce10f645131'}), (w:Website {url: 'https://tatt.example.com/artists/32b2bc5f-5bf9-4a83-8b44-def4b518dc16'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'dc65325e-bf12-4aea-966f-7b8576127878'}), (w:Website {url: 'https://tatt.example.com/artists/1e85273b-e2ca-4626-aa5a-a79f69d51e4a'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'a239a071-a365-44f6-8c6e-8cd92d643c15'}), (w:Website {url: 'https://tatt.example.com/artists/d06d1a66-61c4-4c6a-8783-044f4942e389'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '821e5518-b280-4007-8766-82e67d7cb3c4'}), (w:Website {url: 'https://tatt.example.com/artists/631b64cc-f4b0-4703-9ab1-8200999c4e15'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'be121454-0452-4220-8608-421a04ddb03e'}), (w:Website {url: 'https://tatt.example.com/artists/25322e36-4532-4377-a51d-eda2090bdc94'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '9b1d83b0-9584-4721-babf-47722b212c4b'}), (w:Website {url: 'https://tatt.example.com/artists/3d28083b-38c4-4ab1-84fa-03eb362b0b49'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'd05b8c77-0686-42ee-b93d-0090d0f9ba9c'}), (w:Website {url: 'https://tatt.example.com/artists/f43bd8a4-e87c-40d3-87aa-928f14138df9'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'fc8cbd08-a294-40df-b95f-478801416b2c'}), (w:Website {url: 'https://tatt.example.com/artists/8b1547e9-f41a-439e-b360-a25361db81dd'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'bd7cf9f6-cfc2-4f5f-a91c-3c23ada0b2e0'}), (w:Website {url: 'https://tatt.example.com/artists/58f516c7-63f1-42a4-9898-81da20be338c'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'd93d6fe2-9bc4-40da-8e2e-97cdc4a90bad'}), (w:Website {url: 'https://tatt.example.com/artists/f99194a9-4b09-4a60-9eee-b5459994a904'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '87c1816e-28ff-48da-be7c-56fde3d2d452'}), (w:Website {url: 'https://tatt.example.com/artists/2821c6df-f1fa-4db3-84b0-1a8dad489cac'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '33f924ba-843b-4f82-98d2-141c46bc31c3'}), (w:Website {url: 'https://tatt.example.com/artists/e2e69714-2a4e-480c-adc4-ad809d91df91'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '4ce8b98f-ca2d-4f65-97b6-de578c33315d'}), (w:Website {url: 'https://tatt.example.com/artists/c2d5d3d7-4be1-4f39-84cc-d95732bb5e83'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '3559c9a3-da74-4310-b318-2fd5e63597a8'}), (w:Website {url: 'https://tatt.example.com/artists/27a81df8-a503-48df-ab73-b8cb477ea768'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '040f96b0-e49a-4769-90a0-379551c5ee2d'}), (w:Website {url: 'https://tatt.example.com/artists/868d428b-c166-46f0-b84f-a3a8c2d0b1c1'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '2c188c54-7ab6-431b-8084-16a8c4b2ff04'}), (w:Website {url: 'https://tatt.example.com/artists/a50af504-6a63-408d-9bad-74ad4962cf23'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'e9272d93-2d2b-4e42-a752-a686a35ab2a8'}), (w:Website {url: 'https://tatt.example.com/artists/164c2abb-edd0-4113-8824-d5265664a054'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '5643b371-ebc2-4eb5-8c59-9f1eec546cfa'}), (w:Website {url: 'https://tatt.example.com/artists/d5b29c10-a0a3-4514-9e9b-786ccd3f65ff'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '1476005b-7377-4e74-bf86-655d31be404d'}), (w:Website {url: 'https://tatt.example.com/artists/985dae58-33c8-493e-a2a8-5f69bf56aae7'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '92ec73d4-b380-46e9-8af2-065ae9055257'}), (w:Website {url: 'https://tatt.example.com/artists/9eda7756-9de2-4e66-a29f-049045a48f2b'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'e5534c1c-980b-4691-b8cf-526599bbbdd0'}), (w:Website {url: 'https://tatt.example.com/artists/0cde749e-41c9-4ef6-8461-416f5a41fcf4'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '236e6a8c-ebb6-4eaf-8686-158168e0ed58'}), (w:Website {url: 'https://tatt.example.com/artists/da891e8d-aaf6-4f31-aa37-8459d0f3b7c6'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '02455515-3b73-4a33-a236-e6c06a6bb9fd'}), (w:Website {url: 'https://tatt.example.com/artists/27fcf78f-966e-4c5f-98e7-6270abaf15ec'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'f18a5789-de8e-430b-97ad-a1452c34f4bd'}), (w:Website {url: 'https://tatt.example.com/artists/695ac992-26c6-4294-b8bb-769799ae83ba'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'dd814727-b29c-4dd8-909d-5ca6488c8eb5'}), (w:Website {url: 'https://tatt.example.com/artists/85944c04-a6d4-42b1-ae46-c5161092ea1c'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '6527611b-e793-43e4-8005-b72fd675347f'}), (w:Website {url: 'https://tatt.example.com/artists/2227decc-aa11-4d51-836b-62c909163050'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '19f5edd4-2c58-4165-9504-58bc6e0565f7'}), (w:Website {url: 'https://tatt.example.com/artists/abddb203-989d-47df-b2af-40675117e7ba'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'c73bb7e7-b5e7-4534-b488-abbebe56e359'}), (w:Website {url: 'https://tatt.example.com/artists/667a9960-fba3-4e7c-8af2-1f743e38f80d'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '51a32e86-838e-40ae-a9c4-cedcf8160fc7'}), (w:Website {url: 'https://tatt.example.com/artists/ab93473e-9c5b-46ac-ab3b-cea9395262b7'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '8d21659c-c8c7-4414-b2a2-847989a9533a'}), (w:Website {url: 'https://tatt.example.com/artists/44ec0c78-504e-46af-bdfb-86ed59356088'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '2df99554-ea53-4d18-8639-c5e3f800ea1f'}), (w:Website {url: 'https://tatt.example.com/artists/12c8b512-e2c0-4ceb-a7bf-15700be85042'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '4f5960ef-eb70-4c80-86cb-cd54d652d129'}), (w:Website {url: 'https://tatt.example.com/artists/54a96639-0554-41c7-8960-b8c2e3c83ef5'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'f22a5477-40a0-46c7-bb4c-d8757da3f42e'}), (w:Website {url: 'https://tatt.example.com/artists/e2fac8ae-7ff9-47a6-8a0a-81de7df33895'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '08907aa8-4bb7-4e68-a3f1-054e65e96b64'}), (w:Website {url: 'https://tatt.example.com/artists/00a4b0ca-6c76-43b4-9b2a-f5c70e068df6'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '0862292a-4cb7-477c-88a8-01572b02edc1'}), (w:Website {url: 'https://tatt.example.com/artists/a0cbb42b-e8b1-4c88-8f18-17940e114812'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'b797fbad-4a03-4b15-8767-43efd16881f1'}), (w:Website {url: 'https://tatt.example.com/artists/9f42d080-9683-4db3-acf7-82ec80574137'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '39ac7737-d6ec-43c4-ba53-8eab2f4b02c0'}), (w:Website {url: 'https://tatt.example.com/artists/3c2ac00b-e108-4a9c-97a8-3b981ed0a7cd'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '69a4c31d-40d6-4991-8636-e1e6a57a8017'}), (w:Website {url: 'https://tatt.example.com/artists/90a2cd84-b6c4-446f-962c-a0325707942c'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '82e31eb2-3d75-4877-a80c-7e86396c2738'}), (w:Website {url: 'https://tatt.example.com/artists/971003c5-5357-4de5-897e-822d12b249f0'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'ecc6d387-73ac-4e35-a323-e752ad5bd4c7'}), (w:Website {url: 'https://tatt.example.com/artists/9879dab7-1558-4c5c-9dd7-244d655fa75c'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '0b1157a1-a3ad-4406-a0d2-0cbe3f66d08d'}), (w:Website {url: 'https://tatt.example.com/artists/e1a65f0c-be0a-43f0-b24b-dcf2a9f974bc'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '55a505f3-e689-4df4-b1bd-b9c90b63de9e'}), (w:Website {url: 'https://tatt.example.com/artists/cec6c64a-468c-45eb-afed-3e8ff3e15c4e'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '5c8ce1cf-2505-4bce-b529-4a1a9bee3fa5'}), (w:Website {url: 'https://tatt.example.com/artists/0f14220f-c32d-477b-8c1e-4b1ea5ea0cdf'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '7153ecff-8d28-4fc9-b208-004e909a6156'}), (w:Website {url: 'https://tatt.example.com/artists/61da5699-6d49-4f94-a3ae-46416658f110'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'f885ac74-713c-43eb-9dbf-2f6096889fd3'}), (w:Website {url: 'https://tatt.example.com/artists/1ca2b168-ee11-46dc-be4d-90bac01ae025'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '20aa526f-b01b-45fb-afd1-a6d510e06e35'}), (w:Website {url: 'https://tatt.example.com/artists/da589d6e-aa23-4d66-93d3-55dfad15807c'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '18502e2f-b038-41b7-9cd8-4a5a1ddd417c'}), (w:Website {url: 'https://tatt.example.com/artists/1365a247-d8e9-4d5f-ba99-ea40d41eaac7'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '8ff5f808-23e7-45b3-8cee-12c224568702'}), (w:Website {url: 'https://tatt.example.com/artists/58f771ab-3585-4b39-b315-93462735fead'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '24cac96d-848a-46b3-bf52-796ee3f35c94'}), (w:Website {url: 'https://tatt.example.com/artists/0a9f6720-0262-4b5e-b66f-9812014046da'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '52bc3f64-e3f6-44b2-a850-d7f71e7673a9'}), (w:Website {url: 'https://tatt.example.com/artists/f1fbfd69-cc2c-43ef-adc2-110382f208d8'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '40f46778-2b70-49ea-a641-9515c6bf8135'}), (w:Website {url: 'https://tatt.example.com/artists/16b95029-b95c-44d5-9df1-8b47dc018af9'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '7d95846f-e496-4420-8d67-830e2e5aea74'}), (w:Website {url: 'https://tatt.example.com/artists/dc8e9a11-40a7-4591-a6af-52dc4107c430'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'edc8a80b-1215-4ae1-a6da-e7869fa1ea70'}), (w:Website {url: 'https://tatt.example.com/artists/20166476-37a4-4dd7-9202-6c5fc7c9b08e'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '5e4cb69a-f376-410b-a630-a1024cb16bac'}), (w:Website {url: 'https://tatt.example.com/artists/ce8173d1-e14e-4d6f-9cb3-52803c18f9c2'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '3852f0b4-2806-4de7-bca8-25aa3dbbe1a4'}), (w:Website {url: 'https://tatt.example.com/artists/48eddb39-3fee-4096-a334-5b03b36eb252'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'e4b97ef5-743e-4efc-8bad-526e2cd3f8b9'}), (w:Website {url: 'https://tatt.example.com/artists/80dca9eb-b033-4581-bfd7-c209771ca541'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '567fdf8c-ab6b-4928-8d9f-8ca3acadd4ef'}), (w:Website {url: 'https://tatt.example.com/artists/e78fd9ce-2cdb-41d6-b0ec-c232d3fcad3c'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'cc678e75-6237-4283-b32b-f24ac53b94ad'}), (w:Website {url: 'https://tatt.example.com/artists/91cb3435-177b-4564-b66a-801550556b56'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '3df464b3-b275-4f1f-950c-6844591a7348'}), (w:Website {url: 'https://tatt.example.com/artists/d167a7ba-6e57-4762-8160-3a1ce4a192f1'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '7c9c2ee6-6e3e-4bb7-857b-3df12bc96cc2'}), (w:Website {url: 'https://tatt.example.com/artists/93a422a6-450f-411a-a5fd-61ef185fa978'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '7b4512c1-82c5-444e-9718-6989ead08acc'}), (w:Website {url: 'https://tatt.example.com/artists/300295f7-6c15-4390-9571-16f5abc95406'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'a8d6d6b0-6e69-4751-9c11-d44073011ce2'}), (w:Website {url: 'https://tatt.example.com/artists/2e2029ca-2b24-4c73-9792-d6ba824c28f4'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'a1c01f96-d2a0-45e8-9d75-58f037fe05d4'}), (w:Website {url: 'https://tatt.example.com/artists/71397102-522c-4894-9b50-41919acb12fb'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '76ffe280-c21b-4096-aa17-e6608b81641c'}), (w:Website {url: 'https://tatt.example.com/artists/ab019fb6-e5d7-40da-9d65-cd591c0d5ce1'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '5d5505c8-c2af-49d7-b7ed-e00111ddcad3'}), (w:Website {url: 'https://tatt.example.com/artists/c42b54ea-4716-4551-995e-fa1b6bcd7912'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '3278b9ab-5e84-4203-a5d3-3f0f5c53ebf6'}), (w:Website {url: 'https://tatt.example.com/artists/62cc7776-049a-4f86-968e-ad101dcffcc9'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'e2e295df-cd98-48f5-bf75-1ecd3a938b14'}), (w:Website {url: 'https://tatt.example.com/artists/87ced077-1918-469f-b118-9e0f38f9c99e'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '866d79b4-882e-4610-908d-65f1abddce66'}), (w:Website {url: 'https://tatt.example.com/artists/a5e289d0-833d-45c9-90d8-7d5d32cd6201'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '11dc59a3-6dd7-4f81-b719-a1f98447ca2e'}), (w:Website {url: 'https://tatt.example.com/artists/f7c375a2-7024-4f46-9b83-0840daf44459'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '39da1ffe-73dc-4ac0-a22e-a9eda5ebdf31'}), (w:Website {url: 'https://tatt.example.com/artists/75369ae7-5c09-42a4-83ea-a1c81a432af1'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'bd2cfcbb-faea-4215-92c8-c132bf8da238'}), (w:Website {url: 'https://tatt.example.com/artists/aad8ded2-d01d-4b8e-a378-b0e41bd5e889'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '4505d6e4-7924-4b4f-b842-e266de7a9a0b'}), (w:Website {url: 'https://tatt.example.com/artists/e98eb0d8-4337-4baa-ae12-5bfa85c0b219'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '1d782048-86c4-44ad-b250-8d0e34d5561e'}), (w:Website {url: 'https://tatt.example.com/artists/5ea5a8ee-0233-4af7-83f0-4e74201328a1'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '7528da8e-5e08-4cf5-bbfc-4162ba4c1e57'}), (w:Website {url: 'https://tatt.example.com/artists/ea3f0b0e-5d3d-4d47-a3d7-9ee9d7d827c5'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'f676d9fc-e893-4ff7-aed1-2725a03b7b69'}), (w:Website {url: 'https://tatt.example.com/artists/f174b88c-155f-4e71-9910-720e7fe33339'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'e4bc3fa9-df8b-476f-b489-48228a714fa2'}), (w:Website {url: 'https://tatt.example.com/artists/59d18bb3-eab9-4bad-aa87-c571325ea306'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '3e41b67a-36ca-4486-a6c0-8ed471a24a9f'}), (w:Website {url: 'https://tatt.example.com/artists/3f46c9f5-885b-4cb8-b1e4-2b7654206b81'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '1b9da0c9-ca52-43fb-8d45-446a80f3cf23'}), (w:Website {url: 'https://tatt.example.com/artists/f5953d06-51eb-4e88-b86a-08a5d58d2c43'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '772bbc78-e611-45ed-b252-c62c89a58184'}), (w:Website {url: 'https://tatt.example.com/artists/c7f77e33-924e-4960-a6b9-7a1e0b0d83cc'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'a872ddeb-b14b-4205-88a7-2afd5774fff0'}), (w:Website {url: 'https://tatt.example.com/artists/457d61e8-007e-45bd-abaf-d035a9271607'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '56087216-8a98-4df8-a16c-4dbf99c94e9c'}), (w:Website {url: 'https://tatt.example.com/artists/9e7a47e3-86f8-4aff-baa2-50d3638478e6'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '26aae468-b0d2-41f7-b6f6-7380dd67a60c'}), (w:Website {url: 'https://tatt.example.com/artists/aa113bdf-a516-424f-aeea-15b4ac131491'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '794a7f8b-1904-48a5-b407-4b85b6613ed3'}), (w:Website {url: 'https://tatt.example.com/artists/10e25bd4-4ee4-4b4e-bdf4-7d62e57e8883'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '1e61ba1e-046d-4044-9784-704d8cd4a725'}), (w:Website {url: 'https://tatt.example.com/artists/2cea32cc-caac-40a2-8679-7c5c7328abf3'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'a83936a8-f6fe-4615-9030-b0fdebfc81a0'}), (w:Website {url: 'https://tatt.example.com/artists/cca11848-3d63-442a-8055-947949e39a2b'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '0b5aae9e-7115-4be6-a571-c8328a1117e7'}), (w:Website {url: 'https://tatt.example.com/artists/1cc34038-da24-49f5-b781-95ba2b3972e5'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'a3ab9151-1259-483c-887a-388948f01cf8'}), (w:Website {url: 'https://tatt.example.com/artists/b0278e78-061f-4257-8ec9-f8950eab2497'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '3edbc498-55b5-485d-81a7-2902da3f6893'}), (w:Website {url: 'https://tatt.example.com/artists/e67a1410-0ca6-4342-a5e3-6a31b5a785c5'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '5c63871c-c87f-40d6-8eff-7582ffecb7ed'}), (w:Website {url: 'https://tatt.example.com/artists/99d2586e-08c4-4302-955f-246e7fcfdd2d'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '5ee83f4c-3812-422e-8969-e6f9d71d2d25'}), (w:Website {url: 'https://tatt.example.com/artists/9045c809-4eba-4233-81a1-7175804b8aba'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '85c8b8c3-91e1-4577-a4d6-36ba2338af44'}), (w:Website {url: 'https://tatt.example.com/artists/934b8d79-4dc4-46af-b2e9-2032be8898da'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'c05fbe90-288a-4bc9-a099-b06f81ce2c92'}), (w:Website {url: 'https://tatt.example.com/artists/9a6f8382-33ca-43d8-b9c4-14cc140cbc5c'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'a8984ae8-1699-4190-b367-6cd3134953d2'}), (w:Website {url: 'https://tatt.example.com/artists/87631753-e0dd-4d97-ba5f-b4404ac10425'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '3000a0b8-e841-4a45-a7af-cdbc1ac555fd'}), (w:Website {url: 'https://tatt.example.com/artists/365d0d16-3446-43a8-bc2e-2703dea78bb0'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '546acb61-e7e5-43c0-9434-a53a0781c89a'}), (w:Website {url: 'https://tatt.example.com/artists/265bb8f2-e146-432c-99c5-c866bc0e2485'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'e2741d5d-76fd-4aa9-80ce-c895a4bc5726'}), (w:Website {url: 'https://tatt.example.com/artists/5f09911f-2e40-4223-82da-913c143a0d00'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'ef41eded-9b52-4124-8575-a2018ed200db'}), (w:Website {url: 'https://tatt.example.com/artists/c9448b0f-e0b0-47e2-bb68-7c27e40792e1'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'f57663d2-7d36-4407-ab69-4ce308865e70'}), (w:Website {url: 'https://tatt.example.com/artists/b0b69619-da71-4271-9ef9-ced7ec2c1c62'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '52cfc283-3d3f-478f-8e69-5497c0a21240'}), (w:Website {url: 'https://tatt.example.com/artists/b6d8b52d-5d1e-46f5-a20c-0f58d716e79f'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '3890674b-a870-4abb-b32e-b7cc18548349'}), (w:Website {url: 'https://tatt.example.com/artists/9f1f9f32-c699-4c24-b693-b737147539ea'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '7d1920ae-0df9-4727-b459-352346efd0bd'}), (w:Website {url: 'https://tatt.example.com/artists/f1a0e477-549a-431b-947c-0dfbcc618aca'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'ed91da3c-a198-45ad-97ed-b3160be1192d'}), (w:Website {url: 'https://tatt.example.com/artists/f23c0c71-2f55-4ec2-b889-4aca73c2f3ed'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '97db48a6-0c51-4c89-88f7-4b941569e0a9'}), (w:Website {url: 'https://tatt.example.com/artists/1df00960-e3e9-4885-a5c0-9272adb6d60e'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'd12a0be6-78af-40cb-a398-f6f2d1df4baf'}), (w:Website {url: 'https://tatt.example.com/artists/1216d0b3-e46f-45ea-8c9f-03d9cafc5f5d'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '434098b1-bccd-49c8-b771-4683a861fcea'}), (w:Website {url: 'https://tatt.example.com/artists/77d49da9-1d3b-42a8-b526-02c1b0751da0'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '386bf3d6-f358-4738-9ddb-5079ebca7909'}), (w:Website {url: 'https://tatt.example.com/artists/e915aca8-e04c-4d57-be41-3e0922ed1012'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'fc8bcf0b-fb25-422f-877c-ac1c7a13d57d'}), (w:Website {url: 'https://tatt.example.com/artists/0b6e430d-5094-439d-a6f8-58325b7a0d5f'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '8df11dfe-b26b-4299-82c9-269c9b3ad476'}), (w:Website {url: 'https://tatt.example.com/artists/206c9fb1-35fa-4690-b52a-632c42c04b83'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '1e242c36-a916-4c94-ab2d-1265f74dd48b'}), (w:Website {url: 'https://tatt.example.com/artists/360d72d9-e52d-4ebb-b67c-d485fbb2cab4'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'f56e08f5-7a4c-4b77-95f6-1cdebcf1938f'}), (w:Website {url: 'https://tatt.example.com/artists/f1ef63d2-1b47-4a9f-8d61-f6098cce68f4'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'c8f53513-6e40-43f0-9d0f-81fe16302e20'}), (w:Website {url: 'https://tatt.example.com/artists/6ff8257a-ce95-4cfb-90c1-c11abb968a5c'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '1371fabb-9b03-4bbe-810d-e9d9c92bbcd3'}), (w:Website {url: 'https://tatt.example.com/artists/878058d9-439c-4e59-adfe-b7441b632546'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'c30d7b12-4802-4ea3-8105-c4a45c013cea'}), (w:Website {url: 'https://tatt.example.com/artists/886dfcde-b319-4c11-bece-17d43d270649'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '8cf15fea-bb4f-42ba-9e13-aac5ad7df738'}), (w:Website {url: 'https://tatt.example.com/artists/d437cec3-d13e-4d42-939d-a33d4d6e335f'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '2510c2ea-ff53-4f3e-9c28-b456e5384fa6'}), (w:Website {url: 'https://tatt.example.com/artists/d4a3c029-bd91-43a4-abbd-7c07b9a82c21'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: 'd294198f-f290-4db6-904d-ee2ff4cf30a1'}), (w:Website {url: 'https://tatt.example.com/artists/e40cbb22-605d-4f19-9cd0-26a97cc73989'}) MERGE (a)-[:HAS_WEBSITE]->(w);
+MATCH (a:Artist {id: '2c994788-0cd3-454a-b46b-5399baabff99'}), (w:Website {url: 'https://tatt.example.com/artists/f127017c-4e98-4315-b293-42d870bcb941'}) MERGE (a)-[:HAS_WEBSITE]->(w);
 
 // Verification queries
 MATCH (a:Artist) RETURN count(a) as artistCount;
+MATCH (st:State) RETURN count(st) as stateCount;
+MATCH (c:City) RETURN count(c) as cityCount;
+MATCH (sh:Shop) RETURN count(sh) as shopCount;
 MATCH (s:Style) RETURN count(s) as styleCount;
-MATCH (c:Color) RETURN count(c) as colorCount;
-MATCH (sp:Specialization) RETURN count(sp) as specializationCount;
-MATCH (l:Location) RETURN count(l) as locationCount;
-MATCH (a:Artist)-[r:PRACTICES_STYLE]->(s:Style) RETURN count(r) as practicesStyleCount;
-MATCH (a:Artist)-[r:USES_COLOR]->(c:Color) RETURN count(r) as usesColorCount;
-MATCH (a:Artist)-[r:SPECIALIZES_IN]->(sp:Specialization) RETURN count(r) as specializesInCount;
-MATCH (a:Artist)-[r:LOCATED_IN]->(l:Location) RETURN count(r) as locatedInCount;
+MATCH (w:Website) RETURN count(w) as websiteCount;
+MATCH (st:State)-[r:HAS_CITY]->(:City) RETURN count(r) as hasCityCount;
+MATCH (:City)-[r:HAS_SHOP]->(:Shop) RETURN count(r) as hasShopCount;
+MATCH (:Shop)-[r:HAS_ARTIST]->(:Artist) RETURN count(r) as hasArtistCount;
+MATCH (:Artist)-[r:SPECIALIZES_IN]->(:Style) RETURN count(r) as specializesInCount;
+MATCH (:Shop)-[r:FEATURES_STYLE]->(:Style) RETURN count(r) as featuresStyleCount;
+MATCH (:Artist)-[r:HAS_WEBSITE]->(:Website) RETURN count(r) as hasWebsiteCount;

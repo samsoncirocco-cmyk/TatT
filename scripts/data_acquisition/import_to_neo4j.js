@@ -18,8 +18,9 @@ import 'dotenv/config';
 const CONFIG = {
     INPUT_FILE: process.env.VALIDATOR_INPUT || path.join(process.cwd(), 'src/scripts/data_acquisition/output/verified_artists_production.json'),
     NEO4J_URI: process.env.NEO4J_URI || 'bolt://localhost:7687',
-    NEO4J_USER: process.env.NEO4J_USER || 'neo4j',
-    NEO4J_PASSWORD: process.env.NEO4J_PASSWORD || 'password' // Check your .env
+    NEO4J_USER: process.env.NEO4J_USERNAME || process.env.NEO4J_USER || 'neo4j',
+    NEO4J_PASSWORD: process.env.NEO4J_PASSWORD || 'password', // Check your .env
+    NEO4J_DATABASE: process.env.NEO4J_DATABASE || undefined
 };
 
 async function importData() {
@@ -30,7 +31,7 @@ async function importData() {
         neo4j.auth.basic(CONFIG.NEO4J_USER, CONFIG.NEO4J_PASSWORD)
     );
 
-    const session = driver.session();
+    const session = driver.session(CONFIG.NEO4J_DATABASE ? { database: CONFIG.NEO4J_DATABASE } : undefined);
 
     try {
         // 1. Load Data
@@ -48,7 +49,11 @@ async function importData() {
             await session.run('CREATE CONSTRAINT artist_id IF NOT EXISTS FOR (a:Artist) REQUIRE a.id IS UNIQUE');
         } catch (e) { /* Ignore if exists */ }
 
-        // 4. Import Nodes (Artists & Shops)
+        // 4. Import Nodes (Artists & Shops) using the canonical graph model:
+        //    (City)-[:HAS_SHOP]->(Shop)-[:HAS_ARTIST]->(Artist)
+        //    (Artist)-[:SPECIALIZES_IN]->(Style)
+        //    (Shop)-[:HAS_WEBSITE]->(Website)  -- only when a URL exists
+        //    Note: this source has no state field, so no State node is created.
         console.log('[Importer] Creating Artist & Shop Nodes...');
         for (const artist of artists) {
             // Prepare shop params
@@ -61,22 +66,22 @@ async function importData() {
                 rating: null
             };
 
-            // Use place_id as unique ID for shop if available, otherwise hash name+city
-            const shopId = shopData.place_id || `shop_${shopData.name}_${shopData.city}`.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+            const shopWebsite = (typeof shopData.website === 'string' && shopData.website.trim().length > 0)
+                ? shopData.website.trim()
+                : null;
 
             await session.run(
                 `
-                // 1. Merge Shop
-                MERGE (s:Shop {id: $shopId})
-                ON CREATE SET 
-                    s.name = $shopName,
-                    s.city = $shopCity,
+                // 1. City -> Shop
+                MERGE (c:City {name: $shopCity})
+                MERGE (s:Shop {name: $shopName, city: $shopCity})
+                ON CREATE SET
                     s.address = $shopAddress,
-                    s.website = $shopWebsite,
                     s.rating = $shopRating,
                     s.created_at = datetime()
                 ON MATCH SET
                     s.rating = $shopRating // Update rating if changed
+                MERGE (c)-[:HAS_SHOP]->(s)
 
                 // 2. Merge Artist
                 MERGE (a:Artist {id: $artistId})
@@ -84,23 +89,34 @@ async function importData() {
                     a.handle = $handle,
                     a.verified = true,
                     a.quality_score = $quality_score,
-                    a.styles = $styles,
                     a.source = 'crawled_verified'
-                
-                // 3. Create Relationship
-                MERGE (a)-[:WORKS_AT]->(s)
+
+                // 3. Shop -> Artist
+                MERGE (s)-[:HAS_ARTIST]->(a)
+
+                // 4. Styles: (Artist)-[:SPECIALIZES_IN]->(Style), (Shop)-[:FEATURES_STYLE]->(Style)
+                FOREACH (styleName IN $styles |
+                    MERGE (st:Style {name: styleName})
+                    MERGE (a)-[:SPECIALIZES_IN]->(st)
+                    MERGE (s)-[:FEATURES_STYLE]->(st)
+                )
+
+                // 5. Website (only when a real URL exists)
+                FOREACH (_ IN CASE WHEN $shopWebsite IS NULL THEN [] ELSE [1] END |
+                    MERGE (w:Website {url: $shopWebsite})
+                    MERGE (s)-[:HAS_WEBSITE]->(w)
+                )
                 `,
                 {
                     artistId: artist.id,
                     handle: artist.handle,
                     quality_score: artist.quality_score,
-                    styles: artist.styles,
+                    styles: artist.styles || [],
 
-                    shopId: shopId,
                     shopName: shopData.name,
                     shopCity: shopData.city,
                     shopAddress: shopData.address,
-                    shopWebsite: shopData.website,
+                    shopWebsite: shopWebsite,
                     shopRating: shopData.rating
                 }
             );
@@ -117,10 +133,13 @@ async function importData() {
         await session.run(`
       MERGE (a:Artist {id: $id})
       SET a.name = 'Don Ed Hardy (Node)',
-          a.styles = ['American Traditional', 'Japanese'],
           a.verified = true,
           a.is_legend = true
-    `, { id: rootId });
+      FOREACH (styleName IN $styles |
+        MERGE (st:Style {name: styleName})
+        MERGE (a)-[:SPECIALIZES_IN]->(st)
+      )
+    `, { id: rootId, styles: ['American Traditional', 'Japanese'] });
 
         // Link random artists as "Apprentices" to this legend
         for (const artist of artists) {

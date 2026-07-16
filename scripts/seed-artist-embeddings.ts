@@ -66,18 +66,28 @@ function requireEnv(name: string): string {
 }
 
 async function loadArtists(driver: any): Promise<ArtistSeedRow[]> {
-  const session = driver.session({ defaultAccessMode: neo4j.session.READ });
+  const sessionConfig: Record<string, unknown> = { defaultAccessMode: neo4j.session.READ };
+  const database = process.env.NEO4J_DATABASE;
+  if (database) sessionConfig.database = database;
+  const session = driver.session(sessionConfig);
 
   try {
+    // Styles and tags are gathered by traversing the graph model:
+    //   (Artist)-[:SPECIALIZES_IN]->(Style)
+    //   (Artist)-[:CREATED]->(Tattoo)-[:TAGGED_WITH]->(Tag)
     const result = await session.run(
       `
       MATCH (a:Artist)
+      OPTIONAL MATCH (a)-[:SPECIALIZES_IN]->(st:Style)
+      WITH a, collect(DISTINCT st.name) AS styles
+      OPTIONAL MATCH (a)-[:CREATED]->(:Tattoo)-[:TAGGED_WITH]->(tag:Tag)
+      WITH a, styles, collect(DISTINCT tag.name) AS tags
       RETURN
         a.id AS id,
         a.name AS name,
         a.city AS city,
-        a.styles AS styles,
-        a.tags AS tags,
+        styles AS styles,
+        tags AS tags,
         a.bodyParts AS bodyParts
       LIMIT $limit
       `,
