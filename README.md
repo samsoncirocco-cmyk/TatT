@@ -4,9 +4,9 @@ AI-powered tattoo design platform. Council-enhanced prompts run through SDXL or 
 
 ## Current state
 
-Next.js 16 migration on branch `samson/port-artist-crawler`. As of 2026-05-19 all 14+ customer-facing routes are scaffolded in the new punk design system, but most pages use inline mock data — real API wiring is pending. The Vercel deploy was broken for 71 days (Mar 9 → May 19) and was unblocked today; subsequent commits have green builds.
+Production runs on `main`, deployed to Vercel (project `manama-next`). The Next.js 16 punk-design migration is done and live; the earlier 71-day deploy outage (Mar 9 → May 19 2026) is history. Auth is wired to Firebase (email + Google), the Forge studio loads (ToastProvider crash fixed, PR #33), and a 6,434-artist national dataset has been scraped (`data/national-artists-2026-07-15.json`).
 
-The original Vite app (`~/Desktop/TatT`) still has work that hasn't been ported. The crawler and GraphInsight viz were ported today.
+Biggest remaining gap: the customer-facing pages still read the **100 synthetic seed artists** in `src/data/artists.json`, not the real scraped dataset — swapping that in is the next high-value change.
 
 ## Tech stack
 
@@ -51,7 +51,7 @@ src/
     designs/                 # user's saved designs (localStorage)
     generate/                # studio entry + /generate/stencil reference UI
     legal/{terms,privacy}/   # static legal pages
-    login/, signup/          # mock-localStorage auth UI (NOT wired to Firebase Auth yet)
+    login/, signup/          # Firebase Auth UI (email + Google via authService)
     matches/                 # swipe matching UI
     pitch/                   # investor landing (force-dynamic)
     pricing/                 # tiered pricing
@@ -62,7 +62,7 @@ src/
     studio/                  # StudioShell, PunkFooter — punk design system primitives
     GraphInsight.jsx         # YC-pitch graph viz, ported from Vite today
   features/
-    generate/                # Forge studio (Generate.jsx is ~2000 lines, due for split)
+    generate/                # Forge studio (Generate.jsx is ~1,750 lines, due for split)
     match-pulse/             # hybrid RRF artist matching
     inpainting/, stencil/    # selective editing + edge-detection PDF export
   services/                  # councilService, generationService, firebase-match-service, etc.
@@ -96,9 +96,8 @@ Vercel project: `manama-next`. Production branch: `main`. Preview deploys run on
 
 ## Open issues
 
-- Pre-existing TypeScript errors in `src/app/api/v1/stencil/export/route.ts`, `src/app/api/v1/council/enhance/route.ts`, `src/app/api/v1/layers/decompose/route.ts`, `src/app/api/v1/match/semantic/route.ts`, and `src/app/page.tsx` (framer-motion `Variants` type). Don't block build.
-- `src/features/Generate.jsx` is ~2000 lines — needs decomposition.
-- Auth on customer-facing routes (`/login`, `/signup`, `/settings`) writes to `localStorage` only; not yet wired to Firebase Auth.
-- New `/artists`, `/matches`, `/designs`, `/book`, `/pricing` pages use hardcoded inline mock data — no service-layer calls yet.
-- `react-tinder-card@1.6.4` peer-dep conflict is papered over with `legacy-peer-deps`; proper fix is to upgrade or replace the lib.
-- Forge studio (`Generate.jsx`) and the new punk shell render two headers in some flows — track on the PR.
+- **App runs on seed data, not the real scrape.** `src/lib/artists.ts` loads `src/data/artists.json` (100 synthetic artists, placeholder-free but not real). The scraped 6,434-artist dataset in `data/national-artists-2026-07-15.json` is not yet wired into `/artists`, `/matches`, or the match API.
+- **~41 TypeScript errors**, masked by `ignoreBuildErrors: true` in `next.config.ts`. Concentrated in `src/services/fetchWithAbort.ts` (25), plus `useImageGeneration.ts`, `generate/stencil/page.tsx`, and assorted services. (The five api/v1 routes the old README named are now clean.)
+- **`src/features/Generate.jsx` is ~1,750 lines** — still monolithic, due for decomposition.
+- **`react-tinder-card@1.6.4` peer-dep conflict** — wants `@react-spring/web@^9`, project is on `^10`; papered over with `legacy-peer-deps` (enforced by `.npmrc`). Proper fix is to upgrade or replace the lib.
+- **Neo4j serves dual schemas** (seed + national) after PR #34; match queries handle both. Confirm this is intended before consolidating.
