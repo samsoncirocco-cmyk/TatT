@@ -5,14 +5,16 @@ import StudioShell from "@/components/studio/StudioShell";
 import ArtistCard from "@/components/punk/ArtistCard";
 import SlashHeadline from "@/components/punk/SlashHeadline";
 import { useFavorites } from "@/lib/tattStorage";
-import { getAllArtists } from "@/lib/artists";
+import { getAllArtists, hasImage } from "@/lib/artists";
 
 const COLORS = ["bg-pink", "bg-bone", "bg-cream", "bg-pink-deep", "bg-white/10"];
 const MATCH_PERCENTS = [98, 96, 94, 92, 91, 89, 88, 86, 84, 83, 81, 79];
 
 // Top 12 by review-weighted rating stand in for semantic matching until
-// the /api/v1/match pipeline is wired into this page.
-const ARTISTS = [...getAllArtists()]
+// the /api/v1/match pipeline is wired into this page. The swipe UI is a
+// visual matching flow, so it only surfaces artists with portfolio images.
+const ARTISTS = getAllArtists()
+  .filter(hasImage)
   .sort(
     (a, b) => (b.rating ?? 0) * b.reviewCount - (a.rating ?? 0) * a.reviewCount,
   )
