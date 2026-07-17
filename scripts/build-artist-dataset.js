@@ -100,6 +100,10 @@ function toAppArtist(raw) {
     (t) => t !== "shop-rating",
   );
   const coords = raw.coordinates || {};
+  const location =
+    raw.location ||
+    [raw.city, raw.state].filter(Boolean).join(", ") ||
+    "unknown location";
 
   return {
     // id assigned later, over the sorted order
@@ -107,7 +111,7 @@ function toAppArtist(raw) {
     shopName: raw.shopName,
     city: raw.city,
     state: raw.state,
-    location: raw.location || `${raw.city}, ${raw.state}`,
+    location,
     coordinates: {
       lat: typeof coords.lat === "number" ? coords.lat : null,
       lng: typeof coords.lng === "number" ? coords.lng : null,
@@ -121,7 +125,7 @@ function toAppArtist(raw) {
     hourlyRate: null, // not observable — never fabricated
     rating: typeof raw.rating === "number" ? raw.rating : null,
     reviewCount: typeof raw.reviewCount === "number" ? raw.reviewCount : 0,
-    bio: raw.bio || `Tattoo artist at ${raw.shopName} in ${raw.location}.`,
+    bio: raw.bio || `Tattoo artist at ${raw.shopName} in ${location}.`,
     yearsExperience: null, // not observable — never fabricated
     bookingAvailable: null, // not observable
     // provenance so the transform is traceable back to the scrape

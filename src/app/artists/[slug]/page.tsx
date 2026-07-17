@@ -22,6 +22,14 @@ export default async function ArtistProfilePage({
   const nameParts = artist.name.split(" ");
   const lastName = nameParts.pop() ?? artist.name;
   const firstNames = nameParts.join(" ");
+  // Same algorithm as ArtistCard initials() — first+last word, or 2 chars.
+  const monogramParts = artist.name.trim().split(/\s+/).filter(Boolean);
+  const monogram =
+    monogramParts.length === 0
+      ? "?"
+      : monogramParts.length === 1
+        ? monogramParts[0].slice(0, 2).toUpperCase()
+        : (monogramParts[0][0] + monogramParts[monogramParts.length - 1][0]).toUpperCase();
 
   return (
     <StudioShell>
@@ -55,20 +63,18 @@ export default async function ArtistProfilePage({
                 />
               ) : (
                 // No portfolio image scraped — monogram fallback, matching
-                // the artist cards.
+                // ArtistCard (first+last word initials, or first 2 chars).
                 <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-b from-transparent to-black/60">
                   <span
                     aria-hidden="true"
                     className="font-display text-[96px] leading-none tracking-wide text-black/25 select-none"
                   >
-                    {artist.name
-                      .trim()
-                      .split(/\s+/)
-                      .filter(Boolean)
-                      .slice(0, 2)
-                      .map((p) => p[0])
-                      .join("")
-                      .toUpperCase() || "?"}
+                    {(() => {
+                      const parts = artist.name.trim().split(/\s+/).filter(Boolean);
+                      if (parts.length === 0) return "?";
+                      if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+                      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+                    })()}
                   </span>
                 </div>
               )}
@@ -79,14 +85,16 @@ export default async function ArtistProfilePage({
           </div>
 
           <div className="md:col-span-7 relative">
-            <div className="hidden sm:block absolute top-0 right-0 sticker px-3 py-1.5 z-10">
-              <div className="font-display text-[13px] tracking-widest leading-none tabular-nums">
-                ★&nbsp;{(artist.rating ?? 0).toFixed(1)}
+            {artist.rating != null && (
+              <div className="hidden sm:block absolute top-0 right-0 sticker px-3 py-1.5 z-10">
+                <div className="font-display text-[13px] tracking-widest leading-none tabular-nums">
+                  ★&nbsp;{artist.rating.toFixed(1)}
+                </div>
+                <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-0.5 tabular-nums">
+                  {artist.reviewCount}&nbsp;reviews
+                </div>
               </div>
-              <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-0.5 tabular-nums">
-                {artist.reviewCount}&nbsp;reviews
-              </div>
-            </div>
+            )}
 
             <div className="text-[10px] uppercase tracking-[0.28em] text-pink mb-5 font-body">
               ▸&nbsp;{artist.styles.join(" · ")}
