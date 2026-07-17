@@ -52,6 +52,14 @@ function isMatch(p: Props): p is MatchProps {
   return p.variant === "match";
 }
 
+/** Up to two initials from a display name, for the no-photo fallback tile. */
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 export default function ArtistCard(props: Props) {
   const {
     slug,
@@ -85,7 +93,19 @@ export default function ArtistCard(props: Props) {
               loading="lazy"
             />
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 mix-blend-multiply" />
+            <>
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 mix-blend-multiply" />
+              {/* Monogram fallback — no portfolio image scraped for this
+                  artist. Initials over the color tile keep the grid intact. */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span
+                  aria-hidden="true"
+                  className="font-display text-[44px] sm:text-[56px] leading-none tracking-wide text-black/25 select-none"
+                >
+                  {initials(name)}
+                </span>
+              </div>
+            </>
           )}
 
           {/* match% sticker — match variant only. Inlined to preserve
