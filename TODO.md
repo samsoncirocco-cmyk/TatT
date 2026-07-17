@@ -31,8 +31,10 @@ _Last updated: 2026-07-17 (house-brain session)_
 
 5. **Merge PR #35** (README truth sync) — after #39/#40 land, re-verify
    accuracy, then merge.
-6. **Decision needed (Samson): 100 synthetic AZ seed artists in Aura** — keep
-   (9-node schema demos) or delete (they pollute real match results)?
+6. ~~100 synthetic AZ seed artists in Aura~~ — **DONE 2026-07-17**: Samson chose
+   delete. Seed artists (float ids), their Tattoo/Instagram/State/Website nodes,
+   null-placeId shops, and orphaned tags/cities removed. Live graph is now 100%
+   real scraped data. Re-seeding (if ever needed): `scripts/import-to-neo4j.js`.
 
 ## Backlog
 
