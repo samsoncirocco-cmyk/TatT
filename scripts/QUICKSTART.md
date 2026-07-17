@@ -63,8 +63,8 @@ Open Neo4j Browser: http://localhost:7474
 
 Run this query:
 ```cypher
-MATCH (a:Artist)
-RETURN a.name, a.city, a.hourlyRate
+MATCH (c:City)-[:HAS_SHOP]->(:Shop)-[:HAS_ARTIST]->(a:Artist)
+RETURN a.name, c.name AS city, a.hourlyRate
 LIMIT 10
 ```
 
@@ -72,8 +72,8 @@ LIMIT 10
 
 ### Find artists in Phoenix
 ```cypher
-MATCH (a:Artist)-[:LOCATED_IN]->(c:City {name: 'Phoenix'})
-RETURN a.name, a.shopName, a.rating
+MATCH (c:City {name: 'Phoenix'})-[:HAS_SHOP]->(shop:Shop)-[:HAS_ARTIST]->(a:Artist)
+RETURN a.name, shop.name AS shopName, a.rating
 ORDER BY a.rating DESC
 LIMIT 5
 ```
@@ -81,15 +81,16 @@ LIMIT 5
 ### Find Traditional artists
 ```cypher
 MATCH (a:Artist)-[:SPECIALIZES_IN]->(s:Style {name: 'Traditional'})
-RETURN a.name, a.city, a.hourlyRate
+OPTIONAL MATCH (c:City)-[:HAS_SHOP]->(:Shop)-[:HAS_ARTIST]->(a)
+RETURN a.name, c.name AS city, a.hourlyRate
 ORDER BY a.rating DESC
 ```
 
 ### Find artists within budget
 ```cypher
-MATCH (a:Artist)
+MATCH (shop:Shop)-[:HAS_ARTIST]->(a:Artist)
 WHERE a.hourlyRate <= 200 AND a.bookingAvailable = true
-RETURN a.name, a.shopName, a.hourlyRate
+RETURN a.name, shop.name AS shopName, a.hourlyRate
 ORDER BY a.rating DESC
 LIMIT 10
 ```

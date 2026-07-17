@@ -1,24 +1,45 @@
 /**
- * Neo4j Import Script for TatTester Artists
+ * Neo4j Import Script for TatT Artists
  *
- * Purpose: Import 100 Arizona artists from src/data/artists.json into Neo4j
+ * Purpose: Import artists from src/data/artists.json into Neo4j using the
+ * graph metadata model below.
  *
- * Schema:
- * - (Artist) nodes with properties: id, name, shopName, city, state, location,
- *   lat, lng, instagram, hourlyRate, rating, reviewCount, bio, yearsExperience, bookingAvailable
- * - (City) nodes with properties: name, state
- * - (Style) nodes with properties: name
- * - (Tag) nodes with properties: name
- * - Relationships:
- *   - (Artist)-[:LOCATED_IN]->(City)
- *   - (Artist)-[:SPECIALIZES_IN]->(Style)
- *   - (Artist)-[:TAGGED_WITH]->(Tag)
+ * Metadata model (nodes):
+ * - (State)     { name }
+ * - (City)      { name, state }
+ * - (Shop)      { name, city, state }
+ * - (Artist)    { id, name, hourlyRate, rating, reviewCount, bio,
+ *                 yearsExperience, bookingAvailable, lat, lng, location(point),
+ *                 embedding_id, mentor_id }
+ * - (Style)     { name }
+ * - (Tattoo)    { id, imageUrl, artistId }
+ * - (Instagram) { handle }
+ * - (Tag)       { name }
+ * - (Website)   { url }   -- only created when a real URL exists in the data
  *
- * Optimizations:
- * - Batch operations for all 100 artists (reduces round trips)
- * - Indexed queries on Artist.id, City.name, Style.name for performance
- * - MERGE operations to prevent duplicates
- * - Proper cleanup before import
+ * Relationships:
+ * - (State)-[:HAS_CITY]->(City)
+ * - (City)-[:HAS_SHOP]->(Shop)
+ * - (Shop)-[:HAS_ARTIST]->(Artist)
+ * - (Shop)-[:FEATURES_STYLE]->(Style)
+ * - (Shop)-[:HAS_WEBSITE]->(Website)        -- only when a URL exists
+ * - (Artist)-[:SPECIALIZES_IN]->(Style)
+ * - (Artist)-[:CREATED]->(Tattoo)
+ * - (Artist)-[:HAS_INSTAGRAM]->(Instagram)
+ * - (Artist)-[:HAS_WEBSITE]->(Website)      -- only when a URL exists
+ * - (Tattoo)-[:IN_STYLE]->(Style)
+ * - (Tattoo)-[:TAGGED_WITH]->(Tag)
+ * - (Instagram)-[:FEATURES]->(Tattoo)
+ * - (Artist)-[:APPRENTICED_UNDER]->(Artist) -- preserved from source data
+ * - (Artist)-[:INFLUENCED_BY]->(Artist)     -- preserved from source data
+ *
+ * Data policy: every node/relationship is derived strictly from real fields in
+ * artists.json. No values are fabricated. Website nodes are only created when an
+ * explicit URL is present (none exist in the current dataset, so none are made).
+ *
+ * The script is idempotent (MERGE-based). Pass --wipe to delete ALL existing
+ * data first — never do this casually: the live DB also holds the national
+ * scraped dataset, which this seed file does not contain.
  */
 
 import neo4j from 'neo4j-driver';
@@ -27,20 +48,22 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import dotenv from 'dotenv';
 
-// Load environment variables
+// Load environment variables (.env then .env.local overrides)
 dotenv.config();
+dotenv.config({ path: '.env.local', override: true });
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Neo4j connection configuration
 const NEO4J_URI = process.env.NEO4J_URI || 'bolt://localhost:7687';
-const NEO4J_USER = process.env.NEO4J_USER || 'neo4j';
+const NEO4J_USER = process.env.NEO4J_USERNAME || process.env.NEO4J_USER || 'neo4j';
 const NEO4J_PASSWORD = process.env.NEO4J_PASSWORD;
+const NEO4J_DATABASE = process.env.NEO4J_DATABASE || undefined;
 
 if (!NEO4J_PASSWORD) {
   console.error('❌ Error: NEO4J_PASSWORD environment variable is required');
-  console.error('Please set it in your .env file');
+  console.error('Please set it in your .env / .env.local file');
   process.exit(1);
 }
 
@@ -49,6 +72,9 @@ const driver = neo4j.driver(
   NEO4J_URI,
   neo4j.auth.basic(NEO4J_USER, NEO4J_PASSWORD)
 );
+
+const newSession = () =>
+  driver.session(NEO4J_DATABASE ? { database: NEO4J_DATABASE } : undefined);
 
 // Load artists data
 const artistsFilePath = join(__dirname, '../src/data/artists.json');
@@ -64,7 +90,19 @@ try {
 }
 
 /**
- * Create database indexes for optimal query performance
+ * Return the list of website URLs declared on an artist (if any).
+ * Supports either a single `website` string or a `websites` array.
+ * Returns [] when no real URL is present so no Website nodes are fabricated.
+ */
+function websiteUrlsFor(entity) {
+  if (!entity) return [];
+  const raw = entity.websites ?? entity.website ?? [];
+  const arr = Array.isArray(raw) ? raw : [raw];
+  return arr.filter((u) => typeof u === 'string' && u.trim().length > 0);
+}
+
+/**
+ * Create indexes / constraints for optimal query performance.
  */
 async function createIndexes(session) {
   console.log('\n📊 Creating indexes...');
@@ -72,10 +110,14 @@ async function createIndexes(session) {
   const indexes = [
     'CREATE INDEX artist_id_index IF NOT EXISTS FOR (a:Artist) ON (a.id)',
     'CREATE INDEX artist_name_index IF NOT EXISTS FOR (a:Artist) ON (a.name)',
-    'CREATE INDEX artist_city_index IF NOT EXISTS FOR (a:Artist) ON (a.city)',
+    'CREATE INDEX state_name_index IF NOT EXISTS FOR (s:State) ON (s.name)',
     'CREATE INDEX city_name_index IF NOT EXISTS FOR (c:City) ON (c.name)',
+    'CREATE INDEX shop_name_index IF NOT EXISTS FOR (sh:Shop) ON (sh.name)',
     'CREATE INDEX style_name_index IF NOT EXISTS FOR (s:Style) ON (s.name)',
     'CREATE INDEX tag_name_index IF NOT EXISTS FOR (t:Tag) ON (t.name)',
+    'CREATE INDEX tattoo_id_index IF NOT EXISTS FOR (t:Tattoo) ON (t.id)',
+    'CREATE INDEX instagram_handle_index IF NOT EXISTS FOR (i:Instagram) ON (i.handle)',
+    'CREATE INDEX website_url_index IF NOT EXISTS FOR (w:Website) ON (w.url)',
     // Spatial index for distance-based queries
     'CREATE POINT INDEX artist_location_index IF NOT EXISTS FOR (a:Artist) ON (a.location)'
   ];
@@ -91,95 +133,62 @@ async function createIndexes(session) {
 }
 
 /**
- * Clean existing data (optional - be careful in production!)
+ * Clean existing data (be careful in production!)
  */
 async function cleanDatabase(session) {
   console.log('\n🧹 Cleaning existing data...');
-
   await session.run('MATCH (n) DETACH DELETE n');
   console.log('  ✓ All existing nodes and relationships deleted');
 }
 
 /**
- * Import cities as nodes
- */
-async function importCities(session, cities) {
-  console.log('\n🏙️  Importing cities...');
-
-  // Filter out "All Locations" and extract unique cities
-  const uniqueCities = cities
-    .filter(city => city !== 'All Locations')
-    .map(cityStr => {
-      const [name, state] = cityStr.split(', ');
-      return { name, state: state || 'AZ' };
-    });
-
-  const query = `
-    UNWIND $cities AS city
-    MERGE (c:City {name: city.name, state: city.state})
-    RETURN count(c) as cityCount
-  `;
-
-  const result = await session.run(query, { cities: uniqueCities });
-  const cityCount = neo4j.integer.toNumber(result.records[0].get('cityCount'));
-  console.log(`  ✓ ${cityCount} cities imported`);
-}
-
-/**
- * Import styles as nodes
+ * Pre-create Style nodes from the reference list.
  */
 async function importStyles(session, styles) {
   console.log('\n🎨 Importing styles...');
 
-  // Filter out "All Styles"
   const uniqueStyles = styles
-    .filter(style => style !== 'All Styles')
-    .map(name => ({ name }));
+    .filter((style) => style !== 'All Styles')
+    .map((name) => ({ name }));
 
-  const query = `
-    UNWIND $styles AS style
-    MERGE (s:Style {name: style.name})
-    RETURN count(s) as styleCount
-  `;
-
-  const result = await session.run(query, { styles: uniqueStyles });
-  const styleCount = neo4j.integer.toNumber(result.records[0].get('styleCount'));
-  console.log(`  ✓ ${styleCount} styles imported`);
+  const result = await session.run(
+    `UNWIND $styles AS style
+     MERGE (s:Style {name: style.name})
+     RETURN count(s) as styleCount`,
+    { styles: uniqueStyles }
+  );
+  console.log(`  ✓ ${neo4j.integer.toNumber(result.records[0].get('styleCount'))} styles imported`);
 }
 
 /**
- * Import artists with all properties and relationships
- * Uses batch processing for efficiency
+ * Import geography (State/City/Shop), Artist nodes, Instagram nodes, and
+ * optional Website nodes. Uses batching for efficiency.
  */
 async function importArtists(session, artists) {
-  console.log('\n👨‍🎨 Importing artists...');
+  console.log('\n👨‍🎨 Importing State/City/Shop/Artist/Instagram...');
 
-  const BATCH_SIZE = 25; // Process 25 artists at a time for optimal performance
+  const BATCH_SIZE = 25;
   let imported = 0;
 
   for (let i = 0; i < artists.length; i += BATCH_SIZE) {
     const batch = artists.slice(i, i + BATCH_SIZE);
 
-    // Transform artists for Neo4j
-    const artistsForImport = batch.map(artist => ({
+    const artistsForImport = batch.map((artist) => ({
       id: artist.id,
       name: artist.name,
       shopName: artist.shopName,
       city: artist.city,
       state: artist.state,
-      location: artist.location,
-      lat: artist.coordinates.lat,
-      lng: artist.coordinates.lng,
-      instagram: artist.instagram,
+      lat: artist.coordinates?.lat ?? null,
+      lng: artist.coordinates?.lng ?? null,
+      instagram: artist.instagram || null,
+      websites: websiteUrlsFor(artist),
       hourlyRate: artist.hourlyRate,
       rating: artist.rating,
       reviewCount: artist.reviewCount,
       bio: artist.bio,
       yearsExperience: artist.yearsExperience,
       bookingAvailable: artist.bookingAvailable,
-      portfolioImages: artist.portfolioImages,
-      styles: artist.styles,
-      tags: artist.tags,
       embedding_id: artist.embedding_id || null,
       mentor_id: artist.mentor_id || null
     }));
@@ -187,15 +196,25 @@ async function importArtists(session, artists) {
     const query = `
       UNWIND $artists AS artist
 
-      // Create Artist node with properties
+      // State -> City -> Shop
+      MERGE (state:State {name: artist.state})
+      MERGE (city:City {name: artist.city, state: artist.state})
+      MERGE (state)-[:HAS_CITY]->(city)
+      MERGE (shop:Shop {name: artist.shopName, city: artist.city, state: artist.state})
+      MERGE (city)-[:HAS_SHOP]->(shop)
+
+      // Artist node
       MERGE (a:Artist {id: artist.id})
       SET a.name = artist.name,
           a.shopName = artist.shopName,
           a.city = artist.city,
           a.state = artist.state,
-          a.location = point({latitude: artist.lat, longitude: artist.lng}),
           a.lat = artist.lat,
           a.lng = artist.lng,
+          a.location = CASE
+            WHEN artist.lat IS NOT NULL AND artist.lng IS NOT NULL
+            THEN point({latitude: artist.lat, longitude: artist.lng})
+            ELSE null END,
           a.instagram = artist.instagram,
           a.hourlyRate = artist.hourlyRate,
           a.rating = artist.rating,
@@ -203,63 +222,150 @@ async function importArtists(session, artists) {
           a.bio = artist.bio,
           a.yearsExperience = artist.yearsExperience,
           a.bookingAvailable = artist.bookingAvailable,
-          a.portfolioImages = artist.portfolioImages,
           a.embedding_id = artist.embedding_id,
           a.mentor_id = artist.mentor_id
+      MERGE (shop)-[:HAS_ARTIST]->(a)
 
-      // Link to City
-      WITH a, artist
-      MATCH (c:City {name: artist.city, state: artist.state})
-      MERGE (a)-[:LOCATED_IN]->(c)
+      // Instagram (only when a handle exists)
+      FOREACH (_ IN CASE WHEN artist.instagram IS NULL OR artist.instagram = '' THEN [] ELSE [1] END |
+        MERGE (ig:Instagram {handle: artist.instagram})
+        MERGE (a)-[:HAS_INSTAGRAM]->(ig)
+      )
 
-      // Link to Styles
-      WITH a, artist
-      UNWIND artist.styles AS styleName
-      MATCH (s:Style {name: styleName})
-      MERGE (a)-[:SPECIALIZES_IN]->(s)
-
-      // Link to Tags
-      WITH a, artist
-      UNWIND artist.tags AS tagName
-      MERGE (t:Tag {name: tagName})
-      MERGE (a)-[:TAGGED_WITH]->(t)
+      // Websites (only when real URLs exist) — linked to both Artist and Shop
+      FOREACH (url IN artist.websites |
+        MERGE (w:Website {url: url})
+        MERGE (a)-[:HAS_WEBSITE]->(w)
+        MERGE (shop)-[:HAS_WEBSITE]->(w)
+      )
 
       RETURN count(a) as artistCount
     `;
 
     const result = await session.run(query, { artists: artistsForImport });
-    const batchCount = neo4j.integer.toNumber(result.records[0].get('artistCount'));
-    imported += batchCount;
-
-    console.log(`  ✓ Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${batchCount} artists imported (Total: ${imported}/${artists.length})`);
+    imported += neo4j.integer.toNumber(result.records[0].get('artistCount'));
+    console.log(`  ✓ Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${imported}/${artists.length}`);
   }
 
-  console.log(`  ✅ All ${imported} artists imported successfully`);
+  console.log(`  ✅ ${imported} artists imported`);
 }
 
 /**
- * Import mentor/apprentice relationships (APPRENTICED_UNDER)
- * Creates relationships from artist.mentor_id with start_year and end_year properties
+ * Link artists (and their shops) to styles.
+ * (Artist)-[:SPECIALIZES_IN]->(Style) and (Shop)-[:FEATURES_STYLE]->(Style)
+ */
+async function importStyleRelationships(session, artists) {
+  console.log('\n🖌️  Linking artists & shops to styles...');
+
+  const rows = [];
+  artists.forEach((artist) => {
+    (artist.styles || []).forEach((style) => {
+      rows.push({ artistId: artist.id, style });
+    });
+  });
+
+  if (rows.length === 0) {
+    console.log('  ⚠️  No style relationships to import');
+    return;
+  }
+
+  const result = await session.run(
+    `UNWIND $rows AS r
+     MATCH (a:Artist {id: r.artistId})
+     MATCH (shop:Shop)-[:HAS_ARTIST]->(a)
+     MERGE (s:Style {name: r.style})
+     MERGE (a)-[:SPECIALIZES_IN]->(s)
+     MERGE (shop)-[:FEATURES_STYLE]->(s)
+     RETURN count(*) as c`,
+    { rows }
+  );
+  console.log(`  ✓ ${neo4j.integer.toNumber(result.records[0].get('c'))} style links processed`);
+}
+
+/**
+ * Create Tattoo nodes from each artist's portfolioImages and connect them.
+ * (Artist)-[:CREATED]->(Tattoo), (Tattoo)-[:IN_STYLE]->(Style),
+ * (Tattoo)-[:TAGGED_WITH]->(Tag), (Instagram)-[:FEATURES]->(Tattoo)
+ */
+async function importTattoos(session, artists) {
+  console.log('\n🖼️  Importing tattoos, tags & instagram features...');
+
+  const tattooNodes = [];
+  const tattooStyle = [];
+  const tattooTag = [];
+  const igFeatures = [];
+
+  artists.forEach((artist) => {
+    (artist.portfolioImages || []).forEach((imageUrl, idx) => {
+      const tattooId = `${artist.id}-t${idx}`;
+      tattooNodes.push({ tattooId, imageUrl, artistId: artist.id });
+      (artist.styles || []).forEach((style) => tattooStyle.push({ tattooId, style }));
+      (artist.tags || []).forEach((tag) => tattooTag.push({ tattooId, tag }));
+      if (artist.instagram) igFeatures.push({ instagram: artist.instagram, tattooId });
+    });
+  });
+
+  if (tattooNodes.length === 0) {
+    console.log('  ⚠️  No tattoos (portfolioImages) to import');
+    return;
+  }
+
+  await runBatched(session, tattooNodes, 200,
+    `UNWIND $rows AS r
+     MATCH (a:Artist {id: r.artistId})
+     MERGE (t:Tattoo {id: r.tattooId})
+     SET t.imageUrl = r.imageUrl, t.artistId = r.artistId
+     MERGE (a)-[:CREATED]->(t)`);
+  console.log(`  ✓ ${tattooNodes.length} tattoo nodes created`);
+
+  await runBatched(session, tattooStyle, 500,
+    `UNWIND $rows AS r
+     MATCH (t:Tattoo {id: r.tattooId})
+     MERGE (s:Style {name: r.style})
+     MERGE (t)-[:IN_STYLE]->(s)`);
+  console.log(`  ✓ ${tattooStyle.length} tattoo→style links`);
+
+  await runBatched(session, tattooTag, 500,
+    `UNWIND $rows AS r
+     MATCH (t:Tattoo {id: r.tattooId})
+     MERGE (tg:Tag {name: r.tag})
+     MERGE (t)-[:TAGGED_WITH]->(tg)`);
+  console.log(`  ✓ ${tattooTag.length} tattoo→tag links`);
+
+  await runBatched(session, igFeatures, 500,
+    `UNWIND $rows AS r
+     MATCH (t:Tattoo {id: r.tattooId})
+     MERGE (ig:Instagram {handle: r.instagram})
+     MERGE (ig)-[:FEATURES]->(t)`);
+  console.log(`  ✓ ${igFeatures.length} instagram→tattoo links`);
+}
+
+/**
+ * Helper: run a MERGE query over rows in batches.
+ */
+async function runBatched(session, rows, size, query) {
+  for (let i = 0; i < rows.length; i += size) {
+    await session.run(query, { rows: rows.slice(i, i + size) });
+  }
+}
+
+/**
+ * Import mentor/apprentice relationships (APPRENTICED_UNDER) from source data.
  */
 async function importMentorRelationships(session, artists) {
   console.log('\n👥 Importing mentor/apprentice relationships...');
 
-  // Filter artists that have a mentor_id
   const mentorData = artists
-    .filter(artist => artist.mentor_id != null)
-    .map(artist => {
-      // Estimate apprenticeship years based on yearsExperience
+    .filter((artist) => artist.mentor_id != null)
+    .map((artist) => {
       const currentYear = new Date().getFullYear();
       const apprenticeStartYear = currentYear - artist.yearsExperience;
-      const apprenticeshipDuration = Math.min(artist.yearsExperience, 4); // Cap at 4 years
-      const startYear = apprenticeStartYear;
-      const endYear = startYear + apprenticeshipDuration;
-
+      const apprenticeshipDuration = Math.min(artist.yearsExperience, 4);
       return {
         apprentice_id: artist.id,
         mentor_id: artist.mentor_id,
-        startYear,
-        endYear
+        startYear: apprenticeStartYear,
+        endYear: apprenticeStartYear + apprenticeshipDuration
       };
     });
 
@@ -268,46 +374,31 @@ async function importMentorRelationships(session, artists) {
     return;
   }
 
-  const query = `
-    UNWIND $relationships AS rel
-    MATCH (apprentice:Artist {id: rel.apprentice_id})
-    MATCH (mentor:Artist {id: rel.mentor_id})
-    MERGE (apprentice)-[r:APPRENTICED_UNDER]->(mentor)
-    SET r.start_year = rel.startYear,
-        r.end_year = rel.endYear
-    RETURN count(r) as relationshipCount
-  `;
-
-  try {
-    const result = await session.run(query, { relationships: mentorData });
-    // Check if records exist before accessing (MATCH queries may return empty if artists don't exist)
-    const count = result.records.length > 0
-      ? neo4j.integer.toNumber(result.records[0].get('relationshipCount'))
-      : 0;
-    
-    if (count === 0 && mentorData.length > 0) {
-      console.log(`  ⚠️  No relationships created (${mentorData.length} attempted) - check if artist IDs exist in database`);
-    } else {
-      console.log(`  ✓ Created ${count} APPRENTICED_UNDER relationships`);
-    }
-  } catch (error) {
-    console.error('  ❌ Error importing mentor relationships:', error.message);
-    throw error;
-  }
+  const result = await session.run(
+    `UNWIND $relationships AS rel
+     MATCH (apprentice:Artist {id: rel.apprentice_id})
+     MATCH (mentor:Artist {id: rel.mentor_id})
+     MERGE (apprentice)-[r:APPRENTICED_UNDER]->(mentor)
+     SET r.start_year = rel.startYear, r.end_year = rel.endYear
+     RETURN count(r) as relationshipCount`,
+    { relationships: mentorData }
+  );
+  const count = result.records.length > 0
+    ? neo4j.integer.toNumber(result.records[0].get('relationshipCount'))
+    : 0;
+  console.log(`  ✓ Created ${count} APPRENTICED_UNDER relationships`);
 }
 
 /**
- * Import influence relationships (INFLUENCED_BY)
- * Creates relationships from artist.influenced_by array with influence_type and strength properties
+ * Import influence relationships (INFLUENCED_BY) from source data.
  */
 async function importInfluenceRelationships(session, artists) {
   console.log('\n🎨 Importing influence relationships...');
 
-  // Flatten influence data from all artists
   const influenceData = [];
-  artists.forEach(artist => {
-    if (artist.influenced_by && Array.isArray(artist.influenced_by) && artist.influenced_by.length > 0) {
-      artist.influenced_by.forEach(influence => {
+  artists.forEach((artist) => {
+    if (Array.isArray(artist.influenced_by)) {
+      artist.influenced_by.forEach((influence) => {
         influenceData.push({
           artist_id: artist.id,
           influenced_by_id: influence.artist_id,
@@ -323,105 +414,54 @@ async function importInfluenceRelationships(session, artists) {
     return;
   }
 
-  const query = `
-    UNWIND $relationships AS rel
-    MATCH (artist:Artist {id: rel.artist_id})
-    MATCH (influencer:Artist {id: rel.influenced_by_id})
-    MERGE (artist)-[r:INFLUENCED_BY]->(influencer)
-    SET r.influence_type = rel.influence_type,
-        r.strength = rel.strength
-    RETURN count(r) as relationshipCount
-  `;
-
-  try {
-    const result = await session.run(query, { relationships: influenceData });
-    // Check if records exist before accessing (MATCH queries may return empty if artists don't exist)
-    const count = result.records.length > 0
-      ? neo4j.integer.toNumber(result.records[0].get('relationshipCount'))
-      : 0;
-    
-    if (count === 0 && influenceData.length > 0) {
-      console.log(`  ⚠️  No relationships created (${influenceData.length} attempted) - check if artist IDs exist in database`);
-    } else {
-      console.log(`  ✓ Created ${count} INFLUENCED_BY relationships`);
-    }
-  } catch (error) {
-    console.error('  ❌ Error importing influence relationships:', error.message);
-    throw error;
-  }
+  const result = await session.run(
+    `UNWIND $relationships AS rel
+     MATCH (artist:Artist {id: rel.artist_id})
+     MATCH (influencer:Artist {id: rel.influenced_by_id})
+     MERGE (artist)-[r:INFLUENCED_BY]->(influencer)
+     SET r.influence_type = rel.influence_type, r.strength = rel.strength
+     RETURN count(r) as relationshipCount`,
+    { relationships: influenceData }
+  );
+  const count = result.records.length > 0
+    ? neo4j.integer.toNumber(result.records[0].get('relationshipCount'))
+    : 0;
+  console.log(`  ✓ Created ${count} INFLUENCED_BY relationships`);
 }
 
 /**
- * Verify the import by running some sample queries
+ * Verify the import with node/relationship counts.
  */
 async function verifyImport(session) {
   console.log('\n🔍 Verifying import...');
 
-  // Count nodes
-  const counts = await session.run(`
-    MATCH (a:Artist) WITH count(a) as artists
-    MATCH (c:City) WITH artists, count(c) as cities
-    MATCH (s:Style) WITH artists, cities, count(s) as styles
-    MATCH (t:Tag) WITH artists, cities, styles, count(t) as tags
-    RETURN artists, cities, styles, tags
-  `);
-
-  const record = counts.records[0];
-  console.log(`  ✓ Artists: ${neo4j.integer.toNumber(record.get('artists'))}`);
-  console.log(`  ✓ Cities: ${neo4j.integer.toNumber(record.get('cities'))}`);
-  console.log(`  ✓ Styles: ${neo4j.integer.toNumber(record.get('styles'))}`);
-  console.log(`  ✓ Tags: ${neo4j.integer.toNumber(record.get('tags'))}`);
-
-  // Count relationships
-  const relationships = await session.run(`
-    MATCH ()-[r:LOCATED_IN]->() WITH count(r) as located
-    MATCH ()-[r:SPECIALIZES_IN]->() WITH located, count(r) as specializes
-    MATCH ()-[r:TAGGED_WITH]->() WITH located, specializes, count(r) as tagged
-    MATCH ()-[r:APPRENTICED_UNDER]->() WITH located, specializes, tagged, count(r) as apprenticed
-    MATCH ()-[r:INFLUENCED_BY]->() WITH located, specializes, tagged, apprenticed, count(r) as influenced
-    RETURN located, specializes, tagged, apprenticed, influenced
-  `);
-
-  const relRecord = relationships.records[0];
-  console.log(`  ✓ LOCATED_IN relationships: ${neo4j.integer.toNumber(relRecord.get('located'))}`);
-  console.log(`  ✓ SPECIALIZES_IN relationships: ${neo4j.integer.toNumber(relRecord.get('specializes'))}`);
-  console.log(`  ✓ TAGGED_WITH relationships: ${neo4j.integer.toNumber(relRecord.get('tagged'))}`);
-  console.log(`  ✓ APPRENTICED_UNDER relationships: ${neo4j.integer.toNumber(relRecord.get('apprenticed'))}`);
-  console.log(`  ✓ INFLUENCED_BY relationships: ${neo4j.integer.toNumber(relRecord.get('influenced'))}`);
-
-  // Sample query: Find artists in Phoenix who specialize in Traditional
-  const sampleQuery = await session.run(`
-    MATCH (a:Artist)-[:LOCATED_IN]->(c:City {name: 'Phoenix'})
-    MATCH (a)-[:SPECIALIZES_IN]->(s:Style {name: 'Traditional'})
-    RETURN a.name, a.shopName, a.hourlyRate
-    ORDER BY a.rating DESC
-    LIMIT 3
-  `);
-
-  if (sampleQuery.records.length > 0) {
-    console.log('\n  📍 Sample: Top Traditional artists in Phoenix:');
-    sampleQuery.records.forEach(rec => {
-      const hourlyRate = neo4j.integer.toNumber(rec.get('a.hourlyRate'));
-      console.log(`    - ${rec.get('a.name')} at ${rec.get('a.shopName')} ($${hourlyRate}/hr)`);
-    });
+  const nodeLabels = ['State', 'City', 'Shop', 'Artist', 'Style', 'Tattoo', 'Instagram', 'Tag', 'Website'];
+  for (const label of nodeLabels) {
+    const res = await session.run(`MATCH (n:${label}) RETURN count(n) AS c`);
+    console.log(`  ✓ ${label}: ${neo4j.integer.toNumber(res.records[0].get('c'))}`);
   }
 
-  // Sample spatial query: Artists within 50km of Phoenix downtown
-  const spatialQuery = await session.run(`
-    WITH point({latitude: 33.4484, longitude: -112.074}) AS phoenixDowntown
-    MATCH (a:Artist)
-    WHERE point.distance(a.location, phoenixDowntown) < 50000
-    RETURN a.name, a.city,
-           round(point.distance(a.location, phoenixDowntown) / 1000) AS distanceKm
-    ORDER BY distanceKm
-    LIMIT 5
-  `);
+  const relTypes = [
+    'HAS_CITY', 'HAS_SHOP', 'HAS_ARTIST', 'FEATURES_STYLE', 'HAS_WEBSITE',
+    'SPECIALIZES_IN', 'CREATED', 'HAS_INSTAGRAM', 'IN_STYLE', 'TAGGED_WITH',
+    'FEATURES', 'APPRENTICED_UNDER', 'INFLUENCED_BY'
+  ];
+  console.log('  --- relationships ---');
+  for (const rel of relTypes) {
+    const res = await session.run(`MATCH ()-[r:${rel}]->() RETURN count(r) AS c`);
+    console.log(`  ✓ ${rel}: ${neo4j.integer.toNumber(res.records[0].get('c'))}`);
+  }
 
-  if (spatialQuery.records.length > 0) {
-    console.log('\n  📏 Sample: Artists within 50km of Phoenix downtown:');
-    spatialQuery.records.forEach(rec => {
-      const distanceKm = neo4j.integer.toNumber(rec.get('distanceKm'));
-      console.log(`    - ${rec.get('a.name')} in ${rec.get('a.city')} (${distanceKm}km away)`);
+  // Sample traversal: State -> City -> Shop -> Artist -> Style
+  const sample = await session.run(`
+    MATCH (st:State)-[:HAS_CITY]->(c:City)-[:HAS_SHOP]->(sh:Shop)-[:HAS_ARTIST]->(a:Artist)-[:SPECIALIZES_IN]->(s:Style {name: 'Traditional'})
+    RETURN st.name AS state, c.name AS city, sh.name AS shop, a.name AS artist
+    LIMIT 3
+  `);
+  if (sample.records.length > 0) {
+    console.log('\n  📍 Sample (Traditional artists via full path):');
+    sample.records.forEach((rec) => {
+      console.log(`    - ${rec.get('artist')} @ ${rec.get('shop')} (${rec.get('city')}, ${rec.get('state')})`);
     });
   }
 }
@@ -430,44 +470,32 @@ async function verifyImport(session) {
  * Main import function
  */
 async function main() {
-  const session = driver.session();
+  const session = newSession();
 
   try {
-    console.log('🚀 Starting Neo4j import for TatTester artists...');
-    console.log(`📍 Connecting to ${NEO4J_URI} as ${NEO4J_USER}`);
+    console.log('🚀 Starting Neo4j import for TatT artists...');
+    console.log(`📍 Connecting to ${NEO4J_URI} as ${NEO4J_USER} (db: ${NEO4J_DATABASE || 'default'})`);
 
-    // Test connection
     await session.run('RETURN 1');
     console.log('✅ Connected to Neo4j successfully');
 
-    // Create indexes first for optimal import performance
     await createIndexes(session);
+    if (process.argv.includes('--wipe')) {
+      await cleanDatabase(session);
+    } else {
+      console.log('ℹ️  Skipping database clean (pass --wipe to delete all existing data first)');
+    }
 
-    // Clean existing data (comment this out if you want to keep existing data)
-    await cleanDatabase(session);
-
-    // Import reference data
-    await importCities(session, artistsData.cities);
     await importStyles(session, artistsData.styles);
-
-    // Import artists with relationships
     await importArtists(session, artistsData.artists);
-
-    // Import mentor/apprentice relationships
+    await importStyleRelationships(session, artistsData.artists);
+    await importTattoos(session, artistsData.artists);
     await importMentorRelationships(session, artistsData.artists);
-
-    // Import influence relationships
     await importInfluenceRelationships(session, artistsData.artists);
 
-    // Verify the import
     await verifyImport(session);
 
     console.log('\n✅ Import completed successfully!');
-    console.log('\n📊 Quick Stats:');
-    console.log(`   - Total artists: ${artistsData.artists.length}`);
-    console.log(`   - Cities covered: ${artistsData.cities.length - 1}`); // Exclude "All Locations"
-    console.log(`   - Tattoo styles: ${artistsData.styles.length - 1}`);  // Exclude "All Styles"
-
   } catch (error) {
     console.error('\n❌ Import failed:', error.message);
     console.error('\nFull error:', error);
@@ -479,5 +507,4 @@ async function main() {
   }
 }
 
-// Run the import
 main().catch(console.error);

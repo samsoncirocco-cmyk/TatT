@@ -45,14 +45,21 @@ export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.text();
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
-    const placeholderMode = !webhookSecret || webhookSecret.startsWith('whsec_PLACEHOLDER');
-    const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+    const secretMissing = !webhookSecret || webhookSecret.startsWith('whsec_PLACEHOLDER');
 
-    if (placeholderMode && !demoMode) {
-      return NextResponse.json({ error: 'Stripe webhook is not configured.' }, { status: 503 });
-    }
-
-    if (!placeholderMode) {
+    if (secretMissing) {
+      // Fail closed: without a real signing secret we cannot verify the payload.
+      // A bypass is honored only via an explicit flag and NEVER in production.
+      const allowPlaceholder =
+        process.env.STRIPE_WEBHOOK_ALLOW_PLACEHOLDER === 'true' &&
+        process.env.NODE_ENV !== 'production';
+      if (!allowPlaceholder) {
+        return NextResponse.json(
+          { error: 'Stripe webhook secret not configured.' },
+          { status: 503 }
+        );
+      }
+    } else {
       const signatureHeader = req.headers.get('stripe-signature');
       if (!signatureHeader || !verifyStripeSignature(rawBody, signatureHeader, webhookSecret)) {
         return NextResponse.json({ error: 'Invalid Stripe signature.' }, { status: 400 });

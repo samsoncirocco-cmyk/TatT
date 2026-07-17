@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import neo4j from 'neo4j-driver';
-import { getNeo4jDriver, NEO4J_QUERY_TIMEOUT } from '@/lib/neo4j';
+import { getNeo4jDriver, NEO4J_QUERY_TIMEOUT, NEO4J_DATABASE } from '@/lib/neo4j';
 import { verifyApiAuth } from '@/lib/api-auth';
 // Neo4j driver uses TCP, not edge compatible usually unless using a specific edge driver or HTTP API.
 // Assuming Node.js runtime for Neo4j for now to be safe.
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
 
     try {
         const { query, params } = await req.json();
-        const session = driver.session();
+        const session = driver.session(NEO4J_DATABASE ? { database: NEO4J_DATABASE } : undefined);
 
         try {
             const result = await session.executeRead(

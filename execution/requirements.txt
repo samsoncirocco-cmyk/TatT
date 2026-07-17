@@ -9,8 +9,9 @@ google-cloud-aiplatform>=1.60.0  # provides vertexai (generate_embeddings.py)
 # Neo4j
 neo4j>=5.20.0
 
-# HTTP requests
+# HTTP requests + HTML parsing (scrape_artists.py)
 requests>=2.31.0
+beautifulsoup4>=4.12.0
 
 # Testing
 pytest>=8.0.0

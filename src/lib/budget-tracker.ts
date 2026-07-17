@@ -13,6 +13,11 @@ const DEFAULT_BUDGET: BudgetConfig = {
   periodMs: 30 * 24 * 60 * 60 * 1000, // 30 days
 };
 
+// Cost of a single Vertex AI (Imagen 3) generated image, in cents.
+// Imagen 3 is ~$0.04/image; override via VERTEX_IMAGEN_COST_CENTS.
+export const VERTEX_IMAGEN_COST_CENTS =
+  Number(process.env.VERTEX_IMAGEN_COST_CENTS) || 4;
+
 export type BudgetResult = {
   allowed: boolean;
   spentCents: number;

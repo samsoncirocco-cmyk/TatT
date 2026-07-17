@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
 import { generateWithRetry } from '@/services/generationService';
 import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
-import { checkBudget, recordSpend } from '@/lib/budget-tracker';
+import { checkBudget, recordSpend, VERTEX_IMAGEN_COST_CENTS } from '@/lib/budget-tracker';
 import { createRequestLogger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -190,6 +190,10 @@ export async function POST(req: NextRequest) {
                 safetyFilterLevel: 'block_only_high'
             }
         });
+
+        // Record actual Vertex AI spend on the primary success path.
+        const imagesGenerated = result.images?.length || requestedCount;
+        await recordSpend(VERTEX_IMAGEN_COST_CENTS * imagesGenerated);
 
         return NextResponse.json({
             success: true,

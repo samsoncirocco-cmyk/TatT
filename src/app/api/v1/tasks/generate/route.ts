@@ -28,14 +28,13 @@ function decodeDataUrl(dataUrl: string): { bytes: Uint8Array; mimeType: string }
 }
 
 export async function POST(req: NextRequest) {
+  // Centralized OIDC verify (hardening) with main's fail-closed / local bypass.
   if (!(await verifyCloudTaskRequest(req))) {
     return NextResponse.json({ error: 'Invalid Cloud Tasks identity' }, { status: 401 });
   }
 
-  const taskName = req.headers.get('x-cloudtasks-taskname');
-  if (!taskName) {
-    return NextResponse.json({ error: 'Missing Cloud Tasks headers' }, { status: 401 });
-  }
+  // For logging/traceability only — not trusted for authentication.
+  const taskName = req.headers.get('x-cloudtasks-taskname') || null;
 
   let body: TaskBody;
   try {

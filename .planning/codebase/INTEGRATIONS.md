@@ -141,7 +141,6 @@
 
 **CI Pipeline:**
 - Vercel Git integration (auto-deploy on push)
-- Manual trigger: `.vercel-deploy-trigger` file
 
 **Docker Support:**
 - Multi-stage Dockerfile with Node 20-alpine

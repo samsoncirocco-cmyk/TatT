@@ -29,9 +29,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { verifyApiAuth } from '@/lib/api-auth';
+import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
+import { checkBudget, recordSpend } from '@/lib/budget-tracker';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+// Estimated cost of one council pipeline run, in cents. Covers the OpenRouter
+// LLM calls (brief/composition/style/prompt/critic on Haiku) plus one Flux 1.1
+// Pro image generation (~$0.04). Override via COUNCIL_PIPELINE_COST_CENTS.
+const COUNCIL_PIPELINE_COST_CENTS =
+  Number(process.env.COUNCIL_PIPELINE_COST_CENTS) || 10;
 
 // ---------------------------------------------------------------------------
 // Config
@@ -267,8 +275,24 @@ async function generateImage(prompt: string, brief: any, references: string[]) {
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
+  // Auth check (async Firebase verify from hardening)
   const authError = await verifyApiAuth(request);
   if (authError) return authError;
+
+  // Rate limiting (council pipeline is expensive: multiple LLM calls + image gen)
+  const rateResult = await rateLimit(request, 'council');
+  if (!rateResult.allowed) {
+    return rateLimitResponse(rateResult);
+  }
+
+  // Budget check before running the paid pipeline
+  const budgetResult = await checkBudget();
+  if (!budgetResult.allowed) {
+    return NextResponse.json(
+      { error: 'Budget limit reached', spentCents: budgetResult.spentCents },
+      { status: 402 }
+    );
+  }
 
   try {
     const body = await request.json();
@@ -288,6 +312,9 @@ export async function POST(request: NextRequest) {
     const finalPrompt  = await promptAgent(brief, composition, style, references);
     const image        = await generateImage(finalPrompt, brief, references);
     const critique     = await criticAgent(brief, image.url);
+
+    // Record estimated pipeline spend after a successful run.
+    await recordSpend(COUNCIL_PIPELINE_COST_CENTS);
 
     return NextResponse.json({
       success: true,

@@ -4,6 +4,10 @@ const NEO4J_URI = process.env.NEO4J_URI;
 const NEO4J_USER = process.env.NEO4J_USERNAME || process.env.NEO4J_USER;
 const NEO4J_PASSWORD = process.env.NEO4J_PASSWORD;
 
+// Target database name (Aura instances name their database after the instance id).
+// Falls back to undefined so the driver uses the server default ("neo4j").
+export const NEO4J_DATABASE = process.env.NEO4J_DATABASE || undefined;
+
 export const NEO4J_QUERY_TIMEOUT = 5000;
 export const NEO4J_DEFAULT_LIMIT = 50;
 

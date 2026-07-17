@@ -27,29 +27,16 @@
 
 name: CI/CD Pipeline
 
+# No paths filter: config files outside src/ (next.config.ts, tsconfig.json,
+# vercel/railway configs) can break the build, and a filtered-out PR check
+# also blocks merge forever when checks are required.
 on:
   push:
     branches:
       - main
-    paths:
-      - 'src/**'
-      - 'execution/**'
-      - 'tests/**'
-      - 'package*.json'
-      - 'Dockerfile'
-      - '.github/workflows/**'
-      - 'directives/**'
   pull_request:
     branches:
       - main
-    paths:
-      - 'src/**'
-      - 'execution/**'
-      - 'tests/**'
-      - 'package*.json'
-      - 'Dockerfile'
-      - '.github/workflows/**'
-      - 'directives/**'
   workflow_dispatch:
 
 jobs:
@@ -148,6 +135,30 @@ jobs:
           name: python-coverage
           path: coverage.xml
           retention-days: 7
+
+  build-app:
+    name: Build Next.js App
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      # env.demo is the credential-free demo config; the build only needs
+      # NEXT_PUBLIC_* shape, not real secrets.
+      - name: Configure demo environment
+        run: cp env.demo .env.local
+
+      - name: Build
+        run: npm run build
 
   build:
     name: Build Docker Image
