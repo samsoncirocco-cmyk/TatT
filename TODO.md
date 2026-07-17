@@ -14,10 +14,11 @@ _Last updated: 2026-07-17 (house-brain session)_
    `matches/page.tsx`; rebuild dataset from canonical clean file after item 4
    lands (drop the duplicate `isNonPerson()` cleaner); fix slug collisions
    (1,037 shadowed) + unstable ids. Owner: PR author session.
-2. **Enable branch protection on `main`** — require PRs, forbid force/direct
-   pushes. Motivated by a near-miss: a stale-clone push right after the
-   password history rewrite. Owner: Samson (Settings → Branches) or any agent
-   via `gh api`.
+2. **Branch protection on `main` — BLOCKED by GitHub plan** (2026-07-17):
+   both the protection and rulesets APIs 403 on private repos under the free
+   plan. Options: GitHub Pro (~$4/mo, then it's one command), or keep relying
+   on the working agreements below. Do NOT make the repo public — the old
+   password is still in orphaned commits GitHub serves by SHA. Decision: Samson.
 3. **Reconcile `codex/tatt-security-hardening` with main** — 5 conflicting
    files (debug route, Stripe webhook, Cloud Tasks auth, council rate-limit,
    TATT_ENV_REFERENCE.md). Keep main's behavior + branch's hardening intent;
