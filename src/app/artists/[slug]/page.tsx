@@ -57,7 +57,7 @@ export default async function ArtistProfilePage({
           <div className="md:col-span-7 relative">
             <div className="hidden sm:block absolute top-0 right-0 sticker px-3 py-1.5 z-10">
               <div className="font-display text-[13px] tracking-widest leading-none tabular-nums">
-                ★&nbsp;{artist.rating.toFixed(1)}
+                ★&nbsp;{(artist.rating ?? 0).toFixed(1)}
               </div>
               <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-0.5 tabular-nums">
                 {artist.reviewCount}&nbsp;reviews

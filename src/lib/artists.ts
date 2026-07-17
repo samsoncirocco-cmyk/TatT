@@ -2,8 +2,14 @@ import data from "@/data/artists.json";
 
 /**
  * Typed accessor over the artist database (src/data/artists.json —
- * 100 artists with portfolio images keyed to public/portfolio/*.png).
- * The punk pages read from here; do not hardcode rosters in pages.
+ * ~6,000 real artists scraped nationally, built by
+ * scripts/build-artist-dataset.js). The punk pages read from here;
+ * do not hardcode rosters in pages.
+ *
+ * Fields the scrape can't observe (hourlyRate, yearsExperience,
+ * bookingAvailable) are null; the UI hides them when absent. rating /
+ * reviewCount are the shop's Google values, shared by artists at the
+ * same shop. portfolioImages may be empty (~60% of artists).
  */
 export type Artist = {
   id: number;
@@ -17,15 +23,27 @@ export type Artist = {
   tags: string[];
   portfolioImages: string[];
   instagram: string;
-  hourlyRate: number;
-  rating: number;
+  hourlyRate: number | null;
+  rating: number | null;
   reviewCount: number;
   bio: string;
-  yearsExperience: number;
-  bookingAvailable: boolean;
+  yearsExperience: number | null;
+  bookingAvailable: boolean | null;
 };
 
-type RawArtist = Omit<Artist, "slug">;
+/** True when an artist has at least one portfolio image. */
+export function hasImage(a: Artist): boolean {
+  return a.portfolioImages.length > 0;
+}
+
+// The JSON carries a few provenance fields beyond the Artist shape
+// (coordinates, sourceId, sourcePages) — declare them so the cast is
+// honest rather than forced through `unknown`.
+type RawArtist = Omit<Artist, "slug"> & {
+  coordinates?: { lat: number | null; lng: number | null };
+  sourceId?: string;
+  sourcePages?: string[];
+};
 
 function kebab(name: string) {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -60,11 +78,14 @@ export function getAllStyles(): string[] {
   return [...new Set(ARTISTS.flatMap((a) => a.styles))].sort();
 }
 
+/** Review-weighted rating; 0 when the shop had no rating. */
+function weight(a: Artist): number {
+  return (a.rating ?? 0) * a.reviewCount;
+}
+
 /** Top artists by review volume × rating, one per style for variety. */
 export function getFeaturedArtists(n: number): Artist[] {
-  const ranked = [...ARTISTS].sort(
-    (a, b) => b.rating * b.reviewCount - a.rating * a.reviewCount,
-  );
+  const ranked = [...ARTISTS].sort((a, b) => weight(b) - weight(a));
   const seen = new Set<string>();
   const out: Artist[] = [];
   for (const a of ranked) {

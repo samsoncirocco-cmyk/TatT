@@ -13,7 +13,9 @@ const MATCH_PERCENTS = [98, 96, 94, 92, 91, 89, 88, 86, 84, 83, 81, 79];
 // Top 12 by review-weighted rating stand in for semantic matching until
 // the /api/v1/match pipeline is wired into this page.
 const ARTISTS = [...getAllArtists()]
-  .sort((a, b) => b.rating * b.reviewCount - a.rating * a.reviewCount)
+  .sort(
+    (a, b) => (b.rating ?? 0) * b.reviewCount - (a.rating ?? 0) * a.reviewCount,
+  )
   .slice(0, 12)
   .map((a, i) => ({
     slug: a.slug,
