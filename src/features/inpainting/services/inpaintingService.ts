@@ -9,8 +9,9 @@
  * This enables professional-level customization without starting from scratch.
  */
 
+import { getApiAuthHeaders } from '@/lib/client-api-auth';
+
 const PROXY_URL = '/api';
-const AUTH_TOKEN = process.env.NEXT_PUBLIC_FRONTEND_AUTH_TOKEN || 'dev-token-change-in-production';
 
 // ===== Type Definitions =====
 
@@ -110,13 +111,14 @@ export async function inpaintTattooDesign({
     }
 
     console.log('[Inpainting] Sending request to API');
+    const authHeaders = await getApiAuthHeaders();
 
     // Create prediction via proxy
     const createResponse = await fetch(`${PROXY_URL}/predictions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${AUTH_TOKEN}`,
+        ...authHeaders,
       },
       body: JSON.stringify({
         version: INPAINTING_MODEL.version,
@@ -151,9 +153,7 @@ export async function inpaintTattooDesign({
       await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
 
       const statusResponse = await fetch(`${PROXY_URL}/predictions/${prediction.id}`, {
-        headers: {
-          'Authorization': `Bearer ${AUTH_TOKEN}`,
-        }
+        headers: authHeaders
       });
 
       if (!statusResponse.ok) {

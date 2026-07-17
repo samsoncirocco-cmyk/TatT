@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import { appendFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
+import { verifyApiAuth } from '@/lib/api-auth';
 
 // In-memory rate limiter: ip -> list of timestamps
 const rateLimitMap = new Map<string, number[]>();
@@ -31,6 +32,9 @@ export interface BookingRequest {
 }
 
 export async function POST(request: NextRequest) {
+  const authError = await verifyApiAuth(request);
+  if (authError) return authError;
+
   // Rate limit by IP
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
   if (!checkRateLimit(ip)) {

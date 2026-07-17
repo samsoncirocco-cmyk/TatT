@@ -5,6 +5,7 @@ import { ToastContainer } from '../components/ui/Toast';
 import artistsData from '../data/artists.json';
 import { calculateMatches } from '../utils/matching';
 import EmptyMatchState from '../components/EmptyMatchState';
+import { getApiAuthHeaders } from '../lib/client-api-auth';
 
 const stylesOptions = [
   'Anime',
@@ -138,11 +139,12 @@ function SmartMatchContent() {
 
       if (useSemanticSearch) {
         // Semantic search via API
+        const authHeaders = await getApiAuthHeaders();
         const response = await fetch('/api/v1/match/semantic', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer dev-token-change-in-production' // Use real token in prod
+            ...authHeaders
           },
           body: JSON.stringify({
             query: preferences.keywords,

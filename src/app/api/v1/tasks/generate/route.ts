@@ -1,56 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
-import { OAuth2Client } from 'google-auth-library';
 import '../../../../../lib/auth-dal';
 import { generateWithImagen } from '../../../../../services/vertex-ai-edge';
 import { uploadGeneratedImage } from '../../../../../services/storage/imageStorageService';
+import { verifyCloudTaskRequest } from '../../../../../lib/cloud-tasks-auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-const oidcClient = new OAuth2Client();
-
-/**
- * Verify the Cloud Tasks OIDC bearer token. Cloud Tasks signs each dispatch
- * with a Google-issued ID token whose audience and service-account email we
- * control. Returns null on success, or a 401 NextResponse on failure.
- *
- * Fails closed: a bypass is allowed ONLY when ALLOW_UNAUTHENTICATED_TASKS=true
- * (local dev). NODE_ENV=production never honors the bypass.
- */
-async function verifyCloudTasksAuth(req: NextRequest): Promise<NextResponse | null> {
-  const bypassAllowed =
-    process.env.ALLOW_UNAUTHENTICATED_TASKS === 'true' &&
-    process.env.NODE_ENV !== 'production';
-  if (bypassAllowed) return null;
-
-  const authHeader = req.headers.get('authorization') || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-  if (!token) {
-    return NextResponse.json({ error: 'Missing OIDC bearer token' }, { status: 401 });
-  }
-
-  const audience = process.env.CLOUD_TASKS_OIDC_AUDIENCE;
-  const serviceAccountEmail = process.env.CLOUD_TASKS_SERVICE_ACCOUNT_EMAIL;
-  if (!audience || !serviceAccountEmail) {
-    return NextResponse.json(
-      { error: 'Cloud Tasks auth not configured' },
-      { status: 401 }
-    );
-  }
-
-  try {
-    const ticket = await oidcClient.verifyIdToken({ idToken: token, audience });
-    const payload = ticket.getPayload();
-    if (!payload || payload.email !== serviceAccountEmail || payload.email_verified !== true) {
-      return NextResponse.json({ error: 'Invalid OIDC token' }, { status: 401 });
-    }
-  } catch {
-    return NextResponse.json({ error: 'Invalid OIDC token' }, { status: 401 });
-  }
-
-  return null;
-}
 
 type TaskBody = {
   userId: string;
@@ -72,8 +28,10 @@ function decodeDataUrl(dataUrl: string): { bytes: Uint8Array; mimeType: string }
 }
 
 export async function POST(req: NextRequest) {
-  const authError = await verifyCloudTasksAuth(req);
-  if (authError) return authError;
+  // Centralized OIDC verify (hardening) with main's fail-closed / local bypass.
+  if (!(await verifyCloudTaskRequest(req))) {
+    return NextResponse.json({ error: 'Invalid Cloud Tasks identity' }, { status: 401 });
+  }
 
   // For logging/traceability only — not trusted for authentication.
   const taskName = req.headers.get('x-cloudtasks-taskname') || null;

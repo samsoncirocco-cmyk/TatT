@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     // Rate limit check could go here
 
     // Auth check
-    const authError = verifyApiAuth(req);
+    const authError = await verifyApiAuth(req);
     if (authError) return authError;
 
     const driver = getNeo4jDriver();

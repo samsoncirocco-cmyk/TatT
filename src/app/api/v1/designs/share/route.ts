@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import { appendFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
+import { verifyApiAuth } from '@/lib/api-auth';
 
 // In-memory store for demo mode (survives process lifetime)
 const sharedDesignsStore = new Map<string, SharedDesign>();
@@ -34,6 +35,9 @@ const DEMO_DESIGNS: SharedDesign[] = [
 DEMO_DESIGNS.forEach(d => sharedDesignsStore.set(d.shareId, d));
 
 export async function POST(request: NextRequest) {
+  const authError = await verifyApiAuth(request);
+  if (authError) return authError;
+
   let body: { imageUrl: string; prompt: string; style?: string; bodyPart?: string };
   try {
     body = await request.json();

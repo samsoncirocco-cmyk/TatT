@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, CheckCircle, Loader2, Calendar, DollarSign, User, Mail, Phone, MessageSquare } from 'lucide-react';
+import { getApiAuthHeaders } from '@/lib/client-api-auth';
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -63,9 +64,10 @@ export function BookingModal({
     e.preventDefault();
     setState('loading');
     try {
+      const authHeaders = await getApiAuthHeaders();
       const res = await fetch('/api/v1/book', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({ ...form, artistId, artistName, designId, designImageUrl }),
       });
       const data = await res.json();

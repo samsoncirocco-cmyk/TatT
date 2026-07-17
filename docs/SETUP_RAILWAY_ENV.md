@@ -5,7 +5,7 @@
 Create a `.env` file in the project root with:
 
 ```bash
-RAILWAY_API_TOKEN=1fea344a-d858-4753-ae2e-d0d9dd7b6301
+RAILWAY_API_TOKEN=[REDACTED-ROTATED]
 VERCEL_URL=https://tat-t-3x8t.vercel.app
 ```
 

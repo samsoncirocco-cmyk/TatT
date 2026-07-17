@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { verifyApiAuth } from '@/lib/api-auth';
 import {
   generateAndUploadImages,
   getUsageSnapshot,
@@ -20,7 +21,10 @@ function resolveDimensions(size?: string) {
   return { width: dimension, height: dimension };
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const authError = await verifyApiAuth(request);
+  if (authError) return authError;
+
   try {
     const body = await request.json();
     const {

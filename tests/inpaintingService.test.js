@@ -5,6 +5,11 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+vi.mock('../src/lib/client-api-auth', () => ({
+  getApiAuthHeaders: vi.fn().mockResolvedValue({ Authorization: 'Bearer test-firebase-token' })
+}));
+
 import {
   INPAINTING_MODEL,
   createMaskCanvas,

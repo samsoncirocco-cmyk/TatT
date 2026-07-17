@@ -7,6 +7,7 @@
  * - Auth header injection
  * - Timeout support
  */
+import { getApiAuthHeaders } from '@/lib/client-api-auth';
 
 /**
  * Error codes for typed error handling
@@ -76,10 +77,7 @@ export async function fetchWithAbort(url, options = {}) {
     const headers = { ...fetchOptions.headers };
 
     if (includeAuth) {
-      const authToken = process.env.NEXT_PUBLIC_FRONTEND_AUTH_TOKEN;
-      if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
-      }
+      Object.assign(headers, await getApiAuthHeaders());
     }
 
     const response = await fetch(url, {
@@ -237,4 +235,3 @@ export function getUserErrorMessage(error) {
       return error.message || 'An error occurred';
   }
 }
-

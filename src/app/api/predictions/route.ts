@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 const REPLICATE_API_URL = 'https://api.replicate.com/v1';
 
 export async function POST(req: NextRequest) {
-    const authError = verifyApiAuth(req);
+    const authError = await verifyApiAuth(req);
     if (authError) return authError;
 
     const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;

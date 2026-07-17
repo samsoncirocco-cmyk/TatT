@@ -8,6 +8,7 @@ import startCrypto from 'crypto';
 import os from 'os';
 import { uploadLayer, uploadLayerThumbnail, type GCSUploadResult } from '@/services/gcs-service';
 import { generateMask } from '@/lib/segmentation';
+import { verifyApiAuth } from '@/lib/api-auth';
 
 export const runtime = 'nodejs';
 
@@ -108,6 +109,9 @@ async function uploadThumbnailWithFallback(buffer: Buffer, designId: string, lay
 }
 
 export async function POST(req: NextRequest) {
+    const authError = await verifyApiAuth(req);
+    if (authError) return authError;
+
     const startTime = Date.now();
 
     try {

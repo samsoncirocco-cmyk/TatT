@@ -14,6 +14,7 @@ import {
   AlertCircle,
   CheckCircle
 } from 'lucide-react';
+import { getApiAuthHeaders } from '@/lib/client-api-auth';
 
 interface CostBreakdown {
   lineWork: number;
@@ -121,14 +122,13 @@ export default function CostEstimator({
     setError(null);
 
     try {
-      const authToken = localStorage.getItem('tatt_auth_token') || 
-                       process.env.NEXT_PUBLIC_FRONTEND_AUTH_TOKEN;
+      const authHeaders = await getApiAuthHeaders();
 
       const response = await fetch('/api/v1/estimate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
+          ...authHeaders
         },
         body: JSON.stringify({
           imageDataUrl,

@@ -8,6 +8,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import neo4j from 'neo4j-driver';
+import { applicationDefault, cert, getApps, initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 
 // API v1 Routes
 import semanticMatchRouter from './src/api/routes/semanticMatch.js';
@@ -33,9 +35,20 @@ const REPLICATE_API_URL = 'https://api.replicate.com/v1';
 const NEO4J_URI = process.env.NEO4J_URI;
 const NEO4J_USER = process.env.NEO4J_USER;
 const NEO4J_PASSWORD = process.env.NEO4J_PASSWORD;
-const FRONTEND_AUTH_TOKEN = process.env.FRONTEND_AUTH_TOKEN;
-if (!FRONTEND_AUTH_TOKEN) {
-  throw new Error('[Server] Missing required environment variable: FRONTEND_AUTH_TOKEN');
+
+if (getApps().length === 0) {
+  const serviceAccountJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  const projectId = process.env.FIREBASE_PROJECT_ID || process.env.GCP_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+
+  if (serviceAccountJson) {
+    initializeApp({ credential: cert(JSON.parse(serviceAccountJson)) });
+  } else if (projectId && clientEmail && privateKey) {
+    initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) });
+  } else {
+    initializeApp({ credential: applicationDefault(), projectId });
+  }
 }
 const ALLOWED_ORIGINS = [
   'https://tattester.vercel.app',
@@ -208,10 +221,10 @@ const imagenGenerateLimiter = rateLimit({
 });
 
 // Bearer auth middleware
-const authMiddleware = (req, res, next) => {
+const authMiddleware = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
-  if (!authHeader) {
+  if (!authHeader?.startsWith('Bearer ')) {
     res.setHeader('WWW-Authenticate', 'Bearer realm="TatTester API"');
     return res.status(401).json({
       error: 'Authorization header required',
@@ -219,11 +232,13 @@ const authMiddleware = (req, res, next) => {
     });
   }
 
-  const token = authHeader.replace('Bearer ', '');
+  const token = authHeader.slice(7);
 
-  if (token !== FRONTEND_AUTH_TOKEN) {
+  try {
+    req.user = await getAuth().verifyIdToken(token);
+  } catch {
     res.setHeader('WWW-Authenticate', 'Bearer realm="TatTester API"');
-    return res.status(403).json({
+    return res.status(401).json({
       error: 'Invalid authorization token',
       code: 'AUTH_INVALID'
     });

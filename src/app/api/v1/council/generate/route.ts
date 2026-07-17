@@ -275,8 +275,8 @@ async function generateImage(prompt: string, brief: any, references: string[]) {
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
-  // Auth check
-  const authError = verifyApiAuth(request);
+  // Auth check (async Firebase verify from hardening)
+  const authError = await verifyApiAuth(request);
   if (authError) return authError;
 
   // Rate limiting (council pipeline is expensive: multiple LLM calls + image gen)

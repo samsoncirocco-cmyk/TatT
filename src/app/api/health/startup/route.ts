@@ -184,6 +184,10 @@ async function checkSecretManager(): Promise<HealthCheck> {
 }
 
 export async function GET(req: NextRequest) {
+  const { verifyApiAuth } = await import('@/lib/api-auth');
+  const authError = await verifyApiAuth(req);
+  if (authError) return authError;
+
   const startTime = Date.now();
 
   // Run all checks in parallel
