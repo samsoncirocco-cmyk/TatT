@@ -225,6 +225,7 @@ jobs:
             OPENROUTER_API_KEY:projects/${{ secrets.GCP_PROJECT_ID }}/secrets/openrouter-api-key/versions/latest
 
       - name: Deploy to Cloud Run
+        id: deploy
         uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: pangyo-production

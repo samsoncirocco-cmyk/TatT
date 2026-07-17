@@ -5,24 +5,39 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** Real artist matching powered by real embeddings, backed by infrastructure that won't break in front of investors or real users.
-**Current focus:** Phase 1 in progress — Firebase Auth + Secret Manager
+**Current focus:** Phase 1 stalled since 2026-02-20 — Firebase Auth + Secret Manager still incomplete. No Phase 1/2 roadmap work has landed since; the intervening ~5 months instead saw a burst of out-of-roadmap work (concentrated 2026-07-14–07-15, see below).
 
 ## Current Phase
 
 **Phase:** 1 — Firebase Auth + Secret Manager
-**Status:** In Progress (1/1+ plans in execution)
-**Next action:** Execute plan 01-02 (Secret Manager integration)
+**Status:** In Progress, stalled (only plan 01-01/3 complete; no forward movement since 2026-02-20)
+**Next action:** Execute plan 01-02 (Edge middleware, Data Access Layer, API route auth migration). Confirmed still not started as of 2026-07-17:
+- `src/middleware.ts` does not exist
+- `'dev-token-change-in-production'` fallback still present in 6 files: `src/features/match-pulse/services/neo4jService.ts`, `src/features/generate/services/multiLayerService.ts`, `src/features/generate/services/replicateService.js`, `src/features/inpainting/services/inpaintingService.ts`, `src/components/SmartMatchContent.jsx`, `src/lib/api-auth.ts`
+- `SecretManagerServiceClient` wired into only 2 files: `src/lib/secret-manager.ts`, `execution/validate_env.py` — not yet used to eliminate the dev-token fallbacks above (plan 01-03 not started)
 
 ## Milestone Progress
 
 | Phase | Name | Status |
 |-------|------|--------|
-| 1 | Firebase Auth + Secret Manager | In Progress (01-01 complete) |
-| 2 | Cloud Run + API Gateway | Planned |
+| 1 | Firebase Auth + Secret Manager | In Progress, stalled (01-01/3 plans complete since 2026-02-20; 01-02 and 01-03 not started) |
+| 2 | Cloud Run + API Gateway | Planned (blocked on Phase 1; not started) |
 | 3 | Firestore + Cloud Storage | **Complete** |
 | 4 | Real Embeddings + Matching | **Complete** |
 | 5 | Analytics + Monitoring | **Complete** (2/2 plans) |
 | 6 | DOE Framework + CI/CD | **Complete** (4/4 plans) |
+
+## Out-of-Roadmap Work (2026-07-14 to 2026-07-15)
+
+Substantial engineering landed on `main` in this window that is **not part of the GCP migration roadmap** (Phases 1-6) and isn't tracked by any phase/plan above. Documented here so it isn't lost. This looks like a separate track — a tattoo-artist scraper/dataset product plus general repo hygiene — running in parallel to, and not displacing, the stalled Phase 1 work.
+
+- **Neo4j 9-node schema migration** (PR #34, merged 2026-07-15) — expanded the artist graph from the original 4-node MVP schema to 9 nodes; both schemas coexist. See `NEO4J_MIGRATION.md` at repo root. Match queries updated to serve both schemas, importer no longer wipes the DB by default, and live Aura credentials that had been accidentally committed were removed from the repo (`7b3e0a8`).
+- **National artist dataset + scraper** (PRs #29, #30, #31, #32, merged 2026-07-15) — new Places-API + shop-site crawler (`733efe4`), an unattended national scrape scheduler processing one city per tick (`46063b0`), parallelized shop crawling with time-budget ticks (`7c0a114`), and the resulting dataset: 6,434 artists / 3,594 shops / 197 cities (`f1c801b`).
+- **Forge UI fix** (PR #33, 2026-07-15) — mounted `ToastProvider` to stop the Forge UI from crashing.
+- **Repo hygiene / dead code removal** (PRs #25, #26, #27, merged 2026-07-14) — removed orphaned service twins, duplicate `ErrorBoundary.jsx`, consolidated `stores/` into `store/`, merged duplicate Next configs, deleted dead legacy page trees, redacted live credentials from `TATT_ENV_REFERENCE.md`, added a Next.js build gate to CI.
+- **Security/rate-limit fixes** (PR #24 and related commits, 2026-07-14) — council pipeline auth/rate-limit/budget guards, rate-limit fails closed on unknown limit types, Cloud Tasks OIDC token verification (replacing a spoofable header), Stripe webhook fails closed when signing secret is missing, internal debug/log endpoint gated behind auth and hidden in production.
+
+**Note:** None of this maps cleanly onto Phases 1-6 (which are GCP infra migration for the design/matching product). It appears to be a distinct initiative — see recommendations in the accompanying triage report for whether it should become an official roadmap track.
 
 ## Key Context
 
@@ -142,4 +157,4 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 - **CLI tool for incident logging** (automates Known Issues entry creation, prevents manual markdown errors)
 
 ---
-*Last updated: 2026-02-20 after Phase 1 Plan 01 completion*
+*Last updated: 2026-07-17 — truth-sync: Phase 1 confirmed still stalled at plan 01-01/3 (no 01-02/01-03 progress since 2026-02-20); documented ~5 months of out-of-roadmap work (Neo4j 9-node migration, national scraper/dataset, repo hygiene, security fixes) that landed on main in parallel*
