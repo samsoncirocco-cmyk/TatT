@@ -9,10 +9,11 @@ _Last updated: 2026-07-17 (house-brain session)_
 
 ## Now (in priority order)
 
-1. **Review PR #40** — wires national dataset into `/artists` and `/matches`.
-   Risk to check (lesson from PR #34): queries must serve BOTH graph schemas —
-   real artists tag directly via `TAGGED_WITH`, have `hourlyRate: null` (never
-   exclude on budget), and have no `Tattoo` nodes. Owner: house-brain session.
+1. **PR #40: address review feedback** — reviewed 2026-07-17 (see PR comment,
+   the review of record): BLOCKER ~11 MB JSON in client bundle via
+   `matches/page.tsx`; rebuild dataset from canonical clean file after item 4
+   lands (drop the duplicate `isNonPerson()` cleaner); fix slug collisions
+   (1,037 shadowed) + unstable ids. Owner: PR author session.
 2. **Enable branch protection on `main`** — require PRs, forbid force/direct
    pushes. Motivated by a near-miss: a stale-clone push right after the
    password history rewrite. Owner: Samson (Settings → Branches) or any agent
