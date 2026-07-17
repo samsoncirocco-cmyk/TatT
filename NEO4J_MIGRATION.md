@@ -107,8 +107,8 @@ NEO4J_DATABASE=c86c5faa
 ```
 NEXT_PUBLIC_NEO4J_ENABLED=true
 NEXT_PUBLIC_NEO4J_ENDPOINT=/api/neo4j/query
-FRONTEND_AUTH_TOKEN=tatt-local-dev-token
-NEXT_PUBLIC_FRONTEND_AUTH_TOKEN=tatt-local-dev-token   # must equal the server token
+FRONTEND_AUTH_TOKEN=<your-local-dev-token>
+NEXT_PUBLIC_FRONTEND_AUTH_TOKEN=<your-local-dev-token>   # must equal the server token
 NEXT_PUBLIC_DEMO_MODE=false
 ```
 
