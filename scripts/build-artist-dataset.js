@@ -68,6 +68,12 @@ const JUNK_NAME = new RegExp(`\\b(${JUNK_ALTERNATIVES.join("|")})\\b`, "i");
 const ADDRESS_LIKE = /\b(rd|st|ave|blvd|dr|ln|suite|ste|#\d|\d{5})\b\.?/i;
 const DATE_LIKE = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b\.?\s*\d/i;
 const SPACED_LETTERS = /^([A-Za-z]\s+){3,}[A-Za-z]$/;
+// Slogans / CTAs / contact strings the scrape captured as names. Note the
+// "Ink for X" slogan is dropped but "Ink By <PersonName>" is kept — the
+// latter is a real branding pattern, so we anchor on for/is/the/your only.
+const SLOGAN_LIKE =
+  /^(ink|tattoo|art|body)\s+(for|is|the|your)\b|\b(welcome|thank\s*you|coming\s+soon|now\s+open|walk-?ins?\s+welcome|stay\s+tuned|follow\s+us|link\s+in|book\s+now)\b|\bdm\b|\btext\s+me\b|send\s+\w+\s+a\s+dm/i;
+const NUMERIC_LIKE = /\d{3}[-.\s]?\d{3}[-.\s]?\d{4}|^\d{6,}$/; // phones / raw ids
 
 function isNonPerson(name) {
   const n = (name || "").trim();
@@ -75,6 +81,8 @@ function isNonPerson(name) {
   if (JUNK_NAME.test(n)) return true;
   if (ADDRESS_LIKE.test(n)) return true;
   if (DATE_LIKE.test(n)) return true;
+  if (SLOGAN_LIKE.test(n)) return true;
+  if (NUMERIC_LIKE.test(n)) return true;
   if (n.split(/\s+/).length > 4) return true; // sentences, not names
   if (SPACED_LETTERS.test(n)) return true; // "M A R I E L" logos
   return false;
