@@ -22,10 +22,11 @@ _Last updated: 2026-07-17 (house-brain session)_
    files (debug route, Stripe webhook, Cloud Tasks auth, council rate-limit,
    TATT_ENV_REFERENCE.md). Keep main's behavior + branch's hardening intent;
    gates: `npm test` + `npm run build`. Unblocks draft PR #39.
-4. **Final scrape run** — last 99 queued cities in flight on house-brain
-   (`~/tatt-scraper`, launchd `com.tatt.scraper`). On DONE: checkpoint
-   (auto-cleans names), regen `data/ink-graph.html`
-   (`scripts/regen-ink-graph.mjs`), PR + merge. Owner: house-brain session.
+4. ~~Final scrape run~~ — **DONE 2026-07-17** (PR #42 merged): 569 cities,
+   0 failures, queue exhausted. Final dataset: **10,427 cleaned artists +
+   11,017 shops** (audit: data/cleanup-report.json). Viz regenerated. Aura
+   synced. Scraper/checkpoint launchd jobs retired. PR #40's rebuild
+   (item 1) can now proceed against this final data.
 
 ## Next
 
