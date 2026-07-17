@@ -7,7 +7,7 @@
  * - Auth header injection
  * - Timeout support
  */
-import { getApiAuthHeaders } from '@/lib/client-api-auth';
+import { getApiAuthHeaders, redirectToSignIn, SignInRequiredError } from '@/lib/client-api-auth';
 
 /**
  * Error codes for typed error handling
@@ -108,7 +108,8 @@ export async function fetchWithAbort(url, options = {}) {
 
       // Map status codes to error codes
       if (response.status === 401) {
-        errorCode = ErrorCodes.AUTH_REQUIRED;
+        errorCode = errorData?.code === 'AUTH_INVALID' ? ErrorCodes.AUTH_INVALID : ErrorCodes.AUTH_REQUIRED;
+        redirectToSignIn();
       } else if (response.status === 403) {
         errorCode = errorData?.code === 'CORS_ERROR' ? ErrorCodes.CORS_ERROR : ErrorCodes.AUTH_INVALID;
       } else if (response.status === 429) {
@@ -124,6 +125,13 @@ export async function fetchWithAbort(url, options = {}) {
 
   } catch (error) {
     clearTimeout(timeoutId);
+
+    // No signed-in user — same redirect as a server-side 401, but caught
+    // before the request even goes out.
+    if (error instanceof SignInRequiredError) {
+      redirectToSignIn();
+      throw new FetchError(error.message, ErrorCodes.AUTH_REQUIRED, null, { aborted: false });
+    }
 
     // Handle abort
     if (error.name === 'AbortError') {
@@ -213,8 +221,10 @@ export function getUserErrorMessage(error) {
       return 'Cannot connect to server. Please check your connection and ensure the backend is running.';
 
     case ErrorCodes.AUTH_REQUIRED:
+      return 'Please sign in to continue.';
+
     case ErrorCodes.AUTH_INVALID:
-      return 'Authentication failed. Please check your configuration.';
+      return 'Your session has expired. Please sign in again.';
 
     case ErrorCodes.RATE_LIMIT:
       return 'Too many requests. Please wait a moment and try again.';
