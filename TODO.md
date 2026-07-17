@@ -18,10 +18,9 @@ _Last updated: 2026-07-17 (house-brain session)_
    pushes. Motivated by a near-miss: a stale-clone push right after the
    password history rewrite. Owner: Samson (Settings → Branches) or any agent
    via `gh api`.
-3. **Reconcile `codex/tatt-security-hardening` with main** — 5 conflicting
-   files (debug route, Stripe webhook, Cloud Tasks auth, council rate-limit,
-   TATT_ENV_REFERENCE.md). Keep main's behavior + branch's hardening intent;
-   gates: `npm test` + `npm run build`. Unblocks draft PR #39.
+3. ~~**Reconcile `codex/tatt-security-hardening` with main**~~ — **DONE
+   2026-07-17**: 5 conflicts reconciled (main behavior + hardening intent);
+   `npm test` + `npm run build` green. PR opened; unblocks draft PR #39.
 4. ~~Final scrape run~~ — **DONE 2026-07-17** (PR #42 merged): 569 cities,
    0 failures, queue exhausted. Final dataset: **10,427 cleaned artists +
    11,017 shops** (audit: data/cleanup-report.json). Viz regenerated. Aura
