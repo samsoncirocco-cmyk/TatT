@@ -4,7 +4,9 @@
 
 ## Goal
 
-Populate the Neo4j graph database and Supabase relational store with artist data from `src/data/artists.json`, establishing nodes (Artist, City, Style, Tag) and relationships (LOCATED_IN, SPECIALIZES_IN, TAGGED_WITH, APPRENTICED_UNDER, INFLUENCED_BY).
+Populate the Neo4j graph database and Supabase relational store with artist data from `src/data/artists.json`, establishing nodes (State, City, Shop, Artist, Style, Tattoo, Instagram, Tag, Website) and relationships (HAS_CITY, HAS_SHOP, HAS_ARTIST, FEATURES_STYLE, SPECIALIZES_IN, CREATED, IN_STYLE, TAGGED_WITH, HAS_INSTAGRAM, FEATURES, HAS_WEBSITE, APPRENTICED_UNDER, INFLUENCED_BY).
+
+Geography is modeled as a hierarchy — `(State)-[:HAS_CITY]->(City)-[:HAS_SHOP]->(Shop)-[:HAS_ARTIST]->(Artist)` — replacing the former flat `(Artist)-[:LOCATED_IN]->(City)` edge. Tags now attach to individual `Tattoo` nodes (`(Tattoo)-[:TAGGED_WITH]->(Tag)`) rather than to artists. `Website` nodes are created only when a URL exists in the source data (none currently).
 
 ## When to Use
 
@@ -45,10 +47,10 @@ Populate the Neo4j graph database and Supabase relational store with artist data
    ```
 
 3. The script will:
-   - Create indexes on Artist.id, City.name, Style.name, Tag.name, and a spatial index on Artist.location
+   - Create indexes on State.name, City.name, Shop.name, Artist.id, Style.name, Tag.name, and a spatial index on Artist.location
    - **Wipe all existing nodes/relationships** (`MATCH (n) DETACH DELETE n`)
-   - Import City and Style reference nodes
-   - Batch-import all artists (25 per batch) with LOCATED_IN, SPECIALIZES_IN, TAGGED_WITH relationships
+   - Import the State → City → Shop geography hierarchy and Style reference nodes
+   - Batch-import all artists (25 per batch), attaching each to its Shop via HAS_ARTIST and creating SPECIALIZES_IN, CREATED, IN_STYLE, TAGGED_WITH, HAS_INSTAGRAM, FEATURES relationships (plus FEATURES_STYLE / HAS_WEBSITE on shops where applicable)
    - Import APPRENTICED_UNDER relationships (from `artist.mentor_id`)
    - Import INFLUENCED_BY relationships (from `artist.influenced_by` arrays)
    - Run verification queries and print node/relationship counts

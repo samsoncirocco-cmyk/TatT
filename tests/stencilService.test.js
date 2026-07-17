@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { STENCIL_SIZES } from '../src/services/stencilService';
+import { STENCIL_SIZES } from '../src/features/stencil/services/stencilService';
 
 describe('Stencil Service', () => {
   describe('STENCIL_SIZES', () => {

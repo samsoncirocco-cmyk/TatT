@@ -6,7 +6,6 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
 import DesignGenerator from '../src/components/DesignGenerator';
 import { ToastProvider } from '../src/contexts/ToastContext';
 import * as replicateService from '../src/services/replicateService';
@@ -74,14 +73,12 @@ vi.mock('../src/config/promptTemplates', async () => {
   };
 });
 
-// Wrapper component for router and toast context
+// Wrapper component for toast context
 function TestWrapper({ children }) {
   return (
-    <BrowserRouter>
-      <ToastProvider>
-        {children}
-      </ToastProvider>
-    </BrowserRouter>
+    <ToastProvider>
+      {children}
+    </ToastProvider>
   );
 }
 

@@ -48,14 +48,28 @@ node scripts/import-to-neo4j.js
 ### Neo4j Graph Schema
 
 ```
+(:State) -[:HAS_CITY]-> (:City)
+(:City) -[:HAS_SHOP]-> (:Shop)
+(:Shop) -[:HAS_ARTIST]-> (:Artist)
+(:Shop) -[:FEATURES_STYLE]-> (:Style)
+(:Shop) -[:HAS_WEBSITE]-> (:Website)        // only when a URL exists
 (:Artist) -[:SPECIALIZES_IN]-> (:Style)
-(:Artist) -[:LOCATED_IN]-> (:City)
-(:Artist) -[:TAGGED_WITH]-> (:Tag)
+(:Artist) -[:CREATED]-> (:Tattoo)
+(:Artist) -[:HAS_INSTAGRAM]-> (:Instagram)
+(:Artist) -[:HAS_WEBSITE]-> (:Website)      // only when a URL exists
+(:Tattoo) -[:IN_STYLE]-> (:Style)
+(:Tattoo) -[:TAGGED_WITH]-> (:Tag)
+(:Instagram) -[:FEATURES]-> (:Tattoo)
+(:Artist) -[:APPRENTICED_UNDER]-> (:Artist)
+(:Artist) -[:INFLUENCED_BY]-> (:Artist)
 ```
 
+Geography is a hierarchy (`State → City → Shop → Artist`), replacing the former flat `(:Artist)-[:LOCATED_IN]->(:City)` edge. Tags now attach to `Tattoo` nodes rather than to artists.
+
 **Indexes created:**
-- `artist_id_index`, `artist_name_index`, `artist_city_index`
-- `city_name_index`, `style_name_index`, `tag_name_index`
+- `state_name_index`, `city_name_index`, `shop_name_index`
+- `artist_id_index`, `artist_name_index`
+- `style_name_index`, `tag_name_index`
 - `artist_location_index` (spatial, uses Neo4j Point type)
 
 ## Data Shape

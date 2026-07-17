@@ -31,17 +31,29 @@ npm install neo4j-driver --legacy-peer-deps
 - Sample query verification
 
 **Schema Implemented:**
-- **Nodes:** Artist (100), City (20), Style (15), Tag (59)
+- **Nodes:** State, City (20), Shop, Artist (100), Style (15), Tattoo, Instagram, Tag (59), Website
 - **Relationships:**
-  - LOCATED_IN (100) - Artist to City
+  - HAS_CITY - State to City
+  - HAS_SHOP - City to Shop
+  - HAS_ARTIST - Shop to Artist
+  - FEATURES_STYLE - Shop to Style
   - SPECIALIZES_IN (198) - Artist to Style (artists can have multiple styles)
-  - TAGGED_WITH (563) - Artist to Tag (descriptive keywords)
+  - CREATED - Artist to Tattoo
+  - IN_STYLE - Tattoo to Style
+  - TAGGED_WITH (563) - Tattoo to Tag (descriptive keywords)
+  - HAS_INSTAGRAM - Artist to Instagram
+  - FEATURES - Instagram to Tattoo
+  - HAS_WEBSITE - Shop/Artist to Website (only when a URL exists; none currently)
+  - APPRENTICED_UNDER / INFLUENCED_BY - Artist to Artist
+
+> **Geography is a hierarchy:** `(State)-[:HAS_CITY]->(City)-[:HAS_SHOP]->(Shop)-[:HAS_ARTIST]->(Artist)`, replacing the former flat `(Artist)-[:LOCATED_IN]->(City)` edge. Tags now attach to `Tattoo` nodes, not to artists.
 
 **Indexes Created:**
+- `state_name_index` - State lookups
+- `city_name_index` - City lookups
+- `shop_name_index` - Shop lookups
 - `artist_id_index` - Primary key lookup
 - `artist_name_index` - Name searches
-- `artist_city_index` - City filtering
-- `city_name_index` - City lookups
 - `style_name_index` - Style filtering
 - `tag_name_index` - Tag searches
 - `artist_location_index` - Spatial/distance queries (uses Point data type)
@@ -113,7 +125,7 @@ NEO4J_PASSWORD=your_neo4j_password_here
   ✓ Cities: 20
   ✓ Styles: 15
   ✓ Tags: 59
-  ✓ LOCATED_IN relationships: 100
+  ✓ HAS_ARTIST relationships: 100
   ✓ SPECIALIZES_IN relationships: 198
   ✓ TAGGED_WITH relationships: 563
 ✅ Import completed successfully!
@@ -125,35 +137,36 @@ NEO4J_PASSWORD=your_neo4j_password_here
 
 ### Artist Node Properties
 
-All properties from `artists.json` are preserved:
+Core artist attributes remain on the `Artist` node. The former flat `shopName`, `city`, `state`, and `instagram` fields are now modeled as first-class nodes reached via relationships (`Shop`, `City`, `State`, `Instagram`) rather than string properties:
 
 ```javascript
 {
   id: Integer,              // Unique identifier
   name: String,             // Artist name
-  shopName: String,         // Tattoo shop name
-  city: String,             // Phoenix, Scottsdale, etc.
-  state: String,            // AZ
   location: Point,          // Spatial coordinates for distance queries
   lat: Float,               // Latitude (33.4484, etc.)
   lng: Float,               // Longitude (-112.074, etc.)
-  instagram: String,        // @username
   hourlyRate: Integer,      // USD per hour
   rating: Float,            // 0-5 stars
   reviewCount: Integer,     // Number of reviews
   bio: String,              // Artist biography
   yearsExperience: Integer, // Years of experience
-  bookingAvailable: Boolean,// Availability status
-  portfolioImages: Array    // [url1, url2, url3]
+  bookingAvailable: Boolean // Availability status
 }
 ```
+
+Related nodes reached from an Artist:
+- **Shop / City / State** — `(:State)-[:HAS_CITY]->(:City)-[:HAS_SHOP]->(:Shop)-[:HAS_ARTIST]->(a)` (was the flat `shopName` / `city` / `state` properties)
+- **Instagram** — `(a)-[:HAS_INSTAGRAM]->(:Instagram)` (was the flat `instagram` property)
+- **Tattoo** — `(a)-[:CREATED]->(:Tattoo)`, with portfolio images and tags carried on the `Tattoo` nodes (was the flat `portfolioImages` array)
+- **Website** — `(a)-[:HAS_WEBSITE]->(:Website)` (only when a URL exists; none currently)
 
 ### Relationships Support Matching Algorithm
 
 The Neo4j schema is designed to support TatTester's matching algorithm:
 
 1. **Style Overlap (40%)** - `SPECIALIZES_IN` relationships
-2. **Keyword Match (25%)** - `TAGGED_WITH` relationships
+2. **Keyword Match (25%)** - `TAGGED_WITH` relationships on the artist's `Tattoo` nodes (traverse `(a)-[:CREATED]->(:Tattoo)-[:TAGGED_WITH]->(:Tag)`)
 3. **Distance (15%)** - Spatial `location` property with Point index
 4. **Budget Fit (10%)** - `hourlyRate` property
 5. **Random Quality (10%)** - Implemented in application layer
@@ -172,9 +185,9 @@ RETURN a
 ### Find Artists by City and Style
 
 ```cypher
-MATCH (a:Artist)-[:LOCATED_IN]->(c:City {name: 'Phoenix'})
+MATCH (c:City {name: 'Phoenix'})-[:HAS_SHOP]->(shop:Shop)-[:HAS_ARTIST]->(a:Artist)
 MATCH (a)-[:SPECIALIZES_IN]->(s:Style {name: 'Traditional'})
-RETURN a.name, a.shopName, a.hourlyRate, a.rating
+RETURN a.name, shop.name AS shopName, a.hourlyRate, a.rating
 ORDER BY a.rating DESC
 ```
 
@@ -184,7 +197,8 @@ ORDER BY a.rating DESC
 WITH point({latitude: 33.4484, longitude: -112.074}) AS userLocation
 MATCH (a:Artist)
 WHERE point.distance(a.location, userLocation) < 50000
-RETURN a.name, a.city,
+OPTIONAL MATCH (c:City)-[:HAS_SHOP]->(:Shop)-[:HAS_ARTIST]->(a)
+RETURN a.name, c.name AS city,
        round(point.distance(a.location, userLocation) / 1000) AS distanceKm
 ORDER BY distanceKm
 LIMIT 10
@@ -206,7 +220,7 @@ OPTIONAL MATCH (a)-[:SPECIALIZES_IN]->(s:Style)
 WHERE s.name IN userStyles
 WITH a, userLocation, userKeywords, count(DISTINCT s) AS styleScore
 
-OPTIONAL MATCH (a)-[:TAGGED_WITH]->(t:Tag)
+OPTIONAL MATCH (a)-[:CREATED]->(:Tattoo)-[:TAGGED_WITH]->(t:Tag)
 WHERE t.name IN userKeywords
 WITH a, userLocation, styleScore, count(DISTINCT t) AS keywordScore
 
@@ -218,7 +232,9 @@ WITH a,
      keywordScore * 0.25 AS keywordWeight,
      (50 - CASE WHEN distanceKm > 50 THEN 50 ELSE distanceKm END) * 0.15 AS distanceWeight
 
-RETURN a.name, a.shopName, a.hourlyRate, a.rating,
+OPTIONAL MATCH (:Shop)-[:HAS_ARTIST]->(a)
+WITH a, styleWeight, keywordWeight, distanceWeight
+RETURN a.name, a.hourlyRate, a.rating,
        round((styleWeight + keywordWeight + distanceWeight) * 100) AS matchPercentage
 ORDER BY matchPercentage DESC
 LIMIT 20
@@ -328,9 +344,9 @@ WHERE point.distance(a.location, userLocation) < 50000
 - ✅ 20 cities (Phoenix, Scottsdale, Tucson, etc.)
 - ✅ 15 styles (Traditional, Realism, Watercolor, etc.)
 - ✅ 59 unique tags (dragon, colorful, geometric, etc.)
-- ✅ 100 LOCATED_IN relationships (1 per artist)
+- ✅ 100 HAS_ARTIST relationships (1 shop→artist edge per artist)
 - ✅ 198 SPECIALIZES_IN relationships (avg 2 styles per artist)
-- ✅ 563 TAGGED_WITH relationships (avg 5-6 tags per artist)
+- ✅ 563 TAGGED_WITH relationships (avg 5-6 tags per tattoo)
 
 ### Sample Query Results
 - ✅ Style + City matching works (Traditional in Phoenix)
