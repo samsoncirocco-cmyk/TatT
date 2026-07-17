@@ -41,13 +41,37 @@ export default async function ArtistProfilePage({
       <div className="px-6 md:px-12 py-12 md:py-16">
         <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12 items-start">
           <div className="md:col-span-5">
-            <div className="aspect-[3/4] bg-bone border-2 hairline relative overflow-hidden">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={artist.portfolioImages[0]}
-                alt={`${artist.name} portfolio work`}
-                className="absolute inset-0 w-full h-full object-cover"
-              />
+            <div
+              className={`aspect-[3/4] ${
+                artist.portfolioImages[0] ? "bg-bone" : "bg-pink-deep"
+              } border-2 hairline relative overflow-hidden`}
+            >
+              {artist.portfolioImages[0] ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={artist.portfolioImages[0]}
+                  alt={`${artist.name} portfolio work`}
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              ) : (
+                // No portfolio image scraped — monogram fallback, matching
+                // the artist cards.
+                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-b from-transparent to-black/60">
+                  <span
+                    aria-hidden="true"
+                    className="font-display text-[96px] leading-none tracking-wide text-black/25 select-none"
+                  >
+                    {artist.name
+                      .trim()
+                      .split(/\s+/)
+                      .filter(Boolean)
+                      .slice(0, 2)
+                      .map((p) => p[0])
+                      .join("")
+                      .toUpperCase() || "?"}
+                  </span>
+                </div>
+              )}
               <span className="absolute bottom-3 left-3 text-[9px] uppercase tracking-[0.2em] font-body bg-cream text-black px-2 py-1">
                 {artist.styles[0]}
               </span>
@@ -96,13 +120,21 @@ export default async function ArtistProfilePage({
               )}
             </p>
 
-            {/* STAT ROW */}
-            <div className="mt-10 grid grid-cols-3 max-w-md border-t hairline pt-6 gap-6">
-              {[
-                [`${artist.yearsExperience}yr`, "Experience"],
-                [`${artist.reviewCount}`, "Reviews"],
-                [`$${artist.hourlyRate}/hr`, "Rate"],
-              ].map(([n, label]) => (
+            {/* STAT ROW — only fields we actually have. Scraped artists
+                have no hourlyRate/yearsExperience, so those stats are
+                omitted rather than shown as "$null/hr". */}
+            <div className="mt-10 flex flex-wrap max-w-md border-t hairline pt-6 gap-x-10 gap-y-6">
+              {(
+                [
+                  artist.yearsExperience != null
+                    ? [`${artist.yearsExperience}yr`, "Experience"]
+                    : null,
+                  [`${artist.reviewCount}`, "Reviews"],
+                  artist.hourlyRate != null
+                    ? [`$${artist.hourlyRate}/hr`, "Rate"]
+                    : null,
+                ].filter(Boolean) as [string, string][]
+              ).map(([n, label]) => (
                 <div key={label}>
                   <div className="font-display text-[30px] sm:text-[38px] leading-none text-pink tabular-nums">
                     {n}
@@ -126,7 +158,8 @@ export default async function ArtistProfilePage({
         </div>
       </div>
 
-      {/* PORTFOLIO GRID */}
+      {/* PORTFOLIO GRID — only when the artist has scraped images. */}
+      {artist.portfolioImages.length > 0 && (
       <div className="px-6 md:px-12 pb-32">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-baseline justify-between mb-6">
@@ -170,6 +203,7 @@ export default async function ArtistProfilePage({
           </div>
         </div>
       </div>
+      )}
 
       {/* FLOATING CTA */}
       <div className="sticky bottom-6 z-30 px-6 md:px-12 pointer-events-none">
