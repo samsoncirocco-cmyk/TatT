@@ -46,6 +46,11 @@ export async function POST(req: NextRequest) {
     const rawBody = await req.text();
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
     const placeholderMode = !webhookSecret || webhookSecret.startsWith('whsec_PLACEHOLDER');
+    const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+
+    if (placeholderMode && !demoMode) {
+      return NextResponse.json({ error: 'Stripe webhook is not configured.' }, { status: 503 });
+    }
 
     if (!placeholderMode) {
       const signatureHeader = req.headers.get('stripe-signature');

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyApiAuth } from '@/lib/api-auth';
 
 export const runtime = 'nodejs';
 
@@ -43,6 +44,9 @@ function getBaseUrl(req: NextRequest): string {
 }
 
 export async function POST(req: NextRequest) {
+  const authError = await verifyApiAuth(req);
+  if (authError) return authError;
+
   try {
     const body = (await req.json()) as Partial<CheckoutPayload>;
     const {
@@ -70,6 +74,10 @@ export async function POST(req: NextRequest) {
     const demoStripeMode = stripeSecretKey.startsWith('sk_test_PLACEHOLDER') || !stripeSecretKey;
 
     if (demoStripeMode) {
+      if (process.env.NEXT_PUBLIC_DEMO_MODE !== 'true') {
+        return NextResponse.json({ error: 'Payments are not configured.' }, { status: 503 });
+      }
+
       const demoParams = new URLSearchParams({
         demo: 'true',
         artist: artistName,

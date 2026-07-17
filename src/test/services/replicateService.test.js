@@ -1,5 +1,9 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('@/lib/client-api-auth', () => ({
+  getApiAuthHeaders: vi.fn().mockResolvedValue({ Authorization: 'Bearer test-firebase-token' })
+}));
+
 vi.mock('../../services/fetchWithAbort.js', async () => {
   const actual = await vi.importActual('../../services/fetchWithAbort.js');
   return {

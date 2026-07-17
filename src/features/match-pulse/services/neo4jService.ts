@@ -4,6 +4,7 @@
  * Handles Neo4j database queries for artist matching.
  * Provides a feature-flagged alternative to JS-based matching.
  */
+import { getApiAuthHeaders } from '@/lib/client-api-auth';
 
 // Type Definitions
 export interface ArtistPreferences {
@@ -164,11 +165,12 @@ async function executeCypherQuery(query: string, params: Record<string, any> = {
     }
 
     try {
+        const authHeaders = await getApiAuthHeaders();
         const response = await fetch(NEO4J_ENDPOINT, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${process.env.NEXT_PUBLIC_FRONTEND_AUTH_TOKEN || 'dev-token-change-in-production'}`
+                ...authHeaders
             },
             body: JSON.stringify({ query, params })
         });

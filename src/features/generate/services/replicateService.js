@@ -21,11 +21,11 @@ import {
   isErrorCode
 } from '@/services/fetchWithAbort';
 import { routeGeneration } from '@/services/generationRouter';
+import { getApiAuthHeaders } from '@/lib/client-api-auth';
 
 // Proxy server configuration (injected via env)
 // Use Next.js relative API path
 const PROXY_URL = '/api';
-const AUTH_TOKEN = process.env.NEXT_PUBLIC_FRONTEND_AUTH_TOKEN || 'dev-token-change-in-production';
 console.log('[Replicate] Service Config:', { PROXY_URL, demoMode: process.env.NEXT_PUBLIC_DEMO_MODE });
 const VERTEX_GENERATE_URL = '/api/v1/generate';
 
@@ -395,6 +395,7 @@ export async function generateTattooDesign(userInput, modelId = null, signal = n
       predictionInput.output_quality = 100;
     }
 
+    const authHeaders = await getApiAuthHeaders();
     const prediction = await postJSON(
       `${PROXY_URL}/predictions`,
       {
@@ -402,9 +403,7 @@ export async function generateTattooDesign(userInput, modelId = null, signal = n
         input: predictionInput
       },
       {
-        headers: {
-          Authorization: `Bearer ${AUTH_TOKEN}`
-        }
+        headers: authHeaders
       }
     );
 
@@ -439,9 +438,7 @@ export async function generateTattooDesign(userInput, modelId = null, signal = n
 
       result = await fetchJSON(`${PROXY_URL}/predictions/${prediction.id}`, {
         signal,
-        headers: {
-          Authorization: `Bearer ${AUTH_TOKEN}`
-        }
+        headers: authHeaders
       });
       attempts++;
 

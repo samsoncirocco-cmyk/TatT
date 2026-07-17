@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
     const reqLogger = createRequestLogger('generate');
 
     // Auth check
-    const authError = verifyApiAuth(req);
+    const authError = await verifyApiAuth(req);
     if (authError) return authError;
 
     // ─── DEMO MODE ─────────────────────────────────────────────────────────

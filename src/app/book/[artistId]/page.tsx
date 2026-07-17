@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useBookingStore, type Booking } from '@/store/useBookingStore';
 import { useMatchStore } from '@/store/useMatchStore';
+import { getApiAuthHeaders } from '@/lib/client-api-auth';
 
 // ─── Demo Data ─────────────────────────────────────────────────────────────
 const DEMO_TIMES = ['10:00 AM', '11:30 AM', '1:00 PM', '2:30 PM', '4:00 PM', '5:30 PM'];
@@ -629,10 +630,12 @@ export default function BookArtistPage() {
     setDepositAmount(deposit);
 
     try {
+      const authHeaders = await getApiAuthHeaders();
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...authHeaders,
         },
         body: JSON.stringify({
           artistId,

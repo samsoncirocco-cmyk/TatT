@@ -49,7 +49,7 @@ Successfully resolved CORS and authentication issues between Vercel frontend and
 ### Railway (Backend)
 ```bash
 REPLICATE_API_TOKEN=your_replicate_token
-FRONTEND_AUTH_TOKEN=3d3653169a47c4bc0d9678e36bb6b5bb469928efa51dbcc9b477a55170432272
+FRONTEND_AUTH_TOKEN=[REDACTED-ROTATED]
 HOST=0.0.0.0
 ALLOWED_ORIGINS=https://tat-t-3x8t.vercel.app
 VERCEL_URL=https://tat-t-3x8t.vercel.app
@@ -58,7 +58,7 @@ VERCEL_URL=https://tat-t-3x8t.vercel.app
 ### Vercel (Frontend)
 ```bash
 VITE_PROXY_URL=https://tatt-production.up.railway.app/api
-VITE_FRONTEND_AUTH_TOKEN=3d3653169a47c4bc0d9678e36bb6b5bb469928efa51dbcc9b477a55170432272
+VITE_FRONTEND_AUTH_TOKEN=[REDACTED-ROTATED]
 ```
 
 ## Key Improvements

@@ -53,6 +53,23 @@ on:
   workflow_dispatch:
 
 jobs:
+  secret-scan:
+    name: Scan for committed secrets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Scan tracked files
+        run: node scripts/security/scan-secrets.mjs
+
   lint:
     name: Lint Code
     runs-on: ubuntu-latest

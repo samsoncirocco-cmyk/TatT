@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
 
 interface User {
     uid: string;
@@ -19,7 +18,6 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>()(
-    persist(
         (set) => ({
             token: null,
             user: null,
@@ -40,12 +38,5 @@ export const useAuthStore = create<AuthState>()(
             updateUser: (updates) => set((state) => ({
                 user: state.user ? { ...state.user, ...updates } : null
             })),
-        }),
-        {
-            name: 'tatt-auth-storage',
-            storage: createJSONStorage(() => localStorage),
-            // Optional: partialize if we only want to persist some fields
-            // partialize: (state) => ({ token: state.token, user: state.user }),
-        }
-    )
+        })
 );

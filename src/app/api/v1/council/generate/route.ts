@@ -26,8 +26,9 @@
  *   }
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { verifyApiAuth } from '@/lib/api-auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -265,7 +266,10 @@ async function generateImage(prompt: string, brief: any, references: string[]) {
 // Route handler
 // ---------------------------------------------------------------------------
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const authError = await verifyApiAuth(request);
+  if (authError) return authError;
+
   try {
     const body = await request.json();
     const customerText: string = (body?.customerText ?? body?.prompt ?? '').toString().trim();

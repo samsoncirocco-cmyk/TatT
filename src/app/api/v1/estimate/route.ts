@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     const reqLogger = createRequestLogger('estimate');
 
     // Auth check
-    const authError = verifyApiAuth(req);
+    const authError = await verifyApiAuth(req);
     if (authError) return authError;
 
     // Rate limiting (more restrictive - vision API is expensive)

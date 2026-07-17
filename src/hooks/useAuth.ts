@@ -82,6 +82,11 @@ export function useAuth() {
     }
   }, [clearStore]);
 
+  const getIdToken = useCallback(async () => {
+    const { getCurrentUser } = await import('@/services/authService');
+    return getCurrentUser()?.getIdToken() ?? null;
+  }, []);
+
   return {
     user,
     loading,
@@ -91,5 +96,6 @@ export function useAuth() {
     loginWithEmail,
     signUpEmail,
     logout,
+    getIdToken,
   };
 }

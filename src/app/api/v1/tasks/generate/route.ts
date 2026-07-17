@@ -3,6 +3,7 @@ import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import '../../../../../lib/auth-dal';
 import { generateWithImagen } from '../../../../../services/vertex-ai-edge';
 import { uploadGeneratedImage } from '../../../../../services/storage/imageStorageService';
+import { verifyCloudTaskRequest } from '../../../../../lib/cloud-tasks-auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -27,6 +28,10 @@ function decodeDataUrl(dataUrl: string): { bytes: Uint8Array; mimeType: string }
 }
 
 export async function POST(req: NextRequest) {
+  if (!(await verifyCloudTaskRequest(req))) {
+    return NextResponse.json({ error: 'Invalid Cloud Tasks identity' }, { status: 401 });
+  }
+
   const taskName = req.headers.get('x-cloudtasks-taskname');
   if (!taskName) {
     return NextResponse.json({ error: 'Missing Cloud Tasks headers' }, { status: 401 });

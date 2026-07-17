@@ -101,6 +101,7 @@ export async function enqueueGenerationTask(userId: string, payload: EnqueuePayl
         body,
         oidcToken: {
           serviceAccountEmail,
+          audience: process.env.CLOUD_TASKS_AUDIENCE || taskUrl,
         },
       },
     },
@@ -124,4 +125,3 @@ export async function getQueueStatus(userId: string): Promise<{ pendingTasks: nu
   const [tasks] = await client.listTasks({ parent });
   return { pendingTasks: tasks?.length ?? 0 };
 }
-

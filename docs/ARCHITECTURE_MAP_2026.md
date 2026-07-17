@@ -24,11 +24,11 @@ TatT (codename "manama" / "pangyo") is a **full-stack tattoo design platform** t
 | State Management | Zustand v5 (persisted to localStorage) |
 | Animation | Framer Motion v12 |
 | Canvas | Konva + react-konva |
-| Auth | Firebase Auth v12 + next-firebase-auth-edge |
+| Auth | Firebase Auth v12 + route-level Firebase ID token verification |
 | Primary AI (images) | Vertex AI Imagen 3 (imagegeneration@006) |
 | Secondary AI (images) | Replicate (SDXL, DreamShaper, Niji SE, Flash Art) |
 | LLM Council | Vertex AI Gemini 2.0 Flash (primary), OpenRouter (fallback) |
-| Graph Database | Neo4j Aura (neo4j+s://36767c9d.databases.neo4j.io) |
+| Graph Database | Neo4j integration disabled; prior Aura instance is no longer reachable |
 | Relational/Vector DB | Supabase (PostgreSQL + pgvector) |
 | File Storage | Google Cloud Storage |
 | Document DB / RT | Firebase Firestore + Realtime Database |
@@ -463,11 +463,9 @@ Token stored in useAuthStore (Zustand → localStorage)
 - Real type errors in API routes or services will reach production undetected
 - **Fix: Remove `ignoreBuildErrors`, fix all TS errors, then enable `strict: true` gradually.**
 
-**P1-6: Auth Token Stored in localStorage (XSS Risk)**
-- `useAuthStore.ts` persists the Firebase token to localStorage via Zustand persist middleware
-- Any XSS vulnerability in the app gives attackers the auth token
-- Standard practice is httpOnly cookies (which `next-firebase-auth-edge` supports)
-- **Fix: Switch to httpOnly cookie-based auth via next-firebase-auth-edge. Remove token from Zustand localStorage.**
+**P1-6: Auth Token Stored in localStorage (Resolved 2026-07-17)**
+- Auth state is memory-only and browser API calls obtain a fresh Firebase ID token.
+- Protected routes verify Firebase signatures directly; no shared public token is used.
 
 **P1-7: LLM Council Always in Demo Mode**
 - `VITE_COUNCIL_DEMO_MODE=true` in `.env` (the VITE prefix means it's never read by Next.js)
@@ -561,10 +559,10 @@ Token stored in useAuthStore (Zustand → localStorage)
 |---|---|---|
 | P1-1 | Audit all `VITE_*` env references → replace with `NEXT_PUBLIC_*` | 2 hrs |
 | P1-2 | Verify embedding dimensions in Supabase. Re-seed if needed. | 1 hr |
-| P1-3 | Generate `FRONTEND_AUTH_TOKEN` and set in Railway env | 15 min |
+| P1-3 | ~~Generate shared frontend token~~ Replaced with Firebase ID tokens | Done |
 | P1-4 | Delete `src/pages/`, `src/features/`, `src/App.jsx`, `src/main.jsx` | 1 hr |
 | P1-5 | Remove `ignoreBuildErrors: true`, fix TS errors | 3-4 hrs |
-| P1-6 | Auth token → httpOnly cookies via next-firebase-auth-edge | 2 hrs |
+| P1-6 | Remove persisted/shared auth tokens and verify Firebase ID tokens | Done |
 | P1-7 | Set `NEXT_PUBLIC_VERTEX_AI_ENABLED=true`, `NEXT_PUBLIC_COUNCIL_DEMO_MODE=false` | 15 min |
 | P1-8 | Move budget tracking to server-side API route middleware | 2 hrs |
 

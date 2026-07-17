@@ -3,6 +3,7 @@ import {
     queueStencilExport,
     type StencilExportRequest,
 } from '@/services/emailQueueService';
+import { verifyApiAuth } from '@/lib/api-auth';
 
 export const runtime = 'nodejs';
 
@@ -11,6 +12,9 @@ type StencilExportBody = StencilExportRequest & {
 };
 
 export async function POST(req: NextRequest) {
+    const authError = await verifyApiAuth(req);
+    if (authError) return authError;
+
     const start = Date.now();
 
     try {

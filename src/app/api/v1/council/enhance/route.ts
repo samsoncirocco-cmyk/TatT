@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { enhancePrompt } from '@/services/councilService';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
     // Council route might be public or protected. server.js had it protected.
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     try {
         // Re-import verifyApiAuth since I forgot it at top
         const { verifyApiAuth } = await import('@/lib/api-auth');
-        const authError = verifyApiAuth(req);
+        const authError = await verifyApiAuth(req);
         if (authError) return authError;
 
         const body = await req.json();

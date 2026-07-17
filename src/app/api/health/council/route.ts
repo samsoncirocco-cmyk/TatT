@@ -1,16 +1,16 @@
 /**
  * AI Council Health Probe
  *
- * Unauthenticated health endpoint for uptime monitors. Probes Vertex AI and
+ * Authenticated deep health endpoint. Probes Vertex AI and
  * OpenRouter with a minimal 5-second-timeout enhancement request and reports
  * status per-provider plus an overall verdict.
  *
- * TODO: This endpoint is intentionally unauthenticated (it's a health probe).
- * No rate-limit infrastructure exists in this repo for unauthenticated routes
- * — wire one up here if/when added (e.g. IP-based via middleware).
+ * This route can incur provider costs and must not be used as a public uptime
+ * endpoint. Use /api/health for public liveness checks.
  */
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { enhancePrompt } from '@/services/councilService';
+import { verifyApiAuth } from '@/lib/api-auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -78,7 +78,10 @@ async function probeProvider(
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authError = await verifyApiAuth(req);
+  if (authError) return authError;
+
   // Probe Vertex only (disable OpenRouter for this probe)
   const vertex = await probeProvider({
     COUNCIL_VERTEX_AI_ENABLED: 'true',

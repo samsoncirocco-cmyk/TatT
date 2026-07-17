@@ -6,9 +6,9 @@
  * by uploading derived layers to backend storage.
  */
 
+import { getApiAuthHeaders } from '@/lib/client-api-auth';
+
 const PROXY_URL = '/api';
-const AUTH_TOKEN =
-  process.env.NEXT_PUBLIC_FRONTEND_AUTH_TOKEN || 'dev-token-change-in-production';
 
 type LayerType = 'subject' | 'background' | 'effect';
 
@@ -27,11 +27,12 @@ export interface LayerSpec {
 }
 
 async function uploadLayer(dataUrl: string, filename: string): Promise<string> {
+  const authHeaders = await getApiAuthHeaders();
   const response = await fetch(`${PROXY_URL}/v1/upload-layer`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${AUTH_TOKEN}`
+      ...authHeaders
     },
     body: JSON.stringify({
       imageData: dataUrl,
@@ -275,4 +276,3 @@ export function shouldUseMultiLayer(result: any) {
   if (result.metadata?.rgbaReady) return true;
   return false;
 }
-
