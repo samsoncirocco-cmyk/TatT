@@ -7,7 +7,7 @@
 
 import { searchSimilar } from '@/services/vectorDbService';
 import { VECTOR_DB_CONFIG } from '@/config/vectorDbConfig';
-import { findMatchingArtists as findGraphArtists, findArtistsByEmbeddingIds } from './neo4jService';
+import { findMatchingArtists as findGraphArtists, findArtistsByEmbeddingIds, isNeo4jEnabled } from './neo4jService';
 import {
     calculateCompositeScore,
     generateMatchReasoning,
@@ -24,6 +24,7 @@ export interface QueryPreferences {
     budget?: number | null;
     keywords?: string[];
     distance?: number;
+    hasPortfolio?: boolean;
 }
 
 export interface VectorSearchResult {
@@ -72,6 +73,10 @@ export interface MatchResult {
         keywords: string[];
         vectorResultCount: number;
         graphResultCount: number;
+        /** True when the vector half was unavailable (graph-only results). */
+        degraded: boolean;
+        /** 'live' = real Neo4j graph; 'mock' = built-in demo artists. */
+        graphSource: 'live' | 'mock';
     };
     performance: {
         totalTime: number;
@@ -137,6 +142,11 @@ async function generateQueryEmbedding(query: string): Promise<number[]> {
     }
 }
 
+// Vector infrastructure (Vertex embeddings + Supabase pgvector) may be
+// entirely absent. Cap how long the vector half may take so it can never
+// hang the request — on timeout we proceed graph-only.
+const VECTOR_SOFT_TIMEOUT_MS = 3000;
+
 /**
  * Execute vector similarity search
  */
@@ -157,6 +167,26 @@ async function executeVectorSearch(query: string, topK: number = 20): Promise<Ve
         const message = error instanceof Error ? error.message : 'Unknown error';
         console.error('[HybridMatch] Vector search failed:', message);
         return [];
+    }
+}
+
+/**
+ * Vector search that fails soft: resolves [] on timeout instead of
+ * hanging or rejecting, so graph-only matching always proceeds.
+ */
+async function executeVectorSearchSoft(query: string, topK: number = 20): Promise<VectorSearchResult[]> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<VectorSearchResult[]>((resolve) => {
+        timer = setTimeout(() => {
+            console.warn(`[HybridMatch] Vector search exceeded ${VECTOR_SOFT_TIMEOUT_MS}ms — degrading to graph-only`);
+            resolve([]);
+        }, VECTOR_SOFT_TIMEOUT_MS);
+    });
+
+    try {
+        return await Promise.race([executeVectorSearch(query, topK), timeout]);
+    } finally {
+        clearTimeout(timer);
     }
 }
 
@@ -245,7 +275,10 @@ export async function findMatchingArtists(
     maxResults: number = 10
 ): Promise<MatchResult> {
     const startTime = performance.now();
-    const TIMEOUT_MS = 500;
+    // Live Aura round-trips (plus a possible vector attempt) routinely take
+    // longer than the old 500ms budget; keep a hard ceiling well above the
+    // vector soft timeout so real graph queries are never killed mid-flight.
+    const TIMEOUT_MS = 10000;
 
     // Check cache first
     const cacheKey = JSON.stringify({ query, preferences, maxResults });
@@ -276,7 +309,7 @@ export async function findMatchingArtists(
 
                 // Execute vector and graph queries in parallel
                 const [vectorResults, graphResults] = await Promise.all([
-                    executeVectorSearch(query, 20),
+                    executeVectorSearchSoft(query, 20),
                     executeGraphQuery({
                         ...preferences,
                         keywords: keywords
@@ -293,6 +326,14 @@ export async function findMatchingArtists(
 
                 console.log(`[HybridMatch] Merged results: ${mergedResults.length}`);
 
+                // Graph-only degradation: when the vector half returned
+                // nothing, zero its weight so real graph signals aren't
+                // deflated by a uniformly-absent visualSimilarity.
+                const vectorDegraded = vectorResults.length === 0;
+                const weights = vectorDegraded
+                    ? { ...DEFAULT_WEIGHTS, visualSimilarity: 0 }
+                    : DEFAULT_WEIGHTS;
+
                 // Calculate composite scores for each artist
                 const scoredArtists = mergedResults.map((artist: any): MatchedArtist => {
                     // Gather all scoring signals
@@ -305,7 +346,7 @@ export async function findMatchingArtists(
                     };
 
                     // Calculate composite score
-                    const { score, breakdown } = calculateCompositeScore(signals, DEFAULT_WEIGHTS) as { score: number; breakdown: Record<string, unknown> };
+                    const { score, breakdown } = calculateCompositeScore(signals, weights) as { score: number; breakdown: Record<string, unknown> };
 
                     // Generate match reasoning
                     const reasons = generateMatchReasoning(signals, artist, preferences);
@@ -345,7 +386,11 @@ export async function findMatchingArtists(
                         visualConcepts,
                         keywords,
                         vectorResultCount: vectorResults.length,
-                        graphResultCount: graphResults.length
+                        graphResultCount: graphResults.length,
+                        degraded: vectorDegraded,
+                        graphSource: (isNeo4jEnabled() && process.env.NEXT_PUBLIC_DEMO_MODE !== 'true')
+                            ? 'live' as const
+                            : 'mock' as const
                     },
                     performance: {
                         totalTime: Math.round(totalTime),

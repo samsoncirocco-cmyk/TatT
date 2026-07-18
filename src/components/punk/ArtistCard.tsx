@@ -25,6 +25,7 @@ type CommonProps = {
   color: string;            // tailwind bg class, e.g. "bg-pink"
   image?: string;           // portfolio image URL; when set, replaces the color block
   href?: string;            // defaults to /artists/${slug}
+  external?: boolean;       // opens href in a new tab (e.g. Instagram profiles)
   showFavorite?: boolean;   // defaults to false; /artists + /matches pass true
   favoriteSize?: number;    // forwards to FavoriteButton
   favoritePosition?: "top-right" | "top-left";
@@ -60,6 +61,7 @@ export default function ArtistCard(props: Props) {
     color,
     image,
     href = `/artists/${slug}`,
+    external = false,
     showFavorite = false,
     favoriteSize,
     favoritePosition = "top-right",
@@ -72,7 +74,11 @@ export default function ArtistCard(props: Props) {
 
   return (
     <div className="relative group">
-      <Link href={href} className="block press">
+      <Link
+        href={href}
+        className="block press"
+        {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+      >
         <div
           className={`aspect-[3/4] ${image ? "bg-bone" : color} ${tileBorder} relative overflow-hidden`}
         >

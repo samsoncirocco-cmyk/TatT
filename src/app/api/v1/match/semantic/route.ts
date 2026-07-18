@@ -17,7 +17,8 @@ export async function POST(req: NextRequest) {
             style_preferences = [],
             budget,
             radius = 25,
-            max_results = 10
+            max_results = 10,
+            has_portfolio = false
         } = body;
 
         // Build preferences object
@@ -25,7 +26,8 @@ export async function POST(req: NextRequest) {
             location: location || null,
             styles: style_preferences,
             budget: budget || null,
-            distance: radius
+            distance: radius,
+            hasPortfolio: !!has_portfolio
         };
 
         // Execute hybrid matching
