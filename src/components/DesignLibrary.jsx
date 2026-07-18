@@ -240,6 +240,8 @@ function DesignCard({ design, onToggleFavorite, onDelete, onView }) {
       <button
         onClick={() => onToggleFavorite(design.id)}
         className="absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center transition-all bg-black/50 backdrop-blur hover:bg-white hover:text-black text-gray-400"
+        aria-pressed={design.favorite}
+        aria-label={design.favorite ? "Remove from favorites" : "Add to favorites"}
       >
         <Heart size={14} className={design.favorite ? "fill-red-500 text-red-500" : ""} />
       </button>
@@ -261,6 +263,7 @@ function DesignDetailModal({ design, onClose, onToggleFavorite, onDelete, onDown
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors z-10 bg-black/50 rounded-full p-2"
+          aria-label="Close"
         >
           <X size={20} />
         </button>

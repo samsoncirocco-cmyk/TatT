@@ -127,6 +127,7 @@ export function BookingModal({
                 <button
                   onClick={onClose}
                   className="text-gray-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-800"
+                  aria-label="Close"
                 >
                   <X size={20} />
                 </button>
