@@ -3,6 +3,7 @@ import "./globals.css";
 import DemoModeBanner from "@/components/DemoModeBanner";
 import NavBar from "@/components/NavBar";
 import { AuthProvider } from "@/components/AuthProvider";
+import SignInPromptGate from "@/components/auth/SignInPromptGate";
 import { ToastProvider } from "@/contexts/ToastContext";
 
 export const metadata: Metadata = {
@@ -28,6 +29,8 @@ export default function RootLayout({
             </div>
             {/* Persistent bottom navigation */}
             <NavBar />
+            {/* Sign-in modal, shown on 401 AUTH_REQUIRED from any API call */}
+            <SignInPromptGate />
           </ToastProvider>
         </AuthProvider>
       </body>

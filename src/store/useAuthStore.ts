@@ -11,10 +11,13 @@ interface AuthState {
     token: string | null;
     user: User | null;
     isAuthenticated: boolean;
+    signInPromptVisible: boolean;
 
     login: (token: string, user: User) => void;
     logout: () => void;
     updateUser: (updates: Partial<User>) => void;
+    promptSignIn: () => void;
+    dismissSignInPrompt: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -22,12 +25,18 @@ export const useAuthStore = create<AuthState>()(
             token: null,
             user: null,
             isAuthenticated: false,
+            signInPromptVisible: false,
 
             login: (token, user) => set({
                 token,
                 user,
-                isAuthenticated: true
+                isAuthenticated: true,
+                signInPromptVisible: false
             }),
+
+            promptSignIn: () => set({ signInPromptVisible: true }),
+
+            dismissSignInPrompt: () => set({ signInPromptVisible: false }),
 
             logout: () => set({
                 token: null,

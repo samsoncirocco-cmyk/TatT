@@ -35,6 +35,23 @@ As of 2026-07-17, the dependency tree has no high or critical advisories. Ten
 moderate advisories remain in the Google/Firebase `uuid` dependency chain; npm's
 suggested automatic fix is a breaking downgrade and is intentionally deferred.
 
+## Route classification
+
+Every file under `src/app/api/**/route.ts` must be classified in
+`src/lib/api-route-security.ts` as `firebase-auth`, `cloud-tasks-oidc`,
+`webhook-signature`, or `public` (with a written reason).
+`src/lib/api-route-security.test.ts` inventories the filesystem on every test
+run: adding a route without a classification, or classifying a route without
+calling its enforcement function, fails CI.
+
+## Cloud Tasks enablement
+
+`enqueueGenerationTask` refuses to enqueue unless `CLOUD_TASKS_ENABLED=true`.
+Do not set that flag until, against the real GCP project: (1) a genuine Cloud
+Tasks request passes `verifyCloudTaskRequest`, and (2) a spoofed request (bad
+audience, wrong service account, or forged token) is rejected with 401. Record
+the verification date here when it happens.
+
 ## Incident response
 
 If a secret is committed, rotate or revoke it first, remove it from the current

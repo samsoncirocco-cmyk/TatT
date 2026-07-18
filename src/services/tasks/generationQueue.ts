@@ -75,6 +75,14 @@ async function ensureQueueExists(queueName: string): Promise<void> {
 }
 
 export async function enqueueGenerationTask(userId: string, payload: EnqueuePayload): Promise<string> {
+  // Kill switch: Cloud Tasks stays off until the OIDC round-trip has been
+  // verified against the real GCP project (see docs/SECURITY_MODEL.md).
+  if (process.env.CLOUD_TASKS_ENABLED !== 'true') {
+    throw new Error(
+      '[GenerationQueue] Cloud Tasks is disabled. Set CLOUD_TASKS_ENABLED=true only after ' +
+      'verifying a real Cloud Tasks request passes OIDC verification and a spoofed one fails.'
+    );
+  }
   const client = getClient();
   const project = assertEnv('GCP_PROJECT_ID', process.env.GCP_PROJECT_ID);
   const location = DEFAULT_LOCATION;
