@@ -15,13 +15,18 @@ export interface ArtistPreferences {
     style?: string;
     bodyPart?: string;
     limit?: number;
+    hasPortfolio?: boolean;
 }
 
 export interface ArtistRecord {
     id: string | number;
     name: string;
     city: string;
+    state?: string;
     location?: string;
+    rating?: number;
+    reviewCount?: number;
+    portfolioImageCount?: number;
     styles: string[];
     hourlyRate?: number;
     portfolio?: string[];
@@ -150,6 +155,66 @@ const MOCK_ARTISTS: ArtistRecord[] = [
 ];
 
 /**
+ * Convert neo4j-driver values (Integer, Node) into plain JSON values so
+ * server-direct results match the shape returned by the /api/neo4j/query
+ * proxy after transformation.
+ */
+function normalizeNeo4jValue(value: any): any {
+    if (value === null || value === undefined) return value;
+    // neo4j.Integer (duck-typed to avoid a static driver import)
+    if (typeof value === 'object' && typeof value.toNumber === 'function' && 'low' in value && 'high' in value) {
+        return value.toNumber();
+    }
+    if (Array.isArray(value)) return value.map(normalizeNeo4jValue);
+    if (typeof value === 'object' && 'labels' in value && 'properties' in value) {
+        return normalizeNeo4jValue(value.properties);
+    }
+    if (typeof value === 'object' && value.constructor === Object) {
+        const out: Record<string, any> = {};
+        for (const [k, v] of Object.entries(value)) out[k] = normalizeNeo4jValue(v);
+        return out;
+    }
+    return value;
+}
+
+/**
+ * Execute a read-only Cypher query directly against the driver.
+ * Server-only path: API routes cannot use the relative-URL proxy fetch or
+ * the Firebase *client* auth that the browser path relies on.
+ */
+async function executeServerCypherQuery(query: string, params: Record<string, any> = {}): Promise<any[]> {
+    try {
+        const neo4j = (await import('neo4j-driver')).default;
+        const { getNeo4jDriver, NEO4J_DATABASE, NEO4J_QUERY_TIMEOUT } = await import('@/lib/neo4j');
+        const driver = getNeo4jDriver();
+        if (!driver) {
+            console.warn('[Neo4j] Driver not configured server-side, returning no records');
+            return [];
+        }
+
+        const session = driver.session(NEO4J_DATABASE ? { database: NEO4J_DATABASE } : undefined);
+        try {
+            // Cypher LIMIT rejects floats — coerce the shared limit param.
+            const coerced = { ...params };
+            if (typeof coerced.limit === 'number') {
+                coerced.limit = neo4j.int(Math.trunc(coerced.limit));
+            }
+            const result = await session.executeRead(
+                (tx: any) => tx.run(query, coerced),
+                { timeout: neo4j.int(NEO4J_QUERY_TIMEOUT) }
+            );
+            return result.records.map((record: any) => normalizeNeo4jValue(record.toObject()));
+        } finally {
+            await session.close();
+        }
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.warn('[Neo4j] Server-side query error, returning no records:', message);
+        return [];
+    }
+}
+
+/**
  * Execute a read-only Cypher query via proxy
  * Falls back to mock data in demo mode or on error
  */
@@ -162,6 +227,11 @@ async function executeCypherQuery(query: string, params: Record<string, any> = {
     if (!NEO4J_ENABLED) {
         console.warn('[Neo4j] Not enabled, using mock data');
         return [];
+    }
+
+    // API routes / server components hit the driver directly.
+    if (typeof window === 'undefined') {
+        return executeServerCypherQuery(query, params);
     }
 
     try {
@@ -220,7 +290,7 @@ export async function findMatchingArtists(preferences: ArtistPreferences): Promi
         return filtered.length > 0 ? filtered : MOCK_ARTISTS;
     }
 
-    const { styles = [], location, budget, keywords = [] } = preferences;
+    const { styles = [], location, budget, keywords = [], hasPortfolio = false } = preferences;
 
     // Cypher query for artist matching.
     // Styles, tags and portfolio are gathered by traversing the graph model:
@@ -240,35 +310,45 @@ export async function findMatchingArtists(preferences: ArtistPreferences): Promi
     WITH a, styles, portfolio, tattooTags + artistTags AS tags
 
     WHERE
-      // Style matching
-      (size($styles) = 0 OR any(style IN $styles WHERE style IN styles))
+      // Style matching (case-insensitive — UI sends canonical names)
+      (size($styles) = 0 OR any(style IN $styles WHERE any(s IN styles WHERE toLower(s) = toLower(style))))
 
-      // Location matching (city-based for now)
-      AND ($location IS NULL OR a.city = $location OR a.city CONTAINS $location)
+      // Location matching (city-based, case-insensitive; state abbreviations match exactly)
+      AND (
+        $location IS NULL
+        OR toLower(coalesce(a.city, '')) CONTAINS toLower($location)
+        OR toLower(coalesce(a.state, '')) = toLower($location)
+      )
 
       // Budget matching (optional filter). Real scraped artists have no
       // published rate (hourlyRate IS NULL) — never exclude them on budget.
       AND ($budget IS NULL OR a.hourlyRate IS NULL OR a.hourlyRate <= $budget * 1.5)
+
+      // Portfolio presence. Real artists carry no Tattoo nodes; the scraped
+      // portfolioImageCount property is the live signal.
+      AND (NOT $hasPortfolio OR coalesce(a.portfolioImageCount, 0) > 0 OR size(portfolio) > 0)
 
     // Calculate match score using Cypher
     WITH a, styles, portfolio, tags,
       // Style overlap score (40%)
       CASE
         WHEN size($styles) = 0 THEN 0.4
-        ELSE size([style IN $styles WHERE style IN styles]) * 0.4 / size($styles)
+        ELSE size([style IN $styles WHERE any(s IN styles WHERE toLower(s) = toLower(style))]) * 0.4 / size($styles)
       END AS styleScore,
 
       // Keyword match score (25%)
       CASE
         WHEN size($keywords) = 0 THEN 0.125
-        ELSE size([kw IN $keywords WHERE any(tag IN tags WHERE toLower(tag) CONTAINS toLower(kw))]) * 0.25 / size($keywords)
+        // toString() is load-bearing: Aura's semantic analyzer mis-infers the
+        // concatenated tag list's element type and rejects bare toLower(tag).
+        ELSE size([kw IN $keywords WHERE any(tag IN tags WHERE toLower(toString(tag)) CONTAINS toLower(kw))]) * 0.25 / size($keywords)
       END AS keywordScore,
 
       // Location score (15%)
       CASE
         WHEN $location IS NULL THEN 0.075
-        WHEN a.city = $location THEN 0.15
-        WHEN a.city CONTAINS $location THEN 0.1
+        WHEN toLower(coalesce(a.city, '')) = toLower($location) THEN 0.15
+        WHEN toLower(coalesce(a.city, '')) CONTAINS toLower($location) THEN 0.1
         ELSE 0.05
       END AS locationScore,
 
@@ -293,6 +373,11 @@ export async function findMatchingArtists(preferences: ArtistPreferences): Promi
       a.id AS id,
       a.name AS name,
       a.city AS city,
+      a.state AS state,
+      (coalesce(a.city, '') + CASE WHEN a.state IS NULL THEN '' ELSE ', ' + a.state END) AS location,
+      a.rating AS rating,
+      a.reviewCount AS reviewCount,
+      coalesce(a.portfolioImageCount, 0) AS portfolioImageCount,
       styles AS styles,
       a.hourlyRate AS hourlyRate,
       portfolio AS portfolio,
@@ -308,7 +393,8 @@ export async function findMatchingArtists(preferences: ArtistPreferences): Promi
         styles,
         location: location || null,
         budget: budget || null,
-        keywords
+        keywords,
+        hasPortfolio: !!hasPortfolio
     });
 
     // Transform Neo4j results to match expected format
@@ -316,6 +402,11 @@ export async function findMatchingArtists(preferences: ArtistPreferences): Promi
         id: record.id,
         name: record.name,
         city: record.city,
+        state: record.state,
+        location: record.location,
+        rating: record.rating,
+        reviewCount: record.reviewCount,
+        portfolioImageCount: record.portfolioImageCount,
         styles: record.styles || [],
         hourlyRate: record.hourlyRate,
         portfolio: record.portfolio || [],
