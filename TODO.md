@@ -18,13 +18,12 @@ is an acceptance criterion, not a nice-to-have.**
 
 J1. **Generation for real** — provision Vertex creds or REPLICATE_API_TOKEN,
     configure budget-tracker, NEXT_PUBLIC_DEMO_MODE=off. (Needs Samson for keys.)
-J2. **Matching backend against live Neo4j** — reconcile
-    match-pulse Cypher with the live graph (dual-schema), set
-    NEXT_PUBLIC_NEO4J_ENABLED=true, graceful degradation when vector
-    embeddings are absent. Owner: house-brain session (in progress).
-J3. **Wire live /matches to /api/v1/match/semantic** — replace hardcoded
-    top-12 + dead filter pills with real query; real scores, punk aesthetic
-    intact. Owner: house-brain session (in progress).
+J2+J3. ~~Real matching wired into live /matches~~ — **DONE 2026-07-17
+    (PR #46)**: server-side Neo4j execution, vector half degrades soft
+    (embeddings not yet populated), functional Style/City/Has-portfolio
+    pills, real scores, honest offline states, punk aesthetic verified.
+    PROD TODO: set NEO4J_*, NEXT_PUBLIC_NEO4J_ENABLED, and the
+    FRONTEND_AUTH_TOKEN pair in the deploy target's env (J7).
 J4. **Design→artist signal** — pass the chosen design's styles/tags into the
     match query so results reflect the design.
 J5. **Real booking path** — artist profile → booking WITH artistId → existing
