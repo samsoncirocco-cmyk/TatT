@@ -109,6 +109,12 @@ export async function fetchWithAbort(url, options = {}) {
       // Map status codes to error codes
       if (response.status === 401) {
         errorCode = ErrorCodes.AUTH_REQUIRED;
+        // A 401 means the session is missing or expired: surface the
+        // sign-in modal instead of a dead-end error toast.
+        if (typeof window !== 'undefined') {
+          const { useAuthStore } = await import('@/store/useAuthStore');
+          useAuthStore.getState().promptSignIn();
+        }
       } else if (response.status === 403) {
         errorCode = errorData?.code === 'CORS_ERROR' ? ErrorCodes.CORS_ERROR : ErrorCodes.AUTH_INVALID;
       } else if (response.status === 429) {

@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { useAuthContext } from '@/components/AuthProvider';
 
-export default function AuthModal() {
+export default function AuthModal({ onClose }: { onClose?: () => void } = {}) {
   const { loginWithGoogle, loginWithEmail, signUpEmail, error, loading } = useAuthContext();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
@@ -34,7 +34,19 @@ export default function AuthModal() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
-      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 p-8 backdrop-blur-lg">
+      <div className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 p-8 backdrop-blur-lg">
+        {onClose && (
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={onClose}
+            className="absolute right-3 top-3 rounded-full p-1 text-white/40 transition hover:bg-white/10 hover:text-white"
+          >
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        )}
         <h2
           className="mb-1 text-center text-2xl font-bold text-white"
           style={{ fontFamily: 'Space Grotesk, sans-serif' }}
