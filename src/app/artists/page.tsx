@@ -1,31 +1,40 @@
-"use client";
-
-import { useMemo, useState } from "react";
+import Link from "next/link";
 import StudioShell from "@/components/studio/StudioShell";
 import ArtistCard from "@/components/punk/ArtistCard";
 import SlashHeadline from "@/components/punk/SlashHeadline";
-import { getAllArtists, getAllStyles } from "@/lib/artists";
+import RosterControls from "./RosterControls";
+import {
+  browseArtists,
+  ROSTER_STYLES,
+  type RosterPage,
+} from "@/lib/artists-graph";
+
+// Filters and pagination come from the URL; every request re-queries the
+// live graph, so this page can never be statically rendered.
+export const dynamic = "force-dynamic";
 
 const COLORS = ["bg-pink", "bg-bone", "bg-cream", "bg-pink-deep", "bg-white/10", "bg-white/5"];
 
-export default function ArtistsPage() {
-  const [q, setQ] = useState("");
-  const [style, setStyle] = useState<string>("All");
+function pageHref(q: string, style: string, page: number): string {
+  const params = new URLSearchParams();
+  if (q) params.set("q", q);
+  if (style) params.set("style", style);
+  if (page > 1) params.set("page", String(page));
+  const qs = params.toString();
+  return `/artists${qs ? `?${qs}` : ""}`;
+}
 
-  const artists = useMemo(() => getAllArtists(), []);
-  const styleFilters = useMemo(() => ["All", ...getAllStyles()], []);
+export default async function ArtistsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+  const q = typeof sp.q === "string" ? sp.q : "";
+  const style = typeof sp.style === "string" ? sp.style : "";
 
-  const ql = q.trim().toLowerCase();
-  const filtered = artists.filter((a) => {
-    if (style !== "All" && !a.styles.includes(style)) return false;
-    if (!ql) return true;
-    return (
-      a.name.toLowerCase().includes(ql) ||
-      a.location.toLowerCase().includes(ql) ||
-      a.shopName.toLowerCase().includes(ql) ||
-      a.styles.some((s) => s.toLowerCase().includes(ql))
-    );
-  });
+  const roster: RosterPage = await browseArtists({ q, style }, sp.page);
+  const { artists, total, page, pageCount } = roster;
 
   return (
     <StudioShell>
@@ -35,7 +44,7 @@ export default function ArtistsPage() {
             <span className="text-pink">●</span>&nbsp;&nbsp;Directory
           </span>
           <span>
-            Showing:&nbsp;<span className="text-pink">{filtered.length}</span>
+            Artists:&nbsp;<span className="text-pink">{total.toLocaleString()}</span>
           </span>
         </div>
       </div>
@@ -48,73 +57,22 @@ export default function ArtistsPage() {
             sizeClassName="text-[48px] md:text-[88px] leading-[0.88]"
           />
           <p className="mt-6 text-[14px] text-white/60 font-body max-w-xl leading-[1.55]">
-            Hand-picked tattoo artists, ready to land your design.
+            Real tattoo artists, live from the graph. Search by name, city, or
+            shop — see their work on Instagram.
           </p>
 
-          {/* SEARCH */}
-          <div className="mt-10">
-            <label
-              htmlFor="search"
-              className="block text-[10px] uppercase tracking-[0.28em] text-pink mb-3 font-body"
-            >
-              ▸ Search
-            </label>
-            <input
-              id="search"
-              type="text"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Name, city, shop, or style…"
-              className="w-full bg-black text-white placeholder-white/30 focus:outline-none text-[20px] md:text-[24px] leading-[1.4] tracking-tight border-2 hairline focus:border-pink p-5 transition-colors font-display"
-            />
-          </div>
-
-          {/* STICKY FILTER CHIPS */}
-          <div className="mt-6 sticky top-0 z-10 -mx-6 md:-mx-12 px-6 md:px-12 py-3 bg-black/90 backdrop-blur-sm border-y hairline">
-            <div className="flex items-center gap-3 overflow-x-auto">
-              <span className="text-[10px] uppercase tracking-[0.25em] text-pink font-body shrink-0">
-                Style
-              </span>
-              {styleFilters.map((s) => {
-                const active = style === s;
-                return (
-                  <button
-                    key={s}
-                    onClick={() => setStyle(s)}
-                    className={`text-[10px] uppercase tracking-[0.2em] border hairline px-3 py-2 press font-body shrink-0 ${
-                      active
-                        ? "bg-pink text-black border-pink"
-                        : "text-white/70 hover:text-black hover:bg-pink"
-                    }`}
-                  >
-                    {s}
-                  </button>
-                );
-              })}
-              {(style !== "All" || q) && (
-                <button
-                  onClick={() => {
-                    setStyle("All");
-                    setQ("");
-                  }}
-                  className="ml-auto text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-pink font-body shrink-0 press"
-                >
-                  Clear&nbsp;✕
-                </button>
-              )}
-            </div>
-          </div>
+          <RosterControls styles={ROSTER_STYLES} q={q} style={style} />
 
           <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filtered.map((a, i) => (
+            {artists.map((a, i) => (
               <ArtistCard
-                key={a.slug}
+                key={a.id}
                 slug={a.slug}
                 name={a.name}
                 city={a.location}
                 color={COLORS[i % COLORS.length]}
-                image={a.portfolioImages[0]}
-                style={a.styles[0]}
+                handle={a.instagram ?? undefined}
+                style={a.styles[0] ?? ""}
                 showFavorite
                 favoriteSize={20}
                 favoritePosition="top-right"
@@ -122,15 +80,47 @@ export default function ArtistsPage() {
             ))}
           </div>
 
-          {filtered.length === 0 && (
+          {artists.length === 0 && (
             <div className="mt-16 border-2 hairline p-10 text-center">
               <div className="font-display text-[24px] tracking-wide text-white/60">
                 No artists match&nbsp;
-                <span className="text-pink">&quot;{q}&quot;</span>
+                <span className="text-pink">
+                  {[q ? `"${q}"` : null, style].filter(Boolean).join(" / ") || "that"}
+                </span>
               </div>
               <p className="mt-3 text-[12px] uppercase tracking-[0.2em] text-white/40 font-body">
-                Try a broader term.
+                Try a broader term — or the graph may be briefly unreachable.
               </p>
+            </div>
+          )}
+
+          {/* PAGINATION */}
+          {pageCount > 1 && (
+            <div className="mt-14 flex items-center justify-between border-t hairline pt-6">
+              {page > 1 ? (
+                <Link
+                  href={pageHref(q, style, page - 1)}
+                  className="text-[10px] uppercase tracking-[0.2em] text-white/70 hover:text-black hover:bg-pink border-2 hairline px-4 py-3 press font-body"
+                >
+                  ◂&nbsp;Previous
+                </Link>
+              ) : (
+                <span />
+              )}
+              <span className="text-[10px] uppercase tracking-[0.25em] text-white/50 tabular-nums font-body">
+                Page&nbsp;<span className="text-pink">{page}</span>
+                &nbsp;/&nbsp;{pageCount.toLocaleString()}
+              </span>
+              {page < pageCount ? (
+                <Link
+                  href={pageHref(q, style, page + 1)}
+                  className="text-[10px] uppercase tracking-[0.2em] text-white/70 hover:text-black hover:bg-pink border-2 hairline px-4 py-3 press font-body"
+                >
+                  Next&nbsp;▸
+                </Link>
+              ) : (
+                <span />
+              )}
             </div>
           )}
         </div>

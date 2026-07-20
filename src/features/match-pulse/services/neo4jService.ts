@@ -182,7 +182,7 @@ function normalizeNeo4jValue(value: any): any {
  * Server-only path: API routes cannot use the relative-URL proxy fetch or
  * the Firebase *client* auth that the browser path relies on.
  */
-async function executeServerCypherQuery(query: string, params: Record<string, any> = {}): Promise<any[]> {
+export async function executeServerCypherQuery(query: string, params: Record<string, any> = {}): Promise<any[]> {
     try {
         const neo4j = (await import('neo4j-driver')).default;
         const { getNeo4jDriver, NEO4J_DATABASE, NEO4J_QUERY_TIMEOUT } = await import('@/lib/neo4j');
