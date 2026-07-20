@@ -13,6 +13,26 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    // Deep-module boundaries (ADR-0001): internals are only importable from
+    // within the owning module. Everyone else goes through the entry point.
+    files: ["**/*.{js,jsx,ts,tsx}"],
+    ignores: ["src/services/generation/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/generation/internal/*", "@/services/generation/internal/*"],
+              message:
+                "generation/internal is module-private (ADR-0001). Import from '@/services/generation' instead.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

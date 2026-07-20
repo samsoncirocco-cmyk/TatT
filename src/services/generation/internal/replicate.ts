@@ -1,4 +1,5 @@
 import type { GenerationRequest, GenerationResult, Provider } from './provider';
+import { makeGenerationError } from './provider';
 
 const REPLICATE_API_URL = 'https://api.replicate.com/v1';
 const POLL_INTERVAL_MS = 2000;
@@ -93,9 +94,9 @@ async function generateWithReplicate(request: GenerationRequest): Promise<Genera
   const startedAt = Date.now();
   const token = process.env.REPLICATE_API_TOKEN;
   if (!token) {
-    const error: any = new Error('REPLICATE_API_TOKEN not configured');
-    error.code = 'REPLICATE_NOT_CONFIGURED';
-    throw error;
+    throw makeGenerationError('REPLICATE_API_TOKEN not configured', {
+      code: 'REPLICATE_NOT_CONFIGURED'
+    });
   }
 
   const model = REPLICATE_MODELS[request.modelId || ''] || REPLICATE_MODELS.sdxl;
@@ -127,10 +128,10 @@ async function generateWithReplicate(request: GenerationRequest): Promise<Genera
 
   if (!createRes.ok) {
     const errText = await createRes.text();
-    const error: any = new Error(`Replicate API Error: ${createRes.status} - ${errText}`);
-    error.status = createRes.status;
-    error.code = 'REPLICATE_ERROR';
-    throw error;
+    throw makeGenerationError(`Replicate API Error: ${createRes.status} - ${errText}`, {
+      status: createRes.status,
+      code: 'REPLICATE_ERROR'
+    });
   }
 
   let prediction = await createRes.json();
