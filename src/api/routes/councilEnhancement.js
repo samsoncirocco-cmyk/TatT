@@ -40,7 +40,7 @@ router.post('/', validateCouncilEnhanceRequest, async (req, res) => {
         });
 
         // Import council service
-        const { enhancePrompt } = await import('../../../services/councilService.ts');
+        const { enhance: enhancePrompt } = await import('../../services/council/index.ts');
 
         // Execute enhancement with model routing
         const startTime = Date.now();

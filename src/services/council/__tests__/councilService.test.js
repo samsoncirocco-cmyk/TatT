@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { enhancePrompt } from './councilService';
+import { describe, it, expect, vi } from 'vitest';
+import { enhancePrompt } from '../internal/councilService';
 
 // Mock the councilSkillPack
-vi.mock('../config/councilSkillPack', () => ({
+vi.mock('../../../config/councilSkillPack', () => ({
   COUNCIL_SKILL_PACK: {
     negativeShield: '(shading, gradients, shadows, blur, 3d, realistic, photorealistic, low contrast, grey, messy lines, sketch: 1.5)',
     anatomicalFlow: {
@@ -288,7 +288,7 @@ describe('CouncilService - Provider Fallbacks', () => {
     process.env.NEXT_PUBLIC_USE_OPENROUTER = 'false';
 
     try {
-      const { enhancePrompt: enhancePromptFresh } = await import('./councilService');
+      const { enhancePrompt: enhancePromptFresh } = await import('../internal/councilService');
 
       await expect(enhancePromptFresh({
         userIdea: 'A dragon design',
@@ -317,7 +317,7 @@ describe('CouncilService - Provider Fallbacks', () => {
     process.env.NEXT_PUBLIC_USE_OPENROUTER = 'false';
 
     try {
-      const { enhancePrompt: enhancePromptFresh } = await import('./councilService');
+      const { enhancePrompt: enhancePromptFresh } = await import('../internal/councilService');
 
       await expect(enhancePromptFresh({
         userIdea: 'A dragon design',
@@ -353,7 +353,7 @@ describe('CouncilService - Provider Fallbacks', () => {
     delete process.env.NEXT_PUBLIC_VERTEX_AI_PROJECT_ID;
 
     try {
-      const { enhancePrompt: enhancePromptFresh } = await import('./councilService');
+      const { enhancePrompt: enhancePromptFresh } = await import('../internal/councilService');
 
       await expect(enhancePromptFresh({
         userIdea: 'A dragon design',

@@ -1,6 +1,12 @@
 /**
  * /api/v1/council/generate
  *
+ * NOTE (ticket 04, ADR-0002): this route runs its own inline
+ * brief → composition → style → prompt pipeline, duplicating what the
+ * council module (src/services/council) does via enhance(). It is slated
+ * for consolidation onto the council module in a later ticket; do not
+ * extend the inline pipeline here.
+ *
  * Port of ~/tatt_council.py (killua) to a Next.js server route.
  *
  * Pipeline:

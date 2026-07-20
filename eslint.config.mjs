@@ -17,7 +17,7 @@ const eslintConfig = defineConfig([
     // Deep-module boundaries (ADR-0001): internals are only importable from
     // within the owning module. Everyone else goes through the entry point.
     files: ["**/*.{js,jsx,ts,tsx}"],
-    ignores: ["src/services/generation/**"],
+    ignores: ["src/services/generation/**", "src/services/council/**"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -27,6 +27,11 @@ const eslintConfig = defineConfig([
               group: ["**/generation/internal/*", "@/services/generation/internal/*"],
               message:
                 "generation/internal is module-private (ADR-0001). Import from '@/services/generation' instead.",
+            },
+            {
+              group: ["**/council/internal/*", "@/services/council/internal/*"],
+              message:
+                "council/internal is module-private (ADR-0002). Import from '@/services/council' instead.",
             },
           ],
         },

@@ -14,7 +14,7 @@
  */
 
 import { useState } from 'react';
-import { enhancePrompt } from '../services/councilService';
+import { enhance as enhancePrompt } from '../services/council';
 
 export default function PromptEnhancer({
   userInput,

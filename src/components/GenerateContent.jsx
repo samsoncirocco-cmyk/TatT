@@ -26,7 +26,7 @@ import RegenerateElementModal from '../components/generate/RegenerateElementModa
 import ForgeGuide from '../components/generate/ForgeGuide';
 import { ToastContainer } from '../components/ui/Toast';
 import { DEFAULT_BODY_PART } from '../constants/bodyPartAspectRatios';
-import { enhancePrompt } from '../services/councilService';
+import { enhance as enhancePrompt } from '../services/council';
 import useVibeChipSuggestions from '../hooks/useVibeChipSuggestions';
 import { useLayerManagement } from '../features/generate/hooks/useLayerManagement';
 import { useRealtimeMatchPulse } from '../features/match-pulse/hooks/useRealtimeMatchPulse';
