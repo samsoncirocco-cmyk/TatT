@@ -45,7 +45,11 @@ else in the app imports only these two entry points.
 - All module internals are TypeScript; no Effect (ADR-0003).
 - API routes (`/api/generate`, `/api/v1/generate`, `/api/v1/tasks/generate`) become thin adapters over `generate()`; council routes become thin adapters over `enhance()`.
 - Expand–contract sequencing: new module lands beside old files; callers migrate; old files (`generationService`, `generationRouter`, `vertex-ai-edge` generation path, `lib/vertex-imagen-client`, the `replicateService` shim) are deleted only in the final contract step.
-- Embedding functionality inside `vertex-ai-service.js` / `vertex-embedding-service.ts` is NOT part of the generation module — it stays put for the later matching/data deepening (see todolist).
+- Embedding functionality inside `vertex-ai-service.js` / `vertex-embedding-service.ts` is NOT part of the generation module — it stays put for the later matching/data deepening (see todolist). But that file's duplicate `generateWithImagen` function IS deleted in the contract step, and the one script using it points at the module instead — so "one Imagen implementation" ends up literally true.
+- Uploading results to storage is NOT the generation module's job. The module returns images; the one route that also uploads to GCS keeps doing that itself, composing generation + storage. This keeps the module about one thing (revisit when the storage area is deepened, per todolist).
+- The Replicate model catalog (model versions, schedulers, LoRA scale, prompt prefixes like the Classic Flash "TOK" trigger) is ported verbatim as internal provider config, protected by a test asserting the exact request body — these fiddly settings are the easiest thing for a port to silently drop.
+- One deliberate behavior fix, as an exception to "no behavior change": today, a hopeless request (like a 400 for a malformed prompt) still triggers the paid safety-fallback call, which also fails. The new module only runs the safety fallback after retryable failures. This is a bug fix, made on purpose, with a test.
+- The module boundary is enforced by an ESLint `no-restricted-imports` rule (nothing outside the module may import from its `internal/` folder) — a wall, not a comment.
 
 ## Testing Decisions
 
@@ -58,7 +62,8 @@ else in the app imports only these two entry points.
 ## Out of Scope
 
 - Embeddings (text and image), Vision-based layer decomposition, and the matching stack — later todolist items.
-- Any behavior change: model defaults, output counts, safety settings, and API response shapes stay as-is.
+- Any behavior change beyond the one declared fallback fix: model defaults, output counts, safety settings, and API response shapes stay as-is.
+- Per-character LoRA training — already ruled out in the council plan-of-record until Flow A ships; nothing here changes that.
 - UI changes beyond import-path updates.
 - The data/schema layer cleanup.
 

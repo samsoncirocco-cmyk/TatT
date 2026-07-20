@@ -12,6 +12,7 @@ code in `vertex-ai-service.js` stays (out of scope).
 **Status:** ready-for-agent
 
 - [ ] Grep proves zero imports of deleted files
+- [ ] `generateWithImagen` deleted from `vertex-ai-service.js` (its embeddings/vision code stays); `scripts/generate-artist-images-vertex.js` points at the module instead
 - [ ] `vertex-embedding-service.ts` left in place but noted in todolist as likely dead
 - [ ] `npm test` and `npm run build` pass
 - [ ] todolist.md updated: generation stack marked done
