@@ -12,23 +12,28 @@ export default function RosterControls({
   styles,
   q,
   style,
+  hasPortfolio,
 }: {
   styles: readonly string[];
   q: string;
   style: string;
+  hasPortfolio: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [input, setInput] = useState(q);
 
-  const apply = (next: { q?: string; style?: string }) => {
+  const apply = (next: { q?: string; style?: string; hasPortfolio?: boolean }) => {
     const params = new URLSearchParams(searchParams.toString());
     const nq = next.q ?? q;
     const nstyle = next.style ?? style;
+    const nHasPortfolio = next.hasPortfolio ?? hasPortfolio;
     if (nq) params.set("q", nq);
     else params.delete("q");
     if (nstyle && nstyle !== "All") params.set("style", nstyle);
     else params.delete("style");
+    if (nHasPortfolio) params.set("hasPortfolio", "1");
+    else params.delete("hasPortfolio");
     params.delete("page");
     router.push(`/artists${params.size ? `?${params}` : ""}`);
   };
@@ -84,11 +89,21 @@ export default function RosterControls({
               </button>
             );
           })}
-          {(style || q) && (
+          <button
+            onClick={() => apply({ hasPortfolio: !hasPortfolio })}
+            className={`text-[10px] uppercase tracking-[0.2em] border hairline px-3 py-2 press font-body shrink-0 ${
+              hasPortfolio
+                ? "bg-pink text-black border-pink"
+                : "text-white/70 hover:text-black hover:bg-pink"
+            }`}
+          >
+            Has&nbsp;photos
+          </button>
+          {(style || q || hasPortfolio) && (
             <button
               onClick={() => {
                 setInput("");
-                apply({ q: "", style: "All" });
+                apply({ q: "", style: "All", hasPortfolio: false });
               }}
               className="ml-auto text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-pink font-body shrink-0 press"
             >

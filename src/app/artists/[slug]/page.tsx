@@ -23,6 +23,7 @@ export default async function ArtistProfilePage({
   const lastName = nameParts.pop() ?? artist.name;
   const firstNames = nameParts.join(" ");
   const igUrl = instagramUrl(artist.instagram);
+  const heroImage = artist.portfolioImages[0];
   const monogram = artist.name
     .split(/\s+/)
     .map((w) => w[0])
@@ -44,18 +45,31 @@ export default async function ArtistProfilePage({
         </div>
       </div>
 
-      {/* HERO — monogram tile | info panel. Real artists carry no portfolio
-          photos yet; Instagram is the see-their-work affordance. */}
+      {/* HERO — portfolio image (self-hosted) or monogram tile | info panel.
+          Instagram remains the see-their-work affordance either way. */}
       <div className="px-6 md:px-12 py-12 md:py-16">
         <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12 items-start">
           <div className="md:col-span-5">
-            <div className="aspect-[3/4] bg-pink border-2 hairline relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 mix-blend-multiply" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="font-display text-[120px] md:text-[160px] leading-none text-black/25 select-none">
-                  {monogram}
-                </span>
-              </div>
+            <div
+              className={`aspect-[3/4] ${heroImage ? "bg-bone" : "bg-pink"} border-2 hairline relative overflow-hidden`}
+            >
+              {heroImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={heroImage}
+                  alt={`${artist.name} portfolio work`}
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              ) : (
+                <>
+                  <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 mix-blend-multiply" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="font-display text-[120px] md:text-[160px] leading-none text-black/25 select-none">
+                      {monogram}
+                    </span>
+                  </div>
+                </>
+              )}
               {artist.instagram && (
                 <div className="absolute top-4 left-4 sticker px-2.5 py-1.5 -rotate-3">
                   <span className="font-body text-[10px] uppercase tracking-[0.18em]">
