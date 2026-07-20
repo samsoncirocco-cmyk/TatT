@@ -4,9 +4,11 @@ AI-powered tattoo design platform. Council-enhanced prompts run through SDXL or 
 
 ## Current state
 
-Next.js 16 migration on branch `samson/port-artist-crawler`. As of 2026-05-19 all 14+ customer-facing routes are scaffolded in the new punk design system, but most pages use inline mock data — real API wiring is pending. The Vercel deploy was broken for 71 days (Mar 9 → May 19) and was unblocked today; subsequent commits have green builds.
+Production runs on `main`. Live matching against the real scraped artist graph (Neo4j) is deployed and confirmed working at `tatt-app.vercel.app/matches` — this replaced the earlier synthetic 100-artist seed data for the matching flow. Auth is wired to Firebase (email + Google), the Forge design studio loads without crashing, and login/signup use real Firebase Auth (not localStorage).
 
-The original Vite app (`~/Desktop/TatT`) still has work that hasn't been ported. The crawler and GraphInsight viz were ported today.
+The live artist graph holds **8,949 real scraped artists** (`data/cleanup-report.json`) across a national dataset — the earlier 100 synthetic seed artists have been deleted from the graph. `src/data/artists.json` (the 100-artist synthetic set) is still read by some customer-facing pages (`/artists`, `/designs`, `/book`) that haven't been migrated to the real dataset the way `/matches` has — see Open issues.
+
+Three separate Vercel projects (`tatt-app`, `manama-next`, `generous-success`) currently deploy this repo; `tatt-app` is the one serving live matching and should be treated as canonical until the other two are formally disconnected (see `TODO.md`).
 
 ## Tech stack
 
@@ -14,12 +16,14 @@ The original Vite app (`~/Desktop/TatT`) still has work that hasn't been ported.
 - **Frontend**: React 19, TypeScript, Tailwind CSS 3
 - **State**: Zustand with localStorage persistence
 - **AI generation**: Replicate (SDXL), Google Vertex AI (Imagen 3, Gemini 2.0 Flash)
-- **Council** (prompt enhancement): Vertex Gemini → OpenRouter fallback. No silent mock fallback as of `499a072`.
+- **Council** (prompt enhancement): Vertex Gemini → OpenRouter fallback
 - **Vector search**: Supabase pgvector with Vertex text embeddings
-- **Graph DB**: Neo4j Aura
+- **Graph DB**: Neo4j Aura — 9-node model (`State`/`City`/`Shop`/`Artist`/`Style`/`Tattoo`/`Instagram`/`Tag`/`Website`), see `NEO4J_MIGRATION.md`
+- **Document storage**: Firestore (user designs, versions, per-user config)
 - **Real-time**: Firebase Realtime Database
 - **Storage**: Google Cloud Storage
-- **Deploy**: Vercel (project: `manama-next`)
+- **Auth**: Firebase Auth (email + Google), Bearer ID tokens on protected API routes
+- **Deploy**: Vercel (canonical project: `tatt-app`)
 
 ## Quick start
 
@@ -34,9 +38,10 @@ The `--legacy-peer-deps` flag is required and enforced by `.npmrc` for CI parity
 Other scripts:
 
 - `npm run build` — Next production build (webpack, not turbopack)
-- `npm run server` — Express proxy at port 3001
-- `npm test` — vitest, currently ~197 tests across 14 files
+- `npm run server` — legacy Express proxy (`server.js`) for local dev; not used in production, where Next.js API routes under `src/app/api/` handle everything
+- `npm test` — vitest, ~20 test files across services/components/lib
 - `npm run lint` — ESLint
+- `npm run security:secrets` — scans tracked files for committed secrets; also runs in CI on every push/PR
 
 ## Project structure
 
@@ -44,61 +49,75 @@ Other scripts:
 src/
   app/                       # Next App Router
     page.tsx                 # marketing landing
-    about/                   # about page
-    artists/                 # artist directory + [slug] profile
-    book/                    # 3-step booking flow
-    bookings/                # user's booking list
+    about/, philosophy/      # marketing pages
+    artists/                 # artist directory + [slug] profile (reads synthetic seed data, see Open issues)
+    book/, bookings/         # booking flow + user's booking list
     designs/                 # user's saved designs (localStorage)
     generate/                # studio entry + /generate/stencil reference UI
+    journey/, smart-match/, swipe/, demo/, dashboard/, gallery/, visualize/  # additional customer-facing flows
     legal/{terms,privacy}/   # static legal pages
-    login/, signup/          # mock-localStorage auth UI (NOT wired to Firebase Auth yet)
-    matches/                 # swipe matching UI
-    pitch/                   # investor landing (force-dynamic)
+    login/, signup/          # Firebase Auth UI (email + Google via authService)
+    matches/                 # live semantic + graph matching (wired to real data, PR #46)
+    pitch/                   # investor landing (force-dynamic — inits Firebase client SDK)
     pricing/                 # tiered pricing
     settings/                # account settings
-    api/v1/                  # council, generate, match, layers, stencil, storage, AR routes
-    api/health/council/      # provider health probe (no auth)
+    share/                   # shared-design view links
+    api/v1/                  # council, generate, match, layers, stencil, storage, AR, booking routes
+    api/health/, api/health/council/  # health probes
   components/
     studio/                  # StudioShell, PunkFooter — punk design system primitives
-    GraphInsight.jsx         # YC-pitch graph viz, ported from Vite today
+    punk/                    # punk design system components (ArtistCard, etc.)
+    auth/                    # SignInPromptGate, AuthModal
   features/
-    generate/                # Forge studio (Generate.jsx is ~2000 lines, due for split)
-    match-pulse/             # hybrid RRF artist matching
+    generate/                # Forge studio (Generate.jsx is ~1,750 lines, due for split)
+    match-pulse/             # hybrid RRF artist matching (Neo4j + Supabase)
     inpainting/, stencil/    # selective editing + edge-detection PDF export
   services/                  # councilService, generationService, firebase-match-service, etc.
-  stores/                    # Zustand stores (useForgeStore, etc.)
-  lib/api-auth.ts            # Bearer token auth — fails closed if env missing (since 0d467a2)
+  store/                     # Zustand stores (useForgeStore, useAuthStore, etc.)
+  lib/
+    api-auth.ts              # Firebase Bearer token auth — fails closed if unauthenticated
+    api-route-security.ts    # security classification for every API route; api-route-security.test.ts
+                              # fails the build if a route is added without one
+    client-api-auth.ts       # client-side auth header helper; prompts sign-in on missing session
 scripts/
-  data_acquisition/          # parallel artist crawler ported from Vite TatT
-  setup-supabase-vector-schema.js
-  import-to-neo4j.js
+  data_acquisition/          # national artist scraper (Places API + shop-site crawler)
+  import-to-neo4j.js         # primary Neo4j importer — merge by default, --wipe to reset
+  generate-neo4j-cypher.js   # generates standalone .cypher import scripts — merge by default, --wipe to reset
   generate-vertex-embeddings.js
+  setup-supabase-vector-schema.js
 directives/                  # SOPs in Markdown (Layer 1)
 execution/                   # directive → code map (Layer 3 manifest)
+docs/SECURITY_MODEL.md       # auth model, secret handling, incident response
+NEO4J_MIGRATION.md           # 4-node → 9-node graph schema migration notes
+TODO.md                      # shared cross-session work queue — read before starting work
 ```
 
 ## Deployment
 
-Vercel project: `manama-next`. Production branch: `main`. Preview deploys run on every push to `samson/port-artist-crawler`.
+Vercel project: `tatt-app` (canonical as of 2026-07-20; two other projects — `manama-next`, `generous-success` — also deploy this repo and are pending disconnection, see `TODO.md`). Production branch: `main`.
 
 - `.npmrc` enforces `legacy-peer-deps=true`.
-- Env vars: 43 keys live in Vercel project settings, mirrored from `.env.local`. Build will succeed without them but `/pitch` and any page that hits Firebase at module-import time will crash without `export const dynamic = 'force-dynamic'`.
-- There is no `vercel.json` — Next.js App Router uses Vercel's auto-detection. The previous file was a Vite-era SPA rewrite that broke routing.
+- Env vars live in Vercel project settings. Build will succeed without them, but `/pitch` and any page that hits Firebase at module-import time will crash without `export const dynamic = 'force-dynamic'`.
+- Live matching in prod requires `NEO4J_*`, `NEXT_PUBLIC_NEO4J_ENABLED`, and a matched `FRONTEND_AUTH_TOKEN`/`NEXT_PUBLIC_FRONTEND_AUTH_TOKEN` pair set in the deploy target's env — these are set in `tatt-app`'s prod env as of 2026-07-20.
+- There is no `vercel.json` — Next.js App Router uses Vercel's auto-detection.
+- Branch protection on `main` is blocked by GitHub's free-plan limits on private repos; see the working agreements in `TODO.md` for the fetch/reset discipline used in its place.
 
 ## Documentation
 
 - `DESIGN_SYSTEM.md` — punk design tokens, component patterns, do/don't. Read before touching any UI.
-- `docs/archive/HANDOFF.md` — Phase 1 handoff narrative.
-- `docs/archive/SESSION_RECAP_2026-05-19.md` — session log (deploy recovery, audit fixes, design iterations).
 - `CLAUDE.md` — agent instructions, env reference, service map.
+- `docs/SECURITY_MODEL.md` — auth model (Firebase Bearer tokens, per-route classification, Cloud Tasks OIDC), secret handling, incident response.
+- `NEO4J_MIGRATION.md` — graph schema history and the current 9-node model.
+- `TODO.md` — shared, cross-session work queue. Read before starting work; update when you finish or discover work.
 - `directives/` — workflow SOPs.
-- `~/audit/AUDIT-REPORT.md`, `~/audit/DEEP-INSIGHTS.md`, `~/audit/TATT-REALITY.md` — `/code-upgrade` audit findings from 2026-05-19.
+- `docs/archive/` — historical session logs and handoff narratives (dated, not current state).
 
 ## Open issues
 
-- Pre-existing TypeScript errors in `src/app/api/v1/stencil/export/route.ts`, `src/app/api/v1/council/enhance/route.ts`, `src/app/api/v1/layers/decompose/route.ts`, `src/app/api/v1/match/semantic/route.ts`, and `src/app/page.tsx` (framer-motion `Variants` type). Don't block build.
-- `src/features/Generate.jsx` is ~2000 lines — needs decomposition.
-- Auth on customer-facing routes (`/login`, `/signup`, `/settings`) writes to `localStorage` only; not yet wired to Firebase Auth.
-- New `/artists`, `/matches`, `/designs`, `/book`, `/pricing` pages use hardcoded inline mock data — no service-layer calls yet.
-- `react-tinder-card@1.6.4` peer-dep conflict is papered over with `legacy-peer-deps`; proper fix is to upgrade or replace the lib.
-- Forge studio (`Generate.jsx`) and the new punk shell render two headers in some flows — track on the PR.
+- **`/artists`, `/designs`, and `/book` still read the 100-artist synthetic seed** (`src/data/artists.json` via `src/lib/artists.ts`), not the real 8,949-artist scraped dataset. `/matches` was migrated to live data (PR #46); the rest have not been. An earlier attempt at a blanket dataset swap (PR #40) was closed as superseded because it conflicted with `/matches`'s live-API architecture — the remaining pages need the same live-API treatment, not a client-bundled JSON swap.
+- **~39 TypeScript errors**, masked by `ignoreBuildErrors: true` in `next.config.ts`. Concentrated in `src/services/fetchWithAbort.ts` and a handful of other services/components — does not block build or deploy.
+- **`src/features/Generate.jsx` is ~1,750 lines** — still monolithic, due for decomposition.
+- **`react-tinder-card@1.6.4` peer-dep conflict** — wants `@react-spring/web@^9`, project is on `^10`; papered over with `legacy-peer-deps` (enforced by `.npmrc`). Proper fix is to upgrade or replace the lib.
+- **Neo4j serves dual schemas** (the 9-node real-data model and a legacy seed model) — match queries handle both, see `NEO4J_MIGRATION.md`. Confirm this is still needed before consolidating.
+- **Three Vercel projects deploy this repo** — `tatt-app` (canonical, live matching), `manama-next`, `generous-success`. The latter two should be disconnected once confirmed safe to do so.
+- **Artist enrichment gap** — only ~1.5k of 8,949 real artists have style tags populated; the rest need enrichment from their scraped `sourcePages`. Tracked in `TODO.md` backlog, currently parked.
