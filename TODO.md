@@ -16,11 +16,14 @@ design system (src/components/punk/, studio/). Never resurrect old-theme
 (ducks-yellow) pages — port their logic, not their look. Aesthetic cohesion
 is an acceptance criterion, not a nice-to-have.**
 
-J1. **Generation for real** — keys EXIST: REPLICATE_API_TOKEN + full Vertex
-    creds already in tatt-app's Vercel prod env (verified 2026-07-20; local
-    copy of the Replicate token in /opt/org/.env, validated against the API).
-    Remaining: budget-tracker cap (needs Samson's number), confirm demo mode
-    off in prod, one verified end-to-end generation.
+J1. ~~**Generation for real**~~ — **DONE 2026-07-20**: keys were already in
+    tatt-app's Vercel prod env (Vertex + Replicate fallback). Budget cap now
+    env-configurable (`BUDGET_MAX_SPEND_CENTS`, commit be63366); prod set to
+    5000 = **$50/mo (Samson's number — the earlier $10 was for demo only)**.
+    Demo mode confirmed off. End-to-end verified in the live UI: prompt →
+    /api/v1/generate 200 → four real Vertex Imagen cuts rendered on
+    /generate/stencil (PNGs carry C2PA TrainedAlgorithmicMedia metadata —
+    provably not mocks). Vertex spend records at 4¢/image via budget-tracker.
 J2+J3. ~~Real matching wired into live /matches~~ — **DONE 2026-07-17
     (PR #46)**: server-side Neo4j execution, vector half degrades soft
     (embeddings not yet populated), functional Style/City/Has-portfolio
@@ -29,9 +32,16 @@ J2+J3. ~~Real matching wired into live /matches~~ — **DONE 2026-07-17
     FRONTEND_AUTH_TOKEN pair in the deploy target's env (J7).~~ **DONE
     2026-07-20: all 8 vars set in tatt-app prod via Vercel CLI, rebuilt,
     verified in-browser — live matching is ON at tatt-app.vercel.app/matches
-    (real graph artists, scores, no offline notice). Prod token pair is a
-    fresh random value living only in Vercel env (`vercel env pull` to get
-    it); VERCEL_TOKEN in /opt/org/.env (gitignored).**
+    (real graph artists, scores, no offline notice). VERCEL_TOKEN in
+    /opt/org/.env (gitignored).**
+    **REGRESSION (2026-07-20, caused by PR #48):** the security session
+    removed the shared FRONTEND_AUTH_TOKEN path from verifyApiAuth (correctly
+    — the token was extractable from the public bundle). Auth is now
+    Firebase-only, so **signed-out visitors to /matches get the offline
+    notice** — live matching only works after sign-in. The env-var pair in
+    Vercel is now dead weight (safe to delete). Proposed fix, needs a
+    decision: make /api/v1/match/semantic public + rate-limited (it serves
+    public artist listings), or accept sign-in as a journey prerequisite.
 J4. **Design→artist signal** — pass the chosen design's styles/tags into the
     match query so results reflect the design.
 J5. **Real booking path** — artist profile → booking WITH artistId → existing
