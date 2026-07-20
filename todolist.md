@@ -13,6 +13,14 @@ Leftovers: `vertex-ai-service.js` keeps `generateWithImagen` only for
 TS module — see ticket 05 notes); `vertex-embedding-service.ts` is likely dead
 (only importer is `scripts/seed-artist-embeddings.ts`) — delete when the
 matching stack is deepened.
+Final-review leftovers (2026-07-20): client `AI_MODELS` in
+`features/generate/services/replicateService.js` duplicates the module's
+catalog (retire when the UI layer is deepened — client should fetch model
+info from a route); Imagen price constants disagree across three files
+(`vertexImagen.ts` $0.02, `imagen-upload.ts` $0.03, `budget-tracker.ts` 4¢)
+— unify into one cost config; two `uploadGeneratedImage` implementations
+(`api/generate/imagen-upload.ts` vs `services/storage/imageStorageService.ts`)
+— merge in the storage-layer deepening (item 4).
 
 ## 2. Data/schema layer
 Four competing Supabase schema SQL files (`supabase-complete-schema.sql`,

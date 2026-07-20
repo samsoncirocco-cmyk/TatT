@@ -40,7 +40,7 @@ else in the app imports only these two entry points.
 - New module `generation` with a single public entry point `generate(request)`; internals (providers, routing, retry, fallback) are not exported (ADR-0001).
 - A **Provider** is an internal interface with two implementations: Replicate (SDXL variants) and Vertex Imagen. Provider selection ports the existing `routeGeneration` logic (style/mode/stencil → model → provider) into the module.
 - Fallback chain preserved: Vertex failure falls back to Replicate when allowed, with the retry/backoff + relaxed-safety behavior currently in `generateWithRetry`, including its telemetry events.
-- Both Node and Edge runtimes must be supported; auth strategy is injected per runtime rather than baked into providers (the Edge route uses the access-token helper, Node uses the Google auth library).
+- Both Node and Edge runtimes must be supported. DEVIATION (final review, 2026-07-20): the planned per-runtime auth injection was not built — the edge-safe access-token helper turned out to work in both runtimes, so all providers use it directly and no injection seam exists. Revisit only if a Node-only auth need appears.
 - `council` becomes its own module with entry point `enhance(request)` (ADR-0002); the existing `councilService` implementation moves inside it. The inline council pipeline in the v1 council generate route is a known duplicate to be absorbed or explicitly deprecated.
 - All module internals are TypeScript; no Effect (ADR-0003).
 - API routes (`/api/generate`, `/api/v1/generate`, `/api/v1/tasks/generate`) become thin adapters over `generate()`; council routes become thin adapters over `enhance()`.
@@ -49,6 +49,7 @@ else in the app imports only these two entry points.
 - Uploading results to storage is NOT the generation module's job. The module returns images; the one route that also uploads to GCS keeps doing that itself, composing generation + storage. This keeps the module about one thing (revisit when the storage area is deepened, per todolist).
 - The Replicate model catalog (model versions, schedulers, LoRA scale, prompt prefixes like the Classic Flash "TOK" trigger) is ported verbatim as internal provider config, protected by a test asserting the exact request body — these fiddly settings are the easiest thing for a port to silently drop.
 - One deliberate behavior fix, as an exception to "no behavior change": today, a hopeless request (like a 400 for a malformed prompt) still triggers the paid safety-fallback call, which also fails. The new module only runs the safety fallback after retryable failures. This is a bug fix, made on purpose, with a test.
+- Second declared deviation (final review, 2026-07-20): the v1 route's old inline replicate fallback ran SDXL at 30 steps with no refiner; the module's catalog-verbatim SDXL runs 50 steps + refiner, so the (rare) fallback path costs somewhat more per image in exchange for catalog consistency and higher quality.
 - The module boundary is enforced by an ESLint `no-restricted-imports` rule (nothing outside the module may import from its `internal/` folder) — a wall, not a comment.
 
 ## Testing Decisions

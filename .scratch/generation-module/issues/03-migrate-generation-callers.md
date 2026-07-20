@@ -12,7 +12,7 @@ old service files. API response shapes unchanged.
 
 - [x] All three routes call `generate()`; response shapes verified unchanged
 - [x] `/api/generate` keeps its GCS upload behavior in the route adapter (module returns images; upload is composed by the route, not absorbed into the module)
-- [x] Edge runtime route works with injected auth strategy
+- [x] Edge-safe auth verified through the module (NOTE: no injection seam was built — the edge token helper works in both runtimes and is used directly; recorded as a spec deviation)
 - [x] Feature/UI imports (`useImageGeneration`, `useSmartPreview`, stencil page, DesignForm) point at the module
 - [x] Seam tests for at least the primary `/api/v1/generate` adapter
 - [x] `npm test` and `npm run build` pass

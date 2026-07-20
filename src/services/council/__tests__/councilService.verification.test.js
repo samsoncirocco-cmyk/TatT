@@ -2,8 +2,9 @@
  * Verification Tests for the Council module's internal helpers.
  *
  * Covers: token estimation, prompt validation, and aspect ratio guidance.
- * (The generateWithRetry tests that used to live here moved to
- * src/services/__tests__/generationService.retry.test.js in ticket 04.)
+ * (The generateWithRetry suite that used to live here tested the legacy
+ * generationService and was deleted with it in ticket 05; that behavior is
+ * now covered by src/services/generation/__tests__/generate.test.ts.)
  */
 
 import { describe, it, expect } from 'vitest';
