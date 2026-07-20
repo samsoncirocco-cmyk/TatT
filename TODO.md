@@ -5,7 +5,7 @@ agents. **Every agent: read this before starting work, update it when you
 finish or discover work.** Keep entries short; link PRs/issues; date your
 changes. Newest state wins — resolve edit conflicts by merging both lists.
 
-_Last updated: 2026-07-20 (journey session — prod matching turned ON at tatt-app.vercel.app; J7 mostly discovered-done)_
+_Last updated: 2026-07-20 (final adversarial audit — J4/J5/J6 verified DONE on main c039219; auth gate + live /artists verified in prod; gaps listed under Now/Next)_
 
 ## Now (in priority order) — THE JOURNEY QUEUE
 
@@ -42,13 +42,41 @@ J2+J3. ~~Real matching wired into live /matches~~ — **DONE 2026-07-17
     Vercel is now dead weight (safe to delete). Proposed fix, needs a
     decision: make /api/v1/match/semantic public + rate-limited (it serves
     public artist listings), or accept sign-in as a journey prerequisite.
-J4. **Design→artist signal** — pass the chosen design's styles/tags into the
-    match query so results reflect the design.
-J5. **Real booking path** — artist profile → booking WITH artistId → existing
-    /api/checkout (Stripe) + /api/v1/book (Firestore), replacing the
-    localStorage demo. Port /book/[artistId] logic into the punk /book flow.
-J6. **Minimal availability model** — replace Math.random() availability;
-    Firestore rules + artist notification.
+J4. ~~**Design→artist signal**~~ — **DONE 2026-07-20 (audited)**: Forge
+    (/generate/stencil) links to /matches?styles=…&from=design; MatchesClient
+    parses via src/lib/design-style-signal (validated against
+    CANONICAL_STYLES), feeds styles into the live match query, shows the
+    "Matched to your design" chip; manual style pick overrides the signal.
+    Verified in code + 292→307 test suite on main c039219.
+J5. ~~**Real booking path**~~ — **DONE 2026-07-20 (audited)**: match cards
+    carry bookHref=/book?artistId=<real graph id>; punk /book flow posts to
+    /api/v1/book (Firebase-auth-only via verifyApiAuth, rate-limited,
+    Firestore capture with owner uid) then /api/checkout for the Stripe
+    deposit. Honest degradation verified: no STRIPE_SECRET_KEY → 503
+    "Payments are not configured" (or demo-labeled success only when
+    NEXT_PUBLIC_DEMO_MODE=true); booking request is saved either way and the
+    UI says no deposit was charged. Old /book/[artistId] page is now a
+    redirect (kept for old links/Stripe cancel_urls).
+    **Samson ops (not code):** set STRIPE_SECRET_KEY + FIREBASE_* admin
+    creds in tatt-app Vercel env; run `firebase deploy --only
+    firestore:rules` for the new booking/availability rules.
+J6. ~~**Minimal availability model**~~ — **DONE 2026-07-20 (audited)**:
+    grep confirms zero Math.random() availability anywhere in src (remaining
+    Math.random uses are ID generation, cosmetic tile colors, and one
+    randomVariety tiebreaker in match scoring — none present fake
+    availability). Model: artist_availability/{artistId} Firestore docs,
+    ops-written only (no client writes per firestore.rules); missing doc or
+    creds resolves to status "unknown" rendered as "availability on
+    request". No fake green dots.
+J8. ~~**Auth gate**~~ — **DONE 2026-07-20 (audited, live in prod)**:
+    /generate (Forge), /matches, /designs, /book wrapped in ProtectedRoute
+    layouts → redirect to /login?redirect=<dest> for anonymous, styled hold
+    state while Firebase resolves. Homepage and /artists stay public.
+    Verified anonymous-curl on localhost prod build AND tatt-app.vercel.app.
+    This also settles the J2/J3 regression below: sign-in is now an explicit
+    journey prerequisite, so signed-out users never see the offline notice —
+    they get the login gate. The dead FRONTEND_AUTH_TOKEN env pair in Vercel
+    can be deleted (Samson).
 J7. **One deploy target, auto-deploy, live URL** — MOSTLY DONE (discovered
     2026-07-20): Vercel project **tatt-app** auto-deploys main and
     https://tatt-app.vercel.app serves the current tip with live matching.
@@ -57,11 +85,42 @@ J7. **One deploy target, auto-deploy, live URL** — MOSTLY DONE (discovered
     two (Samson call); optional custom domain.
 
 (Prior items now secondary: PR #40 feedback folds into J2/J3 scope; security
-reconciliation continues in parallel; enrichment sweep PARKED after two
-pilot-gate failures — resume only after J3 ships, with deterministic
-fetch/validation. Branch protection still blocked on GitHub plan.)
+reconciliation continues in parallel. Branch protection still blocked on
+GitHub plan.)
+
+**Enrichment (2026-07-20):** deterministic pipeline rebuilt at
+`~/tatt-scraper/execution/enrich_artists.py`; pilot produced 3 deterministic
+shards (~212 artists enriched, styles scrubbed where unverifiable — see
+`~/tatt-scraper/data/enrichment/pilot-run.log`). Pilot gate NOT yet passed;
+full run NOT launched. Resume after gate review.
 
 ## Next
+
+- **Synthetic artists.json still imported by old-theme surfaces** (audit
+  2026-07-20): /smart-match and /swipe routes lazy-load
+  src/features/SmartMatch.jsx / SwipeMatch.jsx, and
+  src/components/{SmartMatchContent,SwipeMatchContent,ArtistsContent,
+  ArtistProfileContent}.jsx still import ../data/artists.json (100 fake
+  artists). The journey path (/, /artists, /generate, /matches, /book,
+  /designs) is clean — homepage uses featured-artists.json generated FROM
+  Neo4j. Decide: retire /smart-match + /swipe (old theme, violates design
+  rule) or port to graph. scripts/ importers referencing artists.json are
+  seed tooling, fine.
+- **Samson-only ops checklist (nothing below is code):**
+  1. Vercel tatt-app env: add STRIPE_SECRET_KEY (live or test) — until
+     then /api/checkout honestly 503s and bookings save without deposit.
+  2. Vercel tatt-app env: FIREBASE_* admin credentials so /api/v1/book can
+     write Firestore in prod (verify a real booking lands in
+     booking_requests).
+  3. `firebase deploy --only firestore:rules` (booking + availability rules
+     merged on main but rules deploy is manual).
+  4. Delete the dead NEXT_PUBLIC_FRONTEND_AUTH_TOKEN / FRONTEND_AUTH_TOKEN
+     pair from Vercel env (auth is Firebase-only since PR #48).
+  5. Pick tatt-app as the canonical Vercel project; disconnect manama-next
+     and generous-success (J7 leftover).
+- **Share API store is ephemeral in-memory** (carried from booking branch
+  report) — share links die on redeploy; needs a durable store if sharing
+  matters.
 
 8. **Merge PR #35** (README truth sync) — after #39/#40 land, re-verify
    accuracy, then merge.
