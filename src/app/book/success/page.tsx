@@ -1,178 +1,107 @@
-'use client';
+"use client";
 
-import { motion } from 'framer-motion';
-import { Check, ArrowLeft, Calendar, Clock, MapPin, Ruler, DollarSign } from 'lucide-react';
-import Link from 'next/link';
-import { Suspense, useMemo } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { useBookingStore } from '@/store/useBookingStore';
+/**
+ * Stripe Checkout return page (success_url) — punk StudioShell look.
+ * Everything shown comes from the checkout session's redirect params;
+ * anything missing renders as "to be confirmed", never invented.
+ */
 
-const DEPOSIT_BY_SIZE: Record<string, number> = {
-  small: 75,
-  medium: 150,
-  large: 300,
-  sleeve: 500,
-};
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import StudioShell from "@/components/studio/StudioShell";
+import SlashHeadline from "@/components/punk/SlashHeadline";
+import TapeCTA from "@/components/punk/TapeCTA";
 
-function titleCase(value: string) {
-  if (!value) return '';
-  return value.charAt(0).toUpperCase() + value.slice(1);
+function prettyDate(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso}T00:00:00` : iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 }
 
-function BookingSuccessContent() {
-  const searchParams = useSearchParams();
-  const { booking, depositAmount } = useBookingStore();
+function SuccessContent() {
+  const sp = useSearchParams();
+  const artist = sp.get("artist");
+  const size = sp.get("size");
+  const placement = sp.get("placement");
+  const date = prettyDate(sp.get("date"));
+  const time = sp.get("time");
+  const deposit = sp.get("deposit");
+  const sessionId = sp.get("session_id");
 
-  const artistName = searchParams.get('artist') || booking.artist?.artistName || 'Your artist';
-  const size = searchParams.get('size') || booking.details.size || 'medium';
-  const placement = searchParams.get('placement') || booking.details.placement || 'TBD';
-  const date = searchParams.get('date') || booking.slot?.date || 'To be confirmed';
-  const time = searchParams.get('time') || booking.slot?.time || 'To be confirmed';
-  const stripeSessionId = searchParams.get('session_id');
-
-  const paidDeposit =
-    Number(searchParams.get('deposit')) ||
-    depositAmount ||
-    DEPOSIT_BY_SIZE[size.toLowerCase()] ||
-    DEPOSIT_BY_SIZE.medium;
-
-  const prettyDate =
-    date !== 'To be confirmed'
-      ? new Date(date).toLocaleDateString('en-US', {
-          weekday: 'long',
-          month: 'long',
-          day: 'numeric',
-        })
-      : date;
-
-  const shareLink = useMemo(() => {
-    const text = 'Just booked my tattoo consultation on @TatTapp! 🖊️';
-    const url =
-      typeof window !== 'undefined' ? `${window.location.origin}/artists` : 'https://tatt.app';
-    return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
-  }, []);
+  const rows: { label: string; value: string }[] = [
+    { label: "Artist", value: artist ?? "To be confirmed" },
+    { label: "Requested date", value: date ?? "To be confirmed" },
+    { label: "Time", value: time ?? "To be confirmed" },
+    {
+      label: "Piece",
+      value: size || placement ? [size, placement].filter(Boolean).join(" · ") : "To be confirmed",
+    },
+  ];
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-12%] left-[-10%] w-[60%] h-[50%] bg-orange-500/15 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-10%] right-[-8%] w-[50%] h-[45%] bg-amber-400/15 rounded-full blur-[120px]" />
+    <StudioShell>
+      <div className="px-6 md:px-12 pt-6 pb-4 border-b hairline">
+        <div className="max-w-5xl mx-auto flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/50 tabular-nums font-body">
+          <span><span className="text-pink">●</span>&nbsp;&nbsp;Booking</span>
+          <span>Deposit&nbsp;<span className="text-pink">paid</span></span>
+        </div>
       </div>
 
-      <main className="max-w-lg mx-auto px-4 py-10 pb-20 space-y-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center space-y-4"
-        >
-          <motion.div
-            initial={{ scale: 0.7, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.35, ease: 'easeOut' }}
-            className="w-24 h-24 rounded-full bg-amber-500/20 border border-amber-400/50 flex items-center justify-center mx-auto shadow-xl shadow-amber-500/20"
-          >
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: 'spring', stiffness: 280, damping: 18 }}
-              className="w-12 h-12 rounded-full bg-amber-400 text-black flex items-center justify-center"
-            >
-              <Check className="w-7 h-7" />
-            </motion.div>
-          </motion.div>
+      <div className="px-6 md:px-12 py-16 md:py-24">
+        <div className="max-w-5xl mx-auto">
+          <SlashHeadline before="Deposit" slashed="down" size="section" />
 
-          <h1 className="text-3xl font-black text-white">Booking Confirmed! 🎉</h1>
-          <p className="text-white/70">
-            Your consultation slot is secured and your artist has received your request.
-          </p>
-        </motion.div>
+          <div className="mt-12 border-2 hairline p-8 md:p-12">
+            {deposit && (
+              <div className="sticker inline-block px-5 py-3 -rotate-2">
+                <div className="font-display text-[18px] tracking-widest leading-none tabular-nums">
+                  ${deposit}
+                </div>
+                <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-1">
+                  Deposit paid
+                </div>
+              </div>
+            )}
 
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.08 }}
-          className="p-5 rounded-2xl border border-white/10 bg-white/5 space-y-3"
-        >
-          <div className="text-xs uppercase tracking-wider text-amber-300 font-semibold">
-            Booking Summary
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-white/50 flex items-center gap-2"><MapPin className="w-4 h-4" /> Artist</span>
-            <span className="font-medium">{artistName}</span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-white/50 flex items-center gap-2"><Calendar className="w-4 h-4" /> Date</span>
-            <span className="font-medium">{prettyDate}</span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-white/50 flex items-center gap-2"><Clock className="w-4 h-4" /> Time</span>
-            <span className="font-medium">{time}</span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-white/50 flex items-center gap-2"><Ruler className="w-4 h-4" /> Tattoo</span>
-            <span className="font-medium">{titleCase(size)} on {placement}</span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-white/50 flex items-center gap-2"><DollarSign className="w-4 h-4" /> Deposit paid</span>
-            <span className="font-semibold text-amber-300">${paidDeposit}</span>
-          </div>
-          <div className="text-sm text-white/70 pt-2 border-t border-white/10">
-            Remaining balance due at consultation.
-          </div>
-          {stripeSessionId && (
-            <div className="text-xs text-white/40 break-all">
-              Stripe session: {stripeSessionId}
+            <dl className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5 text-[13px] font-body max-w-2xl">
+              {rows.map((r) => (
+                <div key={r.label}>
+                  <dt className="text-[9px] uppercase tracking-[0.22em] text-white/40">
+                    {r.label}
+                  </dt>
+                  <dd className="mt-1 text-white capitalize">{r.value}</dd>
+                </div>
+              ))}
+            </dl>
+
+            <p className="mt-8 text-[11px] uppercase tracking-[0.18em] text-white/50 font-body leading-[1.9] max-w-xl">
+              Your requested time goes to the artist — they confirm the final slot.
+              <br />
+              Balance settles at the shop.
+            </p>
+
+            {sessionId && (
+              <p className="mt-6 text-[9px] uppercase tracking-[0.15em] text-white/30 font-body break-all">
+                Stripe session: {sessionId}
+              </p>
+            )}
+
+            <div className="mt-10 flex flex-col sm:flex-row items-start gap-4">
+              <TapeCTA href="/bookings" size="md">Your bookings</TapeCTA>
+              <TapeCTA href="/artists" variant="ghost" size="sm">Back to the roster</TapeCTA>
             </div>
-          )}
-        </motion.section>
-
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.14 }}
-          className="p-5 rounded-2xl border border-amber-300/30 bg-amber-500/10"
-        >
-          <div className="text-sm uppercase tracking-wider text-amber-300 font-semibold mb-2">
-            What&apos;s next
           </div>
-          <ul className="space-y-2 text-sm text-white/80">
-            <li>You&apos;ll receive a confirmation email within 24 hours.</li>
-            <li>Bring reference images to your consultation.</li>
-            <li>AI design preview available in your TatT app.</li>
-          </ul>
-        </motion.section>
-
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="space-y-3"
-        >
-          <a
-            href={shareLink}
-            target="_blank"
-            rel="noreferrer"
-            className="w-full py-4 rounded-2xl bg-amber-400 text-black font-bold flex items-center justify-center hover:bg-amber-300 transition-all"
-          >
-            Share your TatT booking
-          </a>
-          <Link
-            href="/"
-            className="w-full py-4 rounded-2xl border border-white/15 bg-white/5 text-white/80 font-semibold flex items-center justify-center gap-2 hover:bg-white/10 transition-all"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to discover
-          </Link>
-        </motion.div>
-      </main>
-    </div>
+        </div>
+      </div>
+    </StudioShell>
   );
 }
 
 export default function BookingSuccessPage() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-black" />}>
-      <BookingSuccessContent />
+      <SuccessContent />
     </Suspense>
   );
 }
