@@ -72,6 +72,12 @@ fetch/validation. Branch protection still blocked on GitHub plan.)
 
 ## Backlog
 
+- **Forge polish (from 2026-07-20 UX review):** (1) raise the tape-label
+  font-size floor to ~10px (7-9px "SELECTED"/"LINES" labels fail WCAG
+  readability; keep letter-spacing/punk look); (2) add an expand/zoom
+  affordance on generated cut cards — click already means "select", so
+  there is no way to view a design large. Fold into any Forge-touching PR.
+
 - **Artist enrichment sweep** — only ~1.5k of 8,949 real artists have style
   tags; enrich styles/portfolio/bio from each artist's `sourcePages`.
   Large fan-out job; good multi-agent/ultracode candidate.
