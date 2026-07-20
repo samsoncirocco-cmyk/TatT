@@ -3,10 +3,16 @@
 Working list of module areas to deepen (clear interface, strong tests, hidden
 internals). Ordered by priority. Source: architecture grill session 2026-07-20.
 
-## 1. Generation stack — IN PROGRESS (first target, locked in grill)
-`generationService`, `generationRouter`, `replicateService`, `vertex-ai-service.js`,
-`vertex-ai-edge.ts`, `vertex-imagen-client`, `councilService`.
-Core money path; three overlapping Vertex modules; per-call metered costs.
+## 1. Generation stack — DONE (2026-07-20)
+All generation traffic now flows through `src/services/generation/` (plus the
+`council` module); legacy files (`generationService`, `generationRouter`,
+`replicateService` shim, `vertex-ai-edge`, `vertex-imagen-client`, the Express
+imagen route) deleted in the contract step (ticket 05).
+Leftovers: `vertex-ai-service.js` keeps `generateWithImagen` only for
+`scripts/generate-artist-images-vertex.js` (plain-node script can't import the
+TS module — see ticket 05 notes); `vertex-embedding-service.ts` is likely dead
+(only importer is `scripts/seed-artist-embeddings.ts`) — delete when the
+matching stack is deepened.
 
 ## 2. Data/schema layer
 Four competing Supabase schema SQL files (`supabase-complete-schema.sql`,

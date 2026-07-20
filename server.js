@@ -17,7 +17,6 @@ import arVisualizationRouter from './src/api/routes/arVisualization.js';
 import councilEnhancementRouter from './src/api/routes/councilEnhancement.js';
 import stencilExportRouter from './src/api/routes/stencilExport.js';
 import layerUploadRouter, { cleanupOldLayers } from './src/api/routes/layerUpload.js';
-import imagenGenerateRouter from './src/api/routes/generate.js';
 import layersDecomposeRouter from './src/api/routes/layersDecompose.js';
 import embeddingsGenerateRouter from './src/api/routes/embeddingsGenerate.js';
 import matchUpdateRouter from './src/api/routes/matchUpdate.js';
@@ -208,18 +207,6 @@ const storageLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-const imagenGenerateLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 60,
-  message: {
-    error: 'Imagen generation rate limit exceeded',
-    code: 'RATE_LIMIT_EXCEEDED',
-    hint: 'Maximum 60 requests per hour. Please try again later.'
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
 // Bearer auth middleware
 const authMiddleware = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -342,7 +329,6 @@ app.use('/api/v1/ar/visualize', authMiddleware, arVisualizeLimiter, arVisualizat
 app.use('/api/v1/council/enhance', authMiddleware, councilEnhanceLimiter, councilEnhancementRouter);
 app.use('/api/v1/stencil/export', authMiddleware, stencilExportLimiter, stencilExportRouter);
 app.use('/api/v1/upload-layer', authMiddleware, layerUploadLimiter, layerUploadRouter);
-app.use('/api/v1/generate', authMiddleware, imagenGenerateLimiter, imagenGenerateRouter);
 app.use('/api/v1/layers/decompose', authMiddleware, layerDecomposeLimiter, layersDecomposeRouter);
 app.use('/api/v1/embeddings/generate', authMiddleware, embeddingsGenerateLimiter, embeddingsGenerateRouter);
 app.use('/api/v1/match/update', authMiddleware, matchUpdateLimiter, matchUpdateRouter);

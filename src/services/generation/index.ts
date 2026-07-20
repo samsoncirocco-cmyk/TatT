@@ -15,6 +15,14 @@ export type {
   SafetyFilterLevel
 } from './internal/provider';
 
+// Deliberate second public export (contract step, ticket 05): routeGeneration
+// is a pure routing helper (no I/O, imports only the model-routing config) and
+// is safe on the client. Feature code that previews model/aspect/negative-prompt
+// choices without generating imports it from here instead of the deleted
+// src/services/generationRouter.ts.
+export { routeGeneration } from './internal/routing';
+export type { GenerationRoute } from './internal/routing';
+
 interface ResolvedRoute {
   modelId: string;
   provider: ProviderName;

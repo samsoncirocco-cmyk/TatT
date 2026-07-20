@@ -20,7 +20,7 @@ import {
   getUserErrorMessage,
   isErrorCode
 } from '@/services/fetchWithAbort';
-import { routeGeneration } from '@/services/generationRouter';
+import { routeGeneration } from '@/services/generation';
 import { getApiAuthHeaders } from '@/lib/client-api-auth';
 
 // Proxy server configuration (injected via env)
@@ -779,7 +779,7 @@ async function generateWithFallbackChain(userInput, modelId, signal, maxRetries,
  */
 export async function generatePreviewDesign(userInput, options = {}) {
   const hasExplicitModel = Boolean(options.modelId || userInput.aiModel);
-  const routing = hasExplicitModel ? null : routeGeneration(userInput, { mode: 'preview' });
+  const routing = hasExplicitModel ? null : routeGeneration({ ...userInput, mode: 'preview' });
   const resolvedModelId = options.modelId || userInput.aiModel || routing?.modelId || PREVIEW_MODEL;
   const resolvedInput = routing
     ? { ...userInput, negativePrompt: routing.negativePrompt }
@@ -810,7 +810,7 @@ export async function generatePreviewDesign(userInput, options = {}) {
  */
 export async function generateHighResDesign(userInput, options = {}) {
   const hasExplicitModel = Boolean(options.modelId || userInput.aiModel);
-  const routing = hasExplicitModel ? null : routeGeneration(userInput, { mode: options.finalize ? 'final' : 'refine' });
+  const routing = hasExplicitModel ? null : routeGeneration({ ...userInput, mode: options.finalize ? 'final' : 'refine' });
   const modelId = options.modelId || userInput.aiModel || routing?.modelId || DEFAULT_MODEL;
   const resolvedInput = routing
     ? { ...userInput, negativePrompt: routing.negativePrompt }
