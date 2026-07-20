@@ -158,6 +158,7 @@ export default function Home() {
                   city={`${a.city}, ${a.state}`}
                   style={a.styles[0]}
                   color={["bg-pink", "bg-bone", "bg-cream", "bg-pink-deep"][i % 4]}
+                  handle={a.instagram}
                   href={`https://instagram.com/${a.instagram.replace(/^@/, "")}`}
                   external
                 />

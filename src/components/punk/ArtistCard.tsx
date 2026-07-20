@@ -24,6 +24,7 @@ type CommonProps = {
   city: string;
   color: string;            // tailwind bg class, e.g. "bg-pink"
   image?: string;           // portfolio image URL; when set, replaces the color block
+  handle?: string;          // instagram handle; no-photo tiles render a monogram + handle sticker so the color block reads deliberate, not like a failed image
   href?: string;            // defaults to /artists/${slug}
   external?: boolean;       // opens href in a new tab (e.g. Instagram profiles)
   showFavorite?: boolean;   // defaults to false; /artists + /matches pass true
@@ -60,6 +61,7 @@ export default function ArtistCard(props: Props) {
     city,
     color,
     image,
+    handle,
     href = `/artists/${slug}`,
     external = false,
     showFavorite = false,
@@ -91,7 +93,28 @@ export default function ArtistCard(props: Props) {
               loading="lazy"
             />
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 mix-blend-multiply" />
+            <>
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 mix-blend-multiply" />
+              {handle && (
+                <>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="font-display text-[88px] leading-none text-black/25 select-none">
+                      {name
+                        .split(/\s+/)
+                        .map((w) => w[0])
+                        .slice(0, 2)
+                        .join("")
+                        .toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="absolute top-3 left-3 sticker px-2 py-1 -rotate-3">
+                    <span className="font-body text-[9px] uppercase tracking-[0.18em]">
+                      {handle}&nbsp;→
+                    </span>
+                  </div>
+                </>
+              )}
+            </>
           )}
 
           {/* match% sticker — match variant only. Inlined to preserve
