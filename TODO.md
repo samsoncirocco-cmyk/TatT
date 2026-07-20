@@ -5,7 +5,7 @@ agents. **Every agent: read this before starting work, update it when you
 finish or discover work.** Keep entries short; link PRs/issues; date your
 changes. Newest state wins — resolve edit conflicts by merging both lists.
 
-_Last updated: 2026-07-17 (roadmap-and-branch-triage session, post backlog-cleanup pass — PR #45, PR #39 closed as superseded by #44)_
+_Last updated: 2026-07-20 (journey session — prod matching turned ON at tatt-app.vercel.app; J7 mostly discovered-done)_
 
 ## Now (in priority order) — THE JOURNEY QUEUE
 
@@ -16,14 +16,22 @@ design system (src/components/punk/, studio/). Never resurrect old-theme
 (ducks-yellow) pages — port their logic, not their look. Aesthetic cohesion
 is an acceptance criterion, not a nice-to-have.**
 
-J1. **Generation for real** — provision Vertex creds or REPLICATE_API_TOKEN,
-    configure budget-tracker, NEXT_PUBLIC_DEMO_MODE=off. (Needs Samson for keys.)
+J1. **Generation for real** — keys EXIST: REPLICATE_API_TOKEN + full Vertex
+    creds already in tatt-app's Vercel prod env (verified 2026-07-20; local
+    copy of the Replicate token in /opt/org/.env, validated against the API).
+    Remaining: budget-tracker cap (needs Samson's number), confirm demo mode
+    off in prod, one verified end-to-end generation.
 J2+J3. ~~Real matching wired into live /matches~~ — **DONE 2026-07-17
     (PR #46)**: server-side Neo4j execution, vector half degrades soft
     (embeddings not yet populated), functional Style/City/Has-portfolio
     pills, real scores, honest offline states, punk aesthetic verified.
-    PROD TODO: set NEO4J_*, NEXT_PUBLIC_NEO4J_ENABLED, and the
-    FRONTEND_AUTH_TOKEN pair in the deploy target's env (J7).
+    ~~PROD TODO: set NEO4J_*, NEXT_PUBLIC_NEO4J_ENABLED, and the
+    FRONTEND_AUTH_TOKEN pair in the deploy target's env (J7).~~ **DONE
+    2026-07-20: all 8 vars set in tatt-app prod via Vercel CLI, rebuilt,
+    verified in-browser — live matching is ON at tatt-app.vercel.app/matches
+    (real graph artists, scores, no offline notice). Prod token pair is a
+    fresh random value living only in Vercel env (`vercel env pull` to get
+    it); VERCEL_TOKEN in /opt/org/.env (gitignored).**
 J4. **Design→artist signal** — pass the chosen design's styles/tags into the
     match query so results reflect the design.
 J5. **Real booking path** — artist profile → booking WITH artistId → existing
@@ -31,8 +39,12 @@ J5. **Real booking path** — artist profile → booking WITH artistId → exist
     localStorage demo. Port /book/[artistId] logic into the punk /book flow.
 J6. **Minimal availability model** — replace Math.random() availability;
     Firestore rules + artist notification.
-J7. **One deploy target, auto-deploy, live URL** — decide Vercel vs Cloud Run,
-    un-gate the deploy job, verify reachable URL.
+J7. **One deploy target, auto-deploy, live URL** — MOSTLY DONE (discovered
+    2026-07-20): Vercel project **tatt-app** auto-deploys main and
+    https://tatt-app.vercel.app serves the current tip with live matching.
+    Remaining: THREE Vercel projects deploy this repo (tatt-app, manama-next,
+    generous-success) — pick tatt-app as canonical and disconnect the other
+    two (Samson call); optional custom domain.
 
 (Prior items now secondary: PR #40 feedback folds into J2/J3 scope; security
 reconciliation continues in parallel; enrichment sweep PARKED after two
