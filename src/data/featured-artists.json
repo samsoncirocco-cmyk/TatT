@@ -1,0 +1,65 @@
+{
+  "generatedFrom": "neo4j",
+  "artists": [
+    {
+      "city": "Fayetteville",
+      "reviewCount": 5160,
+      "name": "Edward Needlehands",
+      "rating": 4.9,
+      "styles": [
+        "Traditional",
+        "Black & Grey",
+        "Anime"
+      ],
+      "state": "NC",
+      "id": "artist_edward_needlehands",
+      "instagram": "@edward_needlehands"
+    },
+    {
+      "city": "Myrtle Beach",
+      "reviewCount": 4003,
+      "name": "Devon Lanz",
+      "rating": 4.9,
+      "styles": [
+        "Traditional",
+        "Realism",
+        "Neo-Traditional",
+        "Black & Grey"
+      ],
+      "state": "SC",
+      "id": "artist_devonxo",
+      "instagram": "@devonxo"
+    },
+    {
+      "city": "San Antonio",
+      "reviewCount": 3486,
+      "name": "Pham Minh Phuc",
+      "rating": 4.9,
+      "styles": [
+        "Traditional",
+        "Realism",
+        "Blackwork",
+        "Neo-Traditional",
+        "Fine Line",
+        "Black & Grey",
+        "Japanese (Irezumi)",
+        "Anime"
+      ],
+      "state": "TX",
+      "id": "artist_pham.minh.phuc",
+      "instagram": "@pham.minh.phuc"
+    },
+    {
+      "city": "Oakland",
+      "reviewCount": 2409,
+      "name": "Brian Richter",
+      "rating": 4.9,
+      "styles": [
+        "Traditional"
+      ],
+      "state": "CA",
+      "id": "artist_brian_richter_tattooer",
+      "instagram": "@brian_richter_tattooer"
+    }
+  ]
+}

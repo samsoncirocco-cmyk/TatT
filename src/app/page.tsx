@@ -2,7 +2,7 @@ import Link from "next/link";
 import StudioShell from "@/components/studio/StudioShell";
 import SlashHeadline from "@/components/punk/SlashHeadline";
 import ArtistCard from "@/components/punk/ArtistCard";
-import { getFeaturedArtists } from "@/lib/artists";
+import featuredData from "@/data/featured-artists.json";
 
 const STEPS = [
   {
@@ -22,7 +22,10 @@ const STEPS = [
   },
 ];
 
-const FEATURED = getFeaturedArtists(4);
+// Real artists curated from the live graph (scripts/pick-featured-artists.mjs).
+// No portfolio photos exist for scraped artists yet, so cards link out to
+// each artist's Instagram instead of showing an image.
+const FEATURED = featuredData.artists;
 
 export default function Home() {
   return (
@@ -148,14 +151,15 @@ export default function Home() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
               {FEATURED.map((a, i) => (
                 <ArtistCard
-                  key={a.slug}
+                  key={a.id}
                   variant="compact"
-                  slug={a.slug}
+                  slug={a.id}
                   name={a.name}
-                  city={a.location}
+                  city={`${a.city}, ${a.state}`}
                   style={a.styles[0]}
                   color={["bg-pink", "bg-bone", "bg-cream", "bg-pink-deep"][i % 4]}
-                  image={a.portfolioImages[0]}
+                  href={`https://instagram.com/${a.instagram.replace(/^@/, "")}`}
+                  external
                 />
               ))}
             </div>
