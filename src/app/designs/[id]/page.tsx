@@ -114,15 +114,24 @@ export default function DesignDetailPage({
           {/* canvas */}
           <div className="md:col-span-7">
             <div
-              className={`aspect-square ${design.color} border-2 hairline relative overflow-hidden`}
+              className={`aspect-square ${design.image ? "bg-bone" : design.color} border-2 hairline relative overflow-hidden`}
             >
-              <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/50 mix-blend-multiply" />
+              {design.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={design.image}
+                  alt={title}
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              ) : (
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/50 mix-blend-multiply" />
+              )}
               <div className="absolute top-3 right-3 sticker px-3 py-1 z-10">
                 <div className="font-display text-[11px] tracking-widest leading-none">
                   v1
                 </div>
                 <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-0.5">
-                  Placeholder
+                  {design.image ? "Cut" : "Placeholder"}
                 </div>
               </div>
               <span className="absolute bottom-3 left-3 text-[9px] uppercase tracking-[0.2em] text-white/70 font-body tabular-nums">
