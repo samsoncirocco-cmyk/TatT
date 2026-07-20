@@ -26,5 +26,5 @@ One brand, two messages: the trust angle ("test it before it's forever") and
 the Image2Ink discovery angle (which showcases artist matchmaking) are ad/page
 level variants, NOT separate brands — an early-stage two-brand split would
 divide traffic, reviews, and word-of-mouth. Domains tatttester.com, tatt-t.com,
-and image2ink.com were all unregistered on 2026-07-20 and should be claimed
-before any public use. Trademark screening is still open.
+and image2ink.com were registered at Cloudflare on 2026-07-20. Trademark
+screening is still open.
