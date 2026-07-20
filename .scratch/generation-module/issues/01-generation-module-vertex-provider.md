@@ -7,10 +7,14 @@ retry/backoff, relaxed-safety fallback, and telemetry behavior that
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** done (2026-07-20)
 
-- [ ] `generate()` is the module's only public export surface (plus its request/result types)
-- [ ] Provider interface defined internally; Vertex Imagen is the first implementation
-- [ ] Retry/backoff, safety-fallback, and telemetry behavior ported faithfully
-- [ ] Seam tests: mocked Vertex HTTP; assert result shape, retry-on-429, safety fallback
-- [ ] `npm test` and `npm run build` pass
+- [x] `generate()` is the module's only public export surface (plus its request/result types)
+- [x] Provider interface defined internally; Vertex Imagen is the first implementation
+- [x] Retry/backoff, safety-fallback, and telemetry behavior ported faithfully (verified by line-diff in code review)
+- [x] Seam tests: mocked Vertex HTTP; assert result shape, retry-on-429, safety fallback
+- [x] `npm test` (282 passed) and `npm run build` pass
+
+**Outcome notes:** Auth is still hard-wired to the edge token helper (as in the
+original) — the injected-auth seam the spec calls for lands with ticket 03's
+Edge migration. Code review flagged internal cleanups for ticket 02.

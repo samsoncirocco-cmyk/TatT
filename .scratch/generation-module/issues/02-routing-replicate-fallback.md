@@ -13,4 +13,5 @@ still never see providers.
 - [ ] Replicate provider implementation behind the same provider interface
 - [ ] Vertex→Replicate fallback preserved with current gating (`allowFallback`, token presence)
 - [ ] Seam tests: provider selection by style/mode, fallback on Vertex failure
+- [ ] Cleanups from ticket 01 code review while touching vertexImagen.ts: extract the duplicated result/telemetry block shared by success and fallback paths; rename `retry.attempts` → `retry.maxRetries` (it means retries-after-first-try, not total); tighten stringly-typed options (safety level, aspect ratio) to literal unions
 - [ ] `npm test` and `npm run build` pass
