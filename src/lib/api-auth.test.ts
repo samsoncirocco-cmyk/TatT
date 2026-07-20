@@ -31,30 +31,21 @@ describe('verifyApiAuth', () => {
     expect(verifyFirebaseToken).toHaveBeenCalledWith(request);
   });
 
-  it('allows the shared frontend token when configured', async () => {
+  // Regression guard (was reintroduced by PR #46 and exploitable in prod):
+  // a shared static token equal to FRONTEND_AUTH_TOKEN must NOT authorize.
+  // Such a token, paired with NEXT_PUBLIC_FRONTEND_AUTH_TOKEN, ships in the
+  // browser bundle and would let anyone call protected/paid routes.
+  it('rejects a bearer token equal to FRONTEND_AUTH_TOKEN (no static bypass)', async () => {
     vi.stubEnv('FRONTEND_AUTH_TOKEN', 'shared-frontend-token');
     try {
+      verifyFirebaseToken.mockResolvedValue(null); // not a valid Firebase token
       const request = new NextRequest('http://localhost/api/test', {
         headers: { Authorization: 'Bearer shared-frontend-token' },
       });
 
-      await expect(verifyApiAuth(request)).resolves.toBeNull();
-      expect(verifyFirebaseToken).not.toHaveBeenCalled();
-    } finally {
-      vi.unstubAllEnvs();
-    }
-  });
-
-  it('falls through to Firebase when the frontend token does not match', async () => {
-    vi.stubEnv('FRONTEND_AUTH_TOKEN', 'shared-frontend-token');
-    try {
-      verifyFirebaseToken.mockResolvedValue(null);
-      const request = new NextRequest('http://localhost/api/test', {
-        headers: { Authorization: 'Bearer other-token' },
-      });
-
       const response = await verifyApiAuth(request);
 
+      // Must fall through to Firebase and be rejected — never short-circuit to null.
       expect(response?.status).toBe(401);
       expect(verifyFirebaseToken).toHaveBeenCalledWith(request);
     } finally {

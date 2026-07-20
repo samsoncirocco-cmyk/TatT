@@ -6,6 +6,7 @@ import StudioShell from "@/components/studio/StudioShell";
 import ArtistCard from "@/components/punk/ArtistCard";
 import SlashHeadline from "@/components/punk/SlashHeadline";
 import { useFavorites } from "@/lib/tattStorage";
+import { getApiAuthHeaders } from "@/lib/client-api-auth";
 
 const COLORS = ["bg-pink", "bg-bone", "bg-cream", "bg-pink-deep", "bg-white/10"];
 
@@ -99,11 +100,15 @@ export default function MatchesClient({ rosterSlugs }: { rosterSlugs: string[] }
     setStatus("loading");
 
     try {
+      // Matching requires a signed-in user (reached only after upload/generate).
+      // getApiAuthHeaders attaches the Firebase ID token, or prompts sign-in
+      // and throws if there is no session — handled by the catch below.
+      const authHeaders = await getApiAuthHeaders();
       const res = await fetch("/api/v1/match/semantic", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_FRONTEND_AUTH_TOKEN ?? ""}`,
+          ...authHeaders,
         },
         signal: controller.signal,
         body: JSON.stringify({
