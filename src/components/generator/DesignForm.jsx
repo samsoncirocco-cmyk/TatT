@@ -5,7 +5,7 @@
  */
 
 import { TATTOO_STYLES, BODY_PART_SPECS, SIZE_SPECS, getRecommendedModel } from '../../config/promptTemplates';
-import { AI_MODELS } from '../../services/replicateService';
+import { AI_MODELS } from '@/features/generate/services/replicateService';
 import Button from '../ui/Button';
 import { Sparkles, Palette, Loader2 } from 'lucide-react';
 

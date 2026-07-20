@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import '../../../../../lib/auth-dal';
-import { generateWithImagen } from '../../../../../services/vertex-ai-edge';
+import { generate, type AspectRatio } from '@/services/generation';
 import { uploadGeneratedImage } from '../../../../../services/storage/imageStorageService';
 import { verifyCloudTaskRequest } from '../../../../../lib/cloud-tasks-auth';
 
@@ -55,11 +55,16 @@ export async function POST(req: NextRequest) {
     const sampleCountRaw = (parameters as any)?.sampleCount ?? (parameters as any)?.num_outputs ?? 1;
     const sampleCount = Math.min(4, Math.max(1, Number(sampleCountRaw) || 1));
 
-    const result = await generateWithImagen({
+    // Explicit model choice + no cross-provider fallback: this task handler
+    // decodes data-URL output for its own GCS upload, and Replicate returns
+    // hosted URLs instead — the fallback shape would break the upload step.
+    const result = await generate({
       prompt: String(prompt).trim(),
       negativePrompt,
       numImages: sampleCount,
-      aspectRatio,
+      aspectRatio: aspectRatio as AspectRatio,
+      modelId: 'imagen3',
+      allowProviderFallback: false,
     });
 
     const firstImage = result.images?.[0];
@@ -85,7 +90,7 @@ export async function POST(req: NextRequest) {
           generation: {
             taskName,
             provider: 'vertex-ai',
-            model: 'imagen-3.0-generate-001',
+            model: result.metadata.model,
             durationMs: Date.now() - startedAt,
           },
         },

@@ -26,7 +26,7 @@ describe('replicateService smart preview', () => {
 
   beforeEach(async () => {
     ({ postJSON } = await import('../../services/fetchWithAbort.js'));
-    ({ generatePreviewDesign, generateHighResDesign, AI_MODELS } = await import('../../services/replicateService'));
+    ({ generatePreviewDesign, generateHighResDesign, AI_MODELS } = await import('@/features/generate/services/replicateService'));
     postJSON.mockResolvedValue({
       id: 'preview-id',
       status: 'succeeded',
@@ -77,7 +77,7 @@ describe('replicateService high-res generation', () => {
 
   beforeEach(async () => {
     ({ postJSON } = await import('../../services/fetchWithAbort.js'));
-    ({ generatePreviewDesign, generateHighResDesign, AI_MODELS } = await import('../../services/replicateService'));
+    ({ generatePreviewDesign, generateHighResDesign, AI_MODELS } = await import('@/features/generate/services/replicateService'));
     postJSON.mockResolvedValue({
       id: 'highres-id',
       status: 'succeeded',
