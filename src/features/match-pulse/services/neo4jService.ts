@@ -493,8 +493,10 @@ export async function findArtistMatchesForPulse(preferences: ArtistPreferences):
       locationText AS location,
       styles AS styles,
       [] AS bodyParts,
-      portfolioImages AS portfolio,
-      portfolioImages AS portfolioImages,
+      // Prefer real self-hosted portfolio images; fall back to the (empty for
+      // real artists) Tattoo.imageUrl path so the shape stays identical.
+      coalesce(a.portfolioImages, portfolioImages) AS portfolio,
+      coalesce(a.portfolioImages, portfolioImages) AS portfolioImages,
       a.instagram AS instagram,
       tags AS tags,
       totalScore * 100 AS score
