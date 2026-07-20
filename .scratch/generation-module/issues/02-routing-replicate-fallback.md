@@ -7,13 +7,19 @@ still never see providers.
 
 **Blocked by:** 01 — Generation module skeleton with Vertex provider.
 
-**Status:** ready-for-agent
+**Status:** done (2026-07-20)
 
-- [ ] Routing logic ported into the module as internal code (pure, unit-tested)
-- [ ] Replicate provider implementation behind the same provider interface
-- [ ] Vertex→Replicate fallback preserved with current gating (`allowFallback`, token presence)
-- [ ] Seam tests: provider selection by style/mode, fallback on Vertex failure
-- [ ] Cleanups from ticket 01 code review while touching vertexImagen.ts: extract the duplicated result/telemetry block shared by success and fallback paths; rename `retry.attempts` → `retry.maxRetries` (it means retries-after-first-try, not total); tighten stringly-typed options (safety level, aspect ratio) to literal unions
-- [ ] Replicate model catalog ported verbatim — model versions, schedulers, LoRA scale, prompt prefixes — with a test asserting the exact Classic Flash request body (`lora_scale: 0.6`, "A TOK tattoo drawing style of" prefix)
-- [ ] Declared behavior fix: safety fallback no longer fires after non-retryable errors (e.g. 400) — it only runs after retryable failures; update the ticket-01 seam test that enshrined the old behavior, add a test proving a 400 makes exactly one paid call
-- [ ] `npm test` and `npm run build` pass
+- [x] Routing logic ported into the module as internal code (pure, unit-tested — 8 routing tests)
+- [x] Replicate provider implementation behind the same provider interface
+- [x] Vertex→Replicate fallback preserved with current gating (`allowProviderFallback`, token presence)
+- [x] Seam tests: provider selection by style/mode, fallback on Vertex failure, replicate fallback chain
+- [x] Cleanups from ticket 01 code review: `buildResult` helper extracted; `retry.attempts` → `retry.maxRetries`; `SafetyFilterLevel`/`AspectRatio`/`GenerationMode` literal unions
+- [x] Replicate model catalog ported verbatim with Classic Flash request-body test (`lora_scale: 0.6`, TOK prefix, version hash)
+- [x] Declared behavior fix: safety fallback only after retryable failures; test proves a 400 makes exactly one paid call
+- [x] `npm test` (297 passed) and `npm run build` pass
+
+**Outcome notes:** The client-side `replicateService.js` was found to be browser
+code (localStorage, route calls) — the module's Replicate provider ports the
+server-side path instead; UI keeps calling routes until ticket 03. Server
+catalog uses the client file's params as source of truth (sdxl at 50 steps,
+not the route's 30).

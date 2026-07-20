@@ -84,16 +84,52 @@ async function callImagen(request: GenerationRequest) {
   };
 }
 
+function buildResult(
+  request: GenerationRequest,
+  requestId: string,
+  startedAt: number,
+  attempts: number,
+  fallbackUsed: boolean,
+  result: { images: string[]; safetySetting: string; personGeneration: string }
+): GenerationResult {
+  const durationMs = Date.now() - startedAt;
+
+  logEvent('generation.result', {
+    requestId,
+    success: true,
+    durationMs,
+    attempts,
+    safetyFilterLevel: result.safetySetting,
+    ...(fallbackUsed ? { fallbackUsed: true } : {}),
+    estimatedCostUsd: IMAGEN_COST_PER_IMAGE * (request.numImages || 1)
+  });
+
+  return {
+    images: result.images,
+    metadata: {
+      model: IMAGEN_MODEL,
+      provider: 'vertex-ai',
+      generatedAt: new Date().toISOString(),
+      durationMs,
+      attempts,
+      safetyFilterLevel: result.safetySetting,
+      personGeneration: result.personGeneration,
+      seed: request.seed,
+      fallbackUsed
+    }
+  };
+}
+
 async function generateWithRetry(request: GenerationRequest): Promise<GenerationResult> {
   const startedAt = Date.now();
-  // attempts here means "number of retries after the first try"
-  // Default 4 => 5 total attempts, matching production-hardening expectations.
-  const retryAttempts = request.retry?.attempts ?? 4;
+  // maxRetries means "retries after the first try": default 4 => 5 total
+  // attempts, matching production-hardening expectations.
+  const maxRetries = request.retry?.maxRetries ?? 4;
   const baseDelayMs = request.retry?.baseDelayMs ?? 1000;
 
   let attempts = 0;
   let lastError: any = null;
-  let fallbackUsed = false;
+  let lastErrorRetryable = false;
 
   const requestId = `gen_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   logEvent('generation.request', {
@@ -105,84 +141,37 @@ async function generateWithRetry(request: GenerationRequest): Promise<Generation
     estimatedCostUsd: IMAGEN_COST_PER_IMAGE * (request.numImages || 1)
   });
 
-  while (attempts <= retryAttempts) {
+  while (attempts <= maxRetries) {
     try {
       attempts += 1;
       const result = await callImagen(request);
-      const durationMs = Date.now() - startedAt;
-
-      logEvent('generation.result', {
-        requestId,
-        success: true,
-        durationMs,
-        attempts,
-        safetyFilterLevel: result.safetySetting,
-        estimatedCostUsd: IMAGEN_COST_PER_IMAGE * (request.numImages || 1)
-      });
-
-      return {
-        images: result.images,
-        metadata: {
-          model: IMAGEN_MODEL,
-          provider: 'vertex-ai',
-          generatedAt: new Date().toISOString(),
-          durationMs,
-          attempts,
-          safetyFilterLevel: result.safetySetting,
-          personGeneration: result.personGeneration,
-          seed: request.seed,
-          fallbackUsed
-        }
-      };
+      return buildResult(request, requestId, startedAt, attempts, false, result);
     } catch (error: any) {
       lastError = error;
       const status = error?.status;
-      const isRetryable = status && RETRYABLE_STATUS.has(status);
-      if (!isRetryable || attempts > retryAttempts) break;
+      lastErrorRetryable = Boolean(status && RETRYABLE_STATUS.has(status));
+      if (!lastErrorRetryable || attempts > maxRetries) break;
 
       // Exponential backoff (capped) to play nice with quota throttling and transient outages.
       const exponent = Math.max(0, attempts - 1);
       const delayMs = Math.min(baseDelayMs * Math.pow(2, exponent), 8000);
-      console.log(`[Generation] Retry ${attempts}/${retryAttempts + 1} after ${delayMs}ms (status=${status})`);
+      console.log(`[Generation] Retry ${attempts}/${maxRetries + 1} after ${delayMs}ms (status=${status})`);
       await sleep(delayMs);
     }
   }
 
-  if (request.fallback) {
+  // Relaxed-safety fallback only after retryable failures — a non-retryable
+  // error (e.g. 400 malformed request) would fail identically on the paid
+  // fallback call. Declared behavior fix (spec: generation-module).
+  if (request.fallback && lastErrorRetryable) {
     try {
-      fallbackUsed = true;
       const fallbackRequest: GenerationRequest = {
         ...request,
         safetyFilterLevel: request.fallback.safetyFilterLevel || 'block_only_high',
         numImages: request.numImages || 1
       };
       const result = await callImagen(fallbackRequest);
-      const durationMs = Date.now() - startedAt;
-
-      logEvent('generation.result', {
-        requestId,
-        success: true,
-        durationMs,
-        attempts: attempts + 1,
-        safetyFilterLevel: result.safetySetting,
-        fallbackUsed: true,
-        estimatedCostUsd: IMAGEN_COST_PER_IMAGE * (request.numImages || 1)
-      });
-
-      return {
-        images: result.images,
-        metadata: {
-          model: IMAGEN_MODEL,
-          provider: 'vertex-ai',
-          generatedAt: new Date().toISOString(),
-          durationMs,
-          attempts: attempts + 1,
-          safetyFilterLevel: result.safetySetting,
-          personGeneration: result.personGeneration,
-          seed: request.seed,
-          fallbackUsed
-        }
-      };
+      return buildResult(request, requestId, startedAt, attempts + 1, true, result);
     } catch (fallbackError: any) {
       lastError = fallbackError;
     }

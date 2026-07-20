@@ -30,23 +30,26 @@ function errorResponse(status: number) {
   };
 }
 
-describe('generation module seam', () => {
+describe('generation module seam — vertex provider', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
+    // No Replicate token: cross-provider fallback stays out of these tests.
+    vi.stubEnv('REPLICATE_API_TOKEN', '');
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
     vi.clearAllMocks();
   });
 
   it('returns images and metadata for a successful generation', async () => {
     fetchMock.mockResolvedValueOnce(imagenResponse(2));
 
-    const result = await generate({ prompt: 'dragon tattoo', numImages: 2 });
+    const result = await generate({ prompt: 'dragon tattoo', style: 'realism', numImages: 2 });
 
     expect(result.images).toEqual([
       'data:image/png;base64,img0',
@@ -67,6 +70,7 @@ describe('generation module seam', () => {
 
     await generate({
       prompt: 'koi fish',
+      style: 'realism',
       negativePrompt: 'blurry',
       aspectRatio: '3:4',
       seed: '42'
@@ -92,7 +96,8 @@ describe('generation module seam', () => {
 
     const result = await generate({
       prompt: 'rose',
-      retry: { attempts: 2, baseDelayMs: 1 }
+      style: 'realism',
+      retry: { maxRetries: 2, baseDelayMs: 1 }
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -103,12 +108,12 @@ describe('generation module seam', () => {
     fetchMock.mockResolvedValueOnce(errorResponse(400));
 
     await expect(
-      generate({ prompt: 'rose', retry: { attempts: 3, baseDelayMs: 1 } })
+      generate({ prompt: 'rose', style: 'realism', retry: { maxRetries: 3, baseDelayMs: 1 } })
     ).rejects.toThrow('Imagen API error: 400');
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('falls back to the relaxed safety setting after exhausting retries', async () => {
+  it('falls back to the relaxed safety setting after exhausting retries on retryable errors', async () => {
     fetchMock
       .mockResolvedValueOnce(errorResponse(500))
       .mockResolvedValueOnce(errorResponse(500))
@@ -116,8 +121,9 @@ describe('generation module seam', () => {
 
     const result = await generate({
       prompt: 'skull',
+      style: 'realism',
       safetyFilterLevel: 'block_most',
-      retry: { attempts: 1, baseDelayMs: 1 },
+      retry: { maxRetries: 1, baseDelayMs: 1 },
       fallback: { safetyFilterLevel: 'block_only_high' }
     });
 
@@ -127,10 +133,27 @@ describe('generation module seam', () => {
     expect(fallbackBody.parameters.safetySetting).toBe('block_only_high');
   });
 
+  it('does NOT run the paid safety fallback after a non-retryable error (declared fix)', async () => {
+    fetchMock.mockResolvedValueOnce(errorResponse(400));
+
+    await expect(
+      generate({
+        prompt: 'skull',
+        style: 'realism',
+        safetyFilterLevel: 'block_most',
+        retry: { maxRetries: 2, baseDelayMs: 1 },
+        fallback: { safetyFilterLevel: 'block_only_high' }
+      })
+    ).rejects.toThrow('Imagen API error: 400');
+
+    // Exactly one paid call — the fallback must not fire for a hopeless request.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it('emits request and result telemetry', async () => {
     fetchMock.mockResolvedValueOnce(imagenResponse());
 
-    await generate({ prompt: 'anchor' });
+    await generate({ prompt: 'anchor', style: 'realism' });
 
     const events = (logEvent as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);
     expect(events).toContain('generation.request');
@@ -140,7 +163,7 @@ describe('generation module seam', () => {
   it('emits an error-level result event when generation fails outright', async () => {
     fetchMock.mockResolvedValue(errorResponse(400));
 
-    await expect(generate({ prompt: 'anchor' })).rejects.toThrow();
+    await expect(generate({ prompt: 'anchor', style: 'realism' })).rejects.toThrow();
 
     const errorCall = (logEvent as ReturnType<typeof vi.fn>).mock.calls.find(
       (c) => c[0] === 'generation.result' && c[2] === 'error'
