@@ -168,6 +168,7 @@ export default function MatchesClient() {
           match: Math.min(99, Math.max(1, Math.round(m.score))),
           color: COLORS[i % COLORS.length],
           href: `/artists/${slug}`,
+          bookHref: `/book?artistId=${encodeURIComponent(m.id)}`,
           external: false,
         };
       }),
@@ -384,6 +385,7 @@ export default function MatchesClient() {
                   styles={a.styles}
                   matchPercent={a.match}
                   href={a.href}
+                  bookHref={a.bookHref}
                   external={a.external}
                   showFavorite
                   favoriteSize={18}

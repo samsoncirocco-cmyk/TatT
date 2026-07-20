@@ -3,6 +3,9 @@ import { randomUUID } from 'crypto';
 import { appendFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { verifyApiAuth } from '@/lib/api-auth';
+import { verifyFirebaseToken } from '@/lib/auth-dal';
+import { ensureAdminApp } from '@/lib/firebase-admin';
+import { validateBookingRequest } from '@/lib/booking';
 
 // In-memory rate limiter: ip -> list of timestamps
 const rateLimitMap = new Map<string, number[]>();
@@ -18,22 +21,14 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
-export interface BookingRequest {
-  artistId?: string;
-  artistName?: string;
-  clientName: string;
-  clientEmail: string;
-  clientPhone?: string;
-  description: string;
-  preferredDate?: string;
-  budget: string;
-  designId?: string;
-  designImageUrl?: string;
-}
-
 export async function POST(request: NextRequest) {
   const authError = await verifyApiAuth(request);
   if (authError) return authError;
+
+  // Owner uid — booking_requests docs are readable only by this user
+  // (see firestore.rules). verifyApiAuth already accepted the token,
+  // so this resolves to the same verified user.
+  const user = await verifyFirebaseToken(request);
 
   // Rate limit by IP
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
@@ -44,25 +39,23 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let body: BookingRequest;
+  let body: unknown;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ success: false, error: 'Invalid request body' }, { status: 400 });
   }
 
-  // Validate required fields
-  if (!body.clientName?.trim() || !body.clientEmail?.trim() || !body.description?.trim() || !body.budget?.trim()) {
-    return NextResponse.json(
-      { success: false, error: 'Name, email, description, and budget are required' },
-      { status: 400 }
-    );
+  const parsed = validateBookingRequest(body);
+  if (!parsed.ok) {
+    return NextResponse.json({ success: false, error: parsed.error }, { status: 400 });
   }
 
   const bookingId = `BK-${randomUUID().slice(0, 8).toUpperCase()}`;
   const booking = {
     bookingId,
-    ...body,
+    ...parsed.value,
+    uid: user?.uid ?? null,
     status: 'pending',
     createdAt: new Date().toISOString(),
     ip,
@@ -71,16 +64,9 @@ export async function POST(request: NextRequest) {
   // Try Firestore (if configured)
   let savedToFirestore = false;
   try {
-    const { initializeApp, getApps, cert } = await import('firebase-admin/app');
-    const { getFirestore } = await import('firebase-admin/firestore');
-    
-    const projectId = process.env.FIREBASE_PROJECT_ID ?? process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-    if (projectId) {
-      if (!getApps().length) {
-        initializeApp({ credential: cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON ?? '{}')) });
-      }
-      const db = getFirestore();
-      await db.collection('booking_requests').doc(bookingId).set(booking);
+    if (ensureAdminApp()) {
+      const { getFirestore } = await import('firebase-admin/firestore');
+      await getFirestore().collection('booking_requests').doc(bookingId).set(booking);
       savedToFirestore = true;
     }
   } catch {

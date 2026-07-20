@@ -104,13 +104,14 @@ export async function POST(req: NextRequest) {
       deposit: String(depositAmount),
     });
 
-    const fallbackArtistPath = artistName.toLowerCase().replace(/\s+/g, '-');
-    const cancelArtistId = artistId || fallbackArtistPath;
+    const cancelUrl = artistId
+      ? `${baseUrl}/book?artistId=${encodeURIComponent(artistId)}`
+      : `${baseUrl}/book`;
 
     const form = new URLSearchParams();
     form.set('mode', 'payment');
     form.set('success_url', `${baseUrl}/book/success?${successParams.toString()}`);
-    form.set('cancel_url', `${baseUrl}/book/${encodeURIComponent(cancelArtistId)}`);
+    form.set('cancel_url', cancelUrl);
 
     form.set('line_items[0][price_data][currency]', 'usd');
     form.set('line_items[0][price_data][unit_amount]', String(depositAmountInCents));
