@@ -7,6 +7,7 @@ import ArtistCard from "@/components/punk/ArtistCard";
 import SlashHeadline from "@/components/punk/SlashHeadline";
 import { useFavorites } from "@/lib/tattStorage";
 import { getApiAuthHeaders } from "@/lib/client-api-auth";
+import { artistSlug } from "@/lib/artist-slug";
 
 const COLORS = ["bg-pink", "bg-bone", "bg-cream", "bg-pink-deep", "bg-white/10"];
 
@@ -44,20 +45,6 @@ type Match = {
 
 type Status = "loading" | "ready" | "empty" | "offline" | "error";
 
-function kebab(name: string) {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-}
-
-function instagramUrl(handle?: string): string | null {
-  if (!handle) return null;
-  const clean = handle
-    .trim()
-    .replace(/^https?:\/\/(www\.)?instagram\.com\//i, "")
-    .replace(/^@/, "")
-    .replace(/\/.*$/, "");
-  return clean ? `https://instagram.com/${clean}` : null;
-}
-
 function FilterPill({
   label,
   active,
@@ -79,11 +66,10 @@ function FilterPill({
   );
 }
 
-export default function MatchesClient({ rosterSlugs }: { rosterSlugs: string[] }) {
+export default function MatchesClient() {
   const { favorites, hydrated } = useFavorites();
   const favCount = hydrated ? favorites.length : 0;
   const hasFavorites = favCount > 0;
-  const rosterSet = useMemo(() => new Set(rosterSlugs), [rosterSlugs]);
 
   const [style, setStyle] = useState("All");
   const [locationInput, setLocationInput] = useState("");
@@ -164,24 +150,21 @@ export default function MatchesClient({ rosterSlugs }: { rosterSlugs: string[] }
   const cards = useMemo(
     () =>
       matches.map((m, i) => {
-        const slug = kebab(m.name);
-        const inRoster = rosterSet.has(slug);
-        const igUrl = instagramUrl(m.instagram);
+        // Every match is a real graph artist with a live profile page.
+        const slug = artistSlug(m.name, m.id);
         return {
           key: m.id,
-          slug: inRoster ? slug : m.id,
+          slug,
           name: m.name,
           city: m.location || m.city || "—",
           styles: m.styles.slice(0, 3),
           match: Math.min(99, Math.max(1, Math.round(m.score))),
           color: COLORS[i % COLORS.length],
-          // TODO(J-queue): route to /artists/[slug] once PR #40 lands and
-          // scraped artists join the static roster.
-          href: inRoster ? `/artists/${slug}` : igUrl ?? undefined,
-          external: !inRoster && !!igUrl,
+          href: `/artists/${slug}`,
+          external: false,
         };
       }),
-    [matches, rosterSet]
+    [matches]
   );
 
   const ordered = hydrated
