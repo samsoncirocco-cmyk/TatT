@@ -23,16 +23,19 @@ function escapeCypher(str) {
 }
 
 /**
- * Generate Cypher statements for Neo4j import
+ * Generate Cypher statements for Neo4j import.
+ * Pass wipe=true to emit a leading `MATCH (n) DETACH DELETE n;` — off by
+ * default so the generated script merges into existing data instead of
+ * silently wiping the live graph when run via cypher-shell.
  */
-function generateCypherScript(neo4jData) {
+function generateCypherScript(neo4jData, wipe = false) {
   const lines = [
     '// Neo4j Import Script for Tattoo Artists',
     '// Generated from Supabase-compatible dataset (canonical graph model)',
     '',
-    '// Clear existing data (optional - remove if you want to merge)',
-    'MATCH (n) DETACH DELETE n;',
-    '',
+    ...(wipe
+      ? ['// Clear existing data (generated with --wipe)', 'MATCH (n) DETACH DELETE n;', '']
+      : ['// Existing data preserved (MERGE-based). Re-run generator with --wipe to include a full wipe statement.', '']),
     '// Create indexes',
     'CREATE INDEX artist_id_index IF NOT EXISTS FOR (a:Artist) ON (a.id);',
     'CREATE INDEX artist_name_index IF NOT EXISTS FOR (a:Artist) ON (a.name);',
@@ -173,16 +176,18 @@ function generateCypherScript(neo4jData) {
 }
 
 /**
- * Generate optimized batch Cypher (more efficient for large datasets)
+ * Generate optimized batch Cypher (more efficient for large datasets).
+ * Pass wipe=true to emit a leading `MATCH (n) DETACH DELETE n;` — off by
+ * default, same reasoning as generateCypherScript above.
  */
-function generateBatchCypher(neo4jData) {
+function generateBatchCypher(neo4jData, wipe = false) {
   const lines = [
     '// Neo4j Batch Import Script (Optimized, canonical graph model)',
     '// Use this for better performance with large datasets',
     '',
-    '// Clear existing data',
-    'MATCH (n) DETACH DELETE n;',
-    '',
+    ...(wipe
+      ? ['// Clear existing data (generated with --wipe)', 'MATCH (n) DETACH DELETE n;', '']
+      : ['// Existing data preserved (MERGE-based). Re-run generator with --wipe to include a full wipe statement.', '']),
     '// Create indexes',
     'CREATE INDEX artist_id_index IF NOT EXISTS FOR (a:Artist) ON (a.id);',
     'CREATE INDEX state_name_index IF NOT EXISTS FOR (st:State) ON (st.name);',
@@ -249,21 +254,25 @@ function generateBatchCypher(neo4jData) {
 }
 
 function main() {
+  const wipe = process.argv.includes('--wipe');
   console.log('🔄 Generating Neo4j Cypher scripts...\n');
+  if (!wipe) {
+    console.log('ℹ️  Generated scripts will NOT wipe existing data (pass --wipe to include a full DETACH DELETE)\n');
+  }
 
   // Load Neo4j format data
   const neo4jPath = join(__dirname, '../generated/tattoo-artists-neo4j.json');
   const neo4jData = JSON.parse(readFileSync(neo4jPath, 'utf-8'));
 
   // Generate standard Cypher script
-  const cypherScript = generateCypherScript(neo4jData);
+  const cypherScript = generateCypherScript(neo4jData, wipe);
   const cypherPath = join(__dirname, '../generated/tattoo-artists-neo4j.cypher');
   writeFileSync(cypherPath, cypherScript, 'utf-8');
   console.log(`✅ Generated Cypher script: ${cypherPath}`);
   console.log(`   Lines: ${cypherScript.split('\n').length}`);
 
   // Generate batch Cypher script (for programmatic use)
-  const batchCypher = generateBatchCypher(neo4jData);
+  const batchCypher = generateBatchCypher(neo4jData, wipe);
   const batchPath = join(__dirname, '../generated/tattoo-artists-neo4j-batch.cypher');
   writeFileSync(batchPath, batchCypher, 'utf-8');
   console.log(`✅ Generated batch Cypher script: ${batchPath}`);

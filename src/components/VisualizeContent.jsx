@@ -29,6 +29,7 @@ function VisualizeContent() {
   const fileInputRef = useRef(null);
   const photoRef = useRef(null);
   const compositeCanvasRef = useRef(null);
+  const isMountedRef = useRef(true);
 
   // Tattoo design and category state
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -80,11 +81,21 @@ function VisualizeContent() {
     };
   }, [stream]);
 
+  // Track mount state so async chains started by startCamera() (below) don't
+  // call setState after unmount.
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   // Rotate confidence tips
   useEffect(() => {
     if (photo && selectedTattoo) {
       // Set initial tip
       setCurrentConfidenceTip(CONFIDENCE_TIPS[0]);
+      setSavedPlacements(safeLocalStorageGet('tattester_saved_placements', []));
 
       const interval = setInterval(() => {
         const randomIndex = Math.floor(Math.random() * CONFIDENCE_TIPS.length);
@@ -92,7 +103,6 @@ function VisualizeContent() {
       }, 5000);
 
       return () => clearInterval(interval);
-      setSavedPlacements(safeLocalStorageGet('tattester_saved_placements', []));
     } else {
       setCurrentConfidenceTip("");
     }
@@ -142,18 +152,22 @@ function VisualizeContent() {
       setArState(ARSessionState.LOADING);
 
       setTimeout(async () => {
+        if (!isMountedRef.current) return;
         if (videoRef.current) {
           videoRef.current.srcObject = mediaStream;
           videoRef.current.onloadedmetadata = async () => {
+            if (!isMountedRef.current) return;
             setArState(ARSessionState.CALIBRATING_DEPTH);
             setIsCalibrating(true);
 
             // Simulate depth calibration
             await new Promise(resolve => setTimeout(resolve, 2000));
+            if (!isMountedRef.current) return;
 
             const depth = await captureDepthFrame(videoRef.current);
             const quality = validateDepthQuality(depth);
             const bodyPart = await detectBodyPart(videoRef.current, depth);
+            if (!isMountedRef.current) return;
 
             setDepthMap(depth);
             setDepthQuality(quality);
@@ -595,7 +609,7 @@ function VisualizeContent() {
                     : 'border-white/10 opacity-60 hover:opacity-100 hover:border-white/30'
                   }`}
               >
-                <img src={tattoo.file} className="w-full h-full object-contain bg-white/5" />
+                <img src={tattoo.file} alt={tattoo.name} className="w-full h-full object-contain bg-white/5" />
               </button>
             ))}
           </div>

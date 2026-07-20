@@ -4,18 +4,9 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
-    const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
-    const NEO4J_URI = process.env.NEO4J_URI;
-    const NEO4J_USER = process.env.NEO4J_USERNAME || process.env.NEO4J_USER;
-    const NEO4J_PASSWORD = process.env.NEO4J_PASSWORD;
-
     return NextResponse.json({
         status: 'ok',
         message: 'Next.js API is running',
-        hasReplicateToken: !!REPLICATE_API_TOKEN,
-        hasVertexConfig: !!process.env.VERTEX_PROJECT_ID,
-        hasGcsConfig: !!process.env.GCS_BUCKET,
-        hasNeo4jConfig: !!(NEO4J_URI && NEO4J_USER && NEO4J_PASSWORD),
         authRequired: true,
         api_version: 'v1',
         endpoints: {
