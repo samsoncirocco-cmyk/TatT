@@ -8,8 +8,9 @@ export interface BudgetConfig {
   periodMs: number;
 }
 
+// Monthly cap in cents; override via BUDGET_MAX_SPEND_CENTS (e.g. 1000 = $10).
 const DEFAULT_BUDGET: BudgetConfig = {
-  maxSpendCents: 50_000, // $500
+  maxSpendCents: Number(process.env.BUDGET_MAX_SPEND_CENTS) || 50_000,
   periodMs: 30 * 24 * 60 * 60 * 1000, // 30 days
 };
 
