@@ -33,6 +33,7 @@ type SwipeCard = {
 export default function SwipePage() {
   const router = useRouter();
   const storedMatches = useMatchStore((s) => s.matches);
+  const hasHydrated = useMatchStore((s) => s.hasHydrated);
 
   const cards = useMemo<SwipeCard[]>(
     () =>
@@ -63,6 +64,27 @@ export default function SwipePage() {
     trackSwipe(card.id, direction);
     setSwipedIds((prev) => new Set(prev).add(card.id));
   };
+
+  // Persist rehydration is async: matches starts as [] even when a deck
+  // exists in localStorage. Wait before deciding the empty state so a
+  // reload / direct nav to /swipe does not flash "No deck yet."
+  if (!hasHydrated) {
+    return (
+      <StudioShell>
+        <div className="px-6 md:px-12 py-16 md:py-20 flex flex-col items-center">
+          <div className="max-w-3xl w-full text-center mb-10">
+            <div className="h-[56px] md:h-[64px] bg-white/5 border-2 hairline max-w-md mx-auto" />
+            <div className="mt-3 h-[14px] bg-white/5 border hairline max-w-sm mx-auto" />
+          </div>
+          <div
+            className="w-full max-w-sm h-[520px] bg-white/5 border-2 hairline"
+            aria-busy="true"
+            aria-label="Loading swipe deck"
+          />
+        </div>
+      </StudioShell>
+    );
+  }
 
   if (cards.length === 0) {
     return (
