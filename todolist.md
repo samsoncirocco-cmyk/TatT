@@ -49,3 +49,27 @@ big-bang sweep).
 Tests split between `tests/` and `src/services/__tests__/`; 197 tests for ~281
 source files. Consolidate location convention; add characterization tests to
 each area before deepening it.
+
+## One-off follow-ups (2026-07-20 session — not architecture items)
+
+- **Railway sanity check (needs Samson):** ticket 05 deleted the legacy
+  Express imagen route (`src/api/routes/generate.js`, mounted by `server.js`,
+  the old Railway proxy). If that Railway deployment still serves anything,
+  the endpoint must be restored as an adapter over `@/services/generation`.
+- **Trademark knockout search** for "TattTester" (USPTO TESS, free) before
+  printing/announcing the name. ADR-0004 notes screening is still open.
+- **Build the two landing pages** from `docs/brand/`: trust angle on
+  tatttester.com, discovery angle on image2ink.com, one shared early-access
+  signup. Domains are live and pointed at the tatt-app Vercel project;
+  tatt-t.com already 308-redirects to tatttester.com.
+- **Cloudflare token hygiene:** `.env.local` holds two tokens — a zone-scoped
+  DNS token (fine to keep) and a broad account token with "Account API Tokens
+  Write" (used once to mint the zone token). Revoke or narrow the broad one
+  in the Cloudflare dashboard.
+- **Consolidate `/api/v1/council/generate`:** its inline OpenAI/Flux pipeline
+  duplicates the council module (header comment marks it deprecated); fold it
+  into `@/services/council` or delete the route.
+- **Per-character LoRA revisit triggers** (deliberately deferred, see
+  docs/council-plan.md): revisit only when Flow A is live AND weeks of real
+  requests show named-character demand concentrated in specific franchises;
+  include counsel review of training data inside that revisit.
