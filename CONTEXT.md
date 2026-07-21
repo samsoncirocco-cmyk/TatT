@@ -1,9 +1,30 @@
-# TatT
+# TatT (rebranding to TattTester)
 
 AI-powered tattoo design platform: AI design generation, AR preview, and
-artist matching.
+artist matching. Sells trust to first-time tattoo getters; revenue is model
+access, artist bookings, and artist-side subscriptions — not design sales.
 
 ## Language
+
+**TattTester**:
+The primary consumer brand (ADR-0004). Promises the test: see it, wear it,
+trust it before it's forever.
+_Avoid_: TatT, Tatt Tester (two words), Image2Ink (as a brand name)
+
+**Tatt-T**:
+Spoken/DBA nickname for TattTester. Never the front door (sounds like
+"tatty").
+
+**Image2Ink**:
+The design generator feature inside TattTester, and the discovery-angle
+marketing door for people who don't know what tattoo they want.
+_Avoid_: using it as the company or platform name
+
+**First-timer**:
+The primary customer: someone considering their first tattoo, afraid of
+regret and of their own lack of artistic ability. The front door speaks to
+them.
+_Avoid_: user (when the emotional state matters)
 
 **Generation**:
 The pipeline that turns a user's idea into tattoo design images. One module,
