@@ -9,8 +9,17 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // CORS origin check (defense-in-depth; API Gateway may handle preflight).
+  // Same-origin requests are always allowed — the browser sets Origin on
+  // same-site POSTs too, and blocking them broke every custom domain
+  // (tatttester.com etc.) the moment it was pointed at the app.
   const origin = request.headers.get('origin');
-  if (origin && !ALLOWED_ORIGINS.includes(origin) && !origin.endsWith('.vercel.app')) {
+  const sameOrigin = origin === `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+  if (
+    origin &&
+    !sameOrigin &&
+    !ALLOWED_ORIGINS.includes(origin) &&
+    !origin.endsWith('.vercel.app')
+  ) {
     return NextResponse.json(
       { error: 'Origin not allowed', code: 'CORS_FORBIDDEN' },
       { status: 403 }
