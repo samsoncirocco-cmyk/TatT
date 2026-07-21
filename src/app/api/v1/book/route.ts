@@ -63,14 +63,21 @@ export async function POST(request: NextRequest) {
 
   // Try Firestore (if configured)
   let savedToFirestore = false;
+  const credSource = ensureAdminApp();
   try {
-    if (ensureAdminApp()) {
+    if (credSource) {
       const { getFirestore } = await import('firebase-admin/firestore');
       await getFirestore().collection('booking_requests').doc(bookingId).set(booking);
       savedToFirestore = true;
+    } else {
+      console.error(`[book] ${bookingId}: Firebase Admin unconfigured — using file fallback`);
     }
-  } catch {
-    // Firebase not configured — use file fallback
+  } catch (err) {
+    // Fall back to file, but never silently: a lost prod booking is real money
+    console.error(
+      `[book] ${bookingId}: Firestore write failed (cred source: ${credSource}) — using file fallback:`,
+      err instanceof Error ? err.message : err
+    );
   }
 
   // Fallback: append to local file
