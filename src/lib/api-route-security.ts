@@ -58,5 +58,13 @@ export const API_ROUTE_SECURITY: Record<string, RouteSecurityEntry> = {
   'v1/storage/upload': { class: 'firebase-auth' },
   'v1/tasks/generate': { class: 'cloud-tasks-oidc' },
   'v1/upload-layer': { class: 'firebase-auth' },
+  // Stripe Connect (marketplace) — artist onboarding & payouts
+  'v1/connect/accounts': { class: 'firebase-auth' },
+  'v1/connect/onboarding': { class: 'firebase-auth' },
+  'v1/connect/login-link': { class: 'firebase-auth' },
+  // SaaS Billing (artist subscriptions) + Invoicing
+  'v1/billing/subscribe': { class: 'firebase-auth' },
+  'v1/billing/portal': { class: 'firebase-auth' },
+  'v1/invoices': { class: 'firebase-auth' },
   'webhooks/stripe': { class: 'webhook-signature' },
 };
