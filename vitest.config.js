@@ -11,6 +11,10 @@ export default defineConfig({
   },
   test: {
     globals: true,
+    // Never discover test files inside agent worktrees or build output —
+    // the overnight crew spawns worktrees under .claude/, and their stale
+    // duplicate tests would otherwise pollute the main test run.
+    exclude: ['**/node_modules/**', '**/dist/**', '**/.git/**', '.claude/**'],
     environment: 'jsdom',
     setupFiles: './tests/setup.js',
     coverage: {
