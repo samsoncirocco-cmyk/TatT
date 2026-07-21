@@ -6,25 +6,37 @@ access, artist bookings, and artist-side subscriptions — not design sales.
 
 ## Language
 
+### Brand
+
 **TattTester**:
-The primary consumer brand (ADR-0004). Promises the test: see it, wear it,
-trust it before it's forever.
-_Avoid_: TatT, Tatt Tester (two words), Image2Ink (as a brand name)
+The primary consumer brand and the one product everyone signs up for
+(ADR-0004). Promises the test: see it, wear it, trust it before it's forever.
+_Avoid_: TatT (internal repo name only), Tatt Tester (two words), Tattoo
+Tester, Image2Ink (as a brand name)
 
 **Tatt-T**:
 Spoken/DBA nickname for TattTester. Never the front door (sounds like
 "tatty").
 
 **Image2Ink**:
-The design generator feature inside TattTester, and the discovery-angle
-marketing door for people who don't know what tattoo they want.
-_Avoid_: using it as the company or platform name
+The design-generator feature inside TattTester, and the discovery-angle
+marketing door at image2ink.com that funnels into TattTester. Not a separate
+brand, signup, or product. See docs/brand/two-door-brand-guide.md.
+_Avoid_: treating it as a second brand or the company name
+
+**Door**:
+A marketing entry point matched to one customer state. Two exist:
+TattTester (trust: "will it look good on me, forever?") and Image2Ink
+(discovery: "no idea what I'd get"). Both lead to the same product.
+_Avoid_: sub-brand, funnel (a door is the top of the funnel, not the funnel)
 
 **First-timer**:
-The primary customer: someone considering their first tattoo, afraid of
-regret and of their own lack of artistic ability. The front door speaks to
-them.
-_Avoid_: user (when the emotional state matters)
+The primary customer: 18–35, getting (or considering) their first tattoo,
+afraid of regret and of their own lack of artistic ability; found via
+TikTok/IG. The front door speaks to them; artists get a separate pitch.
+_Avoid_: user, customer (when the audience or emotional state matters)
+
+### Product
 
 **Generation**:
 The pipeline that turns a user's idea into tattoo design images. One module,
@@ -47,25 +59,3 @@ _Avoid_: enhancer, prompt service
 Finding the right artist for a design via vector, graph, and real-time
 signals. Not yet a deep module; see todolist.md.
 _Avoid_: search, recommendations
-
-**TattTester**:
-The primary consumer brand and the one product everyone signs up for.
-Trust angle: test a tattoo on your own body before it's forever.
-_Avoid_: TatT (internal repo name only), Tattoo Tester
-
-**Image2Ink**:
-The design-generator feature inside TattTester, and the discovery-angle
-marketing door at image2ink.com that funnels into TattTester. Not a
-separate brand, signup, or product. See docs/brand/two-door-brand-guide.md.
-_Avoid_: treating it as a second brand
-
-**Door**:
-A marketing entry point matched to one customer state. Two exist:
-TattTester (trust: "will it look good on me, forever?") and Image2Ink
-(discovery: "no idea what I'd get"). Both lead to the same product.
-_Avoid_: sub-brand, funnel (a door is the top of the funnel, not the funnel)
-
-**First-timer**:
-The core audience: 18-35, getting (or considering) their first tattoo,
-found via TikTok/IG. Consumer-first voice; artists get a separate pitch.
-_Avoid_: user, customer (when the audience matters, say first-timer)
