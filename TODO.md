@@ -5,7 +5,7 @@ agents. **Every agent: read this before starting work, update it when you
 finish or discover work.** Keep entries short; link PRs/issues; date your
 changes. Newest state wins — resolve edit conflicts by merging both lists.
 
-_Last updated: 2026-07-20 (final adversarial audit — J4/J5/J6 verified DONE on main c039219; auth gate + live /artists verified in prod; gaps listed under Now/Next)_
+_Last updated: 2026-07-21 (crew PRs #89/#90/#91 merged + deployed; ops checklist executed — Firestore rules deployed, dead env pair deleted, Firebase admin creds confirmed already set, J7 confirmed done; Stripe key still on Samson)_
 
 ## Now (in priority order) — THE JOURNEY QUEUE
 
@@ -77,12 +77,11 @@ J8. ~~**Auth gate**~~ — **DONE 2026-07-20 (audited, live in prod)**:
     journey prerequisite, so signed-out users never see the offline notice —
     they get the login gate. The dead FRONTEND_AUTH_TOKEN env pair in Vercel
     can be deleted (Samson).
-J7. **One deploy target, auto-deploy, live URL** — MOSTLY DONE (discovered
-    2026-07-20): Vercel project **tatt-app** auto-deploys main and
-    https://tatt-app.vercel.app serves the current tip with live matching.
-    Remaining: THREE Vercel projects deploy this repo (tatt-app, manama-next,
-    generous-success) — pick tatt-app as canonical and disconnect the other
-    two (Samson call); optional custom domain.
+J7. ~~**One deploy target, auto-deploy, live URL**~~ — **DONE (verified
+    2026-07-21)**: tatt-app is the only Vercel project linked to this repo
+    (generous-success no longer exists; manama-next has no git link).
+    Custom domains all wired + Firebase-authorized: tatt-t.com,
+    image2ink.com, tatttester.com. Canonical-domain pick is #81 (Samson).
 
 (Prior items now secondary: PR #40 feedback folds into J2/J3 scope; security
 reconciliation continues in parallel. Branch protection still blocked on
@@ -106,24 +105,28 @@ full run NOT launched. Resume after gate review.
   Neo4j. Decide: retire /smart-match + /swipe (old theme, violates design
   rule) or port to graph. scripts/ importers referencing artists.json are
   seed tooling, fine.
-- **Samson-only ops checklist (nothing below is code):**
-  1. Vercel tatt-app env: add STRIPE_SECRET_KEY (live or test) — until
-     then /api/checkout honestly 503s and bookings save without deposit.
-  2. Vercel tatt-app env: FIREBASE_* admin credentials so /api/v1/book can
-     write Firestore in prod (verify a real booking lands in
-     booking_requests).
-  3. `firebase deploy --only firestore:rules` (booking + availability rules
-     merged on main but rules deploy is manual).
-  4. Delete the dead NEXT_PUBLIC_FRONTEND_AUTH_TOKEN / FRONTEND_AUTH_TOKEN
-     pair from Vercel env (auth is Firebase-only since PR #48).
-  5. Pick tatt-app as the canonical Vercel project; disconnect manama-next
-     and generous-success (J7 leftover).
+- **Samson-only ops checklist** (executed 2026-07-21; one item left):
+  1. **STILL OPEN (Samson):** Vercel tatt-app env: add STRIPE_SECRET_KEY
+     (live or test) — until then /api/checkout honestly 503s and bookings
+     save without deposit. Key must come from the Stripe dashboard.
+  2. ~~FIREBASE_* admin credentials~~ — **already set** (FIREBASE_PRIVATE_KEY,
+     FIREBASE_CLIENT_EMAIL, FIREBASE_PROJECT_ID in production+preview;
+     verified via Vercel API 2026-07-21). A real-booking end-to-end check in
+     prod is still worth doing once Stripe is in.
+  3. ~~Firestore rules deploy~~ — **DONE 2026-07-21**: rules compiled +
+     released to tatt-pro via firebase-tools; minimal firebase.json added to
+     the repo so this works from a clean checkout.
+  4. ~~Delete dead FRONTEND_AUTH_TOKEN pair~~ — **DONE 2026-07-21** (both
+     vars deleted from tatt-app via Vercel API).
+  5. ~~Disconnect manama-next + generous-success~~ — **already done**:
+     generous-success is deleted; manama-next has no git link (verified via
+     Vercel API 2026-07-21). tatt-app is the sole deploy target.
 - **Share API store is ephemeral in-memory** (carried from booking branch
   report) — share links die on redeploy; needs a durable store if sharing
   matters.
 
-8. **Merge PR #35** (README truth sync) — after #39/#40 land, re-verify
-   accuracy, then merge.
+8. ~~Merge PR #35 (README truth sync)~~ — **superseded**: README truth sync
+   landed on main via PR #84 (2026-07-20); #35 is closed.
 9. ~~100 synthetic AZ seed artists in Aura~~ — **DONE 2026-07-17**: Samson chose
    delete. Seed artists (float ids), their Tattoo/Instagram/State/Website nodes,
    null-placeId shops, and orphaned tags/cities removed. Live graph is now 100%
