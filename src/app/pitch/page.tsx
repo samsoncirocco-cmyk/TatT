@@ -74,7 +74,7 @@ export default function PitchPage() {
             </div>
             <div className="feature-card">
               <div className="feature-icon">📱</div>
-              <h3 className="feature-title">AR Try-On Preview</h3>
+              <h3 className="feature-title">AR Try-On Preview <span className="feature-badge">Coming Soon</span></h3>
               <p className="feature-desc">See it on your body before committing</p>
             </div>
             <div className="feature-card">
@@ -146,7 +146,7 @@ export default function PitchPage() {
               <div className="pricing-price">$12<span>/mo</span></div>
               <ul className="pricing-features">
                 <li>Unlimited generations</li>
-                <li>AR try-on preview</li>
+                <li>AR try-on preview (coming soon)</li>
                 <li>Premium style library</li>
                 <li>High-res exports</li>
               </ul>
@@ -431,6 +431,21 @@ export default function PitchPage() {
           font-size: 1.5rem;
           font-weight: 700;
           margin-bottom: 1rem;
+        }
+
+        .feature-badge {
+          display: inline-block;
+          font-size: 0.65rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          padding: 0.2rem 0.6rem;
+          margin-left: 0.5rem;
+          border-radius: 9999px;
+          background: rgba(236, 72, 153, 0.15);
+          border: 1px solid rgba(236, 72, 153, 0.4);
+          color: #f9a8d4;
+          vertical-align: middle;
         }
 
         .feature-desc {

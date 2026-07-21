@@ -140,8 +140,8 @@ function TattooPreview({ concept }: { concept: (typeof DEMO_CONCEPTS)[0] }) {
         <line x1="80" y1="140" x2="120" y2="140" stroke="white" strokeWidth="0.5" opacity="0.4" />
         <line x1="100" y1="20" x2="100" y2="180" stroke="white" strokeWidth="0.3" opacity="0.2" />
       </svg>
-      {/* Skin overlay simulation */}
-      <div className="absolute bottom-3 right-3 text-xs text-white/40 font-mono">AR preview</div>
+      {/* Design preview label */}
+      <div className="absolute bottom-3 right-3 text-xs text-white/40 font-mono">Design preview</div>
     </div>
   );
 }
@@ -333,7 +333,7 @@ function StepVisualize({ concept, onNext }: { concept: (typeof DEMO_CONCEPTS)[0]
       <div className="text-center space-y-2">
         <p className="text-white/60 text-sm font-mono uppercase tracking-widest">Step 3 of 4</p>
         <h2 className="text-3xl font-black text-white">See It On Skin</h2>
-        <p className="text-white/50 text-sm">AR-placed preview. No guesswork.</p>
+        <p className="text-white/50 text-sm">AR-placed preview — coming soon. No guesswork.</p>
       </div>
 
       {/* View toggle */}
@@ -346,7 +346,7 @@ function StepVisualize({ concept, onNext }: { concept: (typeof DEMO_CONCEPTS)[0]
               view === v ? 'bg-ducks-green text-white' : 'text-white/50 hover:text-white'
             }`}
           >
-            {v === 'canvas' ? '🖼 Canvas' : '📱 AR Skin'}
+            {v === 'canvas' ? '🖼 Canvas' : '📱 AR Skin (Soon)'}
           </button>
         ))}
       </div>
@@ -381,15 +381,15 @@ function StepVisualize({ concept, onNext }: { concept: (typeof DEMO_CONCEPTS)[0]
                   </svg>
                 </div>
               </div>
-              <div className="absolute top-3 right-3 px-2 py-1 rounded-full bg-ducks-green/80 text-white text-[10px] font-mono">
-                AR Live
+              <div className="absolute top-3 right-3 px-2 py-1 rounded-full bg-ducks-yellow/80 text-black text-[10px] font-mono uppercase tracking-widest">
+                Coming Soon
               </div>
               <div className="absolute bottom-3 left-3 text-[10px] text-white/40 font-mono">
                 Upper arm · 6in · 0° rotation
               </div>
             </div>
             <p className="text-center text-white/40 text-xs mt-3">
-              Point your camera at your skin — TatT projects the design in real time
+              Mockup of the AR camera preview we're building — not live yet
             </p>
           </motion.div>
         )}

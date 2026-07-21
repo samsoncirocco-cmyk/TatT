@@ -8,7 +8,7 @@ import { ToastProvider } from "@/contexts/ToastContext";
 
 export const metadata: Metadata = {
   title: "TatT — Think it. Ink it.",
-  description: "AI-powered tattoo design, AR visualization, and artist discovery.",
+  description: "AI-powered tattoo design and artist discovery — AR visualization coming soon.",
 };
 
 export default function RootLayout({
