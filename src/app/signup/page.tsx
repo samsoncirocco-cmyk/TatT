@@ -8,6 +8,7 @@ import SlashHeadline from "@/components/punk/SlashHeadline";
 import FormField from "@/components/punk/FormField";
 import AuthBrandPanel from "@/components/punk/AuthBrandPanel";
 import { useUser } from "@/lib/tattStorage";
+import { mapFirebaseAuthError } from "@/lib/authErrors";
 
 /** Only same-site relative paths are allowed as post-auth destinations. */
 function safeRedirect(raw: string | null): string {
@@ -31,8 +32,8 @@ function SignupPageInner() {
     try {
       await signInWithGoogle();
       router.push(destination);
-    } catch {
-      setOauthError("Google sign-in didn't complete. Pop-up blocked?");
+    } catch (err) {
+      setOauthError(mapFirebaseAuthError(err));
     }
   };
 

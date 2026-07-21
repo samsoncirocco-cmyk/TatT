@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { startCloudSync, stopCloudSync, queueCloudWrite } from "@/lib/cloudSync";
+import { mapFirebaseAuthError } from "@/lib/authErrors";
 
 export const STORAGE_KEYS = {
   designs: "tatt:designs",
@@ -357,9 +358,7 @@ export function useUser() {
         const fbUser = await signInWithEmail(email.trim(), password);
         return firebaseToTattUser(fbUser);
       } catch (err) {
-        const msg =
-          err instanceof Error ? err.message : "Sign-in failed";
-        setError(msg);
+        setError(mapFirebaseAuthError(err));
         return null;
       }
     },
@@ -374,9 +373,7 @@ export function useUser() {
         const fbUser = await signUpWithEmail(email.trim(), password);
         return firebaseToTattUser(fbUser);
       } catch (err) {
-        const msg =
-          err instanceof Error ? err.message : "Sign-up failed";
-        setError(msg);
+        setError(mapFirebaseAuthError(err));
         return null;
       }
     },
