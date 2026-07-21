@@ -27,6 +27,8 @@ import ForgeGuide from '../components/generate/ForgeGuide';
 import { ToastContainer } from '../components/ui/Toast';
 import { DEFAULT_BODY_PART } from '../constants/bodyPartAspectRatios';
 import { enhance as enhancePrompt } from '../services/council';
+import { isPromptVague } from '../utils/promptQuality';
+import PunkToggle from '../components/punk/PunkToggle';
 import useVibeChipSuggestions from '../hooks/useVibeChipSuggestions';
 import { useLayerManagement } from './generate/hooks/useLayerManagement';
 import { useRealtimeMatchPulse } from './match-pulse/hooks/useRealtimeMatchPulse';
@@ -203,6 +205,11 @@ export default function Generate() {
     const [selectedChips, setSelectedChips] = useState([]);
     const [enhancedPrompt, setEnhancedPrompt] = useState(null);
     const [isEnhancing, setIsEnhancing] = useState(false);
+    // Council (AI prompt enhancement) toggle — issue #69. Defaults OFF since
+    // Council costs ~$0.02/request (Vertex AI Gemini, see CLAUDE.md). When the
+    // toggle is off, Council still auto-enables for short/vague prompts via
+    // isPromptVague() so new users get help without needing to find the toggle.
+    const [councilEnabled, setCouncilEnabled] = useState(false);
 
     // Advanced options state
     const [showAdvanced, setShowAdvanced] = useState(false);
@@ -259,6 +266,13 @@ export default function Generate() {
 
     const resolvedStyle = selectedChips[0] || 'Traditional';
     const normalizedStyle = normalizeStyleKey(resolvedStyle) || 'traditional';
+
+    // Council is "active" (worth its cost/latency) when the user has forced it
+    // on via the toggle, or the raw prompt is vague enough to need help.
+    const shouldAutoRunCouncil = useMemo(
+        () => councilEnabled || isPromptVague(promptText),
+        [councilEnabled, promptText]
+    );
 
     const generationInput = useMemo(() => ({
         subject: enhancedPrompt || promptText,
@@ -488,23 +502,36 @@ export default function Generate() {
         });
     };
 
+    // Shared Council call used by both the manual "Enhance" button and the
+    // auto-enhance path in handleGenerate. Returns the resolved prompt/negative
+    // prompt so callers can generate immediately without waiting on a re-render.
+    const runCouncilEnhance = useCallback(async () => {
+        const fullPrompt = [promptText, ...selectedChips].join(', ');
+
+        const result = await enhancePrompt({
+            userIdea: fullPrompt,
+            style: matchStyle,
+            bodyPart: bodyPart,
+            isStencilMode: stencilView
+        });
+
+        const prompt = result.prompts[enhancementLevel];
+        setEnhancedPrompt(prompt);
+
+        const resolvedNegativePrompt = (!negativePrompt && result.negativePrompt)
+            ? result.negativePrompt
+            : negativePrompt;
+        if (resolvedNegativePrompt !== negativePrompt) {
+            setNegativePrompt(resolvedNegativePrompt);
+        }
+
+        return { prompt, negativePrompt: resolvedNegativePrompt };
+    }, [promptText, selectedChips, matchStyle, bodyPart, stencilView, enhancementLevel, negativePrompt]);
+
     const handleEnhance = async () => {
         setIsEnhancing(true);
         try {
-            const fullPrompt = [promptText, ...selectedChips].join(', ');
-
-            const result = await enhancePrompt({
-                userIdea: fullPrompt,
-                style: matchStyle,
-                bodyPart: bodyPart,
-                isStencilMode: stencilView
-            });
-
-            setEnhancedPrompt(result.prompts[enhancementLevel]);
-
-            if (!negativePrompt && result.negativePrompt) {
-                setNegativePrompt(result.negativePrompt);
-            }
+            await runCouncilEnhance();
         } catch (error) {
             console.error('Enhancement failed:', error);
             toast.error(error?.message || 'Council enhancement failed');
@@ -517,7 +544,31 @@ export default function Generate() {
         if (!promptText.trim() && !enhancedPrompt?.trim()) return;
 
         try {
-            const result = await generateHighRes({ finalize });
+            // Auto-run Council for vague prompts (or when forced via the toggle)
+            // if the user hasn't already enhanced manually — issue #69. Skipped
+            // otherwise so Council's cost/latency (~$0.02/req, Vertex AI Gemini)
+            // is only ever paid when it's actually active.
+            let councilOverride;
+            if (!enhancedPrompt?.trim() && shouldAutoRunCouncil) {
+                try {
+                    const { prompt, negativePrompt: resolvedNegativePrompt } = await runCouncilEnhance();
+                    councilOverride = {
+                        subject: prompt,
+                        style: normalizedStyle,
+                        bodyPart,
+                        size,
+                        aiModel,
+                        negativePrompt: resolvedNegativePrompt
+                    };
+                } catch (error) {
+                    console.error('[Generate] Auto Council enhancement failed, generating from raw prompt:', error);
+                }
+            }
+
+            const result = await generateHighRes({
+                finalize,
+                ...(councilOverride ? { userInputOverride: councilOverride } : {})
+            });
 
             if (result && result.images && result.images.length > 0) {
                 let createdLayers = [];
@@ -1350,6 +1401,20 @@ export default function Generate() {
                                         Tattoo Fine-Tuning
                                     </button>
                                 </div>
+
+                                <PunkToggle
+                                    id="council-auto-toggle"
+                                    label="Always Use AI Council"
+                                    description={
+                                        councilEnabled
+                                            ? 'On: every Refine/Finalize enhances your prompt first.'
+                                            : isPromptVague(promptText)
+                                                ? 'Off, but your prompt looks short — Council will auto-run once.'
+                                                : 'Off: Council only runs when you tap Enhance (saves cost/latency).'
+                                    }
+                                    checked={councilEnabled}
+                                    onChange={setCouncilEnabled}
+                                />
 
                                 <VibeChips
                                     suggestions={suggestions}
