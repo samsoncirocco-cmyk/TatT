@@ -1,23 +1,27 @@
 /**
- * Booking-deposit checkout — MARKETPLACE destination charge.
+ * Booking-deposit checkout — two money flows depending on artist readiness.
  *
- * The customer pays a deposit; the funds are routed to the ARTIST's connected
- * account, and TatT keeps an application fee. This is the correct marketplace
- * money flow (previously this route charged the platform directly and artists
- * never received anything).
+ * CLAIMED artist (has a connected account with charges enabled):
+ *   MARKETPLACE destination charge — the deposit is routed to the artist's
+ *   connected account and TatT keeps an application fee.
  *
  *   customer pays $deposit
  *     ├─ application_fee_amount → TatT (platform)
  *     └─ remainder             → artist connected account (transfer_data.destination)
  *
- * Tax is computed automatically (Stripe Tax); Radar screens the payment
- * automatically because the platform is merchant of record.
+ * UNCLAIMED artist (no connected account, or charges not enabled):
+ *   HELD deposit — we can't route money to an artist who can't receive it, so
+ *   the deposit is collected to the PLATFORM and HELD (a plain payment charge,
+ *   NO transfer_data / application_fee_amount, metadata.depositState='held').
+ *   The webhook records a :BookingRelay; when the artist finishes onboarding we
+ *   transfer (gross − fee) to them, and if the hold window lapses we refund.
  *
- * Prereq: the artist must have an onboarded connected account with charges
- * enabled. If not, we 409 — you cannot route money to an artist who can't
- * receive it yet.
+ * Either way tax is computed automatically (Stripe Tax) and Radar screens the
+ * payment because the platform is merchant of record. We always return the
+ * session url.
  */
 import { NextRequest, NextResponse } from 'next/server';
+import type Stripe from 'stripe';
 import { verifyApiAuth } from '@/lib/api-auth';
 import { stripe, stripeConfigured, platformFeeCents, CURRENCY } from '@/lib/stripe';
 import { getArtistStripe } from '@/lib/artist-stripe';
@@ -99,7 +103,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ demoMode: true, sessionUrl: `/book/success?${demoParams.toString()}` });
   }
 
-  // ---- Marketplace gate: the artist must be able to receive funds. ----
+  // ---- Resolve the artist and decide which money flow applies. ----
   if (!artistId) {
     return NextResponse.json({ error: 'artistId is required to route the deposit to an artist.' }, { status: 400 });
   }
@@ -107,15 +111,9 @@ export async function POST(req: NextRequest) {
   if (!artist) {
     return NextResponse.json({ error: 'Artist not found.' }, { status: 404 });
   }
-  if (!artist.stripeAccountId || !artist.chargesEnabled) {
-    return NextResponse.json(
-      {
-        error: 'This artist has not finished setting up payments yet.',
-        code: 'ARTIST_PAYMENTS_NOT_READY',
-      },
-      { status: 409 }
-    );
-  }
+  // A "claimed" artist can receive funds directly (destination charge).
+  // Otherwise we HOLD the deposit on the platform (held path below).
+  const artistReady = Boolean(artist.stripeAccountId && artist.chargesEnabled);
 
   const baseUrl = getBaseUrl(req);
   const successParams = new URLSearchParams({
@@ -140,9 +138,27 @@ export async function POST(req: NextRequest) {
     clientName,
     clientEmail,
     depositAmount: String(depositAmount),
+    // 'held' tells the webhook to record a :BookingRelay instead of confirming a
+    // routed booking. Overwritten to a real flag only on the held path below.
+    depositState: artistReady ? 'routed' : 'held',
   };
 
   try {
+    // Two paths:
+    //  - CLAIMED artist  → destination charge (transfer_data + application_fee).
+    //  - UNCLAIMED artist → held on platform (no transfer_data, no app fee).
+    const payment_intent_data: Stripe.Checkout.SessionCreateParams.PaymentIntentData = artistReady
+      ? {
+          application_fee_amount: platformFeeCents(depositAmountInCents),
+          transfer_data: { destination: artist.stripeAccountId as string },
+          metadata,
+        }
+      : {
+          // Held: collect to the platform, no fee/transfer now — resolved later
+          // by transferHeldDeposits() (accept) or refundRelay() (expiry).
+          metadata,
+        };
+
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       success_url: `${baseUrl}/book/success?${successParams.toString()}`,
@@ -164,11 +180,7 @@ export async function POST(req: NextRequest) {
           },
         },
       ],
-      payment_intent_data: {
-        application_fee_amount: platformFeeCents(depositAmountInCents),
-        transfer_data: { destination: artist.stripeAccountId },
-        metadata,
-      },
+      payment_intent_data,
       metadata,
     });
 

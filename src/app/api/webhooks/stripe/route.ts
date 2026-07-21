@@ -19,6 +19,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import type Stripe from 'stripe';
 import { stripe } from '@/lib/stripe';
 import { setArtistChargesEnabled } from '@/lib/artist-stripe';
+import { createRelay, transferHeldDeposits, setArtistSubscription } from '@/lib/booking-relay';
+import { notifyArtistOfBooking } from '@/lib/notify';
 
 export const runtime = 'nodejs';
 
@@ -38,22 +40,98 @@ async function handleEvent(event: Stripe.Event): Promise<void> {
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session;
+      const metadata = session.metadata || {};
       console.log('[Stripe] checkout completed', {
         id: session.id,
         mode: session.mode,
         paymentStatus: session.payment_status,
         amountTotal: session.amount_total,
-        metadata: session.metadata || {},
+        metadata,
       });
-      // TODO(fulfillment): mark the booking confirmed / activate the artist subscription.
+
+      // HELD deposit (unclaimed artist): collected to the platform — record a
+      // :BookingRelay so we can transfer it once the artist onboards, or refund
+      // it if the hold window lapses.
+      if (metadata.depositState === 'held') {
+        const paymentIntentId =
+          typeof session.payment_intent === 'string'
+            ? session.payment_intent
+            : session.payment_intent?.id;
+        if (paymentIntentId) {
+          // The charge id backs the later transfer's source_transaction.
+          const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+          const chargeId =
+            typeof pi.latest_charge === 'string' ? pi.latest_charge : pi.latest_charge?.id || '';
+          const holdDays = Number(process.env.DEPOSIT_HOLD_DAYS) || 7;
+          const expiresAtEpoch = event.created + holdDays * 86400;
+          await createRelay({
+            id: paymentIntentId,
+            artistId: metadata.artistId || '',
+            customerEmail: metadata.clientEmail || session.customer_details?.email || '',
+            amountCents: session.amount_total ?? 0,
+            chargeId,
+            paymentIntentId,
+            expiresAtEpoch,
+            createdAtEpoch: event.created,
+          });
+          await notifyArtistOfBooking({
+            id: paymentIntentId,
+            artistId: metadata.artistId || '',
+            customerEmail: metadata.clientEmail || session.customer_details?.email || '',
+            amountCents: session.amount_total ?? 0,
+            chargeId,
+            paymentIntentId,
+            status: 'pending',
+            expiresAtEpoch,
+            createdAtEpoch: event.created,
+          });
+        }
+      }
+
+      // SaaS subscription checkout: persist customer + status on the artist node.
+      if (session.mode === 'subscription' && metadata.tattArtistId) {
+        const stripeCustomerId =
+          typeof session.customer === 'string' ? session.customer : session.customer?.id || null;
+        await setArtistSubscription(metadata.tattArtistId, {
+          stripeCustomerId,
+          subscriptionStatus: 'active',
+        });
+      }
       break;
     }
 
     case 'account.updated': {
       const account = event.data.object as Stripe.Account;
+      const chargesEnabled = Boolean(account.charges_enabled);
       // Cache payout-readiness so checkout can gate without a live round-trip.
-      await setArtistChargesEnabled(account.id, Boolean(account.charges_enabled));
-      console.log('[Stripe] account.updated', { id: account.id, chargesEnabled: account.charges_enabled });
+      await setArtistChargesEnabled(account.id, chargesEnabled);
+      console.log('[Stripe] account.updated', { id: account.id, chargesEnabled });
+
+      // Onboarding just completed → release any deposits held for this artist.
+      if (chargesEnabled) {
+        try {
+          let artistId = account.metadata?.tattArtistId;
+          if (!artistId) {
+            // Fall back to the node keyed by this connected-account id.
+            const { executeServerCypherQuery } = await import(
+              '@/features/match-pulse/services/neo4jService'
+            );
+            const rows = await executeServerCypherQuery(
+              `MATCH (a:Artist {stripeAccountId: $acct}) RETURN a.id AS id LIMIT 1`,
+              { acct: account.id }
+            );
+            artistId = rows.length ? String((rows[0] as Record<string, unknown>).id) : undefined;
+          }
+          if (artistId) {
+            const result = await transferHeldDeposits(artistId);
+            if (result.count > 0) {
+              console.log('[Stripe] released held deposits', { artistId, ...result });
+            }
+          }
+        } catch (err) {
+          console.error('[Stripe] transferHeldDeposits failed (best-effort):', err);
+        }
+      }
       break;
     }
 
@@ -75,7 +153,16 @@ async function handleEvent(event: Stripe.Event): Promise<void> {
     case 'customer.subscription.deleted': {
       const sub = event.data.object as Stripe.Subscription;
       console.log('[Stripe]', event.type, { id: sub.id, status: sub.status, customer: sub.customer });
-      // TODO(billing): reflect artist subscription status on the artist record.
+      // Reflect artist subscription status on the artist record when we can key it.
+      const tattArtistId = sub.metadata?.tattArtistId;
+      if (tattArtistId) {
+        const stripeCustomerId =
+          typeof sub.customer === 'string' ? sub.customer : sub.customer?.id || null;
+        await setArtistSubscription(tattArtistId, {
+          stripeCustomerId,
+          subscriptionStatus: sub.status,
+        });
+      }
       break;
     }
 
