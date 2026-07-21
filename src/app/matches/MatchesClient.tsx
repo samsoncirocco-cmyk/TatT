@@ -25,7 +25,6 @@ type Match = {
   styles: string[];
   score: number;
   instagram?: string;
-  portfolioImageCount?: number;
 };
 
 type Status = "loading" | "ready" | "empty" | "offline" | "error";
@@ -136,7 +135,6 @@ export default function MatchesClient() {
         styles: m.styles || [],
         score: m.score,
         instagram: m.instagram,
-        portfolioImageCount: m.portfolioImageCount,
       }));
 
       setMatches(real);

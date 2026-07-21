@@ -26,7 +26,6 @@ export interface ArtistRecord {
     location?: string;
     rating?: number;
     reviewCount?: number;
-    portfolioImageCount?: number;
     styles: string[];
     hourlyRate?: number;
     portfolio?: string[];
@@ -260,6 +259,16 @@ async function executeCypherQuery(query: string, params: Record<string, any> = {
 }
 
 /**
+ * Cypher fragment gating the "Has portfolio" filter on real hosted images
+ * (a.portfolioImages, written by scripts/host-artist-images.mjs) or legacy
+ * demo-data Tattoo nodes — never the stale a.portfolioImageCount scrape
+ * artifact, which has no displayable URLs behind it.
+ */
+export function buildHasPortfolioClause(): string {
+    return "(a.portfolioImages IS NOT NULL AND size(a.portfolioImages) > 0) OR size(portfolio) > 0";
+}
+
+/**
  * Find matching artists using Neo4j Cypher
  * Falls back to mock data when Neo4j unavailable
  */
@@ -324,9 +333,8 @@ export async function findMatchingArtists(preferences: ArtistPreferences): Promi
       // published rate (hourlyRate IS NULL) — never exclude them on budget.
       AND ($budget IS NULL OR a.hourlyRate IS NULL OR a.hourlyRate <= $budget * 1.5)
 
-      // Portfolio presence. Real artists carry no Tattoo nodes; the scraped
-      // portfolioImageCount property is the live signal.
-      AND (NOT $hasPortfolio OR coalesce(a.portfolioImageCount, 0) > 0 OR size(portfolio) > 0)
+      // Portfolio presence — real hosted images or legacy demo Tattoo nodes.
+      AND (NOT $hasPortfolio OR ${buildHasPortfolioClause()})
 
     // Calculate match score using Cypher
     WITH a, styles, portfolio, tags,
@@ -377,7 +385,6 @@ export async function findMatchingArtists(preferences: ArtistPreferences): Promi
       (coalesce(a.city, '') + CASE WHEN a.state IS NULL THEN '' ELSE ', ' + a.state END) AS location,
       a.rating AS rating,
       a.reviewCount AS reviewCount,
-      coalesce(a.portfolioImageCount, 0) AS portfolioImageCount,
       styles AS styles,
       a.hourlyRate AS hourlyRate,
       portfolio AS portfolio,
@@ -406,7 +413,6 @@ export async function findMatchingArtists(preferences: ArtistPreferences): Promi
         location: record.location,
         rating: record.rating,
         reviewCount: record.reviewCount,
-        portfolioImageCount: record.portfolioImageCount,
         styles: record.styles || [],
         hourlyRate: record.hourlyRate,
         portfolio: record.portfolio || [],
