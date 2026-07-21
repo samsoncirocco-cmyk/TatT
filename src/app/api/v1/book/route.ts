@@ -52,14 +52,20 @@ export async function POST(request: NextRequest) {
   }
 
   const bookingId = `BK-${randomUUID().slice(0, 8).toUpperCase()}`;
-  const booking = {
-    bookingId,
-    ...parsed.value,
-    uid: user?.uid ?? null,
-    status: 'pending',
-    createdAt: new Date().toISOString(),
-    ip,
-  };
+  // Strip undefined values — Firestore rejects any document containing an
+  // `undefined` field (e.g. optional clientPhone), throwing a validation error
+  // that previously dropped the booking to the ephemeral file fallback and lost
+  // it. Only real (defined) fields are persisted.
+  const booking = Object.fromEntries(
+    Object.entries({
+      bookingId,
+      ...parsed.value,
+      uid: user?.uid ?? null,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      ip,
+    }).filter(([, v]) => v !== undefined)
+  );
 
   // Try Firestore (if configured)
   let savedToFirestore = false;
