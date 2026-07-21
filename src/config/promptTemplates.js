@@ -402,20 +402,12 @@ export const PROMPT_TEMPLATE_CATEGORIES = {
  */
 export const GENERATION_TIPS = [
   {
-    text: 'Did you know? 73% of first-timers change placement after AR preview',
-    category: 'insight'
-  },
-  {
     text: 'Tip: Try your design in 2-3 body locations before deciding',
     category: 'tip'
   },
   {
-    text: 'Next: See it on YOUR skin with AR visualization',
+    text: 'Coming soon: preview your design on YOUR skin with AR',
     category: 'next-step'
-  },
-  {
-    text: 'Users who preview in AR are 3.5x more likely to book within 2 weeks',
-    category: 'insight'
   },
   {
     text: 'Average first-timer spends 15-20 months deciding. You\'re on track for 2 weeks!',
@@ -424,10 +416,6 @@ export const GENERATION_TIPS = [
   {
     text: 'After this: Match with artists who specialize in your style',
     category: 'next-step'
-  },
-  {
-    text: '87% of users feel more confident after AR preview',
-    category: 'insight'
   },
   {
     text: 'Tip: Smaller designs (2-4 inches) are perfect for first tattoos',
