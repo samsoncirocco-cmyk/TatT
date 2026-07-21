@@ -4,9 +4,11 @@ AI-powered tattoo design platform. Council-enhanced prompts run through SDXL or 
 
 ## Current state
 
-Production runs on `main`. Live matching against the real scraped artist graph (Neo4j) is deployed and confirmed working at `tatt-app.vercel.app/matches` — this replaced the earlier synthetic 100-artist seed data for the matching flow. Auth is wired to Firebase (email + Google), the Forge design studio loads without crashing, and login/signup use real Firebase Auth (not localStorage).
+Production runs on `main`. Live matching against the real scraped artist graph (Neo4j) is deployed and confirmed working at `tatt-app.vercel.app/matches` — this replaced the earlier synthetic 100-artist seed data for the matching flow. `/artists` and `/book` are also live on the graph (`src/lib/artists-graph.ts`), and `/artists` cards render real, self-hosted portfolio photos uploaded to Google Cloud Storage by `scripts/host-artist-images.mjs` (not the expiring scraped CDN URLs). The homepage and `/artists` are public; auth is a soft, action-triggered gate (Firebase email + Google) — a sign-in prompt/modal appears when an unauthenticated user hits a protected action (booking, saving, generating), not a hard route redirect. Login/signup use real Firebase Auth (not localStorage).
 
-The live artist graph holds **8,949 real scraped artists** (`data/cleanup-report.json`) across a national dataset — the earlier 100 synthetic seed artists have been deleted from the graph. `src/data/artists.json` (the 100-artist synthetic set) is still read by some customer-facing pages (`/artists`, `/designs`, `/book`) that haven't been migrated to the real dataset the way `/matches` has — see Open issues.
+The live artist graph holds **8,949 real scraped artists** (`data/cleanup-report.json`) across a national dataset — the earlier 100 synthetic seed artists have been deleted from the graph. `src/data/artists.json` (the 100-artist synthetic set) is now orphaned — nothing in the app reads it (the homepage uses the real `featured-artists.json`); it can be deleted.
+
+Portfolio photos are real: sourced from each artist's Instagram via Apify, then downloaded and **self-hosted on Google Cloud Storage** by `scripts/host-artist-images.mjs` (not the expiring scraped CDN URLs), and written back onto the graph as `Artist.portfolioImages`. A full roster sweep ran on 2026-07-20 (~19k images across thousands of artists, still finalizing). **Style tags are not yet populated** — Instagram bios don't list styles; that's the pending vision pass (issue #63). A separate deterministic shop-site enrichment pipeline exists in the sibling `~/tatt-scraper` repo (`execution/`) as a complementary source. See `TODO.md` for status. The overnight crew (`CREW.md`) works this repo's issue queue in two lanes — `pr-only` (code tickets, PRs only, no paid/data jobs) and `autonomous` (may also merge and run capped data/spend jobs) — currently in `pr-only` mode.
 
 Three separate Vercel projects (`tatt-app`, `manama-next`, `generous-success`) currently deploy this repo; `tatt-app` is the one serving live matching and should be treated as canonical until the other two are formally disconnected (see `TODO.md`).
 
@@ -50,7 +52,7 @@ src/
   app/                       # Next App Router
     page.tsx                 # marketing landing
     about/, philosophy/      # marketing pages
-    artists/                 # artist directory + [slug] profile (reads synthetic seed data, see Open issues)
+    artists/                 # artist directory + [slug] profile (live Neo4j graph, GCS-hosted portfolio images)
     book/, bookings/         # booking flow + user's booking list
     designs/                 # user's saved designs (localStorage)
     generate/                # studio entry + /generate/stencil reference UI
@@ -114,7 +116,7 @@ Vercel project: `tatt-app` (canonical as of 2026-07-20; two other projects — `
 
 ## Open issues
 
-- **`/artists`, `/designs`, and `/book` still read the 100-artist synthetic seed** (`src/data/artists.json` via `src/lib/artists.ts`), not the real 8,949-artist scraped dataset. `/matches` was migrated to live data (PR #46); the rest have not been. An earlier attempt at a blanket dataset swap (PR #40) was closed as superseded because it conflicted with `/matches`'s live-API architecture — the remaining pages need the same live-API treatment, not a client-bundled JSON swap.
+- **Synthetic data is fully out of the app.** `/matches`, `/artists`, and `/book` all run on the live graph; the dead `ArtistsContent`/`ArtistProfileContent` components (the last synthetic readers) were deleted (#86), leaving `src/data/artists.json` orphaned and deletable. `/smart-match` and `/swipe` remain live but are orphaned from nav — link or retire is a product call (issue #59).
 - **~39 TypeScript errors**, masked by `ignoreBuildErrors: true` in `next.config.ts`. Concentrated in `src/services/fetchWithAbort.ts` and a handful of other services/components — does not block build or deploy.
 - **`src/features/Generate.jsx` is ~1,750 lines** — still monolithic, due for decomposition.
 - **`react-tinder-card@1.6.4` peer-dep conflict** — wants `@react-spring/web@^9`, project is on `^10`; papered over with `legacy-peer-deps` (enforced by `.npmrc`). Proper fix is to upgrade or replace the lib.
