@@ -52,10 +52,10 @@ each area before deepening it.
 
 ## One-off follow-ups (2026-07-20 session — not architecture items)
 
-- **Railway sanity check (needs Samson):** ticket 05 deleted the legacy
-  Express imagen route (`src/api/routes/generate.js`, mounted by `server.js`,
-  the old Railway proxy). If that Railway deployment still serves anything,
-  the endpoint must be restored as an adapter over `@/services/generation`.
+- ~~**Railway sanity check (needs Samson)**~~ — **RESOLVED 2026-07-20,
+  Samson's call: the legacy Railway proxy is not needed.** Ticket 05's
+  deletion of the Express imagen route stands; if a proxy is ever needed
+  again, rebuild it as an adapter over `@/services/generation`.
 - **Trademark knockout search** for "TattTester" (USPTO TESS, free) before
   printing/announcing the name. ADR-0004 notes screening is still open.
 - **Build the two landing pages** from `docs/brand/`: trust angle on
