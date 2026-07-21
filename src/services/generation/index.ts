@@ -4,6 +4,7 @@ import { vertexImagenProvider } from './internal/vertexImagen';
 import { replicateProvider } from './internal/replicate';
 import { routeGeneration, inferProvider } from './internal/routing';
 import type { GenerationRequest, GenerationResult, ProviderName } from './internal/provider';
+import { asGenerationError } from './internal/provider';
 
 export type {
   GenerationRequest,
@@ -13,6 +14,14 @@ export type {
   AspectRatio,
   SafetyFilterLevel
 } from './internal/provider';
+
+// Deliberate second public export (contract step, ticket 05): routeGeneration
+// is a pure routing helper (no I/O, imports only the model-routing config) and
+// is safe on the client. Feature code that previews model/aspect/negative-prompt
+// choices without generating imports it from here instead of the deleted
+// src/services/generationRouter.ts.
+export { routeGeneration } from './internal/routing';
+export type { GenerationRoute } from './internal/routing';
 
 interface ResolvedRoute {
   modelId: string;
@@ -60,7 +69,8 @@ export async function generate(request: GenerationRequest): Promise<GenerationRe
 
   try {
     return await dispatch(route.provider, resolved);
-  } catch (error: any) {
+  } catch (thrown) {
+    const error = asGenerationError(thrown);
     if (resolved.allowProviderFallback === false) throw error;
 
     // Vertex → Replicate SDXL (when a token exists); Replicate → its routed
@@ -72,15 +82,15 @@ export async function generate(request: GenerationRequest): Promise<GenerationRe
           : []
         : route.fallbackChain.filter((id) => id !== 'imagen3');
 
-    let lastError = error;
+    let lastError: Error = error;
     for (const modelId of fallbackModels) {
       try {
         const result = await replicateProvider.generate({ ...resolved, modelId });
         result.metadata.fallbackUsed = true;
-        result.metadata.fallbackReason = error?.code || error?.message || 'PRIMARY_FAILED';
+        result.metadata.fallbackReason = error.code || error.message || 'PRIMARY_FAILED';
         return result;
-      } catch (fallbackError: any) {
-        lastError = fallbackError;
+      } catch (fallbackError) {
+        lastError = asGenerationError(fallbackError);
       }
     }
     throw lastError;

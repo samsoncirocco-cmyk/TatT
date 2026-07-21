@@ -1,25 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
+import { generate } from '@/services/generation';
 import {
-  generateAndUploadImages,
+  enforceQuota,
   getUsageSnapshot,
-  ImagenGenerationOptions
-} from '../../../lib/vertex-imagen-client';
+  recordUsage,
+  uploadGeneratedImages
+} from './imagen-upload';
 
 export const runtime = 'nodejs';
 
-const SIZE_MAP: Record<string, number> = {
-  small: 512,
-  medium: 768,
-  large: 1024
-};
-
-function resolveDimensions(size?: string) {
-  if (!size) return { width: 1024, height: 1024 };
-  const normalized = size.toLowerCase();
-  const dimension = SIZE_MAP[normalized] || 1024;
-  return { width: dimension, height: dimension };
-}
+// Thin adapter: the generation module produces images; this route composes
+// generation + GCS upload (upload is deliberately NOT the module's job —
+// spec: generation-module).
 
 export async function POST(request: NextRequest) {
   const authError = await verifyApiAuth(request);
@@ -33,8 +26,6 @@ export async function POST(request: NextRequest) {
       style,
       bodyPart,
       size,
-      width,
-      height,
       sampleCount,
       aspectRatio,
       safetyFilterLevel,
@@ -51,43 +42,43 @@ export async function POST(request: NextRequest) {
     }
 
     const requestedCount = Number(sampleCount || 1);
-    const widthValue = Number(width);
-    const heightValue = Number(height);
-    const dimensions = Number.isFinite(widthValue) && Number.isFinite(heightValue)
-      ? { width: widthValue, height: heightValue }
-      : resolveDimensions(size);
 
-    const options: ImagenGenerationOptions = {
+    enforceQuota();
+
+    const result = await generate({
       prompt: prompt.trim(),
       negativePrompt: negativePrompt?.trim(),
-      sampleCount: requestedCount,
+      numImages: requestedCount,
       aspectRatio: aspectRatio || '1:1',
-      imageSize: dimensions,
       safetyFilterLevel,
       personGeneration,
       outputFormat,
       seed,
-      metadata: {
-        style: style || '',
-        bodyPart: bodyPart || '',
-        size: size || ''
-      }
-    };
+      modelId: 'imagen3',
+      allowProviderFallback: false
+    });
 
-    const result = await generateAndUploadImages(options);
+    recordUsage(result.images.length);
+
+    const uploaded = await uploadGeneratedImages(result.images, {
+      style: style || '',
+      bodyPart: bodyPart || '',
+      size: size || ''
+    });
+
     const usage = getUsageSnapshot();
     const costPerImage = Number(usage.costPerImage) || 0;
     const totalCost = Number((costPerImage * requestedCount).toFixed(4));
 
     return NextResponse.json({
       success: true,
-      images: result.urls,
-      uploads: result.uploads,
+      images: uploaded.urls,
+      uploads: uploaded.uploads,
       metadata: {
         generatedAt: new Date().toISOString(),
         prompt: prompt.trim(),
         negativePrompt: negativePrompt?.trim() || null,
-        model: 'imagegeneration@006',
+        model: result.metadata.model,
         provider: 'vertex-ai',
         style: style || null,
         bodyPart: bodyPart || null,

@@ -57,3 +57,23 @@ export interface Provider {
   readonly name: ProviderName;
   generate(request: GenerationRequest): Promise<GenerationResult>;
 }
+
+// Errors thrown by providers carry the upstream HTTP status and a stable code.
+export interface GenerationError extends Error {
+  status?: number;
+  code?: string;
+  details?: string;
+}
+
+export function asGenerationError(error: unknown): GenerationError {
+  return (error instanceof Error ? error : new Error(String(error))) as GenerationError;
+}
+
+export function makeGenerationError(
+  message: string,
+  fields: Pick<GenerationError, 'status' | 'code' | 'details'>
+): GenerationError {
+  const error = new Error(message) as GenerationError;
+  Object.assign(error, fields);
+  return error;
+}

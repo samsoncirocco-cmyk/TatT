@@ -4,10 +4,14 @@
  * Single entry point for council prompt enhancement with Vertex AI, OpenRouter,
  * and safe fallbacks.
  */
+/* eslint-disable @typescript-eslint/no-explicit-any --
+   Ported legacy implementation (ticket 04): moved verbatim into the module.
+   The public contract is typed at the boundary (../index.ts); tightening the
+   internals is deliberately out of scope for the move. */
 
-import { buildCharacterMap, getAllCharacterNames } from '../config/characterDatabase.js';
-import { selectModelWithFallback, getModelPromptEnhancements } from '../utils/styleModelMapping.js';
-import { COUNCIL_SKILL_PACK } from '../config/councilSkillPack';
+import { buildCharacterMap, getAllCharacterNames } from '../../../config/characterDatabase.js';
+import { selectModelWithFallback, getModelPromptEnhancements } from '../../../utils/styleModelMapping.js';
+import { COUNCIL_SKILL_PACK } from '../../../config/councilSkillPack';
 import { getGcpAccessToken } from '@/lib/google-auth-edge';
 import { logEvent } from '@/lib/observability';
 

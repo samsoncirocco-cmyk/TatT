@@ -9,7 +9,7 @@
  * endpoint. Use /api/health for public liveness checks.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { enhancePrompt } from '@/services/councilService';
+import { enhance } from '@/services/council';
 import { verifyApiAuth } from '@/lib/api-auth';
 
 export const runtime = 'nodejs';
@@ -43,7 +43,7 @@ function sanitizeReason(err: unknown): string {
 async function probeProvider(
   envOverrides: Record<string, string | undefined>
 ): Promise<ProbeResult> {
-  // Snapshot + temporarily mutate env to coerce councilService into using only
+  // Snapshot + temporarily mutate env to coerce the council module into using only
   // the provider we're probing. We restore env in the finally block.
   const snapshot: Record<string, string | undefined> = {};
   for (const key of Object.keys(envOverrides)) {
@@ -58,7 +58,7 @@ async function probeProvider(
 
   try {
     const result = await Promise.race<ProbeResult>([
-      enhancePrompt({ userIdea: 'test', style: 'traditional', bodyPart: 'forearm' })
+      enhance({ userIdea: 'test', style: 'traditional', bodyPart: 'forearm' })
         .then((): ProbeResult => ({ status: 'up' }))
         .catch((err): ProbeResult => ({ status: 'down', reason: sanitizeReason(err) })),
       new Promise<ProbeResult>(resolve =>

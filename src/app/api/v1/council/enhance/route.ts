@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { enhancePrompt } from '@/services/councilService';
+import { enhance } from '@/services/council';
 
 export const runtime = 'nodejs';
 
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
         });
 
         const startTime = Date.now();
-        const result = await enhancePrompt({
+        const result = await enhance({
             userIdea: user_prompt,
             style: style,
             bodyPart: body_part,
