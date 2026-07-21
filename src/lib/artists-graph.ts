@@ -45,6 +45,9 @@ export type RosterArtist = {
   instagram: string | null;
   rating: number | null;
   reviewCount: number | null;
+  /** Self-hosted portfolio image URLs (public GCS), written by
+   *  scripts/host-artist-images.mjs. Empty when the artist has no hosted work. */
+  portfolioImages: string[];
 };
 
 export type RosterPage = {
@@ -59,6 +62,8 @@ export type RosterFilter = {
   q?: string;
   /** Exact style name (case-insensitive) from ROSTER_STYLES. */
   style?: string;
+  /** Only artists with real self-hosted portfolio images (not the stale count). */
+  hasPortfolio?: boolean;
 };
 
 /**
@@ -67,17 +72,19 @@ export type RosterFilter = {
  */
 export function buildRosterFilter(filter: RosterFilter): {
   where: string;
-  params: { q: string | null; style: string | null };
+  params: { q: string | null; style: string | null; hasPortfolio: boolean };
 } {
   const q = filter.q?.trim() || null;
   const style = filter.style?.trim() || null;
+  const hasPortfolio = !!filter.hasPortfolio;
   const where = `
     ($q IS NULL
       OR toLower(coalesce(a.name, '')) CONTAINS toLower($q)
       OR toLower(coalesce(a.city, '')) CONTAINS toLower($q)
       OR toLower(coalesce(a.shopName, '')) CONTAINS toLower($q))
-    AND ($style IS NULL OR any(s IN styles WHERE toLower(s) = toLower($style)))`;
-  return { where, params: { q, style } };
+    AND ($style IS NULL OR any(s IN styles WHERE toLower(s) = toLower($style)))
+    AND (NOT $hasPortfolio OR (a.portfolioImages IS NOT NULL AND size(a.portfolioImages) > 0))`;
+  return { where, params: { q, style, hasPortfolio } };
 }
 
 /** Clamp a raw page value to [1, ∞) and derive the Cypher skip window. */
@@ -106,6 +113,7 @@ function toRosterArtist(record: any): RosterArtist {
     instagram: record.instagram ?? null,
     rating: record.rating ?? null,
     reviewCount: record.reviewCount ?? null,
+    portfolioImages: Array.isArray(record.portfolioImages) ? record.portfolioImages : [],
   };
 }
 
@@ -149,7 +157,8 @@ export async function browseArtists(
       styles AS styles,
       a.instagram AS instagram,
       a.rating AS rating,
-      a.reviewCount AS reviewCount
+      a.reviewCount AS reviewCount,
+      a.portfolioImages AS portfolioImages
     ORDER BY coalesce(a.reviewCount, 0) DESC, a.name ASC, a.id ASC
     SKIP toInteger($skip) LIMIT toInteger($limit)
   `;
@@ -183,7 +192,8 @@ export async function getRosterArtistById(id: string): Promise<RosterArtist | nu
       styles AS styles,
       a.instagram AS instagram,
       a.rating AS rating,
-      a.reviewCount AS reviewCount
+      a.reviewCount AS reviewCount,
+      a.portfolioImages AS portfolioImages
     LIMIT 1
   `;
   const records = await runServerQuery(query, { id });

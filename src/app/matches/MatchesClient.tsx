@@ -2,34 +2,19 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
 import ArtistCard from "@/components/punk/ArtistCard";
 import SlashHeadline from "@/components/punk/SlashHeadline";
 import { useFavorites } from "@/lib/tattStorage";
 import { getApiAuthHeaders } from "@/lib/client-api-auth";
 import { artistSlug } from "@/lib/artist-slug";
+import { CANONICAL_STYLES, parseStylesParam } from "@/lib/design-style-signal";
 
 const COLORS = ["bg-pink", "bg-bone", "bg-cream", "bg-pink-deep", "bg-white/10"];
 
-// Canonical style vocabulary of the live artist graph.
-const STYLE_FILTERS = [
-  "All",
-  "Traditional",
-  "Neo-Traditional",
-  "Black & Grey",
-  "Blackwork",
-  "Fine Line",
-  "Realism",
-  "Illustrative",
-  "Japanese",
-  "Watercolor",
-  "Geometric",
-  "Tribal",
-  "Chicano",
-  "Anime",
-  "Minimalist",
-  "Script",
-];
+// Canonical style vocabulary of the live artist graph, plus the no-filter pill.
+const STYLE_FILTERS = ["All", ...CANONICAL_STYLES];
 
 type Match = {
   id: string;
@@ -71,6 +56,18 @@ export default function MatchesClient() {
   const favCount = hydrated ? favorites.length : 0;
   const hasFavorites = favCount > 0;
 
+  // Style signal carried over from the Stencil Forge's "Find artists for
+  // this design" CTA (/matches?styles=…&from=design). Validated against the
+  // canonical vocabulary; garbage params degrade to no signal. Read once on
+  // mount — clearing the chip or picking a pill drops the signal without
+  // rewriting the URL.
+  const searchParams = useSearchParams();
+  const [designStyles, setDesignStyles] = useState<string[]>(() =>
+    searchParams?.get("from") === "design"
+      ? parseStylesParam(searchParams.get("styles"))
+      : [],
+  );
+
   const [style, setStyle] = useState("All");
   const [locationInput, setLocationInput] = useState("");
   const [location, setLocation] = useState("");
@@ -90,6 +87,16 @@ export default function MatchesClient() {
       // getApiAuthHeaders attaches the Firebase ID token, or prompts sign-in
       // and throws if there is no session — handled by the catch below.
       const authHeaders = await getApiAuthHeaders();
+
+      // A design signal supplies (possibly several) styles; a manually
+      // picked pill supplies one. They never combine — picking a pill or
+      // clearing the chip drops the signal.
+      const activeStyles = designStyles.length
+        ? designStyles
+        : style === "All"
+          ? []
+          : [style];
+
       const res = await fetch("/api/v1/match/semantic", {
         method: "POST",
         headers: {
@@ -99,9 +106,9 @@ export default function MatchesClient() {
         signal: controller.signal,
         body: JSON.stringify({
           query:
-            [style !== "All" ? style : "", location].filter(Boolean).join(" ") ||
+            [...activeStyles, location].filter(Boolean).join(" ") ||
             "tattoo artist",
-          style_preferences: style === "All" ? [] : [style],
+          style_preferences: activeStyles,
           location: location || null,
           has_portfolio: hasPortfolio,
           max_results: 12,
@@ -140,7 +147,7 @@ export default function MatchesClient() {
       setMatches([]);
       setStatus("error");
     }
-  }, [style, location, hasPortfolio]);
+  }, [designStyles, style, location, hasPortfolio]);
 
   useEffect(() => {
     fetchMatches();
@@ -161,6 +168,7 @@ export default function MatchesClient() {
           match: Math.min(99, Math.max(1, Math.round(m.score))),
           color: COLORS[i % COLORS.length],
           href: `/artists/${slug}`,
+          bookHref: `/book?artistId=${encodeURIComponent(m.id)}`,
           external: false,
         };
       }),
@@ -221,9 +229,34 @@ export default function MatchesClient() {
                 Style
               </span>
               {STYLE_FILTERS.map((s) => (
-                <FilterPill key={s} label={s} active={style === s} onClick={() => setStyle(s)} />
+                <FilterPill
+                  key={s}
+                  label={s}
+                  active={designStyles.length ? designStyles.includes(s) : style === s}
+                  onClick={() => {
+                    // Manual pick always overrides the design signal.
+                    setDesignStyles([]);
+                    setStyle(s);
+                  }}
+                />
               ))}
             </div>
+            {designStyles.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[10px] uppercase tracking-[0.25em] text-pink font-body mr-2">
+                  ▸ Matched to your design
+                </span>
+                <span className="text-[10px] uppercase tracking-[0.2em] text-black bg-pink border border-pink px-3 py-2 font-body">
+                  {designStyles.join(" / ")}
+                </span>
+                <button
+                  onClick={() => setDesignStyles([])}
+                  className="text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-pink font-body press"
+                >
+                  Clear&nbsp;✕
+                </button>
+              </div>
+            )}
             <div className="flex flex-wrap items-center gap-2">
               <label
                 htmlFor="match-location"
@@ -324,7 +357,12 @@ export default function MatchesClient() {
               <div className="font-display text-[24px] tracking-wide text-white/60">
                 No artists match&nbsp;
                 <span className="text-pink">
-                  {[style !== "All" ? style : null, location].filter(Boolean).join(" / ") || "that"}
+                  {[
+                    designStyles.length ? designStyles.join(" / ") : style !== "All" ? style : null,
+                    location,
+                  ]
+                    .filter(Boolean)
+                    .join(" / ") || "that"}
                 </span>
               </div>
               <p className="mt-3 text-[12px] uppercase tracking-[0.2em] text-white/40 font-body">
@@ -347,6 +385,7 @@ export default function MatchesClient() {
                   styles={a.styles}
                   matchPercent={a.match}
                   href={a.href}
+                  bookHref={a.bookHref}
                   external={a.external}
                   showFavorite
                   favoriteSize={18}

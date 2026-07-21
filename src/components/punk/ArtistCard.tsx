@@ -46,6 +46,8 @@ type MatchProps = CommonProps & {
   variant: "match";
   styles: string[];
   matchPercent?: number;
+  /** When set, renders a "Book" action under the card (e.g. /book?artistId=…). */
+  bookHref?: string;
 };
 
 type Props = CompactProps | DefaultProps | MatchProps;
@@ -176,6 +178,17 @@ export default function ArtistCard(props: Props) {
           )}
         </div>
       </Link>
+
+      {/* Book action — match variant only, separate link so it never
+          nests inside the profile anchor. Carries the real artistId. */}
+      {isMatch(props) && props.bookHref && (
+        <Link
+          href={props.bookHref}
+          className="mt-3 inline-flex items-center text-[10px] uppercase tracking-[0.2em] text-white/70 hover:text-black hover:bg-pink border hairline px-3 py-2 press font-body"
+        >
+          Book&nbsp;the&nbsp;chair&nbsp;<span className="ml-1">▸</span>
+        </Link>
+      )}
 
       {showFavorite && (
         <FavoriteButton

@@ -15,10 +15,16 @@ export const dynamic = "force-dynamic";
 
 const COLORS = ["bg-pink", "bg-bone", "bg-cream", "bg-pink-deep", "bg-white/10", "bg-white/5"];
 
-function pageHref(q: string, style: string, page: number): string {
+function pageHref(
+  q: string,
+  style: string,
+  hasPortfolio: boolean,
+  page: number,
+): string {
   const params = new URLSearchParams();
   if (q) params.set("q", q);
   if (style) params.set("style", style);
+  if (hasPortfolio) params.set("hasPortfolio", "1");
   if (page > 1) params.set("page", String(page));
   const qs = params.toString();
   return `/artists${qs ? `?${qs}` : ""}`;
@@ -32,8 +38,9 @@ export default async function ArtistsPage({
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q : "";
   const style = typeof sp.style === "string" ? sp.style : "";
+  const hasPortfolio = sp.hasPortfolio === "1";
 
-  const roster: RosterPage = await browseArtists({ q, style }, sp.page);
+  const roster: RosterPage = await browseArtists({ q, style, hasPortfolio }, sp.page);
   const { artists, total, page, pageCount } = roster;
 
   return (
@@ -61,7 +68,12 @@ export default async function ArtistsPage({
             shop — see their work on Instagram.
           </p>
 
-          <RosterControls styles={ROSTER_STYLES} q={q} style={style} />
+          <RosterControls
+            styles={ROSTER_STYLES}
+            q={q}
+            style={style}
+            hasPortfolio={hasPortfolio}
+          />
 
           <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {artists.map((a, i) => (
@@ -71,6 +83,7 @@ export default async function ArtistsPage({
                 name={a.name}
                 city={a.location}
                 color={COLORS[i % COLORS.length]}
+                image={a.portfolioImages[0] ?? undefined}
                 handle={a.instagram ?? undefined}
                 style={a.styles[0] ?? ""}
                 showFavorite
@@ -99,7 +112,7 @@ export default async function ArtistsPage({
             <div className="mt-14 flex items-center justify-between border-t hairline pt-6">
               {page > 1 ? (
                 <Link
-                  href={pageHref(q, style, page - 1)}
+                  href={pageHref(q, style, hasPortfolio, page - 1)}
                   className="text-[10px] uppercase tracking-[0.2em] text-white/70 hover:text-black hover:bg-pink border-2 hairline px-4 py-3 press font-body"
                 >
                   ◂&nbsp;Previous
@@ -113,7 +126,7 @@ export default async function ArtistsPage({
               </span>
               {page < pageCount ? (
                 <Link
-                  href={pageHref(q, style, page + 1)}
+                  href={pageHref(q, style, hasPortfolio, page + 1)}
                   className="text-[10px] uppercase tracking-[0.2em] text-white/70 hover:text-black hover:bg-pink border-2 hairline px-4 py-3 press font-body"
                 >
                   Next&nbsp;▸

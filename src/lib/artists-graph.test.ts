@@ -8,21 +8,36 @@ import {
 
 describe("buildRosterFilter", () => {
   it("nulls out empty filters so the WHERE clause passes everything", () => {
-    expect(buildRosterFilter({}).params).toEqual({ q: null, style: null });
+    expect(buildRosterFilter({}).params).toEqual({
+      q: null,
+      style: null,
+      hasPortfolio: false,
+    });
     expect(buildRosterFilter({ q: "  ", style: "" }).params).toEqual({
       q: null,
       style: null,
+      hasPortfolio: false,
     });
   });
 
   it("trims and forwards active filters as parameters, never inline", () => {
     const { where, params } = buildRosterFilter({ q: " austin ", style: "Blackwork" });
-    expect(params).toEqual({ q: "austin", style: "Blackwork" });
+    expect(params).toEqual({ q: "austin", style: "Blackwork", hasPortfolio: false });
     // Values must reach Cypher only via $params (no string interpolation).
     expect(where).not.toContain("austin");
     expect(where).not.toContain("Blackwork");
     expect(where).toContain("$q");
     expect(where).toContain("$style");
+  });
+
+  it("gates the roster on real stored portfolioImages, not the stale count", () => {
+    const { where, params } = buildRosterFilter({ hasPortfolio: true });
+    expect(params.hasPortfolio).toBe(true);
+    // Keys off the real self-hosted array, never portfolioImageCount.
+    expect(where).toContain("$hasPortfolio");
+    expect(where).toContain("a.portfolioImages IS NOT NULL");
+    expect(where).toContain("size(a.portfolioImages) > 0");
+    expect(where).not.toContain("portfolioImageCount");
   });
 
   it("searches name, city, and shop; matches style case-insensitively", () => {
