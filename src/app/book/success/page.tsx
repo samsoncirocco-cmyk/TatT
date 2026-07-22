@@ -64,6 +64,7 @@ function SuccessContent() {
   const deposit = sp.get("deposit");
   const sessionId = sp.get("session_id");
   const bookingId = sp.get("bookingId");
+  const isDemo = sp.get("demo") === "true";
 
   // Server truth, once reconciled. `null` = not yet loaded / unavailable.
   const [server, setServer] = useState<ServerBooking | null>(null);
@@ -119,12 +120,13 @@ function SuccessContent() {
   }, [bookingId]);
 
   const serverStatus = server?.status;
-  // Whether to present this as a paid deposit. When we have server truth we
-  // trust it exactly. Legacy redirects without bookingId retain the historical
-  // param fallback; identified bookings stay unconfirmed until the server says paid.
-  const isPaid = serverStatus
-    ? PAID_STATUSES.has(serverStatus)
-    : !bookingId && Boolean(deposit);
+  // Demo checkout has no Stripe webhook to advance the persisted booking.
+  // Otherwise trust server truth and only retain the fallback for legacy redirects.
+  const isPaid = isDemo
+    ? Boolean(deposit)
+    : serverStatus
+      ? PAID_STATUSES.has(serverStatus)
+      : !bookingId && Boolean(deposit);
   const statusText = serverStatus ? STATUS_LABELS[serverStatus] : isPaid ? "Deposit paid" : null;
   const depositValue = server?.depositAmount != null ? String(server.depositAmount) : deposit;
 

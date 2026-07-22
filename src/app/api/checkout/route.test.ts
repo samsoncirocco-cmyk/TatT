@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const { createSessionMock, getArtistStripeMock, bookingData } = vi.hoisted(() => ({
   createSessionMock: vi.fn(),
   getArtistStripeMock: vi.fn(),
-  bookingData: { uid: 'owner-uid', status: 'deposit_paid' },
+  bookingData: { uid: 'owner-uid', status: 'deposit_paid', artistId: 'artist-1' },
 }));
 
 vi.mock('@/lib/api-auth', () => ({
@@ -59,7 +59,7 @@ const payload = {
 
 describe('POST /api/checkout', () => {
   beforeEach(() => {
-    Object.assign(bookingData, { uid: 'owner-uid', status: 'pending' });
+    Object.assign(bookingData, { uid: 'owner-uid', status: 'pending', artistId: 'artist-1' });
     createSessionMock.mockReset();
     createSessionMock.mockResolvedValue({ url: 'https://checkout.stripe.test/session' });
     getArtistStripeMock.mockReset();
@@ -100,6 +100,24 @@ describe('POST /api/checkout', () => {
 
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ error: 'Booking not found.' });
+    expect(createSessionMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects checkout for an artist other than the booking artist', async () => {
+    const request = new Request('http://localhost/api/checkout', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ...payload, artistId: 'artist-2' }),
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const response = await POST(request as any);
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      error: 'Booking artist does not match checkout artist.',
+    });
+    expect(getArtistStripeMock).not.toHaveBeenCalled();
     expect(createSessionMock).not.toHaveBeenCalled();
   });
 

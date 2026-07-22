@@ -109,6 +109,12 @@ export async function POST(req: NextRequest) {
           if (ownerUid && ownerUid !== callerUid) {
             return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
           }
+          if (booking?.artistId && booking.artistId !== artistId) {
+            return NextResponse.json(
+              { error: 'Booking artist does not match checkout artist.' },
+              { status: 409 }
+            );
+          }
           if (booking?.status && booking.status !== 'pending') {
             return NextResponse.json(
               { error: 'Booking is no longer awaiting a deposit.' },

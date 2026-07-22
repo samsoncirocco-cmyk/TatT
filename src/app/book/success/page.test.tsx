@@ -89,6 +89,22 @@ describe("BookingSuccessPage reconciliation", () => {
     expect(screen.getAllByText("Deposit paid").length).toBeGreaterThan(0);
   });
 
+  it("shows a demo checkout as paid while its booking remains pending", async () => {
+    searchValues.set("demo", "true");
+    searchValues.set("bookingId", "booking-1");
+    searchValues.set("deposit", "75");
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, booking: { status: "pending" } }),
+    });
+
+    render(<BookingSuccessPage />);
+    await flushPromises();
+
+    expect(screen.getAllByText("Deposit paid").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Deposit due")).toBeNull();
+  });
+
   it("polls a pending booking until Stripe reconciliation marks it paid", async () => {
     searchValues.set("bookingId", "booking-1");
     searchValues.set("deposit", "75");
