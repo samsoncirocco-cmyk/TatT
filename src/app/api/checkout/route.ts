@@ -94,9 +94,9 @@ export async function POST(req: NextRequest) {
   // Ownership guard: a client-supplied bookingId must belong to the caller (the
   // webhook later marks that exact doc deposit_paid, so an unverified id would
   // let one user flip another user's booking). If the booking record exists and
-  // is owned by someone else, refuse. A MISSING doc is allowed through — the
-  // capture may have hit the file fallback (Firestore down at book time); the
-  // webhook seeds/upserts it from metadata in that case.
+  // is owned by someone else or is no longer awaiting payment, refuse. A
+  // MISSING doc is allowed through — the capture may have hit the file fallback
+  // (Firestore down at book time); the webhook seeds/upserts it from metadata.
   if (bookingId) {
     const cred = ensureAdminApp();
     if (cred) {
@@ -104,9 +104,16 @@ export async function POST(req: NextRequest) {
         const { getFirestore } = await import('firebase-admin/firestore');
         const snap = await getFirestore().collection('booking_requests').doc(bookingId).get();
         if (snap.exists) {
-          const ownerUid = (snap.data() as Record<string, unknown> | undefined)?.uid ?? null;
+          const booking = snap.data() as Record<string, unknown> | undefined;
+          const ownerUid = booking?.uid ?? null;
           if (ownerUid && ownerUid !== callerUid) {
             return NextResponse.json({ error: 'Booking does not belong to you.' }, { status: 403 });
+          }
+          if (booking?.status && booking.status !== 'pending') {
+            return NextResponse.json(
+              { error: 'Booking is no longer awaiting a deposit.' },
+              { status: 409 }
+            );
           }
         }
       } catch (err) {

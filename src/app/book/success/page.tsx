@@ -37,6 +37,8 @@ const STATUS_LABELS: Record<BookingStatus, string> = {
   expired: "Expired",
 };
 
+const RECONCILE_POLL_MS = 2000;
+
 type ServerBooking = {
   status?: BookingStatus;
   depositAmount?: number | string;
@@ -66,7 +68,34 @@ function SuccessContent() {
   const [server, setServer] = useState<ServerBooking | null>(null);
 
   useEffect(() => {
+    // Without a bookingId there is no safe way to identify this checkout's
+    // booking; do not borrow status from an unrelated recent booking.
+    if (!bookingId) return;
+
     let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const loadBooking = async (headers: Record<string, string>) => {
+      let shouldRetry = true;
+      try {
+        const res = await fetch(`/api/v1/bookings/${encodeURIComponent(bookingId)}`, { headers });
+        if (res.ok) {
+          const data = await res.json().catch(() => null);
+          if (!cancelled && data?.success && data.booking) {
+            const booking = data.booking as ServerBooking;
+            setServer(booking);
+            shouldRetry = !booking.status || booking.status === "pending";
+          }
+        }
+      } catch {
+        // Retry transient network / backend failures while this page is open.
+      }
+
+      if (!cancelled && shouldRetry) {
+        retryTimer = setTimeout(() => void loadBooking(headers), RECONCILE_POLL_MS);
+      }
+    };
+
     (async () => {
       let headers: Record<string, string>;
       try {
@@ -74,36 +103,21 @@ function SuccessContent() {
       } catch {
         return; // signed out — keep the param-based display
       }
-      try {
-        // Prefer a specific bookingId when the redirect carries one; otherwise
-        // fall back to the caller's most-recent booking.
-        const url = bookingId
-          ? `/api/v1/bookings/${encodeURIComponent(bookingId)}`
-          : `/api/v1/bookings`;
-        const res = await fetch(url, { headers });
-        if (!res.ok) return;
-        const data = await res.json().catch(() => null);
-        if (cancelled || !data?.success) return;
-        const booking: ServerBooking | undefined = bookingId
-          ? data.booking
-          : Array.isArray(data.bookings)
-            ? data.bookings[0]
-            : undefined;
-        if (booking) setServer(booking);
-      } catch {
-        // Network / backend error — degrade to param-based display.
-      }
+      await loadBooking(headers);
     })();
     return () => {
       cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
     };
   }, [bookingId]);
 
   const serverStatus = server?.status;
   // Whether to present this as a paid deposit. When we have server truth we
-  // trust it exactly; without it we fall back to "Stripe redirected + a deposit
-  // param is present" (the historical, optimistic behavior).
-  const isPaid = serverStatus ? PAID_STATUSES.has(serverStatus) : Boolean(deposit);
+  // trust it exactly. Legacy redirects without bookingId retain the historical
+  // param fallback; identified bookings stay unconfirmed until the server says paid.
+  const isPaid = serverStatus
+    ? PAID_STATUSES.has(serverStatus)
+    : !bookingId && Boolean(deposit);
   const statusText = serverStatus ? STATUS_LABELS[serverStatus] : isPaid ? "Deposit paid" : null;
   const depositValue = server?.depositAmount != null ? String(server.depositAmount) : deposit;
 

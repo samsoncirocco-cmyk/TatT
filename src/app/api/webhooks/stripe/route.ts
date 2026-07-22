@@ -7,7 +7,8 @@
  * flag is set.
  *
  * Handles both money flows:
- *  - Marketplace/payments: checkout.session.completed, payment_intent.succeeded
+ *  - Marketplace/payments: checkout.session.completed/async_payment_succeeded,
+ *    payment_intent.succeeded
  *  - Connect account status: account.updated (caches charges_enabled on the artist)
  *  - SaaS billing: customer.subscription.*, invoice.paid/payment_failed
  *
@@ -212,6 +213,10 @@ async function handleEvent(event: Stripe.Event): Promise<void> {
         metadata,
       });
 
+      // Reconcile before relay/subscription side effects so their failures
+      // cannot leave a successfully paid booking pending.
+      await reconcileBookingDeposit(session, event);
+
       // HELD deposit (unclaimed artist): collected to the platform — record a
       // :BookingRelay so we can transfer it once the artist onboards, or refund
       // it if the hold window lapses.
@@ -256,11 +261,15 @@ async function handleEvent(event: Stripe.Event): Promise<void> {
         });
       }
 
-      // Reconcile the booking document (Task 1.3): move pending → deposit_paid.
-      // Best-effort and IDEMPOTENT — Stripe retries webhooks, so a replay of the
-      // same event must be a no-op. Wrapped in its own try/catch so a Firestore
-      // failure never breaks relay creation or the 200 response above. A lost
-      // reconciliation is real money, so failures are logged loudly.
+      break;
+    }
+
+    case 'checkout.session.async_payment_succeeded': {
+      const session = event.data.object as Stripe.Checkout.Session;
+      console.log('[Stripe] checkout async payment succeeded', {
+        id: session.id,
+        paymentStatus: session.payment_status,
+      });
       await reconcileBookingDeposit(session, event);
       break;
     }

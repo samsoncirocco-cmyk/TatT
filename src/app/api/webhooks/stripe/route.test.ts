@@ -223,6 +223,33 @@ describe('Stripe webhook — booking reconciliation (Task 1.3)', () => {
     expect(doc.stripeSessionId).toBeUndefined();
   });
 
+  it('reconciles when an asynchronous payment later succeeds', async () => {
+    const event = makeEvent('evt_async');
+    event.type = 'checkout.session.async_payment_succeeded';
+    constructEventMock.mockReturnValueOnce(event);
+
+    const res = await POST(makeRequest(event));
+    expect(res.status).toBe(200);
+
+    const doc = docStore.get('BK-TEST01')!;
+    expect(doc.status).toBe('deposit_paid');
+    expect(doc.processedStripeEvents).toEqual(['evt_async']);
+  });
+
+  it('reconciles before a held-deposit side effect fails', async () => {
+    const event = makeEvent('evt_relay_failure');
+    event.data.object.metadata.depositState = 'held';
+    retrievePiMock.mockRejectedValueOnce(new Error('Stripe unavailable'));
+    constructEventMock.mockReturnValueOnce(event);
+
+    const res = await POST(makeRequest(event));
+    expect(res.status).toBe(500);
+
+    const doc = docStore.get('BK-TEST01')!;
+    expect(doc.status).toBe('deposit_paid');
+    expect(doc.processedStripeEvents).toEqual(['evt_relay_failure']);
+  });
+
   it('seeds the booking doc from metadata when it is missing (file-fallback recovery)', async () => {
     docStore.delete('BK-TEST01'); // capture only reached the file fallback
     const event = makeEvent('evt_4');
