@@ -1,9 +1,12 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import StudioShell from "@/components/studio/StudioShell";
 import SlashHeadline from "@/components/punk/SlashHeadline";
 import { useBookings, useDesigns, type TattBooking } from "@/lib/tattStorage";
+import { getApiAuthHeaders } from "@/lib/client-api-auth";
+import type { BookingStatus } from "@/lib/booking";
 
 function formatBookingDate(iso: string): string {
   const [y, m, d] = iso.split("-");
@@ -14,6 +17,90 @@ function formatBookingDate(iso: string): string {
   const month = months[parseInt(m, 10) - 1] ?? m;
   return `${month} ${parseInt(d, 10)}, ${y}`;
 }
+
+// ─── Server truth ──────────────────────────────────────────────────────
+
+type RequestedSlot = { date: string; time?: string };
+type ServerBooking = {
+  id: string;
+  bookingId?: string;
+  artistName?: string;
+  status?: BookingStatus;
+  depositAmount?: number | string;
+  requestedSlots?: RequestedSlot[];
+  createdAt?: string;
+};
+
+const STATUS_LABELS: Record<BookingStatus, string> = {
+  pending: "Awaiting deposit",
+  deposit_paid: "Deposit paid",
+  confirmed: "Confirmed",
+  declined: "Declined",
+  completed: "Completed",
+  cancelled: "Cancelled",
+  refunded: "Refunded",
+  expired: "Expired",
+};
+
+/** Statuses that read as "live / holding the chair". */
+const ACTIVE_STATUSES = new Set<BookingStatus>(["deposit_paid", "confirmed", "completed"]);
+
+function statusLabel(status?: BookingStatus): string {
+  return status ? STATUS_LABELS[status] : "Awaiting deposit";
+}
+
+function serverDisplayDate(b: ServerBooking): string {
+  const slot = b.requestedSlots?.find((s) => /^\d{4}-\d{2}-\d{2}$/.test(s.date));
+  if (slot) return formatBookingDate(slot.date);
+  if (b.createdAt) {
+    const d = new Date(b.createdAt);
+    if (!Number.isNaN(d.getTime())) return formatBookingDate(d.toISOString().slice(0, 10));
+  }
+  return "Date on request";
+}
+
+function ServerBookingCard({ b }: { b: ServerBooking }) {
+  const active = ACTIVE_STATUSES.has(b.status ?? "pending");
+  return (
+    <div className="border-2 hairline p-6 md:p-8 relative">
+      <div className="flex items-baseline justify-between gap-6 flex-wrap">
+        <div>
+          <div className="font-display text-white text-[32px] sm:text-[40px] leading-none tracking-tight">
+            {serverDisplayDate(b)}
+            <span className="text-pink">.</span>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-[10px] uppercase tracking-[0.25em] text-white/60 font-body">
+            <span>
+              Artist:&nbsp;<span className="text-white">{b.artistName ?? "TBC"}</span>
+            </span>
+            <span className="text-pink">●</span>
+            <span>
+              Ref:&nbsp;<span className="text-white">{b.bookingId ?? b.id}</span>
+            </span>
+            {b.depositAmount != null && (
+              <>
+                <span className="text-pink">●</span>
+                <span>
+                  Deposit:&nbsp;<span className="text-pink">${String(b.depositAmount)}</span>
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="sticker inline-block px-3 py-1">
+          <div className="font-display text-[11px] tracking-widest leading-none">
+            {statusLabel(b.status)}
+          </div>
+          <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-0.5">
+            {active ? "Studio Hold" : "Request"}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Local fallback card (unchanged behavior) ──────────────────────────
 
 function BookingCard({
   b,
@@ -68,7 +155,40 @@ function BookingCard({
 export default function BookingsPage() {
   const { bookings, hydrated, removeBooking } = useBookings();
   const { designs } = useDesigns();
-  const showEmpty = hydrated && bookings.length === 0;
+
+  // Server truth. `null` = not resolved yet; then either an array (server view)
+  // or we fall back to the localStorage view on auth/network failure.
+  const [server, setServer] = useState<ServerBooking[] | null>(null);
+  const [serverResolved, setServerResolved] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      let headers: Record<string, string>;
+      try {
+        headers = await getApiAuthHeaders();
+      } catch {
+        if (!cancelled) setServerResolved(true); // signed out → local fallback
+        return;
+      }
+      try {
+        const res = await fetch("/api/v1/bookings", { headers });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => null);
+        if (cancelled) return;
+        if (data?.success && Array.isArray(data.bookings)) {
+          setServer(data.bookings as ServerBooking[]);
+        }
+      } catch {
+        // Leave `server` null → local fallback below.
+      } finally {
+        if (!cancelled) setServerResolved(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const designLabel = (id?: string) => {
     if (!id) return "No design — decide in chair";
@@ -76,6 +196,13 @@ export default function BookingsPage() {
     if (!d) return "Design (deleted)";
     return d.prompt.split(/[\s,]+/).slice(0, 4).join(" ") || "Untitled cut";
   };
+
+  // Which view are we showing? Server truth wins once we have it; otherwise the
+  // resilient localStorage view. Empty state only when both agree there's nothing.
+  const useServer = server !== null;
+  const count = useServer ? server.length : bookings.length;
+  const ready = useServer ? true : hydrated && serverResolved;
+  const showEmpty = ready && count === 0;
 
   return (
     <StudioShell>
@@ -86,7 +213,7 @@ export default function BookingsPage() {
           </span>
           <span>
             Holds:&nbsp;
-            <span className="text-pink">{hydrated ? bookings.length : "—"}</span>
+            <span className="text-pink">{ready ? count : "—"}</span>
           </span>
         </div>
       </div>
@@ -123,6 +250,12 @@ export default function BookingsPage() {
                 Book the Chair
                 <span className="ml-3 text-[18px]">▸</span>
               </Link>
+            </div>
+          ) : useServer ? (
+            <div className="mt-12 space-y-4">
+              {server.map((b) => (
+                <ServerBookingCard key={b.id} b={b} />
+              ))}
             </div>
           ) : (
             <div className="mt-12 space-y-4">

@@ -7,6 +7,11 @@ import {
   normalizeRequestedSlots,
   validateBookingRequest,
   MAX_REQUESTED_SLOTS,
+  canTransition,
+  appendStatus,
+  INITIAL_BOOKING_STATUS,
+  type BookingStatus,
+  type BookingStatusEvent,
 } from "./booking";
 
 describe("availability model", () => {
@@ -162,5 +167,118 @@ describe("validateBookingRequest", () => {
     if (result.ok) {
       expect(result.value.description).toHaveLength(2000);
     }
+  });
+});
+
+describe("booking lifecycle state machine", () => {
+  const ALL: BookingStatus[] = [
+    "pending",
+    "deposit_paid",
+    "confirmed",
+    "declined",
+    "completed",
+    "cancelled",
+    "refunded",
+    "expired",
+  ];
+
+  const VALID_EDGES: Array<[BookingStatus, BookingStatus]> = [
+    ["pending", "deposit_paid"],
+    ["pending", "cancelled"],
+    ["pending", "expired"],
+    ["deposit_paid", "confirmed"],
+    ["deposit_paid", "declined"],
+    ["deposit_paid", "refunded"],
+    ["deposit_paid", "cancelled"],
+    ["confirmed", "completed"],
+    ["confirmed", "cancelled"],
+    ["confirmed", "refunded"],
+    ["declined", "refunded"],
+  ];
+
+  const TERMINAL: BookingStatus[] = [
+    "completed",
+    "refunded",
+    "cancelled",
+    "expired",
+  ];
+
+  it("starts pending", () => {
+    expect(INITIAL_BOOKING_STATUS).toBe("pending");
+  });
+
+  it("allows every valid edge", () => {
+    for (const [from, to] of VALID_EDGES) {
+      expect(canTransition(from, to), `${from} → ${to} should be allowed`).toBe(
+        true,
+      );
+    }
+  });
+
+  it("rejects every edge not in the transition table", () => {
+    const validSet = new Set(VALID_EDGES.map(([f, t]) => `${f}→${t}`));
+    for (const from of ALL) {
+      for (const to of ALL) {
+        if (from === to) continue;
+        const expected = validSet.has(`${from}→${to}`);
+        expect(
+          canTransition(from, to),
+          `${from} → ${to} should be ${expected}`,
+        ).toBe(expected);
+      }
+    }
+  });
+
+  it("rejects same-state transitions", () => {
+    for (const s of ALL) {
+      expect(canTransition(s, s), `${s} → ${s} should be false`).toBe(false);
+    }
+  });
+
+  it("gives terminal states no outgoing transitions", () => {
+    for (const from of TERMINAL) {
+      for (const to of ALL) {
+        expect(
+          canTransition(from, to),
+          `terminal ${from} → ${to} should be false`,
+        ).toBe(false);
+      }
+    }
+  });
+
+  it("rejects unknown statuses", () => {
+    expect(canTransition("bogus" as BookingStatus, "pending")).toBe(false);
+    expect(canTransition("pending", "bogus" as BookingStatus)).toBe(false);
+    expect(
+      canTransition("bogus" as BookingStatus, "also-bogus" as BookingStatus),
+    ).toBe(false);
+  });
+});
+
+describe("appendStatus", () => {
+  const event = (status: BookingStatus, by: string): BookingStatusEvent => ({
+    status,
+    at: "2026-07-21T00:00:00.000Z",
+    by,
+  });
+
+  it("treats undefined history as empty", () => {
+    const next = event("pending", "system");
+    expect(appendStatus(undefined, next)).toEqual([next]);
+  });
+
+  it("appends to the end", () => {
+    const first = event("pending", "system");
+    const second = event("deposit_paid", "stripe-webhook");
+    expect(appendStatus([first], second)).toEqual([first, second]);
+  });
+
+  it("does not mutate the input array", () => {
+    const first = event("pending", "system");
+    const history = [first];
+    const result = appendStatus(history, event("deposit_paid", "stripe-webhook"));
+    expect(history).toEqual([first]);
+    expect(history).toHaveLength(1);
+    expect(result).not.toBe(history);
   });
 });

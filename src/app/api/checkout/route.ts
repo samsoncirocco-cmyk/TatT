@@ -40,6 +40,7 @@ interface CheckoutPayload {
   budget: string;
   clientName: string;
   clientEmail: string;
+  bookingId?: string;
 }
 
 const DEPOSIT_BY_SIZE: Record<TattooSize, number> = {
@@ -77,7 +78,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
   }
 
-  const { artistId, artistName, size, placement, date, time, budget, clientName, clientEmail } = body;
+  const { artistId, artistName, size, placement, date, time, budget, clientName, clientEmail, bookingId } = body;
 
   if (!artistName || !size || !placement || !date || !time || !budget || !clientName || !clientEmail) {
     return NextResponse.json({ error: 'Missing required booking details.' }, { status: 400 });
@@ -128,6 +129,9 @@ export async function POST(req: NextRequest) {
     time,
     deposit: String(depositAmount),
   });
+  // Carry the bookingId so /book/success can reconcile against the exact
+  // booking record (server truth) rather than the caller's most-recent one.
+  if (bookingId) successParams.set('bookingId', bookingId);
   const cancelUrl = artistId ? `${baseUrl}/book?artistId=${encodeURIComponent(artistId)}` : `${baseUrl}/book`;
 
   const metadata: Record<string, string> = {
@@ -150,6 +154,10 @@ export async function POST(req: NextRequest) {
     // routed booking. Overwritten to a real flag only on the held path below.
     depositState: artistReady ? 'routed' : 'held',
   };
+  // Tie the Stripe session back to the booking_requests/{bookingId} record so
+  // the webhook can reconcile a paid deposit. Only set when present — metadata
+  // is Record<string,string> and must never carry undefined/empty values.
+  if (bookingId) metadata.bookingId = bookingId;
 
   try {
     // Two paths — in BOTH, the client pays (deposit + booking fee) and the

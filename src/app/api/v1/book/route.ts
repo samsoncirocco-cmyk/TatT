@@ -51,6 +51,31 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: parsed.error }, { status: 400 });
   }
 
+  // Validate the canonical artist id against the Neo4j graph (Artist.id is the
+  // platform's canonical artist id). Fail-CLOSED on a definitive "not found"
+  // (return 400) but fail-OPEN on infra error — a Neo4j outage must never drop
+  // real bookings. artistId is optional; absent means allow (some flows omit it).
+  if (parsed.value.artistId) {
+    try {
+      const { executeServerCypherQuery } = await import(
+        '@/features/match-pulse/services/neo4jService'
+      );
+      const records = await executeServerCypherQuery(
+        'MATCH (a:Artist {id: $id}) RETURN a.id LIMIT 1',
+        { id: parsed.value.artistId }
+      );
+      if (!records.length) {
+        return NextResponse.json({ success: false, error: 'Unknown artist.' }, { status: 400 });
+      }
+    } catch (err) {
+      // Lookup itself failed (graph unreachable) — log and fall through to allow.
+      console.warn(
+        `[book] artist existence check failed for ${parsed.value.artistId} — allowing booking (fail-open):`,
+        err instanceof Error ? err.message : err
+      );
+    }
+  }
+
   const bookingId = `BK-${randomUUID().slice(0, 8).toUpperCase()}`;
   // Strip undefined values — Firestore rejects any document containing an
   // `undefined` field (e.g. optional clientPhone), throwing a validation error

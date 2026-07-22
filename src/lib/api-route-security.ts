@@ -40,6 +40,8 @@ export const API_ROUTE_SECURITY: Record<string, RouteSecurityEntry> = {
   'predictions/[id]': { class: 'firebase-auth' },
   'v1/ar/visualize': { class: 'firebase-auth' },
   'v1/book': { class: 'firebase-auth' },
+  'v1/bookings': { class: 'firebase-auth' },
+  'v1/bookings/[id]': { class: 'firebase-auth' },
   'v1/council/enhance': { class: 'firebase-auth' },
   'v1/council/generate': { class: 'firebase-auth' },
   'v1/designs/share': { class: 'firebase-auth' },
