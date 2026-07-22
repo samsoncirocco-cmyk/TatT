@@ -53,11 +53,23 @@ async function reconcileBookingDeposit(
   session: Stripe.Checkout.Session,
   event: Stripe.Event
 ): Promise<void> {
-  const bookingId = session.metadata?.bookingId;
+  const metadata = session.metadata || {};
+  const bookingId = metadata.bookingId;
   if (!bookingId) {
     // Older sessions predate the metadata.bookingId wiring — nothing to do.
     console.log('[Stripe] checkout completed without bookingId metadata — skipping booking reconciliation', {
       session: session.id,
+    });
+    return;
+  }
+
+  // Only reconcile once the money has actually cleared. checkout.session.completed
+  // can fire for async payment methods while payment_status is still 'unpaid' /
+  // 'no_payment_required' — marking deposit_paid then would be a lie.
+  if (session.payment_status !== 'paid') {
+    console.log('[Stripe] booking reconciliation: session not paid yet — skipping', {
+      bookingId,
+      paymentStatus: session.payment_status,
     });
     return;
   }
@@ -77,11 +89,49 @@ async function reconcileBookingDeposit(
       typeof session.payment_intent === 'string'
         ? session.payment_intent
         : session.payment_intent?.id ?? null;
+    // The DEPOSIT (in dollars — what the client's booking is for and what the UI
+    // renders), NOT session.amount_total, which is (deposit + booking fee) in
+    // cents. amountPaidCents keeps the full charged total for audit.
+    const depositAmount = Number(metadata.depositAmount) || 0;
+    const amountPaidCents = session.amount_total ?? null;
 
     await db.runTransaction(async (tx) => {
       const snap = await tx.get(ref);
       if (!snap.exists) {
-        console.error('[Stripe] booking reconciliation: booking_requests doc missing', { bookingId });
+        // The capture may have only reached the file fallback (Firestore down at
+        // book time). A paid deposit is real money — SEED the booking record from
+        // the Stripe session metadata rather than dropping it. uid comes from
+        // metadata.clientUid so the owner can still read it via /api/v1/bookings.
+        const seed = Object.fromEntries(
+          Object.entries({
+            bookingId,
+            artistId: metadata.artistId,
+            artistName: metadata.artistName,
+            clientName: metadata.clientName,
+            clientEmail: metadata.clientEmail || session.customer_details?.email,
+            budget: metadata.budget,
+            uid: metadata.clientUid || null,
+            status: 'deposit_paid' as BookingStatus,
+            statusHistory: appendStatus(undefined, {
+              status: 'deposit_paid',
+              at: paidAtIso,
+              by: 'stripe-webhook',
+            }),
+            stripeSessionId: session.id,
+            stripePaymentIntent: paymentIntent,
+            depositAmount,
+            amountPaidCents,
+            paidAt: paidAtIso,
+            createdAt: paidAtIso,
+            reconstructedFromStripe: true,
+            processedStripeEvents: [event.id],
+          }).filter(([, v]) => v !== undefined)
+        );
+        tx.set(ref, seed);
+        console.warn('[Stripe] booking reconciliation: doc missing — seeded from Stripe metadata', {
+          bookingId,
+          eventId: event.id,
+        });
         return;
       }
       const data = (snap.data() as Record<string, unknown>) || {};
@@ -133,7 +183,8 @@ async function reconcileBookingDeposit(
           statusHistory: appendStatus(history, nextEvent),
           stripeSessionId: session.id,
           stripePaymentIntent: paymentIntent,
-          depositAmount: session.amount_total,
+          depositAmount,
+          amountPaidCents,
           paidAt: paidAtIso,
           processedStripeEvents: FieldValue.arrayUnion(event.id),
         },

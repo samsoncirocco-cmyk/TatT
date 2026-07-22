@@ -124,6 +124,8 @@ function makeEvent(id: string) {
           bookingId: 'BK-TEST01',
           // 'routed' (not 'held') → the relay branch is skipped.
           depositState: 'routed',
+          // Deposit in DOLLARS (75). amount_total (8250 cents) is deposit + fee.
+          depositAmount: '75',
         },
       },
     },
@@ -164,7 +166,8 @@ describe('Stripe webhook — booking reconciliation (Task 1.3)', () => {
     expect(doc.status).toBe('deposit_paid');
     expect(doc.stripeSessionId).toBe('cs_test_123');
     expect(doc.stripePaymentIntent).toBe('pi_test_abc');
-    expect(doc.depositAmount).toBe(8250);
+    expect(doc.depositAmount).toBe(75); // dollars — the deposit, not the cents total
+    expect(doc.amountPaidCents).toBe(8250); // full charged total (deposit + fee), cents
     expect(doc.paidAt).toBe(CREATED_ISO);
     expect(doc.processedStripeEvents).toEqual(['evt_1']);
 
@@ -205,5 +208,37 @@ describe('Stripe webhook — booking reconciliation (Task 1.3)', () => {
     const doc = docStore.get('BK-TEST01')!;
     expect(doc.status).toBe('pending');
     expect(doc.stripeSessionId).toBeUndefined();
+  });
+
+  it('does NOT mark deposit_paid when the session is not yet paid', async () => {
+    const event = makeEvent('evt_3');
+    event.data.object.payment_status = 'unpaid'; // async method still clearing
+    constructEventMock.mockReturnValueOnce(event);
+
+    const res = await POST(makeRequest(event));
+    expect(res.status).toBe(200);
+
+    const doc = docStore.get('BK-TEST01')!;
+    expect(doc.status).toBe('pending'); // untouched until money clears
+    expect(doc.stripeSessionId).toBeUndefined();
+  });
+
+  it('seeds the booking doc from metadata when it is missing (file-fallback recovery)', async () => {
+    docStore.delete('BK-TEST01'); // capture only reached the file fallback
+    const event = makeEvent('evt_4');
+    (event.data.object.metadata as Record<string, unknown>).clientUid = 'uid-owner-1';
+    (event.data.object.metadata as Record<string, unknown>).artistId = 'artist_x';
+    constructEventMock.mockReturnValueOnce(event);
+
+    const res = await POST(makeRequest(event));
+    expect(res.status).toBe(200);
+
+    const doc = docStore.get('BK-TEST01')!;
+    expect(doc.status).toBe('deposit_paid');
+    expect(doc.uid).toBe('uid-owner-1'); // owner can still read it via /api/v1/bookings
+    expect(doc.artistId).toBe('artist_x');
+    expect(doc.depositAmount).toBe(75);
+    expect(doc.reconstructedFromStripe).toBe(true);
+    expect(doc.processedStripeEvents).toEqual(['evt_4']);
   });
 });

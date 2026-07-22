@@ -30,20 +30,27 @@ export async function GET(request: NextRequest) {
 
   try {
     const { getFirestore } = await import('firebase-admin/firestore');
+    // Filter by owner only — no `.orderBy('createdAt')`, which would require a
+    // composite index (uid + createdAt) that may not exist and would throw.
+    // A user's own bookings are a small set: sort + cap in memory instead.
     const snap = await getFirestore()
       .collection('booking_requests')
       .where('uid', '==', user.uid)
-      .orderBy('createdAt', 'desc')
-      .limit(50)
       .get();
 
-    const bookings = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const bookings = snap.docs
+      .map((d) => ({ id: d.id, ...d.data() } as Record<string, unknown>))
+      .sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')))
+      .slice(0, 50);
     return NextResponse.json({ success: true, bookings });
   } catch (err) {
+    // A real query failure is NOT an empty inbox. Returning success:[] here would
+    // make the client hide its localStorage fallback and show a false empty
+    // state. Signal failure so the page falls back instead.
     console.error(
       '[bookings] list query failed:',
       err instanceof Error ? err.message : err
     );
-    return NextResponse.json({ success: true, bookings: [] });
+    return NextResponse.json({ success: false, error: 'Booking lookup failed.' }, { status: 503 });
   }
 }

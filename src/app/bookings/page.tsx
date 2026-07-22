@@ -197,9 +197,12 @@ export default function BookingsPage() {
     return d.prompt.split(/[\s,]+/).slice(0, 4).join(" ") || "Untitled cut";
   };
 
-  // Which view are we showing? Server truth wins once we have it; otherwise the
-  // resilient localStorage view. Empty state only when both agree there's nothing.
-  const useServer = server !== null;
+  // Which view are we showing? Server truth wins once we have it AND it has rows.
+  // But an EMPTY server list must not suppress a just-created localStorage row
+  // (the booking was mirrored via addBooking and may not have propagated to the
+  // Firestore query yet) — fall back to local in that case. A failed fetch leaves
+  // `server` null (see the effect) and also falls back.
+  const useServer = server !== null && (server.length > 0 || bookings.length === 0);
   const count = useServer ? server.length : bookings.length;
   const ready = useServer ? true : hydrated && serverResolved;
   const showEmpty = ready && count === 0;
