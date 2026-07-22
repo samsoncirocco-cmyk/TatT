@@ -85,6 +85,9 @@ export async function POST(req: NextRequest) {
 
   const depositAmount = getDepositAmount(size);
   const depositAmountInCents = depositAmount * 100;
+  // Client-paid booking fee, added ON TOP of the deposit so the artist keeps
+  // 100% of their rate. The client pays (deposit + fee); TatT keeps the fee.
+  const bookingFeeInCents = platformFeeCents(depositAmountInCents);
 
   // ---- Demo mode: no real charge, fake success page (unchanged behavior). ----
   if (!stripeConfigured) {
@@ -138,24 +141,33 @@ export async function POST(req: NextRequest) {
     clientName,
     clientEmail,
     depositAmount: String(depositAmount),
+    // The artist's share (100% of the deposit, in cents) and the platform's
+    // booking fee (in cents). depositCents is what a held deposit transfers to
+    // the artist on accept — the fee is never part of that transfer.
+    depositCents: String(depositAmountInCents),
+    bookingFeeCents: String(bookingFeeInCents),
     // 'held' tells the webhook to record a :BookingRelay instead of confirming a
     // routed booking. Overwritten to a real flag only on the held path below.
     depositState: artistReady ? 'routed' : 'held',
   };
 
   try {
-    // Two paths:
-    //  - CLAIMED artist  → destination charge (transfer_data + application_fee).
-    //  - UNCLAIMED artist → held on platform (no transfer_data, no app fee).
+    // Two paths — in BOTH, the client pays (deposit + booking fee) and the
+    // artist ends up with 100% of the deposit:
+    //  - CLAIMED artist  → destination charge. application_fee_amount = the
+    //    booking fee, transfer_data → artist, so the artist receives
+    //    (total − fee) = the full deposit.
+    //  - UNCLAIMED artist → held on the platform (no transfer/app fee now). The
+    //    whole charge sits on the platform; transferHeldDeposits() later moves
+    //    the full deposit (metadata.depositCents) to the artist and TatT keeps
+    //    the fee, or refundRelay() returns everything on expiry.
     const payment_intent_data: Stripe.Checkout.SessionCreateParams.PaymentIntentData = artistReady
       ? {
-          application_fee_amount: platformFeeCents(depositAmountInCents),
+          application_fee_amount: bookingFeeInCents,
           transfer_data: { destination: artist.stripeAccountId as string },
           metadata,
         }
       : {
-          // Held: collect to the platform, no fee/transfer now — resolved later
-          // by transferHeldDeposits() (accept) or refundRelay() (expiry).
           metadata,
         };
 
@@ -176,6 +188,18 @@ export async function POST(req: NextRequest) {
               description: `${size} tattoo on ${placement}, ${date} at ${time}`,
             },
             // tax_behavior lets Stripe Tax reason about inclusive/exclusive pricing.
+            tax_behavior: 'exclusive',
+          },
+        },
+        {
+          quantity: 1,
+          price_data: {
+            currency: CURRENCY,
+            unit_amount: bookingFeeInCents,
+            product_data: {
+              name: 'TatT booking fee',
+              description: 'Platform booking fee — the artist keeps 100% of the deposit.',
+            },
             tax_behavior: 'exclusive',
           },
         },

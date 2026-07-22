@@ -64,27 +64,22 @@ async function handleEvent(event: Stripe.Event): Promise<void> {
             typeof pi.latest_charge === 'string' ? pi.latest_charge : pi.latest_charge?.id || '';
           const holdDays = Number(process.env.DEPOSIT_HOLD_DAYS) || 7;
           const expiresAtEpoch = event.created + holdDays * 86400;
-          await createRelay({
+          // The artist's share is the DEPOSIT only (metadata.depositCents) — the
+          // client also paid a booking fee on top (session.amount_total), which
+          // TatT keeps and never transfers to the artist.
+          const depositCents = Number(metadata.depositCents) || 0;
+          const relay = {
             id: paymentIntentId,
             artistId: metadata.artistId || '',
             customerEmail: metadata.clientEmail || session.customer_details?.email || '',
-            amountCents: session.amount_total ?? 0,
+            amountCents: depositCents,
             chargeId,
             paymentIntentId,
             expiresAtEpoch,
             createdAtEpoch: event.created,
-          });
-          await notifyArtistOfBooking({
-            id: paymentIntentId,
-            artistId: metadata.artistId || '',
-            customerEmail: metadata.clientEmail || session.customer_details?.email || '',
-            amountCents: session.amount_total ?? 0,
-            chargeId,
-            paymentIntentId,
-            status: 'pending',
-            expiresAtEpoch,
-            createdAtEpoch: event.created,
-          });
+          };
+          await createRelay(relay);
+          await notifyArtistOfBooking({ ...relay, status: 'pending' as const });
         }
       }
 

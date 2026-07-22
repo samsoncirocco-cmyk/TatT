@@ -1,22 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { netTransferCents, isExpired } from './booking-relay';
-import { platformFeeCents } from './stripe';
 
 describe('netTransferCents', () => {
-  it('is gross minus the platform fee', () => {
-    // $150 deposit, 10% fee → $15 kept, $135 to the artist.
-    expect(netTransferCents(15000)).toBe(15000 - platformFeeCents(15000));
-    expect(netTransferCents(15000)).toBe(13500);
-  });
-
-  it('composes with platformFeeCents so the two always sum to the gross', () => {
-    for (const gross of [0, 1, 999, 7500, 15000, 30001]) {
-      expect(netTransferCents(gross) + platformFeeCents(gross)).toBe(gross);
-    }
+  it('pays the artist 100% of the recorded deposit (fee was client-paid on top)', () => {
+    // $150 deposit recorded → artist receives the full $150; TatT's booking fee
+    // was already charged to the client at checkout, not deducted here.
+    expect(netTransferCents(15000)).toBe(15000);
+    expect(netTransferCents(7500)).toBe(7500);
   });
 
   it('never goes negative', () => {
     expect(netTransferCents(0)).toBe(0);
+    expect(netTransferCents(-5)).toBe(0);
   });
 });
 

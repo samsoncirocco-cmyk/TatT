@@ -17,7 +17,7 @@
  * server cypher helper, writes via a small executeWrite (the shared helper is
  * read-only). The Stripe PaymentIntent id is the natural key.
  */
-import { stripe, platformFeeCents, CURRENCY } from '@/lib/stripe';
+import { stripe, CURRENCY } from '@/lib/stripe';
 import { getArtistStripe } from '@/lib/artist-stripe';
 
 export type BookingRelayStatus = 'pending' | 'accepted' | 'declined' | 'expired' | 'refunded';
@@ -49,12 +49,14 @@ export interface CreateRelayInput {
 }
 
 /**
- * Net amount (cents) transferred to the artist when a held deposit is released:
- * the gross minus TatT's platform fee. Pure — the canonical money-split used by
- * {@link transferHeldDeposits}. Never negative.
+ * Amount (cents) transferred to the artist when a held deposit is released.
+ * The artist keeps 100% of the deposit — TatT's booking fee was charged to the
+ * client ON TOP at checkout and is never part of this transfer, so a released
+ * relay pays out its full recorded `amountCents` (which is the deposit only).
+ * Pure. Never negative.
  */
-export function netTransferCents(grossCents: number): number {
-  return Math.max(0, grossCents - platformFeeCents(grossCents));
+export function netTransferCents(depositCents: number): number {
+  return Math.max(0, depositCents);
 }
 
 /**

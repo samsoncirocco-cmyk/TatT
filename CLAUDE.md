@@ -191,8 +191,9 @@ STRIPE_PRICE_ARTIST_SUB=price_***        # recurring Price id for the artist sub
 ```
 
 **Payment flows** (see `docs/adr/0005`–`0008`):
-- **Deposit, claimed artist** — destination charge routes the deposit to the artist's connected account, less `PLATFORM_FEE_BPS`.
-- **Deposit, unclaimed artist** — collected to the platform and HELD as a `:BookingRelay` node; released to the artist on claim via separate charges & transfers (gross − platform fee), or fully refunded to the customer after `DEPOSIT_HOLD_DAYS` by the daily `/api/cron/expire-deposits` cron.
+- **Booking fee** — the client pays a booking fee (`PLATFORM_FEE_BPS`, default 10% of the deposit) **on top** of the deposit; the artist keeps **100%** of the deposit (ADR 0007). The artist subscription lane exists but is dormant at launch.
+- **Deposit, claimed artist** — destination charge; `application_fee_amount` = the booking fee, `transfer_data` → artist, so the artist receives the full deposit.
+- **Deposit, unclaimed artist** — collected to the platform and HELD as a `:BookingRelay` node; released to the artist as the **full deposit** on claim via separate charges & transfers, or fully refunded to the customer after `DEPOSIT_HOLD_DAYS` by the daily `/api/cron/expire-deposits` cron.
 - **Claim flow** — dual entry: the deposit-driven claim link, or self-serve `v1/connect/claim` → `v1/connect/claim-complete`; both converge on `transferHeldDeposits`.
 - **Subscription** — artists are billed via Stripe Billing (`STRIPE_PRICE_ARTIST_SUB`); status is persisted onto the `Artist` node from subscription webhooks.
 

@@ -1,37 +1,52 @@
-# Platform fee taken via separate charges & transfers on release
+# Booking fee charged to the client on top; artist keeps 100% of the deposit
 
 ## Context
 
-When a claimed artist's held deposit is released, TatT must keep its marketplace
-take (`PLATFORM_FEE_BPS`, default 1000 bps = 10%) and pass the rest to the
-artist. Unlike a destination charge — where `application_fee_amount` splits the
-money at capture time — a held deposit was already captured to the platform with
-no split, so the fee has to be applied at release.
+TatT competes for a scarce supply side: ~10k scraped artists must *claim and
+onboard* for the marketplace to work. Charging artists a commission or a
+subscription at launch fights that adoption, and a key competitor is
+artist-free. TatT also offers real live scheduling/availability (not just a
+booking request), a higher-value product than a directory — worth more than a
+flat intro fee.
 
 ## Decision
 
-Release held deposits with **separate charges & transfers**: for each pending
-relay, `stripe.transfers.create` with `source_transaction` = the original charge
-id (so Stripe draws from the held funds, not the platform float),
-`destination` = the artist's connected account, and
-`amount = netTransferCents(gross) = gross − platformFeeCents(gross)`. TatT
-retains `platformFeeCents(gross)`. `netTransferCents`/`platformFeeCents` are pure
-and unit-tested so the split is provably `net + fee === gross`.
+**The platform booking fee is charged to the CLIENT, on top of the deposit, and
+the artist keeps 100% of their deposit.**
+
+- At checkout the client pays `deposit + bookingFee` (two line items). The fee is
+  `platformFeeCents(depositCents)` (default `PLATFORM_FEE_BPS` = 1000 bps = 10%
+  of the deposit) — a percentage, not a flat $10, because live confirmed
+  scheduling delivers more than a directory intro and a flat fee under-monetizes
+  large bookings.
+- **Claimed artist** → destination charge with `application_fee_amount = the
+  booking fee` and `transfer_data` → artist, so the artist receives
+  `total − fee = the full deposit`.
+- **Unclaimed artist** → the whole charge (deposit + fee) is held on the
+  platform; on release, `transferHeldDeposits` pays the artist the **full
+  deposit** (`netTransferCents(depositCents) === depositCents`) and TatT keeps
+  the fee. `refundRelay` returns the entire charge on expiry.
+- The artist subscription lane (Billing) stays **built but dormant** — a
+  fast-follow once artists rely on the scheduling tools, not a launch gate.
 
 ## Rejected alternatives
 
-- **Convert the hold into a destination charge later.** Not possible — the charge
-  already settled to the platform; you cannot retroactively add `transfer_data`.
-- **Transfer the full gross, invoice the fee separately.** Rejected: two money
-  movements to reconcile, and it risks paying out more than we can claw back.
-- **Take a different fee than the destination-charge path.** Rejected: the take
-  rate should be identical whether the artist was claimed at booking or later,
-  so the same `PLATFORM_FEE_BPS` drives both.
+- **Deduct a % from the deposit (artist receives deposit − fee).** Rejected: reads
+  as "the platform skims my art money," the objection that most suppresses artist
+  onboarding — the thing we most need at launch.
+- **Flat $10 client fee (competitor's model).** Rejected as the launch default:
+  simple, but over-taxes small deposits (13% of a $75) and under-monetizes large
+  ones (2% of a $500). A percentage scales with delivered value; `PLATFORM_FEE_BPS`
+  keeps a flat/floor/cap variant a config change away.
+- **Charge artists a subscription at launch.** Rejected: onboarding is the
+  constraint; monetize the client at the high-intent booking moment instead.
 
 ## Consequences
 
-- The fee basis is the **gross** deposit, matching the destination-charge path.
-- Transfers are idempotent (`relay-transfer-<id>`; only `pending` relays move),
-  so retries and webhook redelivery won't double-pay.
-- `source_transaction` ties each transfer to its charge, keeping Stripe balance
-  and reporting clean instead of drawing from platform working capital.
+- Artist-side is friction-free (keeps 100%), maximizing claims/onboarding.
+- The fee basis is the deposit; the client sees a transparent "TatT booking fee"
+  line item.
+- Transfers stay idempotent (`relay-transfer-<id>`, `pending`-only) and use
+  `source_transaction` so releases draw from held funds, not platform float.
+- Switching to flat/floor/cap, or turning on the subscription later, are config /
+  small changes, not rewrites.
