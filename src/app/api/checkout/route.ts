@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
           const booking = snap.data() as Record<string, unknown> | undefined;
           const ownerUid = booking?.uid ?? null;
           if (ownerUid && ownerUid !== callerUid) {
-            return NextResponse.json({ error: 'Booking does not belong to you.' }, { status: 403 });
+            return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
           }
           if (booking?.status && booking.status !== 'pending') {
             return NextResponse.json(
@@ -225,42 +225,45 @@ export async function POST(req: NextRequest) {
           metadata,
         };
 
-    const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      success_url: `${baseUrl}/book/success?${successParams.toString()}`,
-      cancel_url: cancelUrl,
-      customer_email: clientEmail,
-      automatic_tax: { enabled: true },
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: CURRENCY,
-            unit_amount: depositAmountInCents,
-            product_data: {
-              name: `Tattoo Consultation Deposit — ${artistName}`,
-              description: `${size} tattoo on ${placement}, ${date} at ${time}`,
+    const session = await stripe.checkout.sessions.create(
+      {
+        mode: 'payment',
+        success_url: `${baseUrl}/book/success?${successParams.toString()}`,
+        cancel_url: cancelUrl,
+        customer_email: clientEmail,
+        automatic_tax: { enabled: true },
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: CURRENCY,
+              unit_amount: depositAmountInCents,
+              product_data: {
+                name: `Tattoo Consultation Deposit — ${artistName}`,
+                description: `${size} tattoo on ${placement}, ${date} at ${time}`,
+              },
+              // tax_behavior lets Stripe Tax reason about inclusive/exclusive pricing.
+              tax_behavior: 'exclusive',
             },
-            // tax_behavior lets Stripe Tax reason about inclusive/exclusive pricing.
-            tax_behavior: 'exclusive',
           },
-        },
-        {
-          quantity: 1,
-          price_data: {
-            currency: CURRENCY,
-            unit_amount: bookingFeeInCents,
-            product_data: {
-              name: 'TatT booking fee',
-              description: 'Platform booking fee — the artist keeps 100% of the deposit.',
+          {
+            quantity: 1,
+            price_data: {
+              currency: CURRENCY,
+              unit_amount: bookingFeeInCents,
+              product_data: {
+                name: 'TatT booking fee',
+                description: 'Platform booking fee — the artist keeps 100% of the deposit.',
+              },
+              tax_behavior: 'exclusive',
             },
-            tax_behavior: 'exclusive',
           },
-        },
-      ],
-      payment_intent_data,
-      metadata,
-    });
+        ],
+        payment_intent_data,
+        metadata,
+      },
+      bookingId ? { idempotencyKey: `booking-deposit:${bookingId}` } : undefined
+    );
 
     if (!session.url) {
       return NextResponse.json({ error: 'Stripe did not return a checkout URL.' }, { status: 502 });

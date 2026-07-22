@@ -38,6 +38,7 @@ const STATUS_LABELS: Record<BookingStatus, string> = {
 };
 
 const RECONCILE_POLL_MS = 2000;
+const MAX_RECONCILE_ATTEMPTS = 10;
 
 type ServerBooking = {
   status?: BookingStatus;
@@ -75,8 +76,8 @@ function SuccessContent() {
     let cancelled = false;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
-    const loadBooking = async (headers: Record<string, string>) => {
-      let shouldRetry = true;
+    const loadBooking = async (headers: Record<string, string>, attempt = 1) => {
+      let shouldRetry = false;
       try {
         const res = await fetch(`/api/v1/bookings/${encodeURIComponent(bookingId)}`, { headers });
         if (res.ok) {
@@ -86,13 +87,19 @@ function SuccessContent() {
             setServer(booking);
             shouldRetry = !booking.status || booking.status === "pending";
           }
+        } else {
+          shouldRetry = res.status === 429 || res.status >= 500;
         }
       } catch {
         // Retry transient network / backend failures while this page is open.
+        shouldRetry = true;
       }
 
-      if (!cancelled && shouldRetry) {
-        retryTimer = setTimeout(() => void loadBooking(headers), RECONCILE_POLL_MS);
+      if (!cancelled && shouldRetry && attempt < MAX_RECONCILE_ATTEMPTS) {
+        retryTimer = setTimeout(
+          () => void loadBooking(headers, attempt + 1),
+          RECONCILE_POLL_MS,
+        );
       }
     };
 

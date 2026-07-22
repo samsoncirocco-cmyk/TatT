@@ -75,9 +75,11 @@ vi.mock('@/lib/firebase-admin', () => ({
 // ── Stripe fake ─────────────────────────────────────────────────────────────
 // constructEvent returns whatever event we stashed; the payment-intent retrieve
 // is only touched by the held-deposit relay path (unused here) but stubbed safe.
-const { constructEventMock, retrievePiMock } = vi.hoisted(() => ({
+const { constructEventMock, retrievePiMock, createRelayMock, notifyArtistMock } = vi.hoisted(() => ({
   constructEventMock: vi.fn(),
   retrievePiMock: vi.fn(),
+  createRelayMock: vi.fn().mockResolvedValue(undefined),
+  notifyArtistMock: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@/lib/stripe', () => ({
@@ -89,7 +91,7 @@ vi.mock('@/lib/stripe', () => ({
 
 // ── Side-modules stubbed so unrelated paths never explode ───────────────────
 vi.mock('@/lib/booking-relay', () => ({
-  createRelay: vi.fn().mockResolvedValue(undefined),
+  createRelay: createRelayMock,
   transferHeldDeposits: vi.fn().mockResolvedValue({ count: 0 }),
   setArtistSubscription: vi.fn().mockResolvedValue(undefined),
 }));
@@ -99,7 +101,7 @@ vi.mock('@/lib/artist-stripe', () => ({
 }));
 
 vi.mock('@/lib/notify', () => ({
-  notifyArtistOfBooking: vi.fn().mockResolvedValue(undefined),
+  notifyArtistOfBooking: notifyArtistMock,
 }));
 
 import { POST } from './route';
@@ -234,6 +236,41 @@ describe('Stripe webhook — booking reconciliation (Task 1.3)', () => {
     const doc = docStore.get('BK-TEST01')!;
     expect(doc.status).toBe('deposit_paid');
     expect(doc.processedStripeEvents).toEqual(['evt_async']);
+  });
+
+  it('creates a held relay only after an asynchronous payment succeeds', async () => {
+    const completedEvent = makeEvent('evt_async_pending');
+    completedEvent.data.object.payment_status = 'unpaid';
+    completedEvent.data.object.metadata.depositState = 'held';
+    constructEventMock.mockReturnValueOnce(completedEvent);
+
+    expect(await POST(makeRequest(completedEvent))).toHaveProperty('status', 200);
+    expect(retrievePiMock).not.toHaveBeenCalled();
+    expect(createRelayMock).not.toHaveBeenCalled();
+
+    const succeededEvent = makeEvent('evt_async_paid');
+    succeededEvent.type = 'checkout.session.async_payment_succeeded';
+    succeededEvent.data.object.metadata.depositState = 'held';
+    Object.assign(succeededEvent.data.object.metadata, {
+      artistId: 'artist-1',
+      clientEmail: 'client@example.com',
+      depositCents: '7500',
+    });
+    retrievePiMock.mockResolvedValueOnce({ latest_charge: 'ch_test_123' });
+    constructEventMock.mockReturnValueOnce(succeededEvent);
+
+    expect(await POST(makeRequest(succeededEvent))).toHaveProperty('status', 200);
+    expect(createRelayMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'pi_test_abc',
+        artistId: 'artist-1',
+        amountCents: 7500,
+        chargeId: 'ch_test_123',
+      })
+    );
+    expect(notifyArtistMock).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'pi_test_abc', status: 'pending' })
+    );
   });
 
   it('reconciles before a held-deposit side effect fails', async () => {

@@ -72,6 +72,11 @@ describe("BookingSuccessPage reconciliation", () => {
     );
     expect(screen.queryByText("Deposit paid")).toBeNull();
     expect(screen.getByText("Deposit due")).toBeTruthy();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("does not fetch an unrelated recent booking without a bookingId", async () => {
@@ -112,5 +117,20 @@ describe("BookingSuccessPage reconciliation", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(screen.getAllByText("Deposit paid").length).toBeGreaterThan(0);
+  });
+
+  it("stops polling after bounded retries for a persistent server failure", async () => {
+    searchValues.set("bookingId", "booking-1");
+    fetchMock.mockResolvedValue({ ok: false, status: 503 });
+
+    render(<BookingSuccessPage />);
+    await flushPromises();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    await flushPromises();
+
+    expect(fetchMock).toHaveBeenCalledTimes(10);
   });
 });

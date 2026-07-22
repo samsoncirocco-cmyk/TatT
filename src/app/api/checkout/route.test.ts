@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { createSessionMock, bookingData } = vi.hoisted(() => ({
+const { createSessionMock, getArtistStripeMock, bookingData } = vi.hoisted(() => ({
   createSessionMock: vi.fn(),
+  getArtistStripeMock: vi.fn(),
   bookingData: { uid: 'owner-uid', status: 'deposit_paid' },
 }));
 
@@ -38,7 +39,7 @@ vi.mock('@/lib/stripe', () => ({
 }));
 
 vi.mock('@/lib/artist-stripe', () => ({
-  getArtistStripe: vi.fn(),
+  getArtistStripe: getArtistStripeMock,
 }));
 
 import { POST } from './route';
@@ -58,10 +59,18 @@ const payload = {
 
 describe('POST /api/checkout', () => {
   beforeEach(() => {
-    createSessionMock.mockClear();
+    Object.assign(bookingData, { uid: 'owner-uid', status: 'pending' });
+    createSessionMock.mockReset();
+    createSessionMock.mockResolvedValue({ url: 'https://checkout.stripe.test/session' });
+    getArtistStripeMock.mockReset();
+    getArtistStripeMock.mockResolvedValue({
+      stripeAccountId: 'acct_artist',
+      chargesEnabled: true,
+    });
   });
 
   it('rejects another checkout after the booking deposit is paid', async () => {
+    bookingData.status = 'deposit_paid';
     const request = new Request('http://localhost/api/checkout', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -76,5 +85,42 @@ describe('POST /api/checkout', () => {
       error: 'Booking is no longer awaiting a deposit.',
     });
     expect(createSessionMock).not.toHaveBeenCalled();
+  });
+
+  it('returns not found when the booking belongs to another user', async () => {
+    bookingData.uid = 'another-owner';
+    const request = new Request('http://localhost/api/checkout', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const response = await POST(request as any);
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: 'Booking not found.' });
+    expect(createSessionMock).not.toHaveBeenCalled();
+  });
+
+  it('uses one Stripe idempotency key for parallel requests to the same booking', async () => {
+    const makeRequest = () =>
+      new Request('http://localhost/api/checkout', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+    await Promise.all([
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      POST(makeRequest() as any),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      POST(makeRequest() as any),
+    ]);
+
+    expect(createSessionMock).toHaveBeenCalledTimes(2);
+    for (const call of createSessionMock.mock.calls) {
+      expect(call[1]).toEqual({ idempotencyKey: 'booking-deposit:booking-1' });
+    }
   });
 });

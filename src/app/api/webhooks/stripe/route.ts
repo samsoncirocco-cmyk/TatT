@@ -200,6 +200,51 @@ async function reconcileBookingDeposit(
   }
 }
 
+async function createHeldDepositRelay(
+  session: Stripe.Checkout.Session,
+  event: Stripe.Event
+): Promise<void> {
+  const metadata = session.metadata || {};
+  if (session.payment_status !== 'paid' || metadata.depositState !== 'held') {
+    return;
+  }
+
+  const paymentIntentId =
+    typeof session.payment_intent === 'string'
+      ? session.payment_intent
+      : session.payment_intent?.id;
+  if (!paymentIntentId) {
+    return;
+  }
+
+  // The charge id backs the later transfer's source_transaction.
+  const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+  const chargeId =
+    typeof pi.latest_charge === 'string' ? pi.latest_charge : pi.latest_charge?.id;
+  if (!chargeId) {
+    throw new Error(`Paid held deposit ${paymentIntentId} has no charge`);
+  }
+
+  const holdDays = Number(process.env.DEPOSIT_HOLD_DAYS) || 7;
+  const expiresAtEpoch = event.created + holdDays * 86400;
+  // The artist's share is the DEPOSIT only (metadata.depositCents) — the
+  // client also paid a booking fee on top (session.amount_total), which
+  // TatT keeps and never transfers to the artist.
+  const depositCents = Number(metadata.depositCents) || 0;
+  const relay = {
+    id: paymentIntentId,
+    artistId: metadata.artistId || '',
+    customerEmail: metadata.clientEmail || session.customer_details?.email || '',
+    amountCents: depositCents,
+    chargeId,
+    paymentIntentId,
+    expiresAtEpoch,
+    createdAtEpoch: event.created,
+  };
+  await createRelay(relay);
+  await notifyArtistOfBooking({ ...relay, status: 'pending' as const });
+}
+
 async function handleEvent(event: Stripe.Event): Promise<void> {
   switch (event.type) {
     case 'checkout.session.completed': {
@@ -220,36 +265,7 @@ async function handleEvent(event: Stripe.Event): Promise<void> {
       // HELD deposit (unclaimed artist): collected to the platform — record a
       // :BookingRelay so we can transfer it once the artist onboards, or refund
       // it if the hold window lapses.
-      if (metadata.depositState === 'held') {
-        const paymentIntentId =
-          typeof session.payment_intent === 'string'
-            ? session.payment_intent
-            : session.payment_intent?.id;
-        if (paymentIntentId) {
-          // The charge id backs the later transfer's source_transaction.
-          const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
-          const chargeId =
-            typeof pi.latest_charge === 'string' ? pi.latest_charge : pi.latest_charge?.id || '';
-          const holdDays = Number(process.env.DEPOSIT_HOLD_DAYS) || 7;
-          const expiresAtEpoch = event.created + holdDays * 86400;
-          // The artist's share is the DEPOSIT only (metadata.depositCents) — the
-          // client also paid a booking fee on top (session.amount_total), which
-          // TatT keeps and never transfers to the artist.
-          const depositCents = Number(metadata.depositCents) || 0;
-          const relay = {
-            id: paymentIntentId,
-            artistId: metadata.artistId || '',
-            customerEmail: metadata.clientEmail || session.customer_details?.email || '',
-            amountCents: depositCents,
-            chargeId,
-            paymentIntentId,
-            expiresAtEpoch,
-            createdAtEpoch: event.created,
-          };
-          await createRelay(relay);
-          await notifyArtistOfBooking({ ...relay, status: 'pending' as const });
-        }
-      }
+      await createHeldDepositRelay(session, event);
 
       // SaaS subscription checkout: persist customer + status on the artist node.
       if (session.mode === 'subscription' && metadata.tattArtistId) {
@@ -271,6 +287,7 @@ async function handleEvent(event: Stripe.Event): Promise<void> {
         paymentStatus: session.payment_status,
       });
       await reconcileBookingDeposit(session, event);
+      await createHeldDepositRelay(session, event);
       break;
     }
 
