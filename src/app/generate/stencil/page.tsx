@@ -6,6 +6,7 @@ import StudioShell from "@/components/studio/StudioShell";
 import SlashHeadline from "@/components/punk/SlashHeadline";
 import TapeCTA from "@/components/punk/TapeCTA";
 import OutputCard from "@/components/punk/OutputCard";
+import Lightbox from "@/components/punk/Lightbox";
 import { useDesigns, useUser } from "@/lib/tattStorage";
 import {
   FREE_TIER_DAILY_CUTS,
@@ -78,6 +79,7 @@ function StencilPageInner() {
   const [cutting, setCutting] = useState(false);
   const [selected, setSelected] = useState(0);
   const [savedCuts, setSavedCuts] = useState<Record<number, boolean>>({});
+  const [expanded, setExpanded] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -290,6 +292,7 @@ function StencilPageInner() {
                         index={i + 1}
                         selected={selected === i}
                         onSelect={() => setSelected(i)}
+                        onExpand={() => setExpanded(i)}
                         badge={
                           savedCuts[i] ? (
                             <span className="text-[9px] uppercase tracking-[0.2em] text-pink font-body bg-black/70 px-2 py-1">
@@ -317,6 +320,27 @@ function StencilPageInner() {
                       />
                     ))}
                   </div>
+
+                  {expanded !== null && cuts[expanded] && (
+                    <Lightbox
+                      src={cuts[expanded]}
+                      alt={`Generated cut ${expanded + 1} large view`}
+                      caption={`Cut ${String(expanded + 1).padStart(2, "0")} · 1024²${
+                        selected === expanded ? " · Selected" : ""
+                      }`}
+                      onClose={() => setExpanded(null)}
+                      onPrev={
+                        cuts.length > 1
+                          ? () => setExpanded((expanded + cuts.length - 1) % cuts.length)
+                          : undefined
+                      }
+                      onNext={
+                        cuts.length > 1
+                          ? () => setExpanded((expanded + 1) % cuts.length)
+                          : undefined
+                      }
+                    />
+                  )}
 
                   {/* DESIGN → ARTIST SIGNAL — carries the prompt's style
                       descriptors to /matches as canonical graph styles. */}

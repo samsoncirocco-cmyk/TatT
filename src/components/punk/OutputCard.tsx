@@ -25,6 +25,9 @@ type Props = {
   sizeLabel?: string;
   selected?: boolean;
   onSelect?: () => void;
+  /** When set, renders a "view large" affordance (click on the image itself
+   *  stays "select" — enlarging is its own explicit control). */
+  onExpand?: () => void;
   actions?: Action[];
   /** Extra badge content (e.g. "Saved") rendered top-left. */
   badge?: ReactNode;
@@ -37,6 +40,7 @@ export default function OutputCard({
   sizeLabel = "1024²",
   selected = false,
   onSelect,
+  onExpand,
   actions = [],
   badge,
   alt,
@@ -65,20 +69,33 @@ export default function OutputCard({
         <div className="absolute top-3.5 left-3.5 z-[3]">{badge}</div>
       )}
 
-      <button
-        type="button"
-        onClick={onSelect}
-        className="block w-full aspect-square bg-bone overflow-hidden press focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-pink"
-        aria-pressed={selected}
-        aria-label={`Select cut ${index}`}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={src}
-          alt={alt ?? `Generated cut ${index}`}
-          className="w-full h-full object-cover"
-        />
-      </button>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={onSelect}
+          className="block w-full aspect-square bg-bone overflow-hidden press focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-pink"
+          aria-pressed={selected}
+          aria-label={`Select cut ${index}`}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={src}
+            alt={alt ?? `Generated cut ${index}`}
+            className="w-full h-full object-cover"
+          />
+        </button>
+
+        {onExpand && (
+          <button
+            type="button"
+            onClick={onExpand}
+            aria-label={`View cut ${index} large`}
+            className="press absolute bottom-3.5 right-3.5 z-[3] bg-black/75 text-white hover:text-pink px-2.5 py-1.5 text-[10px] uppercase tracking-[0.2em] font-body border hairline-white"
+          >
+            ⤢ View
+          </button>
+        )}
+      </div>
 
       <div className="flex items-center justify-between px-3.5 py-3 border-t-2 hairline">
         <span className="text-[9px] uppercase tracking-[0.2em] text-white/60 font-body tabular-nums">
