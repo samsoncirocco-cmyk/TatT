@@ -17,7 +17,7 @@ TatT today is a **directory with a payment form**, not a booking platform. The g
 4. **Artist identity & auth** — artists are scraped graph records, not accounts. There are no roles, no claim flow, no operator surface. Artist IDs are inconsistent across four stores with zero referential integrity.
 5. **Notification** — `emailQueueService.js` is a `console.log` mock. The UI promises "the artist will contact you within 24 hours," but **no artist is ever told a booking exists**. *(Recommended as a Phase 1 blocker; final phasing is an open product decision — see §5.)*
 
-The remediation plan (§5) closes loop 1–2 in Phase 1 with small, surgical changes to files that already exist, defers the slot engine and operator surfaces to Phase 2, and pushes marketplace/trust features to Phase 3. One architectural decision is deliberately deferred with a recommendation: the booking system-of-record (Firestore-first vs. Supabase relational — §2.4).
+The remediation plan (§5) closes loop 1–2 in Phase 1 with small, surgical changes to files that already exist, defers the slot engine and operator surfaces to Phase 2, and pushes marketplace/trust features to Phase 3. The booking system-of-record is **decided: Firestore-first** (Samson, 2026-07-22 — §2.4), with Supabase M003 retained as a Phase 3 analytics mirror.
 
 ---
 
@@ -85,11 +85,11 @@ Artist identity is fragmented across four stores with zero referential integrity
 
 **Remediation:** declare Neo4j `Artist.id` the canonical artist ID platform-wide. `/api/v1/book` must validate `artistId` against the graph before persisting (cheap `MATCH (a:Artist {id: $id}) RETURN a.id LIMIT 1`). Supabase embedding rows get a backfill mapping. New booking-domain records always store the canonical ID.
 
-### 2.4 Booking system-of-record: deferred decision, with recommendation
+### 2.4 Booking system-of-record: **decided — Firestore-first**
 
-Two viable designs; the choice gates every Phase 1 task, so it must be made before implementation starts.
+Two designs were evaluated; the choice gates every Phase 1 task. **Decision (Samson, 2026-07-22): Option A, Firestore-first.** Option B's analysis is retained below as the record of why it lost.
 
-**Option A — Firestore-first (recommended for MVP).** Extend what is live: `booking_requests` becomes the booking record (gains lifecycle fields), new `artist_profiles/{artistId}` doc holds session types + deposit policy, new `artist_availability` structure holds recurring schedule + overrides + holds. Pros: rules already deployed, Admin SDK already bootstrapped (`src/lib/firebase-admin.ts`), zero new infrastructure, transactions + TTL patterns handle slot holds, real-time listeners come free for the artist booking inbox. Cons: weak ad-hoc analytics (mitigated by a Phase 3 export/mirror), Firestore query limits.
+**Option A — Firestore-first (chosen).** Extend what is live: `booking_requests` becomes the booking record (gains lifecycle fields), new `artist_profiles/{artistId}` doc holds session types + deposit policy, new `artist_availability` structure holds recurring schedule + overrides + holds. Pros: rules already deployed, Admin SDK already bootstrapped (`src/lib/firebase-admin.ts`), zero new infrastructure, transactions + TTL patterns handle slot holds, real-time listeners come free for the artist booking inbox. Cons: weak ad-hoc analytics (mitigated by a Phase 3 export/mirror), Firestore query limits.
 
 ```
 booking_requests/{bookingId}        // extended, not replaced
@@ -111,9 +111,9 @@ artist_availability/{artistId}      // upgraded from coarse status
   holds/{holdId}: {slotStart, slotEnd, bookingId, expiresAt}   // TTL-expired
 ```
 
-**Option B — Supabase relational (v1's design, via existing `M003_bookings_table.sql`).** Pros: SQL analytics, RLS, joins against `designs`. Cons: the live Supabase project's status is **uncertain** — `docs/architecture/next-gen-ux.md` Appendix D records it as deleted (NXDOMAIN, 2026-03-08) and no live verification has occurred; Firebase Auth ≠ Supabase `auth.users`, so RLS-by-user requires a JWT bridge or service-role-only access; adds a third live datastore to the booking hot path before any booking works.
+**Option B — Supabase relational (not chosen; v1's design, via existing `M003_bookings_table.sql`).** Pros: SQL analytics, RLS, joins against `designs`. Cons: the live Supabase project's status is **uncertain** — `docs/architecture/next-gen-ux.md` Appendix D records it as deleted (NXDOMAIN, 2026-03-08) and no live verification has occurred; Firebase Auth ≠ Supabase `auth.users`, so RLS-by-user requires a JWT bridge or service-role-only access; adds a third live datastore to the booking hot path before any booking works.
 
-**Recommendation:** Option A for Phases 1–2; keep M003 as the Phase 3 analytics mirror (nightly export of completed bookings into Supabase for SQL reporting), which captures Option B's benefit without putting an unverified datastore in the payment path. Either way, §5's task list is written to be store-agnostic where possible and flags the divergent tasks.
+**Resolution:** Option A for Phases 1–2; keep M003 as the Phase 3 analytics mirror (nightly export of completed bookings into Supabase for SQL reporting), which captures Option B's benefit without putting an unverified datastore in the payment path. All Phase 1–2 tasks in §5 therefore target Firestore.
 
 ---
 
@@ -222,7 +222,7 @@ Goal: *a deposit paid on Stripe provably updates the booking record, and both si
 
 | # | Task | Files | Est. |
 |---|---|---|---|
-| 1.0 | **Decide system-of-record** (§2.4; recommendation: Firestore-first) | — | 0 |
+| 1.0 | ~~Decide system-of-record~~ **Decided: Firestore-first** (§2.4, 2026-07-22) | — | done |
 | 1.1 | Thread `bookingId` through checkout: add to `CheckoutPayload` + Stripe `metadata` | `src/lib/booking.ts`, `src/app/book/BookClient.tsx`, `src/app/api/checkout/route.ts` | 0.5d |
 | 1.2 | Booking state machine: status enum + `canTransition()` transition table + `statusHistory`; extend `validateBookingRequest` types | `src/lib/booking.ts` (+ tests in `src/lib/booking.test.ts`) | 0.5d |
 | 1.3 | **Webhook writes state**: on `checkout.session.completed`, idempotently transition `pending → deposit_paid`, persist `stripeSessionId`/`paymentIntent`/`amount`/`paidAt` | `src/app/api/webhooks/stripe/route.ts` | 1d |
@@ -252,7 +252,7 @@ Goal: *a deposit paid on Stripe provably updates the booking record, and both si
 
 ### Phase 3 — Marketplace & trust layer (4–6 weeks, sequence flexible)
 
-Refunds/cancellation (Stripe refund → `refunded` transition → slot release) · reschedule flow · first-party reviews (post-`completed` only — verified-booking reviews, the Airbnb trust anchor) · outbound webhooks from the transition table (Cal.com-style, HMAC-signed) · notification hardening (digest, reminders) · analytics mirror to Supabase M003 (if Option A chosen) · in-app messaging with design attachment · multi-artist shop calendars.
+Refunds/cancellation (Stripe refund → `refunded` transition → slot release) · reschedule flow · first-party reviews (post-`completed` only — verified-booking reviews, the Airbnb trust anchor) · outbound webhooks from the transition table (Cal.com-style, HMAC-signed) · notification hardening (digest, reminders) · analytics mirror to Supabase M003 (per §2.4 decision) · in-app messaging with design attachment · multi-artist shop calendars.
 
 **Explicitly not doing:** stack migration (Neo4j/TS/Python stay), AR (deliberately de-scoped per #90/#69), marketplace feed/social features before booking works.
 
