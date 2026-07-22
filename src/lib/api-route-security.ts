@@ -58,5 +58,20 @@ export const API_ROUTE_SECURITY: Record<string, RouteSecurityEntry> = {
   'v1/storage/upload': { class: 'firebase-auth' },
   'v1/tasks/generate': { class: 'cloud-tasks-oidc' },
   'v1/upload-layer': { class: 'firebase-auth' },
+  // Stripe Connect (marketplace) — artist onboarding & payouts
+  'v1/connect/accounts': { class: 'firebase-auth' },
+  'v1/connect/onboarding': { class: 'firebase-auth' },
+  'v1/connect/login-link': { class: 'firebase-auth' },
+  'v1/connect/claim': { class: 'firebase-auth' },
+  'v1/connect/claim-complete': { class: 'firebase-auth' },
+  // SaaS Billing (artist subscriptions) + Invoicing
+  'v1/billing/subscribe': { class: 'firebase-auth' },
+  'v1/billing/portal': { class: 'firebase-auth' },
+  'v1/invoices': { class: 'firebase-auth' },
   'webhooks/stripe': { class: 'webhook-signature' },
+  // Maintenance cron: refunds held deposits past their hold window.
+  'cron/expire-deposits': {
+    class: 'public',
+    reason: 'Vercel cron endpoint guarded by CRON_SECRET bearer; no user data, idempotent maintenance job.',
+  },
 };

@@ -177,7 +177,25 @@ TATT_API_KEY=your-secret-key
 # Feature Flags
 NEXT_PUBLIC_DEMO_MODE=false
 NEXT_PUBLIC_COUNCIL_DEMO_MODE=false
+
+# Stripe — deposits (Connect), held-deposit refunds, artist SaaS billing
+STRIPE_SECRET_KEY=sk_***                 # server only; routes fail closed (503) if unset/placeholder
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_*** # safe to expose (Stripe.js)
+STRIPE_WEBHOOK_SECRET=whsec_***          # verifies /api/webhooks/stripe
+STRIPE_CONNECT_WEBHOOK_SECRET=whsec_***  # verifies Connect account.updated events
+PLATFORM_FEE_BPS=1000                    # TatT take rate in basis points (1000 = 10%)
+STRIPE_CURRENCY=usd
+DEPOSIT_HOLD_DAYS=7                       # hold window before an unclaimed deposit auto-refunds
+CRON_SECRET=***                          # bearer secret guarding /api/cron/expire-deposits
+STRIPE_PRICE_ARTIST_SUB=price_***        # recurring Price id for the artist subscription
 ```
+
+**Payment flows** (see `docs/adr/0005`–`0008`):
+- **Booking fee** — the client pays a booking fee (`PLATFORM_FEE_BPS`, default 10% of the deposit) **on top** of the deposit; the artist keeps **100%** of the deposit (ADR 0007). The artist subscription lane exists but is dormant at launch.
+- **Deposit, claimed artist** — destination charge; `application_fee_amount` = the booking fee, `transfer_data` → artist, so the artist receives the full deposit.
+- **Deposit, unclaimed artist** — collected to the platform and HELD as a `:BookingRelay` node; released to the artist as the **full deposit** on claim via separate charges & transfers, or fully refunded to the customer after `DEPOSIT_HOLD_DAYS` by the daily `/api/cron/expire-deposits` cron.
+- **Claim flow** — dual entry: the deposit-driven claim link, or self-serve `v1/connect/claim` → `v1/connect/claim-complete`; both converge on `transferHeldDeposits`.
+- **Subscription** — artists are billed via Stripe Billing (`STRIPE_PRICE_ARTIST_SUB`); status is persisted onto the `Artist` node from subscription webhooks.
 
 ---
 

@@ -12,6 +12,8 @@ Portfolio photos are real: sourced from each artist's Instagram via Apify, then 
 
 Three separate Vercel projects (`tatt-app`, `manama-next`, `generous-success`) currently deploy this repo; `tatt-app` is the one serving live matching and should be treated as canonical until the other two are formally disconnected (see `TODO.md`).
 
+**Payments (Stripe, `stripe-launch-deposits`).** Booking deposits run on Stripe Connect via `/api/checkout`. If the artist is **claimed** (has a connected account with charges enabled) the deposit is a destination charge that routes to them, minus TatT's ~10% platform fee (`PLATFORM_FEE_BPS`). If the artist is **unclaimed** (most of the scraped graph), the deposit is instead collected to the platform and **held** (no `transfer_data`, `metadata.depositState='held'`), recorded as a `:BookingRelay` node in Neo4j, and the artist is sent a claim link. When they finish onboarding — via the deposit-driven link or self-serve `v1/connect/claim` → `v1/connect/claim-complete` — held funds are released to them with separate charges & transfers (`source_transaction` = the original charge, `amount` = gross − platform fee). If the artist doesn't claim within the hold window (`DEPOSIT_HOLD_DAYS`, default 7), a daily cron (`/api/cron/expire-deposits`, gated by `CRON_SECRET`, wired in `vercel.json`) fully refunds the customer (TatT absorbs the Stripe fee). A separate SaaS-subscription lane bills artists via Stripe Billing (`STRIPE_PRICE_ARTIST_SUB`), with status persisted onto the `Artist` node from subscription webhooks. Design rationale is in `docs/adr/0005`–`0008`.
+
 ## Tech stack
 
 - **Framework**: Next.js 16 (App Router, Turbopack disabled — webpack build)
@@ -101,7 +103,8 @@ Vercel project: `tatt-app` (canonical as of 2026-07-20; two other projects — `
 - `.npmrc` enforces `legacy-peer-deps=true`.
 - Env vars live in Vercel project settings. Build will succeed without them, but `/pitch` and any page that hits Firebase at module-import time will crash without `export const dynamic = 'force-dynamic'`.
 - Live matching in prod requires `NEO4J_*`, `NEXT_PUBLIC_NEO4J_ENABLED`, and a matched `FRONTEND_AUTH_TOKEN`/`NEXT_PUBLIC_FRONTEND_AUTH_TOKEN` pair set in the deploy target's env — these are set in `tatt-app`'s prod env as of 2026-07-20.
-- There is no `vercel.json` — Next.js App Router uses Vercel's auto-detection.
+- `vercel.json` exists only to declare the deposit-expiry cron (`/api/cron/expire-deposits`, daily `0 9 * * *`); routing otherwise relies on Next.js App Router auto-detection.
+- Payments require `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (and `STRIPE_CONNECT_WEBHOOK_SECRET` for Connect account events), `PLATFORM_FEE_BPS`, `DEPOSIT_HOLD_DAYS`, `CRON_SECRET`, and `STRIPE_PRICE_ARTIST_SUB`; routes fail closed (503) when Stripe is unconfigured.
 - Branch protection on `main` is blocked by GitHub's free-plan limits on private repos; see the working agreements in `TODO.md` for the fetch/reset discipline used in its place.
 
 ## Documentation

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import StudioShell from "@/components/studio/StudioShell";
+import { ArtistSubscribeButton } from "@/components/billing/BillingButtons";
 
 const TIERS = [
   {
@@ -129,6 +130,34 @@ export default function PricingPage() {
                 </Link>
               </div>
             ))}
+          </div>
+
+          {/* For artists — SaaS subscription (money flow #2: platform charges
+              the artist directly). Posts to /api/v1/billing/subscribe and
+              redirects to the Stripe-hosted Checkout Session. */}
+          <div className="mt-16 md:mt-24 border-2 border-pink bg-black p-8 md:p-12 flex flex-col md:flex-row md:items-center md:justify-between gap-8">
+            <div className="max-w-xl">
+              <div className="sticker inline-block px-3 py-1 mb-6">
+                <div className="font-display text-[11px] tracking-widest leading-none">
+                  For Artists
+                </div>
+                <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-0.5">
+                  Plan
+                </div>
+              </div>
+              <h2 className="font-display text-white text-[32px] md:text-[48px] leading-[0.92]">
+                Run your&nbsp;<span className="slash"><span>business</span></span>
+                <span className="text-pink">.</span>
+              </h2>
+              <p className="mt-5 text-[14px] text-white/70 font-body leading-[1.55]">
+                Take bookings, hold deposits, and manage clients on TatT.
+                Cancel any time from the billing portal.
+              </p>
+            </div>
+            <ArtistSubscribeButton className="press inline-flex items-center justify-center whitespace-nowrap px-8 py-4 font-display text-[22px] leading-none tracking-[0.02em] tape disabled:opacity-60">
+              Start Subscription
+              <span className="ml-2 text-[14px]">▸</span>
+            </ArtistSubscribeButton>
           </div>
         </div>
       </div>

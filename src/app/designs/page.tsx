@@ -4,6 +4,7 @@ import Link from "next/link";
 import StudioShell from "@/components/studio/StudioShell";
 import SlashHeadline from "@/components/punk/SlashHeadline";
 import { useDesigns, type TattDesign } from "@/lib/tattStorage";
+import { ManageBillingButton } from "@/components/billing/BillingButtons";
 
 function formatEdited(ts: number): string {
   const diff = Date.now() - ts;
@@ -51,13 +52,21 @@ export default function DesignsPage() {
               slashed="cuts"
               sizeClassName="text-[48px] md:text-[88px] leading-[0.88]"
             />
-            <Link
-              href="/generate/stencil"
-              className="tape press inline-flex items-center justify-center px-6 py-3 font-display text-[20px] leading-none tracking-[0.02em]"
-            >
-              New Design
-              <span className="ml-2 text-[14px]">▸</span>
-            </Link>
+            <div className="flex items-center gap-3">
+              {/* Artist SaaS billing. /dashboard redirects here, so this is the
+                  real dashboard home. Gated (disabled) until the artist's Stripe
+                  customer id is surfaced client-side — see BillingButtons. */}
+              <ManageBillingButton className="border-2 hairline press inline-flex items-center justify-center px-6 py-3 font-display text-[20px] leading-none tracking-[0.02em] text-white hover:text-black hover:bg-pink hover:border-pink disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-white disabled:hover:border-white/20 disabled:cursor-not-allowed">
+                Manage Billing
+              </ManageBillingButton>
+              <Link
+                href="/generate/stencil"
+                className="tape press inline-flex items-center justify-center px-6 py-3 font-display text-[20px] leading-none tracking-[0.02em]"
+              >
+                New Design
+                <span className="ml-2 text-[14px]">▸</span>
+              </Link>
+            </div>
           </div>
 
           {showEmpty ? (
