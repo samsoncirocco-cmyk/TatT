@@ -7,6 +7,24 @@
 
 ---
 
+## Addendum (2026-07-22, same day): Stripe Connect merge `1e4dd5a` partially supersedes §3
+
+Hours after this audit's baseline (`4269114`), the Stripe payments merge (`1e4dd5a`, PRs #92/#99) landed on `main` — Connect marketplace scaffold, held deposits, and a claim flow. It closes parts of loops 1, 4, and 5 and re-targets several Phase 1/2 tasks. Verified against post-merge `main`:
+
+**Now partially closed:**
+- **Webhook is no longer a no-op** (§3.2 first half is stale). `src/app/api/webhooks/stripe/route.ts` now uses the Stripe SDK, serves two signing secrets, and acts on events: for **unclaimed artists** a completed checkout creates a `:BookingRelay` node in Neo4j (deposit held by the platform, `DEPOSIT_HOLD_DAYS` default 7, auto-refund cron at `src/app/api/cron/expire-deposits/route.ts`); `account.updated` with `charges_enabled` releases held deposits to the artist (`src/lib/booking-relay.ts` — artist keeps 100% of the deposit, TatT's fee is charged to the client on top per ADR 0007); subscription events update artist nodes. ADRs 0005–0008 document the model.
+- **A claim flow exists** (§3.5 is now half-done). `/claim` + `/claim/[artistId]` + `/api/v1/connect/claim` bind the verified Firebase `uid` to the artist via `Artist.claimedByUid` (first-claim-wins) and launch Stripe Connect onboarding. Phase 2 task 2.2's identity-binding half is shipped; what remains is the *operator surface* built on it (dashboard, availability, session types) and role exposure in the client auth layers.
+- **Artist notification has a real hook** (loop 5): `src/lib/notify.ts` `notifyArtistOfBooking` fires from the webhook with a claim link — but it is still an interface-only stub that logs. Task 1.8 (real delivery) stands, now with an obvious integration point.
+
+**Still open (re-verified post-merge):**
+- **The booking record ↔ payment link is still missing** (§3.2's surviving core). `bookingId` and `booking_requests` appear nowhere in the new `checkout/route.ts` or webhook — the `:BookingRelay` is keyed by PaymentIntent and carries `artistId`/email only. A paid deposit still never updates the client's booking document; tasks 1.1–1.3 stand, now implemented *inside* the new webhook's `checkout.session.completed` handler rather than replacing a stub.
+- **Deposits are still hardcoded by size** (`DEPOSIT_BY_SIZE` now duplicated in `checkout/route.ts` in cents and `src/lib/booking.ts` in dollars — a drift risk). SessionType (task 2.3) stands.
+- No state machine on `booking_requests`, no slot engine, no artist dashboard — Phases 1–2 otherwise unchanged.
+
+**Note on the §2.4 decision:** the merge puts payment-*hold* state in Neo4j (`:BookingRelay`), while the booking *record* stays in Firestore per the Firestore-first decision. These compose (relay = money movement, booking = client request), but Phase 1 task 1.3 should link them: the webhook writes both the relay and the `booking_requests` status transition.
+
+---
+
 ## Executive Summary
 
 TatT today is a **directory with a payment form**, not a booking platform. The good news: the honest-MVP groundwork shipped in PRs #88–#100 is real and reusable — a validated booking-capture API, a signature-verified Stripe webhook skeleton, deployed Firestore rules, live graph-backed artist pages, and a deliberately honest availability model. The bad news: **five loops are open**, and until they close, every deposit collected is a liability rather than a booking:
