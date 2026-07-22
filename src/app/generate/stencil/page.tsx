@@ -7,7 +7,7 @@ import SlashHeadline from "@/components/punk/SlashHeadline";
 import TapeCTA from "@/components/punk/TapeCTA";
 import OutputCard from "@/components/punk/OutputCard";
 import Lightbox from "@/components/punk/Lightbox";
-import { useDesigns, useUser } from "@/lib/tattStorage";
+import { useDesigns, useUser, hasEverAuthed } from "@/lib/tattStorage";
 import {
   FREE_TIER_DAILY_CUTS,
   getDailyUsage,
@@ -65,7 +65,8 @@ function StencilPageInner() {
     const trimmed = prompt.trim();
     if (!trimmed || cutting) return;
     if (!user) {
-      router.push("/login?redirect=/generate/stencil");
+      const authPage = hasEverAuthed() ? "login" : "signup";
+      router.push(`/${authPage}?redirect=/generate/stencil`);
       return;
     }
     setCutting(true);
@@ -200,7 +201,7 @@ function StencilPageInner() {
                 </div>
                 {signedOut ? (
                   <TapeCTA
-                    href="/login?redirect=/generate/stencil"
+                    href={`/${hasEverAuthed() ? "login" : "signup"}?redirect=/generate/stencil`}
                     size="lg"
                     className="self-start sm:self-auto"
                   >
