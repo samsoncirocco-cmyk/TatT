@@ -18,7 +18,14 @@ export const STORAGE_KEYS = {
   favorites: "tatt:favorites",
   bookings: "tatt:bookings",
   user: "tatt:user",
+  hasAuthed: "tatt:hasAuthed",
 } as const;
+
+/** True once this browser has ever completed a sign-in — survives sign-out,
+ *  so the auth gate can send returning users to /login instead of /signup. */
+export function hasEverAuthed(): boolean {
+  return safeRead<boolean>(STORAGE_KEYS.hasAuthed, false);
+}
 
 // Cross-tab + same-tab listeners
 const SAME_TAB_EVENT = "tatt:storage";
@@ -312,6 +319,7 @@ export function useUser() {
           if (fbUser) {
             const mapped = firebaseToTattUser(fbUser);
             safeWrite(STORAGE_KEYS.user, mapped);
+            safeWrite(STORAGE_KEYS.hasAuthed, true);
             setUserState(mapped);
             // Mirror lists to the account (idempotent per uid).
             void startCloudSync(
