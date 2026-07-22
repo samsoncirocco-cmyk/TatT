@@ -44,6 +44,7 @@ export interface ScoreSignals {
     visualSimilarity: number;
     styleAlignment: number;
     location: number;
+    rating: number;
     budget: number;
     randomVariety: number;
 }
@@ -54,6 +55,7 @@ export interface MatchedArtist {
     city?: string;
     styles?: string[];
     hourlyRate?: number;
+    rating?: number;
     compositeScore: number;
     score: number;
     matchScore: number;
@@ -250,6 +252,18 @@ function calculateBudgetScore(artist: MatchedArtist, preferences: QueryPreferenc
 }
 
 /**
+ * Calculate rating score (shop/artist rating, 0-5 stars -> 0-1).
+ * Neutral when the artist has no published rating — never penalize
+ * real artists the graph hasn't collected reviews for yet.
+ */
+function calculateRatingScore(artist: MatchedArtist): number {
+    if (artist.rating == null || Number.isNaN(artist.rating)) {
+        return 0.5;
+    }
+    return Math.max(0, Math.min(1, artist.rating / 5));
+}
+
+/**
  * Calculate style alignment score
  */
 function calculateStyleScore(artist: MatchedArtist, preferences: QueryPreferences): number {
@@ -341,6 +355,7 @@ export async function findMatchingArtists(
                         visualSimilarity: artist.visualSimilarity || 0,
                         styleAlignment: calculateStyleScore(artist, preferences),
                         location: calculateLocationScore(artist, preferences),
+                        rating: calculateRatingScore(artist),
                         budget: calculateBudgetScore(artist, preferences),
                         randomVariety: Math.random()
                     };
