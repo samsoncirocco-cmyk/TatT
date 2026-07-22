@@ -5,7 +5,9 @@ agents. **Every agent: read this before starting work, update it when you
 finish or discover work.** Keep entries short; link PRs/issues; date your
 changes. Newest state wins — resolve edit conflicts by merging both lists.
 
-_Last updated: 2026-07-21 (crew PRs #89/#90/#91 merged + deployed; ops checklist executed — Firestore rules deployed, dead env pair deleted, Firebase admin creds confirmed already set, J7 confirmed done; Stripe key still on Samson)_
+_Last updated: 2026-07-22 (booking gap analysis merged — PR #106; Stripe Connect
+merge 1e4dd5a landed same day: held deposits, claim flow, functional webhook;
+gap-analysis addendum reconciles the two)_
 
 ## Now (in priority order) — THE JOURNEY QUEUE
 
@@ -83,6 +85,23 @@ J7. ~~**One deploy target, auto-deploy, live URL**~~ — **DONE (verified
     Custom domains all wired + Firebase-authorized: tatt-t.com,
     image2ink.com, tatttester.com. Canonical-domain pick is #81 (Samson).
 
+J9. **Close the booking loop** — roadmap merged 2026-07-22 (PR #106):
+    `docs/audits/2026-07-22-booking-gap-analysis.md` (supersedes the
+    `docs/booking-gap-analysis` branch, which can be deleted). Decision
+    recorded: **Firestore-first** system-of-record for bookings; Supabase
+    M003 deferred to a Phase 3 analytics mirror. Same-day Stripe Connect
+    merge (1e4dd5a, PRs #92/#99) already shipped held deposits + claim flow
+    + a functional webhook — see the doc's Addendum for what that closed.
+    **Remaining Phase 1 blockers (doc §5, tasks 1.1–1.9):** thread
+    `bookingId` into checkout metadata; webhook transitions
+    `booking_requests` to `deposit_paid` (state machine in
+    `src/lib/booking.ts`); validate `artistId` against the graph; booking
+    read API + reconcile `/bookings` and `/book/success` with server truth;
+    make `notifyArtistOfBooking` (`src/lib/notify.ts`) actually deliver;
+    delete dead `useBookingStore`/`BookingModal`. Also: `DEPOSIT_BY_SIZE`
+    is now duplicated in `checkout/route.ts` (cents) and `lib/booking.ts`
+    (dollars) — consolidate before it drifts.
+
 (Prior items now secondary: PR #40 feedback folds into J2/J3 scope; security
 reconciliation continues in parallel. Branch protection still blocked on
 GitHub plan.)
@@ -106,9 +125,11 @@ full run NOT launched. Resume after gate review.
   rule) or port to graph. scripts/ importers referencing artists.json are
   seed tooling, fine.
 - **Samson-only ops checklist** (executed 2026-07-21; one item left):
-  1. **STILL OPEN (Samson):** Vercel tatt-app env: add STRIPE_SECRET_KEY
-     (live or test) — until then /api/checkout honestly 503s and bookings
-     save without deposit. Key must come from the Stripe dashboard.
+  1. **LIKELY DONE — verify (Samson):** Stripe Connect merge 1e4dd5a
+     (2026-07-22) says "Webhook endpoint + env configured in prod (Vercel)",
+     which implies STRIPE_SECRET_KEY (+ webhook secrets) are now set. Not
+     independently verified from a session — confirm /api/checkout no longer
+     503s in prod, then strike this.
   2. ~~FIREBASE_* admin credentials~~ — **already set** (FIREBASE_PRIVATE_KEY,
      FIREBASE_CLIENT_EMAIL, FIREBASE_PROJECT_ID in production+preview;
      verified via Vercel API 2026-07-21). A real-booking end-to-end check in
