@@ -29,6 +29,44 @@ type Match = {
 
 type Status = "loading" | "ready" | "empty" | "offline" | "error";
 
+function toMatch(m: {
+  id: string | number;
+  name: string;
+  city?: string;
+  state?: string;
+  location?: string;
+  styles?: string[];
+  score: number;
+  instagram?: string;
+}): Match {
+  return {
+    id: String(m.id),
+    name: m.name,
+    city: m.city,
+    state: m.state,
+    location: m.location,
+    styles: m.styles || [],
+    score: m.score,
+    instagram: m.instagram,
+  };
+}
+
+function toCard(m: Match, i: number) {
+  const slug = artistSlug(m.name, m.id);
+  return {
+    key: m.id,
+    slug,
+    name: m.name,
+    city: m.location || m.city || "—",
+    styles: m.styles.slice(0, 3),
+    match: Math.min(99, Math.max(1, Math.round(m.score))),
+    color: COLORS[i % COLORS.length],
+    href: `/artists/${slug}`,
+    bookHref: `/book?artistId=${encodeURIComponent(m.id)}`,
+    external: false,
+  };
+}
+
 function FilterPill({
   label,
   active,
@@ -73,6 +111,8 @@ export default function MatchesClient() {
   const [hasPortfolio, setHasPortfolio] = useState(false);
   const [status, setStatus] = useState<Status>("loading");
   const [matches, setMatches] = useState<Match[]>([]);
+  const [broadened, setBroadened] = useState<Match[]>([]);
+  const [broadenedReason, setBroadenedReason] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const fetchMatches = useCallback(async () => {
@@ -122,27 +162,25 @@ export default function MatchesClient() {
       // artists, say so instead of dressing them up as matches.
       if (data.query_info?.graphSource !== "live") {
         setMatches([]);
+        setBroadened([]);
+        setBroadenedReason(null);
         setStatus("offline");
         return;
       }
 
-      const real: Match[] = (data.matches || []).map((m: Match) => ({
-        id: String(m.id),
-        name: m.name,
-        city: m.city,
-        state: m.state,
-        location: m.location,
-        styles: m.styles || [],
-        score: m.score,
-        instagram: m.instagram,
-      }));
+      const real: Match[] = (data.matches || []).map(toMatch);
+      const broad: Match[] = (data.broadened || []).map(toMatch);
 
       setMatches(real);
-      setStatus(real.length === 0 ? "empty" : "ready");
+      setBroadened(broad);
+      setBroadenedReason(data.broadened_reason || null);
+      setStatus(real.length === 0 && broad.length === 0 ? "empty" : "ready");
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       console.error("[Matches] Fetch failed:", err);
       setMatches([]);
+      setBroadened([]);
+      setBroadenedReason(null);
       setStatus("error");
     }
   }, [designStyles, style, location, hasPortfolio]);
@@ -152,26 +190,8 @@ export default function MatchesClient() {
     return () => abortRef.current?.abort();
   }, [fetchMatches]);
 
-  const cards = useMemo(
-    () =>
-      matches.map((m, i) => {
-        // Every match is a real graph artist with a live profile page.
-        const slug = artistSlug(m.name, m.id);
-        return {
-          key: m.id,
-          slug,
-          name: m.name,
-          city: m.location || m.city || "—",
-          styles: m.styles.slice(0, 3),
-          match: Math.min(99, Math.max(1, Math.round(m.score))),
-          color: COLORS[i % COLORS.length],
-          href: `/artists/${slug}`,
-          bookHref: `/book?artistId=${encodeURIComponent(m.id)}`,
-          external: false,
-        };
-      }),
-    [matches]
-  );
+  const cards = useMemo(() => matches.map(toCard), [matches]);
+  const broadenedCards = useMemo(() => broadened.map(toCard), [broadened]);
 
   const ordered = hydrated
     ? [
@@ -370,7 +390,7 @@ export default function MatchesClient() {
           )}
 
           {/* GRID */}
-          {status === "ready" && (
+          {status === "ready" && ordered.length > 0 && (
             <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {ordered.map((a) => (
                 <ArtistCard
@@ -390,6 +410,45 @@ export default function MatchesClient() {
                   favoritePosition="top-left"
                 />
               ))}
+            </div>
+          )}
+
+          {/* BROADENED — clearly separated, never mixed into the primary grid */}
+          {status === "ready" && broadenedCards.length > 0 && (
+            <div className="mt-16">
+              <div className="flex items-baseline justify-between border-t-2 hairline pt-6">
+                <span className="text-[11px] uppercase tracking-[0.25em] text-pink font-body">
+                  ▸ Also nearby / similar
+                </span>
+                <span className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-body">
+                  Broadened&nbsp;search
+                </span>
+              </div>
+              {broadenedReason && (
+                <p className="mt-2 text-[12px] text-white/40 font-body">
+                  {broadenedReason}
+                </p>
+              )}
+              <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {broadenedCards.map((a) => (
+                  <ArtistCard
+                    key={a.key}
+                    variant="match"
+                    slug={a.slug}
+                    name={a.name}
+                    city={a.city}
+                    color={a.color}
+                    styles={a.styles}
+                    matchPercent={a.match}
+                    href={a.href}
+                    bookHref={a.bookHref}
+                    external={a.external}
+                    showFavorite
+                    favoriteSize={18}
+                    favoritePosition="top-left"
+                  />
+                ))}
+              </div>
             </div>
           )}
         </div>

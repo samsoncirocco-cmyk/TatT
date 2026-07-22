@@ -66,6 +66,10 @@ export interface MatchedArtist {
 
 export interface MatchResult {
     matches: MatchedArtist[];
+    /** Broader results shown separately when `matches` is thin — never
+     *  merged into `matches` itself. Empty when the primary set wasn't thin. */
+    broadened: MatchedArtist[];
+    broadenedReason?: string;
     totalCandidates: number;
     queryInfo: {
         query: string;
@@ -267,6 +271,43 @@ function calculateStyleScore(artist: MatchedArtist, preferences: QueryPreference
 }
 
 /**
+ * Score a set of merged vector+graph candidates against the (original,
+ * unrelaxed) user preferences and return them sorted best-first.
+ */
+function scoreArtists(
+    mergedResults: any[],
+    preferences: QueryPreferences,
+    weights: typeof DEFAULT_WEIGHTS
+): MatchedArtist[] {
+    return mergedResults
+        .map((artist: any): MatchedArtist => {
+            const signals: ScoreSignals = {
+                visualSimilarity: artist.visualSimilarity || 0,
+                styleAlignment: calculateStyleScore(artist, preferences),
+                location: calculateLocationScore(artist, preferences),
+                budget: calculateBudgetScore(artist, preferences),
+                randomVariety: Math.random()
+            };
+            const { score, breakdown } = calculateCompositeScore(signals, weights) as { score: number; breakdown: Record<string, unknown> };
+            const reasons = generateMatchReasoning(signals, artist, preferences);
+            return {
+                ...artist,
+                compositeScore: score,
+                score: Math.round(score * 100),
+                matchScore: score,
+                scoreBreakdown: breakdown,
+                reasons
+            };
+        })
+        .sort((a, b) => b.compositeScore - a.compositeScore);
+}
+
+// Below this many primary matches, broaden the search by relaxing the
+// style/location filters instead of silently padding the primary set.
+const THIN_RESULT_THRESHOLD = 4;
+const MAX_BROADENED_RESULTS = 8;
+
+/**
  * Find matching artists using hybrid vector-graph approach
  */
 export async function findMatchingArtists(
@@ -335,38 +376,37 @@ export async function findMatchingArtists(
                     : DEFAULT_WEIGHTS;
 
                 // Calculate composite scores for each artist
-                const scoredArtists = mergedResults.map((artist: any): MatchedArtist => {
-                    // Gather all scoring signals
-                    const signals: ScoreSignals = {
-                        visualSimilarity: artist.visualSimilarity || 0,
-                        styleAlignment: calculateStyleScore(artist, preferences),
-                        location: calculateLocationScore(artist, preferences),
-                        budget: calculateBudgetScore(artist, preferences),
-                        randomVariety: Math.random()
-                    };
-
-                    // Calculate composite score
-                    const { score, breakdown } = calculateCompositeScore(signals, weights) as { score: number; breakdown: Record<string, unknown> };
-
-                    // Generate match reasoning
-                    const reasons = generateMatchReasoning(signals, artist, preferences);
-
-                    return {
-                        ...artist,
-                        compositeScore: score,
-                        score: Math.round(score * 100), // For display (0-100)
-                        matchScore: score, // For sorting (0-1)
-                        scoreBreakdown: breakdown,
-                        reasons: reasons
-                    };
-                });
+                const scoredArtists = scoreArtists(mergedResults, preferences, weights);
 
                 const mergeTime = performance.now() - mergeStart;
 
-                // Sort by composite score and return top N
-                const topMatches = scoredArtists
-                    .sort((a, b) => b.compositeScore - a.compositeScore)
-                    .slice(0, maxResults);
+                // Top N by composite score
+                const topMatches = scoredArtists.slice(0, maxResults);
+
+                // Thin primary results with active style/location filters —
+                // broaden by relaxing those filters, never by padding the
+                // primary set itself. Broadened matches are still scored
+                // against the ORIGINAL preferences (so a "broadened" artist
+                // that happens to match everything still ranks accordingly)
+                // and are always kept in a separate, clearly-labeled list.
+                let broadened: MatchedArtist[] = [];
+                let broadenedReason: string | undefined;
+                const hasRelaxableFilters = Boolean(
+                    (preferences.styles && preferences.styles.length > 0) || preferences.location
+                );
+                if (topMatches.length < THIN_RESULT_THRESHOLD && hasRelaxableFilters) {
+                    const relaxedGraphResults = await executeGraphQuery({
+                        keywords
+                    });
+                    const relaxedMerged = mergeResults(vectorResults, relaxedGraphResults, 'id');
+                    const primaryIds = new Set(topMatches.map((m) => String(m.id)));
+                    broadened = scoreArtists(relaxedMerged, preferences, weights)
+                        .filter((m) => !primaryIds.has(String(m.id)))
+                        .slice(0, MAX_BROADENED_RESULTS);
+                    if (broadened.length > 0) {
+                        broadenedReason = 'Also nearby / similar — fewer than a handful of exact matches for your filters';
+                    }
+                }
 
                 const totalTime = performance.now() - startTime;
 
@@ -380,6 +420,8 @@ export async function findMatchingArtists(
 
                 return {
                     matches: topMatches,
+                    broadened,
+                    broadenedReason,
                     totalCandidates: mergedResults.length,
                     queryInfo: {
                         query,
