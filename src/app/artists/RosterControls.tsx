@@ -1,12 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+
+/** Debounce delay (ms) before a typed search re-queries the live graph. */
+export const SEARCH_DEBOUNCE_MS = 300;
 
 /**
  * Search box + style chips for the /artists roster. Filters live in the
  * URL (?q=&style=&page=) so the server component re-queries the graph;
  * changing any filter resets to page 1.
+ *
+ * The search box debounces (SEARCH_DEBOUNCE_MS) so each keystroke doesn't
+ * fire a fresh Neo4j query — it composes with the style/hasPortfolio pills,
+ * which still apply instantly.
  */
 export default function RosterControls({
   styles,
@@ -22,6 +29,19 @@ export default function RosterControls({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [input, setInput] = useState(q);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Keep the box in sync when q changes from elsewhere (e.g. Clear, or
+  // browser back/forward navigating to a different ?q=).
+  useEffect(() => {
+    setInput(q);
+  }, [q]);
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
 
   const apply = (next: { q?: string; style?: string; hasPortfolio?: boolean }) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -38,9 +58,19 @@ export default function RosterControls({
     router.push(`/artists${params.size ? `?${params}` : ""}`);
   };
 
-  const submitSearch = () => {
-    const trimmed = input.trim();
+  const submitSearch = (value: string = input) => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    const trimmed = value.trim();
     if (trimmed !== q) apply({ q: trimmed });
+  };
+
+  const handleChange = (value: string) => {
+    setInput(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => submitSearch(value), SEARCH_DEBOUNCE_MS);
   };
 
   return (
@@ -57,8 +87,8 @@ export default function RosterControls({
           id="search"
           type="text"
           value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onBlur={submitSearch}
+          onChange={(e) => handleChange(e.target.value)}
+          onBlur={() => submitSearch()}
           onKeyDown={(e) => {
             if (e.key === "Enter") submitSearch();
           }}
@@ -102,6 +132,10 @@ export default function RosterControls({
           {(style || q || hasPortfolio) && (
             <button
               onClick={() => {
+                if (debounceRef.current) {
+                  clearTimeout(debounceRef.current);
+                  debounceRef.current = null;
+                }
                 setInput("");
                 apply({ q: "", style: "All", hasPortfolio: false });
               }}
