@@ -187,7 +187,7 @@ export default function DesignsPage() {
                     )}
                     {selectMode && (
                       <span
-                        className={`absolute top-2 right-2 w-6 h-6 flex items-center justify-center border-2 hairline font-display text-[14px] leading-none ${isSelected ? "bg-pink text-black border-pink" : "bg-black/70 text-white/60"}`}
+                        className={`pointer-events-none absolute top-2 right-2 w-6 h-6 flex items-center justify-center border-2 hairline font-display text-[14px] leading-none ${isSelected ? "bg-pink text-black border-pink" : "bg-black/70 text-white/60"}`}
                         aria-hidden="true"
                       >
                         {isSelected ? "✓" : ""}
