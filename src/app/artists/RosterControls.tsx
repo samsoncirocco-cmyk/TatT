@@ -34,6 +34,10 @@ export default function RosterControls({
   // Keep the box in sync when q changes from elsewhere (e.g. Clear, or
   // browser back/forward navigating to a different ?q=).
   useEffect(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
     setInput(q);
   }, [q]);
 
