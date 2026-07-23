@@ -87,22 +87,21 @@ function StencilPageInner() {
       });
       const images: string[] = result?.images ?? [];
       if (!images.length) throw new Error("No cuts came back");
-      setCuts(images.slice(0, 4));
+      const nextCuts = images.slice(0, 4);
+      setCuts(nextCuts);
       setSelected(0);
-      setSavedCuts({});
+      // Every generation auto-saves to the library — no manual "Save" step.
+      // Each of the four cuts lands as its own design so pruning (single or
+      // multi-select delete on /designs) works per-cut.
+      nextCuts.forEach((image) => addDesign(trimmed, { image }));
+      setSavedCuts(Object.fromEntries(nextCuts.map((_, i) => [i, true])));
       void recordGeneration();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Generation failed");
     } finally {
       setCutting(false);
     }
-  }, [prompt, cutting, user, router]);
-
-  const handleSaveCut = (i: number) => {
-    if (savedCuts[i]) return;
-    addDesign(prompt.trim(), { image: cuts[i] });
-    setSavedCuts((s) => ({ ...s, [i]: true }));
-  };
+  }, [prompt, cutting, user, router, addDesign]);
 
   return (
     <StudioShell>
@@ -183,6 +182,14 @@ function StencilPageInner() {
                     </span>
                   ))}
                 </div>
+
+                {/* Auto-save is silent but not secret — say so once, here.
+                    (Carried from #110; its original home was the pre-ADR-0018
+                    preview panel, which no longer exists.) */}
+                <p className="mt-2 text-[10px] uppercase tracking-[0.22em] leading-[1.6] text-white/45 font-body">
+                  Every cut auto-saves to your designs. Prune what
+                  doesn&apos;t bite from the library.
+                </p>
               </div>
 
               <div className="rise rise-5 mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-t-2 hairline pt-4">
@@ -246,12 +253,6 @@ function StencilPageInner() {
                           {
                             label: "Layers",
                             onClick: () => router.push("/generate"),
-                          },
-                          {
-                            label: savedCuts[i] ? "Saved" : "Save",
-                            onClick: () => handleSaveCut(i),
-                            accent: true,
-                            disabled: !!savedCuts[i],
                           },
                           {
                             label: "Iterate",

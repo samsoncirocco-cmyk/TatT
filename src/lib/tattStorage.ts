@@ -213,7 +213,19 @@ export function useDesigns() {
     [setItems],
   );
 
-  return { designs: items, hydrated, addDesign, removeDesign };
+  /** Bulk delete — powers the library's multi-select "Delete selected"
+   *  action. A no-op (no write) when given an empty list. */
+  const removeDesigns = useCallback(
+    (ids: string[]) => {
+      if (!ids.length) return;
+      const toRemove = new Set(ids);
+      const current = safeRead<TattDesign[]>(STORAGE_KEYS.designs, []);
+      setItems(current.filter((d) => !toRemove.has(d.id)));
+    },
+    [setItems],
+  );
+
+  return { designs: items, hydrated, addDesign, removeDesign, removeDesigns };
 }
 
 // ─── Favorites ─────────────────────────────────────────────────────────
