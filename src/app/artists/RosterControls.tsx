@@ -30,10 +30,15 @@ export default function RosterControls({
   const searchParams = useSearchParams();
   const [input, setInput] = useState(q);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const submittedQueryRef = useRef<string | null>(null);
 
   // Keep the box in sync when q changes from elsewhere (e.g. Clear, or
   // browser back/forward navigating to a different ?q=).
   useEffect(() => {
+    if (q === submittedQueryRef.current) {
+      submittedQueryRef.current = null;
+      return;
+    }
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
       debounceRef.current = null;
@@ -68,7 +73,10 @@ export default function RosterControls({
       debounceRef.current = null;
     }
     const trimmed = value.trim();
-    if (trimmed !== q) apply({ q: trimmed });
+    if (trimmed !== q) {
+      submittedQueryRef.current = trimmed;
+      apply({ q: trimmed });
+    }
   };
 
   const handleChange = (value: string) => {
