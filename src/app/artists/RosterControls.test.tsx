@@ -59,6 +59,30 @@ describe("RosterControls search box", () => {
     expect(push).toHaveBeenLastCalledWith("/artists?q=austin");
   });
 
+  it("keeps a cleared search in sync while an earlier query navigation lands", () => {
+    const { rerender } = render(
+      <RosterControls styles={["Blackwork"]} q="" style="" hasPortfolio={false} />,
+    );
+    const input = screen.getByLabelText("▸ Search") as HTMLInputElement;
+
+    fireEvent.change(input, { target: { value: "aus" } });
+    vi.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+    fireEvent.change(input, { target: { value: "" } });
+    vi.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+
+    expect(push).toHaveBeenLastCalledWith("/artists");
+
+    rerender(
+      <RosterControls styles={["Blackwork"]} q="aus" style="" hasPortfolio={false} />,
+    );
+    expect(input.value).toBe("");
+
+    rerender(
+      <RosterControls styles={["Blackwork"]} q="" style="" hasPortfolio={false} />,
+    );
+    expect(input.value).toBe("");
+  });
+
   it("composes the query with an active style pill", () => {
     render(
       <RosterControls
