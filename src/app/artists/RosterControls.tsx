@@ -35,8 +35,8 @@ export default function RosterControls({
   // Keep the box in sync when q changes from elsewhere (e.g. Clear, or
   // browser back/forward navigating to a different ?q=).
   useEffect(() => {
-    if (q === submittedQueryRef.current) {
-      submittedQueryRef.current = null;
+    if (submittedQueryRef.current !== null) {
+      if (q === submittedQueryRef.current) submittedQueryRef.current = null;
       return;
     }
     if (debounceRef.current) {
@@ -73,7 +73,7 @@ export default function RosterControls({
       debounceRef.current = null;
     }
     const trimmed = value.trim();
-    if (trimmed !== q) {
+    if (trimmed !== q || submittedQueryRef.current !== null) {
       submittedQueryRef.current = trimmed;
       apply({ q: trimmed });
     }
