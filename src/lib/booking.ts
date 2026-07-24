@@ -136,7 +136,8 @@ export function isValidBookingId(value: unknown): value is string {
 export function sanitizeBooking(
   doc: Record<string, unknown>,
 ): Record<string, unknown> {
-  const { ip: _ip, ...rest } = doc;
+  const rest = { ...doc };
+  delete rest.ip;
   return rest;
 }
 
