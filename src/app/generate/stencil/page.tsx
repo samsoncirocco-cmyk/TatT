@@ -107,7 +107,7 @@ function StencilPageInner() {
     <StudioShell>
       <div className="flex flex-col min-h-full relative">
         {/* Meta-bar — caps lock punk metadata */}
-        <div className="px-6 md:px-12 pt-6 pb-4 border-b hairline">
+        <div className="px-6 md:px-12 pt-4 pb-3 border-b hairline">
           <div className="max-w-6xl mx-auto flex items-center justify-between gap-4 text-[10px] uppercase tracking-[0.25em] text-white/50 tabular-nums font-body">
             <span>
               <span className="text-pink">●</span>&nbsp;&nbsp;Stencil&nbsp;Forge — Pop&nbsp;Punk&nbsp;Mode
@@ -118,9 +118,9 @@ function StencilPageInner() {
           </div>
         </div>
 
-        <div className="flex-1 px-6 md:px-12 py-8 md:py-10 relative">
+        <div className="flex-1 px-6 md:px-12 py-5 relative">
           <div className="max-w-4xl mx-auto">
-            <section className="relative border-2 hairline bg-black p-6 sm:p-8 overflow-hidden">
+            <section className="relative border-2 hairline bg-black p-5 sm:p-6 overflow-hidden">
               <div className="absolute inset-x-0 top-0 h-2 bg-pink" />
               <div className="hidden md:block absolute top-7 right-7 sticker px-3 py-1 z-10">
                 <div className="font-display text-[11px] tracking-widest leading-none">
@@ -139,12 +139,12 @@ function StencilPageInner() {
                 sizeClassName="text-[32px] sm:text-[40px] md:text-[48px] leading-[0.9]"
                 className="rise rise-1 text-balance"
               />
-              <p className="rise rise-2 mt-3 text-[13px] leading-[1.5] text-white/60 font-body">
+              <p className="rise rise-2 mt-2 text-[13px] leading-[1.5] text-white/60 font-body">
                 Describe the tattoo like you would to an artist.{" "}
                 <span className="scribble text-pink">No sterile form screen.</span>
               </p>
 
-              <div className="rise rise-3 mt-6">
+              <div className="rise rise-3 mt-4">
                 <label
                   htmlFor="prompt"
                   className="block text-[10px] uppercase tracking-[0.28em] text-pink mb-3 font-body"
@@ -160,7 +160,7 @@ function StencilPageInner() {
                   className="w-full bg-black text-white placeholder-white/25 resize-none focus:outline-none text-[19px] md:text-[22px] leading-[1.45] tracking-tight border-2 hairline focus:border-pink p-5 transition-colors font-display"
                 />
 
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className="mt-3 flex flex-wrap gap-2">
                   {SUGGESTIONS.map((s) => (
                     <button
                       key={s.label}
@@ -173,7 +173,7 @@ function StencilPageInner() {
                 </div>
 
                 {/* Checklist → hint row (ADR-0018) */}
-                <div className="mt-4 flex flex-wrap gap-x-6 gap-y-1 text-[10px] uppercase tracking-[0.18em] text-white/40 font-body">
+                <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-[10px] uppercase tracking-[0.18em] text-white/40 font-body">
                   {PROMPT_HINTS.map(([title, body], i) => (
                     <span key={title}>
                       <span className="text-pink tabular-nums">0{i + 1}</span>
@@ -184,7 +184,7 @@ function StencilPageInner() {
                 </div>
               </div>
 
-              <div className="rise rise-5 mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5 border-t-2 hairline pt-5">
+              <div className="rise rise-5 mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-t-2 hairline pt-4">
                 <div className="text-[10px] uppercase tracking-[0.24em] text-white/45 font-body">
                   Status:&nbsp;
                   <span className="text-pink">
