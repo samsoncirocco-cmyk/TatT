@@ -229,7 +229,18 @@ export async function generateTattooDesign(userInput, modelId = null, signal = n
   }
 
   // Get selected model: explicit modelId > userInput.aiModel > default
-  const selectedModelId = modelId || userInput.aiModel || DEFAULT_MODEL;
+  const requestedModelId = modelId || userInput.aiModel || DEFAULT_MODEL;
+  // The server generation module's catalog moved to the Flux/Krea family;
+  // this legacy client catalog hasn't migrated yet, so map the new ids to
+  // the closest local equivalents instead of warning and falling back.
+  const FLUX_ERA_ALIASES = {
+    'flux-dev': 'sdxl',
+    'flux-schnell': 'dreamshaper',
+    krea2: 'animeXL'
+  };
+  const selectedModelId = AI_MODELS[requestedModelId]
+    ? requestedModelId
+    : FLUX_ERA_ALIASES[requestedModelId] || requestedModelId;
   let model = AI_MODELS[selectedModelId];
 
   if (!model) {

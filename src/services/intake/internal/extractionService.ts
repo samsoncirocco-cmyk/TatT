@@ -189,6 +189,7 @@ export function heuristicExtract(answers: IntakeAnswers, index: OntologyIndex): 
 interface LlmExtraction {
   placement?: unknown;
   styleTags?: unknown;
+  subject?: unknown;
   references?: unknown;
   ambiguousAxes?: unknown;
 }
@@ -198,12 +199,13 @@ function buildExtractionPrompt(answers: IntakeAnswers, index: OntologyIndex): st
   return [
     'You extract structured tattoo intake data from two conversational answers.',
     'Return ONLY a JSON object with exactly these keys:',
-    '{"placement": string, "styleTags": string[], "references": string[], "ambiguousAxes": string[]}',
+    '{"placement": string, "styleTags": string[], "subject": string | null, "references": string[], "ambiguousAxes": string[]}',
     '',
     '- placement: the body placement, normalized to a short lowercase phrase (e.g. "left forearm").',
     `- styleTags: tattoo style tags, chosen ONLY from this closed list: [${allowedTags}]. Empty array if the answers do not clearly signal a style.`,
+    '- subject: when the answers name a SPECIFIC character, franchise, person, or thing, write a concrete visual subject phrase that names it and anchors it to real, recognizable visual elements — e.g. "Izuku Midoriya (Deku) from My Hero Academia, determined expression, One For All lightning crackling around his fist". Name the character AND the franchise. Only include visual elements that genuinely belong to that subject; if you are not sure of its iconography, name the subject plainly without invented details. null when the answers name nothing specific (a mood, a value, an abstract feeling).',
     '- references: any reference imagery the user mentioned (URLs or short descriptions of images they referenced). Empty array if none.',
-    `- ambiguousAxes: the subset of [${VARIATION_AXIS_POOL.join(', ')}] the answers leave UNRESOLVED. An axis is resolved when the answers commit to either pole (e.g. "delicate script" resolves bold-fine toward fine; "black and grey" resolves color-blackwork).`,
+    `- ambiguousAxes: the subset of [${VARIATION_AXIS_POOL.join(', ')}] the answers leave UNRESOLVED. An axis is resolved when the answers commit to either pole (e.g. "delicate script" resolves bold-fine toward fine; "black and grey" resolves color-blackwork). IMPORTANT: when subject is non-null, literal-abstract is RESOLVED (toward literal) — a named character or franchise means the user wants a recognizable depiction, so never list literal-abstract as ambiguous in that case.`,
     '',
     'Do NOT paraphrase or summarize the meaning answer — it is preserved verbatim elsewhere.',
     '',
@@ -308,16 +310,26 @@ function mergeLlmExtraction(
       ? llm.placement
       : answers.placementAnswer;
 
+  const subject =
+    typeof llm.subject === 'string' && llm.subject.trim() ? llm.subject.trim() : undefined;
+
   const llmAxes = asStringArray(llm.ambiguousAxes);
-  const ambiguousAxes = llmAxes
+  let ambiguousAxes = llmAxes
     ? VARIATION_AXIS_POOL.filter((axis) => llmAxes.includes(axis))
     : detectAmbiguousAxes(answers, styleTags);
+  // A named subject means the user wants a recognizable depiction — enforce
+  // the prompt's rule here too so literal-abstract can never slip through as
+  // ambiguous and burn reveal slots on abstract takes of a named character.
+  if (subject) {
+    ambiguousAxes = ambiguousAxes.filter((axis) => axis !== 'literal-abstract');
+  }
 
   return {
     placement: normalizePlacement(rawPlacement),
     styleTags,
     // Meaning is NEVER taken from the model — verbatim prose per ADR-0010.
     meaning: answers.meaningAnswer.trim(),
+    subject,
     references: asStringArray(llm.references)?.map((r) => r.trim()) ?? extractReferences(answers),
     ambiguousAxes: [...ambiguousAxes],
   };

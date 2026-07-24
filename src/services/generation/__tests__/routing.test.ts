@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { routeGeneration } from '../internal/routing';
 
 describe('generation routing', () => {
-  it('routes traditional styles to the Classic Flash model on Replicate', () => {
+  it('routes traditional styles to Flux Dev on Replicate', () => {
     const route = routeGeneration({ prompt: 'anchor', style: 'traditional' });
-    expect(route.modelId).toBe('tattoo');
+    expect(route.modelId).toBe('flux-dev');
     expect(route.provider).toBe('replicate');
   });
 
@@ -14,21 +14,22 @@ describe('generation routing', () => {
     expect(route.provider).toBe('vertex-ai');
   });
 
-  it('falls back to the default mapping for unknown styles', () => {
+  it('falls back to the default mapping (Flux Dev) for unknown styles', () => {
     const route = routeGeneration({ prompt: 'x', style: 'no-such-style' });
-    expect(route.modelId).toBe('sdxl');
+    expect(route.modelId).toBe('flux-dev');
     expect(route.provider).toBe('replicate');
   });
 
-  it('preview mode overrides style with the turbo model', () => {
+  it('preview mode overrides style with the speed model (Schnell)', () => {
     const route = routeGeneration({ prompt: 'x', style: 'realism', mode: 'preview' });
-    expect(route.modelId).toBe('dreamshaper');
+    expect(route.modelId).toBe('flux-schnell');
   });
 
-  it('stencil mode forces the blackwork model and shields the negative prompt', () => {
+  it('stencil mode forces Flux Dev and shields the negative prompt', () => {
     const route = routeGeneration({ prompt: 'x', style: 'anime', isStencilMode: true });
-    expect(route.modelId).toBe('sdxl');
-    expect(route.negativePrompt).toContain('messy lines, sketch: 1.5');
+    expect(route.modelId).toBe('flux-dev');
+    expect(route.negativePrompt).toContain('messy lines, sketch');
+    expect(route.negativePrompt).not.toContain(': 1.5');
   });
 
   it('appends the stencil shield to an existing negative prompt', () => {
@@ -44,8 +45,8 @@ describe('generation routing', () => {
 
   it('maps fallback chains to catalog ids and excludes the primary', () => {
     const route = routeGeneration({ prompt: 'x', style: 'anime' });
-    expect(route.modelId).toBe('animeXL');
-    expect(route.fallbackChain).toEqual(['dreamshaper', 'sdxl']);
-    expect(route.fallbackChain).not.toContain('animeXL');
+    expect(route.modelId).toBe('krea2');
+    expect(route.fallbackChain).toEqual(['flux-dev', 'flux-schnell']);
+    expect(route.fallbackChain).not.toContain('krea2');
   });
 });

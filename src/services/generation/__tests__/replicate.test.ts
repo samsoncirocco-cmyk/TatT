@@ -40,56 +40,80 @@ describe('generation module — replicate provider seam', () => {
     vi.clearAllMocks();
   });
 
-  it('sends the Classic Flash request body verbatim — LoRA scale, TOK prefix, params', async () => {
+  it('sends traditional styles to Flux Dev via the official-models endpoint', async () => {
     fetchMock.mockResolvedValueOnce(replicateResponse());
 
-    const result = await generate({ prompt: 'a ship and swallow', style: 'traditional', numImages: 2 });
+    const result = await generate({
+      prompt: 'a ship and swallow',
+      style: 'traditional',
+      numImages: 2,
+      aspectRatio: '9:16'
+    });
 
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe('https://api.replicate.com/v1/predictions');
+    expect(url).toBe('https://api.replicate.com/v1/models/black-forest-labs/flux-dev/predictions');
     const body = JSON.parse(init.body);
-    expect(body.version).toBe(
-      'anotherjesse/amy-tattoo-test-1:0e345aaf74965ae98fb83ca9c65376ee42da5c7837d88c648ddc5d3cba1f35dc'
-    );
+    expect(body.version).toBeUndefined();
     expect(body.input).toMatchObject({
-      prompt: 'A TOK tattoo drawing style of a ship and swallow',
-      lora_scale: 0.6,
-      scheduler: 'K_EULER',
-      num_inference_steps: 50,
-      guidance_scale: 7.5,
-      num_outputs: 2
+      prompt: expect.stringContaining('a ship and swallow'),
+      guidance: 3,
+      num_inference_steps: 28,
+      output_format: 'png',
+      num_outputs: 2,
+      aspect_ratio: '9:16'
     });
+    expect(body.input.negative_prompt).toBeUndefined();
     expect(init.headers.Authorization).toBe('Token r8_test');
-    expect(result.metadata).toMatchObject({ model: 'tattoo', provider: 'replicate', fallbackUsed: false });
+    expect(result.metadata).toMatchObject({ model: 'flux-dev', provider: 'replicate', fallbackUsed: false });
   });
 
-  it('routes unknown styles to SDXL and returns its images', async () => {
+  it('folds the negative prompt into the prompt as an Avoid clause', async () => {
+    fetchMock.mockResolvedValueOnce(replicateResponse());
+
+    await generate({ prompt: 'geometric wolf.', style: 'blackwork', negativePrompt: 'color ink, blur' });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.input.prompt).toBe('geometric wolf. Avoid: color ink, blur.');
+    expect(body.input.negative_prompt).toBeUndefined();
+  });
+
+  it('resolves retired catalog ids (sdxl) to their Flux replacements', async () => {
+    fetchMock.mockResolvedValueOnce(replicateResponse());
+
+    const result = await generate({ prompt: 'x', modelId: 'sdxl' });
+
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toContain('black-forest-labs/flux-dev');
+    expect(result.metadata.model).toBe('flux-dev');
+  });
+
+  it('routes unknown styles to Flux Dev and returns its images', async () => {
     fetchMock.mockResolvedValueOnce(replicateResponse(['https://img.example/a.png']));
 
     const result = await generate({ prompt: 'geometric wolf' });
 
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
-    expect(body.version).toContain('stability-ai/sdxl');
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toContain('black-forest-labs/flux-dev');
     expect(result.images).toEqual(['https://img.example/a.png']);
-    expect(result.metadata.model).toBe('sdxl');
+    expect(result.metadata.model).toBe('flux-dev');
   });
 
   it('walks the replicate fallback chain when the primary model fails', async () => {
-    // anime → animeXL primary fails, dreamshaper (first fallback) succeeds
+    // anime → krea2 primary fails, flux-dev (first fallback) succeeds
     fetchMock
       .mockResolvedValueOnce(errorResponse(500))
       .mockResolvedValueOnce(replicateResponse());
 
     const result = await generate({ prompt: 'saiyan', style: 'anime' });
 
-    const firstBody = JSON.parse(fetchMock.mock.calls[0][1].body);
-    const secondBody = JSON.parse(fetchMock.mock.calls[1][1].body);
-    expect(firstBody.version).toContain('sdxl-niji-se');
-    expect(secondBody.version).toContain('dreamshaper-xl-turbo');
-    expect(result.metadata).toMatchObject({ model: 'dreamshaper', fallbackUsed: true });
+    const firstUrl = fetchMock.mock.calls[0][0];
+    const secondUrl = fetchMock.mock.calls[1][0];
+    expect(firstUrl).toContain('krea/krea-2-medium');
+    expect(secondUrl).toContain('black-forest-labs/flux-dev');
+    expect(result.metadata).toMatchObject({ model: 'flux-dev', fallbackUsed: true });
   });
 
-  it('falls back from Vertex to Replicate SDXL when Vertex exhausts retries', async () => {
+  it('falls back from Vertex to Flux Dev when Vertex exhausts retries', async () => {
     fetchMock.mockImplementation(async (url: string) => {
       if (String(url).includes('aiplatform.googleapis.com')) return errorResponse(500);
       return replicateResponse(['https://img.example/fallback.png']);
@@ -102,19 +126,19 @@ describe('generation module — replicate provider seam', () => {
     });
 
     expect(result.images).toEqual(['https://img.example/fallback.png']);
-    expect(result.metadata).toMatchObject({ model: 'sdxl', provider: 'replicate', fallbackUsed: true });
+    expect(result.metadata).toMatchObject({ model: 'flux-dev', provider: 'replicate', fallbackUsed: true });
   });
 
   it('respects an explicit modelId and skips routing', async () => {
     fetchMock.mockResolvedValueOnce(replicateResponse());
 
-    await generate({ prompt: 'x', style: 'realism', modelId: 'dreamshaper' });
+    await generate({ prompt: 'x', style: 'realism', modelId: 'flux-schnell' });
 
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
-    expect(body.version).toContain('dreamshaper-xl-turbo');
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toContain('black-forest-labs/flux-schnell');
   });
 
-  it('waits out a 429 throttle using retry_after and then succeeds', async () => {
+  it('waits out a 429 throttle using retry_after and reports real attempt telemetry', async () => {
     const throttle = () => ({
       ok: false,
       status: 429,
@@ -129,6 +153,35 @@ describe('generation module — replicate provider seam', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(result.images).toEqual(['https://img.example/ok.png']);
+    expect(result.metadata.attempts).toBe(3);
+  });
+
+  it('fans out single-output Krea into N parallel predictions and merges', async () => {
+    let call = 0;
+    fetchMock.mockImplementation(async () => {
+      call += 1;
+      return replicateResponse([`https://img.example/krea-${call}.png`]);
+    });
+
+    const result = await generate({ prompt: 'deku', style: 'anime', numImages: 4 });
+
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    for (const [url, init] of fetchMock.mock.calls) {
+      expect(url).toContain('krea/krea-2-medium');
+      expect(JSON.parse(init.body).input.num_outputs).toBeUndefined();
+    }
+    expect(result.images).toHaveLength(4);
+    expect(result.metadata).toMatchObject({ model: 'krea2', attempts: 4 });
+  });
+
+  it('remaps ratios a model does not accept to its nearest legal ratio', async () => {
+    fetchMock.mockResolvedValueOnce(replicateResponse());
+
+    // Krea's schema has no 3:4 — expect the 4:5 remap.
+    await generate({ prompt: 'x', style: 'anime', aspectRatio: '3:4' });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.input.aspect_ratio).toBe('4:5');
   });
 
   it('gives up on a persistent 429 with the typed replicate error', async () => {
@@ -139,7 +192,7 @@ describe('generation module — replicate provider seam', () => {
     });
     fetchMock.mockResolvedValue(throttle());
 
-    await expect(generate({ prompt: 'x', style: 'traditional', modelId: 'sdxl' })).rejects.toThrow(
+    await expect(generate({ prompt: 'x', style: 'traditional', modelId: 'flux-dev' })).rejects.toThrow(
       'Replicate API Error: 429'
     );
   });
