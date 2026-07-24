@@ -132,6 +132,14 @@ export function isValidBookingId(value: unknown): value is string {
   return typeof value === "string" && BOOKING_ID.test(value);
 }
 
+/** Strip server-side capture metadata before returning a booking to a client. */
+export function sanitizeBooking(
+  doc: Record<string, unknown>,
+): Record<string, unknown> {
+  const { ip: _ip, ...rest } = doc;
+  return rest;
+}
+
 // ─── Requested slots ───────────────────────────────────────────────────
 
 /**
