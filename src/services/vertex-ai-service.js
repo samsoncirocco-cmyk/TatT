@@ -62,8 +62,11 @@ export async function generateWithImagen({ prompt, negativePrompt, numImages = 4
 
         // Get access token
         const { GoogleAuth } = await import('google-auth-library');
+        // Serverless has no ADC — use the JSON service account when present.
+        const credsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GCP_SERVICE_ACCOUNT_KEY;
         const auth = new GoogleAuth({
-            scopes: ['https://www.googleapis.com/auth/cloud-platform']
+            scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+            ...(credsJson ? { credentials: JSON.parse(credsJson) } : {})
         });
         const client = await auth.getClient();
         const accessToken = await client.getAccessToken();
@@ -261,8 +264,11 @@ export async function generateEmbedding(imageUrls) {
         const requestBody = { instances };
 
         const { GoogleAuth } = await import('google-auth-library');
+        // Serverless has no ADC — use the JSON service account when present.
+        const credsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GCP_SERVICE_ACCOUNT_KEY;
         const auth = new GoogleAuth({
-            scopes: ['https://www.googleapis.com/auth/cloud-platform']
+            scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+            ...(credsJson ? { credentials: JSON.parse(credsJson) } : {})
         });
         const client = await auth.getClient();
         const accessToken = await client.getAccessToken();
