@@ -281,7 +281,7 @@ STRIPE_PRICE_ARTIST_SUB=price_***        # recurring Price id for the artist sub
 
 ## Next Steps
 
-1. Read `directives/local-dev-setup.md` to get started
+1. Read `directives/setup-local-dev.md` to get started
 2. Explore `directives/generate-tattoo.md` to understand the core workflow
 3. Check `execution/README.md` to see how directives map to code
 4. Run `npm run dev` and test the generation flow at `http://localhost:3000`

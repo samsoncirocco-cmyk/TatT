@@ -135,7 +135,7 @@ Maps each directive to the scripts, services, and API routes that implement it. 
 | Test GCP health | `scripts/test-gcp-health.js` |
 | Test Supabase | `scripts/test-supabase-connection.js` |
 
-### `directives/local-dev-setup.md`
+### `directives/setup-local-dev.md`
 
 | Step | Implementation |
 |------|---------------|

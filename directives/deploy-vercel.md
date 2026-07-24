@@ -171,7 +171,7 @@ git push origin manama/next  # or main for production
 **Recommendation:** Start with Hobby tier, upgrade to Pro if hitting limits.
 
 ## Related Directives
-- `local-dev-setup.md` — Setting up local environment before deploying
+- `setup-local-dev.md` — Setting up local environment before deploying
 - `api-endpoints.md` — Verify endpoints work in production
 - `generate-tattoo.md`, etc. — Test key workflows post-deployment
 
