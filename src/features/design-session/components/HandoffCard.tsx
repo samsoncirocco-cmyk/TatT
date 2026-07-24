@@ -78,8 +78,10 @@ export function HandoffCard({ session }: { session: DesignSession }) {
           >
             Fine-tune on the canvas<span className="ml-3 text-[14px]">▸</span>
           </Link>
+          {/* Carries the session id so /smart-match can load the brief,
+              pre-select mapped styles, and thread ds through to booking. */}
           <Link
-            href="/smart-match"
+            href={`/smart-match?ds=${encodeURIComponent(session.id)}`}
             className="press inline-flex items-center justify-center px-6 py-4 border hairline font-body text-[11px] uppercase tracking-[0.25em] text-white/80 hover:bg-pink hover:text-black"
           >
             Find my artist
