@@ -95,6 +95,44 @@ describe('enhanceStructured - questionnaire mode (2 ambiguous axes)', () => {
   });
 });
 
+describe('enhanceStructured - named subject (IP rule)', () => {
+  it('prompts depict the named subject instead of paraphrasing the meaning', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      meaning: 'my love of my hero academia and its characters',
+      subject: 'Izuku Midoriya (Deku) from My Hero Academia, One For All lightning around his fist',
+      ambiguousAxes: ['bold-fine', 'color-blackwork'],
+    });
+
+    for (const variation of result.variations) {
+      const prompt = variation.prompts.simple || '';
+      expect(prompt).toContain('depicting Izuku Midoriya (Deku) from My Hero Academia');
+      expect(prompt).not.toContain('expressing');
+    }
+  });
+
+  it('without a subject the meaning clause is unchanged', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      meaning: 'strength through hard times',
+      ambiguousAxes: ['bold-fine', 'color-blackwork'],
+    });
+
+    expect(result.variations[0].prompts.simple).toContain('expressing "strength through hard times"');
+  });
+
+  it('the abstract pole no longer excludes figurative depiction', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      ambiguousAxes: ['literal-abstract', 'bold-fine'],
+    });
+
+    for (const variation of result.variations) {
+      expect(variation.negativePrompt || '').not.toContain('literal figurative depiction');
+    }
+  });
+});
+
 describe('enhanceStructured - more than 2 ambiguous axes', () => {
   it('picks the two most visually consequential axes by documented priority', async () => {
     const result = await enhanceStructured({

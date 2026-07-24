@@ -6,14 +6,22 @@ import {
 } from '@/config/modelRoutingRules.js';
 import type { AspectRatio, GenerationRequest, ProviderName } from './provider';
 
-const STENCIL_SHIELD_TOKENS = '(shading, gradients, shadows, blur, 3d, realistic, photorealistic, low contrast, grey, messy lines, sketch: 1.5)';
+// Plain-language exclusion list — no SDXL "(…: 1.5)" weight dialect, since
+// these tokens now reach Imagen's negativePrompt or get folded into a Flux
+// prompt as an "Avoid:" clause, and neither speaks that syntax.
+const STENCIL_SHIELD_TOKENS = 'shading, gradients, shadows, blur, 3d, realistic, photorealistic, low contrast, grey, messy lines, sketch';
 
 const MODEL_ID_MAP: Record<string, string> = {
-  dreamshaper_turbo: 'dreamshaper',
-  anime_xl: 'animeXL',
-  tattoo_flash_art: 'tattoo',
-  blackwork_specialist: 'sdxl',
-  imagen3: 'imagen3'
+  flux_dev: 'flux-dev',
+  flux_schnell: 'flux-schnell',
+  krea_2: 'krea2',
+  imagen3: 'imagen3',
+  // Retired SDXL-era config keys — kept so anything still passing an old
+  // key (or a stored pinned route) resolves to the closest current model.
+  dreamshaper_turbo: 'flux-schnell',
+  anime_xl: 'krea2',
+  tattoo_flash_art: 'flux-dev',
+  blackwork_specialist: 'flux-dev'
 };
 
 interface StyleModelMapping {
@@ -37,7 +45,9 @@ const resolveModelId = (modelId: string): string => MODEL_ID_MAP[modelId] || mod
 
 const resolveFallbackChain = (modelId: string): string[] => {
   const chain = (MODEL_FALLBACK_CHAIN as Record<string, string[]>)[modelId] || [];
-  return chain.map(resolveModelId).filter(Boolean);
+  // Dedupe AFTER alias resolution: two config keys can map to the same
+  // catalog id, and a chain that repeats the failed model isn't a fallback.
+  return [...new Set(chain.map(resolveModelId).filter(Boolean))];
 };
 
 const getAnatomicalAspectRatio = (bodyPart?: string): AspectRatio => {
@@ -66,14 +76,14 @@ export function routeGeneration(request: GenerationRequest): GenerationRoute {
   const styleMapping: StyleModelMapping | undefined =
     (STYLE_MODEL_MAPPING as Record<string, StyleModelMapping>)[style] ||
     (STYLE_MODEL_MAPPING as Record<string, StyleModelMapping>).default;
-  let modelKey = styleMapping?.primary || 'blackwork_specialist';
+  let modelKey = styleMapping?.primary || 'flux_dev';
 
   if (mode === 'preview') {
-    modelKey = 'dreamshaper_turbo';
+    modelKey = 'flux_schnell';
   }
 
   if (request.isStencilMode) {
-    modelKey = 'blackwork_specialist';
+    modelKey = 'flux_dev';
   }
 
   const modelId = resolveModelId(modelKey);

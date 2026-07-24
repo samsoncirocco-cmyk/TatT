@@ -199,6 +199,55 @@ describe('extractIntake — LLM path (providers mocked)', () => {
     expect(record.meaning).toBe('For my grandmother, warm not somber');
   });
 
+  it('a named subject survives, and forces literal-abstract out of the ambiguous axes', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const fetchMock = vi.fn().mockResolvedValue(
+      openRouterResponse({
+        placement: 'forearm',
+        styleTags: [],
+        subject:
+          'Izuku Midoriya (Deku) from My Hero Academia, determined expression, One For All lightning crackling around his fist',
+        references: [],
+        // Model incorrectly lists literal-abstract despite naming a subject —
+        // the merge enforces the rule regardless.
+        ambiguousAxes: ['literal-abstract', 'color-blackwork'],
+      })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const record = await extractIntake({
+      placementAnswer: 'forearm',
+      meaningAnswer: 'my love of my hero academia and its characters',
+    });
+
+    expect(record.subject).toContain('Izuku Midoriya');
+    expect(record.ambiguousAxes).toEqual(['color-blackwork']);
+    // Meaning still verbatim — subject does not replace it.
+    expect(record.meaning).toBe('my love of my hero academia and its characters');
+  });
+
+  it('no subject: field stays undefined and axes pass through', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const fetchMock = vi.fn().mockResolvedValue(
+      openRouterResponse({
+        placement: 'forearm',
+        styleTags: [],
+        subject: null,
+        references: [],
+        ambiguousAxes: ['literal-abstract'],
+      })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const record = await extractIntake({
+      placementAnswer: 'forearm',
+      meaningAnswer: 'strength through hard times',
+    });
+
+    expect(record.subject).toBeUndefined();
+    expect(record.ambiguousAxes).toEqual(['literal-abstract']);
+  });
+
   it('prefers Vertex when configured and validates its tags too', async () => {
     process.env.NEXT_PUBLIC_VERTEX_AI_PROJECT_ID = 'tatt-test';
     process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON = '{"project_id":"tatt-test"}';

@@ -29,6 +29,14 @@ export interface IntakeRecord {
   styleTags: string[];
   /** Freeform emotional/meaning context, preserved verbatim as prose for the artist brief. */
   meaning: string;
+  /**
+   * Concrete visual subject when the user named a specific character,
+   * franchise, person, or thing — e.g. "Izuku Midoriya (Deku) from My Hero
+   * Academia, One For All lightning around his fist". Generation prompts
+   * depict this by name instead of paraphrasing the meaning. Absent when
+   * the request has no nameable subject.
+   */
+  subject?: string;
   /** Reference imagery the user mentioned, if any. */
   references: string[];
   /** Axes the intake left ambiguous — drives variation-axis selection (ADR-0012). */

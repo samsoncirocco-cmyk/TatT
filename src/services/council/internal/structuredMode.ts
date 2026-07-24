@@ -99,7 +99,11 @@ const POLES: Record<string, PoleSpec> = {
   abstract: {
     phrase: 'abstract interpretation',
     detail: 'suggestive shapes and symbolic forms that evoke the subject rather than depict it',
-    negative: 'photorealism, literal figurative depiction',
+    // Deliberately does NOT exclude figurative depiction: for named
+    // characters/IP a recognizable figure is the point, and intake resolves
+    // literal-abstract to literal in that case anyway — this negative only
+    // guards the drift that matters (photorealism) when abstract IS chosen.
+    negative: 'photorealism',
   },
   minimal: {
     phrase: 'minimal composition',
@@ -200,6 +204,7 @@ export function selectAxes(record: IntakeRecord): AxisSelection {
 interface PromptContext {
   styleDesc: string;
   placement: string;
+  subject?: string;
   meaningShort: string;
   aspectGuidance: string;
   flowToken: string;
@@ -211,14 +216,23 @@ function buildContext(record: IntakeRecord): PromptContext {
   return {
     styleDesc: record.styleTags.length > 0 ? record.styleTags.join(', ') : 'tattoo',
     placement,
+    subject: record.subject?.trim() || undefined,
     meaningShort: truncateWords(record.meaning, 60),
     aspectGuidance: getAspectRatioGuidance(placement),
     flowToken: anatomicalFlow[placement.toLowerCase().trim()] || 'body-part appropriate flow',
   };
 }
 
-/** The subject/mood clause every variation shares — meaning informs phrasing, verbatim-ish. */
+/**
+ * The subject clause every variation shares. When intake extracted a
+ * concrete subject (a named character, franchise, or specific thing —
+ * "Izuku Midoriya (Deku) from My Hero Academia, One For All lightning
+ * around his fist"), the prompt DEPICTS it by name — never a mood
+ * paraphrase, which fights the output for recognizable IP. Without one,
+ * meaning informs phrasing verbatim-ish, as before.
+ */
 function subjectClause(ctx: PromptContext): string {
+  if (ctx.subject) return `depicting ${ctx.subject}`;
   return ctx.meaningShort ? `expressing "${ctx.meaningShort}"` : 'as a personal design';
 }
 
