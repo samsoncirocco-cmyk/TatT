@@ -142,6 +142,6 @@ Transform a user's text prompt into a set of AI-generated tattoo design variatio
 **Average Full Workflow:** $0.042 (SDXL + Council)
 
 ## Related Directives
-- `council-enhancement.md` — Deep dive into Council AI
+- `council-enhance.md` — Deep dive into Council AI
 - `layer-management.md` — Multi-layer generation for complex designs
 - `stencil-export.md` — Converting generated images to printable stencils

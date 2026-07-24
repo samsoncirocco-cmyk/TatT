@@ -19,7 +19,7 @@ Maps each directive to the scripts, services, and API routes that implement it. 
 | API: legacy generate | `src/app/api/generate/route.ts` |
 | GCP auth | `src/lib/google-auth-edge.ts` |
 
-### `directives/council-enhancement.md`
+### `directives/council-enhance.md`
 
 | Step | Implementation |
 |------|---------------|

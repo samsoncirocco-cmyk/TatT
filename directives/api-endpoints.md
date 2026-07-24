@@ -621,6 +621,6 @@ curl -X POST https://tatt.vercel.app/api/v1/match/semantic \
 - `generate-tattoo.md` — `/api/v1/generate` workflow details
 - `artist-matching.md` — `/api/v1/match/semantic` workflow details
 - `stencil-export.md` — `/api/v1/stencil/export` workflow details
-- `council-enhancement.md` — `/api/v1/council/enhance` workflow details
+- `council-enhance.md` — `/api/v1/council/enhance` workflow details
 - `layer-management.md` — `/api/v1/layers/*` workflow details
 - `neo4j-queries.md` — `/api/neo4j/query` usage patterns
