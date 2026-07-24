@@ -1,9 +1,34 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import StudioShell from "@/components/studio/StudioShell";
 import SlashHeadline from "@/components/punk/SlashHeadline";
 import { useBookings, useDesigns, type TattBooking } from "@/lib/tattStorage";
+import { getApiAuthHeaders } from "@/lib/client-api-auth";
+import type { BookingStatus, RequestedSlot } from "@/lib/booking";
+
+/** Server-truth booking from /api/v1/bookings (webhook-reconciled status). */
+type ServerBooking = {
+  bookingId: string;
+  artistName?: string;
+  designId?: string;
+  status?: BookingStatus;
+  requestedSlots?: RequestedSlot[];
+  createdAt?: string;
+  depositCents?: number;
+};
+
+const STATUS_LABEL: Record<BookingStatus, string> = {
+  pending: "Deposit pending",
+  deposit_paid: "Deposit paid",
+  confirmed: "Confirmed",
+  declined: "Declined",
+  completed: "Completed",
+  cancelled: "Cancelled",
+  refunded: "Refunded",
+  expired: "Expired",
+};
 
 function formatBookingDate(iso: string): string {
   const [y, m, d] = iso.split("-");
@@ -65,10 +90,82 @@ function BookingCard({
   );
 }
 
+function ServerBookingCard({
+  b,
+  designLabel,
+}: {
+  b: ServerBooking;
+  designLabel: string;
+}) {
+  const date = b.requestedSlots?.[0]?.date ?? b.createdAt?.slice(0, 10) ?? "";
+  const status: BookingStatus = b.status ?? "pending";
+  const paid = status !== "pending" && status !== "expired" && status !== "cancelled";
+  return (
+    <div className="border-2 hairline p-6 md:p-8 relative">
+      <div className="flex items-baseline justify-between gap-6 flex-wrap">
+        <div>
+          <div className="font-display text-white text-[32px] sm:text-[40px] leading-none tracking-tight">
+            {date ? formatBookingDate(date) : "Date with the artist"}
+            <span className="text-pink">.</span>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-[10px] uppercase tracking-[0.25em] text-white/60 font-body">
+            {b.artistName && (
+              <>
+                <span>Artist:&nbsp;<span className="text-white">{b.artistName}</span></span>
+                <span className="text-pink">●</span>
+              </>
+            )}
+            <span>Design:&nbsp;<span className="text-white">{designLabel}</span></span>
+            <span className="text-pink">●</span>
+            <span>
+              Status:&nbsp;
+              <span className="text-pink">{STATUS_LABEL[status]}</span>
+            </span>
+          </div>
+        </div>
+        <div className="sticker inline-block px-3 py-1">
+          <div className="font-display text-[11px] tracking-widest leading-none">
+            {paid ? "Locked in" : "Awaiting deposit"}
+          </div>
+          <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-0.5">
+            {b.bookingId}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function BookingsPage() {
   const { bookings, hydrated, removeBooking } = useBookings();
   const { designs } = useDesigns();
-  const showEmpty = hydrated && bookings.length === 0;
+
+  // Server truth wins when reachable: it knows about deposit_paid transitions
+  // the localStorage mirror never learns. null = fetch failed / signed out →
+  // fall back to the local mirror (previous behavior, unchanged).
+  const [serverBookings, setServerBookings] = useState<ServerBooking[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const headers = await getApiAuthHeaders();
+        const res = await fetch("/api/v1/bookings", { headers });
+        const data = await res.json().catch(() => null);
+        if (!cancelled && res.ok && Array.isArray(data?.bookings)) {
+          setServerBookings(data.bookings as ServerBooking[]);
+        }
+      } catch {
+        // Signed out or API unreachable — local mirror stays authoritative.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const useServer = serverBookings !== null;
+  const count = useServer ? serverBookings.length : bookings.length;
+  const showEmpty = useServer ? serverBookings.length === 0 : hydrated && bookings.length === 0;
 
   const designLabel = (id?: string) => {
     if (!id) return "No design — decide in chair";
@@ -86,7 +183,7 @@ export default function BookingsPage() {
           </span>
           <span>
             Holds:&nbsp;
-            <span className="text-pink">{hydrated ? bookings.length : "—"}</span>
+            <span className="text-pink">{useServer || hydrated ? count : "—"}</span>
           </span>
         </div>
       </div>
@@ -123,6 +220,16 @@ export default function BookingsPage() {
                 Book the Chair
                 <span className="ml-3 text-[18px]">▸</span>
               </Link>
+            </div>
+          ) : useServer ? (
+            <div className="mt-12 space-y-4">
+              {serverBookings.map((b) => (
+                <ServerBookingCard
+                  key={b.bookingId}
+                  b={b}
+                  designLabel={designLabel(b.designId)}
+                />
+              ))}
             </div>
           ) : (
             <div className="mt-12 space-y-4">
