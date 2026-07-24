@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
 import { verifyFirebaseToken } from '@/lib/auth-dal';
 import { ensureAdminApp } from '@/lib/firebase-admin';
+import { sanitizeBooking } from '@/lib/booking';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -45,7 +46,7 @@ export async function GET(
       return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, booking: { id: doc.id, ...data } });
+    return NextResponse.json({ success: true, booking: sanitizeBooking({ id: doc.id, ...data }) });
   } catch (err) {
     console.error(
       `[bookings] fetch ${id} failed:`,
