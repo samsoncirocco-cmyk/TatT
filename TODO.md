@@ -5,9 +5,10 @@ agents. **Every agent: read this before starting work, update it when you
 finish or discover work.** Keep entries short; link PRs/issues; date your
 changes. Newest state wins — resolve edit conflicts by merging both lists.
 
-_Last updated: 2026-07-22 (booking gap analysis merged — PR #106; Stripe Connect
-merge 1e4dd5a landed same day: held deposits, claim flow, functional webhook;
-gap-analysis addendum reconciles the two)_
+_Last updated: 2026-07-24 (booking loop Phase 1 landed on main via #108's
+branch — 01d962a + Bugbot fixes 772853e; duplicate PR #113 closed as
+superseded, its two deltas ported via merged #117; repo hygiene sweep started —
+see "Repo hygiene" section below)_
 
 ## Now (in priority order) — THE JOURNEY QUEUE
 
@@ -92,8 +93,12 @@ J9. **Close the booking loop** — roadmap merged 2026-07-22 (PR #106):
     M003 deferred to a Phase 3 analytics mirror. Same-day Stripe Connect
     merge (1e4dd5a, PRs #92/#99) already shipped held deposits + claim flow
     + a functional webhook — see the doc's Addendum for what that closed.
-    ~~**Remaining Phase 1 blockers (doc §5, tasks 1.1–1.9)**~~ — **DONE
-    2026-07-22 (subagent fan-out, uncommitted on disk pending review):**
+    ~~**Remaining Phase 1 blockers (doc §5, tasks 1.1–1.9)**~~ — **DONE,
+    landed on main 2026-07-24** (#108's branch pushed direct as 01d962a +
+    Bugbot fixes 772853e; duplicate PR #113 closed as superseded — two
+    parallel sessions built the same J9 scope; #113's two better deltas,
+    the bookings ip-echo privacy fix and the DEPOSIT_BY_SIZE dedupe,
+    landed via merged #117):
     1.1 `bookingId` threaded through `BookClient` → `/api/checkout` →
     Stripe metadata + `success_url`; 1.2 booking state machine
     (`BookingStatus`, `canTransition`, `appendStatus`, `statusHistory`) in
@@ -106,12 +111,15 @@ J9. **Close the booking loop** — roadmap merged 2026-07-22 (PR #106):
     + `/bookings` now read server truth; 1.7 deleted dead
     `useBookingStore`/`BookingModal`; 1.8 `notify.ts` + `emailQueueService`
     real transactional email (Resend/webhook, honest degrade); 1.9 webhook
-    reconciliation integration test. Full suite 407 pass, tsc clean on
-    touched files, `next build --webpack` compiles. **Still open (deferred):**
-    `DEPOSIT_BY_SIZE` duplicated in `checkout/route.ts` (cents) vs
-    `lib/booking.ts` (dollars) — consolidate before it drifts; artist
-    dashboard/confirm-decline (Phase 2); real email provider env
-    (`RESEND_API_KEY`/`EMAIL_FROM`/`OPS_NOTIFY_EMAIL`) not yet set in prod.
+    reconciliation integration test. **Still open:** (a) real email provider
+    env (`RESEND_API_KEY`/`EMAIL_FROM`/`OPS_NOTIFY_EMAIL`) not yet set in
+    prod — 1.8's code ships but delivery is env-gated, so artists still
+    aren't actually told a paid booking exists until Samson sets these;
+    (b) artist confirm/decline dashboard (Phase 2); (c) scheduling: merge
+    PR #112 (accepted as-is 2026-07-22), then wire the slot picker into the
+    booking wizard — integration point is `BookClient.tsx` step 1 (the
+    spec's original "replace Math.random()" target no longer exists);
+    ~~DEPOSIT_BY_SIZE dedupe~~ **DONE via #117**.
 
 (Prior items now secondary: PR #40 feedback folds into J2/J3 scope; security
 reconciliation continues in parallel. Branch protection still blocked on
@@ -125,16 +133,10 @@ full run NOT launched. Resume after gate review.
 
 ## Next
 
-- **Synthetic artists.json still imported by old-theme surfaces** (audit
-  2026-07-20): /smart-match and /swipe routes lazy-load
-  src/features/SmartMatch.jsx / SwipeMatch.jsx, and
-  src/components/{SmartMatchContent,SwipeMatchContent,ArtistsContent,
-  ArtistProfileContent}.jsx still import ../data/artists.json (100 fake
-  artists). The journey path (/, /artists, /generate, /matches, /book,
-  /designs) is clean — homepage uses featured-artists.json generated FROM
-  Neo4j. Decide: retire /smart-match + /swipe (old theme, violates design
-  rule) or port to graph. scripts/ importers referencing artists.json are
-  seed tooling, fine.
+- ~~**Synthetic artists.json still imported by old-theme surfaces**~~ —
+  **RESOLVED 2026-07-21 (PR #54 merged)**: /smart-match and /swipe ported to
+  the live graph + punk design system; the four old-theme source files
+  deleted. Remaining artists.json imports are seed tooling in scripts/.
 - **Samson-only ops checklist** (executed 2026-07-21; one item left):
   1. **DEFERRED TO PRE-LAUNCH (Samson, 2026-07-24):** live Stripe
      end-to-end verification. Not urgent — TatT is not taking customers
@@ -166,6 +168,73 @@ full run NOT launched. Resume after gate review.
    delete. Seed artists (float ids), their Tattoo/Instagram/State/Website nodes,
    null-placeId shops, and orphaned tags/cities removed. Live graph is now 100%
    real scraped data. Re-seeding (if ever needed): `scripts/import-to-neo4j.js`.
+
+## Repo hygiene — branch & PR close-out (2026-07-24)
+
+Survey of all 60 remote branches (ancestry, `git cherry` patch-equivalence,
+PR state by head). Remote sessions can only push their own branch — branch
+deletion and tag pushes 403 at the git proxy — so the delete/tag commands
+below are **Samson-run-locally** items.
+
+**Open-PR queue (merge order recommendation):** #118 design-bot (review
+first — biggest, freshest, high-risk surface) · #112 scheduling engine
+(already accepted, additive — merge) · #109 debounce + #103 CTA-signup
+(small, merge) · #110 auto-save/delete, #105 weighted rating, #104
+thin-match broaden (medium — quick review each). Crew PRs base on pre-#108
+main; if any turn CONFLICTING as the queue merges, update the branch. Each
+head branch is deletable the moment its PR merges.
+
+**Delete now — 17 branches verified 100% landed on main** (recovery:
+`git push origin <sha>:refs/heads/<name>`):
+
+```
+git push origin --delete \
+  feat/wire-real-matching feat/portfolio-image-hosting \
+  stripe-integration stripe-launch-deposits \
+  docs/railway-resolved docs/todolist-followups docs/context-glossary-dedupe \
+  brand/image2ink-two-door-copy worktree-arch-grill-docs docs/testing-rule-tiered \
+  fix/backlog-cleanup-sweep night/booking-response-hygiene \
+  claude/hopeful-wilson-7107ac port-smartmatch-swipe-to-graph \
+  feat/close-booking-loop-phase1 codex/tatt-security-hardening \
+  feat/generation-module
+```
+
+Evidence: first four are ancestors of main; the seven docs/brand/worktree/fix
+one-liners are patch-equivalent on main; night/booking-response-hygiene =
+merged #117 (f3cb135), claude/hopeful-wilson-7107ac = merged #111 (e9e3d33),
+port-smartmatch-swipe-to-graph = merged #54 (ac028fc),
+feat/close-booking-loop-phase1 = #108 closed with content on main as 01d962a
+(413a3c5), codex/tatt-security-hardening = merged #43 + 2 stale TODO-note
+commits (ab2342d), feat/generation-module = merged #51+#55 (5560978).
+
+**Legacy triage — 33 branches, all pre-dating the 2026-07-17 history rewrite**
+(decision 2026-07-24: archive-tag everything, delete groups A+C, hold B):
+
+- A (19, near-certainly landed pre-rewrite): design/punk-site-redesign,
+  fix/rate-limit-always-429, feat/handoff-screens-2, fix/ci-test-suites,
+  feat/import-scraper-pipeline, feat/user-persistence,
+  fix/firebase-admin-bootstrap, fix/council-vertex-project-id,
+  fix/startup-probe-and-ci-green, audit/engineering-guidelines-2026-07-14,
+  fix/critical-spend-security, refactor/dead-code-config,
+  fix/forge-toast-provider, docs/readme-truth-sync (superseded by #84),
+  update-atticus-neo4j, chore/cherry-pick-audit-and-gitignore,
+  worktree-roadmap-and-branch-triage, docs/roadmap-state-rescope,
+  security-hardening-followups
+- B (7, HOLD until scraper datasets confirmed safe in ~/tatt-scraper):
+  feat/artist-scraper, feat/scrape-scheduler, perf/parallel-scrape,
+  data/national-dataset, data/scrape-20k, feat/wire-national-dataset
+  (807 commits — biggest unique-content risk), samson/port-artist-crawler
+- C (7, ancient/abandoned): deploy-ready, demo-polish,
+  samsoncirocco-cmyk/map-codebase, fix/frontend-audit-yc,
+  samson/desktop-tatt-v1-gitignore-fix, codex/main-manama-integration,
+  manama/next
+
+```
+# archive every legacy head as a tag (zero loss), then delete A + C:
+for b in <A list> <B list> <C list>; do git tag "archive/$b" "origin/$b"; done
+git push origin 'refs/tags/archive/*'
+git push origin --delete <A list> <C list>
+```
 
 ## Backlog
 
