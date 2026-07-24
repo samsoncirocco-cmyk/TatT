@@ -23,6 +23,12 @@ Hours after this audit's baseline (`4269114`), the Stripe payments merge (`1e4dd
 
 **Note on the §2.4 decision:** the merge puts payment-*hold* state in Neo4j (`:BookingRelay`), while the booking *record* stays in Firestore per the Firestore-first decision. These compose (relay = money movement, booking = client request), but Phase 1 task 1.3 should link them: the webhook writes both the relay and the `booking_requests` status transition.
 
+### Decisions (2026-07-22, round 2 — Samson) + Phase 1 implementation
+
+1. **Store split ratified:** Neo4j holds artist-side config + money state (`:SessionType`, `:BookingRelay`, `artist-stripe`), Firestore holds the client booking record + schedules. "Fighting that pattern now is a rewrite for tidiness, not for correctness."
+2. **Phase 1 shipped** (tasks 1.1–1.7, 1.9): `bookingId` threads BookClient → checkout metadata → webhook; `markBookingDepositPaid` (`src/lib/booking-reconcile.ts`) transitions `booking_requests` pending → `deposit_paid` transactionally, guarded by the new `canTransition` state machine in `src/lib/booking.ts`; `/api/v1/bookings` (+`/[bookingId]`) expose owner-scoped server truth; `/book/success` and `/bookings` render reconciled status; artistId is graph-validated (fail-open on outage); dead `useBookingStore`/`BookingModal` deleted. **Still open:** real notification delivery (task 1.8 — `notifyArtistOfBooking` remains a logging stub) and the slot-picker wiring (Phase 2, after `feat/scheduling-engine` merges post-Bugbot fixes).
+3. **Scheduling branch accepted** (PR #112) pending its Bugbot-flagged fixes (timezone handling, buffer overlap, input validation) — unwired library code, so not launch-blocking.
+
 ---
 
 ## Executive Summary

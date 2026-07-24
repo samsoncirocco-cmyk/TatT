@@ -85,22 +85,23 @@ J7. ~~**One deploy target, auto-deploy, live URL**~~ — **DONE (verified
     Custom domains all wired + Firebase-authorized: tatt-t.com,
     image2ink.com, tatttester.com. Canonical-domain pick is #81 (Samson).
 
-J9. **Close the booking loop** — roadmap merged 2026-07-22 (PR #106):
-    `docs/audits/2026-07-22-booking-gap-analysis.md` (supersedes the
-    `docs/booking-gap-analysis` branch, which can be deleted). Decision
-    recorded: **Firestore-first** system-of-record for bookings; Supabase
-    M003 deferred to a Phase 3 analytics mirror. Same-day Stripe Connect
-    merge (1e4dd5a, PRs #92/#99) already shipped held deposits + claim flow
-    + a functional webhook — see the doc's Addendum for what that closed.
-    **Remaining Phase 1 blockers (doc §5, tasks 1.1–1.9):** thread
-    `bookingId` into checkout metadata; webhook transitions
-    `booking_requests` to `deposit_paid` (state machine in
-    `src/lib/booking.ts`); validate `artistId` against the graph; booking
-    read API + reconcile `/bookings` and `/book/success` with server truth;
-    make `notifyArtistOfBooking` (`src/lib/notify.ts`) actually deliver;
-    delete dead `useBookingStore`/`BookingModal`. Also: `DEPOSIT_BY_SIZE`
-    is now duplicated in `checkout/route.ts` (cents) and `lib/booking.ts`
-    (dollars) — consolidate before it drifts.
+J9. **Close the booking loop** — roadmap merged 2026-07-22 (PR #106, doc:
+    `docs/audits/2026-07-22-booking-gap-analysis.md`). Decisions: Firestore
+    holds the booking record + schedules; Neo4j holds artist config + money
+    state (ratified over rework); Supabase M003 stays a Phase 3 mirror.
+    ~~Thread bookingId into checkout metadata~~ · ~~webhook transitions
+    booking_requests → deposit_paid (canTransition state machine +
+    booking-reconcile.ts)~~ · ~~graph-validate artistId (fail-open)~~ ·
+    ~~/api/v1/bookings read APIs + server-truth /bookings + /book/success~~
+    · ~~delete dead useBookingStore/BookingModal~~ · ~~DEPOSIT_BY_SIZE
+    dedupe~~ — **DONE 2026-07-24** (Phase 1 PR from
+    claude/booking-platform-gap-analysis-w1pqsn).
+    **Still open:** (a) real notification delivery — notifyArtistOfBooking
+    is a logging stub, artist still isn't told a paid booking exists;
+    (b) scheduling: feat/scheduling-engine (PR #112) accepted but held for
+    Bugbot-flagged fixes (timezone, buffers, validation; autofix agent
+    iterating), then schedule/availability/session-type APIs + slot picker
+    in BookClient step 1 (NOT the old Math.random target — that's gone).
 
 (Prior items now secondary: PR #40 feedback folds into J2/J3 scope; security
 reconciliation continues in parallel. Branch protection still blocked on
