@@ -4,6 +4,10 @@ import { makeGenerationError } from './provider';
 const REPLICATE_API_URL = 'https://api.replicate.com/v1';
 const POLL_INTERVAL_MS = 2000;
 const MAX_POLLS = 60;
+// Replicate throttles hard when account credit is low (burst of 1/min), so
+// a reveal's four concurrent predictions must be able to wait out a 429.
+const MAX_CREATE_ATTEMPTS = 3;
+const MAX_RETRY_AFTER_MS = 15_000;
 
 interface ReplicateModel {
   id: string;
@@ -113,18 +117,39 @@ async function generateWithReplicate(request: GenerationRequest): Promise<Genera
     negative_prompt: request.negativePrompt || ''
   };
 
-  const createRes = await fetch(`${REPLICATE_API_URL}/predictions`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Token ${token}`,
-      'Content-Type': 'application/json',
-      Prefer: 'wait'
-    },
-    body: JSON.stringify({
-      version: model.version,
-      input
-    })
-  });
+  let createRes: Response;
+  let attempt = 1;
+  for (;;) {
+    createRes = await fetch(`${REPLICATE_API_URL}/predictions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Token ${token}`,
+        'Content-Type': 'application/json',
+        Prefer: 'wait'
+      },
+      body: JSON.stringify({
+        version: model.version,
+        input
+      })
+    });
+
+    if (createRes.status === 429 && attempt < MAX_CREATE_ATTEMPTS) {
+      const errText = await createRes.text();
+      let retryAfterMs = 10_000;
+      try {
+        const retryAfter = JSON.parse(errText)?.retry_after;
+        if (typeof retryAfter === 'number' && retryAfter > 0) {
+          retryAfterMs = retryAfter * 1000;
+        }
+      } catch {
+        // Non-JSON throttle body — keep the default wait.
+      }
+      await sleep(Math.min(retryAfterMs, MAX_RETRY_AFTER_MS));
+      attempt += 1;
+      continue;
+    }
+    break;
+  }
 
   if (!createRes.ok) {
     const errText = await createRes.text();

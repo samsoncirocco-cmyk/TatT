@@ -13,6 +13,9 @@ import {
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+// Four renders + council can wait out a throttled provider (429 retry_after)
+// — give the render routes headroom beyond the platform default.
+export const maxDuration = 60;
 
 // POST /api/v1/design-session — start a session: intake → council → the
 // 4-variation reveal. Thin adapter over the designSession service; this route

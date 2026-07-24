@@ -10,11 +10,27 @@ import { logger } from './logger';
 
 const projectId = process.env.GCP_PROJECT_ID;
 
+/**
+ * On Vercel there is no ADC metadata server and no credentials file — the
+ * service account lives in GOOGLE_APPLICATION_CREDENTIALS_JSON (the same
+ * variable google-auth-edge reads). Passed explicitly so the client never
+ * attempts the ADC lookup, which fails with an unhandled rejection.
+ */
+function explicitCredentials(): { credentials: object } | undefined {
+  const json = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GCP_SERVICE_ACCOUNT_KEY;
+  if (!json) return undefined;
+  try {
+    return { credentials: JSON.parse(json) };
+  } catch {
+    return undefined;
+  }
+}
+
 let metricsClient: MetricServiceClient | null = null;
 
 if (projectId) {
   try {
-    metricsClient = new MetricServiceClient();
+    metricsClient = new MetricServiceClient(explicitCredentials());
   } catch (error) {
     logger.warn({
       event_type: 'monitoring.init_failed',

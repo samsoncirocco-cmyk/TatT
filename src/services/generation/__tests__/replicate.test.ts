@@ -114,6 +114,36 @@ describe('generation module — replicate provider seam', () => {
     expect(body.version).toContain('dreamshaper-xl-turbo');
   });
 
+  it('waits out a 429 throttle using retry_after and then succeeds', async () => {
+    const throttle = () => ({
+      ok: false,
+      status: 429,
+      text: async () => JSON.stringify({ detail: 'Request was throttled.', retry_after: 0.001 })
+    });
+    fetchMock
+      .mockResolvedValueOnce(throttle())
+      .mockResolvedValueOnce(throttle())
+      .mockResolvedValueOnce(replicateResponse(['https://img.example/ok.png']));
+
+    const result = await generate({ prompt: 'x', style: 'traditional' });
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(result.images).toEqual(['https://img.example/ok.png']);
+  });
+
+  it('gives up on a persistent 429 with the typed replicate error', async () => {
+    const throttle = () => ({
+      ok: false,
+      status: 429,
+      text: async () => JSON.stringify({ detail: 'Request was throttled.', retry_after: 0.001 })
+    });
+    fetchMock.mockResolvedValue(throttle());
+
+    await expect(generate({ prompt: 'x', style: 'traditional', modelId: 'sdxl' })).rejects.toThrow(
+      'Replicate API Error: 429'
+    );
+  });
+
   it('throws a typed error when no token is configured', async () => {
     vi.stubEnv('REPLICATE_API_TOKEN', '');
 
