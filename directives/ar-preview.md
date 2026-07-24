@@ -181,7 +181,7 @@ Enable users to visualize their tattoo design overlaid on their body in real-tim
 **Average Session:** Free (no server costs unless capturing)
 
 ## Related Directives
-- `generate-tattoo.md` — Design generation (provides tattoo image)
+- `generate-design.md` — Design generation (provides tattoo image)
 - `stencil-export.md` — Export finalized placement for artist
 - `api-endpoints.md` — API reference (if using server-side AR processing)
 
