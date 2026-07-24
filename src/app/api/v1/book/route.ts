@@ -51,6 +51,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: parsed.error }, { status: 400 });
   }
 
+  // Best-effort referential check: artistId must exist in the graph. Capture
+  // must never depend on Neo4j uptime, and executeServerCypherQuery collapses
+  // BOTH "driver unconfigured" and query errors to [] — so use OPTIONAL MATCH,
+  // which yields exactly one row whenever the query actually ran. Empty result
+  // = infrastructure failure (skip validation); a row with id=null = the graph
+  // positively denies the id (client error).
+  if (parsed.value.artistId) {
+    const { executeServerCypherQuery } = await import(
+      '@/features/match-pulse/services/neo4jService'
+    );
+    const rows = await executeServerCypherQuery(
+      'OPTIONAL MATCH (a:Artist {id: $id}) RETURN a.id AS id',
+      { id: parsed.value.artistId }
+    );
+    if (rows.length > 0 && rows[0]?.id == null) {
+      return NextResponse.json(
+        { success: false, error: 'Unknown artist.' },
+        { status: 400 }
+      );
+    }
+  }
+
   const bookingId = `BK-${randomUUID().slice(0, 8).toUpperCase()}`;
   // Strip undefined values — Firestore rejects any document containing an
   // `undefined` field (e.g. optional clientPhone), throwing a validation error
