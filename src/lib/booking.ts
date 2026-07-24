@@ -85,6 +85,53 @@ export function depositForSize(size: string | undefined): number {
   return DEPOSIT_BY_SIZE[normalized] ?? DEPOSIT_BY_SIZE.medium;
 }
 
+// ─── Booking lifecycle ─────────────────────────────────────────────────
+
+/**
+ * Booking status state machine. A booking_requests doc starts at "pending"
+ * and only ever moves along these edges — the same table guards the Stripe
+ * webhook (pending → deposit_paid), the future artist inbox
+ * (deposit_paid → confirmed/declined), and cancellation/refund paths.
+ */
+export type BookingStatus =
+  | "pending"
+  | "deposit_paid"
+  | "confirmed"
+  | "declined"
+  | "completed"
+  | "cancelled"
+  | "refunded"
+  | "expired";
+
+const BOOKING_TRANSITIONS: Record<BookingStatus, readonly BookingStatus[]> = {
+  pending: ["deposit_paid", "cancelled", "expired"],
+  deposit_paid: ["confirmed", "declined", "cancelled"],
+  confirmed: ["completed", "cancelled"],
+  declined: ["refunded"],
+  cancelled: ["refunded"],
+  completed: [],
+  refunded: [],
+  expired: [],
+};
+
+const BOOKING_STATUSES = Object.keys(BOOKING_TRANSITIONS) as BookingStatus[];
+
+export function isBookingStatus(value: unknown): value is BookingStatus {
+  return typeof value === "string" && BOOKING_STATUSES.includes(value as BookingStatus);
+}
+
+/** True when moving from → to is a legal lifecycle edge. Same-state is not. */
+export function canTransition(from: BookingStatus, to: BookingStatus): boolean {
+  return BOOKING_TRANSITIONS[from]?.includes(to) ?? false;
+}
+
+/** Booking ids are minted by /api/v1/book as BK-XXXXXXXX (8 hex chars). */
+const BOOKING_ID = /^BK-[0-9A-F]{8}$/;
+
+export function isValidBookingId(value: unknown): value is string {
+  return typeof value === "string" && BOOKING_ID.test(value);
+}
+
 // ─── Requested slots ───────────────────────────────────────────────────
 
 /**

@@ -1,13 +1,73 @@
 import { describe, it, expect } from "vitest";
 import {
   availabilityLabel,
+  canTransition,
   defaultAvailability,
   depositForSize,
+  isBookingStatus,
+  isValidBookingId,
   normalizeAvailability,
   normalizeRequestedSlots,
   validateBookingRequest,
   MAX_REQUESTED_SLOTS,
+  type BookingStatus,
 } from "./booking";
+
+describe("booking lifecycle", () => {
+  it("allows the happy path: pending → deposit_paid → confirmed → completed", () => {
+    expect(canTransition("pending", "deposit_paid")).toBe(true);
+    expect(canTransition("deposit_paid", "confirmed")).toBe(true);
+    expect(canTransition("confirmed", "completed")).toBe(true);
+  });
+
+  it("allows decline and cancellation branches into refunded", () => {
+    expect(canTransition("deposit_paid", "declined")).toBe(true);
+    expect(canTransition("declined", "refunded")).toBe(true);
+    expect(canTransition("deposit_paid", "cancelled")).toBe(true);
+    expect(canTransition("cancelled", "refunded")).toBe(true);
+    expect(canTransition("pending", "expired")).toBe(true);
+  });
+
+  it("rejects skips, reversals, and same-state transitions", () => {
+    expect(canTransition("pending", "confirmed")).toBe(false);
+    expect(canTransition("pending", "completed")).toBe(false);
+    expect(canTransition("deposit_paid", "pending")).toBe(false);
+    expect(canTransition("deposit_paid", "deposit_paid")).toBe(false);
+    expect(canTransition("completed", "cancelled")).toBe(false);
+    expect(canTransition("refunded", "pending")).toBe(false);
+    expect(canTransition("expired", "deposit_paid")).toBe(false);
+  });
+
+  it("terminal states have no outgoing edges", () => {
+    const all: BookingStatus[] = [
+      "pending", "deposit_paid", "confirmed", "declined",
+      "completed", "cancelled", "refunded", "expired",
+    ];
+    for (const terminal of ["completed", "refunded", "expired"] as const) {
+      for (const to of all) {
+        expect(canTransition(terminal, to)).toBe(false);
+      }
+    }
+  });
+
+  it("isBookingStatus guards raw Firestore values", () => {
+    expect(isBookingStatus("pending")).toBe(true);
+    expect(isBookingStatus("deposit_paid")).toBe(true);
+    expect(isBookingStatus("paid")).toBe(false);
+    expect(isBookingStatus(undefined)).toBe(false);
+    expect(isBookingStatus(42)).toBe(false);
+  });
+
+  it("isValidBookingId matches the BK-XXXXXXXX mint format only", () => {
+    expect(isValidBookingId("BK-0A1B2C3D")).toBe(true);
+    expect(isValidBookingId("BK-DEADBEEF")).toBe(true);
+    expect(isValidBookingId("BK-deadbeef")).toBe(false);
+    expect(isValidBookingId("BK-123")).toBe(false);
+    expect(isValidBookingId("BOOK-0A1B2C3D")).toBe(false);
+    expect(isValidBookingId("BK-0A1B2C3D; DROP")).toBe(false);
+    expect(isValidBookingId(undefined)).toBe(false);
+  });
+});
 
 describe("availability model", () => {
   it("defaults to unknown", () => {
