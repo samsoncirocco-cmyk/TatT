@@ -154,7 +154,7 @@ function StencilPageInner() {
               <span className="text-pink">●</span>&nbsp;&nbsp;Stencil&nbsp;Forge — Pop&nbsp;Punk&nbsp;Mode
             </span>
             <TapeCTA href="/generate" variant="ghost" size="sm" arrow={false}>
-              Back to Forge
+              Open Studio
             </TapeCTA>
           </div>
         </div>

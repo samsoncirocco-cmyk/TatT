@@ -1086,7 +1086,7 @@ export default function Generate() {
             {/* Header — slashed Anton headline, pink dot meta */}
             <div className="text-center mb-12 pt-4" role="banner">
                 <h1 className="rise rise-1 font-display text-white leading-[0.88] tracking-[0.005em] text-[72px] sm:text-[104px] md:text-[128px]">
-                    THE&nbsp;<span className="slash"><span>FORGE</span></span><span className="text-pink">.</span>
+                    THE&nbsp;<span className="slash"><span>STUDIO</span></span><span className="text-pink">.</span>
                 </h1>
                 <p className="rise rise-2 mt-6 text-[10px] font-body text-pink uppercase tracking-[0.3em]" aria-label="Version 4.2 Neural Ink Generation Engine">
                     <span className="text-pink">●</span>&nbsp;&nbsp;Neural Ink Generation Engine&nbsp;—&nbsp;v4.2

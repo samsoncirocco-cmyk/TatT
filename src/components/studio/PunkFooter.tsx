@@ -4,7 +4,8 @@ const COLS = [
   {
     title: "Product",
     links: [
-      { label: "The Forge", href: "/generate" },
+      { label: "The Forge", href: "/generate/stencil" },
+      { label: "The Studio", href: "/generate" },
       { label: "Artists", href: "/artists" },
       { label: "Pricing", href: "/pricing" },
     ],

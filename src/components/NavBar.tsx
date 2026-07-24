@@ -7,7 +7,7 @@ import { Sparkles, Home, Presentation, Play } from 'lucide-react';
 const links = [
   { href: '/', label: 'Home', icon: Home },
   { href: '/demo', label: 'Demo', icon: Play },
-  { href: '/generate', label: 'Forge', icon: Sparkles },
+  { href: '/generate/stencil', label: 'Forge', icon: Sparkles },
   { href: '/pitch', label: 'Pitch', icon: Presentation },
 ];
 
