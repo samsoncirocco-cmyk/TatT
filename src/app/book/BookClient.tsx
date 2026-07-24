@@ -188,6 +188,7 @@ export default function BookClient({
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
+          bookingId: bookData.bookingId,
           artistId: artist.id,
           artistName: artist.name,
           size,

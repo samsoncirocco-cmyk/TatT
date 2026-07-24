@@ -25,12 +25,13 @@ import type Stripe from 'stripe';
 import { verifyApiAuth } from '@/lib/api-auth';
 import { stripe, stripeConfigured, platformFeeCents, CURRENCY } from '@/lib/stripe';
 import { getArtistStripe } from '@/lib/artist-stripe';
+import { depositForSize, isValidBookingId, type TattooSize } from '@/lib/booking';
 
 export const runtime = 'nodejs';
 
-type TattooSize = 'small' | 'medium' | 'large' | 'sleeve';
-
 interface CheckoutPayload {
+  /** booking_requests doc id from /api/v1/book — lets the webhook reconcile the payment. */
+  bookingId?: string;
   artistId?: string;
   artistName: string;
   size: TattooSize;
@@ -40,18 +41,6 @@ interface CheckoutPayload {
   budget: string;
   clientName: string;
   clientEmail: string;
-}
-
-const DEPOSIT_BY_SIZE: Record<TattooSize, number> = {
-  small: 75,
-  medium: 150,
-  large: 300,
-  sleeve: 500,
-};
-
-function getDepositAmount(size: string): number {
-  const normalized = size?.toLowerCase() as TattooSize;
-  return DEPOSIT_BY_SIZE[normalized] ?? DEPOSIT_BY_SIZE.medium;
 }
 
 function getBaseUrl(req: NextRequest): string {
@@ -77,13 +66,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
   }
 
-  const { artistId, artistName, size, placement, date, time, budget, clientName, clientEmail } = body;
+  const { bookingId, artistId, artistName, size, placement, date, time, budget, clientName, clientEmail } = body;
 
   if (!artistName || !size || !placement || !date || !time || !budget || !clientName || !clientEmail) {
     return NextResponse.json({ error: 'Missing required booking details.' }, { status: 400 });
   }
 
-  const depositAmount = getDepositAmount(size);
+  // Absent is allowed (old clients / direct checkout), malformed is not.
+  if (bookingId !== undefined && !isValidBookingId(bookingId)) {
+    return NextResponse.json({ error: 'Invalid bookingId.' }, { status: 400 });
+  }
+
+  const depositAmount = depositForSize(size);
   const depositAmountInCents = depositAmount * 100;
   // Client-paid booking fee, added ON TOP of the deposit so the artist keeps
   // 100% of their rate. The client pays (deposit + fee); TatT keeps the fee.
@@ -96,6 +90,7 @@ export async function POST(req: NextRequest) {
     }
     const demoParams = new URLSearchParams({
       demo: 'true',
+      ...(bookingId ? { booking: bookingId } : {}),
       artist: artistName,
       size,
       placement,
@@ -121,6 +116,7 @@ export async function POST(req: NextRequest) {
   const baseUrl = getBaseUrl(req);
   const successParams = new URLSearchParams({
     session_id: '{CHECKOUT_SESSION_ID}',
+    ...(bookingId ? { booking: bookingId } : {}),
     artist: artistName,
     size,
     placement,
@@ -131,6 +127,7 @@ export async function POST(req: NextRequest) {
   const cancelUrl = artistId ? `${baseUrl}/book?artistId=${encodeURIComponent(artistId)}` : `${baseUrl}/book`;
 
   const metadata: Record<string, string> = {
+    ...(bookingId ? { bookingId } : {}),
     artistId,
     artistName,
     size,
