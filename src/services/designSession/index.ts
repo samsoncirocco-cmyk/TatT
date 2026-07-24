@@ -14,12 +14,23 @@ import {
   refine as runRefine,
   getSession as loadById,
 } from './internal/orchestrator';
+import {
+  converse as runConverse,
+  confirmProposal as runConfirm,
+} from './internal/conversation';
+// The public boundary strips internal session state (pinned generation
+// route, conversation transcript/TurnLogs) — every function returning a
+// session projects it through toDesignSession before it leaves the module,
+// so API routes can serialize returns as-is without shipping internals to
+// the browser. Internal callers keep the full StoredSession.
+import { toDesignSession } from './internal/store';
 import type {
   DesignSession,
   StartSessionRequest,
   PickRequest,
   RefineRequest,
 } from './types';
+import type { ConverseRequest, ConverseResponse } from '../designConversation/types';
 
 export { DesignSessionError } from './internal/orchestrator';
 export type { DesignSessionErrorCode } from './internal/orchestrator';
@@ -32,6 +43,11 @@ export type {
   PickRequest,
   RefineRequest,
 } from './types';
+export type {
+  ConverseRequest,
+  ConverseResponse,
+  ConversationStage,
+} from '../designConversation/types';
 
 /**
  * Start a design session from the two intake answers: extraction →
@@ -40,7 +56,7 @@ export type {
  * Returns the persisted session in phase 'revealed'.
  */
 export async function startSession(request: StartSessionRequest): Promise<DesignSession> {
-  return runStart(request);
+  return toDesignSession(await runStart(request));
 }
 
 /**
@@ -50,7 +66,7 @@ export async function startSession(request: StartSessionRequest): Promise<Design
  * on an unknown session, a wrong phase, or invalid variation ids.
  */
 export async function recordPick(sessionId: string, request: PickRequest): Promise<DesignSession> {
-  return runPick(sessionId, request);
+  return toDesignSession(await runPick(sessionId, request));
 }
 
 /**
@@ -61,10 +77,35 @@ export async function recordPick(sessionId: string, request: PickRequest): Promi
  * DesignSessionError, never a second regen.
  */
 export async function refine(sessionId: string, request: RefineRequest): Promise<DesignSession> {
-  return runRefine(sessionId, request);
+  return toDesignSession(await runRefine(sessionId, request));
 }
 
 /** Fetch a session by id. Throws DesignSessionError (SESSION_NOT_FOUND) when absent. */
 export async function getSession(sessionId: string): Promise<DesignSession> {
-  return loadById(sessionId);
+  return toDesignSession(await loadById(sessionId));
+}
+
+/**
+ * One turn of the conversational intake (ADR-0019–0022). Without a
+ * sessionId, creates a session at phase 'intake' and returns the bot's
+ * opener; with one, runs the user's message through the conversation
+ * engine on the session's pinned conversation model. Transcript, partial
+ * record, and per-turn TurnLogs are persisted on the session every turn.
+ * Throws DesignSessionError CONVERSATION_UNAVAILABLE (503) when every
+ * conversation provider is down — callers downgrade to the scripted
+ * startSession flow (ADR-0019 degraded mode).
+ */
+export async function converse(request: ConverseRequest): Promise<ConverseResponse> {
+  return runConverse(request);
+}
+
+/**
+ * The user's yes to the proposal (ADR-0020): requires phase 'intake' with
+ * the conversation at stage 'proposal', then fires the existing reveal
+ * pipeline (council → pinned route → four renders) over the record the
+ * conversation extracted, moving the session to phase 'revealed'. Throws
+ * DesignSessionError INVALID_PHASE before the proposal or after the reveal.
+ */
+export async function confirmProposal(sessionId: string): Promise<DesignSession> {
+  return toDesignSession(await runConfirm(sessionId));
 }

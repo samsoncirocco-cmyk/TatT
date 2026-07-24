@@ -391,6 +391,28 @@ describe('getSession', () => {
   });
 });
 
+describe('public boundary — internal session state never leaves the service', () => {
+  const INTERNAL_KEYS = ['pinnedModelId', 'pinnedAspectRatio', 'conversation'];
+
+  it('strips the pinned route and conversation state from every public return', async () => {
+    const started = await startSession(startRequest);
+    const picked = await recordPick(started.id, { pickId: 'v3', mostNotYouId: 'v2' });
+    const completed = await refine(started.id, { answer: 'not stark enough' });
+    const fetched = await getSession(started.id);
+
+    for (const session of [started, picked, completed, fetched]) {
+      for (const key of INTERNAL_KEYS) {
+        expect(session).not.toHaveProperty(key);
+      }
+    }
+
+    // The internals are stripped, not lost — the stored session keeps the pin.
+    const stored = (await memorySessionStore.get(started.id)) as StoredSession;
+    expect(stored.pinnedModelId).toBe('imagen3');
+    expect(stored.pinnedAspectRatio).toBe('9:16');
+  });
+});
+
 describe('demo mode (NEXT_PUBLIC_DEMO_MODE)', () => {
   beforeEach(() => {
     process.env.NEXT_PUBLIC_DEMO_MODE = 'true';

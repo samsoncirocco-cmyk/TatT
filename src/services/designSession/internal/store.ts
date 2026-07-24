@@ -13,6 +13,38 @@
 import { ensureAdminApp } from '@/lib/firebase-admin';
 import type { DesignSession } from '../types';
 import type { AspectRatio } from '../../generation';
+import type {
+  ConversationMessage,
+  ConversationStage,
+  TurnLog,
+} from '../../designConversation/types';
+import type { IntakeRecord } from '../../intake/types';
+
+/**
+ * INTERNAL state of a conversational intake (ADR-0019–0022), stored on the
+ * session while it sits in phase 'intake'. The transcript and per-turn
+ * TurnLogs are the ADR-0022 day-one logs — the raw material of the taste
+ * graph — so they live on the persisted session, never in memory only.
+ */
+export interface ConversationState {
+  /** Full ordered transcript, bot and user messages alike. */
+  transcript: ConversationMessage[];
+  /** User turns consumed so far (the ADR-0021 cadence counter). */
+  turnCount: number;
+  /** Best-so-far structured record, filled as a side effect of the chat. */
+  record: Partial<IntakeRecord>;
+  /** One audit log per engine turn (ADR-0022). */
+  turnLogs: TurnLog[];
+  /** Where the conversation stands (ADR-0020, ADR-0021). */
+  stage: ConversationStage;
+  /**
+   * Conversation model pinned on the first turn and passed back to the
+   * engine every turn after (precedent: pinnedModelId for image renders).
+   */
+  model?: string;
+  /** The one-line playback, present once the stage reached 'proposal'. */
+  playback?: string;
+}
 
 /**
  * What we persist: the public DesignSession plus the pinned generation
@@ -26,11 +58,60 @@ export interface StoredSession extends DesignSession {
   pinnedModelId: string;
   /** Aspect ratio resolved alongside the model, kept for the regen. */
   pinnedAspectRatio?: AspectRatio;
+  /**
+   * Present only on sessions started through the conversational intake;
+   * absent on legacy scripted sessions (the ADR-0019 degraded mode). Stays
+   * on the session after the reveal — the logs travel with it (ADR-0022).
+   */
+  conversation?: ConversationState;
 }
 
 export interface SessionStore {
   get(id: string): Promise<StoredSession | null>;
   save(session: StoredSession): Promise<void>;
+}
+
+/**
+ * Project a stored session down to the frozen public DesignSession contract.
+ * Every public return of the designSession service passes through this, so
+ * internal state — the pinned generation route (ADR-0016) and the
+ * conversation transcript/TurnLogs (ADR-0022) — never leaves the server.
+ * Whitelist, never blacklist: only the frozen contract's fields are copied,
+ * so a new internal field is private by default.
+ */
+export function toDesignSession(session: StoredSession): DesignSession {
+  const {
+    id,
+    phase,
+    intake,
+    axisSelection,
+    provider,
+    variations,
+    pickId,
+    mostNotYouId,
+    refinementQuestion,
+    refinementAnswer,
+    refinedVariation,
+    brief,
+    createdAt,
+    updatedAt,
+  } = session;
+  return {
+    id,
+    phase,
+    intake,
+    axisSelection,
+    provider,
+    variations,
+    pickId,
+    mostNotYouId,
+    refinementQuestion,
+    refinementAnswer,
+    refinedVariation,
+    brief,
+    createdAt,
+    updatedAt,
+  };
 }
 
 // ─── In-memory store ───────────────────────────────────────────────────

@@ -46,8 +46,10 @@ export const API_ROUTE_SECURITY: Record<string, RouteSecurityEntry> = {
   'v1/council/generate': { class: 'firebase-auth' },
   'v1/design-session': { class: 'firebase-auth' },
   'v1/design-session/[id]': { class: 'firebase-auth' },
+  'v1/design-session/[id]/confirm': { class: 'firebase-auth' },
   'v1/design-session/[id]/pick': { class: 'firebase-auth' },
   'v1/design-session/[id]/refine': { class: 'firebase-auth' },
+  'v1/design-session/converse': { class: 'firebase-auth' },
   'v1/designs/share': { class: 'firebase-auth' },
   'v1/designs/share/[shareId]': {
     class: 'public',

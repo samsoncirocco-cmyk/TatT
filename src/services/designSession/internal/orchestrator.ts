@@ -9,11 +9,11 @@
 import { randomUUID } from 'crypto';
 import { DEMO_MOCK_IMAGES } from '@/lib/demo-images';
 import { extractIntake } from '../../intake';
+import type { IntakeRecord } from '../../intake/types';
 import { enhanceStructured } from '../../council';
 import { generate, routeGeneration } from '../../generation';
 import type { AspectRatio, GenerationRequest } from '../../generation';
 import type {
-  DesignSession,
   Variation,
   StartSessionRequest,
   PickRequest,
@@ -28,13 +28,17 @@ export type DesignSessionErrorCode =
   | 'SESSION_NOT_FOUND'
   | 'INVALID_PHASE'
   | 'INVALID_VARIATION'
-  | 'REFINEMENT_CLOSED';
+  | 'REFINEMENT_CLOSED'
+  | 'CONVERSATION_UNAVAILABLE';
 
 const ERROR_STATUS: Record<DesignSessionErrorCode, number> = {
   SESSION_NOT_FOUND: 404,
   INVALID_PHASE: 409,
   INVALID_VARIATION: 400,
   REFINEMENT_CLOSED: 409,
+  // Every conversation provider is down — the route maps this to 503 and
+  // the UI downgrades to the scripted intake (ADR-0019 degraded mode).
+  CONVERSATION_UNAVAILABLE: 503,
 };
 
 /** Domain error — carries a stable code and the HTTP status routes should map it to. */
@@ -60,7 +64,8 @@ function isDemoMode(): boolean {
   return process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 }
 
-async function loadSession(store: SessionStore, sessionId: string): Promise<StoredSession> {
+/** Load a stored session or throw SESSION_NOT_FOUND (shared with ./conversation). */
+export async function loadSession(store: SessionStore, sessionId: string): Promise<StoredSession> {
   const session = await store.get(sessionId);
   if (!session) {
     throw new DesignSessionError('SESSION_NOT_FOUND', `No design session '${sessionId}'.`);
@@ -95,17 +100,34 @@ function generationPrompt(prompts: { simple?: string; detailed?: string; ultra?:
 }
 
 /**
- * Start a session: intake extraction → Council structured enhancement →
- * four renders on ONE provider resolved once and pinned for the whole
- * session (ADR-0016). Persists and returns the session in phase 'revealed'.
+ * Start a session from the two scripted intake answers: extraction, then
+ * the shared reveal path. This IS the ADR-0019 degraded mode — it stays
+ * load-bearing as the LLM-down fallback for the conversational intake.
  */
-export async function startSession(request: StartSessionRequest): Promise<DesignSession> {
-  const store = resolveSessionStore();
-
+export async function startSession(request: StartSessionRequest): Promise<StoredSession> {
   const intake = await extractIntake({
     placementAnswer: request.placementAnswer,
     meaningAnswer: request.meaningAnswer,
   });
+  return startFromRecord(intake);
+}
+
+/**
+ * INTERNAL shared reveal path — everything a start does once an
+ * IntakeRecord exists: Council structured enhancement → one route resolved
+ * and pinned for the whole session (ADR-0016) → four renders (demo mode:
+ * free stock images) → persist at phase 'revealed'.
+ *
+ * `base` upgrades an existing stored session in place — the conversational
+ * intake's confirm (ADR-0020) — preserving its id, createdAt, and internal
+ * conversation logs (ADR-0022). Omitted, a fresh session is created (the
+ * legacy scripted startSession).
+ */
+export async function startFromRecord(
+  intake: IntakeRecord,
+  base?: StoredSession
+): Promise<StoredSession> {
+  const store = resolveSessionStore();
   const enhanced = await enhanceStructured(intake);
 
   // ADR-0016: resolve the route exactly once. Every render in this session
@@ -136,8 +158,9 @@ export async function startSession(request: StartSessionRequest): Promise<Design
   );
 
   const now = new Date().toISOString();
+  const shell = base ?? { id: randomUUID(), createdAt: now };
   const session: StoredSession = {
-    id: randomUUID(),
+    ...shell,
     phase: 'revealed',
     intake,
     axisSelection: enhanced.axisSelection,
@@ -145,7 +168,6 @@ export async function startSession(request: StartSessionRequest): Promise<Design
     pinnedModelId: route.modelId,
     pinnedAspectRatio: route.aspectRatio,
     variations,
-    createdAt: now,
     updatedAt: now,
   };
 
@@ -157,7 +179,7 @@ export async function startSession(request: StartSessionRequest): Promise<Design
  * Record the pick + most-not-you tap, derive the ONE refinement question
  * from the picked variation's axis position, and move to phase 'picked'.
  */
-export async function recordPick(sessionId: string, request: PickRequest): Promise<DesignSession> {
+export async function recordPick(sessionId: string, request: PickRequest): Promise<StoredSession> {
   const store = resolveSessionStore();
   const session = await loadSession(store, sessionId);
 
@@ -201,7 +223,7 @@ export async function recordPick(sessionId: string, request: PickRequest): Promi
  * Any call when the phase is not 'picked' is a domain error — there is
  * never a second regen.
  */
-export async function refine(sessionId: string, request: RefineRequest): Promise<DesignSession> {
+export async function refine(sessionId: string, request: RefineRequest): Promise<StoredSession> {
   const store = resolveSessionStore();
   const session = await loadSession(store, sessionId);
 
@@ -277,6 +299,6 @@ export async function refine(sessionId: string, request: RefineRequest): Promise
 }
 
 /** Fetch a session by id. Throws SESSION_NOT_FOUND when it doesn't exist. */
-export async function getSession(sessionId: string): Promise<DesignSession> {
+export async function getSession(sessionId: string): Promise<StoredSession> {
   return loadSession(resolveSessionStore(), sessionId);
 }
