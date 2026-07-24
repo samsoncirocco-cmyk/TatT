@@ -12,7 +12,7 @@
  * avoids a dependency that might not exist yet.
  */
 
-export type DepositType = 'flat' | 'percentage' | 'none';
+export type DepositType = "flat" | "percentage" | "none";
 
 export interface SessionType {
   id: string;
@@ -73,16 +73,18 @@ export interface CreateSessionTypeInput {
  * irrelevant. For 'percentage' the price must be provided.
  */
 export function computeDepositCents(
-  sessionType: Pick<SessionType, 'depositType' | 'depositAmount'>,
+  sessionType: Pick<SessionType, "depositType" | "depositAmount">,
   estimatedPriceCents?: number,
 ): number {
   switch (sessionType.depositType) {
-    case 'flat':
+    case "flat":
       return Math.max(0, sessionType.depositAmount);
-    case 'percentage':
+    case "percentage":
       if (!estimatedPriceCents || estimatedPriceCents <= 0) return 0;
-      return Math.round((estimatedPriceCents * sessionType.depositAmount) / 10_000);
-    case 'none':
+      return Math.round(
+        (estimatedPriceCents * sessionType.depositAmount) / 10_000,
+      );
+    case "none":
     default:
       return 0;
   }
@@ -100,26 +102,57 @@ export function validateSessionTypeInput(
   input: Partial<CreateSessionTypeInput>,
 ): { ok: true; value: CreateSessionTypeInput } | { ok: false; error: string } {
   if (!input.artistId?.trim()) {
-    return { ok: false, error: 'artistId is required' };
+    return { ok: false, error: "artistId is required" };
   }
   if (!input.name?.trim() || input.name.length > 100) {
-    return { ok: false, error: 'name is required (max 100 chars)' };
+    return { ok: false, error: "name is required (max 100 chars)" };
   }
-  if (!input.slug?.trim() || !validateSessionTypeSlug(input.slug || '')) {
-    return { ok: false, error: 'slug must be 2-60 chars, lowercase, hyphens only' };
+  if (!input.slug?.trim() || !validateSessionTypeSlug(input.slug || "")) {
+    return {
+      ok: false,
+      error: "slug must be 2-60 chars, lowercase, hyphens only",
+    };
   }
-  if (!input.durationMinutes || input.durationMinutes < 15 || input.durationMinutes > 720) {
-    return { ok: false, error: 'durationMinutes must be 15-720' };
+  if (
+    !input.durationMinutes ||
+    input.durationMinutes < 15 ||
+    input.durationMinutes > 720
+  ) {
+    return { ok: false, error: "durationMinutes must be 15-720" };
   }
 
-  const depositType = input.depositType ?? 'none';
+  const depositType = input.depositType ?? "none";
   const depositAmount = input.depositAmount ?? 0;
 
-  if (depositType === 'flat' && (depositAmount < 0 || depositAmount > 100000)) {
-    return { ok: false, error: 'flat deposit must be 0-100000 cents ($0-$1000)' };
+  if (
+    depositType !== "flat" &&
+    depositType !== "percentage" &&
+    depositType !== "none"
+  ) {
+    return {
+      ok: false,
+      error: "depositType must be flat, percentage, or none",
+    };
   }
-  if (depositType === 'percentage' && (depositAmount < 0 || depositAmount > 10000)) {
-    return { ok: false, error: 'percentage deposit must be 0-10000 bps (0-100%)' };
+  if (depositType === "flat" && (depositAmount < 0 || depositAmount > 100000)) {
+    return {
+      ok: false,
+      error: "flat deposit must be 0-100000 cents ($0-$1000)",
+    };
+  }
+  if (
+    depositType === "percentage" &&
+    (depositAmount < 0 || depositAmount > 10000)
+  ) {
+    return {
+      ok: false,
+      error: "percentage deposit must be 0-10000 bps (0-100%)",
+    };
+  }
+
+  const minimumBookingNoticeHours = input.minimumBookingNoticeHours ?? 24;
+  if (minimumBookingNoticeHours < 0) {
+    return { ok: false, error: "minimumBookingNoticeHours must be >= 0" };
   }
 
   return {
@@ -135,11 +168,14 @@ export function validateSessionTypeInput(
       requiresApproval: input.requiresApproval ?? false,
       beforeBufferMinutes: input.beforeBufferMinutes ?? 30,
       afterBufferMinutes: input.afterBufferMinutes ?? 30,
-      minimumBookingNoticeHours: input.minimumBookingNoticeHours ?? 24,
+      minimumBookingNoticeHours,
       intakeFields: input.intakeFields ?? [],
-      cancellationPolicyHoursFullRefund: input.cancellationPolicyHoursFullRefund ?? 72,
-      cancellationPolicyHoursPartialRefund: input.cancellationPolicyHoursPartialRefund ?? 48,
-      cancellationPolicyPartialRefundBps: input.cancellationPolicyPartialRefundBps ?? 5000,
+      cancellationPolicyHoursFullRefund:
+        input.cancellationPolicyHoursFullRefund ?? 72,
+      cancellationPolicyHoursPartialRefund:
+        input.cancellationPolicyHoursPartialRefund ?? 48,
+      cancellationPolicyPartialRefundBps:
+        input.cancellationPolicyPartialRefundBps ?? 5000,
     },
   };
 }
