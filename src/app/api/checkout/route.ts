@@ -27,10 +27,9 @@ import { verifyFirebaseToken } from '@/lib/auth-dal';
 import { ensureAdminApp } from '@/lib/firebase-admin';
 import { stripe, stripeConfigured, platformFeeCents, CURRENCY } from '@/lib/stripe';
 import { getArtistStripe } from '@/lib/artist-stripe';
+import { depositForSize, type TattooSize } from '@/lib/booking';
 
 export const runtime = 'nodejs';
-
-type TattooSize = 'small' | 'medium' | 'large' | 'sleeve';
 
 interface CheckoutPayload {
   artistId?: string;
@@ -43,18 +42,6 @@ interface CheckoutPayload {
   clientName: string;
   clientEmail: string;
   bookingId?: string;
-}
-
-const DEPOSIT_BY_SIZE: Record<TattooSize, number> = {
-  small: 75,
-  medium: 150,
-  large: 300,
-  sleeve: 500,
-};
-
-function getDepositAmount(size: string): number {
-  const normalized = size?.toLowerCase() as TattooSize;
-  return DEPOSIT_BY_SIZE[normalized] ?? DEPOSIT_BY_SIZE.medium;
 }
 
 function getBaseUrl(req: NextRequest): string {
@@ -117,7 +104,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const depositAmount = getDepositAmount(size);
+  const depositAmount = depositForSize(size);
   const depositAmountInCents = depositAmount * 100;
   // Client-paid booking fee, added ON TOP of the deposit so the artist keeps
   // 100% of their rate. The client pays (deposit + fee); TatT keeps the fee.
