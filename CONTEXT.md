@@ -60,6 +60,19 @@ Finding the right artist for a design via vector, graph, and real-time
 signals. Not yet a deep module; see todolist.md.
 _Avoid_: search, recommendations
 
+**Forge**:
+The main design surface at `/generate/stencil`: prompt → four cuts → find
+artists. The product every CTA and nav "Forge" link points at; input-first
+layout (ADR-0018). Kept deliberately separate from the Studio (ADR-0017).
+_Avoid_: stencil page (internal path name), calling the Studio "the Forge"
+
+**Studio**:
+The multi-layer power editor at `/generate` (canvas, placement, transforms).
+A power tool behind explicit doors ("Studio" nav/footer links, cut cards'
+"Layers", the Forge's "Open Studio") — never part of the main journey.
+Invest or delete based on real usage (ADR-0017).
+_Avoid_: Forge (its old name), editor page
+
 ### Design bot (ADR-0009–0016)
 
 **Confidence layer**:

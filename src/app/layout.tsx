@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import DemoModeBanner from "@/components/DemoModeBanner";
-import NavBar from "@/components/NavBar";
 import { AuthProvider } from "@/components/AuthProvider";
 import SignInPromptGate from "@/components/auth/SignInPromptGate";
 import { ToastProvider } from "@/contexts/ToastContext";
@@ -23,12 +22,7 @@ export default function RootLayout({
           <ToastProvider>
             {/* Demo mode banner — fixed top, only renders when NEXT_PUBLIC_DEMO_MODE=true */}
             <DemoModeBanner />
-            {/* Page content — pb-24 reserves room for the bottom NavBar */}
-            <div className="pb-24">
-              {children}
-            </div>
-            {/* Persistent bottom navigation */}
-            <NavBar />
+            {children}
             {/* Sign-in modal, shown on 401 AUTH_REQUIRED from any API call */}
             <SignInPromptGate />
           </ToastProvider>
