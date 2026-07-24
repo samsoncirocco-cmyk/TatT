@@ -1,0 +1,81 @@
+// Shared contract for the design-session pipeline (ADR-0012, ADR-0013,
+// ADR-0016). The session service, API routes, and reveal UI all build against
+// these types — treat this file as frozen; changing it is a cross-module
+// contract change, not a local edit.
+
+import type { IntakeRecord, AxisSelection } from '../intake/types';
+
+/**
+ * A session's lifecycle. Transitions are one-way (ADR-0013 hard stop):
+ * intake → revealed → picked → complete. There is no path back from
+ * 'complete' and exactly one refinement round between 'picked' and it.
+ */
+export type SessionPhase = 'intake' | 'revealed' | 'picked' | 'complete';
+
+/** One of the reveal's four designs (or the single refined regen). */
+export interface Variation {
+  id: string;
+  /** Questionnaire mode: axis → pole (e.g. {"bold-fine":"bold"}). Compositional mode: {composition: "<treatment>"}. */
+  axisPosition: Record<string, string>;
+  prompt: string;
+  negativePrompt?: string;
+  imageUrl?: string;
+}
+
+export interface DesignSession {
+  id: string;
+  phase: SessionPhase;
+  intake: IntakeRecord;
+  axisSelection: AxisSelection;
+  /** Image provider locked for the whole session (ADR-0016). */
+  provider: string;
+  /** Exactly 4 after reveal. */
+  variations: Variation[];
+  /** Variation id the user chose. */
+  pickId?: string;
+  /** Variation id from the most-not-you tap — the one clean negative signal. */
+  mostNotYouId?: string;
+  /** The single refinement question derived from the pick's axis position. */
+  refinementQuestion?: string;
+  refinementAnswer?: string;
+  /** The one regen (ADR-0013). Present only in phase 'complete'. */
+  refinedVariation?: Variation;
+  brief?: Brief;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * The artist-facing deliverable (see CONTEXT.md "Brief"). Travels with the
+ * booking; the artist creates the design — the brief informs it.
+ */
+export interface Brief {
+  placement: string;
+  styleTags: string[];
+  /** Freeform emotional context, verbatim from intake (ADR-0010). */
+  meaning: string;
+  references: string[];
+  finalImageUrl?: string;
+  axisSelection: AxisSelection;
+  /** Subtle placement concerns flagged for the consult (ADR-0014). */
+  placementNotes: string[];
+  /** The most-not-you variation's axis position — negative preference context. */
+  rejectedAxisPosition?: Record<string, string>;
+}
+
+/** POST /api/v1/design-session — start: runs intake → council → generation. */
+export interface StartSessionRequest {
+  placementAnswer: string;
+  meaningAnswer: string;
+}
+
+/** POST /api/v1/design-session/[id]/pick */
+export interface PickRequest {
+  pickId: string;
+  mostNotYouId: string;
+}
+
+/** POST /api/v1/design-session/[id]/refine — allowed exactly once. */
+export interface RefineRequest {
+  answer: string;
+}
