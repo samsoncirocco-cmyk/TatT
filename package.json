@@ -34,6 +34,7 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",
+    "fabric": "^7.4.0",
     "firebase": "^12.8.0",
     "firebase-admin": "^13.6.0",
     "framer-motion": "^12.26.2",

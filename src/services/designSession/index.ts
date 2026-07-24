@@ -13,6 +13,7 @@ import {
   recordPick as runPick,
   refine as runRefine,
   getSession as loadById,
+  attachPlacementPreview as runAttachPreview,
 } from './internal/orchestrator';
 import {
   converse as runConverse,
@@ -83,6 +84,19 @@ export async function refine(sessionId: string, request: RefineRequest): Promise
 /** Fetch a session by id. Throws DesignSessionError (SESSION_NOT_FOUND) when absent. */
 export async function getSession(sessionId: string): Promise<DesignSession> {
   return toDesignSession(await loadById(sessionId));
+}
+
+/**
+ * Attach the placement-preview screenshot URL to a completed session's
+ * Brief (the /design canvas step). Requires phase 'complete'; re-placing
+ * overwrites the previous preview. The Brief carries the URL into the
+ * booking record via /api/v1/book.
+ */
+export async function attachPlacementPreview(
+  sessionId: string,
+  previewUrl: string
+): Promise<DesignSession> {
+  return toDesignSession(await runAttachPreview(sessionId, previewUrl));
 }
 
 /**

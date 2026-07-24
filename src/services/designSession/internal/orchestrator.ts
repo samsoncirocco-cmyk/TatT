@@ -302,3 +302,31 @@ export async function refine(sessionId: string, request: RefineRequest): Promise
 export async function getSession(sessionId: string): Promise<StoredSession> {
   return loadSession(resolveSessionStore(), sessionId);
 }
+
+/**
+ * Attach the placement-preview screenshot URL to a completed session's
+ * Brief. The preview is a canvas artifact, not a regen — it does not touch
+ * the ADR-0013 hard stop, and re-placing overwrites the previous preview.
+ * Only allowed at phase 'complete': the Brief is what carries it into the
+ * booking record, and the Brief only exists after the refinement round.
+ */
+export async function attachPlacementPreview(
+  sessionId: string,
+  previewUrl: string
+): Promise<StoredSession> {
+  const store = resolveSessionStore();
+  const session = await loadSession(store, sessionId);
+
+  if (session.phase !== 'complete' || !session.brief) {
+    throw new DesignSessionError(
+      'INVALID_PHASE',
+      `Cannot attach a placement preview while the session is '${session.phase}' — the preview belongs to the finished Brief.`
+    );
+  }
+
+  session.brief.placementPreviewUrl = previewUrl;
+  session.updatedAt = new Date().toISOString();
+
+  await store.save(session);
+  return session;
+}

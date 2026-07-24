@@ -70,6 +70,18 @@ export function submitRefinement(sessionId: string, request: RefineRequest): Pro
 }
 
 /**
+ * POST /api/v1/design-session/[id]/placement-preview — persist the flattened
+ * placement-preview screenshot (PNG data URL) onto the completed session's
+ * Brief so it attaches to the booking record.
+ */
+export function attachPlacementPreview(
+  sessionId: string,
+  imageData: string
+): Promise<DesignSession> {
+  return postJson(`${BASE_PATH}/${sessionId}/placement-preview`, { imageData });
+}
+
+/**
  * POST /api/v1/design-session/converse — one conversational intake turn
  * (ADR-0019). Omit sessionId and message to open a new conversation. A 503
  * (every provider down) throws ConversationUnavailableError so the UI can
