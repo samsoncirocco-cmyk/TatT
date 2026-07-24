@@ -4,6 +4,7 @@ import { generate } from '@/services/generation';
 import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { checkBudget, recordSpend, VERTEX_IMAGEN_COST_CENTS } from '@/lib/budget-tracker';
 import { createRequestLogger } from '@/lib/logger';
+import { DEMO_MOCK_IMAGES } from '@/lib/demo-images';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,14 +17,6 @@ export const dynamic = 'force-dynamic';
 // Spend on a replicate-sdxl fallback result (~1 cent), matching the old
 // route's flat fallback cost.
 const REPLICATE_FALLBACK_COST_CENTS = 1;
-
-// Demo-mode mock images (Unsplash tattoo photos, no API cost)
-const DEMO_MOCK_IMAGES = [
-    'https://images.unsplash.com/photo-1565058379802-bbe93b2f703f?w=1024&h=1024&fit=crop',
-    'https://images.unsplash.com/photo-1598371839696-5c5bb00bdc28?w=1024&h=1024&fit=crop',
-    'https://images.unsplash.com/photo-1611501275019-9b5cda994e8d?w=1024&h=1024&fit=crop',
-    'https://images.unsplash.com/photo-1590246814883-57c511e76729?w=1024&h=1024&fit=crop',
-];
 
 export async function POST(req: NextRequest) {
     const reqLogger = createRequestLogger('generate');

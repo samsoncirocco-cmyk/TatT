@@ -162,30 +162,38 @@ describe('POST /api/v1/design-session route adapter', () => {
     expect(recordSpendMock).not.toHaveBeenCalled();
   });
 
-  it('demo mode returns a mocked revealed session without touching services or budget', async () => {
+  it('demo mode delegates to the real service (persisted session) and skips rate/budget/spend', async () => {
     process.env.NEXT_PUBLIC_DEMO_MODE = 'true';
+    const session = makeSession();
+    startSessionMock.mockResolvedValueOnce(session);
 
-    const res = await POST(makeRequest(URL, { placementAnswer: 'wrist', meaningAnswer: 'my dog' }));
+    const res = await POST(makeRequest(URL, { placementAnswer: '  wrist  ', meaningAnswer: 'my dog' }));
 
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.success).toBe(true);
-    expect(json.session.phase).toBe('revealed');
-    expect(json.session.provider).toBe('demo');
-    expect(json.session.intake.placement).toBe('wrist');
-    expect(json.session.variations).toHaveLength(4);
-    for (const variation of json.session.variations) {
-      expect(variation.imageUrl).toContain('images.unsplash.com');
-      expect(Object.keys(variation.axisPosition).sort()).toEqual(['bold-fine', 'color-blackwork']);
-    }
-    expect(json.session.axisSelection).toMatchObject({
-      mode: 'questionnaire',
-      axes: ['bold-fine', 'color-blackwork']
-    });
-    expect(json.session.axisSelection.rationale).toBeTruthy();
+    expect(json.session).toMatchObject({ id: 'sess-1', phase: 'revealed' });
 
-    expect(startSessionMock).not.toHaveBeenCalled();
+    // The REAL service runs (and persists) — no fabricated session.
+    expect(startSessionMock).toHaveBeenCalledWith({
+      placementAnswer: 'wrist',
+      meaningAnswer: 'my dog'
+    });
+
+    // Demo renders are free stock images: no rate/budget policy, no spend.
+    expect(rateLimitMock).not.toHaveBeenCalled();
     expect(checkBudgetMock).not.toHaveBeenCalled();
     expect(recordSpendMock).not.toHaveBeenCalled();
   }, 10_000);
+
+  it('demo mode still validates input with 400 before calling the service', async () => {
+    process.env.NEXT_PUBLIC_DEMO_MODE = 'true';
+
+    const res = await POST(makeRequest(URL, { meaningAnswer: 'my dog' }));
+
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.code).toBe('INVALID_PLACEMENT_ANSWER');
+    expect(startSessionMock).not.toHaveBeenCalled();
+  });
 });

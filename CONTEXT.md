@@ -82,9 +82,23 @@ finished design. Bot, reveal, and canvas exist to move a first-timer from
 _Avoid_: design tool, AI art generator
 
 **Intake**:
-The two conversational opening questions — placement and meaning — that start
-a design session (ADR-0009). Rendered as chat, never labeled fields.
+The conversation that starts a design session (ADR-0019): the bot opens on
+placement and meaning, then genuinely converses — follow-ups, threads —
+filling the intake record as a side effect. Never labeled fields; the
+scripted two-question version (ADR-0009) survives only as the LLM-down
+degraded mode.
 _Avoid_: form, questionnaire, prompt box
+
+**Proposal**:
+The announce-and-confirm beat that ends intake (ADR-0020): the bot plays
+back what it heard in one line and generates the reveal on the user's yes.
+_Avoid_: auto-fire, "generating…" (the user consents first)
+
+**Warm handoff**:
+The turn-20 exit (ADR-0021): a user who can't converge is steered to
+artists offering free consultations — framed as the bot's judgment call,
+never as a limit the user hit.
+_Avoid_: timeout, limit, failure state
 
 **Brief**:
 The structured record a session produces for the artist: placement, closed

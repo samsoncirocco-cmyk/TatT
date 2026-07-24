@@ -179,7 +179,7 @@ describe('DesignSessionFlow', () => {
 
     // CTAs out — canvas and artist matching.
     expect(screen.getByRole('link', { name: /fine-tune on the canvas/i }).getAttribute('href')).toBe('/generate');
-    expect(screen.getByRole('link', { name: /find my artist/i }).getAttribute('href')).toBe('/smart-match');
+    expect(screen.getByRole('link', { name: /find my artist/i }).getAttribute('href')).toBe('/smart-match?ds=sess-1');
   });
 
   it('offers no second refinement affordance after completion (ADR-0013 hard stop)', async () => {

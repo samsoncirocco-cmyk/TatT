@@ -225,6 +225,8 @@ export type BookingPayload = {
   budget: string;
   designId?: string;
   designImageUrl?: string;
+  /** Design-session id ("ds" query param) — links the booking to its Brief. */
+  designSessionId?: string;
   requestedSlots: RequestedSlot[];
 };
 
@@ -273,6 +275,7 @@ export function validateBookingRequest(body: unknown): BookingValidation {
       budget,
       designId: optionalString(raw.designId, 80),
       designImageUrl: optionalString(raw.designImageUrl, 1000),
+      designSessionId: optionalString(raw.designSessionId, 120),
       requestedSlots: normalizeRequestedSlots(raw.requestedSlots),
     },
   };

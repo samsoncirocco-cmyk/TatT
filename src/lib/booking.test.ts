@@ -159,6 +159,46 @@ describe("validateBookingRequest", () => {
     }
   });
 
+  it("accepts and trims a designSessionId", () => {
+    const result = validateBookingRequest({
+      ...valid,
+      designSessionId: "  sess-abc123  ",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.designSessionId).toBe("sess-abc123");
+    }
+  });
+
+  it("drops non-string or blank designSessionId instead of failing", () => {
+    for (const bad of [42, { id: "sess-1" }, ["sess-1"], true, "   ", null]) {
+      const result = validateBookingRequest({ ...valid, designSessionId: bad });
+      expect(result.ok, `expected valid with designSessionId ${JSON.stringify(bad)}`).toBe(true);
+      if (result.ok) {
+        expect(result.value.designSessionId).toBeUndefined();
+      }
+    }
+  });
+
+  it("leaves designSessionId undefined when absent", () => {
+    const result = validateBookingRequest(valid);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.designSessionId).toBeUndefined();
+    }
+  });
+
+  it("truncates an oversized designSessionId to a sane length", () => {
+    const result = validateBookingRequest({
+      ...valid,
+      designSessionId: "s".repeat(500),
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.designSessionId).toHaveLength(120);
+    }
+  });
+
   it("truncates oversized fields instead of failing", () => {
     const result = validateBookingRequest({
       ...valid,

@@ -1,9 +1,15 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   CANONICAL_STYLES,
   stylesFromDescriptors,
   parseStylesParam,
   matchesUrlForDesign,
+  ONTOLOGY_TO_CANONICAL_STYLE,
+  UNMAPPED_ONTOLOGY_TAGS,
+  canonicalStylesFromOntologyTags,
 } from "./design-style-signal";
 
 describe("stylesFromDescriptors", () => {
@@ -99,6 +105,81 @@ describe("parseStylesParam", () => {
     expect(parseStylesParam(undefined)).toEqual([]);
     expect(parseStylesParam("")).toEqual([]);
     expect(parseStylesParam(",,,")).toEqual([]);
+  });
+});
+
+describe("ontology → canonical style bridge", () => {
+  // Read the real ontology so growth of data/style-ontology.json flags any
+  // new tag that is neither mapped nor explicitly listed as unmapped.
+  const ontologyPath = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "../../data/style-ontology.json",
+  );
+  const ontology = JSON.parse(readFileSync(ontologyPath, "utf8")) as {
+    tags: Array<{ id: string }>;
+  };
+  const ontologyIds = ontology.tags.map((t) => t.id);
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("accounts for every current ontology id — mapped XOR explicitly unmapped", () => {
+    for (const id of ontologyIds) {
+      const mapped = id in ONTOLOGY_TO_CANONICAL_STYLE;
+      const unmapped = UNMAPPED_ONTOLOGY_TAGS.includes(id);
+      expect(
+        mapped !== unmapped,
+        `ontology tag "${id}" must be either mapped or listed in UNMAPPED_ONTOLOGY_TAGS (exactly one)`,
+      ).toBe(true);
+    }
+  });
+
+  it("carries no stale entries for ids the ontology no longer has", () => {
+    for (const id of [...Object.keys(ONTOLOGY_TO_CANONICAL_STYLE), ...UNMAPPED_ONTOLOGY_TAGS]) {
+      expect(ontologyIds, `"${id}" is not a current ontology id`).toContain(id);
+    }
+  });
+
+  it("only maps onto canonical graph style names", () => {
+    for (const style of Object.values(ONTOLOGY_TO_CANONICAL_STYLE)) {
+      expect(CANONICAL_STYLES).toContain(style);
+    }
+  });
+
+  it("maps a brief's ontology tags to canonical styles in order", () => {
+    expect(canonicalStylesFromOntologyTags(["fine-line", "blackwork"])).toEqual([
+      "Fine Line",
+      "Blackwork",
+    ]);
+  });
+
+  it("dedupes tags that collapse into the same canonical style", () => {
+    expect(canonicalStylesFromOntologyTags(["japanese", "irezumi"])).toEqual(["Japanese"]);
+    expect(canonicalStylesFromOntologyTags(["anime", "manga"])).toEqual(["Anime"]);
+  });
+
+  it("drops unmapped tags with a logged note instead of guessing", () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    expect(canonicalStylesFromOntologyTags(["surrealism", "fine-line", "color"])).toEqual([
+      "Fine Line",
+    ]);
+    expect(info).toHaveBeenCalledTimes(1);
+    expect(info.mock.calls[0][0]).toContain("surrealism");
+    expect(info.mock.calls[0][0]).toContain("color");
+  });
+
+  it("logs nothing when every tag maps", () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    canonicalStylesFromOntologyTags(["blackwork"]);
+    expect(info).not.toHaveBeenCalled();
+  });
+
+  it("caps the signal at three styles and handles empty input", () => {
+    expect(
+      canonicalStylesFromOntologyTags(["traditional", "blackwork", "fine-line", "realism"]),
+    ).toEqual(["Traditional", "Blackwork", "Fine Line"]);
+    expect(canonicalStylesFromOntologyTags([])).toEqual([]);
   });
 });
 

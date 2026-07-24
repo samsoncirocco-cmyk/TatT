@@ -33,15 +33,21 @@ type SessionAction =
   | { kind: 'refine'; sessionId: string; answer: string };
 
 /**
- * The whole design session as one conversation: intake → working state →
- * reveal → pick → most-not-you tap → one refinement round → hard-stop
- * handoff (ADR-0013). State only ever moves forward.
+ * The design session as one conversation: intake → working state → reveal →
+ * pick → most-not-you tap → one refinement round → hard-stop handoff
+ * (ADR-0013). State only ever moves forward.
+ *
+ * The scripted two-question intake here is the LLM-down degraded mode
+ * (ADR-0019); the live conversational intake (DesignConversation) hands an
+ * already-revealed session in via `initialSession`, which starts this flow
+ * at the reveal with the intake transcript owned by the conversation.
  */
-export function DesignSessionFlow() {
-  const [step, setStep] = useState<FlowStep>('ask-placement');
+export function DesignSessionFlow({ initialSession }: { initialSession?: DesignSession } = {}) {
+  const scriptedIntake = initialSession == null;
+  const [step, setStep] = useState<FlowStep>(scriptedIntake ? 'ask-placement' : 'reveal');
   const [placementAnswer, setPlacementAnswer] = useState('');
   const [meaningAnswer, setMeaningAnswer] = useState('');
-  const [session, setSession] = useState<DesignSession | null>(null);
+  const [session, setSession] = useState<DesignSession | null>(initialSession ?? null);
   const [pickId, setPickId] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
   const [lastAction, setLastAction] = useState<SessionAction | null>(null);
@@ -103,25 +109,30 @@ export function DesignSessionFlow() {
 
   return (
     <div className="space-y-5">
-      {/* Intake transcript */}
-      <ChatBubble role="bot">{QUESTION_PLACEMENT}</ChatBubble>
-      {placementAnswer && <ChatBubble role="user">{placementAnswer}</ChatBubble>}
-      {step !== 'ask-placement' && <ChatBubble role="bot">{QUESTION_MEANING}</ChatBubble>}
-      {meaningAnswer && <ChatBubble role="user">{meaningAnswer}</ChatBubble>}
+      {/* Scripted intake transcript (skipped when the live conversation
+          already ran intake and handed a revealed session in). */}
+      {scriptedIntake && (
+        <>
+          <ChatBubble role="bot">{QUESTION_PLACEMENT}</ChatBubble>
+          {placementAnswer && <ChatBubble role="user">{placementAnswer}</ChatBubble>}
+          {step !== 'ask-placement' && <ChatBubble role="bot">{QUESTION_MEANING}</ChatBubble>}
+          {meaningAnswer && <ChatBubble role="user">{meaningAnswer}</ChatBubble>}
 
-      {step === 'ask-placement' && (
-        <ChatInput
-          placeholder="Forearm, ribs, behind the ear…"
-          ariaLabel="Where does it go?"
-          onSubmit={handlePlacement}
-        />
-      )}
-      {step === 'ask-meaning' && (
-        <ChatInput
-          placeholder="Say it however it comes out…"
-          ariaLabel="What do you want to feel?"
-          onSubmit={handleMeaning}
-        />
+          {step === 'ask-placement' && (
+            <ChatInput
+              placeholder="Forearm, ribs, behind the ear…"
+              ariaLabel="Where does it go?"
+              onSubmit={handlePlacement}
+            />
+          )}
+          {step === 'ask-meaning' && (
+            <ChatInput
+              placeholder="Say it however it comes out…"
+              ariaLabel="What do you want to feel?"
+              onSubmit={handleMeaning}
+            />
+          )}
+        </>
       )}
 
       {/* Working state → the bot narrates with the logged axis rationale once it lands */}
