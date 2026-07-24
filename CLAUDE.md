@@ -24,7 +24,7 @@ Democratize custom tattoo design by lowering the barrier between idea and execut
 | **Graph Database** | Neo4j | Artist relationships, collaboration history, style hierarchies |
 | **Real-time Sync** | Firebase Realtime Database | Live match updates, user presence |
 | **Storage** | Google Cloud Storage (GCS) | Layer storage, design exports |
-| **Deployment** | Vercel (Edge Runtime) | Global CDN, serverless functions |
+| **Deployment** | Vercel (Node serverless) + Railway (Express proxy) | Global CDN, serverless functions |
 
 ---
 
@@ -66,7 +66,7 @@ npm run start              # Start production server
 npm run lint               # Run ESLint
 
 # Testing
-npm test                   # Run vitest (197 tests across 14 files)
+npm test                   # Run vitest (~400 tests across 39 files)
 npm run test:watch         # Watch mode
 
 # Database Setup
@@ -87,7 +87,7 @@ vercel --prod              # Deploy to production
 User Request
     ↓
 ┌─────────────────────────────────────────┐
-│  API Layer (Edge Runtime)               │
+│  API Layer (Node runtime)               │
 │  - /api/v1/generate                     │
 │  - /api/v1/council/enhance              │
 │  - /api/v1/match/semantic               │
@@ -288,7 +288,7 @@ STRIPE_PRICE_ARTIST_SUB=price_***        # recurring Price id for the artist sub
 
 ---
 
-**Last Updated:** 2026-07-14
+**Last Updated:** 2026-07-24
 **Maintained by:** Samson via Hermes
 
 ---
