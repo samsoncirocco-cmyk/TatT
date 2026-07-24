@@ -166,6 +166,41 @@ describe("generateAvailableSlots", () => {
     expect(slots.filter((s) => s.date === "2026-07-27").length).toBe(0);
   });
 
+  it("respects timed (partial-day) block overrides", () => {
+    const params: GenerateSlotsParams = {
+      ...baseParams,
+      overrides: [
+        // Block lunch-ish window that overlaps the 12:30-14:30 slot
+        {
+          date: "2026-07-27",
+          type: "block",
+          startTime: "12:00",
+          endTime: "14:00",
+        },
+      ],
+    };
+    const slots = generateAvailableSlots(params);
+    const mondaySlots = slots.filter((s) => s.date === "2026-07-27");
+    // 10:30-12:30 overlaps 12:00-14:00 → filtered
+    // 12:30-14:30 overlaps → filtered
+    // 14:30-16:30 free → kept
+    expect(mondaySlots.map((s) => s.startTime)).toEqual(["14:30"]);
+  });
+
+  it("ignores malformed existing booking times instead of blocking the day", () => {
+    const params: GenerateSlotsParams = {
+      ...baseParams,
+      existingBookings: [
+        { date: "2026-07-27", startTime: "bad", endTime: "14:00" },
+        { date: "2026-07-27", startTime: "12:00", endTime: "nope" },
+      ],
+    };
+    const slots = generateAvailableSlots(params);
+    const mondaySlots = slots.filter((s) => s.date === "2026-07-27");
+    // Invalid bookings must not expand into a midnight→14:00 exclusion zone
+    expect(mondaySlots.length).toBe(3);
+  });
+
   it("adds extra slots from open overrides", () => {
     const params: GenerateSlotsParams = {
       ...baseParams,

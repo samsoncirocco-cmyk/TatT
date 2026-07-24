@@ -48,8 +48,10 @@ export type DayOfWeek =
 export interface AvailabilityOverride {
   date: string; // "YYYY-MM-DD"
   type: "block" | "open";
-  startTime?: string; // "14:00" — for 'open' type
-  endTime?: string; // "18:00" — for 'open' type
+  /** "14:00" — timed window for 'open', or partial-day 'block' */
+  startTime?: string;
+  /** "18:00" — timed window for 'open', or partial-day 'block' */
+  endTime?: string;
 }
 
 export interface Slot {
@@ -208,7 +210,8 @@ export interface GenerateSlotsParams {
  *       - Apply before-buffer to first slot
  *       - Generate slots of sessionType.durationMinutes
  *       - Apply after-buffer (slot must end before blockEnd - afterBuffer)
- *       - Skip slots overlapping existing bookings
+ *       - Skip slots overlapping timed block overrides
+ *       - Skip slots overlapping existing bookings (ignore malformed times)
  */
 export function generateAvailableSlots(params: GenerateSlotsParams): Slot[] {
   const slots: Slot[] = [];
@@ -246,11 +249,22 @@ export function generateAvailableSlots(params: GenerateSlotsParams): Slot[] {
     const dateStr = toISODate(d);
     const dayKey = dayOfWeekKey(d);
 
-    // 1b. Full-day block override
+    // 1b. Full-day block override (no startTime = whole day)
     const blockOverride = overrides.find(
       (o) => o.date === dateStr && o.type === "block" && !o.startTime,
     );
     if (blockOverride) continue;
+
+    // Partial-day block windows for this date
+    const timedBlocks = overrides.filter(
+      (o) =>
+        o.date === dateStr &&
+        o.type === "block" &&
+        o.startTime &&
+        o.endTime &&
+        isValidTimeString(o.startTime) &&
+        isValidTimeString(o.endTime),
+    );
 
     // 1c. Get open hours from recurring schedule
     let openHours = schedule[dayKey] ?? [];
@@ -290,7 +304,9 @@ export function generateAvailableSlots(params: GenerateSlotsParams): Slot[] {
       while (slotStart + sessionType.durationMinutes <= effectiveEnd) {
         const slotEnd = slotStart + sessionType.durationMinutes;
 
-        // Skip slots that start before the minimum booking notice (artist TZ)
+        // Skip slots that start before the minimum booking notice (artist TZ).
+        // Non-finite epoch (DST gap / nonexistent local time) → skip that
+        // candidate; the wall clock does not exist in this zone.
         const slotStartEpochMs = zonedDateTimeToEpochMs(
           dateStr,
           minutesToTime(slotStart),
@@ -304,9 +320,24 @@ export function generateAvailableSlots(params: GenerateSlotsParams): Slot[] {
           continue;
         }
 
-        // Check overlap with existing bookings, including before/after buffers
+        // Timed block overrides remove availability in that window
+        const isBlocked = timedBlocks.some((o) => {
+          const blockedStart = parseTimeToMinutes(o.startTime!);
+          const blockedEnd = parseTimeToMinutes(o.endTime!);
+          if (blockedEnd <= blockedStart) return false;
+          return timeOverlap(slotStart, slotEnd, blockedStart, blockedEnd);
+        });
+        if (isBlocked) {
+          slotStart += sessionType.durationMinutes;
+          continue;
+        }
+
+        // Check overlap with existing bookings, including before/after buffers.
+        // Skip malformed booking times (parseTimeToMinutes maps them to 0).
         const isBooked = existingBookings.some((b) => {
           if (b.date !== dateStr) return false;
+          if (!isValidTimeString(b.startTime) || !isValidTimeString(b.endTime))
+            return false;
           const bookedStart =
             parseTimeToMinutes(b.startTime) - sessionType.beforeBufferMinutes;
           const bookedEnd =

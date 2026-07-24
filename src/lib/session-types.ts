@@ -155,6 +155,15 @@ export function validateSessionTypeInput(
     return { ok: false, error: "minimumBookingNoticeHours must be >= 0" };
   }
 
+  const beforeBufferMinutes = input.beforeBufferMinutes ?? 30;
+  if (beforeBufferMinutes < 0) {
+    return { ok: false, error: "beforeBufferMinutes must be >= 0" };
+  }
+  const afterBufferMinutes = input.afterBufferMinutes ?? 30;
+  if (afterBufferMinutes < 0) {
+    return { ok: false, error: "afterBufferMinutes must be >= 0" };
+  }
+
   return {
     ok: true,
     value: {
@@ -166,8 +175,8 @@ export function validateSessionTypeInput(
       depositType,
       depositAmount,
       requiresApproval: input.requiresApproval ?? false,
-      beforeBufferMinutes: input.beforeBufferMinutes ?? 30,
-      afterBufferMinutes: input.afterBufferMinutes ?? 30,
+      beforeBufferMinutes,
+      afterBufferMinutes,
       minimumBookingNoticeHours,
       intakeFields: input.intakeFields ?? [],
       cancellationPolicyHoursFullRefund:

@@ -154,8 +154,11 @@ export async function createSessionType(
        st.cancellationPolicyPartialRefundBps = $partialRefundBps,
        st.createdAt = $createdAt,
        st.updatedAt = $updatedAt
-     MERGE (a)-[:OFFERS]->(st)
-     RETURN st.id AS id`,
+     WITH a, st, st.artistId = $artistId AS ownedByCaller
+     FOREACH (_ IN CASE WHEN ownedByCaller THEN [1] ELSE [] END |
+       MERGE (a)-[:OFFERS]->(st)
+     )
+     RETURN st.id AS id, ownedByCaller AS ownedByCaller`,
     {
       id: input.id,
       artistId: value.artistId,
@@ -181,6 +184,19 @@ export async function createSessionType(
   if (!result.records.length) {
     throw new Error(
       `Artist not found — cannot create session type (artistId=${input.artistId}).`,
+    );
+  }
+  const row = result.records[0] as {
+    get?: (key: string) => unknown;
+    ownedByCaller?: unknown;
+  };
+  const ownedByCaller =
+    typeof row.get === "function"
+      ? Boolean(row.get("ownedByCaller"))
+      : Boolean(row.ownedByCaller);
+  if (!ownedByCaller) {
+    throw new Error(
+      `Session type id already owned by another artist (id=${input.id}).`,
     );
   }
 }
@@ -243,6 +259,18 @@ export async function updateSessionType(
     updates.minimumBookingNoticeHours < 0
   ) {
     throw new Error("minimumBookingNoticeHours must be >= 0");
+  }
+  if (
+    updates.beforeBufferMinutes !== undefined &&
+    updates.beforeBufferMinutes < 0
+  ) {
+    throw new Error("beforeBufferMinutes must be >= 0");
+  }
+  if (
+    updates.afterBufferMinutes !== undefined &&
+    updates.afterBufferMinutes < 0
+  ) {
+    throw new Error("afterBufferMinutes must be >= 0");
   }
 
   const setClauses: string[] = ["st.updatedAt = $updatedAt"];
