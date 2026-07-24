@@ -120,7 +120,7 @@ Maps each directive to the scripts, services, and API routes that implement it. 
 | Add relationships | `scripts/add-sample-relationships.js` |
 | Sample queries | `scripts/SAMPLE_QUERIES.cypher` |
 
-### `directives/deploy-vercel.md`
+### `directives/deploy.md`
 
 | Step | Implementation |
 |------|---------------|
