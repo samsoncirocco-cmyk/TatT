@@ -23,6 +23,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type Stripe from 'stripe';
 import { verifyApiAuth } from '@/lib/api-auth';
+import { verifyFirebaseToken } from '@/lib/auth-dal';
+import { ensureAdminApp } from '@/lib/firebase-admin';
 import { stripe, stripeConfigured, platformFeeCents, CURRENCY } from '@/lib/stripe';
 import { getArtistStripe } from '@/lib/artist-stripe';
 
@@ -40,6 +42,7 @@ interface CheckoutPayload {
   budget: string;
   clientName: string;
   clientEmail: string;
+  bookingId?: string;
 }
 
 const DEPOSIT_BY_SIZE: Record<TattooSize, number> = {
@@ -70,6 +73,11 @@ export async function POST(req: NextRequest) {
   const authError = await verifyApiAuth(req);
   if (authError) return authError;
 
+  // The verified caller — used to bind the deposit to the booking's owner so a
+  // client can't link their payment to someone else's booking record.
+  const caller = await verifyFirebaseToken(req);
+  const callerUid = caller?.uid ?? null;
+
   let body: Partial<CheckoutPayload>;
   try {
     body = (await req.json()) as Partial<CheckoutPayload>;
@@ -77,10 +85,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
   }
 
-  const { artistId, artistName, size, placement, date, time, budget, clientName, clientEmail } = body;
+  const { artistId, artistName, size, placement, date, time, budget, clientName, clientEmail, bookingId } = body;
 
   if (!artistName || !size || !placement || !date || !time || !budget || !clientName || !clientEmail) {
     return NextResponse.json({ error: 'Missing required booking details.' }, { status: 400 });
+  }
+
+  // Ownership guard: a client-supplied bookingId must belong to the caller (the
+  // webhook later marks that exact doc deposit_paid, so an unverified id would
+  // let one user flip another user's booking). If the booking record exists and
+  // is owned by someone else, refuse. A MISSING doc is allowed through — the
+  // capture may have hit the file fallback (Firestore down at book time); the
+  // webhook seeds/upserts it from metadata in that case.
+  if (bookingId) {
+    const cred = ensureAdminApp();
+    if (cred) {
+      try {
+        const { getFirestore } = await import('firebase-admin/firestore');
+        const snap = await getFirestore().collection('booking_requests').doc(bookingId).get();
+        if (snap.exists) {
+          const ownerUid = (snap.data() as Record<string, unknown> | undefined)?.uid ?? null;
+          if (ownerUid && ownerUid !== callerUid) {
+            return NextResponse.json({ error: 'Booking does not belong to you.' }, { status: 403 });
+          }
+        }
+      } catch (err) {
+        // Fail-open on infra error — never block a legitimate checkout because
+        // the ownership lookup itself failed. The webhook's own guards still apply.
+        console.warn('[checkout] bookingId ownership check failed — allowing:', err instanceof Error ? err.message : err);
+      }
+    }
   }
 
   const depositAmount = getDepositAmount(size);
@@ -103,6 +137,9 @@ export async function POST(req: NextRequest) {
       time,
       deposit: String(depositAmount),
     });
+    // Carry bookingId here too so /book/success reconciles the exact booking in
+    // demo mode (mirrors the live Stripe success_url path).
+    if (bookingId) demoParams.set('bookingId', bookingId);
     return NextResponse.json({ demoMode: true, sessionUrl: `/book/success?${demoParams.toString()}` });
   }
 
@@ -128,6 +165,9 @@ export async function POST(req: NextRequest) {
     time,
     deposit: String(depositAmount),
   });
+  // Carry the bookingId so /book/success can reconcile against the exact
+  // booking record (server truth) rather than the caller's most-recent one.
+  if (bookingId) successParams.set('bookingId', bookingId);
   const cancelUrl = artistId ? `${baseUrl}/book?artistId=${encodeURIComponent(artistId)}` : `${baseUrl}/book`;
 
   const metadata: Record<string, string> = {
@@ -150,6 +190,13 @@ export async function POST(req: NextRequest) {
     // routed booking. Overwritten to a real flag only on the held path below.
     depositState: artistReady ? 'routed' : 'held',
   };
+  // Tie the Stripe session back to the booking_requests/{bookingId} record so
+  // the webhook can reconcile a paid deposit. Only set when present — metadata
+  // is Record<string,string> and must never carry undefined/empty values.
+  if (bookingId) metadata.bookingId = bookingId;
+  // The booking owner's uid — lets the webhook seed an owner-readable
+  // booking_requests doc if the original capture only reached the file fallback.
+  if (callerUid) metadata.clientUid = callerUid;
 
   try {
     // Two paths — in BOTH, the client pays (deposit + booking fee) and the

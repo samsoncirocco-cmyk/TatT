@@ -197,6 +197,7 @@ export default function BookClient({
           budget,
           clientName: name.trim(),
           clientEmail: email.trim(),
+          bookingId: bookData.bookingId,
         }),
       });
       const payData = await payRes.json().catch(() => null);

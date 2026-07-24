@@ -1,0 +1,3 @@
+# Fixed two-question intake, rendered as conversation
+
+Design sessions open with exactly two questions — placement and meaning — because they carry the most signal and give extraction a reliable schema to fill before the bot runs autonomously to the reveal. Freeform first-messages were rejected (too vague to extract placement, which is a hard generation constraint we can't afford to infer wrong), as was zero-question cold start (generating blind misses more often and sets a bad tone early). The questions must read as conversation; rendering them as labeled form fields would rebuild the prompt box this flow exists to replace.
