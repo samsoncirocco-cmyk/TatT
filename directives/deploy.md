@@ -15,7 +15,7 @@ Deploy the Next.js frontend to Vercel and the Express.js backend proxy (`server.
 
 ## Prerequisites
 
-- **Vercel account** with the project linked (current URL: `https://tat-t-3x8t.vercel.app`)
+- **Vercel account** with the project linked (current URL: `https://tatt-app.vercel.app`)
 - **Railway account** with the project created
 - **All database infrastructure** provisioned (see `database-setup.md`)
 - **Passing local build**: `npm run build` completes without errors
@@ -67,7 +67,7 @@ Deploy the Next.js frontend to Vercel and the Express.js backend proxy (`server.
 
 5. **Verify the deployment**
 
-   Open `https://tat-t-3x8t.vercel.app` and confirm the app loads.
+   Open `https://tatt-app.vercel.app` and confirm the app loads.
 
 ### Part B: Deploy Backend to Railway
 
@@ -92,7 +92,7 @@ Deploy the Next.js frontend to Vercel and the Express.js backend proxy (`server.
    |----------|-------|
    | `REPLICATE_API_TOKEN` | Replicate API token |
    | `FRONTEND_AUTH_TOKEN` | Shared auth token (must match Vercel) |
-   | `ALLOWED_ORIGINS` | `https://tat-t-3x8t.vercel.app` (comma-separated if multiple) |
+   | `ALLOWED_ORIGINS` | `https://tatt-app.vercel.app` (comma-separated if multiple) |
    | `NEO4J_URI` | Production Neo4j URI |
    | `NEO4J_USER` | Neo4j username |
    | `NEO4J_PASSWORD` | Neo4j password |
@@ -135,7 +135,7 @@ Deploy the Next.js frontend to Vercel and the Express.js backend proxy (`server.
 
 ## Expected Output
 
-- Vercel: Build succeeds, site accessible at `https://tat-t-3x8t.vercel.app`
+- Vercel: Build succeeds, site accessible at `https://tatt-app.vercel.app`
 - Railway: Service running, health endpoint returns 200
 - End-to-end: Design generation, layer management, and artist matching all work from the production URL
 
