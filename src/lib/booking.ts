@@ -200,6 +200,19 @@ export function appendStatus(
   return [...(history ?? []), next];
 }
 
+/**
+ * Shape a booking doc for a client response. The capture path stores the
+ * requester's IP for rate limiting/abuse tracing — that is server-side
+ * metadata and must never be echoed back to the owner.
+ */
+export function sanitizeBooking(
+  doc: Record<string, unknown>,
+): Record<string, unknown> {
+  const rest = { ...doc };
+  delete rest.ip;
+  return rest;
+}
+
 // ─── Booking payload validation ────────────────────────────────────────
 
 export type BookingPayload = {

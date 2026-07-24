@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
 import { verifyFirebaseToken } from '@/lib/auth-dal';
 import { ensureAdminApp } from '@/lib/firebase-admin';
+import { sanitizeBooking } from '@/lib/booking';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
       .get();
 
     const bookings = snap.docs
-      .map((d) => ({ id: d.id, ...d.data() } as Record<string, unknown>))
+      .map((d) => sanitizeBooking({ id: d.id, ...d.data() }))
       .sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')))
       .slice(0, 50);
     return NextResponse.json({ success: true, bookings });

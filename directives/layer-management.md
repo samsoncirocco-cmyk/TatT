@@ -276,7 +276,7 @@ async function mergeLayers(layers: Layer[]): Promise<Buffer> {
 **Average Layer Workflow:** ~$0.002 per design (negligible)
 
 ## Related Directives
-- `generate-tattoo.md` — Generate base design before layering
+- `generate-design.md` — Generate base design before layering
 - `stencil-export.md` — Export merged layers as printable stencil
 - `api-endpoints.md` — API reference for layer endpoints
 

@@ -9,6 +9,7 @@ import {
   MAX_REQUESTED_SLOTS,
   canTransition,
   appendStatus,
+  sanitizeBooking,
   INITIAL_BOOKING_STATUS,
   type BookingStatus,
   type BookingStatusEvent,
@@ -320,5 +321,23 @@ describe("appendStatus", () => {
     expect(history).toEqual([first]);
     expect(history).toHaveLength(1);
     expect(result).not.toBe(history);
+  });
+});
+
+describe("sanitizeBooking", () => {
+  it("strips the captured ip", () => {
+    const doc = { id: "BK-1", size: "medium", ip: "203.0.113.7" };
+    expect(sanitizeBooking(doc)).toEqual({ id: "BK-1", size: "medium" });
+  });
+
+  it("does not mutate the input doc", () => {
+    const doc = { id: "BK-1", ip: "203.0.113.7" };
+    sanitizeBooking(doc);
+    expect(doc.ip).toBe("203.0.113.7");
+  });
+
+  it("passes docs without ip through unchanged", () => {
+    const doc = { id: "BK-2", status: "deposit_paid" };
+    expect(sanitizeBooking(doc)).toEqual(doc);
   });
 });

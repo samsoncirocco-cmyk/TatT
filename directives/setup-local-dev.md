@@ -61,23 +61,37 @@ Get the Next.js frontend and Express.js backend proxy running locally with all r
    - `REPLICATE_API_TOKEN` for Replicate
    - `GOOGLE_APPLICATION_CREDENTIALS` for Vertex AI / Imagen 3
 
+   **Where to get keys:**
+   - **Replicate:** https://replicate.com/account/api-tokens
+   - **Google Cloud:** GCP Console → IAM & Admin → Service Accounts
+   - **Supabase:** https://app.supabase.com → Project Settings → API
+   - **Neo4j:** https://console.neo4j.io → Database → Connect
+   - **Firebase:** https://console.firebase.google.com → Project Settings → General
+   - **OpenRouter:** https://openrouter.ai/keys
+
+   > **Zero-credential alternative:** `bash QUICKSTART.sh` runs the app entirely in demo mode — it installs dependencies, copies `env.demo` to `.env.local`, and starts the dev server with mock data. No external services needed. Use it to try the app; use the steps below for a real credentialed setup.
+
 4. **Set GCP credentials (if using Vertex AI)**
 
    ```bash
    export GOOGLE_APPLICATION_CREDENTIALS=./gcp-service-account-key.json
    ```
 
-5. **Run the quick start verification**
+5. **Initialize and verify the databases** (first run only — see `database-setup.md` for details)
 
    ```bash
-   bash QUICKSTART.sh
+   node scripts/setup-supabase-vector-schema.js   # pgvector schema for artist embeddings
+   node scripts/import-to-neo4j.js                # seed the artist graph
+   node scripts/generate-vertex-embeddings.js     # optional: populate embeddings (~$0.10 / 100 artists)
    ```
 
-   This script:
-   - Checks that `GOOGLE_APPLICATION_CREDENTIALS` is set
-   - Verifies `.env` file exists
-   - Runs `npm run supabase:verify` to confirm Supabase schema
-   - Runs `npm run gcp:health` to test GCP connectivity
+   Then confirm connectivity:
+
+   ```bash
+   node scripts/test-supabase-connection.js
+   node scripts/test-gcp-health.js
+   node scripts/test-vector-db.js
+   ```
 
 6. **Start the Next.js dev server (port 3000)**
 
@@ -101,7 +115,7 @@ Get the Next.js frontend and Express.js backend proxy running locally with all r
 
 - `npm run dev` prints `ready - started server on 0.0.0.0:3000`
 - `npm run server` prints listening on the configured port (default 3002)
-- `QUICKSTART.sh` shows green checkmarks for env vars, Supabase schema (4/4 tables), and GCP health
+- The verification scripts report successful Supabase, GCP, and vector search connections
 - The app loads in the browser showing The Forge design interface
 
 ## Edge Cases
@@ -111,7 +125,10 @@ Get the Next.js frontend and Express.js backend proxy running locally with all r
 - **Port 3002 already in use**: Set `PORT=3003` in `.env.local` and update `VITE_PROXY_URL` accordingly
 - **CORS errors in browser**: Ensure `ALLOWED_ORIGINS` in `.env.local` includes `http://localhost:3000`
 - **GCP auth fails**: Verify the service account JSON file path is correct and the file is valid
-- **Supabase verify fails**: Run the schema SQL manually (see `database-setup.md`)
+- **Supabase verify fails**: Run the schema SQL manually (see `database-setup.md`); also check that a firewall or VPN isn't blocking the connection
+- **Neo4j connection timeout**: Aura free tier auto-pauses after inactivity — resume the instance in the Neo4j console
+- **Module not found errors**: Delete `node_modules` and `package-lock.json`, then re-run `npm install --legacy-peer-deps`
+- **TypeScript errors only in VS Code**: CMD+Shift+P → "TypeScript: Select TypeScript Version" → "Use Workspace Version"
 - **VITE_ prefixed vars not working**: This is a Next.js project; use `NEXT_PUBLIC_` prefix for client-side vars. Legacy `VITE_` vars are read by `server.js` only
 
 ## Cost
