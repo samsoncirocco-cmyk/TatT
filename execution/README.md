@@ -4,7 +4,7 @@ Maps each directive to the scripts, services, and API routes that implement it. 
 
 ## Directive → Implementation Map
 
-### `directives/generate-tattoo.md`
+### `directives/generate-design.md`
 
 | Step | Implementation |
 |------|---------------|

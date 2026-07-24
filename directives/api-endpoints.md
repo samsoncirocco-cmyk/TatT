@@ -618,7 +618,7 @@ curl -X POST https://tatt.vercel.app/api/v1/match/semantic \
 ---
 
 ## Related Directives
-- `generate-tattoo.md` — `/api/v1/generate` workflow details
+- `generate-design.md` — `/api/v1/generate` workflow details
 - `artist-matching.md` — `/api/v1/match/semantic` workflow details
 - `stencil-export.md` — `/api/v1/stencil/export` workflow details
 - `council-enhance.md` — `/api/v1/council/enhance` workflow details

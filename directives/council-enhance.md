@@ -124,6 +124,5 @@ Transform a short user tattoo idea (e.g., "dragon sleeve") into three progressiv
 ## Related Directives
 
 - After enhancement, pass the `ultra` prompt to **generate-design.md** for image generation
-- **generate-tattoo.md** — full generation workflow (calls council enhancement as an early step)
 - **api-endpoints.md** — API reference for `POST /api/v1/council/enhance`
 - Ensure **import-artists.md** has been run if the council references artist style data
