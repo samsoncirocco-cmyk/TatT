@@ -136,11 +136,14 @@ full run NOT launched. Resume after gate review.
   rule) or port to graph. scripts/ importers referencing artists.json are
   seed tooling, fine.
 - **Samson-only ops checklist** (executed 2026-07-21; one item left):
-  1. **LIKELY DONE — verify (Samson):** Stripe Connect merge 1e4dd5a
-     (2026-07-22) says "Webhook endpoint + env configured in prod (Vercel)",
-     which implies STRIPE_SECRET_KEY (+ webhook secrets) are now set. Not
-     independently verified from a session — confirm /api/checkout no longer
-     503s in prod, then strike this.
+  1. **DEFERRED TO PRE-LAUNCH (Samson, 2026-07-24):** live Stripe
+     end-to-end verification. Not urgent — TatT is not taking customers
+     yet; do the real-booking + live-dashboard check before the first
+     customer, then strike this. Partially verified from a session
+     (2026-07-24): /api/checkout is live in prod at tatt-app.vercel.app
+     (auth-gated, not 503), and the Stripe sandbox shows zero traffic, so
+     prod is not misconfigured onto test keys. Agents: do not re-flag
+     this as a blocking ops item.
   2. ~~FIREBASE_* admin credentials~~ — **already set** (FIREBASE_PRIVATE_KEY,
      FIREBASE_CLIENT_EMAIL, FIREBASE_PROJECT_ID in production+preview;
      verified via Vercel API 2026-07-21). A real-booking end-to-end check in
