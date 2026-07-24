@@ -19,6 +19,11 @@ export const dynamic = 'force-dynamic';
  * session (ADR-0013 hard stop). A second attempt is a domain conflict the
  * service raises and this route maps to 409. Generates exactly 1 image on the
  * session's locked provider, so budget policy applies.
+ *
+ * Demo mode (NEXT_PUBLIC_DEMO_MODE): the real service still runs (the
+ * orchestrator substitutes a free stock image for the regen, and the ADR-0013
+ * hard stop stays enforced) — no cost, so rate/budget policy and spend
+ * recording are skipped, matching the start route.
  */
 export async function POST(
     req: NextRequest,
@@ -29,17 +34,21 @@ export async function POST(
     const authError = await verifyApiAuth(req);
     if (authError) return authError;
 
-    const rateResult = await rateLimit(req, 'generation');
-    if (!rateResult.allowed) {
-        return rateLimitResponse(rateResult);
-    }
+    const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
-    const budgetResult = await checkBudget();
-    if (!budgetResult.allowed) {
-        return NextResponse.json(
-            { error: 'Budget limit reached', spentCents: budgetResult.spentCents },
-            { status: 402 }
-        );
+    if (!demoMode) {
+        const rateResult = await rateLimit(req, 'generation');
+        if (!rateResult.allowed) {
+            return rateLimitResponse(rateResult);
+        }
+
+        const budgetResult = await checkBudget();
+        if (!budgetResult.allowed) {
+            return NextResponse.json(
+                { error: 'Budget limit reached', spentCents: budgetResult.spentCents },
+                { status: 402 }
+            );
+        }
     }
 
     const { id } = await params;
@@ -51,10 +60,13 @@ export async function POST(
     }
 
     try {
+        if (demoMode) await new Promise(r => setTimeout(r, 1500));
+
         const session = await refine(id, { answer: answer.trim() });
 
-        // The refinement round regenerates exactly 1 image.
-        await recordImageSpend(session.provider, REFINE_IMAGE_COUNT);
+        // The refinement round regenerates exactly 1 image — free stock in
+        // demo mode, so nothing to record.
+        if (!demoMode) await recordImageSpend(session.provider, REFINE_IMAGE_COUNT);
 
         reqLogger.complete('design_session.refine.success', {
             session_id: session.id,

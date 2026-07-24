@@ -1,7 +1,7 @@
 // Seam tests for POST /api/v1/design-session/[id]/refine: designSession
 // service mocked; pins the {refinedVariation, brief, session} shape, the
 // single-image spend, and the ADR-0013 hard-stop → 409 mapping.
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextResponse } from 'next/server';
 import { makeBrief, makeRequest, makeSession, routeParams } from './helpers';
 
@@ -72,6 +72,11 @@ describe('POST /api/v1/design-session/[id]/refine route adapter', () => {
     rateLimitMock.mockResolvedValue({ allowed: true });
     checkBudgetMock.mockResolvedValue({ allowed: true });
     recordSpendMock.mockResolvedValue(undefined);
+    delete process.env.NEXT_PUBLIC_DEMO_MODE;
+  });
+
+  afterEach(() => {
+    delete process.env.NEXT_PUBLIC_DEMO_MODE;
   });
 
   it('returns refinedVariation + brief + session and records single-image spend', async () => {
@@ -160,4 +165,22 @@ describe('POST /api/v1/design-session/[id]/refine route adapter', () => {
     expect(res.status).toBe(401);
     expect(refineMock).not.toHaveBeenCalled();
   });
+
+  it('demo mode delegates to the real service and skips rate/budget/spend', async () => {
+    process.env.NEXT_PUBLIC_DEMO_MODE = 'true';
+    refineMock.mockResolvedValueOnce(completeSession());
+
+    const res = await POST(makeRequest(URL, { answer: 'bolder' }), routeParams('sess-1'));
+
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.session.phase).toBe('complete');
+
+    // The REAL service runs — the demo regen is a free stock image, so
+    // rate/budget policy and spend recording are skipped.
+    expect(refineMock).toHaveBeenCalledWith('sess-1', { answer: 'bolder' });
+    expect(rateLimitMock).not.toHaveBeenCalled();
+    expect(checkBudgetMock).not.toHaveBeenCalled();
+    expect(recordSpendMock).not.toHaveBeenCalled();
+  }, 10_000);
 });

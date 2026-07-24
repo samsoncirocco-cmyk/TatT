@@ -7,6 +7,7 @@
  * generation strictly through their public entry points.
  */
 import { randomUUID } from 'crypto';
+import { DEMO_MOCK_IMAGES } from '@/lib/demo-images';
 import { extractIntake } from '../../intake';
 import { enhanceStructured } from '../../council';
 import { generate, routeGeneration } from '../../generation';
@@ -47,6 +48,16 @@ export class DesignSessionError extends Error {
     this.code = code;
     this.status = ERROR_STATUS[code];
   }
+}
+
+/**
+ * Demo mode swaps every paid render for a stock demo image while everything
+ * else — intake, council, route resolution/pinning, the phase machine, the
+ * ADR-0013 hard stop, persistence — runs the real code paths. Read lazily
+ * per call, same as the store seam in ./store.
+ */
+function isDemoMode(): boolean {
+  return process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 }
 
 async function loadSession(store: SessionStore, sessionId: string): Promise<StoredSession> {
@@ -106,16 +117,20 @@ export async function startSession(request: StartSessionRequest): Promise<Design
     bodyPart: intake.placement,
   });
 
+  const demo = isDemoMode();
   const variations: Variation[] = await Promise.all(
     enhanced.variations.map(async (structured, index) => {
       const prompt = generationPrompt(structured.prompts);
-      const result = await generate(pinnedRequest(route, prompt, structured.negativePrompt));
+      // Demo mode: stock image instead of a paid render; everything else real.
+      const imageUrl = demo
+        ? DEMO_MOCK_IMAGES[index % DEMO_MOCK_IMAGES.length]
+        : (await generate(pinnedRequest(route, prompt, structured.negativePrompt))).images[0];
       return {
         id: `v${index + 1}`,
         axisPosition: structured.axisPosition as Record<string, string>,
         prompt,
         negativePrompt: structured.negativePrompt,
-        imageUrl: result.images[0],
+        imageUrl,
       };
     })
   );
@@ -213,14 +228,23 @@ export async function refine(sessionId: string, request: RefineRequest): Promise
   const rejected = session.variations.find(variation => variation.id === session.mostNotYouId);
 
   const adjustedPrompt = adjustPromptForAnswer(session, picked, request.answer);
-  // ADR-0016: the regen reuses the exact model pinned at session start.
-  const result = await generate(
-    pinnedRequest(
-      { modelId: session.pinnedModelId, aspectRatio: session.pinnedAspectRatio },
-      adjustedPrompt,
-      picked.negativePrompt
-    )
-  );
+  let imageUrl: string | undefined;
+  if (isDemoMode()) {
+    // Demo regen: the stock image after the picked one, so the refinement
+    // visibly changes the design without a paid render.
+    const pickedIndex = session.variations.indexOf(picked);
+    imageUrl = DEMO_MOCK_IMAGES[(pickedIndex + 1) % DEMO_MOCK_IMAGES.length];
+  } else {
+    // ADR-0016: the regen reuses the exact model pinned at session start.
+    const result = await generate(
+      pinnedRequest(
+        { modelId: session.pinnedModelId, aspectRatio: session.pinnedAspectRatio },
+        adjustedPrompt,
+        picked.negativePrompt
+      )
+    );
+    imageUrl = result.images[0];
+  }
 
   session.refinementAnswer = request.answer;
   session.refinedVariation = {
@@ -228,7 +252,7 @@ export async function refine(sessionId: string, request: RefineRequest): Promise
     axisPosition: picked.axisPosition,
     prompt: adjustedPrompt,
     negativePrompt: picked.negativePrompt,
-    imageUrl: result.images[0],
+    imageUrl,
   };
   session.brief = {
     placement: session.intake.placement,

@@ -5,7 +5,8 @@
  * Firebase Admin bootstrap (forced off, so persistence runs on the
  * in-memory store). No live provider or Firestore call is ever made.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { DEMO_MOCK_IMAGES } from '@/lib/demo-images';
 import {
   startSession,
   recordPick,
@@ -387,5 +388,65 @@ describe('getSession', () => {
   it('throws SESSION_NOT_FOUND for an unknown id', async () => {
     await expect(getSession('nope')).rejects.toBeInstanceOf(DesignSessionError);
     await expect(getSession('nope')).rejects.toMatchObject({ code: 'SESSION_NOT_FOUND' });
+  });
+});
+
+describe('demo mode (NEXT_PUBLIC_DEMO_MODE)', () => {
+  beforeEach(() => {
+    process.env.NEXT_PUBLIC_DEMO_MODE = 'true';
+  });
+
+  afterEach(() => {
+    delete process.env.NEXT_PUBLIC_DEMO_MODE;
+  });
+
+  it('start persists a real session retrievable by getSession, with stock images and zero renders', async () => {
+    const session = await startSession(startRequest);
+
+    // No paid render — the four reveal images are the shared demo stock set.
+    expect(mockGenerate).not.toHaveBeenCalled();
+    expect(session.variations.map(v => v.imageUrl)).toEqual([...DEMO_MOCK_IMAGES]);
+
+    // Everything else ran the REAL code paths: intake, council, route pin.
+    expect(mockExtractIntake).toHaveBeenCalledWith(startRequest);
+    expect(mockEnhanceStructured).toHaveBeenCalledWith(intakeRecord);
+    expect(mockRouteGeneration).toHaveBeenCalledTimes(1);
+    expect(session.phase).toBe('revealed');
+    expect(session.provider).toBe('vertex-ai');
+    expect(session.variations.map(v => v.prompt)).toEqual(['d1', 'd2', 'd3', 's4']);
+
+    // Persisted for real — the follow-up routes can find it (the old route
+    // fabricated an unpersisted session and every follow-up call 404ed).
+    const fetched = await getSession(session.id);
+    expect(fetched).toEqual(session);
+  });
+
+  it('runs the full flow start → pick → refine → complete with zero generate() calls', async () => {
+    const session = await startSession(startRequest);
+    const picked = await recordPick(session.id, { pickId: 'v3', mostNotYouId: 'v2' });
+    expect(picked.phase).toBe('picked');
+    expect(picked.refinementQuestion).toBeTruthy();
+
+    const completed = await refine(session.id, { answer: 'not stark enough' });
+    expect(completed.phase).toBe('complete');
+    // The demo regen is the stock image after the picked one (v3 → index 2).
+    expect(completed.refinedVariation?.imageUrl).toBe(DEMO_MOCK_IMAGES[3]);
+    expect(completed.refinedVariation?.prompt).toContain('d3');
+    expect(completed.brief).toBeDefined();
+    expect(completed.brief?.finalImageUrl).toBe(completed.refinedVariation?.imageUrl);
+
+    expect(mockGenerate).not.toHaveBeenCalled();
+  });
+
+  it('still hard-stops a second refinement with REFINEMENT_CLOSED (ADR-0013)', async () => {
+    const picked = await startAndPick('v3', 'v2');
+    await refine(picked.id, { answer: 'more' });
+
+    await expect(refine(picked.id, { answer: 'again please' })).rejects.toMatchObject({
+      name: 'DesignSessionError',
+      code: 'REFINEMENT_CLOSED',
+      status: 409,
+    });
+    expect(mockGenerate).not.toHaveBeenCalled();
   });
 });
