@@ -104,7 +104,7 @@ Transform a short user tattoo idea (e.g., "dragon sleeve") into three progressiv
 
 - **All providers fail**: The service falls through to hardcoded mock responses. Output will still be valid but generic. Check `metadata.fallback: true` in the response.
 - **OpenRouter rate limit**: Each council member call has its own retry. If one member fails, the entire OpenRouter path fails and falls through to the next provider.
-- **Vertex AI auth on edge runtime**: The council API route uses `runtime = 'edge'`. Auth uses `google-auth-edge` (not `google-auth-library`). Ensure credentials are in env vars, not file paths.
+- **Vertex AI auth**: The council API route (`runtime = 'nodejs'`) authenticates via `src/lib/google-auth-edge.ts` (`getGcpAccessToken`), not `google-auth-library`. Ensure credentials are available as env vars (`GOOGLE_APPLICATION_CREDENTIALS_JSON` or `GCP_SERVICE_ACCOUNT_EMAIL` + `GCP_PRIVATE_KEY`), not only file paths.
 - **Character detection**: The service scans the prompt for known character names from `characterDatabase.ts`. Multi-character prompts get forced positional anchoring ("Character A on the left, Character B on the right").
 - **Stencil mode**: Auto-detected from keywords in the prompt, or explicitly passed via `isStencilMode`. When active, the negative prompt gets a shield blocking shading and gradients.
 - **JSON parse failure**: If the LLM returns malformed JSON, the service uses a brace-depth parser (`parseJsonFromText`) to extract the first valid JSON object. If that also fails, the provider path throws and falls through.
@@ -124,4 +124,5 @@ Transform a short user tattoo idea (e.g., "dragon sleeve") into three progressiv
 ## Related Directives
 
 - After enhancement, pass the `ultra` prompt to **generate-design.md** for image generation
+- **api-endpoints.md** — API reference for `POST /api/v1/council/enhance`
 - Ensure **import-artists.md** has been run if the council references artist style data
