@@ -20,6 +20,7 @@ import type Stripe from 'stripe';
 import { stripe } from '@/lib/stripe';
 import { setArtistChargesEnabled } from '@/lib/artist-stripe';
 import { createRelay, transferHeldDeposits, setArtistSubscription } from '@/lib/booking-relay';
+import { markBookingDepositPaid } from '@/lib/booking-reconcile';
 import { notifyArtistOfBooking } from '@/lib/notify';
 
 export const runtime = 'nodejs';
@@ -80,6 +81,37 @@ async function handleEvent(event: Stripe.Event): Promise<void> {
           };
           await createRelay(relay);
           await notifyArtistOfBooking({ ...relay, status: 'pending' as const });
+        }
+      }
+
+      // Reconcile the client's booking record: a paid session flips the
+      // booking_requests doc pending → deposit_paid. Idempotent (state-machine
+      // guarded transaction), so Stripe retries are no-ops. Runs on BOTH the
+      // routed and held paths — the client's deposit is paid either way.
+      if (metadata.bookingId && session.payment_status === 'paid') {
+        const piId =
+          typeof session.payment_intent === 'string'
+            ? session.payment_intent
+            : session.payment_intent?.id || null;
+        const result = await markBookingDepositPaid({
+          bookingId: metadata.bookingId,
+          stripeSessionId: session.id,
+          stripePaymentIntent: piId,
+          amountTotalCents: session.amount_total ?? null,
+          depositCents: Number(metadata.depositCents) || null,
+          paidAtIso: new Date(event.created * 1000).toISOString(),
+        });
+        if (result === 'updated') {
+          console.log('[Stripe] booking reconciled → deposit_paid', {
+            bookingId: metadata.bookingId,
+          });
+        } else if (result !== 'already_processed') {
+          // not_found / invalid_id / no_admin: nothing to retry into — log
+          // loudly instead of 500ing Stripe into a 3-day retry loop.
+          console.error('[Stripe] booking reconcile skipped', {
+            bookingId: metadata.bookingId,
+            result,
+          });
         }
       }
 
