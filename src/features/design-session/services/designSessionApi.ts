@@ -9,16 +9,30 @@ import type {
   PickRequest,
   RefineRequest,
 } from '@/services/designSession/types';
+import type {
+  ConverseRequest,
+  ConverseResponse,
+} from '@/services/designConversation/types';
 
 const BASE_PATH = '/api/v1/design-session';
 
-async function postJson(path: string, body: unknown): Promise<DesignSession> {
+/**
+ * Every conversation provider is down (503 from converse). The flow catches
+ * this to degrade seamlessly to the scripted two-question intake (ADR-0019).
+ */
+export class ConversationUnavailableError extends Error {}
+
+async function postAuthed(path: string, body: unknown): Promise<Response> {
   const authHeaders = await getApiAuthHeaders();
-  const res = await fetch(path, {
+  return fetch(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders },
     body: JSON.stringify(body),
   });
+}
+
+async function postJson(path: string, body: unknown): Promise<DesignSession> {
+  const res = await postAuthed(path, body);
 
   let data: unknown = null;
   try {
@@ -53,4 +67,39 @@ export function submitPick(sessionId: string, request: PickRequest): Promise<Des
 /** POST /api/v1/design-session/[id]/refine — allowed exactly once (ADR-0013). */
 export function submitRefinement(sessionId: string, request: RefineRequest): Promise<DesignSession> {
   return postJson(`${BASE_PATH}/${sessionId}/refine`, request);
+}
+
+/**
+ * POST /api/v1/design-session/converse — one conversational intake turn
+ * (ADR-0019). Omit sessionId and message to open a new conversation. A 503
+ * (every provider down) throws ConversationUnavailableError so the UI can
+ * fall back to the scripted intake.
+ */
+export async function converse(request: ConverseRequest): Promise<ConverseResponse> {
+  const res = await postAuthed(`${BASE_PATH}/converse`, request);
+
+  let data: unknown = null;
+  try {
+    data = await res.json();
+  } catch {
+    // Non-JSON body — fall through to status error.
+  }
+
+  const errorMessage = (data as { error?: string } | null)?.error;
+  if (res.status === 503) {
+    throw new ConversationUnavailableError(errorMessage ?? 'Conversation unavailable');
+  }
+  if (!res.ok) {
+    throw new Error(errorMessage ?? `Design conversation request failed (${res.status})`);
+  }
+  if (!data) throw new Error('Design conversation response was empty');
+  return data as ConverseResponse;
+}
+
+/**
+ * POST /api/v1/design-session/[id]/confirm — the user's yes to the proposal
+ * (ADR-0020). Fires generation and responds with the revealed DesignSession.
+ */
+export function confirmProposal(sessionId: string): Promise<DesignSession> {
+  return postJson(`${BASE_PATH}/${sessionId}/confirm`, {});
 }
