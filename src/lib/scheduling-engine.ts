@@ -100,6 +100,54 @@ export function toISODate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
+/**
+ * Convert a wall-clock date+time in an IANA timezone to UTC epoch ms.
+ * "2026-07-27" + "10:30" in America/Phoenix → the corresponding UTC instant.
+ */
+export function zonedDateTimeToEpochMs(
+  dateStr: string,
+  timeStr: string,
+  timeZone: string,
+): number {
+  const [Y, M, D] = dateStr.split('-').map(Number);
+  const [h, m] = timeStr.split(':').map(Number);
+  const desiredAsUtc = Date.UTC(Y, M - 1, D, h, m, 0);
+
+  // Guess: treat wall clock as UTC, then correct by the zone's offset at that instant.
+  let utcMs = desiredAsUtc;
+  const dtf = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  });
+
+  for (let i = 0; i < 3; i++) {
+    const parts = Object.fromEntries(
+      dtf.formatToParts(new Date(utcMs))
+        .filter((p) => p.type !== 'literal')
+        .map((p) => [p.type, p.value]),
+    ) as Record<string, string>;
+    const hour = parts.hour === '24' ? 0 : Number(parts.hour);
+    const shownAsUtc = Date.UTC(
+      Number(parts.year),
+      Number(parts.month) - 1,
+      Number(parts.day),
+      hour,
+      Number(parts.minute),
+      Number(parts.second),
+    );
+    const diff = desiredAsUtc - shownAsUtc;
+    if (diff === 0) break;
+    utcMs += diff;
+  }
+  return utcMs;
+}
+
 // ─── Slot generation (pure, no I/O) ───────────────────────────────────
 
 export interface GenerateSlotsParams {
@@ -139,19 +187,15 @@ export function generateAvailableSlots(params: GenerateSlotsParams): Slot[] {
 
   const start = new Date(startDate + 'T00:00:00Z');
   const end = new Date(endDate + 'T00:00:00Z');
-  const maxDays = 90;  // safety cap
-  let iter = 0;
+  const maxDays = 90;  // safety cap — reject oversized ranges instead of truncating
+  const rangeDays = Math.floor((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+  if (rangeDays > maxDays) {
+    throw new Error(`Date range exceeds maximum of ${maxDays} days (got ${rangeDays})`);
+  }
 
-  for (let d = new Date(start); d <= end && iter < maxDays; d.setUTCDate(d.getUTCDate() + 1), iter++) {
+  for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
     const dateStr = toISODate(d);
     const dayKey = dayOfWeekKey(d);
-
-    // 1a. Minimum booking notice
-    const slotEarliestStart = new Date(dateStr + 'T00:00:00').getTime();
-    if (slotEarliestStart < earliestMs(earliestBookable, schedule.timezone)) {
-      // The entire day might still have slots after the notice window —
-      // we don't skip the day, we just skip slots before earliestBookable.
-    }
 
     // 1b. Full-day block override
     const blockOverride = overrides.find(
@@ -174,7 +218,7 @@ export function generateAvailableSlots(params: GenerateSlotsParams): Slot[] {
 
     // 1e. Generate slots for each open-hours block
     for (const block of openHours) {
-      let blockStart = parseTimeToMinutes(block.start);
+      const blockStart = parseTimeToMinutes(block.start);
       const blockEnd = parseTimeToMinutes(block.end);
 
       // Apply before-buffer to the block start
@@ -188,23 +232,26 @@ export function generateAvailableSlots(params: GenerateSlotsParams): Slot[] {
       while (slotStart + sessionType.durationMinutes <= effectiveEnd) {
         const slotEnd = slotStart + sessionType.durationMinutes;
 
-        // Skip slots that start before the minimum booking notice
-        const slotStartEpochMs = new Date(`${dateStr}T${minutesToTime(slotStart)}:00`).getTime();
+        // Skip slots that start before the minimum booking notice (artist TZ)
+        const slotStartEpochMs = zonedDateTimeToEpochMs(
+          dateStr,
+          minutesToTime(slotStart),
+          schedule.timezone,
+        );
         if (slotStartEpochMs < earliestBookable) {
           slotStart += sessionType.durationMinutes;
           continue;
         }
 
-        // Check overlap with existing bookings
-        const isBooked = existingBookings.some(
-          (b) =>
-            b.date === dateStr &&
-            timeOverlap(
-              slotStart, slotEnd,
-              parseTimeToMinutes(b.startTime),
-              parseTimeToMinutes(b.endTime),
-            )
-        );
+        // Check overlap with existing bookings, including before/after buffers
+        const isBooked = existingBookings.some((b) => {
+          if (b.date !== dateStr) return false;
+          const bookedStart =
+            parseTimeToMinutes(b.startTime) - sessionType.beforeBufferMinutes;
+          const bookedEnd =
+            parseTimeToMinutes(b.endTime) + sessionType.afterBufferMinutes;
+          return timeOverlap(slotStart, slotEnd, bookedStart, bookedEnd);
+        });
 
         if (!isBooked) {
           slots.push({
@@ -221,14 +268,4 @@ export function generateAvailableSlots(params: GenerateSlotsParams): Slot[] {
   }
 
   return slots;
-}
-
-/**
- * For a given minimum booking timestamp and timezone, return the earliest
- * epoch ms that a slot can start. This is a passthrough — the real timezone
- * math happens in the slot generation loop where we construct Date objects
- * with the slot's local time.
- */
-function earliestMs(earliestBookable: number, _timezone: string): number {
-  return earliestBookable;
 }

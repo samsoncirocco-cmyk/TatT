@@ -41,7 +41,10 @@ async function runRead(query: string, params: Record<string, unknown>) {
   return executeServerCypherQuery(query, params);
 }
 
-async function runWrite(query: string, params: Record<string, unknown>): Promise<void> {
+async function runWrite(
+  query: string,
+  params: Record<string, unknown>
+): Promise<{ records: Array<unknown> }> {
   const { getNeo4jDriver, NEO4J_DATABASE, NEO4J_QUERY_TIMEOUT } = await import('@/lib/neo4j');
   const neo4j = (await import('neo4j-driver')).default;
   const driver = getNeo4jDriver();
@@ -50,19 +53,30 @@ async function runWrite(query: string, params: Record<string, unknown>): Promise
   }
   const session = driver.session(NEO4J_DATABASE ? { database: NEO4J_DATABASE } : undefined);
   try {
-    await session.executeWrite(
-      (tx: { run: (q: string, p: Record<string, unknown>) => Promise<unknown> }) => tx.run(query, params),
+    const result = await session.executeWrite(
+      (tx: { run: (q: string, p: Record<string, unknown>) => Promise<{ records: Array<unknown> }> }) =>
+        tx.run(query, params),
       { timeout: neo4j.int(NEO4J_QUERY_TIMEOUT) }
     );
+    return result as { records: Array<unknown> };
   } finally {
     await session.close();
   }
 }
 
 function rowToRecord(r: Record<string, unknown>): SessionTypeRecord {
-  const intakeFields = r.intakeFields
-    ? (typeof r.intakeFields === 'string' ? JSON.parse(r.intakeFields as string) : r.intakeFields)
-    : [];
+  let intakeFields: unknown = [];
+  if (r.intakeFields) {
+    if (typeof r.intakeFields === 'string') {
+      try {
+        intakeFields = JSON.parse(r.intakeFields);
+      } catch {
+        intakeFields = [];
+      }
+    } else {
+      intakeFields = r.intakeFields;
+    }
+  }
   return {
     id: String(r.id),
     artistId: String(r.artistId),
@@ -91,7 +105,7 @@ function rowToRecord(r: Record<string, unknown>): SessionTypeRecord {
 export async function createSessionType(input: CreateSessionTypeInput & { id: string }): Promise<void> {
   const now = new Date().toISOString();
   const intakeFieldsJson = JSON.stringify(input.intakeFields ?? []);
-  await runWrite(
+  const result = await runWrite(
     `MATCH (a:Artist {id: $artistId})
      CREATE (st:SessionType {
        id: $id,
@@ -115,7 +129,8 @@ export async function createSessionType(input: CreateSessionTypeInput & { id: st
        createdAt: $createdAt,
        updatedAt: $updatedAt
      })
-     CREATE (a)-[:OFFERS]->(st)`,
+     CREATE (a)-[:OFFERS]->(st)
+     RETURN st.id AS id`,
     {
       id: input.id,
       artistId: input.artistId,
@@ -138,6 +153,9 @@ export async function createSessionType(input: CreateSessionTypeInput & { id: st
       updatedAt: now,
     }
   );
+  if (!result.records.length) {
+    throw new Error(`Artist not found — cannot create session type (artistId=${input.artistId}).`);
+  }
 }
 
 /** Get all active session types for an artist. */
@@ -191,11 +209,15 @@ export async function updateSessionType(
   if (updates.cancellationPolicyHoursPartialRefund !== undefined) { setClauses.push('st.cancellationPolicyHoursPartialRefund = $partialRefundHours'); params.partialRefundHours = updates.cancellationPolicyHoursPartialRefund; }
   if (updates.cancellationPolicyPartialRefundBps !== undefined) { setClauses.push('st.cancellationPolicyPartialRefundBps = $partialRefundBps'); params.partialRefundBps = updates.cancellationPolicyPartialRefundBps; }
 
-  await runWrite(
+  const result = await runWrite(
     `MATCH (st:SessionType {id: $id})
-     SET ${setClauses.join(', ')}`,
+     SET ${setClauses.join(', ')}
+     RETURN st.id AS id`,
     params
   );
+  if (!result.records.length) {
+    throw new Error(`Session type not found — cannot update (id=${id}).`);
+  }
 }
 
 /** Soft-delete: set isActive = false. */
