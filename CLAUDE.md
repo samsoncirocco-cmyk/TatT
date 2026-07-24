@@ -218,8 +218,9 @@ STRIPE_PRICE_ARTIST_SUB=price_***        # recurring Price id for the artist sub
    - Neo4j: Add Cypher queries to `scripts/generate-neo4j-cypher.js`
 
 4. **Deployment:**
-   - Push to `manama/next` branch
-   - Vercel auto-deploys previews
+   - Open a PR against `main` (tatt-app is the sole Vercel project; the old
+     `manama/next` flow is retired)
+   - Vercel auto-deploys previews per branch
    - Merge to `main` for production
 
 ---
