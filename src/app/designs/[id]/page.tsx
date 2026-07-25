@@ -127,14 +127,14 @@ export default function DesignDetailPage({
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/50 mix-blend-multiply" />
               )}
               <div className="absolute top-3 right-3 sticker px-3 py-1 z-10">
-                <div className="font-display text-[11px] tracking-widest leading-none">
+                <div className="font-display text-[14px] tracking-widest leading-none">
                   v1
                 </div>
-                <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-0.5">
+                <div className="font-body text-[10px] uppercase tracking-widest leading-none mt-0.5">
                   {design.image ? "Cut" : "Placeholder"}
                 </div>
               </div>
-              <span className="absolute bottom-3 left-3 text-[9px] uppercase tracking-[0.2em] text-white/70 font-body tabular-nums">
+              <span className="absolute bottom-3 left-3 text-[10px] uppercase tracking-[0.2em] text-white/70 font-body tabular-nums">
                 #{design.id.slice(0, 6)}
               </span>
             </div>
