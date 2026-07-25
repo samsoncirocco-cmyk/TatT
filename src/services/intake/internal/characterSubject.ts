@@ -143,11 +143,39 @@ export function characterLabelFor(matches: CharacterMatch[]): string | undefined
   return first.series === second.series ? `${names} (${first.series})` : names;
 }
 
+/*
+ * Action words that describe what a character is DOING. The database
+ * anchors describe who a character IS, so a backfilled subject alone
+ * rendered Goku standing still four times for a session that asked for a
+ * charging Kamehameha. When the user's own words carry a moment, it rides
+ * along with the anchors instead of being replaced by them.
+ */
+const MOMENT_PATTERN =
+  /\b(?:charging|firing|launching|throwing|punching|kicking|slashing|swinging|drawing|blocking|dodging|leaping|jumping|flying|falling|running|standing|kneeling|sitting|crying|screaming|shouting|smiling|smirking|glaring|staring|mid-[a-z]+|about to [a-z]+)\b[^.,;!?]*/gi;
+
+/** The user's own action phrasing, bounded so prose cannot flood the prompt. */
+export function momentFrom(text: string): string | undefined {
+  const found = (text || '').match(MOMENT_PATTERN);
+  if (!found || found.length === 0) return undefined;
+  const phrase = found
+    .map((m) => m.trim())
+    .filter(Boolean)
+    .slice(0, 2)
+    .join(', ')
+    .trim();
+  return phrase.length > 0 ? phrase.slice(0, 120) : undefined;
+}
+
 /**
  * Build a subject phrase from any characters the text names, or undefined
  * when it names none. Convenience wrapper over charactersIn + subjectPhraseFor
- * for the callers that only need the prompt-facing string.
+ * for the callers that only need the prompt-facing string. The user's own
+ * action phrasing is appended when present — the anchors say who it is, the
+ * moment says what it is doing.
  */
 export function characterSubjectFrom(text: string): string | undefined {
-  return subjectPhraseFor(charactersIn(text));
+  const base = subjectPhraseFor(charactersIn(text));
+  if (!base) return undefined;
+  const moment = momentFrom(text);
+  return moment ? `${base}, ${moment}` : base;
 }

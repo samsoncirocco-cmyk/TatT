@@ -50,35 +50,107 @@ const CONFLICT_CODES = new Set(['INVALID_PHASE', 'REFINEMENT_CLOSED']);
 // one of the session's variations) → 400.
 const BAD_REQUEST_CODES = new Set(['INVALID_VARIATION']);
 
+/*
+ * Upstream statuses that mean "try again shortly" rather than "this request
+ * is wrong". Replicate's low-credit throttle (429) is the observed one: the
+ * generation provider already retries it 5 times internally honoring
+ * `retry_after`, so an error reaching here means the throttle window
+ * outlasted the whole request. A later retry is the correct recovery — and
+ * because spend is only recorded after a successful reveal, retrying a
+ * throttled confirm cannot double-charge.
+ */
+const RETRYABLE_UPSTREAM_STATUS = new Set([429, 502, 503, 504]);
+
+/** Fallback wait when the upstream gave no usable `retry_after`. */
+const DEFAULT_RETRY_AFTER_MS = 10_000;
+
+/**
+ * The structured error envelope every design-session route returns. The
+ * client needs more than a sentence: `code` to branch on, `retryable` to
+ * know whether retrying is meaningful at all, and `retryAfterMs` to know
+ * how long to wait — without these the UI can only print a generic string
+ * and offer a manual button (the observed "Design session request failed"
+ * that then succeeded on a manual retry).
+ */
+export interface DesignSessionErrorBody {
+    error: string;
+    code: string;
+    retryable: boolean;
+    retryAfterMs?: number;
+    message?: string;
+}
+
+/** Pull a retry-after hint off a provider error, in milliseconds. */
+function retryAfterMsFrom(err: { retryAfterMs?: number; details?: unknown }): number {
+    if (typeof err.retryAfterMs === 'number' && err.retryAfterMs > 0) return err.retryAfterMs;
+    const retryAfter = (err.details as { retry_after?: unknown } | undefined)?.retry_after;
+    if (typeof retryAfter === 'number' && retryAfter > 0) return retryAfter * 1000;
+    return DEFAULT_RETRY_AFTER_MS;
+}
+
+function errorResponse(
+    body: DesignSessionErrorBody,
+    status: number
+): NextResponse {
+    const res = NextResponse.json(body, { status });
+    // Standards-correct companion to the JSON hint, for any non-JS caller.
+    if (body.retryable && body.retryAfterMs) {
+        res.headers.set('Retry-After', String(Math.ceil(body.retryAfterMs / 1000)));
+    }
+    return res;
+}
+
 /** Map a designSession service error to the route's HTTP response. */
 export function designSessionErrorResponse(error: unknown): NextResponse {
-    const err = (error ?? {}) as { code?: string; message?: string; status?: number };
+    const err = (error ?? {}) as {
+        code?: string;
+        message?: string;
+        status?: number;
+        retryAfterMs?: number;
+        details?: unknown;
+    };
     const code = err.code || 'DESIGN_SESSION_FAILED';
 
     if (NOT_FOUND_CODES.has(code) || err.status === 404) {
-        return NextResponse.json(
-            { error: 'Session not found', code: 'SESSION_NOT_FOUND' },
-            { status: 404 }
+        return errorResponse(
+            { error: 'Session not found', code: 'SESSION_NOT_FOUND', retryable: false },
+            404
         );
     }
 
     if (CONFLICT_CODES.has(code) || err.status === 409) {
-        return NextResponse.json(
-            { error: err.message || 'Session phase conflict', code },
-            { status: 409 }
+        return errorResponse(
+            { error: err.message || 'Session phase conflict', code, retryable: false },
+            409
         );
     }
 
     if (BAD_REQUEST_CODES.has(code) || err.status === 400) {
-        return NextResponse.json(
-            { error: err.message || 'Invalid request', code },
-            { status: 400 }
+        return errorResponse(
+            { error: err.message || 'Invalid request', code, retryable: false },
+            400
         );
     }
 
-    return NextResponse.json(
-        { error: 'Design session request failed', code, message: err.message },
-        { status: 500 }
+    // Transient upstream trouble — the one case where retrying is the fix.
+    if (err.status !== undefined && RETRYABLE_UPSTREAM_STATUS.has(err.status)) {
+        return errorResponse(
+            {
+                error: 'The image provider is busy right now — retrying shortly usually clears it.',
+                code: 'GENERATION_UNAVAILABLE',
+                retryable: true,
+                retryAfterMs: retryAfterMsFrom(err),
+                message: err.message,
+            },
+            503
+        );
+    }
+
+    // Unknown failure: deliberately NOT retryable. It may have consumed
+    // paid renders, and a blind auto-retry would spend again.
+    return errorResponse(
+        { error: 'Design session request failed', code, retryable: false, message: err.message },
+        500
     );
 }
 

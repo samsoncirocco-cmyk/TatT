@@ -112,15 +112,30 @@ describe('enhanceStructured - palette (color vs monochrome)', () => {
     }
   });
 
-  it('front-loads color, photographs on skin, and never says monochrome', async () => {
+  it('front-loads color but still presents as flash art, never saying monochrome', async () => {
     const result = await enhanceStructured(color);
 
     for (const variation of result.variations) {
       const prompt = variation.prompts.ultra || variation.prompts.simple || '';
       expect(prompt.startsWith('Vibrant color, clean ink saturation, tattoo-quality color rendering.')).toBe(true);
-      expect(prompt).toContain('photograph of the finished tattoo on skin');
+      // Palette and presentation are separate decisions: color sessions are
+      // still flash art on white, so the placement preview can strip the
+      // background and composite onto the user's own photo.
+      expect(prompt).toContain('flash art on a plain white background');
+      expect(prompt).not.toContain('photograph of the finished tattoo on skin');
       expect(prompt.toLowerCase()).not.toContain('monochrome');
       expect((variation.negativePrompt || '').toLowerCase()).not.toContain('monochrome');
+    }
+  });
+
+  it('presents every palette as flash art so placement preview always works', async () => {
+    for (const record of [monochrome, color, unresolved]) {
+      const result = await enhanceStructured(record);
+      for (const variation of result.variations) {
+        const prompt = variation.prompts.simple || '';
+        expect(prompt).toContain('flash art on a plain white background');
+        expect(prompt).not.toContain('photograph of the finished tattoo on skin');
+      }
     }
   });
 
@@ -137,8 +152,15 @@ describe('enhanceStructured - palette (color vs monochrome)', () => {
   it('pins one presentation across all four variations of a session', async () => {
     for (const record of [monochrome, color, unresolved]) {
       const result = await enhanceStructured({ ...record, ambiguousAxes: ['bold-fine', 'minimal-ornate'] });
-      const onSkin = result.variations.map(v => (v.prompts.simple || '').includes('on skin'));
-      expect(new Set(onSkin).size).toBe(1);
+      // Compare the actual presentation clause, not a substring of it: the
+      // flash-art clause ends "...not photographed on skin", so a check for
+      // `includes('on skin')` is satisfied by BOTH presentations and can
+      // never catch a session that mixes them.
+      const presentations = result.variations.map(
+        v => (v.prompts.simple || '').match(/ Presented as [^]*$/)?.[0] ?? ''
+      );
+      expect(new Set(presentations).size).toBe(1);
+      expect(presentations[0]).toContain('flash art on a plain white background');
     }
   });
 
@@ -321,5 +343,44 @@ describe('enhanceStructured - offline and non-invasive', () => {
 
   it('leaves the classic enhance() export untouched', () => {
     expect(typeof enhance).toBe('function');
+  });
+});
+
+describe('enhanceStructured - monochrome sessions strip chromatic anchors', () => {
+  const gokuAnchors =
+    'Goku with wild spiky black hair (or golden Super Saiyan), orange gi with blue undershirt and belt (Dragon Ball Z), charging a kamehameha';
+
+  it('drops color words from the subject on a blackwork session', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      styleTags: ['blackwork'],
+      subject: gokuAnchors,
+      ambiguousAxes: ['minimal-ornate'],
+    });
+
+    for (const variation of result.variations) {
+      const prompt = (variation.prompts.simple || '').toLowerCase();
+      expect(prompt).toContain('goku');
+      // The action survives; the hues do not.
+      expect(prompt).toContain('kamehameha');
+      expect(prompt).not.toContain('orange');
+      expect(prompt).not.toContain('blue');
+      expect(prompt).not.toContain('golden');
+      // Tonal words are what blackwork is made of — they stay.
+      expect(prompt).toContain('black');
+    }
+  });
+
+  it('leaves the subject untouched on a color session', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      styleTags: ['color'],
+      subject: gokuAnchors,
+      ambiguousAxes: ['minimal-ornate'],
+    });
+
+    for (const variation of result.variations) {
+      expect((variation.prompts.simple || '').toLowerCase()).toContain('orange');
+    }
   });
 });

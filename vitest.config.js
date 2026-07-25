@@ -17,6 +17,12 @@ export default defineConfig({
     exclude: ['**/node_modules/**', '**/dist/**', '**/.git/**', '.claude/**'],
     environment: 'jsdom',
     setupFiles: './tests/setup.js',
+    // The council prompt-construction suites legitimately run 3-4s each and
+    // tipped over the 5s default whenever the machine was busy (three
+    // separate agents reported the same false failure in one afternoon). The
+    // work is real, not hung — give it headroom rather than teaching people
+    // to ignore red runs.
+    testTimeout: 20000,
     coverage: {
       reporter: ['text', 'json', 'html'],
       exclude: [

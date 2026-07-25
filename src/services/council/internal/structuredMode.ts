@@ -237,8 +237,9 @@ export function selectAxes(record: IntakeRecord): AxisSelection {
 
 /*
  * Palette resolution. Style tags decide whether a session is monochrome or
- * color, and that single decision drives three things: the front-loaded
- * palette clause, the negative prompt, and the presentation format. Flux
+ * color, and that single decision drives two things: the front-loaded palette
+ * clause and the negative prompt. Presentation is NOT one of them — it is
+ * pinned to flash art for every session, see presentationClause(). Flux
  * weights the front of a prompt far more heavily than a trailing negative,
  * which is why the palette leads rather than being folded into "Avoid:".
  */
@@ -272,15 +273,21 @@ function paletteClause(palette: Palette): string {
 }
 
 /**
- * Presentation is pinned per session so all four reveal thumbnails read as
- * one set: color sessions photograph on skin, monochrome sessions render as
- * flash art on white. Unresolved defaults to flash art — it stays coherent
- * whichever way the color axis lands across the four variations.
+ * Presentation is pinned to flash art on white for EVERY session, palette
+ * included. Palette and presentation are separate decisions: the palette
+ * clause already carries color vs monochrome, so presentation does not need
+ * to encode it too.
+ *
+ * This used to photograph color sessions on skin, which broke the placement
+ * preview: that step strips the near-white background to real alpha and
+ * composites the design onto the user's own photo with a multiply blend. An
+ * on-skin render has no white background to strip, so the preview would
+ * paste a stranger's arm onto the user's body. Flash art everywhere keeps
+ * the grid internally consistent, keeps every render a usable design asset,
+ * and preserves the preview.
  */
-function presentationClause(palette: Palette): string {
-  return palette === 'color'
-    ? ' Presented as a photograph of the finished tattoo on skin, natural lighting.'
-    : ' Presented as flash art on a plain white background — the design only, not photographed on skin.';
+function presentationClause(): string {
+  return ' Presented as flash art on a plain white background — the design only, not photographed on skin.';
 }
 
 /** Palette-specific negatives, appended to the shared base. */
@@ -315,6 +322,36 @@ function buildContext(record: IntakeRecord): PromptContext {
   };
 }
 
+/*
+ * Chromatic words to strip from a subject description on monochrome
+ * sessions. The character database anchors are written for image fidelity
+ * ("Goku ... orange gi with blue undershirt and belt"), and a blackwork
+ * session front-loaded with "zero color" still came back with an orange gi
+ * four times out of four: explicit positive color words beat a negative
+ * prompt every time. Tonal words (black, white, grey, silver) stay — they
+ * are exactly what a blackwork piece is made of.
+ */
+const CHROMATIC_WORDS = [
+  'orange', 'blue', 'red', 'green', 'yellow', 'purple', 'violet', 'pink',
+  'crimson', 'scarlet', 'magenta', 'teal', 'turquoise', 'golden', 'gold',
+  'amber', 'emerald', 'azure', 'lavender', 'maroon', 'indigo', 'olive',
+  'bronze', 'copper', 'salmon', 'lilac',
+];
+
+const CHROMATIC_PATTERN = new RegExp(`\\b(?:${CHROMATIC_WORDS.join('|')})\\b`, 'gi');
+
+/** Drop chromatic words (and the punctuation they strand) from a phrase. */
+export function stripChromaticWords(text: string): string {
+  return text
+    .replace(CHROMATIC_PATTERN, '')
+    .replace(/\(\s*\)/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([,;.])/g, '$1')
+    .replace(/([,;])\s*(?=[,;])/g, '')
+    .replace(/,\s*\)/g, ')')
+    .trim();
+}
+
 /**
  * The subject clause every variation shares. When intake extracted a
  * concrete subject (a named character, franchise, or specific thing —
@@ -324,7 +361,11 @@ function buildContext(record: IntakeRecord): PromptContext {
  * meaning informs phrasing verbatim-ish, as before.
  */
 function subjectClause(ctx: PromptContext): string {
-  if (ctx.subject) return `depicting ${ctx.subject}`;
+  if (ctx.subject) {
+    const subject =
+      ctx.palette === 'monochrome' ? stripChromaticWords(ctx.subject) : ctx.subject;
+    return `depicting ${subject}`;
+  }
   return ctx.meaningShort ? `expressing "${ctx.meaningShort}"` : 'as a personal design';
 }
 
@@ -343,7 +384,7 @@ function buildQuadrantVariation(
   const details = specs.map(spec => spec.detail).join('; ');
 
   const lead = paletteClause(ctx.palette);
-  const presentation = presentationClause(ctx.palette);
+  const presentation = presentationClause();
   const simple = `${lead}A ${ctx.styleDesc} style tattoo on the ${ctx.placement} ${subjectClause(ctx)}, rendered with ${phrases}.`;
   const detailed =
     `${simple} Treatment: ${details}. Composition follows ${ctx.aspectGuidance}.`;
@@ -374,7 +415,7 @@ function buildCompositionalVariation(
   ctx: PromptContext
 ): StructuredVariation {
   const lead = paletteClause(ctx.palette);
-  const presentation = presentationClause(ctx.palette);
+  const presentation = presentationClause();
   const simple = `${lead}A ${ctx.styleDesc} style tattoo on the ${ctx.placement} ${subjectClause(ctx)}, in a ${treatment.phrase}.`;
   const detailed =
     `${simple} Treatment: ${treatment.detail}. Composition follows ${ctx.aspectGuidance}.`;
