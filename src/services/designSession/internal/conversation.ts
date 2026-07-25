@@ -26,6 +26,7 @@ import type {
   ConverseResponse,
 } from '../../designConversation/types';
 import type { IntakeRecord } from '../../intake/types';
+import { characterSubjectFrom } from '../../intake/internal/characterSubject';
 import { resolveSessionStore } from './store';
 import type { StoredSession } from './store';
 import { DesignSessionError, loadSession, startFromRecord } from './orchestrator';
@@ -60,8 +61,14 @@ function newConversationSession(): StoredSession {
  * stage is 'proposal' (frozen contract); the fill-ins below only normalize
  * absent optionals so the reveal pipeline gets a well-formed record.
  */
-function completeIntakeRecord(record: Partial<IntakeRecord>): IntakeRecord {
-  const subject = record.subject?.trim() || undefined;
+function completeIntakeRecord(
+  record: Partial<IntakeRecord>,
+  transcriptText = ''
+): IntakeRecord {
+  // Same backfill as the scripted intake: the conversation model drops
+  // `subject` often enough that a named character otherwise vanishes from
+  // the prompt entirely (a Goku session rendered lettering of the meaning).
+  const subject = record.subject?.trim() || characterSubjectFrom(transcriptText) || undefined;
   let ambiguousAxes = record.ambiguousAxes ?? [];
   // Enforced here as well as in the persona contract: a named subject means
   // a recognizable depiction — reveal slots never go abstract on it.
@@ -191,5 +198,15 @@ export async function confirmProposal(sessionId: string): Promise<StoredSession>
     );
   }
 
-  return startFromRecord(completeIntakeRecord(session.conversation.record), session);
+  // The user's own words across the conversation — the backfill source when
+  // the model returned no subject.
+  const userText = session.conversation.transcript
+    .filter((entry) => entry.role === 'user')
+    .map((entry) => entry.text)
+    .join(' ');
+
+  return startFromRecord(
+    completeIntakeRecord(session.conversation.record, userText),
+    session
+  );
 }
