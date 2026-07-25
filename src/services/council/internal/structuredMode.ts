@@ -237,8 +237,9 @@ export function selectAxes(record: IntakeRecord): AxisSelection {
 
 /*
  * Palette resolution. Style tags decide whether a session is monochrome or
- * color, and that single decision drives three things: the front-loaded
- * palette clause, the negative prompt, and the presentation format. Flux
+ * color, and that single decision drives two things: the front-loaded palette
+ * clause and the negative prompt. Presentation is NOT one of them — it is
+ * pinned to flash art for every session, see presentationClause(). Flux
  * weights the front of a prompt far more heavily than a trailing negative,
  * which is why the palette leads rather than being folded into "Avoid:".
  */
