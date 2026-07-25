@@ -36,6 +36,19 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Shared design links — written server-side only (Admin SDK via
+    // /api/v1/designs/share, which records the owner uid on the doc).
+    // Opening a share link is the product feature, so a single-doc `get`
+    // is public; `list` stays denied so the collection can never be
+    // enumerated by anyone holding the client key. Reads today go through
+    // the Admin SDK (which bypasses rules) — this entry is the standing
+    // contract for any future direct client read.
+    match /shared_designs/{shareId} {
+      allow get: if true;
+      allow list: if false;
+      allow write: if false;
+    }
+
     // Deny all other paths
     match /{document=**} {
       allow read, write: if false;
