@@ -4,9 +4,10 @@ import { makeGenerationError } from './provider';
 const REPLICATE_API_URL = 'https://api.replicate.com/v1';
 const POLL_INTERVAL_MS = 2000;
 // Poll window after create — must fit inside the render routes' maxDuration
-// (60s) together with the create retries, or Vercel kills the function after
-// the renders were already paid for.
-const MAX_POLLS = 15;
+// (300s, Fluid) together with the create retries, or the function dies after
+// the renders were already paid for. Throttled/cold predictions can sit
+// queued well past the Prefer: wait hold, so give polling real room.
+const MAX_POLLS = 60;
 // Replicate throttles hard when account credit is low (burst of 1 per ~10s
 // window), so a reveal's four concurrent predictions need four windows: the
 // last one to land needs attempt #4 or #5, not #3. Jitter spreads the herd —
