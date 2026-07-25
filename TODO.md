@@ -5,10 +5,10 @@ agents. **Every agent: read this before starting work, update it when you
 finish or discover work.** Keep entries short; link PRs/issues; date your
 changes. Newest state wins — resolve edit conflicts by merging both lists.
 
-_Last updated: 2026-07-24 (booking loop Phase 1 landed on main via #108's
+_Last updated: 2026-07-25 (booking loop Phase 1 landed on main via #108's
 branch — 01d962a + Bugbot fixes 772853e; duplicate PR #113 closed as
-superseded, its two deltas ported via merged #117; repo hygiene sweep started —
-see "Repo hygiene" section below)_
+superseded, its two deltas ported via merged #117; repo hygiene sweep executed
+— 30 branches archive-tagged and deleted, see "Repo hygiene" section below)_
 
 ## Now (in priority order) — THE JOURNEY QUEUE
 
@@ -169,107 +169,88 @@ full run NOT launched. Resume after gate review.
    null-placeId shops, and orphaned tags/cities removed. Live graph is now 100%
    real scraped data. Re-seeding (if ever needed): `scripts/import-to-neo4j.js`.
 
-## Repo hygiene — branch & PR close-out (2026-07-24)
+## Repo hygiene — branch & PR close-out (executed 2026-07-25)
 
-Survey of all 60 remote branches (ancestry, `git cherry` patch-equivalence,
-PR state by head). Remote sessions can only push their own branch — branch
-deletion and tag pushes 403 at the git proxy — so the delete/tag commands
-below are **Samson-run-locally** items.
+Survey re-run against the live remote on 2026-07-25: **47 remote branches**
+(46 + `main`), classified by ancestry into `origin/main`, `git cherry`
+patch-equivalence, and PR state by head ref.
 
-**Open-PR queue (merge order recommendation):** ~~#118 design-bot~~
-**MERGED 2026-07-24** · #125 placement preview (reuses `feat/design-bot`
-with new work post-#118 — so that branch is **NOT** deletable, despite
-#118 having merged; see the delete-list caveat below) · #131 ADR-0023
-forge voice/routing (draft, docs-only) · #112 scheduling engine (already
-accepted, additive — merge) · #109 debounce + #103 CTA-signup (small,
-merge) · #110 auto-save/delete, #105 weighted rating, #104 thin-match
-broaden (medium — quick review each). #104+#105 are now batched as **#135**
-and #103+#110+#109 as **#136** (originals left open as fallback until the
-batches merge). Crew PRs base on pre-#108 main; if any turn CONFLICTING as
-the queue merges, update the branch.
+**Why branches accumulate — corrected 2026-07-25.** An earlier draft of this
+section claimed "Automatically delete head branches is OFF for this repo" and
+that every merged PR leaves its branch behind forever. **That was wrong.**
+`repos/samsoncirocco-cmyk/TatT.delete_branch_on_merge` is `true` — the setting
+is ON, and merged-PR branches do self-clean (verified live: #143, #135 and
+#110 all merged 2026-07-25 and their heads were gone from the remote
+immediately, with nobody running a delete). The earlier "70 → 83 branches"
+count was also wrong; the true figure is 47.
 
-**ROOT CAUSE (2026-07-25): "Automatically delete head branches" is OFF for
-this repo.** Every merged PR leaves its branch behind forever — that, not
-any one backlog, is why the count climbs. It went 70 → 83 in a single
-evening (#132–#146). **Turn the setting on** (Settings → General → Pull
-Requests) and this stops recurring; the list below becomes a one-time
-cleanup instead of a standing chore. An earlier version of this note
-claimed the #120–#130 branches self-cleaned on merge — that was wrong,
-they are all still present.
+What actually survives is everything auto-delete never covers:
+- **Legacy heads** that pre-date the setting (and the 2026-07-17 history
+  rewrite) — the bulk of the residue.
+- **PRs closed without merging** — auto-delete fires on merge only, so a
+  closed PR's head stays forever (`#103`, `#104`, `#105`, `#136`, `#144`,
+  `#39`, `#35`, `#40`).
+- **Branches pushed with no PR at all** (`audit/engineering-guidelines-…`,
+  `samson/desktop-tatt-v1-gitignore-fix`).
+- **Heads re-pushed after their PR merged**, which resurrects the ref.
+
+So the setting needs no change and this is a genuine one-time cleanup, not a
+standing chore — but it will never reach zero on its own, because closed-PR
+and no-PR branches are outside its reach.
 
 **Branch-deletion rule:** "its PR merged" is not sufficient grounds to
 delete — check for a *newer* open PR on the same head first.
 `feat/design-bot` was on the delete list on those grounds and would have
 taken #125's unmerged commit (1019ca9) with it.
 
-**Delete now — 35 branches verified 100% landed on main** (recovery:
-`git push origin <sha>:refs/heads/<name>`):
+**Recovery:** every branch below — including the ones held — was tagged
+`archive/<branch>` and the tags pushed to the remote *before* any deletion.
+Restore with `git push origin archive/<branch>:refs/heads/<branch>`.
 
-```
-git push origin --delete \
-  feat/wire-real-matching feat/portfolio-image-hosting \
-  stripe-integration stripe-launch-deposits \
-  docs/railway-resolved docs/todolist-followups docs/context-glossary-dedupe \
-  brand/image2ink-two-door-copy worktree-arch-grill-docs docs/testing-rule-tiered \
-  fix/backlog-cleanup-sweep night/booking-response-hygiene \
-  claude/hopeful-wilson-7107ac port-smartmatch-swipe-to-graph \
-  feat/close-booking-loop-phase1 codex/tatt-security-hardening \
-  feat/generation-module chore/stripe-verify-deferred feat/design-nav-link \
-  feat/fallback-logging feat/flux-models feat/forge-flux-migration \
-  feat/palette-aware-prompts feat/scene-first-conversation \
-  fix/axis-padding-respects-resolution fix/character-subject-backfill \
-  fix/confirm-client-error-semantics fix/flash-art-presentation-everywhere \
-  fix/playback-character-and-dedupe fix/poll-window-300 fix/prod-generation \
-  fix/proposal-beat-and-readiness-gate fix/render-route-budget \
-  fix/throttle-window-math fix/vertex-image-persistence
-```
+**Deleted — 30 branches, each re-verified 2026-07-25 as carrying no content
+missing from `main`:**
 
-Evidence — two verification methods, both re-run 2026-07-25:
-- **Ancestor or patch-equivalent to `origin/main`** (`git cherry` shows every
-  commit already upstream): the four early feat/stripe branches, the seven
-  docs/brand/worktree one-liners, and all 18 of the `#120`–`#142` fix/feat
-  branches added in this pass.
-- **Squash-merged, so patch IDs differ** — verified by merged-PR head instead:
-  night/booking-response-hygiene = #117 (f3cb135), claude/hopeful-wilson-7107ac
-  = #111 (e9e3d33), port-smartmatch-swipe-to-graph = #54 (ac028fc),
-  feat/close-booking-loop-phase1 = #108 closed with content on main as 01d962a
-  (413a3c5), codex/tatt-security-hardening = #43 + 2 stale TODO-note commits
-  (ab2342d), feat/generation-module = #51+#55 (5560978).
-
-Cross-checked against the open-PR list: none of the 35 is the head of an open
-PR. Heads deliberately excluded for that reason: `feat/design-bot` (#125),
-`feat/scheduling-engine` (#112), the five crew branches (#103/#104/#105/#109/
-#110), `fix/monochrome-subject-color-scrub` (#146),
-`fix/presentation-flash-art` (#145), `chore/frontend-infra-pass` (#143).
-
-**Legacy triage — 33 branches, all pre-dating the 2026-07-17 history rewrite**
-(decision 2026-07-24: archive-tag everything, delete groups A+C, hold B):
-
-- A (19, near-certainly landed pre-rewrite): design/punk-site-redesign,
+- Legacy group A (19, pre-rewrite): design/punk-site-redesign,
   fix/rate-limit-always-429, feat/handoff-screens-2, fix/ci-test-suites,
   feat/import-scraper-pipeline, feat/user-persistence,
   fix/firebase-admin-bootstrap, fix/council-vertex-project-id,
   fix/startup-probe-and-ci-green, audit/engineering-guidelines-2026-07-14,
   fix/critical-spend-security, refactor/dead-code-config,
-  fix/forge-toast-provider, docs/readme-truth-sync (superseded by #84),
-  update-atticus-neo4j, chore/cherry-pick-audit-and-gitignore,
+  fix/forge-toast-provider, docs/readme-truth-sync (#35 closed, superseded
+  by #84), update-atticus-neo4j, chore/cherry-pick-audit-and-gitignore,
   worktree-roadmap-and-branch-triage, docs/roadmap-state-rescope,
   security-hardening-followups
-- B (7, HOLD until scraper datasets confirmed safe in ~/tatt-scraper):
-  feat/artist-scraper, feat/scrape-scheduler, perf/parallel-scrape,
-  data/national-dataset, data/scrape-20k, feat/wire-national-dataset
-  (807 commits — biggest unique-content risk), samson/port-artist-crawler
-- C (7, ancient/abandoned): deploy-ready, demo-polish,
+- Legacy group C (7, ancient/abandoned): deploy-ready, demo-polish,
   samsoncirocco-cmyk/map-codebase, fix/frontend-audit-yc,
   samson/desktop-tatt-v1-gitignore-fix, codex/main-manama-integration,
   manama/next
+- Recently merged, no newer open PR on the head (2):
+  fix/monochrome-subject-color-scrub (#146), fix/presentation-flash-art (#145)
+- Closed crew PRs whose content landed via the merged batch #135 (2):
+  crew/70-weighted-rating (#105), crew/73-thin-match-broaden (#104) — both
+  patch-equivalent to `main` (`git cherry` reports zero unmerged commits)
 
-```
-# archive every legacy head as a tag (zero loss), then delete A + C:
-for b in <A list> <B list> <C list>; do git tag "archive/$b" "origin/$b"; done
-git push origin 'refs/tags/archive/*'
-git push origin --delete <A list> <C list>
-```
+Everything the previous draft listed as "35 verified landed" was already gone
+from the remote by 2026-07-25 — auto-delete had taken them on merge.
+
+**Held — 10 branches tagged but NOT deleted:**
+
+- B (7, scraper/dataset — hold until the datasets are confirmed safe in
+  ~/tatt-scraper): feat/artist-scraper, feat/scrape-scheduler,
+  perf/parallel-scrape, data/national-dataset, data/scrape-20k,
+  feat/wire-national-dataset, samson/port-artist-crawler.
+  `feat/wire-national-dataset` is the biggest unique-content risk — **357
+  commits ahead of main, 325 of them not patch-equivalent** (the earlier
+  "807 commits" figure was wrong). The other six are already ancestors of
+  `main` and could be dropped, but the group is held together pending the
+  dataset review.
+- Closed-PR heads with genuinely unlanded work (3): crew/101-cta-signup
+  (#103 closed; its batch #136 closed *unmerged*, so the CTA fix never
+  landed), crew/batch-forge-storage (#136, 6 unmerged commits, overlaps open
+  PR #109), fix/log-conversation-fallback (#144 closed unmerged).
+
+**Skipped — heads of open PRs:** #122 (this branch), #131, #148, #109, #125,
+#112. Never delete a head with an open PR against it.
 
 ## Backlog
 
