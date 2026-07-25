@@ -59,10 +59,32 @@ describe('generation routing', () => {
     expect(routeGeneration({ prompt: 'x', bodyPart: 'forearm' }).aspectRatio).toBe('9:16');
   });
 
-  it('breaks equal-length placement ties toward the limb', () => {
-    // "calf" and "back" are both 4 chars — a calf piece, not a back piece.
+  it('resolves limb over torso regardless of phrase length', () => {
+    // Equal length: "calf" vs "back", both 4.
     expect(routeGeneration({ prompt: 'x', bodyPart: 'back of the calf' }).aspectRatio).toBe('9:16');
     expect(routeGeneration({ prompt: 'x', bodyPart: 'back of the hand' }).aspectRatio).toBe('1:1');
+    // Limb phrase SHORTER than the torso phrase — length must not decide,
+    // or "back" (4) beats "arm"/"leg" (3) and routes an arm piece to 3:4.
+    expect(routeGeneration({ prompt: 'x', bodyPart: 'back of the arm' }).aspectRatio).toBe('9:16');
+    expect(routeGeneration({ prompt: 'x', bodyPart: 'back of the leg' }).aspectRatio).toBe('9:16');
+    expect(routeGeneration({ prompt: 'x', bodyPart: 'back of my arm' }).aspectRatio).toBe('9:16');
+  });
+
+  it('matches plural placements', () => {
+    expect(routeGeneration({ prompt: 'x', bodyPart: 'hands' }).aspectRatio).toBe('1:1');
+    expect(routeGeneration({ prompt: 'x', bodyPart: 'both wrists' }).aspectRatio).toBe('1:1');
+    expect(routeGeneration({ prompt: 'x', bodyPart: 'ankles' }).aspectRatio).toBe('1:1');
+    expect(routeGeneration({ prompt: 'x', bodyPart: 'both forearms' }).aspectRatio).toBe('9:16');
+  });
+
+  // Style tags are ontology ids ("new-school"); STYLE_MODEL_MAPPING is keyed
+  // camelCase ("newSchool"). Lowercasing alone never bridged that, so these
+  // fell through to flux-dev against ADR-0023's routing table.
+  it('routes hyphenated ontology style ids to their mapped model', () => {
+    expect(routeGeneration({ prompt: 'x', style: 'new-school' }).modelId).toBe('krea2');
+    expect(routeGeneration({ prompt: 'x', style: 'newSchool' }).modelId).toBe('krea2');
+    expect(routeGeneration({ prompt: 'x', style: 'neo-traditional' }).modelId).toBe('flux-dev');
+    expect(routeGeneration({ prompt: 'x', style: 'anime' }).modelId).toBe('krea2');
   });
 
   it('defaults to portrait, not square, when placement is unknown or absent', () => {

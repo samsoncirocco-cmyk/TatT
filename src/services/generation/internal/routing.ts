@@ -39,7 +39,22 @@ export interface GenerationRoute {
   reasoning: string;
 }
 
-const normalizeStyle = (style?: string): string => (style || '').toLowerCase();
+// Style tags arrive as ontology ids ("new-school", "neo-traditional") but
+// STYLE_MODEL_MAPPING is keyed camelCase ("newSchool", "neoTraditional").
+// Lowercasing alone never bridged that, so those two fell through to the
+// flux-dev default instead of reaching krea2 — the ADR-0023 routing table
+// said one thing and the code did another. Compare on a form that strips
+// the difference: lowercase, no separators.
+const styleKey = (style: string): string => style.toLowerCase().replace(/[\s_-]/g, '');
+
+const STYLE_MAPPING_BY_KEY: Record<string, StyleModelMapping> = Object.fromEntries(
+  Object.entries(STYLE_MODEL_MAPPING as Record<string, StyleModelMapping>).map(
+    ([name, mapping]) => [styleKey(name), mapping]
+  )
+);
+
+const lookupStyleMapping = (style?: string): StyleModelMapping | undefined =>
+  STYLE_MAPPING_BY_KEY[styleKey(style || '')];
 
 const resolveModelId = (modelId: string): string => MODEL_ID_MAP[modelId] || modelId;
 
@@ -59,9 +74,16 @@ const resolveFallbackChain = (modelId: string): string[] => {
  * conversational session fell through to 1:1 — square renders for placements
  * that are obviously portrait.
  *
- * Two placements can both match. Most specific wins (longest phrase), and on
- * a tie the limb beats the torso: "back of the calf" is a calf piece, not a
- * back piece. Word boundaries keep "forearm" from matching the "arm" rule.
+ * Two placements can both match, and the limb ALWAYS wins over the torso —
+ * "back of the arm" is an arm piece, "back of the calf" is a calf piece.
+ * Region precedence is unconditional, not a length tiebreak: phrase length
+ * is not a proxy for anatomical specificity, and using it as one silently
+ * routed "back of the arm" and "back of the leg" to the torso because
+ * "back" (4) outranks "arm" and "leg" (3).
+ *
+ * Within a region the longest phrase wins, so "upper arm" beats "arm".
+ * Word boundaries keep "forearm" from matching the "arm" rule, and the
+ * optional trailing "s" keeps plurals ("hands", "wrists") matching.
  */
 type PlacementRegion = 'limb' | 'torso';
 
@@ -98,24 +120,20 @@ const PLACEMENT_RULES: readonly PlacementRule[] = [
   { phrase: 'back', region: 'torso', ratio: '3:4' },
 ];
 
-const getAnatomicalAspectRatio = (bodyPart?: string): AspectRatio => {
+/** Limb outranks torso outright; ties inside a region go to the longer phrase. */
+const outranks = (candidate: PlacementRule, incumbent: PlacementRule): boolean => {
+  if (candidate.region !== incumbent.region) return candidate.region === 'limb';
+  return candidate.phrase.length > incumbent.phrase.length;
+};
+
+export const getAnatomicalAspectRatio = (bodyPart?: string): AspectRatio => {
   const text = (bodyPart || '').toLowerCase();
   if (!text) return DEFAULT_ASPECT_RATIO;
 
   let best: PlacementRule | undefined;
   for (const rule of PLACEMENT_RULES) {
-    if (!new RegExp(`\\b${rule.phrase}\\b`).test(text)) continue;
-    if (!best) {
-      best = rule;
-    } else if (rule.phrase.length > best.phrase.length) {
-      best = rule;
-    } else if (
-      rule.phrase.length === best.phrase.length &&
-      rule.region === 'limb' &&
-      best.region === 'torso'
-    ) {
-      best = rule;
-    }
+    if (!new RegExp(`\\b${rule.phrase}s?\\b`).test(text)) continue;
+    if (!best || outranks(rule, best)) best = rule;
   }
 
   return best?.ratio ?? DEFAULT_ASPECT_RATIO;
@@ -131,12 +149,10 @@ export const inferProvider = (modelId: string): ProviderName =>
   modelId === 'imagen3' ? 'vertex-ai' : 'replicate';
 
 export function routeGeneration(request: GenerationRequest): GenerationRoute {
-  const style = normalizeStyle(request.style) || 'default';
   const mode = request.mode || 'standard';
 
   const styleMapping: StyleModelMapping | undefined =
-    (STYLE_MODEL_MAPPING as Record<string, StyleModelMapping>)[style] ||
-    (STYLE_MODEL_MAPPING as Record<string, StyleModelMapping>).default;
+    lookupStyleMapping(request.style) || lookupStyleMapping('default');
   let modelKey = styleMapping?.primary || 'flux_dev';
 
   if (mode === 'preview') {

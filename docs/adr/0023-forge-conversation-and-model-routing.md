@@ -63,6 +63,10 @@ Aspect ratio is passed directly to the model. Placement arrives as a free-text p
 
 The default is portrait, not square: tattoos sit on limbs far more often than not, and a square canvas wastes the composition.
 
+**When a placement matches more than one entry, the limb wins outright.** "back of the arm" is an arm piece; "back of the calf" is a calf piece. Region precedence is unconditional — it is *not* a tiebreak applied only when phrases are the same length. Phrase length is not a proxy for anatomical specificity, and treating it as one routes "back of the arm" and "back of the leg" to the torso, because "back" is longer than "arm" or "leg". Within a single region the longest phrase wins, so "upper arm" beats "arm". Plurals match.
+
+This map lives in exactly one place (`getAnatomicalAspectRatio`). Every entry point resolves through it — a second copy means the same placement renders at a different shape depending on which route served it, which is what happened while `/api/v1/council/generate` carried its own landscape-4:3 version.
+
 **Presentation is pinned by the color/monochrome axis, not chosen per render.** Color sessions render **tattoo-on-skin** — the design shown as applied ink on a real limb. Monochrome sessions render **flash art on white** — the design as a standalone sheet, no body.
 
 This is not an aesthetic preference; it is what each mode has to prove. Color's risk is how the palette reads against skin tone, which a white sheet cannot show. Monochrome's risk is line quality and contrast, which skin rendering muddies with shadow and curvature. Rendering each in its own mode also keeps a reveal's four designs visually comparable to each other — a set that mixes on-skin and on-white reads as four different products, and the user's pick starts tracking presentation instead of design.
