@@ -399,8 +399,8 @@ const MOCK_RESPONSES = {
  * Kept as a thin wrapper so both modes draw from the same negative-prompt
  * craft instead of drifting apart.
  */
-export function getBaseNegativePrompt(): string {
-  return MOCK_RESPONSES.negative();
+export function getBaseNegativePrompt(userIdea = ''): string {
+  return MOCK_RESPONSES.negative(userIdea);
 }
 
 function buildCouncilSystemPrompt({ bodyPart, isStencilMode }: { bodyPart: string; isStencilMode: boolean }) {

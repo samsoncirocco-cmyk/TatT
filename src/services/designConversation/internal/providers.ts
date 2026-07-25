@@ -13,8 +13,22 @@
  * the caller downgrades to the v1 scripted intake flow (ADR-0019).
  */
 
+import { logger } from '@/lib/logger';
 import { getGcpAccessToken } from '@/lib/google-auth-edge';
 import type { ConversationMessage } from '../types';
+
+/**
+ * Structured-logging event names for the ADR-0019 degradation path.
+ *
+ * `PROVIDER_FAILOVER_EVENT` fires when one provider fails but another remains
+ * in the chain (the turn still gets served conversationally);
+ * `CONVERSATION_DEGRADED_EVENT` fires when the chain is exhausted and the
+ * caller is about to downgrade the session to the v1 scripted two-question
+ * intake. Neither ever carries prompt text, transcript content, or
+ * credentials — provider/model/error-class/status/session/turn only.
+ */
+export const PROVIDER_FAILOVER_EVENT = 'design_conversation.provider.failover';
+export const CONVERSATION_DEGRADED_EVENT = 'design_conversation.degraded';
 
 export const DEFAULT_VERTEX_MODEL = 'gemini-2.5-flash-lite';
 export const OPENROUTER_FALLBACK_MODEL = 'z-ai/glm-5.2';
@@ -55,6 +69,46 @@ export class ConversationUnavailableError extends Error {
     this.name = 'ConversationUnavailableError';
     this.attempts = attempts;
   }
+}
+
+/**
+ * A non-2xx provider response. Carries the HTTP status as a field so the
+ * degradation logs can report it without parsing (or logging) the response
+ * body, which can echo prompt text.
+ */
+export class ProviderHttpError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ProviderHttpError';
+    this.status = status;
+  }
+}
+
+/** Why an attempt did not produce a turn — a bounded, content-free class. */
+type FailureClass = 'not_configured' | 'unparseable_response' | 'provider_error';
+
+interface AttemptRecord {
+  provider: string;
+  model: string;
+  /** Human-readable reason (may embed a provider message) — never logged. */
+  reason: string;
+  /** Log-safe classification of the failure. */
+  failure: FailureClass;
+  /** Constructor name of the thrown error, when one was thrown. */
+  errorClass: string | null;
+  /** HTTP status, when the failure was a non-2xx provider response. */
+  status: number | null;
+}
+
+function errorClassOf(error: unknown): string {
+  if (error instanceof Error) return error.constructor?.name || error.name || 'Error';
+  return typeof error;
+}
+
+function statusOf(error: unknown): number | null {
+  return error instanceof ProviderHttpError ? error.status : null;
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -143,7 +197,10 @@ async function callVertex(
     }),
   });
   if (!response.ok) {
-    throw new Error(`Gemini API error: ${response.status} - ${await response.text()}`);
+    throw new ProviderHttpError(
+      `Gemini API error: ${response.status} - ${await response.text()}`,
+      response.status
+    );
   }
   const data = await response.json();
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -176,7 +233,10 @@ async function callOpenRouter(
     }),
   });
   if (!response.ok) {
-    throw new Error(`OpenRouter API error: ${response.status} ${response.statusText}`);
+    throw new ProviderHttpError(
+      `OpenRouter API error: ${response.status} ${response.statusText}`,
+      response.status
+    );
   }
   const data = await response.json();
   const text = data.choices?.[0]?.message?.content;
@@ -226,33 +286,95 @@ export async function converseWithProviders(opts: {
   systemPrompt: string;
   messages: ConversationMessage[];
   pinnedModel?: string;
+  /** Session the turn belongs to — logged so operators can trace a degradation. */
+  sessionId?: string;
+  /** 1-based user-turn number, logged alongside the session id. */
+  userTurn?: number;
 }): Promise<ProviderTurn> {
-  const attempts: { provider: string; model: string; reason: string }[] = [];
+  const attempts: AttemptRecord[] = [];
+  const chain = providerChain(opts.pinnedModel);
 
-  for (const provider of providerChain(opts.pinnedModel)) {
+  for (let i = 0; i < chain.length; i += 1) {
+    const provider = chain[i];
+    let attempt: AttemptRecord;
+
     if (!provider.configured()) {
-      attempts.push({ provider: provider.name, model: provider.model, reason: 'not configured' });
-      continue;
+      attempt = {
+        provider: provider.name,
+        model: provider.model,
+        reason: 'not configured',
+        failure: 'not_configured',
+        errorClass: null,
+        status: null,
+      };
+    } else {
+      try {
+        const payload = await provider.call(opts.systemPrompt, opts.messages);
+        if (payload) return { payload, model: provider.model };
+        attempt = {
+          provider: provider.name,
+          model: provider.model,
+          reason: 'unparseable response',
+          failure: 'unparseable_response',
+          errorClass: null,
+          status: null,
+        };
+      } catch (error) {
+        attempt = {
+          provider: provider.name,
+          model: provider.model,
+          reason: error instanceof Error ? error.message : String(error),
+          failure: 'provider_error',
+          errorClass: errorClassOf(error),
+          status: statusOf(error),
+        };
+      }
     }
-    try {
-      const payload = await provider.call(opts.systemPrompt, opts.messages);
-      if (payload) return { payload, model: provider.model };
-      attempts.push({
-        provider: provider.name,
-        model: provider.model,
-        reason: 'unparseable response',
-      });
-    } catch (error) {
-      attempts.push({
-        provider: provider.name,
-        model: provider.model,
-        reason: error instanceof Error ? error.message : String(error),
+
+    attempts.push(attempt);
+
+    // Failover, not degradation: another provider is still going to be tried,
+    // so the session stays conversational. The exhausted case is logged once,
+    // below, as the degraded event.
+    const next = chain[i + 1];
+    if (next) {
+      logger.warn({
+        event_type: PROVIDER_FAILOVER_EVENT,
+        session_id: opts.sessionId ?? null,
+        turn: opts.userTurn ?? null,
+        provider: attempt.provider,
+        model: attempt.model,
+        failure: attempt.failure,
+        error_class: attempt.errorClass,
+        status: attempt.status,
+        next_provider: next.name,
+        next_model: next.model,
+        outcome: 'failover',
       });
     }
   }
 
+  // Every provider is exhausted: the caller downgrades this session to the v1
+  // scripted two-question intake (ADR-0019 degraded mode). This is the ONLY
+  // place that transition originates, so it is logged here at error level.
+  logger.error({
+    event_type: CONVERSATION_DEGRADED_EVENT,
+    session_id: opts.sessionId ?? null,
+    turn: opts.userTurn ?? null,
+    pinned_model: opts.pinnedModel ?? null,
+    outcome: 'scripted_fallback',
+    providers_attempted: attempts.map((a) => a.provider),
+    attempts: attempts.map((a) => ({
+      provider: a.provider,
+      model: a.model,
+      failure: a.failure,
+      error_class: a.errorClass,
+      status: a.status,
+    })),
+  });
+
   throw new ConversationUnavailableError(
     'all_providers_exhausted: design conversation temporarily unavailable',
-    attempts
+    attempts.map(({ provider, model, reason }) => ({ provider, model, reason }))
   );
 }

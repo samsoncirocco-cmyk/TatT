@@ -18,6 +18,10 @@ import {
 } from '../index';
 import { scoreRecord, CONFIDENCE_THRESHOLD } from '../internal/confidence';
 import { resetStyleTagCache } from '../internal/ontology';
+import {
+  PROVIDER_FAILOVER_EVENT,
+  CONVERSATION_DEGRADED_EVENT,
+} from '../internal/providers';
 import { logger } from '@/lib/logger';
 
 vi.mock('@/lib/google-auth-edge', () => ({
@@ -426,6 +430,146 @@ describe('runTurn — provider chain', () => {
   });
 });
 
+/* ── degradation logging (provider failover + scripted fallback) ─────────── */
+
+describe('runTurn — degradation logging', () => {
+  const warnMock = logger.warn as unknown as ReturnType<typeof vi.fn>;
+  const errorMock = logger.error as unknown as ReturnType<typeof vi.fn>;
+
+  function eventsOf(mock: ReturnType<typeof vi.fn>, eventType: string) {
+    return mock.mock.calls
+      .map((call) => call[0] as Record<string, unknown>)
+      .filter((entry) => entry?.event_type === eventType);
+  }
+
+  it('logs a failover event when one provider fails and another remains', async () => {
+    configureVertex();
+    configureOpenRouter();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 503, text: async () => 'overloaded' })
+      .mockResolvedValueOnce(openRouterResponse(SPARSE_PAYLOAD));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await runTurn({
+      messages: MESSAGES,
+      userTurn: 4,
+      sessionId: 'sess-abc',
+    });
+
+    // The turn was still served conversationally — no degraded event.
+    expect(result.turnLog.model).toBe('z-ai/glm-5.2');
+    expect(eventsOf(errorMock, CONVERSATION_DEGRADED_EVENT)).toHaveLength(0);
+
+    const failovers = eventsOf(warnMock, PROVIDER_FAILOVER_EVENT);
+    expect(failovers).toHaveLength(1);
+    expect(failovers[0]).toMatchObject({
+      event_type: 'design_conversation.provider.failover',
+      session_id: 'sess-abc',
+      turn: 4,
+      provider: 'vertex',
+      failure: 'provider_error',
+      error_class: 'ProviderHttpError',
+      status: 503,
+      next_provider: 'openrouter',
+      next_model: 'z-ai/glm-5.2',
+      outcome: 'failover',
+    });
+  });
+
+  it('records the error class and status of a failing OpenRouter fallback', async () => {
+    configureVertex();
+    configureOpenRouter();
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce({ ok: false, status: 429, text: async () => 'quota' })
+        .mockResolvedValueOnce({ ok: false, status: 401, statusText: 'Unauthorized' })
+    );
+
+    await expect(
+      runTurn({ messages: MESSAGES, userTurn: 2, sessionId: 'sess-xyz' })
+    ).rejects.toBeInstanceOf(ConversationUnavailableError);
+
+    const [degraded] = eventsOf(errorMock, CONVERSATION_DEGRADED_EVENT);
+    expect(degraded).toMatchObject({
+      event_type: 'design_conversation.degraded',
+      session_id: 'sess-xyz',
+      turn: 2,
+      outcome: 'scripted_fallback',
+      providers_attempted: ['vertex', 'openrouter'],
+    });
+    expect(degraded.attempts).toEqual([
+      {
+        provider: 'vertex',
+        model: 'gemini-2.5-flash-lite',
+        failure: 'provider_error',
+        error_class: 'ProviderHttpError',
+        status: 429,
+      },
+      {
+        provider: 'openrouter',
+        model: 'z-ai/glm-5.2',
+        failure: 'provider_error',
+        error_class: 'ProviderHttpError',
+        status: 401,
+      },
+    ]);
+  });
+
+  it('logs the scripted fallback when every provider is unavailable', async () => {
+    stubFetchNever();
+
+    await expect(
+      runTurn({ messages: MESSAGES, userTurn: 1, sessionId: 'sess-down' })
+    ).rejects.toBeInstanceOf(ConversationUnavailableError);
+
+    const degradeds = eventsOf(errorMock, CONVERSATION_DEGRADED_EVENT);
+    expect(degradeds).toHaveLength(1);
+    expect(degradeds[0]).toMatchObject({
+      session_id: 'sess-down',
+      turn: 1,
+      outcome: 'scripted_fallback',
+      providers_attempted: ['vertex', 'openrouter'],
+    });
+    expect(degradeds[0].attempts).toEqual([
+      {
+        provider: 'vertex',
+        model: 'gemini-2.5-flash-lite',
+        failure: 'not_configured',
+        error_class: null,
+        status: null,
+      },
+      {
+        provider: 'openrouter',
+        model: 'z-ai/glm-5.2',
+        failure: 'not_configured',
+        error_class: null,
+        status: null,
+      },
+    ]);
+  });
+
+  it('never logs prompt text, transcript content, or credentials', async () => {
+    configureVertex();
+    configureOpenRouter();
+    process.env.OPENROUTER_API_KEY = 'super-secret-key';
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('everything down')));
+
+    await expect(
+      runTurn({ messages: MESSAGES, userTurn: 1, sessionId: 'sess-quiet' })
+    ).rejects.toBeInstanceOf(ConversationUnavailableError);
+
+    const logged = JSON.stringify([...warnMock.mock.calls, ...errorMock.mock.calls]);
+    expect(logged).not.toContain('hummingbird');
+    expect(logged).not.toContain('grandmother');
+    expect(logged).not.toContain('super-secret-key');
+    // Not even the provider's own error message, which can echo the request.
+    expect(logged).not.toContain('everything down');
+  });
+});
+
 /* ── demo mode ───────────────────────────────────────────────────────────── */
 
 describe('runTurn — demo mode (NEXT_PUBLIC_DEMO_MODE)', () => {
@@ -519,6 +663,277 @@ describe('TurnLog — always present, always logged', () => {
         model: 'demo-script',
         turn: 2,
       })
+    );
+  });
+});
+
+/* ── playback names the character (short label, not costume prose) ───────── */
+
+describe('runTurn — playback names a recognized character', () => {
+  const GOKU_MESSAGES: ConversationMessage[] = [
+    { role: 'bot', text: opener() },
+    {
+      role: 'user',
+      text: 'forearm. goku from dragon ball z charging a kamehameha, blackwork, black ink only',
+    },
+    { role: 'bot', text: 'What are you hoping to capture?' },
+    {
+      role: 'user',
+      text: 'his determination — never giving up no matter how outmatched you are',
+    },
+  ];
+
+  const GOKU_PAYLOAD = {
+    reply: 'Blackwork Goku it is.',
+    record: {
+      placement: 'forearm',
+      styleTags: ['blackwork'],
+      meaning: 'never giving up no matter how outmatched you are',
+      references: [],
+      ambiguousAxes: ['bold-fine'],
+    },
+  };
+
+  it('names the character instead of only the meaning prose', async () => {
+    configureVertex();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(vertexResponse(GOKU_PAYLOAD)));
+
+    const result = await runTurn({ messages: GOKU_MESSAGES, userTurn: 2 });
+
+    expect(result.stage).toBe('proposal');
+    expect(result.playback).toContain('Goku (Dragon Ball)');
+    expect(result.playback).toContain('forearm');
+  });
+
+  it('never leaks the costume anchors the prompts use into the playback', async () => {
+    configureVertex();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(vertexResponse(GOKU_PAYLOAD)));
+
+    const result = await runTurn({ messages: GOKU_MESSAGES, userTurn: 2 });
+
+    // These live on IntakeRecord.subject for the generation prompts and
+    // would make the spoken sentence unreadable.
+    expect(result.playback!.toLowerCase()).not.toContain('orange gi');
+    expect(result.playback!.toLowerCase()).not.toContain('spiky');
+  });
+
+  it('falls back to the meaning when no character is named', async () => {
+    configureVertex();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(vertexResponse(RICH_PAYLOAD)));
+
+    const result = await runTurn({ messages: MESSAGES, userTurn: 3 });
+
+    expect(result.playback).toContain('hummingbird');
+  });
+});
+
+/* ── repeat guard ────────────────────────────────────────────────────────── */
+
+describe('runTurn — repeated-reply guard', () => {
+  it('does not replay the previous bot message verbatim', async () => {
+    configureVertex();
+    const repeated =
+      'Nice — would you want to include any background elements like the energy aura or maybe some debris?';
+    const messages: ConversationMessage[] = [
+      { role: 'bot', text: opener() },
+      { role: 'user', text: 'a dragon on my ribs' },
+      { role: 'bot', text: repeated },
+      { role: 'user', text: 'not sure yet' },
+    ];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        vertexResponse({ ...SPARSE_PAYLOAD, reply: repeated })
+      )
+    );
+
+    const result = await runTurn({ messages, userTurn: 3 });
+
+    expect(result.stage).toBe('chatting');
+    expect(result.reply).not.toBe(repeated);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ event_type: 'design_conversation.repeated_reply' })
+    );
+  });
+
+  it('lets a genuinely new reply through untouched', async () => {
+    configureVertex();
+    const messages: ConversationMessage[] = [
+      { role: 'bot', text: opener() },
+      { role: 'user', text: 'a dragon on my ribs' },
+      { role: 'bot', text: 'What mood are you going for?' },
+      { role: 'user', text: 'not sure yet' },
+    ];
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(vertexResponse(SPARSE_PAYLOAD)));
+
+    const result = await runTurn({ messages, userTurn: 3 });
+
+    expect(result.reply).toBe(SPARSE_PAYLOAD.reply);
+    expect(logger.warn).not.toHaveBeenCalledWith(
+      expect.objectContaining({ event_type: 'design_conversation.repeated_reply' })
+    );
+  });
+});
+
+/* ── proposal beat: a real question gets a real answer ────────────────────
+ * Regression for a real logged session (data/conversation-logs): after the
+ * playback fired, the user asked "do you know which characters im referring
+ * to?" and got the identical templated playback echoed back.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+describe('runTurn — proposal beat answers follow-up questions', () => {
+  const PLAYED_BACK =
+    "Here's what I'm hearing: a illustrative piece on your forearm — love for anime/manga. Want to see four takes on this, or did I miss something?";
+
+  const AFTER_PROPOSAL: ConversationMessage[] = [
+    { role: 'bot', text: opener() },
+    { role: 'user', text: 'my forearm and show my love for anime/manga' },
+    { role: 'bot', text: PLAYED_BACK },
+    { role: 'user', text: 'do you know which characters im referring to?' },
+  ];
+
+  const ANSWER_PAYLOAD = {
+    reply:
+      'Gon and Killua from Hunter x Hunter, and Yusuke from Yu Yu Hakusho — the main trio energy from both series.',
+    record: RICH_PAYLOAD.record,
+  };
+
+  it('surfaces the model answer instead of replaying the playback', async () => {
+    configureVertex();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(vertexResponse(ANSWER_PAYLOAD)));
+
+    const result = await runTurn({ messages: AFTER_PROPOSAL, userTurn: 4 });
+
+    expect(result.stage).toBe('proposal');
+    expect(result.reply).not.toBe(PLAYED_BACK);
+    expect(result.reply).toContain('Hunter x Hunter');
+    // The reveal must stay one tap away.
+    expect(result.reply).toContain('Want to see four takes on this');
+  });
+
+  it('still announces the playback the FIRST time the beat fires', async () => {
+    configureVertex();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(vertexResponse(RICH_PAYLOAD)));
+
+    const result = await runTurn({ messages: MESSAGES, userTurn: 3 });
+
+    expect(result.reply).toBe(
+      `Here's what I'm hearing: ${result.playback}. Want to see four takes on this, or did I miss something?`
+    );
+  });
+
+  it('falls back to the canonical playback when the model just parrots it', async () => {
+    configureVertex();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        vertexResponse({ reply: PLAYED_BACK, record: RICH_PAYLOAD.record })
+      )
+    );
+
+    const result = await runTurn({ messages: AFTER_PROPOSAL, userTurn: 4 });
+
+    expect(result.reply).toContain("Here's what I'm hearing:");
+    expect(result.reply).toContain(result.playback!);
+  });
+});
+
+/* ── readiness gate: a named subject substitutes for meaning ─────────────── */
+
+describe('runTurn — a named character can stand in for meaning', () => {
+  const GOKU_NO_MEANING: ConversationMessage[] = [
+    { role: 'bot', text: opener() },
+    {
+      role: 'user',
+      text: 'forearm. goku from dragon ball z charging a kamehameha, blackwork, black ink only',
+    },
+    { role: 'bot', text: 'Black-and-grey, or straight black ink?' },
+    { role: 'user', text: 'no background at all. just him and the aura. thats everything' },
+  ];
+
+  // Placement 0.3 + two style tags 0.2 + all axes resolved 0.2 = 0.7, but
+  // the model returned NO meaning — the old gate stranded this session.
+  const NO_MEANING_PAYLOAD = {
+    reply: 'Got it — solid black, no shading.',
+    record: {
+      placement: 'forearm',
+      styleTags: ['blackwork', 'japanese'],
+      meaning: '',
+      references: [],
+      ambiguousAxes: [],
+    },
+  };
+
+  it('advances to the proposal on placement + subject with no meaning', async () => {
+    configureVertex();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(vertexResponse(NO_MEANING_PAYLOAD)));
+
+    const result = await runTurn({ messages: GOKU_NO_MEANING, userTurn: 4 });
+
+    expect(result.stage).toBe('proposal');
+    expect(result.turnLog.firedRule).toBe('judgment');
+    expect(result.playback).toContain('Goku (Dragon Ball)');
+  });
+
+  it('backfills the prompt-facing subject onto the record', async () => {
+    configureVertex();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(vertexResponse(NO_MEANING_PAYLOAD)));
+
+    const result = await runTurn({ messages: GOKU_NO_MEANING, userTurn: 4 });
+
+    // The costume anchors the generation prompts depend on.
+    expect(result.record.subject?.toLowerCase()).toContain('orange gi');
+  });
+
+  it('still refuses to advance with neither meaning nor subject', async () => {
+    configureVertex();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        vertexResponse({
+          reply: 'What is the piece about?',
+          record: { ...NO_MEANING_PAYLOAD.record },
+        })
+      )
+    );
+
+    const messages: ConversationMessage[] = [
+      { role: 'bot', text: opener() },
+      { role: 'user', text: 'forearm, blackwork, japanese, no idea what of yet' },
+    ];
+    const result = await runTurn({ messages, userTurn: 2 });
+
+    expect(result.stage).toBe('chatting');
+  });
+});
+
+/* ── repeat guard catches the real near-verbatim case ────────────────────── */
+
+describe('runTurn — repeat guard catches a non-identical repeat', () => {
+  it('catches a repeat that only dropped a leading stock phrase', async () => {
+    configureVertex();
+    // Straight from a real session log: the second copy is the first minus
+    // "Got it. " — byte equality would have missed it.
+    const first =
+      'Got it. Solid black, no shading. So, just Goku charging his Kamehameha, or would you want to include any background elements like the energy aura or maybe some debris?';
+    const second =
+      'Solid black, no shading. So, just Goku charging his Kamehameha, or would you want to include any background elements like the energy aura or maybe some debris?';
+    const messages: ConversationMessage[] = [
+      { role: 'bot', text: opener() },
+      { role: 'user', text: 'straight black ink, no shading, solid blacks' },
+      { role: 'bot', text: first },
+      { role: 'user', text: 'just goku and the energy aura, no background' },
+    ];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(vertexResponse({ ...SPARSE_PAYLOAD, reply: second }))
+    );
+
+    const result = await runTurn({ messages, userTurn: 3 });
+
+    expect(result.reply).not.toBe(second);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ event_type: 'design_conversation.repeated_reply' })
     );
   });
 });

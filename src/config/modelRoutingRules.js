@@ -32,91 +32,65 @@ export const MODEL_CONFIGS = {
         cost: 0.02
     },
 
-    dreamshaper_turbo: {
-        id: 'dreamshaper',
-        name: 'DreamShaper XL Turbo',
-        description: 'Fast generation for illustrative and anime styles',
+    flux_dev: {
+        id: 'flux-dev',
+        name: 'FLUX.1 Dev',
+        description: 'Primary generalist — best linework, prompt adherence, blackwork and anime detail',
         provider: 'replicate',
         strengths: [
-            'Very fast generation (6 steps)',
-            'Excellent for anime/manga',
-            'Versatile illustrative style',
-            'Cost-effective',
-            'Good color vibrancy'
+            'Best-in-class prompt adherence',
+            'Clean confident linework',
+            'Blackwork and stencil clarity',
+            'Handles named characters and IP well',
+            'Strong composition control'
         ],
         limitations: [
-            'Less photorealistic',
-            'May lack fine detail',
-            'Not ideal for traditional flash art'
+            'Slower than Schnell',
+            'No negative-prompt input (negatives folded into prompt)'
         ],
-        bestFor: ['anime', 'illustrative', 'manga', 'newSchool'],
-        estimatedTime: '5-10 seconds',
-        cost: 0.001
+        bestFor: ['blackwork', 'traditional', 'geometric', 'default'],
+        estimatedTime: '8-15 seconds',
+        cost: 0.025
     },
 
-    tattoo_flash_art: {
-        id: 'tattoo',
-        name: 'Tattoo Flash Art',
-        description: 'Optimized for traditional flash art and bold line work',
+    flux_schnell: {
+        id: 'flux-schnell',
+        name: 'FLUX.1 Schnell',
+        description: 'Speed fallback — same family, sub-2s generation, slightly lower quality',
         provider: 'replicate',
         strengths: [
-            'Traditional tattoo aesthetic',
-            'Bold, clean line work',
-            'Classic flash art style',
-            'Optimized for tattoo stencils',
-            'High contrast'
+            'Sub-2 second generation',
+            'Same model family as Dev (consistent look)',
+            'Cheap',
+            'Good for previews and refinement passes'
         ],
         limitations: [
-            'Limited to traditional styles',
-            'Not suitable for photorealism',
-            'Specific aesthetic only'
+            'Slightly lower detail than Dev',
+            'No negative-prompt input'
         ],
-        bestFor: ['traditional', 'neoTraditional', 'americana'],
-        estimatedTime: '10-15 seconds',
+        bestFor: ['preview', 'refine'],
+        estimatedTime: '1-3 seconds',
         cost: 0.003
     },
 
-    anime_xl: {
-        id: 'animeXL',
-        name: 'Anime XL (Niji SE)',
-        description: 'Specialized for anime and manga characters',
+    krea_2: {
+        id: 'krea2',
+        name: 'Krea 2 Medium',
+        description: 'Style wildcard — expressive illustration, anime, painterly styles',
         provider: 'replicate',
         strengths: [
-            'Vibrant anime style',
-            'Character-focused',
-            'Dynamic poses',
-            'Excellent for DBZ/anime characters',
-            'Bold colors'
+            'Expressive illustrative rendering',
+            'Anime and painterly styles',
+            'Artistic rather than clinical output'
         ],
         limitations: [
-            'Anime-specific aesthetic',
-            'Not suitable for realism',
-            'Higher cost than DreamShaper'
+            'Less predictable for strict stencil work',
+            'No negative-prompt input',
+            'Single output per prediction'
         ],
-        bestFor: ['anime', 'manga', 'japanese', 'illustrative'],
-        estimatedTime: '10-15 seconds',
-        cost: 0.03
-    },
-
-    blackwork_specialist: {
-        id: 'sdxl',
-        name: 'Blackwork Specialist (SDXL)',
-        description: 'High-contrast blackwork and tribal designs',
-        provider: 'replicate',
-        strengths: [
-            'High contrast rendering',
-            'Excellent negative space',
-            'Bold black work',
-            'Tribal and geometric patterns',
-            'General-purpose versatility'
-        ],
-        limitations: [
-            'May add unwanted color',
-            'Less specialized than other models'
-        ],
-        bestFor: ['blackwork', 'tribal', 'geometric', 'dotwork'],
-        estimatedTime: '12-18 seconds',
-        cost: 0.0055
+        bestFor: ['anime', 'manga', 'illustrative', 'newSchool'],
+        estimatedTime: '5-12 seconds',
+        cost: 0.035
     }
 };
 
@@ -127,99 +101,99 @@ export const MODEL_CONFIGS = {
 export const STYLE_MODEL_MAPPING = {
     // Traditional styles
     traditional: {
-        primary: 'tattoo_flash_art',
-        fallback: 'blackwork_specialist',
-        reasoning: 'Traditional flash art model optimized for bold lines and classic tattoo aesthetic'
+        primary: 'flux_dev',
+        fallback: 'flux_schnell',
+        reasoning: 'Flux Dev leads on linework, prompt adherence, and tattoo-specific detail'
     },
     neoTraditional: {
-        primary: 'tattoo_flash_art',
-        fallback: 'blackwork_specialist',
-        reasoning: 'Flash art model handles neo-traditional bold lines and vibrant colors'
+        primary: 'flux_dev',
+        fallback: 'flux_schnell',
+        reasoning: 'Flux Dev leads on linework, prompt adherence, and tattoo-specific detail'
     },
     americana: {
-        primary: 'tattoo_flash_art',
-        fallback: 'blackwork_specialist',
-        reasoning: 'Specialized for classic American traditional tattoo style'
+        primary: 'flux_dev',
+        fallback: 'flux_schnell',
+        reasoning: 'Flux Dev leads on linework, prompt adherence, and tattoo-specific detail'
     },
 
     // Realism
     realism: {
         primary: 'imagen3',
-        fallback: 'blackwork_specialist',
+        fallback: 'flux_dev',
         reasoning: 'Imagen 3 excels at photorealistic detail and natural lighting'
     },
     portrait: {
         primary: 'imagen3',
-        fallback: 'blackwork_specialist',
+        fallback: 'flux_dev',
         reasoning: 'Best photorealistic rendering for portrait accuracy'
     },
     photorealistic: {
         primary: 'imagen3',
-        fallback: 'blackwork_specialist',
+        fallback: 'flux_dev',
         reasoning: 'Highest quality photorealistic generation available'
     },
 
     // Anime/Illustrative
     anime: {
-        primary: 'anime_xl',
-        fallback: 'dreamshaper_turbo',
-        reasoning: 'Specialized anime model for vibrant character designs'
+        primary: 'krea_2',
+        fallback: 'flux_dev',
+        reasoning: 'Krea 2 is tuned for expressive illustration, anime, and painterly styles'
     },
     manga: {
-        primary: 'anime_xl',
-        fallback: 'dreamshaper_turbo',
-        reasoning: 'Optimized for manga-style character rendering'
+        primary: 'krea_2',
+        fallback: 'flux_dev',
+        reasoning: 'Krea 2 is tuned for expressive illustration, anime, and painterly styles'
     },
     illustrative: {
-        primary: 'dreamshaper_turbo',
-        fallback: 'anime_xl',
-        reasoning: 'Fast, versatile illustrative style generation'
+        primary: 'krea_2',
+        fallback: 'flux_dev',
+        reasoning: 'Krea 2 is tuned for expressive illustration, anime, and painterly styles'
     },
     newSchool: {
-        primary: 'dreamshaper_turbo',
-        fallback: 'anime_xl',
-        reasoning: 'Vibrant colors and bold illustrative style'
+        primary: 'krea_2',
+        fallback: 'flux_dev',
+        reasoning: 'Krea 2 is tuned for expressive illustration, anime, and painterly styles'
     },
 
     // Japanese
     japanese: {
-        primary: 'anime_xl',
-        fallback: 'blackwork_specialist',
-        reasoning: 'Anime XL handles Japanese aesthetic and composition well'
+        primary: 'krea_2',
+        fallback: 'flux_dev',
+        reasoning: 'Krea 2 is tuned for expressive illustration, anime, and painterly styles'
     },
     irezumi: {
-        primary: 'anime_xl',
-        fallback: 'blackwork_specialist',
-        reasoning: 'Traditional Japanese tattoo style with bold composition'
+        primary: 'flux_dev',
+        fallback: 'krea_2',
+        reasoning: 'Bold traditional Japanese composition benefits from Flux linework first'
     },
 
     // Blackwork/Tribal
     blackwork: {
-        primary: 'blackwork_specialist',
-        fallback: 'tattoo_flash_art',
-        reasoning: 'Optimized for high-contrast black ink designs'
+        primary: 'flux_dev',
+        fallback: 'flux_schnell',
+        reasoning: 'Flux Dev leads on linework, prompt adherence, and tattoo-specific detail'
     },
     tribal: {
-        primary: 'blackwork_specialist',
-        fallback: 'tattoo_flash_art',
-        reasoning: 'Excellent for bold tribal patterns and negative space'
+        primary: 'flux_dev',
+        fallback: 'flux_schnell',
+        reasoning: 'Flux Dev leads on linework, prompt adherence, and tattoo-specific detail'
     },
     geometric: {
-        primary: 'blackwork_specialist',
-        fallback: 'tattoo_flash_art',
-        reasoning: 'Clean lines and precise geometric patterns'
+        primary: 'flux_dev',
+        fallback: 'flux_schnell',
+        reasoning: 'Flux Dev leads on linework, prompt adherence, and tattoo-specific detail'
     },
     dotwork: {
-        primary: 'blackwork_specialist',
-        fallback: 'tattoo_flash_art',
-        reasoning: 'High contrast rendering for stippling and dot work'
+        primary: 'flux_dev',
+        fallback: 'flux_schnell',
+        reasoning: 'Flux Dev leads on linework, prompt adherence, and tattoo-specific detail'
     },
 
     // Default fallback
     default: {
-        primary: 'blackwork_specialist',
-        fallback: 'dreamshaper_turbo',
-        reasoning: 'General-purpose SDXL model for versatile generation'
+        primary: 'flux_dev',
+        fallback: 'flux_schnell',
+        reasoning: 'Flux Dev is the general-purpose primary; Schnell keeps the same look when speed matters'
     }
 };
 
@@ -228,11 +202,10 @@ export const STYLE_MODEL_MAPPING = {
  * Defines fallback sequence if primary model is unavailable
  */
 export const MODEL_FALLBACK_CHAIN = {
-    imagen3: ['blackwork_specialist', 'dreamshaper_turbo'],
-    dreamshaper_turbo: ['anime_xl', 'blackwork_specialist'],
-    tattoo_flash_art: ['blackwork_specialist', 'dreamshaper_turbo'],
-    anime_xl: ['dreamshaper_turbo', 'blackwork_specialist'],
-    blackwork_specialist: ['dreamshaper_turbo', 'tattoo_flash_art']
+    imagen3: ['flux_dev', 'flux_schnell'],
+    flux_dev: ['flux_schnell', 'krea_2'],
+    flux_schnell: ['flux_dev', 'krea_2'],
+    krea_2: ['flux_dev', 'flux_schnell']
 };
 
 /**
@@ -245,41 +218,36 @@ export const MODEL_PROMPT_MODIFIERS = {
         negative: 'cartoon, anime, illustrated, painting, drawing, sketch, low quality, blurry'
     },
 
-    dreamshaper_turbo: {
-        positive: 'vibrant colors, dynamic composition, illustrative style, clean lines, artistic rendering',
-        negative: 'photorealistic, photograph, blurry, low quality, distorted'
+    flux_dev: {
+        positive: 'clean confident linework, tattoo-ready composition, high contrast, deliberate negative space',
+        negative: 'blurry, low quality, muddy shading, messy lines, watermark, text'
     },
 
-    tattoo_flash_art: {
-        positive: 'bold lines, traditional tattoo flash art, high contrast, clean outlines, tattoo stencil style, classic composition',
-        negative: 'photorealistic, blurry, soft edges, watercolor, low contrast, messy lines'
+    flux_schnell: {
+        positive: 'clean linework, high contrast, tattoo-ready composition',
+        negative: 'blurry, low quality, muddy shading, messy lines, watermark, text'
     },
 
-    anime_xl: {
-        positive: 'anime style, vibrant colors, dynamic pose, manga aesthetic, bold outlines, expressive features',
-        negative: 'photorealistic, western cartoon, blurry, low quality, distorted anatomy'
-    },
-
-    blackwork_specialist: {
-        positive: 'high contrast, bold black ink, strong negative space, geometric precision, clean lines, dramatic shadows',
-        negative: 'low contrast, soft edges, blurry, watercolor, pastel colors, washed out'
+    krea_2: {
+        positive: 'expressive illustration, painterly rendering, dynamic composition, bold artistic style',
+        negative: 'photorealistic, blurry, low quality, distorted anatomy, watermark, text'
     }
 };
 
 /**
  * Model-Specific Negative Prompts
- * Tailored negative prompts for each model to avoid common issues
+ * Tailored negative prompts for each model to avoid common issues.
+ * NOTE: the Flux/Krea family has no negative_prompt input — the Replicate
+ * provider folds these into the prompt as an "Avoid:" clause instead.
  */
 export const MODEL_NEGATIVE_PROMPTS = {
     imagen3: 'cartoon, anime, illustrated, painting, drawing, sketch, low quality, blurry, distorted, watermark, text, signature, unrealistic anatomy, cluttered background, oversaturated, pixelated, amateur',
 
-    dreamshaper_turbo: 'photorealistic, photograph, blurry, low quality, distorted, watermark, text, signature, unrealistic anatomy, cluttered background, oversaturated, low contrast, pixelated, amateur, messy linework',
+    flux_dev: 'blurry, low quality, muddy shading, messy lines, distorted, watermark, text, signature, unrealistic anatomy, cluttered background, oversaturated, pixelated, amateur',
 
-    tattoo_flash_art: 'photorealistic, blurry, soft edges, watercolor, low contrast, messy lines, distorted, watermark, text, signature, unrealistic anatomy, cluttered background, oversaturated, pixelated, amateur',
+    flux_schnell: 'blurry, low quality, muddy shading, messy lines, distorted, watermark, text, signature, unrealistic anatomy, cluttered background, oversaturated, pixelated, amateur',
 
-    anime_xl: 'photorealistic, western cartoon, blurry, low quality, distorted anatomy, watermark, text, signature, unrealistic proportions, cluttered background, oversaturated, low contrast, pixelated, amateur, messy linework',
-
-    blackwork_specialist: 'low contrast, soft edges, blurry, watercolor, pastel colors, washed out, distorted, watermark, text, signature, unrealistic anatomy, cluttered background, oversaturated, pixelated, amateur, messy linework'
+    krea_2: 'photorealistic, blurry, low quality, distorted anatomy, watermark, text, signature, unrealistic proportions, cluttered background, oversaturated, pixelated, amateur, messy linework'
 };
 
 /**
@@ -290,7 +258,7 @@ export const COMPLEXITY_ADJUSTMENTS = {
     simple: {
         // For simple designs, prefer faster models
         preferFast: true,
-        modelPreference: ['dreamshaper_turbo', 'tattoo_flash_art']
+        modelPreference: ['flux_schnell', 'flux_dev']
     },
     moderate: {
         // Moderate complexity, use style-appropriate model
@@ -300,7 +268,7 @@ export const COMPLEXITY_ADJUSTMENTS = {
     complex: {
         // Complex designs may benefit from higher quality models
         preferFast: false,
-        modelPreference: ['imagen3', 'anime_xl', 'blackwork_specialist']
+        modelPreference: ['imagen3', 'flux_dev', 'krea_2']
     }
 };
 

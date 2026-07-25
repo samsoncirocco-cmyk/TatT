@@ -21,13 +21,24 @@
 import { logger } from '@/lib/logger';
 import type { IntakeRecord, VariationAxis } from '@/services/intake';
 import { VARIATION_AXIS_POOL } from '@/services/intake';
+import {
+  charactersIn,
+  characterLabelFor,
+  subjectPhraseFor,
+} from '@/services/intake/internal/characterSubject';
 import type {
   ConversationMessage,
   ConversationStage,
   ConversationTurnResult,
   TurnLog,
 } from '../types';
-import { buildSystemPrompt, HANDOFF_MESSAGE, proposalReply } from './persona';
+import {
+  buildSystemPrompt,
+  HANDOFF_MESSAGE,
+  proposalReply,
+  proposalFollowUp,
+  PROPOSAL_LEAD,
+} from './persona';
 import { loadStyleTagIndex, resolveStyleTags, type StyleTagIndex } from './ontology';
 import { scoreRecord, CONFIDENCE_THRESHOLD } from './confidence';
 import { converseWithProviders, type RawTurnPayload } from './providers';
@@ -47,6 +58,12 @@ export interface RunTurnRequest {
    * TurnLog.model). The provider chain tries it first.
    */
   pinnedModel?: string;
+  /**
+   * Session this turn belongs to. Not used for conversation logic — passed
+   * to the provider chain purely so provider-failover and degraded-mode logs
+   * are traceable to a session (never any transcript content).
+   */
+  sessionId?: string;
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -105,7 +122,10 @@ function truncateAtWord(text: string, max: number): string {
   return `${cut.slice(0, lastSpace > 40 ? lastSpace : max)}…`;
 }
 
-export function buildPlayback(record: Partial<IntakeRecord>): string {
+export function buildPlayback(
+  record: Partial<IntakeRecord>,
+  characterLabel?: string
+): string {
   const tags = record.styleTags ?? [];
   const style = tags.length
     ? `${tags.map((t) => t.replace(/-/g, ' ')).join(' and ')} `
@@ -113,11 +133,103 @@ export function buildPlayback(record: Partial<IntakeRecord>): string {
   const placement = record.placement
     ? `on your ${record.placement}`
     : 'with the placement still open';
+  // Named characters read back far better than the raw meaning prose
+  // ("Goku (Dragon Ball Z)" vs "never giving up no matter how outmatched").
+  // Deliberately the short LABEL, never `record.subject` — subject carries
+  // the costume anchors the prompts need ("Goku with wild spiky black hair,
+  // orange gi, ...") and dropping that here produces an unreadable sentence.
+  const subject = (characterLabel ?? '').trim();
   const meaning = (record.meaning ?? '').trim();
-  const meaningPart = meaning
-    ? ` — ${truncateAtWord(meaning, PLAYBACK_MEANING_MAX)}`
+  const tailSource = subject || meaning;
+  const tailPart = tailSource
+    ? ` — ${truncateAtWord(tailSource, PLAYBACK_MEANING_MAX)}`
     : '';
-  return `a ${style}piece ${placement}${meaningPart}`;
+  return `a ${style}piece ${placement}${tailPart}`;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Repeat guard: the model occasionally re-emits its own previous question,
+ * which reads as the bot not listening. Observed in a real session log, the
+ * repeat was NOT byte-identical — the second copy simply dropped a leading
+ * "Got it. " — so containment, not equality, is the test that catches it.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+const REPEAT_FALLBACK =
+  "Sorry — I just asked that. Anything else you want me to know about the look, or should I show you some directions?";
+
+/** Long enough that containment means repetition, not a shared stock phrase. */
+const REPEAT_MIN_WORDS = 8;
+
+function normalizeForCompare(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function wordCount(text: string): number {
+  return text.split(' ').filter(Boolean).length;
+}
+
+/**
+ * True when one message wholly contains the other and the shared part is
+ * substantial. Short replies are exempt so stock phrases ("Got it.") never
+ * trip the guard.
+ */
+function isRepeatOf(reply: string, previousBotMessage: string): boolean {
+  const candidate = normalizeForCompare(reply);
+  const previous = normalizeForCompare(previousBotMessage);
+  if (!candidate || !previous) return false;
+
+  const [shorter, longer] =
+    candidate.length <= previous.length ? [candidate, previous] : [previous, candidate];
+  if (wordCount(shorter) < REPEAT_MIN_WORDS) return false;
+  return longer.includes(shorter);
+}
+
+function lastBotMessage(messages: ConversationMessage[]): string {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    if (messages[i].role === 'bot') return messages[i].text;
+  }
+  return '';
+}
+
+/**
+ * Has the playback already been said? The proposal beat announces once; on
+ * every later turn the user's message deserves a real answer rather than the
+ * same templated sentence. Deterministic — read off the transcript, not a
+ * model judgment, so the ADR-0021 cadence caps stay in code.
+ */
+function hasAlreadyProposed(messages: ConversationMessage[]): boolean {
+  return messages.some(
+    (message) => message.role === 'bot' && message.text.startsWith(PROPOSAL_LEAD)
+  );
+}
+
+/**
+ * What the bot says on a proposal-stage turn.
+ *
+ * The first time, it announces the playback (ADR-0020). After that the beat
+ * used to re-substitute the SAME templated sentence on every turn, discarding
+ * whatever the model actually said — so a real question at the proposal beat
+ * ("do you know which characters im referring to?") got the playback echoed
+ * back verbatim, forever. Once the playback has been said, the model's reply
+ * is surfaced instead, with the affordance repeated so the reveal stays one
+ * tap away. The stage and the cadence caps are unchanged — this only decides
+ * wording.
+ */
+function proposalBeatReply(
+  playback: string,
+  payload: RawTurnPayload,
+  messages: ConversationMessage[]
+): string {
+  const modelReply = asTrimmedString(payload.reply);
+  if (!hasAlreadyProposed(messages) || !modelReply) return proposalReply(playback);
+  // A model that just parroted the playback adds nothing — fall back to the
+  // canonical phrasing rather than echoing a near-duplicate.
+  if (isRepeatOf(modelReply, lastBotMessage(messages))) return proposalReply(playback);
+  return proposalFollowUp(modelReply);
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -151,9 +263,30 @@ export async function runConversationTurn(
     systemPrompt,
     messages: request.messages,
     pinnedModel: request.pinnedModel,
+    sessionId: request.sessionId,
+    userTurn: request.userTurn,
   });
 
   const record = sanitizeRecord(payload, ontology);
+
+  // Deterministic character detection over the user's own words. The
+  // conversation model is never asked for `subject` (it is not in the turn
+  // payload), so without this a named character reaches neither the record
+  // nor the playback. Two projections of the same matches: the full costume
+  // anchors onto `record.subject` for the prompt path (identical to what
+  // confirm would back-fill), and the short label for the spoken sentence.
+  // This runs BEFORE scoring — the readiness gate accepts a named subject in
+  // place of a meaning, so the subject has to be on the record first.
+  const characters = charactersIn(
+    request.messages
+      .filter((message) => message.role === 'user')
+      .map((message) => message.text)
+      .join(' ')
+  );
+  const subject = subjectPhraseFor(characters);
+  if (subject) record.subject = subject;
+  const characterLabel = characterLabelFor(characters);
+
   const { confidence, missingFields, hasRequiredFields } = scoreRecord(record);
 
   // Cadence — deterministic code, not model judgment (ADR-0021).
@@ -169,19 +302,31 @@ export async function runConversationTurn(
   } else if (request.userTurn >= FORCE_PROPOSAL_TURN) {
     stage = 'proposal';
     firedRule = 'turn12-force-proposal';
-    playback = buildPlayback(record);
-    reply = proposalReply(playback);
+    playback = buildPlayback(record, characterLabel);
+    reply = proposalBeatReply(playback, payload, request.messages);
   } else if (confidence >= CONFIDENCE_THRESHOLD && hasRequiredFields) {
     stage = 'proposal';
     firedRule = 'judgment';
-    playback = buildPlayback(record);
-    reply = proposalReply(playback);
+    playback = buildPlayback(record, characterLabel);
+    reply = proposalBeatReply(playback, payload, request.messages);
   } else {
     stage = 'chatting';
     firedRule = 'none';
-    reply =
+    const candidate =
       asTrimmedString(payload.reply) ||
       "Tell me more — what's drawing you to this piece?";
+    const previousBotMessage = lastBotMessage(request.messages);
+    if (isRepeatOf(candidate, previousBotMessage)) {
+      logger.warn({
+        event_type: 'design_conversation.repeated_reply',
+        turn: request.userTurn,
+        model,
+        repeated: candidate,
+      });
+      reply = REPEAT_FALLBACK;
+    } else {
+      reply = candidate;
+    }
   }
 
   const turnLog: TurnLog = {

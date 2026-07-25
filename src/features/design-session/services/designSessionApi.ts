@@ -22,6 +22,39 @@ const BASE_PATH = '/api/v1/design-session';
  */
 export class ConversationUnavailableError extends Error {}
 
+/**
+ * A failed design-session request, carrying what the route told us rather
+ * than just a sentence. Callers (and the UI) need `retryable` to know
+ * whether retrying is meaningful at all and `retryAfterMs` to know how long
+ * to wait — without them the only recovery is a generic message and a manual
+ * button, which is exactly what users hit on a throttled /confirm.
+ */
+export class DesignSessionRequestError extends Error {
+  readonly code: string;
+  readonly status: number;
+  readonly retryable: boolean;
+  readonly retryAfterMs?: number;
+
+  constructor(
+    message: string,
+    fields: { code: string; status: number; retryable: boolean; retryAfterMs?: number }
+  ) {
+    super(message);
+    this.name = 'DesignSessionRequestError';
+    this.code = fields.code;
+    this.status = fields.status;
+    this.retryable = fields.retryable;
+    this.retryAfterMs = fields.retryAfterMs;
+  }
+}
+
+/** Auto-retries for a retryable confirm, on top of the provider's own retries. */
+const MAX_CONFIRM_ATTEMPTS = 3;
+/** Cap so a hostile/absent hint can never hang the UI. */
+const MAX_RETRY_WAIT_MS = 30_000;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 async function postAuthed(path: string, body: unknown): Promise<Response> {
   const authHeaders = await getApiAuthHeaders();
   return fetch(path, {
@@ -42,10 +75,23 @@ async function postJson(path: string, body: unknown): Promise<DesignSession> {
   }
 
   if (!res.ok) {
-    const message =
-      (data as { error?: string } | null)?.error ??
-      `Design session request failed (${res.status})`;
-    throw new Error(message);
+    const payload = (data ?? {}) as {
+      error?: string;
+      code?: string;
+      retryable?: boolean;
+      retryAfterMs?: number;
+    };
+    // A non-JSON or legacy body yields no hint — treat as non-retryable
+    // rather than guessing, since a blind retry can cost paid renders.
+    throw new DesignSessionRequestError(
+      payload.error ?? `Design session request failed (${res.status})`,
+      {
+        code: payload.code ?? 'DESIGN_SESSION_FAILED',
+        status: res.status,
+        retryable: payload.retryable === true,
+        retryAfterMs: payload.retryAfterMs,
+      }
+    );
   }
 
   // Tolerate both a bare DesignSession body and a { session } envelope.
@@ -111,7 +157,33 @@ export async function converse(request: ConverseRequest): Promise<ConverseRespon
 /**
  * POST /api/v1/design-session/[id]/confirm — the user's yes to the proposal
  * (ADR-0020). Fires generation and responds with the revealed DesignSession.
+ *
+ * Retries automatically while the route reports the failure as retryable
+ * (the image provider throttling, in practice), honoring its retry-after
+ * hint. This is the layer above the generation provider's own per-prediction
+ * retries: when a whole throttle window outlasts the request, the confirm
+ * itself has to be re-sent — previously the user's only recovery was a
+ * manual RETRY button under a generic "Design session request failed".
+ *
+ * Only retryable failures are retried, and only ever after a failure, so a
+ * confirm that produced renders is never re-sent.
  */
-export function confirmProposal(sessionId: string): Promise<DesignSession> {
-  return postJson(`${BASE_PATH}/${sessionId}/confirm`, {});
+export async function confirmProposal(sessionId: string): Promise<DesignSession> {
+  const path = `${BASE_PATH}/${sessionId}/confirm`;
+
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await postJson(path, {});
+    } catch (error) {
+      const retryable =
+        error instanceof DesignSessionRequestError && error.retryable;
+      if (!retryable || attempt >= MAX_CONFIRM_ATTEMPTS) throw error;
+
+      const wait = Math.min(
+        (error as DesignSessionRequestError).retryAfterMs ?? 10_000,
+        MAX_RETRY_WAIT_MS
+      );
+      await sleep(wait);
+    }
+  }
 }

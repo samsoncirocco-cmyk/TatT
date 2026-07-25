@@ -95,6 +95,164 @@ describe('enhanceStructured - questionnaire mode (2 ambiguous axes)', () => {
   });
 });
 
+describe('enhanceStructured - palette (color vs monochrome)', () => {
+  const monochrome: IntakeRecord = { ...baseRecord, styleTags: ['blackwork', 'fine-line'] };
+  const color: IntakeRecord = { ...baseRecord, styleTags: ['color', 'anime'] };
+  const unresolved: IntakeRecord = { ...baseRecord, styleTags: ['illustrative'] };
+
+  it('front-loads monochrome and renders monochrome sessions as flash art on white', async () => {
+    const result = await enhanceStructured(monochrome);
+
+    for (const variation of result.variations) {
+      const prompt = variation.prompts.simple || '';
+      expect(prompt.startsWith('Monochrome, black and grey ink only, zero color.')).toBe(true);
+      expect(prompt).toContain('flash art on a plain white background');
+      expect(prompt).not.toContain('photograph of the finished tattoo on skin');
+      expect(variation.negativePrompt || '').toContain('color ink, saturated hues');
+    }
+  });
+
+  it('front-loads color but still presents as flash art, never saying monochrome', async () => {
+    const result = await enhanceStructured(color);
+
+    for (const variation of result.variations) {
+      const prompt = variation.prompts.ultra || variation.prompts.simple || '';
+      expect(prompt.startsWith('Vibrant color, clean ink saturation, tattoo-quality color rendering.')).toBe(true);
+      // Palette and presentation are separate decisions: color sessions are
+      // still flash art on white, so the placement preview can strip the
+      // background and composite onto the user's own photo.
+      expect(prompt).toContain('flash art on a plain white background');
+      expect(prompt).not.toContain('photograph of the finished tattoo on skin');
+      expect(prompt.toLowerCase()).not.toContain('monochrome');
+      expect((variation.negativePrompt || '').toLowerCase()).not.toContain('monochrome');
+    }
+  });
+
+  it('presents every palette as flash art so placement preview always works', async () => {
+    for (const record of [monochrome, color, unresolved]) {
+      const result = await enhanceStructured(record);
+      for (const variation of result.variations) {
+        const prompt = variation.prompts.simple || '';
+        expect(prompt).toContain('flash art on a plain white background');
+        expect(prompt).not.toContain('photograph of the finished tattoo on skin');
+      }
+    }
+  });
+
+  it('defaults to flash art with no palette lead when style resolves neither way', async () => {
+    const result = await enhanceStructured(unresolved);
+
+    for (const variation of result.variations) {
+      const prompt = variation.prompts.simple || '';
+      expect(prompt.startsWith('A ')).toBe(true);
+      expect(prompt).toContain('flash art on a plain white background');
+    }
+  });
+
+  it('pins one presentation across all four variations of a session', async () => {
+    for (const record of [monochrome, color, unresolved]) {
+      const result = await enhanceStructured({ ...record, ambiguousAxes: ['bold-fine', 'minimal-ornate'] });
+      // Compare the actual presentation clause, not a substring of it: the
+      // flash-art clause ends "...not photographed on skin", so a check for
+      // `includes('on skin')` is satisfied by BOTH presentations and can
+      // never catch a session that mixes them.
+      const presentations = result.variations.map(
+        v => (v.prompts.simple || '').match(/ Presented as [^]*$/)?.[0] ?? ''
+      );
+      expect(new Set(presentations).size).toBe(1);
+      expect(presentations[0]).toContain('flash art on a plain white background');
+    }
+  });
+
+  it('drops the multiple-people negative when the subject names a scene', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      subject: 'Izuku Midoriya (Deku) and Shoto Todoroki from My Hero Academia mid-fight',
+    });
+
+    for (const variation of result.variations) {
+      expect(variation.negativePrompt || '').not.toContain('multiple people');
+    }
+  });
+});
+
+describe('enhanceStructured - padding never contradicts a resolved axis', () => {
+  it('does not pad a blackwork session with the color axis', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      styleTags: ['blackwork'],
+      ambiguousAxes: ['minimal-ornate'],
+    });
+
+    expect(result.axisSelection.axes).not.toContain('color-blackwork');
+    for (const variation of result.variations) {
+      const prompt = (variation.prompts.detailed || '').toLowerCase();
+      expect(prompt).not.toContain('vibrant full-color');
+    }
+  });
+
+  it('does not pad a named-subject session with the literal-abstract axis', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      styleTags: ['color'],
+      subject: 'Son Goku from Dragon Ball Z charging a Kamehameha',
+      ambiguousAxes: ['minimal-ornate'],
+    });
+
+    expect(result.axisSelection.axes).not.toContain('literal-abstract');
+    expect(result.axisSelection.axes).not.toContain('color-blackwork');
+  });
+
+  it('still pads (least consequential) when the intake decided everything else', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      styleTags: ['blackwork', 'fine-line', 'minimalist', 'realism'],
+      ambiguousAxes: ['minimal-ornate'],
+    });
+
+    expect(result.axisSelection.axes).toHaveLength(2);
+    expect(result.axisSelection.rationale).toContain('decided every');
+  });
+});
+
+describe('enhanceStructured - named subject (IP rule)', () => {
+  it('prompts depict the named subject instead of paraphrasing the meaning', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      meaning: 'my love of my hero academia and its characters',
+      subject: 'Izuku Midoriya (Deku) from My Hero Academia, One For All lightning around his fist',
+      ambiguousAxes: ['bold-fine', 'color-blackwork'],
+    });
+
+    for (const variation of result.variations) {
+      const prompt = variation.prompts.simple || '';
+      expect(prompt).toContain('depicting Izuku Midoriya (Deku) from My Hero Academia');
+      expect(prompt).not.toContain('expressing');
+    }
+  });
+
+  it('without a subject the meaning clause is unchanged', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      meaning: 'strength through hard times',
+      ambiguousAxes: ['bold-fine', 'color-blackwork'],
+    });
+
+    expect(result.variations[0].prompts.simple).toContain('expressing "strength through hard times"');
+  });
+
+  it('the abstract pole no longer excludes figurative depiction', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      ambiguousAxes: ['literal-abstract', 'bold-fine'],
+    });
+
+    for (const variation of result.variations) {
+      expect(variation.negativePrompt || '').not.toContain('literal figurative depiction');
+    }
+  });
+});
+
 describe('enhanceStructured - more than 2 ambiguous axes', () => {
   it('picks the two most visually consequential axes by documented priority', async () => {
     const result = await enhanceStructured({
@@ -185,5 +343,44 @@ describe('enhanceStructured - offline and non-invasive', () => {
 
   it('leaves the classic enhance() export untouched', () => {
     expect(typeof enhance).toBe('function');
+  });
+});
+
+describe('enhanceStructured - monochrome sessions strip chromatic anchors', () => {
+  const gokuAnchors =
+    'Goku with wild spiky black hair (or golden Super Saiyan), orange gi with blue undershirt and belt (Dragon Ball Z), charging a kamehameha';
+
+  it('drops color words from the subject on a blackwork session', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      styleTags: ['blackwork'],
+      subject: gokuAnchors,
+      ambiguousAxes: ['minimal-ornate'],
+    });
+
+    for (const variation of result.variations) {
+      const prompt = (variation.prompts.simple || '').toLowerCase();
+      expect(prompt).toContain('goku');
+      // The action survives; the hues do not.
+      expect(prompt).toContain('kamehameha');
+      expect(prompt).not.toContain('orange');
+      expect(prompt).not.toContain('blue');
+      expect(prompt).not.toContain('golden');
+      // Tonal words are what blackwork is made of — they stay.
+      expect(prompt).toContain('black');
+    }
+  });
+
+  it('leaves the subject untouched on a color session', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      styleTags: ['color'],
+      subject: gokuAnchors,
+      ambiguousAxes: ['minimal-ornate'],
+    });
+
+    for (const variation of result.variations) {
+      expect((variation.prompts.simple || '').toLowerCase()).toContain('orange');
+    }
   });
 });

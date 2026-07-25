@@ -113,6 +113,27 @@ export async function startSession(request: StartSessionRequest): Promise<Stored
 }
 
 /**
+ * Firestore documents cap at ~1MB, but Vertex Imagen returns images as
+ * inline base64 data URLs — megabytes each. Anything inline moves to GCS
+ * before it can be persisted; hosted URLs (Replicate, demo stock) pass
+ * through untouched.
+ */
+async function persistableImageUrl(
+  imageUrl: string,
+  sessionId: string,
+  tag: string
+): Promise<string> {
+  if (!imageUrl.startsWith('data:')) return imageUrl;
+  const base64 = imageUrl.slice(imageUrl.indexOf(',') + 1);
+  const { uploadToGCS } = await import('../../gcs-service');
+  const upload = await uploadToGCS(
+    Buffer.from(base64, 'base64'),
+    `design-sessions/${sessionId}/${tag}-${Date.now()}.png`
+  );
+  return upload.url;
+}
+
+/**
  * INTERNAL shared reveal path — everything a start does once an
  * IntakeRecord exists: Council structured enhancement → one route resolved
  * and pinned for the whole session (ADR-0016) → four renders (demo mode:
@@ -140,13 +161,19 @@ export async function startFromRecord(
   });
 
   const demo = isDemoMode();
+  const now = new Date().toISOString();
+  const shell = base ?? { id: randomUUID(), createdAt: now };
   const variations: Variation[] = await Promise.all(
     enhanced.variations.map(async (structured, index) => {
       const prompt = generationPrompt(structured.prompts);
       // Demo mode: stock image instead of a paid render; everything else real.
       const imageUrl = demo
         ? DEMO_MOCK_IMAGES[index % DEMO_MOCK_IMAGES.length]
-        : (await generate(pinnedRequest(route, prompt, structured.negativePrompt))).images[0];
+        : await persistableImageUrl(
+            (await generate(pinnedRequest(route, prompt, structured.negativePrompt))).images[0],
+            shell.id,
+            `v${index + 1}`
+          );
       return {
         id: `v${index + 1}`,
         axisPosition: structured.axisPosition as Record<string, string>,
@@ -156,9 +183,6 @@ export async function startFromRecord(
       };
     })
   );
-
-  const now = new Date().toISOString();
-  const shell = base ?? { id: randomUUID(), createdAt: now };
   const session: StoredSession = {
     ...shell,
     phase: 'revealed',
@@ -265,7 +289,7 @@ export async function refine(sessionId: string, request: RefineRequest): Promise
         picked.negativePrompt
       )
     );
-    imageUrl = result.images[0];
+    imageUrl = await persistableImageUrl(result.images[0], session.id, `${picked.id}-refined`);
   }
 
   session.refinementAnswer = request.answer;

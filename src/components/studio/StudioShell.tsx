@@ -19,9 +19,10 @@ type StudioShellProps = {
 };
 
 const NAV = [
-  // "Forge" is the quick prompt→four-cuts flow (same target as the homepage
-  // CTA); "Studio" is the multi-layer editor. Two different places on
-  // purpose — see issue #102.
+  // "Design" is the conversational front door (ADR-0009); "Forge" is the
+  // quick prompt→four-cuts flow; "Studio" is the multi-layer editor. Three
+  // different places on purpose — see issue #102.
+  { label: "Design", href: "/design" },
   { label: "Forge", href: "/generate/stencil" },
   { label: "Studio", href: "/generate" },
   { label: "Artists", href: "/artists" },

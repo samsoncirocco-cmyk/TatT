@@ -24,6 +24,7 @@ import {
   type OntologyIndex,
 } from './ontology';
 import { getGcpAccessToken } from '@/lib/google-auth-edge';
+import { characterSubjectFrom } from './characterSubject';
 
 export interface IntakeAnswers {
   placementAnswer: string;
@@ -173,12 +174,17 @@ function heuristicStyleTags(answers: IntakeAnswers, index: OntologyIndex): strin
 /** Keyword-only extraction — deterministic, offline, no provider needed. */
 export function heuristicExtract(answers: IntakeAnswers, index: OntologyIndex): IntakeRecord {
   const styleTags = heuristicStyleTags(answers, index);
+  const subject = characterSubjectFrom(`${answers.placementAnswer} ${answers.meaningAnswer}`);
+  const ambiguousAxes = detectAmbiguousAxes(answers, styleTags).filter(
+    (axis) => !subject || axis !== 'literal-abstract'
+  );
   return {
     placement: normalizePlacement(answers.placementAnswer),
     styleTags,
     meaning: answers.meaningAnswer.trim(),
+    subject,
     references: extractReferences(answers),
-    ambiguousAxes: detectAmbiguousAxes(answers, styleTags),
+    ambiguousAxes,
   };
 }
 
@@ -189,6 +195,7 @@ export function heuristicExtract(answers: IntakeAnswers, index: OntologyIndex): 
 interface LlmExtraction {
   placement?: unknown;
   styleTags?: unknown;
+  subject?: unknown;
   references?: unknown;
   ambiguousAxes?: unknown;
 }
@@ -198,12 +205,14 @@ function buildExtractionPrompt(answers: IntakeAnswers, index: OntologyIndex): st
   return [
     'You extract structured tattoo intake data from two conversational answers.',
     'Return ONLY a JSON object with exactly these keys:',
-    '{"placement": string, "styleTags": string[], "references": string[], "ambiguousAxes": string[]}',
+    '{"placement": string, "styleTags": string[], "subject": string | null, "references": string[], "ambiguousAxes": string[]}',
     '',
     '- placement: the body placement, normalized to a short lowercase phrase (e.g. "left forearm").',
     `- styleTags: tattoo style tags, chosen ONLY from this closed list: [${allowedTags}]. Empty array if the answers do not clearly signal a style.`,
+    '- subject: when the answers name a SPECIFIC character, franchise, person, or thing, write a concrete visual subject phrase that names it and anchors it to real, recognizable visual elements — e.g. "Izuku Midoriya (Deku) from My Hero Academia, determined expression, One For All lightning crackling around his fist". Name the character AND the franchise. Only include visual elements that genuinely belong to that subject; if you are not sure of its iconography, name the subject plainly without invented details. null when the answers name nothing specific (a mood, a value, an abstract feeling). Anchor the subject with COSTUME specificity, not just hair and powers — outfit, silhouette, and accessories are what separate a character from lookalikes in the same archetype (e.g. \"Killua Zoldyck, Hunter x Hunter, silver spiky hair, blue eyes, plain long-sleeve white turtleneck, wide shorts, boots\" rather than just \"white-haired boy with lightning\").',
     '- references: any reference imagery the user mentioned (URLs or short descriptions of images they referenced). Empty array if none.',
-    `- ambiguousAxes: the subset of [${VARIATION_AXIS_POOL.join(', ')}] the answers leave UNRESOLVED. An axis is resolved when the answers commit to either pole (e.g. "delicate script" resolves bold-fine toward fine; "black and grey" resolves color-blackwork).`,
+    '- COLOR IS A FIRST-CLASS RESOLUTION: if the answers signal color at all — saying color outright, naming a color-bearing style (neo-traditional, watercolor, new-school), or referencing color artwork such as the color palette of an anime — include "color" in styleTags and treat color-blackwork as RESOLVED. Equally, explicit blackwork / black-and-grey / fine-line wording resolves it the other way. Only leave color-blackwork ambiguous when the answers genuinely say nothing either way.',
+    `- ambiguousAxes: the subset of [${VARIATION_AXIS_POOL.join(', ')}] the answers leave UNRESOLVED. An axis is resolved when the answers commit to either pole (e.g. "delicate script" resolves bold-fine toward fine; "black and grey" resolves color-blackwork). IMPORTANT: when subject is non-null, literal-abstract is RESOLVED (toward literal) — a named character or franchise means the user wants a recognizable depiction, so never list literal-abstract as ambiguous in that case.`,
     '',
     'Do NOT paraphrase or summarize the meaning answer — it is preserved verbatim elsewhere.',
     '',
@@ -308,16 +317,29 @@ function mergeLlmExtraction(
       ? llm.placement
       : answers.placementAnswer;
 
+  // The model is asked for a subject but drops it often enough to matter, so
+  // a name match in the answers backfills one deterministically.
+  const subject =
+    (typeof llm.subject === 'string' && llm.subject.trim() ? llm.subject.trim() : undefined) ??
+    characterSubjectFrom(`${answers.placementAnswer} ${answers.meaningAnswer}`);
+
   const llmAxes = asStringArray(llm.ambiguousAxes);
-  const ambiguousAxes = llmAxes
+  let ambiguousAxes = llmAxes
     ? VARIATION_AXIS_POOL.filter((axis) => llmAxes.includes(axis))
     : detectAmbiguousAxes(answers, styleTags);
+  // A named subject means the user wants a recognizable depiction — enforce
+  // the prompt's rule here too so literal-abstract can never slip through as
+  // ambiguous and burn reveal slots on abstract takes of a named character.
+  if (subject) {
+    ambiguousAxes = ambiguousAxes.filter((axis) => axis !== 'literal-abstract');
+  }
 
   return {
     placement: normalizePlacement(rawPlacement),
     styleTags,
     // Meaning is NEVER taken from the model — verbatim prose per ADR-0010.
     meaning: answers.meaningAnswer.trim(),
+    subject,
     references: asStringArray(llm.references)?.map((r) => r.trim()) ?? extractReferences(answers),
     ambiguousAxes: [...ambiguousAxes],
   };
