@@ -187,8 +187,8 @@ that self-deleted, and #143, #135 and #110 all vanished on merge afterwards
 with nobody running a delete. #145 (19:35) and #146 (19:30) merged just before
 the flip and were left behind, which dates the change to that five-minute
 window. **Anything in this file still describing the setting as OFF, or the
-remote as 70/83/85 branches, is stale** — the live count is **47** (46 +
-`main`).
+remote as 70/83/85 branches, is stale** — the remote held **47** when this
+pass started and **18** when it finished.
 
 **But turning it on does not drive the count to zero**, because auto-delete
 fires on **merge only**. Four kinds of branch are outside its reach and always
@@ -277,7 +277,18 @@ Restore with `git push origin archive/<branch>:refs/heads/<branch>`.
   closed unmerged).
 
 **Skipped — heads of open PRs:** #122 (this branch), #131, #148, #109, #125,
-#112. Never delete a head with an open PR against it.
+#112, plus `chore/purge-manama-identity`. Never delete a head with an open PR
+against it — re-fetch the open-PR list immediately before deleting, not from a
+survey written days earlier.
+
+**Result: 47 → 18 remote branches** = `main` + 7 open-PR heads + the 10 held.
+40 `archive/*` tags are live on the remote (30 deleted + 10 held).
+
+**One honest caveat on the deleted set:** `security-hardening-followups`
+(#39, closed) was *not* landed — it is an abandoned older fork of
+`src/lib/client-api-auth.ts` that predates main's `authStateReady()` race fix,
+so re-applying it would regress. It was deleted as abandoned, not as merged;
+the code survives at `archive/security-hardening-followups`.
 
 
 ## Backlog
