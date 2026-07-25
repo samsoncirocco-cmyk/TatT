@@ -113,11 +113,15 @@ export function buildPlayback(record: Partial<IntakeRecord>): string {
   const placement = record.placement
     ? `on your ${record.placement}`
     : 'with the placement still open';
+  // A concrete subject reads back far better than the raw meaning prose
+  // ("Deku and Todoroki mid-fight" vs "my love of my hero academia and...").
+  const subject = (record.subject ?? '').trim();
   const meaning = (record.meaning ?? '').trim();
-  const meaningPart = meaning
-    ? ` — ${truncateAtWord(meaning, PLAYBACK_MEANING_MAX)}`
+  const tailSource = subject || meaning;
+  const tailPart = tailSource
+    ? ` — ${truncateAtWord(tailSource, PLAYBACK_MEANING_MAX)}`
     : '';
-  return `a ${style}piece ${placement}${meaningPart}`;
+  return `a ${style}piece ${placement}${tailPart}`;
 }
 
 /* ──────────────────────────────────────────────────────────────────────────

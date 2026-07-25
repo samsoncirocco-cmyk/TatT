@@ -61,12 +61,20 @@ function newConversationSession(): StoredSession {
  * absent optionals so the reveal pipeline gets a well-formed record.
  */
 function completeIntakeRecord(record: Partial<IntakeRecord>): IntakeRecord {
+  const subject = record.subject?.trim() || undefined;
+  let ambiguousAxes = record.ambiguousAxes ?? [];
+  // Enforced here as well as in the persona contract: a named subject means
+  // a recognizable depiction — reveal slots never go abstract on it.
+  if (subject) {
+    ambiguousAxes = ambiguousAxes.filter((axis) => axis !== 'literal-abstract');
+  }
   return {
     placement: record.placement ?? '',
     styleTags: record.styleTags ?? [],
     meaning: record.meaning ?? '',
+    subject,
     references: record.references ?? [],
-    ambiguousAxes: record.ambiguousAxes ?? [],
+    ambiguousAxes,
   };
 }
 
