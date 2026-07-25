@@ -10,7 +10,7 @@ The live artist graph holds **8,949 real scraped artists** (`data/cleanup-report
 
 Portfolio photos are real: sourced from each artist's Instagram via Apify, then downloaded and **self-hosted on Google Cloud Storage** by `scripts/host-artist-images.mjs` (not the expiring scraped CDN URLs), and written back onto the graph as `Artist.portfolioImages`. A full roster sweep ran on 2026-07-20 (~19k images across thousands of artists, still finalizing). **Style tags are not yet populated** — Instagram bios don't list styles; that's the pending vision pass (issue #63). A separate deterministic shop-site enrichment pipeline exists in the sibling `~/tatt-scraper` repo (`execution/`) as a complementary source. See `TODO.md` for status. The overnight crew (`CREW.md`) works this repo's issue queue in two lanes — `pr-only` (code tickets, PRs only, no paid/data jobs) and `autonomous` (may also merge and run capped data/spend jobs) — currently in `pr-only` mode.
 
-Three separate Vercel projects (`tatt-app`, `manama-next`, `generous-success`) currently deploy this repo; `tatt-app` is the one serving live matching and should be treated as canonical until the other two are formally disconnected (see `TODO.md`).
+`tatt-app` is the only Vercel project linked to this repo. Two earlier projects that also deployed it — `manama-next` and `generous-success` — were disconnected and deleted respectively (verified 2026-07-21; see `TODO.md`).
 
 **Payments (Stripe, `stripe-launch-deposits`).** Booking deposits run on Stripe Connect via `/api/checkout`. If the artist is **claimed** (has a connected account with charges enabled) the deposit is a destination charge that routes to them, minus TatT's ~10% platform fee (`PLATFORM_FEE_BPS`). If the artist is **unclaimed** (most of the scraped graph), the deposit is instead collected to the platform and **held** (no `transfer_data`, `metadata.depositState='held'`), recorded as a `:BookingRelay` node in Neo4j, and the artist is sent a claim link. When they finish onboarding — via the deposit-driven link or self-serve `v1/connect/claim` → `v1/connect/claim-complete` — held funds are released to them with separate charges & transfers (`source_transaction` = the original charge, `amount` = gross − platform fee). If the artist doesn't claim within the hold window (`DEPOSIT_HOLD_DAYS`, default 7), a daily cron (`/api/cron/expire-deposits`, gated by `CRON_SECRET`, wired in `vercel.json`) fully refunds the customer (TatT absorbs the Stripe fee). A separate SaaS-subscription lane bills artists via Stripe Billing (`STRIPE_PRICE_ARTIST_SUB`), with status persisted onto the `Artist` node from subscription webhooks. Design rationale is in `docs/adr/0005`–`0008`.
 
@@ -98,7 +98,7 @@ TODO.md                      # shared cross-session work queue — read before s
 
 ## Deployment
 
-Vercel project: `tatt-app` (canonical as of 2026-07-20; two other projects — `manama-next`, `generous-success` — also deploy this repo and are pending disconnection, see `TODO.md`). Production branch: `main`.
+Vercel project: `tatt-app` — the sole project linked to this repo as of 2026-07-21. Production branch: `main`.
 
 - `.npmrc` enforces `legacy-peer-deps=true`.
 - Env vars live in Vercel project settings. Build will succeed without them, but `/pitch` and any page that hits Firebase at module-import time will crash without `export const dynamic = 'force-dynamic'`.
@@ -124,5 +124,4 @@ Vercel project: `tatt-app` (canonical as of 2026-07-20; two other projects — `
 - **`src/features/Generate.jsx` is ~1,750 lines** — still monolithic, due for decomposition.
 - **`react-tinder-card@1.6.4` peer-dep conflict** — wants `@react-spring/web@^9`, project is on `^10`; papered over with `legacy-peer-deps` (enforced by `.npmrc`). Proper fix is to upgrade or replace the lib.
 - **Neo4j serves dual schemas** (the 9-node real-data model and a legacy seed model) — match queries handle both, see `NEO4J_MIGRATION.md`. Confirm this is still needed before consolidating.
-- **Three Vercel projects deploy this repo** — `tatt-app` (canonical, live matching), `manama-next`, `generous-success`. The latter two should be disconnected once confirmed safe to do so.
 - **Artist enrichment gap** — only ~1.5k of 8,949 real artists have style tags populated; the rest need enrichment from their scraped `sourcePages`. Tracked in `TODO.md` backlog, currently parked.

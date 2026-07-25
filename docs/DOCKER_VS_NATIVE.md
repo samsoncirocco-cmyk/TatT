@@ -325,7 +325,7 @@ Both setups coexist. Just don't run both at the same time.
 ### Docker Setup (Recommended for You)
 
 ```bash
-cd manama-next
+cd TatT
 docker-compose up dev
 ```
 
