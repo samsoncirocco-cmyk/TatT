@@ -7,6 +7,7 @@ import type {
   ConversationMessage,
   ConversationStage,
 } from '@/services/designConversation/types';
+import { isConfirmationIntent } from '../services/confirmationIntent';
 import {
   converse,
   confirmProposal,
@@ -104,7 +105,13 @@ export function DesignConversation() {
 
   const handleSend = (text: string) => {
     setMessages((prev) => [...prev, { role: 'user', text }]);
-    runAction({ kind: 'converse', message: text });
+    // At the proposal beat a typed "yes" is consent, not another turn —
+    // routing it to /converse re-emits the same proposal (ADR-0020).
+    runAction(
+      stage === 'proposal' && isConfirmationIntent(text)
+        ? { kind: 'confirm' }
+        : { kind: 'converse', message: text }
+    );
   };
 
   // Every provider down → the scripted intake carries the session (ADR-0019).
