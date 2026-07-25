@@ -6,6 +6,10 @@ export const dynamic = 'force-dynamic';
 
 const REPLICATE_API_URL = 'https://api.replicate.com/v1';
 
+// Official models are invoked by slug ("owner/name") with no version hash;
+// validate the shape since the slug lands in the upstream URL path.
+const MODEL_SLUG_PATTERN = /^[\w.-]+\/[\w.-]+$/;
+
 export async function POST(req: NextRequest) {
     const authError = await verifyApiAuth(req);
     if (authError) return authError;
@@ -20,13 +24,24 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         console.log('[Proxy] Creating prediction...');
 
-        const response = await fetch(`${REPLICATE_API_URL}/predictions`, {
+        // Slug-based bodies ({ model, input }) hit the official-model endpoint;
+        // legacy bodies ({ version, input }) keep the hash-pinned endpoint.
+        const { model, ...rest } = body;
+        let endpoint = `${REPLICATE_API_URL}/predictions`;
+        if (typeof model === 'string') {
+            if (!MODEL_SLUG_PATTERN.test(model)) {
+                return NextResponse.json({ error: `Invalid model slug: ${model}` }, { status: 400 });
+            }
+            endpoint = `${REPLICATE_API_URL}/models/${model}/predictions`;
+        }
+
+        const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
                 'Authorization': `Token ${REPLICATE_API_TOKEN}`,
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(body)
+            body: JSON.stringify(rest)
         });
 
         const data = await response.json();
