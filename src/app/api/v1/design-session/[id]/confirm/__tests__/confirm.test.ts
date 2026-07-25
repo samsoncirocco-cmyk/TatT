@@ -173,6 +173,48 @@ describe('POST /api/v1/design-session/[id]/confirm route adapter', () => {
     expect(recordSpendMock).not.toHaveBeenCalled();
   });
 
+  it('maps a throttled provider to a retryable 503 with a retry-after hint', async () => {
+    confirmProposalMock.mockRejectedValueOnce(
+      Object.assign(new Error('Replicate API Error: 429'), {
+        code: 'REPLICATE_ERROR',
+        status: 429,
+        details: { retry_after: 12 },
+      })
+    );
+
+    const res = await POST(makeRequest(URL, {}), routeParams('sess-1'));
+    const body = await res.json();
+
+    expect(res.status).toBe(503);
+    expect(body.code).toBe('GENERATION_UNAVAILABLE');
+    expect(body.retryable).toBe(true);
+    expect(body.retryAfterMs).toBe(12000);
+    expect(res.headers.get('Retry-After')).toBe('12');
+    expect(recordSpendMock).not.toHaveBeenCalled();
+  });
+
+  it('marks unknown failures NOT retryable so the client cannot double-spend', async () => {
+    confirmProposalMock.mockRejectedValueOnce(
+      Object.assign(new Error('council exploded'), { code: 'COUNCIL_FAILED' })
+    );
+
+    const res = await POST(makeRequest(URL, {}), routeParams('sess-1'));
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body.retryable).toBe(false);
+  });
+
+  it('marks phase conflicts NOT retryable', async () => {
+    confirmProposalMock.mockRejectedValueOnce(
+      Object.assign(new Error('wrong phase'), { code: 'INVALID_PHASE', status: 409 })
+    );
+
+    const res = await POST(makeRequest(URL, {}), routeParams('sess-1'));
+
+    expect((await res.json()).retryable).toBe(false);
+  });
+
   it('demo mode delegates to the real service and skips rate/budget/spend', async () => {
     process.env.NEXT_PUBLIC_DEMO_MODE = 'true';
     confirmProposalMock.mockResolvedValueOnce(makeSession());
