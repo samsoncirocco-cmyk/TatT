@@ -37,6 +37,7 @@ import OpenAI from 'openai';
 import { verifyApiAuth } from '@/lib/api-auth';
 import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { checkBudget, recordSpend } from '@/lib/budget-tracker';
+import { getAnatomicalAspectRatio } from '@/services/generation/internal/routing';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -216,11 +217,16 @@ async function criticAgent(brief: any, imageUrl: string) {
 // Image generation via Replicate
 // ---------------------------------------------------------------------------
 
+// Placement → aspect ratio is ADR-0023's map, and there is exactly one of
+// it. This route used to carry a second, whole-string-equality copy with
+// landscape 4:3 for chest/back, so the same placement got a different shape
+// depending on which entry point served it.
 function aspectFor(placement: string): string {
-  if (placement === 'sleeve' || placement === 'half-sleeve') return '9:16';
-  if (placement === 'chest' || placement === 'back') return '4:3';
-  if (placement === 'hand' || placement === 'foot' || placement === 'finger') return '1:1';
-  return '3:4';
+  // Sleeves are the one case the shared map has no word for — a sleeve is a
+  // coverage area rather than a body part, and it is always portrait.
+  if (/\bsleeves?\b/i.test(placement)) return '9:16';
+  if (/\b(foot|feet|finger)s?\b/i.test(placement)) return '1:1';
+  return getAnatomicalAspectRatio(placement);
 }
 
 async function replicateRun(model: string, input: Record<string, any>, max429Retries = 3): Promise<string> {

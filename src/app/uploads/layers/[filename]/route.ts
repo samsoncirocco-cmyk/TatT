@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
-import os from 'os';
+import { LAYER_UPLOAD_DIR } from '@/lib/layerUploadDir';
 
 export const runtime = 'nodejs';
 
@@ -13,8 +13,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ file
         return new NextResponse('Invalid filename', { status: 400 });
     }
 
-    const UPLOAD_DIR = path.join(os.tmpdir(), 'manama-uploads');
-    const filepath = path.join(UPLOAD_DIR, filename);
+    const filepath = path.join(LAYER_UPLOAD_DIR, filename);
 
     try {
         const fileBuffer = await fs.readFile(filepath);
