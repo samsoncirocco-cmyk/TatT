@@ -156,6 +156,25 @@ describe('generation module — replicate provider seam', () => {
     expect(result.metadata.attempts).toBe(3);
   });
 
+  it('survives the worst burst=1 slot: four throttles before the fifth attempt lands', async () => {
+    const throttle = () => ({
+      ok: false,
+      status: 429,
+      text: async () => JSON.stringify({ detail: 'throttled', retry_after: 0.001 })
+    });
+    fetchMock
+      .mockResolvedValueOnce(throttle())
+      .mockResolvedValueOnce(throttle())
+      .mockResolvedValueOnce(throttle())
+      .mockResolvedValueOnce(throttle())
+      .mockResolvedValueOnce(replicateResponse(['https://img.example/last.png']));
+
+    const result = await generate({ prompt: 'x', style: 'traditional' });
+
+    expect(result.images).toEqual(['https://img.example/last.png']);
+    expect(result.metadata.attempts).toBe(5);
+  });
+
   it('fans out single-output Krea into N parallel predictions and merges', async () => {
     let call = 0;
     fetchMock.mockImplementation(async () => {
