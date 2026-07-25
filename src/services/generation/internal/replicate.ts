@@ -3,11 +3,17 @@ import { makeGenerationError } from './provider';
 
 const REPLICATE_API_URL = 'https://api.replicate.com/v1';
 const POLL_INTERVAL_MS = 2000;
-const MAX_POLLS = 60;
-// Replicate throttles hard when account credit is low (burst of 1/min), so
-// a reveal's four concurrent predictions must be able to wait out a 429.
-const MAX_CREATE_ATTEMPTS = 3;
+// Poll window after create — must fit inside the render routes' maxDuration
+// (60s) together with the create retries, or Vercel kills the function after
+// the renders were already paid for.
+const MAX_POLLS = 15;
+// Replicate throttles hard when account credit is low (burst of 1 per ~10s
+// window), so a reveal's four concurrent predictions need four windows: the
+// last one to land needs attempt #4 or #5, not #3. Jitter spreads the herd —
+// without it all four retry on the same tick and only one wins per window.
+const MAX_CREATE_ATTEMPTS = 5;
 const MAX_RETRY_AFTER_MS = 15_000;
+const RETRY_JITTER_MS = 4_000;
 
 interface ReplicateModel {
   id: string;
@@ -142,7 +148,10 @@ async function runPrediction(
       } catch {
         // Non-JSON throttle body — keep the default wait.
       }
-      await sleep(Math.min(retryAfterMs, MAX_RETRY_AFTER_MS));
+      // Jitter proportional to the wait (never longer than it) so short
+      // test/throttle windows stay short while real 10s windows spread out.
+      const jitterMs = Math.random() * Math.min(retryAfterMs, RETRY_JITTER_MS);
+      await sleep(Math.min(retryAfterMs, MAX_RETRY_AFTER_MS) + jitterMs);
       attempt += 1;
       continue;
     }
