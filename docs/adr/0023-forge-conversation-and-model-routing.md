@@ -47,9 +47,9 @@ Three models, routed by style at proposal time. **`stability-ai/sdxl` and every 
 | refinement pass / retry | flux-schnell |
 | realism / portrait | Vertex Imagen 3 (unchanged) |
 
-### Aspect ratio by placement
+### Aspect ratio, composition, and presentation
 
-Passed directly to the model. Placement arrives as a free-text phrase ("left forearm", "inner bicep"), so the map matches on the phrase, not on string equality.
+Aspect ratio is passed directly to the model. Placement arrives as a free-text phrase ("left forearm", "inner bicep"), so the map matches on the phrase, not on string equality.
 
 | Placement | Ratio |
 |---|---|
@@ -62,6 +62,33 @@ Passed directly to the model. Placement arrives as a free-text phrase ("left for
 | *default* | 9:16 |
 
 The default is portrait, not square: tattoos sit on limbs far more often than not, and a square canvas wastes the composition.
+
+**Presentation is pinned by the color/monochrome axis, not chosen per render.** Color sessions render **tattoo-on-skin** — the design shown as applied ink on a real limb. Monochrome sessions render **flash art on white** — the design as a standalone sheet, no body.
+
+This is not an aesthetic preference; it is what each mode has to prove. Color's risk is how the palette reads against skin tone, which a white sheet cannot show. Monochrome's risk is line quality and contrast, which skin rendering muddies with shadow and curvature. Rendering each in its own mode also keeps a reveal's four designs visually comparable to each other — a set that mixes on-skin and on-white reads as four different products, and the user's pick starts tracking presentation instead of design.
+
+The pin is derived from the resolved axis pole; it is never a separate user choice and never varies within a reveal.
+
+### The color/monochrome axis
+
+The axis carried in code as `color-blackwork` (`src/services/intake/types.ts`) has poles **color** and **monochrome**. "Monochrome" — not "blackwork" — is the pole name, because `blackwork` is *also* a closed style tag, and a pole sharing a name with a tag makes an already-resolved axis look ambiguous. Monochrome is the wider pole: it covers `blackwork` and `black-and-grey` alike, both of which resolve the axis on their own.
+
+`color` is a closed style tag in the ontology (`data/style-ontology.json`, alias `colour`), sitting alongside `blackwork` and `black-and-grey`. Adding it was a human-approved ontology change under ADR-0011; it is normative here because the prompt builder branches on it.
+
+The axis resolves from style tags before it is ever asked about. A session tagged `blackwork`, `black-and-grey`, or `color` has already answered it, and offering it as a variation would spend one of the reveal's four slots re-asking a settled question.
+
+### Prompt builder: color is front-loaded, never appended
+
+Flux weights early tokens heavily, so the color decision goes at the **front** of the prompt, not into a trailing clause. Appending "black ink only" after sixty tokens of subject description loses to the subject; leading with it does not.
+
+Conditional, by resolved pole:
+
+- **Monochrome** (`blackwork`, `black-and-grey`, or the monochrome pole): the prompt opens with the monochrome instruction — "black ink only, no color, no background fill" — before style, subject, or placement.
+- **Color** (`color` tag, or `anime`/`new-school` resolving to color): the prompt opens with the vibrant-color instruction — a saturated palette with a deliberate color story — before the rest.
+
+The two branches are mutually exclusive and exactly one always fires; there is no neutral third path that leaves color unstated. An unstated palette is not neutral in practice — the model picks one, and it picks inconsistently across a reveal's four slots, which is the exact variance the axis exists to control.
+
+This composes with the exclusion-folding rule below rather than replacing it: the front-loaded instruction sets the palette, and any remaining exclusions still fold into the positive prompt at the end.
 
 ### Flux takes no negative prompt
 
@@ -103,3 +130,7 @@ Part 1 is a voice spec, which means it is enforced by the persona prompt and rev
 Part 2's aspect-ratio map changes generated output for every session whose placement was previously unmatched: those rendered 1:1 and will now render 9:16. That is the intended correction, but it invalidates visual comparisons against anything generated before it lands.
 
 The IP rule is enforced twice on purpose — once in extraction, once when completing the record — because the conversational lane and the questionnaire lane reach the reveal by different paths and both must lock the axis.
+
+The presentation pin makes the color/monochrome axis load-bearing beyond the prompt: it now decides how the render is framed, so a session whose axis resolves late or wrong produces a visually inconsistent reveal, not just an off-palette one. That is the intended coupling — presentation and palette are one decision — but it means the axis must be resolved before render, never during.
+
+Naming the pole "monochrome" while the axis id stays `color-blackwork` is a deliberate half-measure. Renaming the id would touch the `VariationAxis` type, the pole tables, both extraction prompts, and every stored session record, and the rename buys clarity rather than behavior. The pole names are what reach the model and the user; the id is internal. If the record migration happens for another reason, fold the rename in then.
