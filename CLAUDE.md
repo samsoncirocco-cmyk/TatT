@@ -218,8 +218,9 @@ STRIPE_PRICE_ARTIST_SUB=price_***        # recurring Price id for the artist sub
    - Neo4j: Add Cypher queries to `scripts/generate-neo4j-cypher.js`
 
 4. **Deployment:**
-   - Push to `manama/next` branch
-   - Vercel auto-deploys previews
+   - Open a PR against `main` (tatt-app is the sole Vercel project; the old
+     `manama/next` flow is retired)
+   - Vercel auto-deploys previews per branch
    - Merge to `main` for production
 
 ---
@@ -330,3 +331,23 @@ All agents working in this repo must follow these rules. No exceptions.
 - **No Hallucinated Dependencies:** Do not invent or import external libraries unless explicitly instructed. Leverage built-in or already-installed tools first.
 - **No Vibe Coding:** Treat this repository with rigorous engineering discipline, judgment, and taste.
 - **Testing:** Run the full `npm test` suite once at session start (to establish a clean baseline — this is what catches stale `node_modules` and pre-existing breakage), and again after any change. Skip the redundant pre-change run on every subsequent commit within the same session. Run `npm run build` locally only when a change plausibly affects compilation (config, imports, types, new files) — for docs/TODO or one-line logic edits, skip it, since Vercel runs the identical production build on push anyway. The full suite is the merge gate — branch protection on `main` requires the CI checks (secret scan, JS + Python tests, demo build) to pass, and PR branches must be up to date with `main` — so never skip the after-change run.
+
+### Worktrees & the Primary Checkout
+
+Many agent sessions share the one primary checkout at `/Users/samson/TatT`.
+Work in a **git worktree**, not in that checkout. Two sessions editing it at
+once is exactly how changes end up uncommitted with no owner.
+
+**A dirty tree in the primary checkout is a stop sign, not an obstacle.** Those
+files are unsaved and exist nowhere else — not on GitHub, not on any branch.
+Assume another session owns them.
+
+- Never run `git checkout .`, `git restore`, `git stash`, `git clean`, or
+  `git reset --hard` against the primary checkout.
+- Never sweep someone else's unsaved files into your commit (`git add -A`,
+  `git commit -a`).
+- Never layer your edits on top of theirs.
+- If your task needs those files, ask who owns the changes first.
+
+The `SessionStart` hook in `.claude/hooks/dirty-tree-check.py` surfaces this
+state at session start; it is silent when the tree is clean.

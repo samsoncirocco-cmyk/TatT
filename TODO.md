@@ -5,9 +5,11 @@ agents. **Every agent: read this before starting work, update it when you
 finish or discover work.** Keep entries short; link PRs/issues; date your
 changes. Newest state wins — resolve edit conflicts by merging both lists.
 
-_Last updated: 2026-07-22 (booking gap analysis merged — PR #106; Stripe Connect
-merge 1e4dd5a landed same day: held deposits, claim flow, functional webhook;
-gap-analysis addendum reconciles the two)_
+_Last updated: 2026-07-25 (branch sweep executed — 85 → 49 → 47, auto-delete
+turned ON, legacy/closed-PR pass archive-tagged then deleted 30 more; booking
+loop Phase 1 landed on main via #108's branch — 01d962a + Bugbot fixes
+772853e; duplicate PR #113 closed as superseded, its two deltas ported via
+merged #117; see "Repo hygiene" below)_
 
 ## Now (in priority order) — THE JOURNEY QUEUE
 
@@ -92,8 +94,12 @@ J9. **Close the booking loop** — roadmap merged 2026-07-22 (PR #106):
     M003 deferred to a Phase 3 analytics mirror. Same-day Stripe Connect
     merge (1e4dd5a, PRs #92/#99) already shipped held deposits + claim flow
     + a functional webhook — see the doc's Addendum for what that closed.
-    ~~**Remaining Phase 1 blockers (doc §5, tasks 1.1–1.9)**~~ — **DONE
-    2026-07-22 (subagent fan-out, uncommitted on disk pending review):**
+    ~~**Remaining Phase 1 blockers (doc §5, tasks 1.1–1.9)**~~ — **DONE,
+    landed on main 2026-07-24** (#108's branch pushed direct as 01d962a +
+    Bugbot fixes 772853e; duplicate PR #113 closed as superseded — two
+    parallel sessions built the same J9 scope; #113's two better deltas,
+    the bookings ip-echo privacy fix and the DEPOSIT_BY_SIZE dedupe,
+    landed via merged #117):
     1.1 `bookingId` threaded through `BookClient` → `/api/checkout` →
     Stripe metadata + `success_url`; 1.2 booking state machine
     (`BookingStatus`, `canTransition`, `appendStatus`, `statusHistory`) in
@@ -106,12 +112,15 @@ J9. **Close the booking loop** — roadmap merged 2026-07-22 (PR #106):
     + `/bookings` now read server truth; 1.7 deleted dead
     `useBookingStore`/`BookingModal`; 1.8 `notify.ts` + `emailQueueService`
     real transactional email (Resend/webhook, honest degrade); 1.9 webhook
-    reconciliation integration test. Full suite 407 pass, tsc clean on
-    touched files, `next build --webpack` compiles. **Still open (deferred):**
-    `DEPOSIT_BY_SIZE` duplicated in `checkout/route.ts` (cents) vs
-    `lib/booking.ts` (dollars) — consolidate before it drifts; artist
-    dashboard/confirm-decline (Phase 2); real email provider env
-    (`RESEND_API_KEY`/`EMAIL_FROM`/`OPS_NOTIFY_EMAIL`) not yet set in prod.
+    reconciliation integration test. **Still open:** (a) real email provider
+    env (`RESEND_API_KEY`/`EMAIL_FROM`/`OPS_NOTIFY_EMAIL`) not yet set in
+    prod — 1.8's code ships but delivery is env-gated, so artists still
+    aren't actually told a paid booking exists until Samson sets these;
+    (b) artist confirm/decline dashboard (Phase 2); (c) scheduling: merge
+    PR #112 (accepted as-is 2026-07-22), then wire the slot picker into the
+    booking wizard — integration point is `BookClient.tsx` step 1 (the
+    spec's original "replace Math.random()" target no longer exists);
+    ~~DEPOSIT_BY_SIZE dedupe~~ **DONE via #117**.
 
 (Prior items now secondary: PR #40 feedback folds into J2/J3 scope; security
 reconciliation continues in parallel. Branch protection still blocked on
@@ -125,16 +134,10 @@ full run NOT launched. Resume after gate review.
 
 ## Next
 
-- **Synthetic artists.json still imported by old-theme surfaces** (audit
-  2026-07-20): /smart-match and /swipe routes lazy-load
-  src/features/SmartMatch.jsx / SwipeMatch.jsx, and
-  src/components/{SmartMatchContent,SwipeMatchContent,ArtistsContent,
-  ArtistProfileContent}.jsx still import ../data/artists.json (100 fake
-  artists). The journey path (/, /artists, /generate, /matches, /book,
-  /designs) is clean — homepage uses featured-artists.json generated FROM
-  Neo4j. Decide: retire /smart-match + /swipe (old theme, violates design
-  rule) or port to graph. scripts/ importers referencing artists.json are
-  seed tooling, fine.
+- ~~**Synthetic artists.json still imported by old-theme surfaces**~~ —
+  **RESOLVED 2026-07-21 (PR #54 merged)**: /smart-match and /swipe ported to
+  the live graph + punk design system; the four old-theme source files
+  deleted. Remaining artists.json imports are seed tooling in scripts/.
 - **Samson-only ops checklist** (executed 2026-07-21; one item left):
   1. **DEFERRED TO PRE-LAUNCH (Samson, 2026-07-24):** live Stripe
      end-to-end verification. Not urgent — TatT is not taking customers
@@ -166,6 +169,127 @@ full run NOT launched. Resume after gate review.
    delete. Seed artists (float ids), their Tattoo/Instagram/State/Website nodes,
    null-placeId shops, and orphaned tags/cities removed. Live graph is now 100%
    real scraped data. Re-seeding (if ever needed): `scripts/import-to-neo4j.js`.
+
+## Repo hygiene — branch & PR close-out (executed 2026-07-25)
+
+**~~Delete 35 stale branches~~ — DONE 2026-07-25.** Branch count **85 → 49**;
+all 35 verified landed on main first, cross-checked so no open PR's head was
+on the list, and confirmed after the fact (0 of 35 remaining, all live heads
+intact). Caveat for the record: that pass deleted without archive tags — the
+remote had **zero** tags afterwards — so those 35 are recoverable only from
+the SHAs noted here and GitHub's own ref retention. Every later pass tags
+first.
+
+**~~"Automatically delete head branches" was OFF~~ — turned ON 2026-07-25.**
+It is now `true` on `repos/samsoncirocco-cmyk/TatT` and demonstrably working:
+`chore/raise-council-test-timeout` (#147, merged 19:40 UTC) is the first head
+that self-deleted, and #143, #135 and #110 all vanished on merge afterwards
+with nobody running a delete. #145 (19:35) and #146 (19:30) merged just before
+the flip and were left behind, which dates the change to that five-minute
+window. **Anything in this file still describing the setting as OFF, or the
+remote as 70/83/85 branches, is stale** — the remote held **47** when this
+pass started and **18** when it finished.
+
+**But turning it on does not drive the count to zero**, because auto-delete
+fires on **merge only**. Four kinds of branch are outside its reach and always
+need a manual sweep:
+- **Legacy heads** pre-dating the setting (and the 2026-07-17 history
+  rewrite) — the bulk of the residue.
+- **PRs closed without merging** — #103, #104, #105, #136, #144, #39, #35, #40.
+- **Branches pushed with no PR at all** —
+  `audit/engineering-guidelines-2026-07-14`, `samson/desktop-tatt-v1-gitignore-fix`.
+- **Heads re-pushed after their PR merged**, which resurrects the ref.
+
+**Branch-deletion rule:** "its PR merged" is not sufficient grounds to
+delete — check for a *newer* open PR on the same head first.
+`feat/design-bot` was on the delete list on those grounds and would have
+taken #125's unmerged commit (1019ca9) with it.
+
+**Verification method — two checks, because one alone gives false answers:**
+- **Ancestor or patch-equivalent to `origin/main`** (`git cherry` shows every
+  commit already upstream) — catches the merge-commit-merged branches.
+- **Squash-merged, so patch IDs differ** — these look unmerged to git and must
+  be verified by merged-PR head instead: e.g. `claude/hopeful-wilson-7107ac`
+  showed 8 "missing" commits but PR #111 squashed them into `37342b3`, and a
+  content diff over the 17 files it touched was empty.
+
+⚠️ **"N commits not on main" is NOT evidence of unmerged work** in a repo that
+squash-merges — roughly a third of the branches checked would have been kept
+by that reasoning alone. Verify by content or by PR state.
+
+**Batching outcome (2026-07-25).** #104+#105 were batched as **#135** —
+**merged**, so thin-result broadening and the rating signal are both on main.
+#103+#110+#109 were batched as **#136** — **closed unmerged**; the originals
+were taken individually instead: #110 **merged** direct, #109 still **open**
+and being worked.
+
+⚠️ **#103's work is currently lost.** PR #103 and batch #136 were both closed
+unmerged, so the first-time-visitor signup fix never landed —
+`hasEverAuthed` exists nowhere on main and `generate/stencil` still sends
+every signed-out visitor to `/login`. **Issue #101 is open with nothing
+pointing at it.** The commit is intact at `4e940dd` on `crew/101-cta-signup`
+if it should be revived; delete that branch only if the drop was deliberate.
+Lesson: don't let a fallback PR's fate depend on a batch PR — closing the
+batch orphaned the fallback.
+
+### Legacy + closed-PR sweep (2026-07-25)
+
+**Recovery first:** every branch below — deleted *and* held — was tagged
+`archive/<branch>` and the tags pushed to the remote **before** any deletion.
+Restore with `git push origin archive/<branch>:refs/heads/<branch>`.
+
+**Deleted — 30 branches**, each re-verified against the live remote on
+2026-07-25 as carrying nothing missing from `main`:
+
+- Legacy group A (19, pre-rewrite): design/punk-site-redesign,
+  fix/rate-limit-always-429, feat/handoff-screens-2, fix/ci-test-suites,
+  feat/import-scraper-pipeline, feat/user-persistence,
+  fix/firebase-admin-bootstrap, fix/council-vertex-project-id,
+  fix/startup-probe-and-ci-green, audit/engineering-guidelines-2026-07-14,
+  fix/critical-spend-security, refactor/dead-code-config,
+  fix/forge-toast-provider, docs/readme-truth-sync (#35 closed, superseded
+  by #84), update-atticus-neo4j, chore/cherry-pick-audit-and-gitignore,
+  worktree-roadmap-and-branch-triage, docs/roadmap-state-rescope,
+  security-hardening-followups
+- Legacy group C (7, ancient/abandoned): deploy-ready, demo-polish,
+  samsoncirocco-cmyk/map-codebase, fix/frontend-audit-yc,
+  samson/desktop-tatt-v1-gitignore-fix, codex/main-manama-integration,
+  manama/next
+- Merged pre-flip, no newer open PR on the head (2):
+  fix/monochrome-subject-color-scrub (#146), fix/presentation-flash-art (#145)
+- Closed crew PRs whose content landed via the merged batch #135 (2):
+  crew/70-weighted-rating (#105), crew/73-thin-match-broaden (#104) — both
+  patch-equivalent to `main` (`git cherry` reports zero unmerged commits)
+
+**Held — 10 branches tagged but NOT deleted:**
+
+- B (7, scraper/dataset — hold until the datasets are confirmed safe in
+  ~/tatt-scraper): feat/artist-scraper, feat/scrape-scheduler,
+  perf/parallel-scrape, data/national-dataset, data/scrape-20k,
+  feat/wire-national-dataset, samson/port-artist-crawler.
+  `feat/wire-national-dataset` is the only real unique-content risk —
+  **357 commits ahead of main, 325 of them not patch-equivalent** (the
+  earlier "807 commits" figure was wrong). The other six are already
+  ancestors of `main`, but the group is held together pending the review.
+- Closed-PR heads with genuinely unlanded work (3): crew/101-cta-signup
+  (#103 — see the warning above), crew/batch-forge-storage (#136, 6 unmerged
+  commits, overlaps open PR #109), fix/log-conversation-fallback (#144
+  closed unmerged).
+
+**Skipped — heads of open PRs:** #122 (this branch), #131, #148, #109, #125,
+#112, plus `chore/purge-manama-identity`. Never delete a head with an open PR
+against it — re-fetch the open-PR list immediately before deleting, not from a
+survey written days earlier.
+
+**Result: 47 → 18 remote branches** = `main` + 7 open-PR heads + the 10 held.
+40 `archive/*` tags are live on the remote (30 deleted + 10 held).
+
+**One honest caveat on the deleted set:** `security-hardening-followups`
+(#39, closed) was *not* landed — it is an abandoned older fork of
+`src/lib/client-api-auth.ts` that predates main's `authStateReady()` race fix,
+so re-applying it would regress. It was deleted as abandoned, not as merged;
+the code survives at `archive/security-hardening-followups`.
+
 
 ## Backlog
 
