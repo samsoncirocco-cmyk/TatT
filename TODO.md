@@ -183,17 +183,26 @@ with new work post-#118 — so that branch is **NOT** deletable, despite
 forge voice/routing (draft, docs-only) · #112 scheduling engine (already
 accepted, additive — merge) · #109 debounce + #103 CTA-signup (small,
 merge) · #110 auto-save/delete, #105 weighted rating, #104 thin-match
-broaden (medium — quick review each). Crew PRs base on pre-#108 main; if
-any turn CONFLICTING as the queue merges, update the branch. Each head
-branch is deletable the moment its PR merges (the #120–#130 fix/feat
-branches were already cleaned up this way same-day).
+broaden (medium — quick review each). #104+#105 are now batched as **#135**
+and #103+#110+#109 as **#136** (originals left open as fallback until the
+batches merge). Crew PRs base on pre-#108 main; if any turn CONFLICTING as
+the queue merges, update the branch.
 
-**Branch-deletion rule learned here:** "its PR merged" is not sufficient
-grounds to delete a branch — check for a *newer* open PR on the same head
-first. `feat/design-bot` was on the delete list on those grounds and would
-have taken #125's unmerged commit (1019ca9) with it.
+**ROOT CAUSE (2026-07-25): "Automatically delete head branches" is OFF for
+this repo.** Every merged PR leaves its branch behind forever — that, not
+any one backlog, is why the count climbs. It went 70 → 83 in a single
+evening (#132–#146). **Turn the setting on** (Settings → General → Pull
+Requests) and this stops recurring; the list below becomes a one-time
+cleanup instead of a standing chore. An earlier version of this note
+claimed the #120–#130 branches self-cleaned on merge — that was wrong,
+they are all still present.
 
-**Delete now — 17 branches verified 100% landed on main** (recovery:
+**Branch-deletion rule:** "its PR merged" is not sufficient grounds to
+delete — check for a *newer* open PR on the same head first.
+`feat/design-bot` was on the delete list on those grounds and would have
+taken #125's unmerged commit (1019ca9) with it.
+
+**Delete now — 35 branches verified 100% landed on main** (recovery:
 `git push origin <sha>:refs/heads/<name>`):
 
 ```
@@ -205,16 +214,33 @@ git push origin --delete \
   fix/backlog-cleanup-sweep night/booking-response-hygiene \
   claude/hopeful-wilson-7107ac port-smartmatch-swipe-to-graph \
   feat/close-booking-loop-phase1 codex/tatt-security-hardening \
-  feat/generation-module
+  feat/generation-module chore/stripe-verify-deferred feat/design-nav-link \
+  feat/fallback-logging feat/flux-models feat/forge-flux-migration \
+  feat/palette-aware-prompts feat/scene-first-conversation \
+  fix/axis-padding-respects-resolution fix/character-subject-backfill \
+  fix/confirm-client-error-semantics fix/flash-art-presentation-everywhere \
+  fix/playback-character-and-dedupe fix/poll-window-300 fix/prod-generation \
+  fix/proposal-beat-and-readiness-gate fix/render-route-budget \
+  fix/throttle-window-math fix/vertex-image-persistence
 ```
 
-Evidence: first four are ancestors of main; the seven docs/brand/worktree/fix
-one-liners are patch-equivalent on main; night/booking-response-hygiene =
-merged #117 (f3cb135), claude/hopeful-wilson-7107ac = merged #111 (e9e3d33),
-port-smartmatch-swipe-to-graph = merged #54 (ac028fc),
-feat/close-booking-loop-phase1 = #108 closed with content on main as 01d962a
-(413a3c5), codex/tatt-security-hardening = merged #43 + 2 stale TODO-note
-commits (ab2342d), feat/generation-module = merged #51+#55 (5560978).
+Evidence — two verification methods, both re-run 2026-07-25:
+- **Ancestor or patch-equivalent to `origin/main`** (`git cherry` shows every
+  commit already upstream): the four early feat/stripe branches, the seven
+  docs/brand/worktree one-liners, and all 18 of the `#120`–`#142` fix/feat
+  branches added in this pass.
+- **Squash-merged, so patch IDs differ** — verified by merged-PR head instead:
+  night/booking-response-hygiene = #117 (f3cb135), claude/hopeful-wilson-7107ac
+  = #111 (e9e3d33), port-smartmatch-swipe-to-graph = #54 (ac028fc),
+  feat/close-booking-loop-phase1 = #108 closed with content on main as 01d962a
+  (413a3c5), codex/tatt-security-hardening = #43 + 2 stale TODO-note commits
+  (ab2342d), feat/generation-module = #51+#55 (5560978).
+
+Cross-checked against the open-PR list: none of the 35 is the head of an open
+PR. Heads deliberately excluded for that reason: `feat/design-bot` (#125),
+`feat/scheduling-engine` (#112), the five crew branches (#103/#104/#105/#109/
+#110), `fix/monochrome-subject-color-scrub` (#146),
+`fix/presentation-flash-art` (#145), `chore/frontend-infra-pass` (#143).
 
 **Legacy triage — 33 branches, all pre-dating the 2026-07-17 history rewrite**
 (decision 2026-07-24: archive-tag everything, delete groups A+C, hold B):
