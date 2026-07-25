@@ -21,6 +21,9 @@ import { stripe } from '@/lib/stripe';
 import { setArtistChargesEnabled } from '@/lib/artist-stripe';
 import { createRelay, transferHeldDeposits, setArtistSubscription } from '@/lib/booking-relay';
 import { notifyArtistOfBooking } from '@/lib/notify';
+import { ensureAdminApp } from '@/lib/firebase-admin';
+import { canTransition, appendStatus } from '@/lib/booking';
+import type { BookingStatus, BookingStatusEvent } from '@/lib/booking';
 
 export const runtime = 'nodejs';
 
@@ -34,6 +37,166 @@ function constructEvent(rawBody: string, signature: string, secrets: string[]): 
     }
   }
   return null;
+}
+
+/**
+ * Reconcile a captured booking against a paid Checkout Session.
+ *
+ * Best-effort and idempotent. Older sessions carry no `metadata.bookingId`
+ * (nothing to reconcile — skip). Guards against Stripe webhook replays two
+ * ways: the processed event id is recorded on the doc, and the state machine
+ * refuses to re-apply once the booking has advanced past `pending`. Never
+ * throws — any failure is logged and swallowed so relay creation and the 200
+ * response survive.
+ */
+async function reconcileBookingDeposit(
+  session: Stripe.Checkout.Session,
+  event: Stripe.Event
+): Promise<void> {
+  const metadata = session.metadata || {};
+  const bookingId = metadata.bookingId;
+  if (!bookingId) {
+    // Older sessions predate the metadata.bookingId wiring — nothing to do.
+    console.log('[Stripe] checkout completed without bookingId metadata — skipping booking reconciliation', {
+      session: session.id,
+    });
+    return;
+  }
+
+  // Only reconcile once the money has actually cleared. checkout.session.completed
+  // can fire for async payment methods while payment_status is still 'unpaid' /
+  // 'no_payment_required' — marking deposit_paid then would be a lie.
+  if (session.payment_status !== 'paid') {
+    console.log('[Stripe] booking reconciliation: session not paid yet — skipping', {
+      bookingId,
+      paymentStatus: session.payment_status,
+    });
+    return;
+  }
+
+  try {
+    const cred = ensureAdminApp();
+    if (!cred) {
+      console.error('[Stripe] booking reconciliation skipped — firebase-admin unconfigured', { bookingId });
+      return;
+    }
+
+    const { getFirestore, FieldValue } = await import('firebase-admin/firestore');
+    const db = getFirestore();
+    const ref = db.collection('booking_requests').doc(bookingId);
+    const paidAtIso = new Date(event.created * 1000).toISOString();
+    const paymentIntent =
+      typeof session.payment_intent === 'string'
+        ? session.payment_intent
+        : session.payment_intent?.id ?? null;
+    // The DEPOSIT (in dollars — what the client's booking is for and what the UI
+    // renders), NOT session.amount_total, which is (deposit + booking fee) in
+    // cents. amountPaidCents keeps the full charged total for audit.
+    const depositAmount = Number(metadata.depositAmount) || 0;
+    const amountPaidCents = session.amount_total ?? null;
+
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) {
+        // The capture may have only reached the file fallback (Firestore down at
+        // book time). A paid deposit is real money — SEED the booking record from
+        // the Stripe session metadata rather than dropping it. uid comes from
+        // metadata.clientUid so the owner can still read it via /api/v1/bookings.
+        const seed = Object.fromEntries(
+          Object.entries({
+            bookingId,
+            artistId: metadata.artistId,
+            artistName: metadata.artistName,
+            clientName: metadata.clientName,
+            clientEmail: metadata.clientEmail || session.customer_details?.email,
+            budget: metadata.budget,
+            uid: metadata.clientUid || null,
+            status: 'deposit_paid' as BookingStatus,
+            statusHistory: appendStatus(undefined, {
+              status: 'deposit_paid',
+              at: paidAtIso,
+              by: 'stripe-webhook',
+            }),
+            stripeSessionId: session.id,
+            stripePaymentIntent: paymentIntent,
+            depositAmount,
+            amountPaidCents,
+            paidAt: paidAtIso,
+            createdAt: paidAtIso,
+            reconstructedFromStripe: true,
+            processedStripeEvents: [event.id],
+          }).filter(([, v]) => v !== undefined)
+        );
+        tx.set(ref, seed);
+        console.warn('[Stripe] booking reconciliation: doc missing — seeded from Stripe metadata', {
+          bookingId,
+          eventId: event.id,
+        });
+        return;
+      }
+      const data = (snap.data() as Record<string, unknown>) || {};
+      const current = (data.status as BookingStatus) || 'pending';
+      const processed = Array.isArray(data.processedStripeEvents)
+        ? (data.processedStripeEvents as string[])
+        : [];
+
+      // Idempotency 1: this exact event already applied.
+      if (processed.includes(event.id)) {
+        console.log('[Stripe] booking reconciliation: event already processed — no-op', {
+          bookingId,
+          eventId: event.id,
+        });
+        return;
+      }
+
+      // Idempotency 2: booking already at deposit_paid or later. `pending` is
+      // the only state that may transition to deposit_paid, so any state where
+      // that transition is illegal AND is not pending is already-done.
+      if (!canTransition(current, 'deposit_paid')) {
+        if (current !== 'pending') {
+          console.log('[Stripe] booking reconciliation: already at/after deposit_paid — no-op', {
+            bookingId,
+            current,
+          });
+        } else {
+          console.error('[Stripe] booking reconciliation: illegal pending transition — skipping', {
+            bookingId,
+            current,
+          });
+        }
+        return;
+      }
+
+      const history = Array.isArray(data.statusHistory)
+        ? (data.statusHistory as BookingStatusEvent[])
+        : undefined;
+      const nextEvent: BookingStatusEvent = {
+        status: 'deposit_paid',
+        at: paidAtIso,
+        by: 'stripe-webhook',
+      };
+
+      tx.set(
+        ref,
+        {
+          status: 'deposit_paid',
+          statusHistory: appendStatus(history, nextEvent),
+          stripeSessionId: session.id,
+          stripePaymentIntent: paymentIntent,
+          depositAmount,
+          amountPaidCents,
+          paidAt: paidAtIso,
+          processedStripeEvents: FieldValue.arrayUnion(event.id),
+        },
+        { merge: true }
+      );
+
+      console.log('[Stripe] booking reconciled → deposit_paid', { bookingId, eventId: event.id });
+    });
+  } catch (err) {
+    // A lost reconciliation is real money — never silent.
+    console.error('[Stripe] booking reconciliation failed (best-effort):', err);
+  }
 }
 
 async function handleEvent(event: Stripe.Event): Promise<void> {
@@ -92,6 +255,13 @@ async function handleEvent(event: Stripe.Event): Promise<void> {
           subscriptionStatus: 'active',
         });
       }
+
+      // Reconcile the booking document (Task 1.3): move pending → deposit_paid.
+      // Best-effort and IDEMPOTENT — Stripe retries webhooks, so a replay of the
+      // same event must be a no-op. Wrapped in its own try/catch so a Firestore
+      // failure never breaks relay creation or the 200 response above. A lost
+      // reconciliation is real money, so failures are logged loudly.
+      await reconcileBookingDeposit(session, event);
       break;
     }
 

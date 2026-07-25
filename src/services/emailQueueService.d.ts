@@ -22,12 +22,29 @@ export interface QueueEntry {
   retryCount: number;
 }
 
+export interface TransactionalEmail {
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+}
+
+export interface TransactionalEmailResult {
+  sent: boolean;
+  id?: string;
+  reason?: string;
+}
+
 export function queueStencilExport(data: StencilExportRequest): string;
 export function getQueueStatus(queueId: string): QueueEntry | undefined;
+export function sendTransactionalEmail(
+  email: TransactionalEmail,
+): Promise<TransactionalEmailResult>;
 
 declare const emailQueueService: {
   queueStencilExport: typeof queueStencilExport;
   getQueueStatus: typeof getQueueStatus;
+  sendTransactionalEmail: typeof sendTransactionalEmail;
 };
 
 export default emailQueueService;

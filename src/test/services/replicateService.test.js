@@ -13,10 +13,22 @@ vi.mock('../../services/fetchWithAbort.js', async () => {
   };
 });
 
+let generateTattooDesign;
 let generatePreviewDesign;
 let generateHighResDesign;
 let AI_MODELS;
 let postJSON;
+
+async function loadService(mockOutput) {
+  ({ postJSON } = await import('../../services/fetchWithAbort.js'));
+  ({ generateTattooDesign, generatePreviewDesign, generateHighResDesign, AI_MODELS } =
+    await import('@/features/generate/services/replicateService'));
+  postJSON.mockResolvedValue({
+    id: 'prediction-id',
+    status: 'succeeded',
+    output: mockOutput
+  });
+}
 
 describe('replicateService smart preview', () => {
   beforeEach(() => {
@@ -25,20 +37,14 @@ describe('replicateService smart preview', () => {
   });
 
   beforeEach(async () => {
-    ({ postJSON } = await import('../../services/fetchWithAbort.js'));
-    ({ generatePreviewDesign, generateHighResDesign, AI_MODELS } = await import('@/features/generate/services/replicateService'));
-    postJSON.mockResolvedValue({
-      id: 'preview-id',
-      status: 'succeeded',
-      output: ['https://example.com/preview.png']
-    });
+    await loadService(['https://example.com/preview.png']);
   });
 
   afterEach(() => {
     vi.clearAllMocks();
   });
 
-  it('creates a low-res preview with turbo settings', async () => {
+  it('creates a single-output preview on Flux Schnell by slug', async () => {
     const result = await generatePreviewDesign({
       style: 'traditional',
       subject: 'dragon tattoo',
@@ -49,12 +55,11 @@ describe('replicateService smart preview', () => {
     expect(postJSON).toHaveBeenCalledWith(
       expect.stringContaining('/api/predictions'),
       expect.objectContaining({
-        version: AI_MODELS.dreamshaper.version,
+        model: AI_MODELS['flux-schnell'].slug,
         input: expect.objectContaining({
-          width: 512,
-          height: 512,
           num_outputs: 1,
-          num_inference_steps: 4
+          aspect_ratio: '9:16',
+          output_format: 'png'
         })
       }),
       expect.objectContaining({
@@ -63,6 +68,12 @@ describe('replicateService smart preview', () => {
         })
       })
     );
+
+    const [, body] = postJSON.mock.calls[0];
+    expect(body.version).toBeUndefined();
+    expect(body.input.negative_prompt).toBeUndefined();
+    expect(body.input.width).toBeUndefined();
+    expect(body.input.height).toBeUndefined();
 
     expect(result.metadata.mode).toBe('preview');
     expect(result.metadata.preview).toBe(true);
@@ -76,20 +87,14 @@ describe('replicateService high-res generation', () => {
   });
 
   beforeEach(async () => {
-    ({ postJSON } = await import('../../services/fetchWithAbort.js'));
-    ({ generatePreviewDesign, generateHighResDesign, AI_MODELS } = await import('@/features/generate/services/replicateService'));
-    postJSON.mockResolvedValue({
-      id: 'highres-id',
-      status: 'succeeded',
-      output: ['https://example.com/highres.png']
-    });
+    await loadService(['https://example.com/highres.png']);
   });
 
   afterEach(() => {
     vi.clearAllMocks();
   });
 
-  it('requests high-res output with RGBA support when available', async () => {
+  it('resolves the legacy sdxl id to Flux Dev with its native params', async () => {
     const result = await generateHighResDesign(
       {
         style: 'traditional',
@@ -104,11 +109,12 @@ describe('replicateService high-res generation', () => {
     expect(postJSON).toHaveBeenCalledWith(
       expect.stringContaining('/api/predictions'),
       expect.objectContaining({
-        version: AI_MODELS.sdxl.version,
+        model: AI_MODELS['flux-dev'].slug,
         input: expect.objectContaining({
           num_outputs: 1,
-          output_format: 'png',
-          output_quality: 100
+          guidance: 3,
+          num_inference_steps: 28,
+          output_format: 'png'
         })
       }),
       expect.objectContaining({
@@ -118,7 +124,80 @@ describe('replicateService high-res generation', () => {
       })
     );
 
+    expect(result.metadata.modelId).toBe('flux-dev');
     expect(result.metadata.dpi).toBe(300);
     expect(result.metadata.rgbaReady).toBe(true);
+  });
+});
+
+describe('replicateService Flux/Krea input shape', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.stubEnv('NEXT_PUBLIC_DEMO_MODE', 'false');
+  });
+
+  beforeEach(async () => {
+    await loadService(['https://example.com/krea.png']);
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('fans out single-output Krea into parallel predictions and merges the images', async () => {
+    const result = await generateTattooDesign(
+      {
+        style: 'traditional',
+        subject: 'dragon tattoo',
+        bodyPart: 'forearm',
+        size: 'medium'
+      },
+      'krea2',
+      null,
+      { inputOverrides: { aspect_ratio: '3:4' } }
+    );
+
+    expect(postJSON).toHaveBeenCalledTimes(4);
+    const [, body] = postJSON.mock.calls[0];
+    expect(body.model).toBe(AI_MODELS.krea2.slug);
+    // Krea takes one output per prediction and has no 3:4 — remapped to 4:5.
+    expect(body.input.num_outputs).toBeUndefined();
+    expect(body.input.aspect_ratio).toBe('4:5');
+    expect(result.images).toHaveLength(4);
+    expect(result.metadata.modelId).toBe('krea2');
+  });
+
+  it('folds the negative prompt into the prompt as an Avoid clause', async () => {
+    await generateTattooDesign(
+      {
+        style: 'traditional',
+        subject: 'dragon tattoo',
+        bodyPart: 'forearm',
+        size: 'medium'
+      },
+      'flux-dev'
+    );
+
+    const [, body] = postJSON.mock.calls[0];
+    expect(body.input.prompt).toContain('Avoid:');
+    expect(body.input.negative_prompt).toBeUndefined();
+  });
+
+  it('resolves the legacy animeXL id to Krea 2', async () => {
+    const result = await generateTattooDesign(
+      {
+        style: 'traditional',
+        subject: 'dragon tattoo',
+        bodyPart: 'forearm',
+        size: 'medium'
+      },
+      'animeXL',
+      null,
+      { inputOverrides: { num_outputs: 1 } }
+    );
+
+    expect(postJSON).toHaveBeenCalledTimes(1);
+    expect(postJSON.mock.calls[0][1].model).toBe(AI_MODELS.krea2.slug);
+    expect(result.metadata.modelId).toBe('krea2');
   });
 });

@@ -107,7 +107,7 @@ Geography is modeled as a hierarchy — `(State)-[:HAS_CITY]->(City)-[:HAS_SHOP]
 ## Edge Cases
 
 - **Neo4j connection refused**: Ensure Neo4j is running and `NEO4J_PASSWORD` is correct. Docker: `docker start neo4j`
-- **Neo4j wipes all data**: The script runs `MATCH (n) DETACH DELETE n` before importing. This is intentional for clean imports but destructive in production.
+- **Neo4j wipes all data**: The script runs `MATCH (n) DETACH DELETE n` before importing. This is intentional for clean imports but destructive in production. Take a dump first if the existing data matters; restore with `neo4j-admin database load --from-path=backups/<dump> neo4j --overwrite-destination=true`.
 - **Supabase table missing**: The script cannot create the table programmatically. You must run `generated/create-table.sql` manually in the Supabase SQL Editor first.
 - **Duplicate key errors (23505)**: The Supabase script continues past duplicates. Re-running is safe.
 - **Mentor relationships show 0 created**: The MATCH query requires both apprentice and mentor Artist nodes to already exist. If IDs in `mentor_id` reference non-existent artists, the relationship is silently skipped.
@@ -117,6 +117,10 @@ Geography is modeled as a hierarchy — `(State)-[:HAS_CITY]->(City)-[:HAS_SHOP]
 
 - **Neo4j**: Free for local/Aura Free Tier. No per-query cost.
 - **Supabase**: Free tier covers this volume. No cost for insert operations.
+
+## Legacy Importer
+
+`execution/seed_artists.py` is an older Python importer from the DOE phase-6 tooling. It predates the geography-hierarchy migration (it creates flat `HAS_STYLE` edges and string locations) and must not be used — `scripts/import-to-neo4j.js` is the only current import path.
 
 ## Related Directives
 

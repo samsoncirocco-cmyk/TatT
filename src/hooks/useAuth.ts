@@ -10,6 +10,7 @@ import {
   onAuthStateChanged,
 } from '@/services/authService';
 import { useAuthStore } from '@/store/useAuthStore';
+import { markKnownUser } from '@/lib/knownUser';
 
 export function useAuth() {
   const [loading, setLoading] = useState(true);
@@ -19,6 +20,9 @@ export function useAuth() {
   const syncUser = useCallback(
     async (firebaseUser: User | null) => {
       if (firebaseUser) {
+        // Any authenticated session marks this device as one with an
+        // account, so the auth gate shows /login (not /signup) next time.
+        markKnownUser();
         const token = await firebaseUser.getIdToken();
         login(token, {
           uid: firebaseUser.uid,

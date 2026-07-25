@@ -4,7 +4,7 @@ Maps each directive to the scripts, services, and API routes that implement it. 
 
 ## Directive → Implementation Map
 
-### `directives/generate-tattoo.md`
+### `directives/generate-design.md`
 
 | Step | Implementation |
 |------|---------------|
@@ -19,7 +19,7 @@ Maps each directive to the scripts, services, and API routes that implement it. 
 | API: legacy generate | `src/app/api/generate/route.ts` |
 | GCP auth | `src/lib/google-auth-edge.ts` |
 
-### `directives/council-enhancement.md`
+### `directives/council-enhance.md`
 
 | Step | Implementation |
 |------|---------------|
@@ -120,7 +120,7 @@ Maps each directive to the scripts, services, and API routes that implement it. 
 | Add relationships | `scripts/add-sample-relationships.js` |
 | Sample queries | `scripts/SAMPLE_QUERIES.cypher` |
 
-### `directives/deploy-vercel.md`
+### `directives/deploy.md`
 
 | Step | Implementation |
 |------|---------------|
@@ -135,7 +135,7 @@ Maps each directive to the scripts, services, and API routes that implement it. 
 | Test GCP health | `scripts/test-gcp-health.js` |
 | Test Supabase | `scripts/test-supabase-connection.js` |
 
-### `directives/local-dev-setup.md`
+### `directives/setup-local-dev.md`
 
 | Step | Implementation |
 |------|---------------|

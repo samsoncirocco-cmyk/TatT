@@ -130,6 +130,89 @@ export function normalizeRequestedSlots(input: unknown): RequestedSlot[] {
   return out;
 }
 
+// ─── Booking lifecycle state machine ───────────────────────────────────
+
+/**
+ * The lifecycle of a captured booking. Distinct from AvailabilityStatus:
+ * availability describes an artist's schedule; this describes one booking
+ * record as it moves from request → paid deposit → confirmed → done.
+ */
+export type BookingStatus =
+  | "pending"
+  | "deposit_paid"
+  | "confirmed"
+  | "declined"
+  | "completed"
+  | "cancelled"
+  | "refunded"
+  | "expired";
+
+/** Every booking starts here — captured, awaiting a deposit. */
+export const INITIAL_BOOKING_STATUS: BookingStatus = "pending";
+
+/**
+ * Directed graph of allowed transitions. A status maps to the set of
+ * statuses it may move to. Terminal states map to an empty array.
+ */
+const BOOKING_TRANSITIONS: Record<BookingStatus, readonly BookingStatus[]> = {
+  pending: ["deposit_paid", "cancelled", "expired"],
+  deposit_paid: ["confirmed", "declined", "refunded", "cancelled"],
+  confirmed: ["completed", "cancelled", "refunded"],
+  declined: ["refunded"],
+  completed: [],
+  refunded: [],
+  cancelled: [],
+  expired: [],
+};
+
+/**
+ * Whether a booking may move from `from` to `to`. Same-state moves and
+ * unknown statuses are always rejected — a transition must be a real edge
+ * in the directed graph above.
+ */
+export function canTransition(from: BookingStatus, to: BookingStatus): boolean {
+  if (from === to) return false;
+  const allowed = BOOKING_TRANSITIONS[from];
+  if (!allowed) return false;
+  return allowed.includes(to);
+}
+
+/**
+ * One entry in a booking's status history — an audit trail of who moved
+ * the booking to which state, and when.
+ */
+export type BookingStatusEvent = {
+  status: BookingStatus;
+  /** ISO timestamp of the transition. */
+  at: string;
+  /** Actor: 'system', a user uid, or 'stripe-webhook'. */
+  by: string;
+};
+
+/**
+ * Append `next` to a status history, returning a NEW array. Never mutates
+ * the input; treats undefined as an empty history.
+ */
+export function appendStatus(
+  history: BookingStatusEvent[] | undefined,
+  next: BookingStatusEvent,
+): BookingStatusEvent[] {
+  return [...(history ?? []), next];
+}
+
+/**
+ * Shape a booking doc for a client response. The capture path stores the
+ * requester's IP for rate limiting/abuse tracing — that is server-side
+ * metadata and must never be echoed back to the owner.
+ */
+export function sanitizeBooking(
+  doc: Record<string, unknown>,
+): Record<string, unknown> {
+  const rest = { ...doc };
+  delete rest.ip;
+  return rest;
+}
+
 // ─── Booking payload validation ────────────────────────────────────────
 
 export type BookingPayload = {
@@ -142,6 +225,8 @@ export type BookingPayload = {
   budget: string;
   designId?: string;
   designImageUrl?: string;
+  /** Design-session id ("ds" query param) — links the booking to its Brief. */
+  designSessionId?: string;
   requestedSlots: RequestedSlot[];
 };
 
@@ -190,6 +275,7 @@ export function validateBookingRequest(body: unknown): BookingValidation {
       budget,
       designId: optionalString(raw.designId, 80),
       designImageUrl: optionalString(raw.designImageUrl, 1000),
+      designSessionId: optionalString(raw.designSessionId, 120),
       requestedSlots: normalizeRequestedSlots(raw.requestedSlots),
     },
   };

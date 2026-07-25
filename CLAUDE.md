@@ -24,7 +24,7 @@ Democratize custom tattoo design by lowering the barrier between idea and execut
 | **Graph Database** | Neo4j | Artist relationships, collaboration history, style hierarchies |
 | **Real-time Sync** | Firebase Realtime Database | Live match updates, user presence |
 | **Storage** | Google Cloud Storage (GCS) | Layer storage, design exports |
-| **Deployment** | Vercel (Edge Runtime) | Global CDN, serverless functions |
+| **Deployment** | Vercel (Node serverless) + Railway (Express proxy) | Global CDN, serverless functions |
 
 ---
 
@@ -66,7 +66,7 @@ npm run start              # Start production server
 npm run lint               # Run ESLint
 
 # Testing
-npm test                   # Run vitest (197 tests across 14 files)
+npm test                   # Run vitest (~400 tests across 39 files)
 npm run test:watch         # Watch mode
 
 # Database Setup
@@ -87,7 +87,7 @@ vercel --prod              # Deploy to production
 User Request
     ↓
 ┌─────────────────────────────────────────┐
-│  API Layer (Edge Runtime)               │
+│  API Layer (Node runtime)               │
 │  - /api/v1/generate                     │
 │  - /api/v1/council/enhance              │
 │  - /api/v1/match/semantic               │
@@ -281,14 +281,14 @@ STRIPE_PRICE_ARTIST_SUB=price_***        # recurring Price id for the artist sub
 
 ## Next Steps
 
-1. Read `directives/local-dev-setup.md` to get started
-2. Explore `directives/generate-tattoo.md` to understand the core workflow
+1. Read `directives/setup-local-dev.md` to get started
+2. Explore `directives/generate-design.md` to understand the core workflow
 3. Check `execution/README.md` to see how directives map to code
 4. Run `npm run dev` and test the generation flow at `http://localhost:3000`
 
 ---
 
-**Last Updated:** 2026-07-14
+**Last Updated:** 2026-07-24
 **Maintained by:** Samson via Hermes
 
 ---
@@ -329,4 +329,4 @@ All agents working in this repo must follow these rules. No exceptions.
 - **Maintain Consistency:** Match the existing codebase's architecture, design patterns, naming conventions, and file structures exactly.
 - **No Hallucinated Dependencies:** Do not invent or import external libraries unless explicitly instructed. Leverage built-in or already-installed tools first.
 - **No Vibe Coding:** Treat this repository with rigorous engineering discipline, judgment, and taste.
-- **Testing:** Run the full `npm test` suite once at session start (to establish a clean baseline — this is what catches stale `node_modules` and pre-existing breakage), and again after any change. Skip the redundant pre-change run on every subsequent commit within the same session. Run `npm run build` locally only when a change plausibly affects compilation (config, imports, types, new files) — for docs/TODO or one-line logic edits, skip it, since Vercel runs the identical production build on push anyway. The full suite is the merge gate (no branch protection on the free plan), so never skip the after-change run.
+- **Testing:** Run the full `npm test` suite once at session start (to establish a clean baseline — this is what catches stale `node_modules` and pre-existing breakage), and again after any change. Skip the redundant pre-change run on every subsequent commit within the same session. Run `npm run build` locally only when a change plausibly affects compilation (config, imports, types, new files) — for docs/TODO or one-line logic edits, skip it, since Vercel runs the identical production build on push anyway. The full suite is the merge gate — branch protection on `main` requires the CI checks (secret scan, JS + Python tests, demo build) to pass, and PR branches must be up to date with `main` — so never skip the after-change run.

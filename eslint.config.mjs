@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Claude Code worktrees/session files — lint would double-count every
+    // error by sweeping checked-out copies of the repo.
+    ".claude/**",
   ]),
   {
     // Deep-module boundaries (ADR-0001): internals are only importable from

@@ -73,7 +73,7 @@ export default function Home() {
 
             <div className="rise rise-4 mt-10 flex flex-col sm:flex-row sm:items-stretch gap-5">
               <Link
-                href="/generate/stencil"
+                href="/design"
                 className="tape press inline-flex items-center justify-center px-9 py-[18px] font-display text-[28px] sm:text-[34px] leading-none tracking-[0.02em] self-start"
               >
                 Start your design

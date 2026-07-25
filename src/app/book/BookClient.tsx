@@ -90,10 +90,13 @@ export default function BookClient({
   artist,
   requestedArtistId,
   artistLoadFailed,
+  designSessionId = "",
 }: {
   artist: BookArtist | null;
   requestedArtistId: string;
   artistLoadFailed: boolean;
+  /** Design-session id from the "ds" query param — rides on the booking POST. */
+  designSessionId?: string;
 }) {
   const { addBooking } = useBookings();
   const { designs } = useDesigns();
@@ -163,6 +166,7 @@ export default function BookClient({
           budget,
           designId: chosenDesign?.id,
           designImageUrl: chosenDesign?.image,
+          designSessionId: designSessionId || undefined,
           requestedSlots,
         }),
       });
@@ -197,6 +201,7 @@ export default function BookClient({
           budget,
           clientName: name.trim(),
           clientEmail: email.trim(),
+          bookingId: bookData.bookingId,
         }),
       });
       const payData = await payRes.json().catch(() => null);

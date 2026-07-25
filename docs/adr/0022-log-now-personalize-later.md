@@ -1,0 +1,3 @@
+# Cross-session memory: log everything now, personalize later
+
+Full conversation transcripts, intake records, and pick/most-not-you signals are logged cleanly from day one — the raw material of the taste graph — but there is no cross-session personalization yet. A per-user taste profile at day one overfits a handful of data points and fails in ways that can't be debugged; a "still thinking about that forearm piece?" greeting only delights when recall is accurate, and one bad recall reads as creepy. The greeting trick becomes a cheap unlock later precisely because the logs already exist. Same reasoning as deferring the preference model on reveal reject-data.

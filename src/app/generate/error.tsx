@@ -9,9 +9,9 @@ export default function GenerateError(props: {
   return (
     <PunkErrorBoundary
       {...props}
-      label="Forge"
+      label="Studio"
       headline="jammed"
-      description="The Forge couldn't finish that generation."
+      description="The Studio couldn't finish that generation."
       backHref="/generate/stencil"
       backLabel="Start From Stencil"
     />
