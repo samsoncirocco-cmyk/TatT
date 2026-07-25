@@ -67,7 +67,7 @@ The default is portrait, not square: tattoos sit on limbs far more often than no
 
 This is not an aesthetic preference; it is what each mode has to prove. Color's risk is how the palette reads against skin tone, which a white sheet cannot show. Monochrome's risk is line quality and contrast, which skin rendering muddies with shadow and curvature. Rendering each in its own mode also keeps a reveal's four designs visually comparable to each other — a set that mixes on-skin and on-white reads as four different products, and the user's pick starts tracking presentation instead of design.
 
-The pin is derived from the resolved axis pole; it is never a separate user choice and never varies within a reveal.
+The pin is derived from the axis, never a separate user choice, and never varies within a reveal. An unresolved axis pins flash art — see the prompt builder below for why that is the safe default rather than a third presentation mode.
 
 ### The color/monochrome axis
 
@@ -86,7 +86,11 @@ Conditional, by resolved pole:
 - **Monochrome** (`blackwork`, `black-and-grey`, or the monochrome pole): the prompt opens with the monochrome instruction — "black ink only, no color, no background fill" — before style, subject, or placement.
 - **Color** (`color` tag, or `anime`/`new-school` resolving to color): the prompt opens with the vibrant-color instruction — a saturated palette with a deliberate color story — before the rest.
 
-The two branches are mutually exclusive and exactly one always fires; there is no neutral third path that leaves color unstated. An unstated palette is not neutral in practice — the model picks one, and it picks inconsistently across a reveal's four slots, which is the exact variance the axis exists to control.
+Palette is three-valued, not two: **color**, **monochrome**, and **unresolved**. Unresolved emits no palette clause at all, because an invented one is worse than none — asserting a palette the user never chose is the failure the axis exists to prevent.
+
+Unresolved should not survive to render. The bot settles palette in a fixed question before the record counts as ready to propose, so by the time a prompt is built the axis has an answer. The empty branch is a backstop for the paths that bypass that question, not a supported third mode.
+
+That backstop still has to pick a presentation, and it picks **flash art on white** — the safe default, since flash art makes no claim about how ink sits on skin, while an on-skin render of an unstated palette invents both.
 
 This composes with the exclusion-folding rule below rather than replacing it: the front-loaded instruction sets the palette, and any remaining exclusions still fold into the positive prompt at the end.
 
