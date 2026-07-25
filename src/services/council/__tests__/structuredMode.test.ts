@@ -154,6 +154,45 @@ describe('enhanceStructured - palette (color vs monochrome)', () => {
   });
 });
 
+describe('enhanceStructured - padding never contradicts a resolved axis', () => {
+  it('does not pad a blackwork session with the color axis', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      styleTags: ['blackwork'],
+      ambiguousAxes: ['minimal-ornate'],
+    });
+
+    expect(result.axisSelection.axes).not.toContain('color-blackwork');
+    for (const variation of result.variations) {
+      const prompt = (variation.prompts.detailed || '').toLowerCase();
+      expect(prompt).not.toContain('vibrant full-color');
+    }
+  });
+
+  it('does not pad a named-subject session with the literal-abstract axis', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      styleTags: ['color'],
+      subject: 'Son Goku from Dragon Ball Z charging a Kamehameha',
+      ambiguousAxes: ['minimal-ornate'],
+    });
+
+    expect(result.axisSelection.axes).not.toContain('literal-abstract');
+    expect(result.axisSelection.axes).not.toContain('color-blackwork');
+  });
+
+  it('still pads (least consequential) when the intake decided everything else', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      styleTags: ['blackwork', 'fine-line', 'minimalist', 'realism'],
+      ambiguousAxes: ['minimal-ornate'],
+    });
+
+    expect(result.axisSelection.axes).toHaveLength(2);
+    expect(result.axisSelection.rationale).toContain('decided every');
+  });
+});
+
 describe('enhanceStructured - named subject (IP rule)', () => {
   it('prompts depict the named subject instead of paraphrasing the meaning', async () => {
     const result = await enhanceStructured({

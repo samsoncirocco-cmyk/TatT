@@ -153,6 +153,34 @@ function keepIfValid(prompt: string): string | undefined {
   return validatePromptLength(prompt).valid ? prompt : undefined;
 }
 
+/*
+ * Axes the intake already decided, so padding can never contradict the user.
+ * Padding a slot pair with an axis they resolved doesn't just waste the pair
+ * (acknowledged noise) — it renders the opposite of what they asked for, e.g.
+ * a full-color quadrant in a session that said "black ink only".
+ */
+const LITERAL_ABSTRACT_TAGS = new Set([
+  'realism',
+  'portrait',
+  'surrealism',
+  'abstract',
+  'geometric',
+]);
+
+function contradictedAxes(record: IntakeRecord): Set<VariationAxis> {
+  const tags = record.styleTags;
+  const decided = new Set<VariationAxis>();
+
+  if (resolvePalette(tags) !== 'unresolved') decided.add('color-blackwork');
+  if (record.subject?.trim() || tags.some(tag => LITERAL_ABSTRACT_TAGS.has(tag))) {
+    decided.add('literal-abstract');
+  }
+  if (tags.includes('fine-line')) decided.add('bold-fine');
+  if (tags.includes('minimalist') || tags.includes('ornamental')) decided.add('minimal-ornate');
+
+  return decided;
+}
+
 /**
  * Pick which axes the reveal diverges along (ADR-0012). Selection is logged,
  * never silent: the returned rationale is emitted through the discussion
@@ -179,14 +207,20 @@ export function selectAxes(record: IntakeRecord): AxisSelection {
     // mode, so pad with the highest-priority axis not already covered.
     // Burning a slot pair on a padded axis is acknowledged noise (ADR-0012),
     // but it beats showing duplicate quadrants; the rationale says so.
-    const pad = AXIS_PRIORITY.find(axis => axis !== ambiguous[0]) as VariationAxis;
-    return {
-      mode: 'questionnaire',
-      axes: [ambiguous[0], pad],
-      rationale:
-        `Questionnaire mode: intake left only ${ambiguous[0]} unresolved; padded with ` +
-        `${pad} (next most visually consequential) so all four reveal slots stay distinct.`,
-    };
+    // Never pad with an axis the intake decided — that would contradict the
+    // user outright rather than merely waste the pair.
+    const decided = contradictedAxes(record);
+    const candidates = AXIS_PRIORITY.filter(axis => axis !== ambiguous[0]);
+    const free = candidates.filter(axis => !decided.has(axis));
+    const pad = (free[0] ?? candidates[candidates.length - 1]) as VariationAxis;
+    const rationale = free.length
+      ? `Questionnaire mode: intake left only ${ambiguous[0]} unresolved; padded with ` +
+        `${pad} (next most visually consequential axis the intake did not decide) so all ` +
+        'four reveal slots stay distinct.'
+      : `Questionnaire mode: intake left only ${ambiguous[0]} unresolved and decided every ` +
+        `other axis; padded with ${pad} (least visually consequential) so the four slots stay ` +
+        'distinct without overriding a resolved choice more than necessary.';
+    return { mode: 'questionnaire', axes: [ambiguous[0], pad], rationale };
   }
 
   const [first, second, ...dropped] = ambiguous;
