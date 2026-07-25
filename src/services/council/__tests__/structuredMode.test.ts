@@ -345,3 +345,42 @@ describe('enhanceStructured - offline and non-invasive', () => {
     expect(typeof enhance).toBe('function');
   });
 });
+
+describe('enhanceStructured - monochrome sessions strip chromatic anchors', () => {
+  const gokuAnchors =
+    'Goku with wild spiky black hair (or golden Super Saiyan), orange gi with blue undershirt and belt (Dragon Ball Z), charging a kamehameha';
+
+  it('drops color words from the subject on a blackwork session', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      styleTags: ['blackwork'],
+      subject: gokuAnchors,
+      ambiguousAxes: ['minimal-ornate'],
+    });
+
+    for (const variation of result.variations) {
+      const prompt = (variation.prompts.simple || '').toLowerCase();
+      expect(prompt).toContain('goku');
+      // The action survives; the hues do not.
+      expect(prompt).toContain('kamehameha');
+      expect(prompt).not.toContain('orange');
+      expect(prompt).not.toContain('blue');
+      expect(prompt).not.toContain('golden');
+      // Tonal words are what blackwork is made of — they stay.
+      expect(prompt).toContain('black');
+    }
+  });
+
+  it('leaves the subject untouched on a color session', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      styleTags: ['color'],
+      subject: gokuAnchors,
+      ambiguousAxes: ['minimal-ornate'],
+    });
+
+    for (const variation of result.variations) {
+      expect((variation.prompts.simple || '').toLowerCase()).toContain('orange');
+    }
+  });
+});
