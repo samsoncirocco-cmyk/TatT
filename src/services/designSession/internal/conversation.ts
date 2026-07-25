@@ -133,6 +133,8 @@ export async function converse(request: ConverseRequest): Promise<ConverseRespon
       messages,
       userTurn,
       pinnedModel: conversation.model,
+      // Only so the provider-failover / degraded-mode logs name a session.
+      sessionId: session.id,
     });
   } catch (error) {
     if (error instanceof ConversationUnavailableError) {

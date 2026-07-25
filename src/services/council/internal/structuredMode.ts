@@ -321,6 +321,36 @@ function buildContext(record: IntakeRecord): PromptContext {
   };
 }
 
+/*
+ * Chromatic words to strip from a subject description on monochrome
+ * sessions. The character database anchors are written for image fidelity
+ * ("Goku ... orange gi with blue undershirt and belt"), and a blackwork
+ * session front-loaded with "zero color" still came back with an orange gi
+ * four times out of four: explicit positive color words beat a negative
+ * prompt every time. Tonal words (black, white, grey, silver) stay — they
+ * are exactly what a blackwork piece is made of.
+ */
+const CHROMATIC_WORDS = [
+  'orange', 'blue', 'red', 'green', 'yellow', 'purple', 'violet', 'pink',
+  'crimson', 'scarlet', 'magenta', 'teal', 'turquoise', 'golden', 'gold',
+  'amber', 'emerald', 'azure', 'lavender', 'maroon', 'indigo', 'olive',
+  'bronze', 'copper', 'salmon', 'lilac',
+];
+
+const CHROMATIC_PATTERN = new RegExp(`\\b(?:${CHROMATIC_WORDS.join('|')})\\b`, 'gi');
+
+/** Drop chromatic words (and the punctuation they strand) from a phrase. */
+export function stripChromaticWords(text: string): string {
+  return text
+    .replace(CHROMATIC_PATTERN, '')
+    .replace(/\(\s*\)/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([,;.])/g, '$1')
+    .replace(/([,;])\s*(?=[,;])/g, '')
+    .replace(/,\s*\)/g, ')')
+    .trim();
+}
+
 /**
  * The subject clause every variation shares. When intake extracted a
  * concrete subject (a named character, franchise, or specific thing —
@@ -330,7 +360,11 @@ function buildContext(record: IntakeRecord): PromptContext {
  * meaning informs phrasing verbatim-ish, as before.
  */
 function subjectClause(ctx: PromptContext): string {
-  if (ctx.subject) return `depicting ${ctx.subject}`;
+  if (ctx.subject) {
+    const subject =
+      ctx.palette === 'monochrome' ? stripChromaticWords(ctx.subject) : ctx.subject;
+    return `depicting ${subject}`;
+  }
   return ctx.meaningShort ? `expressing "${ctx.meaningShort}"` : 'as a personal design';
 }
 

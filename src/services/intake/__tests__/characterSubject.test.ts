@@ -92,14 +92,36 @@ describe('characterLabelFor — the playback-facing short label', () => {
 });
 
 describe('subjectPhraseFor — the prompt-facing anchors', () => {
-  it('still carries the full costume description (unchanged contract)', () => {
+  it('carries the full costume description, and is the base of the full subject', () => {
     const matches = charactersIn('goku charging a kamehameha');
+    const anchors = subjectPhraseFor(matches)!;
+    const full = characterSubjectFrom('goku charging a kamehameha')!;
 
-    expect(subjectPhraseFor(matches)).toBe(characterSubjectFrom('goku charging a kamehameha'));
-    expect(subjectPhraseFor(matches)!.toLowerCase()).toContain('orange gi');
+    expect(anchors.toLowerCase()).toContain('orange gi');
+    // subjectPhraseFor is who the character IS; characterSubjectFrom adds
+    // what they are DOING, so the anchors lead the full subject.
+    expect(full.startsWith(anchors)).toBe(true);
+    expect(full.toLowerCase()).toContain('charging a kamehameha');
   });
 
   it('is undefined for no matches', () => {
     expect(subjectPhraseFor([])).toBeUndefined();
+  });
+});
+
+describe('characterSubjectFrom — the moment rides along with the anchors', () => {
+  it('keeps the action the user asked for', () => {
+    const subject = characterSubjectFrom('goku from dragon ball z charging a kamehameha');
+
+    expect(subject).toBeDefined();
+    expect(subject!.toLowerCase()).toContain('goku');
+    expect(subject!.toLowerCase()).toContain('charging a kamehameha');
+  });
+
+  it('omits the moment clause when the user described no action', () => {
+    const subject = characterSubjectFrom('a tattoo of levi ackerman');
+
+    expect(subject).toBeDefined();
+    expect(subject!.toLowerCase()).toContain('levi');
   });
 });
