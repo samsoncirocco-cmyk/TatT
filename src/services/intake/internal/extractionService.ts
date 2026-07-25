@@ -24,6 +24,7 @@ import {
   type OntologyIndex,
 } from './ontology';
 import { getGcpAccessToken } from '@/lib/google-auth-edge';
+import { characterSubjectFrom } from './characterSubject';
 
 export interface IntakeAnswers {
   placementAnswer: string;
@@ -173,12 +174,17 @@ function heuristicStyleTags(answers: IntakeAnswers, index: OntologyIndex): strin
 /** Keyword-only extraction — deterministic, offline, no provider needed. */
 export function heuristicExtract(answers: IntakeAnswers, index: OntologyIndex): IntakeRecord {
   const styleTags = heuristicStyleTags(answers, index);
+  const subject = characterSubjectFrom(`${answers.placementAnswer} ${answers.meaningAnswer}`);
+  const ambiguousAxes = detectAmbiguousAxes(answers, styleTags).filter(
+    (axis) => !subject || axis !== 'literal-abstract'
+  );
   return {
     placement: normalizePlacement(answers.placementAnswer),
     styleTags,
     meaning: answers.meaningAnswer.trim(),
+    subject,
     references: extractReferences(answers),
-    ambiguousAxes: detectAmbiguousAxes(answers, styleTags),
+    ambiguousAxes,
   };
 }
 
@@ -311,8 +317,11 @@ function mergeLlmExtraction(
       ? llm.placement
       : answers.placementAnswer;
 
+  // The model is asked for a subject but drops it often enough to matter, so
+  // a name match in the answers backfills one deterministically.
   const subject =
-    typeof llm.subject === 'string' && llm.subject.trim() ? llm.subject.trim() : undefined;
+    (typeof llm.subject === 'string' && llm.subject.trim() ? llm.subject.trim() : undefined) ??
+    characterSubjectFrom(`${answers.placementAnswer} ${answers.meaningAnswer}`);
 
   const llmAxes = asStringArray(llm.ambiguousAxes);
   let ambiguousAxes = llmAxes
