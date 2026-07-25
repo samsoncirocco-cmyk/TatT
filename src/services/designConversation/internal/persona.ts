@@ -68,6 +68,13 @@ const PERSONA = [
   'characters interacting are great tattoo briefs; never collapse them to one',
   'character. Use your knowledge of the fandom only when you are sure of it —',
   'if you are not certain of a detail, ask instead of asserting.',
+'',
+  'Color is never left to chance. The moment anything in the conversation hints',
+  'at color — they say it, they name a color-bearing style, or they reference',
+  'color artwork such as an anime — settle it in your next message, in these exact',
+  'words: "Are you thinking blackwork and clean lines, or do you want this in',
+  'full color?" Their answer resolves the color axis, and you do not treat the',
+  'record as ready to propose until it is resolved.',
 ].join('\n');
 
 /**
@@ -87,8 +94,9 @@ export function buildSystemPrompt(allowedStyleTags: readonly string[]): string {
     '- placement: the body placement in a short lowercase phrase (e.g. "left forearm"). Empty string if not yet known.',
     `- styleTags: tattoo style tags chosen ONLY from this closed list: [${allowedStyleTags.join(', ')}]. Empty array if style is unresolved.`,
     "- meaning: what the piece is about, stitched from the user's own words and preserving their phrasing — never your paraphrase or summary. Empty string if not yet known.",
-    '- subject: when the conversation names a SPECIFIC character, franchise, person, or thing, a concrete visual subject phrase naming it and what it is doing — including multi-character scenes with the action between them, e.g. "Izuku Midoriya (Deku) and Shoto Todoroki from My Hero Academia mid-fight, One For All lightning against ice and fire". Name every character mentioned AND the franchise. Only include visual elements that genuinely belong to the subject; unsure means name it plainly without invented details. null when nothing specific is named.',
+    '- subject: when the conversation names a SPECIFIC character, franchise, person, or thing, a concrete visual subject phrase naming it and what it is doing — including multi-character scenes with the action between them, e.g. "Izuku Midoriya (Deku) and Shoto Todoroki from My Hero Academia mid-fight, One For All lightning against ice and fire". Name every character mentioned AND the franchise. Only include visual elements that genuinely belong to the subject; unsure means name it plainly without invented details. null when nothing specific is named. Anchor the subject with COSTUME specificity, not just hair and powers — outfit, silhouette, and accessories are what separate a character from lookalikes in the same archetype (e.g. \"Killua Zoldyck, Hunter x Hunter, silver spiky hair, blue eyes, plain long-sleeve white turtleneck, wide shorts, boots\" rather than just \"white-haired boy with lightning\").',
     '- references: reference imagery the user mentioned (URLs or short descriptions). Empty array if none.',
+    '- COLOR IS A FIRST-CLASS RESOLUTION: if the answers signal color at all — saying color outright, naming a color-bearing style (neo-traditional, watercolor, new-school), or referencing color artwork such as the color palette of an anime — include "color" in styleTags and treat color-blackwork as RESOLVED. Equally, explicit blackwork / black-and-grey / fine-line wording resolves it the other way. Only leave color-blackwork ambiguous when the answers genuinely say nothing either way.',
     '- ambiguousAxes: the subset of [bold-fine, color-blackwork, literal-abstract, minimal-ornate] the conversation has NOT resolved yet. An axis is resolved when the user commits to either pole (e.g. "delicate" resolves bold-fine toward fine). When subject is non-null, literal-abstract is RESOLVED (toward literal) — a named character means they want a recognizable depiction; never list it as ambiguous then.',
   ].join('\n');
 }

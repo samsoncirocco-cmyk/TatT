@@ -201,9 +201,66 @@ export function selectAxes(record: IntakeRecord): AxisSelection {
   return { mode: 'questionnaire', axes: [first, second], rationale };
 }
 
+/*
+ * Palette resolution. Style tags decide whether a session is monochrome or
+ * color, and that single decision drives three things: the front-loaded
+ * palette clause, the negative prompt, and the presentation format. Flux
+ * weights the front of a prompt far more heavily than a trailing negative,
+ * which is why the palette leads rather than being folded into "Avoid:".
+ */
+const MONOCHROME_TAGS = new Set([
+  'blackwork',
+  'black-and-grey',
+  'fine-line',
+  'geometric',
+  'dotwork',
+]);
+
+const COLOR_TAGS = new Set(['color', 'neo-traditional', 'watercolor', 'new-school']);
+
+type Palette = 'color' | 'monochrome' | 'unresolved';
+
+/**
+ * Color wins a tag conflict ("fine-line color"): naming color is an explicit
+ * commitment, while the monochrome tags are often just line-style shorthand.
+ */
+export function resolvePalette(styleTags: readonly string[]): Palette {
+  if (styleTags.some(tag => COLOR_TAGS.has(tag))) return 'color';
+  if (styleTags.some(tag => MONOCHROME_TAGS.has(tag))) return 'monochrome';
+  return 'unresolved';
+}
+
+/** Front-loaded palette clause — first words of every prompt tier. */
+function paletteClause(palette: Palette): string {
+  if (palette === 'color') return 'Vibrant color, clean ink saturation, tattoo-quality color rendering. ';
+  if (palette === 'monochrome') return 'Monochrome, black and grey ink only, zero color. ';
+  return '';
+}
+
+/**
+ * Presentation is pinned per session so all four reveal thumbnails read as
+ * one set: color sessions photograph on skin, monochrome sessions render as
+ * flash art on white. Unresolved defaults to flash art — it stays coherent
+ * whichever way the color axis lands across the four variations.
+ */
+function presentationClause(palette: Palette): string {
+  return palette === 'color'
+    ? ' Presented as a photograph of the finished tattoo on skin, natural lighting.'
+    : ' Presented as flash art on a plain white background — the design only, not photographed on skin.';
+}
+
+/** Palette-specific negatives, appended to the shared base. */
+function paletteNegatives(palette: Palette): string[] {
+  // Deliberately no monochrome negatives on color sessions: negatives are
+  // folded into the prompt for Flux/Krea, so the words would work against
+  // the color the session just committed to.
+  return palette === 'monochrome' ? ['color ink, saturated hues, rainbow palette'] : [];
+}
+
 interface PromptContext {
   styleDesc: string;
   placement: string;
+  palette: Palette;
   subject?: string;
   meaningShort: string;
   aspectGuidance: string;
@@ -216,6 +273,7 @@ function buildContext(record: IntakeRecord): PromptContext {
   return {
     styleDesc: record.styleTags.length > 0 ? record.styleTags.join(', ') : 'tattoo',
     placement,
+    palette: resolvePalette(record.styleTags),
     subject: record.subject?.trim() || undefined,
     meaningShort: truncateWords(record.meaning, 60),
     aspectGuidance: getAspectRatioGuidance(placement),
@@ -250,7 +308,9 @@ function buildQuadrantVariation(
   const phrases = specs.map(spec => spec.phrase).join(', ');
   const details = specs.map(spec => spec.detail).join('; ');
 
-  const simple = `A ${ctx.styleDesc} style tattoo on the ${ctx.placement} ${subjectClause(ctx)}, rendered with ${phrases}.`;
+  const lead = paletteClause(ctx.palette);
+  const presentation = presentationClause(ctx.palette);
+  const simple = `${lead}A ${ctx.styleDesc} style tattoo on the ${ctx.placement} ${subjectClause(ctx)}, rendered with ${phrases}.`;
   const detailed =
     `${simple} Treatment: ${details}. Composition follows ${ctx.aspectGuidance}.`;
   const ultra =
@@ -258,11 +318,19 @@ function buildQuadrantVariation(
     'Clean readable forms with deliberate focal hierarchy, designed to sit naturally on the body ' +
     'and remain legible as it ages — suitable for professional tattooing.';
 
-  const negativePrompt = [getBaseNegativePrompt(), ...specs.map(spec => spec.negative)].join(', ');
+  const negativePrompt = [
+    getBaseNegativePrompt(ctx.subject ?? ''),
+    ...specs.map(spec => spec.negative),
+    ...paletteNegatives(ctx.palette),
+  ].join(', ');
 
   return {
     axisPosition,
-    prompts: { simple: keepIfValid(simple), detailed: keepIfValid(detailed), ultra: keepIfValid(ultra) },
+    prompts: {
+      simple: keepIfValid(simple + presentation),
+      detailed: keepIfValid(detailed + presentation),
+      ultra: keepIfValid(ultra + presentation),
+    },
     negativePrompt,
   };
 }
@@ -271,7 +339,9 @@ function buildCompositionalVariation(
   treatment: (typeof COMPOSITIONAL_TREATMENTS)[number],
   ctx: PromptContext
 ): StructuredVariation {
-  const simple = `A ${ctx.styleDesc} style tattoo on the ${ctx.placement} ${subjectClause(ctx)}, in a ${treatment.phrase}.`;
+  const lead = paletteClause(ctx.palette);
+  const presentation = presentationClause(ctx.palette);
+  const simple = `${lead}A ${ctx.styleDesc} style tattoo on the ${ctx.placement} ${subjectClause(ctx)}, in a ${treatment.phrase}.`;
   const detailed =
     `${simple} Treatment: ${treatment.detail}. Composition follows ${ctx.aspectGuidance}.`;
   const ultra =
@@ -281,8 +351,15 @@ function buildCompositionalVariation(
 
   return {
     axisPosition: { composition: treatment.composition },
-    prompts: { simple: keepIfValid(simple), detailed: keepIfValid(detailed), ultra: keepIfValid(ultra) },
-    negativePrompt: getBaseNegativePrompt(),
+    prompts: {
+      simple: keepIfValid(simple + presentation),
+      detailed: keepIfValid(detailed + presentation),
+      ultra: keepIfValid(ultra + presentation),
+    },
+    negativePrompt: [
+      getBaseNegativePrompt(ctx.subject ?? ''),
+      ...paletteNegatives(ctx.palette),
+    ].join(', '),
   };
 }
 
