@@ -272,15 +272,21 @@ function paletteClause(palette: Palette): string {
 }
 
 /**
- * Presentation is pinned per session so all four reveal thumbnails read as
- * one set: color sessions photograph on skin, monochrome sessions render as
- * flash art on white. Unresolved defaults to flash art — it stays coherent
- * whichever way the color axis lands across the four variations.
+ * Presentation is pinned to flash art on white for EVERY session, palette
+ * included. Palette and presentation are separate decisions: the palette
+ * clause already carries color vs monochrome, so presentation does not need
+ * to encode it too.
+ *
+ * This used to photograph color sessions on skin, which broke the placement
+ * preview: that step strips the near-white background to real alpha and
+ * composites the design onto the user's own photo with a multiply blend. An
+ * on-skin render has no white background to strip, so the preview would
+ * paste a stranger's arm onto the user's body. Flash art everywhere keeps
+ * the grid internally consistent, keeps every render a usable design asset,
+ * and preserves the preview.
  */
-function presentationClause(palette: Palette): string {
-  return palette === 'color'
-    ? ' Presented as a photograph of the finished tattoo on skin, natural lighting.'
-    : ' Presented as flash art on a plain white background — the design only, not photographed on skin.';
+function presentationClause(): string {
+  return ' Presented as flash art on a plain white background — the design only, not photographed on skin.';
 }
 
 /** Palette-specific negatives, appended to the shared base. */
@@ -343,7 +349,7 @@ function buildQuadrantVariation(
   const details = specs.map(spec => spec.detail).join('; ');
 
   const lead = paletteClause(ctx.palette);
-  const presentation = presentationClause(ctx.palette);
+  const presentation = presentationClause();
   const simple = `${lead}A ${ctx.styleDesc} style tattoo on the ${ctx.placement} ${subjectClause(ctx)}, rendered with ${phrases}.`;
   const detailed =
     `${simple} Treatment: ${details}. Composition follows ${ctx.aspectGuidance}.`;
@@ -374,7 +380,7 @@ function buildCompositionalVariation(
   ctx: PromptContext
 ): StructuredVariation {
   const lead = paletteClause(ctx.palette);
-  const presentation = presentationClause(ctx.palette);
+  const presentation = presentationClause();
   const simple = `${lead}A ${ctx.styleDesc} style tattoo on the ${ctx.placement} ${subjectClause(ctx)}, in a ${treatment.phrase}.`;
   const detailed =
     `${simple} Treatment: ${treatment.detail}. Composition follows ${ctx.aspectGuidance}.`;
