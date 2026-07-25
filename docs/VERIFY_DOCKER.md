@@ -12,7 +12,7 @@ Docker doesn't store your code - it just provides the environment to run it.
 
 ```
 Your Computer (macOS)
-├── /Users/ciroccofam/.../manama-next/
+├── /Users/you/TatT/
 │   ├── src/              ← Your actual code (you edit here)
 │   ├── package.json
 │   └── node_modules/
@@ -52,7 +52,7 @@ docker ps
 ### Step 2: Verify Docker Files Exist
 
 ```bash
-cd manama-next
+cd TatT
 
 # Check these files exist
 ls -la | grep -E "Dockerfile|docker-compose"
@@ -81,7 +81,7 @@ cat package.json | head -5
 
 # You should see:
 # {
-#   "name": "manama-next",
+#   "name": "tatt-app",
 #   ...
 ```
 
@@ -132,7 +132,7 @@ curl -I http://localhost:3000
 3. **Edit a file on your computer**:
    ```bash
    # In a new terminal
-   cd manama-next/src/app
+   cd TatT/src/app
 
    # Edit the homepage
    nano page.tsx  # or use VS Code
@@ -197,7 +197,7 @@ exit
 │  Your Mac (Host)                    │
 │                                     │
 │  You edit code here:                │
-│  /Users/.../manama-next/src/        │
+│  /Users/.../TatT/src/               │
 │          ↓                          │
 │          │ (mounted as volume)     │
 │          ↓                          │
@@ -225,7 +225,7 @@ exit
 
 ```bash
 # 1. Your code exists
-cd manama-next
+cd TatT
 ls src/app/page.tsx
 # ✅ Should show the file
 
