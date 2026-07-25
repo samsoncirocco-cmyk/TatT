@@ -14,9 +14,9 @@ NC='\033[0m' # No Color
 # Test 1: Check we're in the right directory
 echo "Test 1: Checking directory..."
 if [ -f "package.json" ] && [ -f "next.config.ts" ]; then
-    echo -e "${GREEN}✅ In manama-next directory${NC}"
+    echo -e "${GREEN}✅ In the repo root${NC}"
 else
-    echo -e "${RED}❌ Not in manama-next directory${NC}"
+    echo -e "${RED}❌ Not in the repo root${NC}"
     exit 1
 fi
 
@@ -76,10 +76,6 @@ if git status > /dev/null 2>&1; then
     BRANCH=$(git branch --show-current)
     echo "   Current branch: $BRANCH"
 
-    if [ "$BRANCH" != "manama/next" ]; then
-        echo -e "${YELLOW}   ⚠️  Not on manama/next branch${NC}"
-    fi
-
     # Check for uncommitted changes
     if git diff-index --quiet HEAD --; then
         echo -e "${GREEN}   No uncommitted changes${NC}"
@@ -106,24 +102,24 @@ fi
 # Test 8: Check if local is in sync with remote
 echo ""
 echo "Test 8: Checking sync with remote..."
-git fetch origin manama/next > /dev/null 2>&1
-LOCAL=$(git rev-parse manama/next)
-REMOTE=$(git rev-parse origin/manama/next)
+git fetch origin main > /dev/null 2>&1
+LOCAL=$(git rev-parse main)
+REMOTE=$(git rev-parse origin/main)
 
 if [ "$LOCAL" = "$REMOTE" ]; then
     echo -e "${GREEN}✅ Local branch is in sync with remote${NC}"
 else
-    AHEAD=$(git rev-list origin/manama/next..manama/next --count)
-    BEHIND=$(git rev-list manama/next..origin/manama/next --count)
+    AHEAD=$(git rev-list origin/main..main --count)
+    BEHIND=$(git rev-list main..origin/main --count)
 
     if [ "$AHEAD" -gt 0 ]; then
         echo -e "${YELLOW}   ⚠️  You have $AHEAD unpushed commits${NC}"
-        echo "   Push with: git push origin manama/next"
+        echo "   Push with: git push origin main"
     fi
 
     if [ "$BEHIND" -gt 0 ]; then
         echo -e "${YELLOW}   ⚠️  Remote has $BEHIND new commits${NC}"
-        echo "   Pull with: git pull origin manama/next"
+        echo "   Pull with: git pull origin main"
     fi
 fi
 
@@ -137,17 +133,17 @@ echo ""
 echo "Your change workflow:"
 echo "1. Edit files on Mac → ${GREEN}Automatic${NC} → Docker sees changes"
 echo "2. Commit changes → ${YELLOW}Manual${NC} → git commit -m 'message'"
-echo "3. Push to GitHub → ${YELLOW}Manual${NC} → git push origin manama/next"
+echo "3. Push to GitHub → ${YELLOW}Manual${NC} → git push origin main"
 echo "4. Vercel deploys → ${GREEN}Automatic${NC} → Updates production"
-echo "5. Pull on Computer B → ${YELLOW}Manual${NC} → git pull origin manama/next"
+echo "5. Pull on Computer B → ${YELLOW}Manual${NC} → git pull origin main"
 
 echo ""
 echo "Quick commands:"
 echo "  ${GREEN}git status${NC}                    - Check what changed"
 echo "  ${GREEN}git add .${NC}                     - Stage all changes"
 echo "  ${GREEN}git commit -m 'message'${NC}       - Save changes locally"
-echo "  ${GREEN}git push origin manama/next${NC}   - Send to GitHub + Vercel"
-echo "  ${GREEN}git pull origin manama/next${NC}   - Get changes on other computer"
+echo "  ${GREEN}git push origin main${NC}   - Send to GitHub + Vercel"
+echo "  ${GREEN}git pull origin main${NC}   - Get changes on other computer"
 
 # Cleanup
 echo ""

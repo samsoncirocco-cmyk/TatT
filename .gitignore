@@ -27,6 +27,11 @@ yarn-error.log*
 .env
 .env.master
 
+# Claude Code — .claude/settings.json + .claude/hooks/ are tracked on purpose
+# (shared agent config). Agent worktrees and per-user overrides are not.
+.claude/worktrees/
+.claude/settings.local.json
+
 # Editor directories and files
 .vscode
 .idea

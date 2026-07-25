@@ -13,7 +13,7 @@
 
 ```bash
 # 1. Navigate to project
-cd manama-next
+cd TatT
 
 # 2. Make sure .env.local exists
 cp .env.example .env.local
@@ -119,7 +119,7 @@ This may use slightly more CPU but ensures hot-reload works on macOS/Windows.
 ```bash
 # 1. Clone repository
 git clone <repo-url>
-cd manama-next
+cd TatT
 
 # 2. Copy your .env.local (from secure storage)
 # Or create new .env.local with your values

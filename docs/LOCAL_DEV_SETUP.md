@@ -6,7 +6,7 @@
 
 ```bash
 # 1. Navigate to the Next.js workspace
-cd manama-next
+cd TatT
 
 # 2. Install dependencies
 npm install --legacy-peer-deps
@@ -109,7 +109,7 @@ Added empty `turbopack: {}` config to prevent Next.js 16 warning about webpack c
 
 **Workaround:**
 - Use API routes for all Google Cloud operations (already implemented)
-- Test `/generate` page on Vercel deployment: https://manama-next.vercel.app/generate
+- Test `/generate` page on Vercel deployment: https://tatt-app.vercel.app/generate
 
 **Why it works on Vercel:**
 Vercel's build system uses edge runtime and server-side rendering optimizations that properly separate client and server code. Turbopack in local dev doesn't have these same optimizations.
