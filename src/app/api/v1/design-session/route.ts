@@ -33,38 +33,40 @@ export const maxDuration = 300;
 export async function POST(req: NextRequest) {
     const reqLogger = createRequestLogger('design-session');
 
-    // Auth check
-    const authError = await verifyApiAuth(req);
-    if (authError) return authError;
-
-    const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
-
-    if (!demoMode) {
-        const rateResult = await rateLimit(req, 'generation');
-        if (!rateResult.allowed) {
-            return rateLimitResponse(rateResult);
-        }
-
-        const budgetResult = await checkBudget();
-        if (!budgetResult.allowed) {
-            return NextResponse.json(
-                { error: 'Budget limit reached', spentCents: budgetResult.spentCents },
-                { status: 402 }
-            );
-        }
-    }
-
-    const body = await req.json().catch(() => ({}));
-    const { placementAnswer, meaningAnswer } = body;
-
-    if (!placementAnswer || typeof placementAnswer !== 'string' || !placementAnswer.trim()) {
-        return invalidRequestResponse('placementAnswer is required', 'INVALID_PLACEMENT_ANSWER');
-    }
-    if (!meaningAnswer || typeof meaningAnswer !== 'string' || !meaningAnswer.trim()) {
-        return invalidRequestResponse('meaningAnswer is required', 'INVALID_MEANING_ANSWER');
-    }
-
+    // Setup lives inside the try so an auth/rate/budget failure still returns
+    // the structured error envelope and logs, instead of escaping as a bare 500.
     try {
+        // Auth check
+        const authError = await verifyApiAuth(req);
+        if (authError) return authError;
+
+        const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+
+        if (!demoMode) {
+            const rateResult = await rateLimit(req, 'generation');
+            if (!rateResult.allowed) {
+                return rateLimitResponse(rateResult);
+            }
+
+            const budgetResult = await checkBudget();
+            if (!budgetResult.allowed) {
+                return NextResponse.json(
+                    { error: 'Budget limit reached', spentCents: budgetResult.spentCents },
+                    { status: 402 }
+                );
+            }
+        }
+
+        const body = await req.json().catch(() => ({}));
+        const { placementAnswer, meaningAnswer } = body;
+
+        if (!placementAnswer || typeof placementAnswer !== 'string' || !placementAnswer.trim()) {
+            return invalidRequestResponse('placementAnswer is required', 'INVALID_PLACEMENT_ANSWER');
+        }
+        if (!meaningAnswer || typeof meaningAnswer !== 'string' || !meaningAnswer.trim()) {
+            return invalidRequestResponse('meaningAnswer is required', 'INVALID_MEANING_ANSWER');
+        }
+
         if (demoMode) await new Promise(r => setTimeout(r, 1500));
 
         const session = await startSession({
