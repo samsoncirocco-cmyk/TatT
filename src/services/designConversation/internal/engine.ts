@@ -21,6 +21,7 @@
 import { logger } from '@/lib/logger';
 import type { IntakeRecord, VariationAxis } from '@/services/intake';
 import { VARIATION_AXIS_POOL } from '@/services/intake';
+import { charactersIn, characterLabelFor } from '@/services/intake/internal/characterSubject';
 import type {
   ConversationMessage,
   ConversationStage,
@@ -105,7 +106,10 @@ function truncateAtWord(text: string, max: number): string {
   return `${cut.slice(0, lastSpace > 40 ? lastSpace : max)}…`;
 }
 
-export function buildPlayback(record: Partial<IntakeRecord>): string {
+export function buildPlayback(
+  record: Partial<IntakeRecord>,
+  characterLabel?: string
+): string {
   const tags = record.styleTags ?? [];
   const style = tags.length
     ? `${tags.map((t) => t.replace(/-/g, ' ')).join(' and ')} `
@@ -113,15 +117,49 @@ export function buildPlayback(record: Partial<IntakeRecord>): string {
   const placement = record.placement
     ? `on your ${record.placement}`
     : 'with the placement still open';
-  // A concrete subject reads back far better than the raw meaning prose
-  // ("Deku and Todoroki mid-fight" vs "my love of my hero academia and...").
-  const subject = (record.subject ?? '').trim();
+  // Named characters read back far better than the raw meaning prose
+  // ("Goku (Dragon Ball Z)" vs "never giving up no matter how outmatched").
+  // Deliberately the short LABEL, never `record.subject` — subject carries
+  // the costume anchors the prompts need ("Goku with wild spiky black hair,
+  // orange gi, ...") and dropping that here produces an unreadable sentence.
+  const subject = (characterLabel ?? '').trim();
   const meaning = (record.meaning ?? '').trim();
   const tailSource = subject || meaning;
   const tailPart = tailSource
     ? ` — ${truncateAtWord(tailSource, PLAYBACK_MEANING_MAX)}`
     : '';
   return `a ${style}piece ${placement}${tailPart}`;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Repeat guard (ADR-0021 cadence): the model occasionally re-emits its own
+ * previous question word for word, which reads as the bot not listening.
+ * Observed live: "...would you want to include any background elements like
+ * the energy aura or maybe some debris?" asked twice in a row.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+const REPEAT_FALLBACK =
+  "Sorry — I just asked that. Anything else you want me to know about the look, or should I show you some directions?";
+
+function normalizeForCompare(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Exact repetition only — a reworded follow-up is legitimate conversation. */
+function isRepeatOf(reply: string, previousBotMessage: string): boolean {
+  const candidate = normalizeForCompare(reply);
+  return candidate.length > 0 && candidate === normalizeForCompare(previousBotMessage);
+}
+
+function lastBotMessage(messages: ConversationMessage[]): string {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    if (messages[i].role === 'bot') return messages[i].text;
+  }
+  return '';
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -160,6 +198,21 @@ export async function runConversationTurn(
   const record = sanitizeRecord(payload, ontology);
   const { confidence, missingFields, hasRequiredFields } = scoreRecord(record);
 
+  // Deterministic character detection over the user's own words. The
+  // conversation model is never asked for `subject` (it is not in the turn
+  // payload), so without this a named character never reaches the playback.
+  // The prompt-facing subject is backfilled from the same source at confirm
+  // (designSession/internal/conversation.ts) — that keeps the costume anchors
+  // on IntakeRecord.subject while the playback gets only the short label.
+  const characterLabel = characterLabelFor(
+    charactersIn(
+      request.messages
+        .filter((message) => message.role === 'user')
+        .map((message) => message.text)
+        .join(' ')
+    )
+  );
+
   // Cadence — deterministic code, not model judgment (ADR-0021).
   let stage: ConversationStage;
   let firedRule: TurnLog['firedRule'];
@@ -173,19 +226,31 @@ export async function runConversationTurn(
   } else if (request.userTurn >= FORCE_PROPOSAL_TURN) {
     stage = 'proposal';
     firedRule = 'turn12-force-proposal';
-    playback = buildPlayback(record);
+    playback = buildPlayback(record, characterLabel);
     reply = proposalReply(playback);
   } else if (confidence >= CONFIDENCE_THRESHOLD && hasRequiredFields) {
     stage = 'proposal';
     firedRule = 'judgment';
-    playback = buildPlayback(record);
+    playback = buildPlayback(record, characterLabel);
     reply = proposalReply(playback);
   } else {
     stage = 'chatting';
     firedRule = 'none';
-    reply =
+    const candidate =
       asTrimmedString(payload.reply) ||
       "Tell me more — what's drawing you to this piece?";
+    const previousBotMessage = lastBotMessage(request.messages);
+    if (isRepeatOf(candidate, previousBotMessage)) {
+      logger.warn({
+        event_type: 'design_conversation.repeated_reply',
+        turn: request.userTurn,
+        model,
+        repeated: candidate,
+      });
+      reply = REPEAT_FALLBACK;
+    } else {
+      reply = candidate;
+    }
   }
 
   const turnLog: TurnLog = {

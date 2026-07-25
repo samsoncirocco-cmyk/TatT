@@ -522,3 +522,111 @@ describe('TurnLog — always present, always logged', () => {
     );
   });
 });
+
+/* ── playback names the character (short label, not costume prose) ───────── */
+
+describe('runTurn — playback names a recognized character', () => {
+  const GOKU_MESSAGES: ConversationMessage[] = [
+    { role: 'bot', text: opener() },
+    {
+      role: 'user',
+      text: 'forearm. goku from dragon ball z charging a kamehameha, blackwork, black ink only',
+    },
+    { role: 'bot', text: 'What are you hoping to capture?' },
+    {
+      role: 'user',
+      text: 'his determination — never giving up no matter how outmatched you are',
+    },
+  ];
+
+  const GOKU_PAYLOAD = {
+    reply: 'Blackwork Goku it is.',
+    record: {
+      placement: 'forearm',
+      styleTags: ['blackwork'],
+      meaning: 'never giving up no matter how outmatched you are',
+      references: [],
+      ambiguousAxes: ['bold-fine'],
+    },
+  };
+
+  it('names the character instead of only the meaning prose', async () => {
+    configureVertex();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(vertexResponse(GOKU_PAYLOAD)));
+
+    const result = await runTurn({ messages: GOKU_MESSAGES, userTurn: 2 });
+
+    expect(result.stage).toBe('proposal');
+    expect(result.playback).toContain('Goku (Dragon Ball)');
+    expect(result.playback).toContain('forearm');
+  });
+
+  it('never leaks the costume anchors the prompts use into the playback', async () => {
+    configureVertex();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(vertexResponse(GOKU_PAYLOAD)));
+
+    const result = await runTurn({ messages: GOKU_MESSAGES, userTurn: 2 });
+
+    // These live on IntakeRecord.subject for the generation prompts and
+    // would make the spoken sentence unreadable.
+    expect(result.playback!.toLowerCase()).not.toContain('orange gi');
+    expect(result.playback!.toLowerCase()).not.toContain('spiky');
+  });
+
+  it('falls back to the meaning when no character is named', async () => {
+    configureVertex();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(vertexResponse(RICH_PAYLOAD)));
+
+    const result = await runTurn({ messages: MESSAGES, userTurn: 3 });
+
+    expect(result.playback).toContain('hummingbird');
+  });
+});
+
+/* ── repeat guard ────────────────────────────────────────────────────────── */
+
+describe('runTurn — repeated-reply guard', () => {
+  it('does not replay the previous bot message verbatim', async () => {
+    configureVertex();
+    const repeated =
+      'Nice — would you want to include any background elements like the energy aura or maybe some debris?';
+    const messages: ConversationMessage[] = [
+      { role: 'bot', text: opener() },
+      { role: 'user', text: 'a dragon on my ribs' },
+      { role: 'bot', text: repeated },
+      { role: 'user', text: 'not sure yet' },
+    ];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        vertexResponse({ ...SPARSE_PAYLOAD, reply: repeated })
+      )
+    );
+
+    const result = await runTurn({ messages, userTurn: 3 });
+
+    expect(result.stage).toBe('chatting');
+    expect(result.reply).not.toBe(repeated);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ event_type: 'design_conversation.repeated_reply' })
+    );
+  });
+
+  it('lets a genuinely new reply through untouched', async () => {
+    configureVertex();
+    const messages: ConversationMessage[] = [
+      { role: 'bot', text: opener() },
+      { role: 'user', text: 'a dragon on my ribs' },
+      { role: 'bot', text: 'What mood are you going for?' },
+      { role: 'user', text: 'not sure yet' },
+    ];
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(vertexResponse(SPARSE_PAYLOAD)));
+
+    const result = await runTurn({ messages, userTurn: 3 });
+
+    expect(result.reply).toBe(SPARSE_PAYLOAD.reply);
+    expect(logger.warn).not.toHaveBeenCalledWith(
+      expect.objectContaining({ event_type: 'design_conversation.repeated_reply' })
+    );
+  });
+});
