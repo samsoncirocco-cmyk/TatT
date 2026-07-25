@@ -237,10 +237,11 @@ export function selectAxes(record: IntakeRecord): AxisSelection {
 
 /*
  * Palette resolution. Style tags decide whether a session is monochrome or
- * color, and that single decision drives three things: the front-loaded
- * palette clause, the negative prompt, and the presentation format. Flux
- * weights the front of a prompt far more heavily than a trailing negative,
- * which is why the palette leads rather than being folded into "Avoid:".
+ * color, and that single decision drives two things: the front-loaded palette
+ * clause and the negative prompt. Presentation is NOT palette-dependent — see
+ * PRESENTATION_CLAUSE. Flux weights the front of a prompt far more heavily
+ * than a trailing negative, which is why the palette leads rather than being
+ * folded into "Avoid:".
  */
 const MONOCHROME_TAGS = new Set([
   'blackwork',
@@ -272,16 +273,20 @@ function paletteClause(palette: Palette): string {
 }
 
 /**
- * Presentation is pinned per session so all four reveal thumbnails read as
- * one set: color sessions photograph on skin, monochrome sessions render as
- * flash art on white. Unresolved defaults to flash art — it stays coherent
- * whichever way the color axis lands across the four variations.
+ * Presentation is pinned for every session — color and monochrome alike — so
+ * all four reveal thumbnails read as one set. Palette is the only thing that
+ * differs between session types.
+ *
+ * Flash art on white is not a stylistic preference: the placement-preview step
+ * consumes these renders directly. It strips the near-white background to real
+ * alpha and composites the result onto the user's own photo with a `multiply`
+ * blend. A photograph-on-skin render has no white background to strip, so the
+ * whole frame — including a stranger's arm — would survive as an opaque
+ * rectangle and multiply onto the user's skin. Do not reintroduce an on-skin
+ * presentation without first reworking that pipeline.
  */
-function presentationClause(palette: Palette): string {
-  return palette === 'color'
-    ? ' Presented as a photograph of the finished tattoo on skin, natural lighting.'
-    : ' Presented as flash art on a plain white background — the design only, not photographed on skin.';
-}
+const PRESENTATION_CLAUSE =
+  ' Presented as flash art on a plain white background — the design only, not photographed on skin.';
 
 /** Palette-specific negatives, appended to the shared base. */
 function paletteNegatives(palette: Palette): string[] {
@@ -343,7 +348,6 @@ function buildQuadrantVariation(
   const details = specs.map(spec => spec.detail).join('; ');
 
   const lead = paletteClause(ctx.palette);
-  const presentation = presentationClause(ctx.palette);
   const simple = `${lead}A ${ctx.styleDesc} style tattoo on the ${ctx.placement} ${subjectClause(ctx)}, rendered with ${phrases}.`;
   const detailed =
     `${simple} Treatment: ${details}. Composition follows ${ctx.aspectGuidance}.`;
@@ -361,9 +365,9 @@ function buildQuadrantVariation(
   return {
     axisPosition,
     prompts: {
-      simple: keepIfValid(simple + presentation),
-      detailed: keepIfValid(detailed + presentation),
-      ultra: keepIfValid(ultra + presentation),
+      simple: keepIfValid(simple + PRESENTATION_CLAUSE),
+      detailed: keepIfValid(detailed + PRESENTATION_CLAUSE),
+      ultra: keepIfValid(ultra + PRESENTATION_CLAUSE),
     },
     negativePrompt,
   };
@@ -374,7 +378,6 @@ function buildCompositionalVariation(
   ctx: PromptContext
 ): StructuredVariation {
   const lead = paletteClause(ctx.palette);
-  const presentation = presentationClause(ctx.palette);
   const simple = `${lead}A ${ctx.styleDesc} style tattoo on the ${ctx.placement} ${subjectClause(ctx)}, in a ${treatment.phrase}.`;
   const detailed =
     `${simple} Treatment: ${treatment.detail}. Composition follows ${ctx.aspectGuidance}.`;
@@ -386,9 +389,9 @@ function buildCompositionalVariation(
   return {
     axisPosition: { composition: treatment.composition },
     prompts: {
-      simple: keepIfValid(simple + presentation),
-      detailed: keepIfValid(detailed + presentation),
-      ultra: keepIfValid(ultra + presentation),
+      simple: keepIfValid(simple + PRESENTATION_CLAUSE),
+      detailed: keepIfValid(detailed + PRESENTATION_CLAUSE),
+      ultra: keepIfValid(ultra + PRESENTATION_CLAUSE),
     },
     negativePrompt: [
       getBaseNegativePrompt(ctx.subject ?? ''),

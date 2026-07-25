@@ -112,13 +112,17 @@ describe('enhanceStructured - palette (color vs monochrome)', () => {
     }
   });
 
-  it('front-loads color, photographs on skin, and never says monochrome', async () => {
+  // Color sessions render as flash art too: the placement-preview step strips
+  // the white background to alpha before multiply-compositing onto the user's
+  // own photo, and an on-skin render has no background to strip.
+  it('front-loads color, still renders flash art on white, and never says monochrome', async () => {
     const result = await enhanceStructured(color);
 
     for (const variation of result.variations) {
       const prompt = variation.prompts.ultra || variation.prompts.simple || '';
       expect(prompt.startsWith('Vibrant color, clean ink saturation, tattoo-quality color rendering.')).toBe(true);
-      expect(prompt).toContain('photograph of the finished tattoo on skin');
+      expect(prompt).toContain('flash art on a plain white background');
+      expect(prompt).not.toContain('photograph of the finished tattoo on skin');
       expect(prompt.toLowerCase()).not.toContain('monochrome');
       expect((variation.negativePrompt || '').toLowerCase()).not.toContain('monochrome');
     }
@@ -137,8 +141,11 @@ describe('enhanceStructured - palette (color vs monochrome)', () => {
   it('pins one presentation across all four variations of a session', async () => {
     for (const record of [monochrome, color, unresolved]) {
       const result = await enhanceStructured({ ...record, ambiguousAxes: ['bold-fine', 'minimal-ornate'] });
-      const onSkin = result.variations.map(v => (v.prompts.simple || '').includes('on skin'));
-      expect(new Set(onSkin).size).toBe(1);
+      const presentations = result.variations.map(
+        v => (v.prompts.simple || '').match(/ Presented as [^]*$/)?.[0] ?? ''
+      );
+      expect(new Set(presentations).size).toBe(1);
+      expect(presentations[0]).toContain('flash art on a plain white background');
     }
   });
 
