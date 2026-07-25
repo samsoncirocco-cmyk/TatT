@@ -153,6 +153,34 @@ function keepIfValid(prompt: string): string | undefined {
   return validatePromptLength(prompt).valid ? prompt : undefined;
 }
 
+/*
+ * Axes the intake already decided, so padding can never contradict the user.
+ * Padding a slot pair with an axis they resolved doesn't just waste the pair
+ * (acknowledged noise) — it renders the opposite of what they asked for, e.g.
+ * a full-color quadrant in a session that said "black ink only".
+ */
+const LITERAL_ABSTRACT_TAGS = new Set([
+  'realism',
+  'portrait',
+  'surrealism',
+  'abstract',
+  'geometric',
+]);
+
+function contradictedAxes(record: IntakeRecord): Set<VariationAxis> {
+  const tags = record.styleTags;
+  const decided = new Set<VariationAxis>();
+
+  if (resolvePalette(tags) !== 'unresolved') decided.add('color-blackwork');
+  if (record.subject?.trim() || tags.some(tag => LITERAL_ABSTRACT_TAGS.has(tag))) {
+    decided.add('literal-abstract');
+  }
+  if (tags.includes('fine-line')) decided.add('bold-fine');
+  if (tags.includes('minimalist') || tags.includes('ornamental')) decided.add('minimal-ornate');
+
+  return decided;
+}
+
 /**
  * Pick which axes the reveal diverges along (ADR-0012). Selection is logged,
  * never silent: the returned rationale is emitted through the discussion
@@ -179,14 +207,20 @@ export function selectAxes(record: IntakeRecord): AxisSelection {
     // mode, so pad with the highest-priority axis not already covered.
     // Burning a slot pair on a padded axis is acknowledged noise (ADR-0012),
     // but it beats showing duplicate quadrants; the rationale says so.
-    const pad = AXIS_PRIORITY.find(axis => axis !== ambiguous[0]) as VariationAxis;
-    return {
-      mode: 'questionnaire',
-      axes: [ambiguous[0], pad],
-      rationale:
-        `Questionnaire mode: intake left only ${ambiguous[0]} unresolved; padded with ` +
-        `${pad} (next most visually consequential) so all four reveal slots stay distinct.`,
-    };
+    // Never pad with an axis the intake decided — that would contradict the
+    // user outright rather than merely waste the pair.
+    const decided = contradictedAxes(record);
+    const candidates = AXIS_PRIORITY.filter(axis => axis !== ambiguous[0]);
+    const free = candidates.filter(axis => !decided.has(axis));
+    const pad = (free[0] ?? candidates[candidates.length - 1]) as VariationAxis;
+    const rationale = free.length
+      ? `Questionnaire mode: intake left only ${ambiguous[0]} unresolved; padded with ` +
+        `${pad} (next most visually consequential axis the intake did not decide) so all ` +
+        'four reveal slots stay distinct.'
+      : `Questionnaire mode: intake left only ${ambiguous[0]} unresolved and decided every ` +
+        `other axis; padded with ${pad} (least visually consequential) so the four slots stay ` +
+        'distinct without overriding a resolved choice more than necessary.';
+    return { mode: 'questionnaire', axes: [ambiguous[0], pad], rationale };
   }
 
   const [first, second, ...dropped] = ambiguous;
@@ -201,9 +235,66 @@ export function selectAxes(record: IntakeRecord): AxisSelection {
   return { mode: 'questionnaire', axes: [first, second], rationale };
 }
 
+/*
+ * Palette resolution. Style tags decide whether a session is monochrome or
+ * color, and that single decision drives three things: the front-loaded
+ * palette clause, the negative prompt, and the presentation format. Flux
+ * weights the front of a prompt far more heavily than a trailing negative,
+ * which is why the palette leads rather than being folded into "Avoid:".
+ */
+const MONOCHROME_TAGS = new Set([
+  'blackwork',
+  'black-and-grey',
+  'fine-line',
+  'geometric',
+  'dotwork',
+]);
+
+const COLOR_TAGS = new Set(['color', 'neo-traditional', 'watercolor', 'new-school']);
+
+type Palette = 'color' | 'monochrome' | 'unresolved';
+
+/**
+ * Color wins a tag conflict ("fine-line color"): naming color is an explicit
+ * commitment, while the monochrome tags are often just line-style shorthand.
+ */
+export function resolvePalette(styleTags: readonly string[]): Palette {
+  if (styleTags.some(tag => COLOR_TAGS.has(tag))) return 'color';
+  if (styleTags.some(tag => MONOCHROME_TAGS.has(tag))) return 'monochrome';
+  return 'unresolved';
+}
+
+/** Front-loaded palette clause — first words of every prompt tier. */
+function paletteClause(palette: Palette): string {
+  if (palette === 'color') return 'Vibrant color, clean ink saturation, tattoo-quality color rendering. ';
+  if (palette === 'monochrome') return 'Monochrome, black and grey ink only, zero color. ';
+  return '';
+}
+
+/**
+ * Presentation is pinned per session so all four reveal thumbnails read as
+ * one set: color sessions photograph on skin, monochrome sessions render as
+ * flash art on white. Unresolved defaults to flash art — it stays coherent
+ * whichever way the color axis lands across the four variations.
+ */
+function presentationClause(palette: Palette): string {
+  return palette === 'color'
+    ? ' Presented as a photograph of the finished tattoo on skin, natural lighting.'
+    : ' Presented as flash art on a plain white background — the design only, not photographed on skin.';
+}
+
+/** Palette-specific negatives, appended to the shared base. */
+function paletteNegatives(palette: Palette): string[] {
+  // Deliberately no monochrome negatives on color sessions: negatives are
+  // folded into the prompt for Flux/Krea, so the words would work against
+  // the color the session just committed to.
+  return palette === 'monochrome' ? ['color ink, saturated hues, rainbow palette'] : [];
+}
+
 interface PromptContext {
   styleDesc: string;
   placement: string;
+  palette: Palette;
   subject?: string;
   meaningShort: string;
   aspectGuidance: string;
@@ -216,6 +307,7 @@ function buildContext(record: IntakeRecord): PromptContext {
   return {
     styleDesc: record.styleTags.length > 0 ? record.styleTags.join(', ') : 'tattoo',
     placement,
+    palette: resolvePalette(record.styleTags),
     subject: record.subject?.trim() || undefined,
     meaningShort: truncateWords(record.meaning, 60),
     aspectGuidance: getAspectRatioGuidance(placement),
@@ -250,7 +342,9 @@ function buildQuadrantVariation(
   const phrases = specs.map(spec => spec.phrase).join(', ');
   const details = specs.map(spec => spec.detail).join('; ');
 
-  const simple = `A ${ctx.styleDesc} style tattoo on the ${ctx.placement} ${subjectClause(ctx)}, rendered with ${phrases}.`;
+  const lead = paletteClause(ctx.palette);
+  const presentation = presentationClause(ctx.palette);
+  const simple = `${lead}A ${ctx.styleDesc} style tattoo on the ${ctx.placement} ${subjectClause(ctx)}, rendered with ${phrases}.`;
   const detailed =
     `${simple} Treatment: ${details}. Composition follows ${ctx.aspectGuidance}.`;
   const ultra =
@@ -258,11 +352,19 @@ function buildQuadrantVariation(
     'Clean readable forms with deliberate focal hierarchy, designed to sit naturally on the body ' +
     'and remain legible as it ages — suitable for professional tattooing.';
 
-  const negativePrompt = [getBaseNegativePrompt(), ...specs.map(spec => spec.negative)].join(', ');
+  const negativePrompt = [
+    getBaseNegativePrompt(ctx.subject ?? ''),
+    ...specs.map(spec => spec.negative),
+    ...paletteNegatives(ctx.palette),
+  ].join(', ');
 
   return {
     axisPosition,
-    prompts: { simple: keepIfValid(simple), detailed: keepIfValid(detailed), ultra: keepIfValid(ultra) },
+    prompts: {
+      simple: keepIfValid(simple + presentation),
+      detailed: keepIfValid(detailed + presentation),
+      ultra: keepIfValid(ultra + presentation),
+    },
     negativePrompt,
   };
 }
@@ -271,7 +373,9 @@ function buildCompositionalVariation(
   treatment: (typeof COMPOSITIONAL_TREATMENTS)[number],
   ctx: PromptContext
 ): StructuredVariation {
-  const simple = `A ${ctx.styleDesc} style tattoo on the ${ctx.placement} ${subjectClause(ctx)}, in a ${treatment.phrase}.`;
+  const lead = paletteClause(ctx.palette);
+  const presentation = presentationClause(ctx.palette);
+  const simple = `${lead}A ${ctx.styleDesc} style tattoo on the ${ctx.placement} ${subjectClause(ctx)}, in a ${treatment.phrase}.`;
   const detailed =
     `${simple} Treatment: ${treatment.detail}. Composition follows ${ctx.aspectGuidance}.`;
   const ultra =
@@ -281,8 +385,15 @@ function buildCompositionalVariation(
 
   return {
     axisPosition: { composition: treatment.composition },
-    prompts: { simple: keepIfValid(simple), detailed: keepIfValid(detailed), ultra: keepIfValid(ultra) },
-    negativePrompt: getBaseNegativePrompt(),
+    prompts: {
+      simple: keepIfValid(simple + presentation),
+      detailed: keepIfValid(detailed + presentation),
+      ultra: keepIfValid(ultra + presentation),
+    },
+    negativePrompt: [
+      getBaseNegativePrompt(ctx.subject ?? ''),
+      ...paletteNegatives(ctx.palette),
+    ].join(', '),
   };
 }
 

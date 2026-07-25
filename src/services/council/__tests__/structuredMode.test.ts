@@ -95,6 +95,104 @@ describe('enhanceStructured - questionnaire mode (2 ambiguous axes)', () => {
   });
 });
 
+describe('enhanceStructured - palette (color vs monochrome)', () => {
+  const monochrome: IntakeRecord = { ...baseRecord, styleTags: ['blackwork', 'fine-line'] };
+  const color: IntakeRecord = { ...baseRecord, styleTags: ['color', 'anime'] };
+  const unresolved: IntakeRecord = { ...baseRecord, styleTags: ['illustrative'] };
+
+  it('front-loads monochrome and renders monochrome sessions as flash art on white', async () => {
+    const result = await enhanceStructured(monochrome);
+
+    for (const variation of result.variations) {
+      const prompt = variation.prompts.simple || '';
+      expect(prompt.startsWith('Monochrome, black and grey ink only, zero color.')).toBe(true);
+      expect(prompt).toContain('flash art on a plain white background');
+      expect(prompt).not.toContain('photograph of the finished tattoo on skin');
+      expect(variation.negativePrompt || '').toContain('color ink, saturated hues');
+    }
+  });
+
+  it('front-loads color, photographs on skin, and never says monochrome', async () => {
+    const result = await enhanceStructured(color);
+
+    for (const variation of result.variations) {
+      const prompt = variation.prompts.ultra || variation.prompts.simple || '';
+      expect(prompt.startsWith('Vibrant color, clean ink saturation, tattoo-quality color rendering.')).toBe(true);
+      expect(prompt).toContain('photograph of the finished tattoo on skin');
+      expect(prompt.toLowerCase()).not.toContain('monochrome');
+      expect((variation.negativePrompt || '').toLowerCase()).not.toContain('monochrome');
+    }
+  });
+
+  it('defaults to flash art with no palette lead when style resolves neither way', async () => {
+    const result = await enhanceStructured(unresolved);
+
+    for (const variation of result.variations) {
+      const prompt = variation.prompts.simple || '';
+      expect(prompt.startsWith('A ')).toBe(true);
+      expect(prompt).toContain('flash art on a plain white background');
+    }
+  });
+
+  it('pins one presentation across all four variations of a session', async () => {
+    for (const record of [monochrome, color, unresolved]) {
+      const result = await enhanceStructured({ ...record, ambiguousAxes: ['bold-fine', 'minimal-ornate'] });
+      const onSkin = result.variations.map(v => (v.prompts.simple || '').includes('on skin'));
+      expect(new Set(onSkin).size).toBe(1);
+    }
+  });
+
+  it('drops the multiple-people negative when the subject names a scene', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      subject: 'Izuku Midoriya (Deku) and Shoto Todoroki from My Hero Academia mid-fight',
+    });
+
+    for (const variation of result.variations) {
+      expect(variation.negativePrompt || '').not.toContain('multiple people');
+    }
+  });
+});
+
+describe('enhanceStructured - padding never contradicts a resolved axis', () => {
+  it('does not pad a blackwork session with the color axis', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      styleTags: ['blackwork'],
+      ambiguousAxes: ['minimal-ornate'],
+    });
+
+    expect(result.axisSelection.axes).not.toContain('color-blackwork');
+    for (const variation of result.variations) {
+      const prompt = (variation.prompts.detailed || '').toLowerCase();
+      expect(prompt).not.toContain('vibrant full-color');
+    }
+  });
+
+  it('does not pad a named-subject session with the literal-abstract axis', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      styleTags: ['color'],
+      subject: 'Son Goku from Dragon Ball Z charging a Kamehameha',
+      ambiguousAxes: ['minimal-ornate'],
+    });
+
+    expect(result.axisSelection.axes).not.toContain('literal-abstract');
+    expect(result.axisSelection.axes).not.toContain('color-blackwork');
+  });
+
+  it('still pads (least consequential) when the intake decided everything else', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      styleTags: ['blackwork', 'fine-line', 'minimalist', 'realism'],
+      ambiguousAxes: ['minimal-ornate'],
+    });
+
+    expect(result.axisSelection.axes).toHaveLength(2);
+    expect(result.axisSelection.rationale).toContain('decided every');
+  });
+});
+
 describe('enhanceStructured - named subject (IP rule)', () => {
   it('prompts depict the named subject instead of paraphrasing the meaning', async () => {
     const result = await enhanceStructured({
