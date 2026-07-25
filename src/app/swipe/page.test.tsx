@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import SwipePage from "./page";
 import type { ArtistMatch } from "@/store/useMatchStore";
 
 const push = vi.fn();
+let searchParams = new URLSearchParams();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
+  useSearchParams: () => searchParams,
 }));
 
 vi.mock("next/dynamic", () => ({
@@ -69,6 +71,7 @@ const sampleMatch: ArtistMatch = {
 describe("SwipePage persist hydration", () => {
   beforeEach(() => {
     push.mockClear();
+    searchParams = new URLSearchParams();
     storeState = { matches: [], hasHydrated: false };
   });
 
@@ -91,5 +94,32 @@ describe("SwipePage persist hydration", () => {
     expect(screen.queryByText(/No deck/i)).toBeNull();
     expect(screen.queryByLabelText("Loading swipe deck")).toBeNull();
     expect(screen.getByText("Ink Nova")).toBeTruthy();
+  });
+});
+
+describe("SwipePage design-session threading", () => {
+  beforeEach(() => {
+    push.mockClear();
+    searchParams = new URLSearchParams();
+    storeState = { matches: [sampleMatch], hasHydrated: true };
+  });
+
+  it("threads ds from the URL into the pinned artist's Book CTA", () => {
+    searchParams = new URLSearchParams("ds=sess-1");
+    render(<SwipePage />);
+
+    fireEvent.click(screen.getByRole("button", { name: /pin/i }));
+
+    const bookLink = screen.getByRole("link", { name: /book/i });
+    expect(bookLink.getAttribute("href")).toBe("/book?artistId=a1&ds=sess-1");
+  });
+
+  it("omits ds from the Book CTA when there is no design session", () => {
+    render(<SwipePage />);
+
+    fireEvent.click(screen.getByRole("button", { name: /pin/i }));
+
+    const bookLink = screen.getByRole("link", { name: /book/i });
+    expect(bookLink.getAttribute("href")).toBe("/book?artistId=a1");
   });
 });

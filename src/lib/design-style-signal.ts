@@ -100,6 +100,85 @@ export function parseStylesParam(param: string | null | undefined): CanonicalSty
   return [...seen];
 }
 
+// ---------------------------------------------------------------------------
+// Ontology bridge (design bot → match flow)
+// ---------------------------------------------------------------------------
+// TODO(match-ontology): temporary bridge. The design bot speaks style-ontology
+// ids (data/style-ontology.json, ADR-0010) while matching still speaks the
+// live artist graph's canonical style names. Delete this mapping once the
+// match pipeline adopts the ontology as its own controlled vocabulary.
+
+/**
+ * Explicit ontology-id → canonical-style mapping. Every entry is a curated
+ * human decision — no fuzzy matching (ADR-0010: matching runs on a controlled
+ * vocabulary). Sub-styles collapse into their graph parent the same way the
+ * STYLE_RULES keywords above already do (dotwork → Blackwork, irezumi →
+ * Japanese, manga → Anime, lettering → Script, portrait → Realism).
+ */
+export const ONTOLOGY_TO_CANONICAL_STYLE: Readonly<Record<string, CanonicalStyle>> = {
+  americana: "Traditional",
+  anime: "Anime",
+  "black-and-grey": "Black & Grey",
+  blackwork: "Blackwork",
+  chicano: "Chicano",
+  dotwork: "Blackwork",
+  "fine-line": "Fine Line",
+  geometric: "Geometric",
+  illustrative: "Illustrative",
+  irezumi: "Japanese",
+  japanese: "Japanese",
+  lettering: "Script",
+  manga: "Anime",
+  minimalist: "Minimalist",
+  "neo-traditional": "Neo-Traditional",
+  portrait: "Realism",
+  realism: "Realism",
+  traditional: "Traditional",
+  tribal: "Tribal",
+  watercolor: "Watercolor",
+};
+
+/**
+ * Ontology ids deliberately left unmapped — the live graph has no canonical
+ * style for them (palette descriptors, or styles the roster doesn't carry).
+ * Kept as an explicit list so ontology growth fails a test instead of
+ * silently dropping a new tag; dropping is a decision here, never a guess.
+ */
+export const UNMAPPED_ONTOLOGY_TAGS: readonly string[] = [
+  "abstract",
+  "biomechanical",
+  "color",
+  "new-school",
+  "ornamental",
+  "surrealism",
+];
+
+/**
+ * Map a brief's ontology style tags (IntakeRecord.styleTags / Brief.styleTags)
+ * onto canonical graph styles for /api/v1/match/semantic. Deduped,
+ * order-preserving, capped at MAX_SIGNAL_STYLES like every other signal in
+ * this module. Unmappable tags are dropped with a logged note — no fuzzy
+ * guessing.
+ */
+export function canonicalStylesFromOntologyTags(tags: string[]): CanonicalStyle[] {
+  const mapped: CanonicalStyle[] = [];
+  const dropped: string[] = [];
+  for (const tag of tags) {
+    const style = ONTOLOGY_TO_CANONICAL_STYLE[tag];
+    if (!style) {
+      dropped.push(tag);
+      continue;
+    }
+    if (!mapped.includes(style)) mapped.push(style);
+  }
+  if (dropped.length > 0) {
+    console.info(
+      `[design-style-signal] Dropped ontology tags with no canonical match style: ${dropped.join(", ")}`,
+    );
+  }
+  return mapped.slice(0, MAX_SIGNAL_STYLES);
+}
+
 /**
  * Build the /matches URL carrying a design's style signal.
  * The forge always cuts blackwork stencils (see generateTattooDesign's

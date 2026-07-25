@@ -51,6 +51,61 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: parsed.error }, { status: 400 });
   }
 
+  // Validate the canonical artist id against the Neo4j graph (Artist.id is the
+  // platform's canonical artist id). Fail-CLOSED on a definitive "not found"
+  // (return 400) but fail-OPEN on infra error — a Neo4j outage must never drop
+  // real bookings. artistId is optional; absent means allow (some flows omit it).
+  if (parsed.value.artistId) {
+    try {
+      const { executeServerCypherQuery } = await import(
+        '@/features/match-pulse/services/neo4jService'
+      );
+      const records = await executeServerCypherQuery(
+        'MATCH (a:Artist {id: $id}) RETURN a.id LIMIT 1',
+        { id: parsed.value.artistId }
+      );
+      if (!records.length) {
+        return NextResponse.json({ success: false, error: 'Unknown artist.' }, { status: 400 });
+      }
+    } catch (err) {
+      // Lookup itself failed (graph unreachable) — log and fall through to allow.
+      console.warn(
+        `[book] artist existence check failed for ${parsed.value.artistId} — allowing booking (fail-open):`,
+        err instanceof Error ? err.message : err
+      );
+    }
+  }
+
+  // Attach the design-session Brief (the artist-facing deliverable — see
+  // CONTEXT.md "Brief") when the booking arrived from a completed design
+  // session. Fail-OPEN like the artist check above: a missing, incomplete,
+  // or erroring session must never drop a real booking — capture without
+  // the brief and log it.
+  let brief: Record<string, unknown> | undefined;
+  if (parsed.value.designSessionId) {
+    const dsId = parsed.value.designSessionId;
+    try {
+      const { getSession } = await import('@/services/designSession');
+      const session = await getSession(dsId);
+      if (session?.phase === 'complete' && session.brief) {
+        // Strip undefined optionals (finalImageUrl, rejectedAxisPosition) —
+        // Firestore rejects undefined fields even inside nested maps.
+        brief = Object.fromEntries(
+          Object.entries(session.brief).filter(([, v]) => v !== undefined)
+        );
+      } else {
+        console.warn(
+          `[book] design session ${dsId} has no brief (phase: ${session?.phase ?? 'unknown'}) — capturing booking without it`
+        );
+      }
+    } catch (err) {
+      console.warn(
+        `[book] design session lookup failed for ${dsId} — capturing booking without brief (fail-open):`,
+        err instanceof Error ? err.message : err
+      );
+    }
+  }
+
   const bookingId = `BK-${randomUUID().slice(0, 8).toUpperCase()}`;
   // Strip undefined values — Firestore rejects any document containing an
   // `undefined` field (e.g. optional clientPhone), throwing a validation error
@@ -60,6 +115,7 @@ export async function POST(request: NextRequest) {
     Object.entries({
       bookingId,
       ...parsed.value,
+      brief,
       uid: user?.uid ?? null,
       status: 'pending',
       createdAt: new Date().toISOString(),

@@ -52,15 +52,18 @@ Generate tattoo design images via the Imagen 3.0 API (`imagen-3.0-generate-001`)
 
 3. The API route (`src/app/api/v1/generate/route.ts`) will:
    - Validate auth via `verifyApiAuth`
+   - Short-circuit to mock Unsplash images if `NEXT_PUBLIC_DEMO_MODE=true` (no API cost)
+   - Enforce rate limiting and the budget guard (returns 402 when the monthly budget is exhausted)
    - Validate the prompt (minimum 3 characters)
    - Validate `sampleCount` is between 1 and 4
-   - Call `generateWithRetry()` from `src/services/generationService.ts`
+   - Call `generate()` from `src/services/generation` (ADR-0001) — Vertex retry, the relaxed-safety fallback, and the Vertex → Replicate SDXL fallback (gated on `REPLICATE_API_TOKEN`) all live inside `generate()`; the route only does policy, spend recording, and response mapping
 
-4. `generateWithRetry()` will:
+4. The generation module will:
    - Obtain a GCP access token via `getGcpAccessToken()` (edge-compatible)
    - POST to Vertex AI Imagen endpoint: `https://{REGION}-aiplatform.googleapis.com/v1/projects/{PROJECT_ID}/locations/{REGION}/publishers/google/models/imagen-3.0-generate-001:predict`
    - On retryable errors (429, 500, 502, 503, 504): retry up to 2 times with exponential backoff (400ms base)
    - On exhausted retries with a fallback configured: attempt one more call with `safetyFilterLevel: block_only_high`
+   - If Vertex still fails and `REPLICATE_API_TOKEN` is set: fall back to Replicate SDXL (~1¢ per result; response `metadata.provider` becomes `replicate`)
    - Return base64 data URIs (`data:image/png;base64,...`)
 
 5. Successful response shape:
@@ -107,7 +110,22 @@ Generate tattoo design images via the Imagen 3.0 API (`imagen-3.0-generate-001`)
 - **Fallback attempt**: If the primary attempt fails and fallback fires, that is an additional $0.02 x `sampleCount`.
 - **Estimate for testing**: 10 test generations x 1 image = ~$0.20
 
+## Full Product Workflow
+
+The UI's end-to-end flow is: **council-enhance.md** (prompt enhancement) → this directive (image generation) → **layer-management.md** (multi-layer decomposition) / **stencil-export.md** (printable stencil) / **artist-matching.md** (find artists for the design).
+
+The UI's Replicate path (via the Express proxy, `src/features/generate/services/replicateService.js`) offers four SDXL variants:
+
+| Variant | Name | Character |
+|---------|------|-----------|
+| `tattoo` | Classic flash | Old-school bold lines |
+| `animeXL` | Animated ink | Vibrant characters |
+| `dreamshaper` | Speed sketch | Fastest, cheapest |
+| `sdxl` | Studio grade | Most versatile |
+
 ## Related Directives
 
 - Run **council-enhance.md** first to generate an optimized prompt before calling generate
 - The UI workflow typically calls council-enhance then generate-design in sequence
+- **layer-management.md** — multi-layer generation for complex designs
+- **stencil-export.md** — converting generated images to printable stencils

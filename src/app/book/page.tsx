@@ -14,6 +14,9 @@ export default async function BookPage({
 }) {
   const sp = await searchParams;
   const artistId = typeof sp.artistId === "string" ? sp.artistId : "";
+  // Design-session id threaded from /design → /smart-match → /swipe → here;
+  // travels on the booking POST so the artist Brief rides with the record.
+  const designSessionId = typeof sp.ds === "string" ? sp.ds : "";
 
   let artist: BookArtist | null = null;
   let artistLoadFailed = false;
@@ -46,6 +49,7 @@ export default async function BookPage({
       artist={artist}
       requestedArtistId={artistId}
       artistLoadFailed={artistLoadFailed}
+      designSessionId={designSessionId}
     />
   );
 }

@@ -184,6 +184,6 @@ Match users with tattoo artists based on semantic similarity (design style) + gr
 - Prefetch artist portfolios (images) for top 5 matches
 
 ## Related Directives
-- `generate-tattoo.md` — Design generation (provides input for matching)
+- `generate-design.md` — Design generation (provides input for matching)
 - `neo4j-queries.md` — Graph query patterns for artist relationships
 - `api-endpoints.md` — Full API reference for match endpoints

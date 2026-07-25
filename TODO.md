@@ -92,15 +92,26 @@ J9. **Close the booking loop** — roadmap merged 2026-07-22 (PR #106):
     M003 deferred to a Phase 3 analytics mirror. Same-day Stripe Connect
     merge (1e4dd5a, PRs #92/#99) already shipped held deposits + claim flow
     + a functional webhook — see the doc's Addendum for what that closed.
-    **Remaining Phase 1 blockers (doc §5, tasks 1.1–1.9):** thread
-    `bookingId` into checkout metadata; webhook transitions
-    `booking_requests` to `deposit_paid` (state machine in
-    `src/lib/booking.ts`); validate `artistId` against the graph; booking
-    read API + reconcile `/bookings` and `/book/success` with server truth;
-    make `notifyArtistOfBooking` (`src/lib/notify.ts`) actually deliver;
-    delete dead `useBookingStore`/`BookingModal`. Also: `DEPOSIT_BY_SIZE`
-    is now duplicated in `checkout/route.ts` (cents) and `lib/booking.ts`
-    (dollars) — consolidate before it drifts.
+    ~~**Remaining Phase 1 blockers (doc §5, tasks 1.1–1.9)**~~ — **DONE
+    2026-07-22 (subagent fan-out, uncommitted on disk pending review):**
+    1.1 `bookingId` threaded through `BookClient` → `/api/checkout` →
+    Stripe metadata + `success_url`; 1.2 booking state machine
+    (`BookingStatus`, `canTransition`, `appendStatus`, `statusHistory`) in
+    `src/lib/booking.ts` + unit tests; 1.3 webhook idempotently transitions
+    `booking_requests` `pending → deposit_paid` (event-id + status guards,
+    Firestore txn) persisting session/PI/amount/paidAt; 1.4 `/api/v1/book`
+    validates `artistId` against the graph (fail-closed on "not found",
+    fail-open on Neo4j outage); 1.5 owner-scoped `GET /api/v1/bookings` +
+    `/[id]` read API (registered in api-route-security); 1.6 `/book/success`
+    + `/bookings` now read server truth; 1.7 deleted dead
+    `useBookingStore`/`BookingModal`; 1.8 `notify.ts` + `emailQueueService`
+    real transactional email (Resend/webhook, honest degrade); 1.9 webhook
+    reconciliation integration test. Full suite 407 pass, tsc clean on
+    touched files, `next build --webpack` compiles. **Still open (deferred):**
+    `DEPOSIT_BY_SIZE` duplicated in `checkout/route.ts` (cents) vs
+    `lib/booking.ts` (dollars) — consolidate before it drifts; artist
+    dashboard/confirm-decline (Phase 2); real email provider env
+    (`RESEND_API_KEY`/`EMAIL_FROM`/`OPS_NOTIFY_EMAIL`) not yet set in prod.
 
 (Prior items now secondary: PR #40 feedback folds into J2/J3 scope; security
 reconciliation continues in parallel. Branch protection still blocked on
@@ -125,11 +136,14 @@ full run NOT launched. Resume after gate review.
   rule) or port to graph. scripts/ importers referencing artists.json are
   seed tooling, fine.
 - **Samson-only ops checklist** (executed 2026-07-21; one item left):
-  1. **LIKELY DONE — verify (Samson):** Stripe Connect merge 1e4dd5a
-     (2026-07-22) says "Webhook endpoint + env configured in prod (Vercel)",
-     which implies STRIPE_SECRET_KEY (+ webhook secrets) are now set. Not
-     independently verified from a session — confirm /api/checkout no longer
-     503s in prod, then strike this.
+  1. **DEFERRED TO PRE-LAUNCH (Samson, 2026-07-24):** live Stripe
+     end-to-end verification. Not urgent — TatT is not taking customers
+     yet; do the real-booking + live-dashboard check before the first
+     customer, then strike this. Partially verified from a session
+     (2026-07-24): /api/checkout is live in prod at tatt-app.vercel.app
+     (auth-gated, not 503), and the Stripe sandbox shows zero traffic, so
+     prod is not misconfigured onto test keys. Agents: do not re-flag
+     this as a blocking ops item.
   2. ~~FIREBASE_* admin credentials~~ — **already set** (FIREBASE_PRIVATE_KEY,
      FIREBASE_CLIENT_EMAIL, FIREBASE_PROJECT_ID in production+preview;
      verified via Vercel API 2026-07-21). A real-booking end-to-end check in
@@ -154,6 +168,18 @@ full run NOT launched. Resume after gate review.
    real scraped data. Re-seeding (if ever needed): `scripts/import-to-neo4j.js`.
 
 ## Backlog
+
+- **TECH DEBT — retire the CANONICAL_STYLES bridge (2026-07-23):** the match
+  flow (`src/lib/design-style-signal`, smart-match pills, `/api/v1/match/
+  semantic`) runs on its own pre-ontology style list; the design-bot phase-3
+  work bridges ontology tag ids → CANONICAL_STYLES with an explicit mapping
+  (no fuzzy matching, unmappable tags dropped and logged). This is exactly
+  the two-vocabularies drift problem ADR-0010/0011 exist to prevent — the
+  bridge is a stopgap. Fix: migrate the match flow (pills, semantic query,
+  artist tags in Neo4j/Supabase) onto `data/style-ontology.json` as the
+  single controlled vocabulary, then delete the mapping. A mapping unit test
+  reads the live ontology so any newly approved tag that lacks a bridge
+  entry fails loudly until then.
 
 - **Forge polish (from 2026-07-20 UX review):** (1) raise the tape-label
   font-size floor to ~10px (7-9px "SELECTED"/"LINES" labels fail WCAG

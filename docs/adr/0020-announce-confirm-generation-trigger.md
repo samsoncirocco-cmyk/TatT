@@ -1,0 +1,3 @@
+# Generation fires on announce + confirm, not automatically
+
+When the bot judges the intake record full, it does not silently generate: it plays back what it heard in one line — "Here's what I'm hearing: [playback]. Want to see four takes on this, or did I miss something?" — and generates on the user's yes. The playback catches extraction misreads for free (the user corrects before money is spent on four renders), and the consent beat makes the reveal an earned moment instead of an ambush. Auto-fire was rejected (stakes the session on the bot's self-judgment of a half-read record); a persistent user-triggered "show me designs" control was rejected (makes the user do the bot's job).

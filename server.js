@@ -280,13 +280,23 @@ app.post('/api/predictions', async (req, res) => {
     }
 
     console.log('[Proxy] Creating prediction...');
-    const response = await fetch(`${REPLICATE_API_URL}/predictions`, {
+    // Slug-based bodies ({ model, input }) hit the official-model endpoint;
+    // legacy bodies ({ version, input }) keep the hash-pinned endpoint.
+    const { model, ...rest } = req.body || {};
+    let endpoint = `${REPLICATE_API_URL}/predictions`;
+    if (typeof model === 'string') {
+      if (!/^[\w.-]+\/[\w.-]+$/.test(model)) {
+        return res.status(400).json({ error: `Invalid model slug: ${model}` });
+      }
+      endpoint = `${REPLICATE_API_URL}/models/${model}/predictions`;
+    }
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Authorization': `Token ${REPLICATE_API_TOKEN}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(req.body)
+      body: JSON.stringify(rest)
     });
 
     const data = await response.json();

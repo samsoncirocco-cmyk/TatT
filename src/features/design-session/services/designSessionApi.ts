@@ -1,0 +1,177 @@
+// Thin fetch client for the design-session API (frozen contract:
+// src/services/designSession/types.ts). The UI never talks to intake,
+// council, or generation directly — the session routes orchestrate those.
+
+import { getApiAuthHeaders } from '@/lib/client-api-auth';
+import type {
+  DesignSession,
+  StartSessionRequest,
+  PickRequest,
+  RefineRequest,
+} from '@/services/designSession/types';
+import type {
+  ConverseRequest,
+  ConverseResponse,
+} from '@/services/designConversation/types';
+
+const BASE_PATH = '/api/v1/design-session';
+
+/**
+ * Every conversation provider is down (503 from converse). The flow catches
+ * this to degrade seamlessly to the scripted two-question intake (ADR-0019).
+ */
+export class ConversationUnavailableError extends Error {}
+
+/**
+ * A failed design-session request, carrying what the route told us rather
+ * than just a sentence. Callers (and the UI) need `retryable` to know
+ * whether retrying is meaningful at all and `retryAfterMs` to know how long
+ * to wait — without them the only recovery is a generic message and a manual
+ * button, which is exactly what users hit on a throttled /confirm.
+ */
+export class DesignSessionRequestError extends Error {
+  readonly code: string;
+  readonly status: number;
+  readonly retryable: boolean;
+  readonly retryAfterMs?: number;
+
+  constructor(
+    message: string,
+    fields: { code: string; status: number; retryable: boolean; retryAfterMs?: number }
+  ) {
+    super(message);
+    this.name = 'DesignSessionRequestError';
+    this.code = fields.code;
+    this.status = fields.status;
+    this.retryable = fields.retryable;
+    this.retryAfterMs = fields.retryAfterMs;
+  }
+}
+
+/** Auto-retries for a retryable confirm, on top of the provider's own retries. */
+const MAX_CONFIRM_ATTEMPTS = 3;
+/** Cap so a hostile/absent hint can never hang the UI. */
+const MAX_RETRY_WAIT_MS = 30_000;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function postAuthed(path: string, body: unknown): Promise<Response> {
+  const authHeaders = await getApiAuthHeaders();
+  return fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders },
+    body: JSON.stringify(body),
+  });
+}
+
+async function postJson(path: string, body: unknown): Promise<DesignSession> {
+  const res = await postAuthed(path, body);
+
+  let data: unknown = null;
+  try {
+    data = await res.json();
+  } catch {
+    // Non-JSON body (e.g. a 500 HTML page) — fall through to status error.
+  }
+
+  if (!res.ok) {
+    const payload = (data ?? {}) as {
+      error?: string;
+      code?: string;
+      retryable?: boolean;
+      retryAfterMs?: number;
+    };
+    // A non-JSON or legacy body yields no hint — treat as non-retryable
+    // rather than guessing, since a blind retry can cost paid renders.
+    throw new DesignSessionRequestError(
+      payload.error ?? `Design session request failed (${res.status})`,
+      {
+        code: payload.code ?? 'DESIGN_SESSION_FAILED',
+        status: res.status,
+        retryable: payload.retryable === true,
+        retryAfterMs: payload.retryAfterMs,
+      }
+    );
+  }
+
+  // Tolerate both a bare DesignSession body and a { session } envelope.
+  const record = data as ({ session?: DesignSession } & DesignSession) | null;
+  if (!record) throw new Error('Design session response was empty');
+  return record.session ?? record;
+}
+
+/** POST /api/v1/design-session — runs intake → council → generation. */
+export function startSession(request: StartSessionRequest): Promise<DesignSession> {
+  return postJson(BASE_PATH, request);
+}
+
+/** POST /api/v1/design-session/[id]/pick — the pick + most-not-you tap. */
+export function submitPick(sessionId: string, request: PickRequest): Promise<DesignSession> {
+  return postJson(`${BASE_PATH}/${sessionId}/pick`, request);
+}
+
+/** POST /api/v1/design-session/[id]/refine — allowed exactly once (ADR-0013). */
+export function submitRefinement(sessionId: string, request: RefineRequest): Promise<DesignSession> {
+  return postJson(`${BASE_PATH}/${sessionId}/refine`, request);
+}
+
+/**
+ * POST /api/v1/design-session/converse — one conversational intake turn
+ * (ADR-0019). Omit sessionId and message to open a new conversation. A 503
+ * (every provider down) throws ConversationUnavailableError so the UI can
+ * fall back to the scripted intake.
+ */
+export async function converse(request: ConverseRequest): Promise<ConverseResponse> {
+  const res = await postAuthed(`${BASE_PATH}/converse`, request);
+
+  let data: unknown = null;
+  try {
+    data = await res.json();
+  } catch {
+    // Non-JSON body — fall through to status error.
+  }
+
+  const errorMessage = (data as { error?: string } | null)?.error;
+  if (res.status === 503) {
+    throw new ConversationUnavailableError(errorMessage ?? 'Conversation unavailable');
+  }
+  if (!res.ok) {
+    throw new Error(errorMessage ?? `Design conversation request failed (${res.status})`);
+  }
+  if (!data) throw new Error('Design conversation response was empty');
+  return data as ConverseResponse;
+}
+
+/**
+ * POST /api/v1/design-session/[id]/confirm — the user's yes to the proposal
+ * (ADR-0020). Fires generation and responds with the revealed DesignSession.
+ *
+ * Retries automatically while the route reports the failure as retryable
+ * (the image provider throttling, in practice), honoring its retry-after
+ * hint. This is the layer above the generation provider's own per-prediction
+ * retries: when a whole throttle window outlasts the request, the confirm
+ * itself has to be re-sent — previously the user's only recovery was a
+ * manual RETRY button under a generic "Design session request failed".
+ *
+ * Only retryable failures are retried, and only ever after a failure, so a
+ * confirm that produced renders is never re-sent.
+ */
+export async function confirmProposal(sessionId: string): Promise<DesignSession> {
+  const path = `${BASE_PATH}/${sessionId}/confirm`;
+
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await postJson(path, {});
+    } catch (error) {
+      const retryable =
+        error instanceof DesignSessionRequestError && error.retryable;
+      if (!retryable || attempt >= MAX_CONFIRM_ATTEMPTS) throw error;
+
+      const wait = Math.min(
+        (error as DesignSessionRequestError).retryAfterMs ?? 10_000,
+        MAX_RETRY_WAIT_MS
+      );
+      await sleep(wait);
+    }
+  }
+}
