@@ -152,8 +152,15 @@ describe('enhanceStructured - palette (color vs monochrome)', () => {
   it('pins one presentation across all four variations of a session', async () => {
     for (const record of [monochrome, color, unresolved]) {
       const result = await enhanceStructured({ ...record, ambiguousAxes: ['bold-fine', 'minimal-ornate'] });
-      const onSkin = result.variations.map(v => (v.prompts.simple || '').includes('on skin'));
-      expect(new Set(onSkin).size).toBe(1);
+      // Compare the actual presentation clause, not a substring of it: the
+      // flash-art clause ends "...not photographed on skin", so a check for
+      // `includes('on skin')` is satisfied by BOTH presentations and can
+      // never catch a session that mixes them.
+      const presentations = result.variations.map(
+        v => (v.prompts.simple || '').match(/ Presented as [^]*$/)?.[0] ?? ''
+      );
+      expect(new Set(presentations).size).toBe(1);
+      expect(presentations[0]).toContain('flash art on a plain white background');
     }
   });
 
