@@ -50,14 +50,75 @@ const resolveFallbackChain = (modelId: string): string[] => {
   return [...new Set(chain.map(resolveModelId).filter(Boolean))];
 };
 
-const getAnatomicalAspectRatio = (bodyPart?: string): AspectRatio => {
-  const verticalParts = ['forearm', 'shin', 'calf', 'arm', 'lowerarm', 'upperarm'];
-  const wideParts = ['back', 'chest', 'stomach'];
-  const normalized = (bodyPart || '').toLowerCase();
+/**
+ * Placement → aspect ratio (ADR-0023).
+ *
+ * Placement is free text from intake ("left forearm", "back of the upper
+ * arm"), never a bare enum, so this matches phrases inside the string. The
+ * previous whole-string equality check matched almost nothing real and every
+ * conversational session fell through to 1:1 — square renders for placements
+ * that are obviously portrait.
+ *
+ * Two placements can both match. Most specific wins (longest phrase), and on
+ * a tie the limb beats the torso: "back of the calf" is a calf piece, not a
+ * back piece. Word boundaries keep "forearm" from matching the "arm" rule.
+ */
+type PlacementRegion = 'limb' | 'torso';
 
-  if (verticalParts.includes(normalized)) return '9:16';
-  if (wideParts.includes(normalized)) return '4:3';
-  return '1:1';
+interface PlacementRule {
+  phrase: string;
+  region: PlacementRegion;
+  ratio: AspectRatio;
+}
+
+const DEFAULT_ASPECT_RATIO: AspectRatio = '9:16';
+
+const PLACEMENT_RULES: readonly PlacementRule[] = [
+  // Limbs run portrait — the design follows the length of the limb.
+  { phrase: 'upper arm', region: 'limb', ratio: '9:16' },
+  { phrase: 'lower arm', region: 'limb', ratio: '9:16' },
+  { phrase: 'forearm', region: 'limb', ratio: '9:16' },
+  { phrase: 'upperarm', region: 'limb', ratio: '9:16' },
+  { phrase: 'lowerarm', region: 'limb', ratio: '9:16' },
+  { phrase: 'bicep', region: 'limb', ratio: '9:16' },
+  { phrase: 'tricep', region: 'limb', ratio: '9:16' },
+  { phrase: 'thigh', region: 'limb', ratio: '9:16' },
+  { phrase: 'calf', region: 'limb', ratio: '9:16' },
+  { phrase: 'shin', region: 'limb', ratio: '9:16' },
+  { phrase: 'arm', region: 'limb', ratio: '9:16' },
+  { phrase: 'leg', region: 'limb', ratio: '9:16' },
+  // Extremities are small and banded — square holds them better than portrait.
+  { phrase: 'wrist', region: 'limb', ratio: '1:1' },
+  { phrase: 'ankle', region: 'limb', ratio: '1:1' },
+  { phrase: 'hand', region: 'limb', ratio: '1:1' },
+  // Torso stays portrait but wider.
+  { phrase: 'chest', region: 'torso', ratio: '3:4' },
+  { phrase: 'stomach', region: 'torso', ratio: '3:4' },
+  { phrase: 'sternum', region: 'torso', ratio: '3:4' },
+  { phrase: 'back', region: 'torso', ratio: '3:4' },
+];
+
+const getAnatomicalAspectRatio = (bodyPart?: string): AspectRatio => {
+  const text = (bodyPart || '').toLowerCase();
+  if (!text) return DEFAULT_ASPECT_RATIO;
+
+  let best: PlacementRule | undefined;
+  for (const rule of PLACEMENT_RULES) {
+    if (!new RegExp(`\\b${rule.phrase}\\b`).test(text)) continue;
+    if (!best) {
+      best = rule;
+    } else if (rule.phrase.length > best.phrase.length) {
+      best = rule;
+    } else if (
+      rule.phrase.length === best.phrase.length &&
+      rule.region === 'limb' &&
+      best.region === 'torso'
+    ) {
+      best = rule;
+    }
+  }
+
+  return best?.ratio ?? DEFAULT_ASPECT_RATIO;
 };
 
 const buildNegativePrompt = (baseNegativePrompt: string | undefined, isStencilMode: boolean | undefined): string => {

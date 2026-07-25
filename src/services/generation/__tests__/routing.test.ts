@@ -39,8 +39,36 @@ describe('generation routing', () => {
 
   it('picks aspect ratio from body part anatomy', () => {
     expect(routeGeneration({ prompt: 'x', bodyPart: 'forearm' }).aspectRatio).toBe('9:16');
-    expect(routeGeneration({ prompt: 'x', bodyPart: 'back' }).aspectRatio).toBe('4:3');
+    expect(routeGeneration({ prompt: 'x', bodyPart: 'back' }).aspectRatio).toBe('3:4');
+    expect(routeGeneration({ prompt: 'x', bodyPart: 'chest' }).aspectRatio).toBe('3:4');
     expect(routeGeneration({ prompt: 'x', bodyPart: 'wrist' }).aspectRatio).toBe('1:1');
+  });
+
+  // Placement is free text from intake, never a bare enum — whole-string
+  // equality used to miss every real phrase and fall through to 1:1.
+  it('matches placement phrases inside free text', () => {
+    expect(routeGeneration({ prompt: 'x', bodyPart: 'left forearm' }).aspectRatio).toBe('9:16');
+    expect(routeGeneration({ prompt: 'x', bodyPart: 'inner forearm' }).aspectRatio).toBe('9:16');
+    expect(routeGeneration({ prompt: 'x', bodyPart: 'upper left back' }).aspectRatio).toBe('3:4');
+  });
+
+  it('resolves overlapping placements to the most specific match', () => {
+    // "upper arm" (9) beats "back" (4) and "arm" (3).
+    expect(routeGeneration({ prompt: 'x', bodyPart: 'back of the upper arm' }).aspectRatio).toBe('9:16');
+    // "forearm" must not be matched by the shorter "arm" rule.
+    expect(routeGeneration({ prompt: 'x', bodyPart: 'forearm' }).aspectRatio).toBe('9:16');
+  });
+
+  it('breaks equal-length placement ties toward the limb', () => {
+    // "calf" and "back" are both 4 chars — a calf piece, not a back piece.
+    expect(routeGeneration({ prompt: 'x', bodyPart: 'back of the calf' }).aspectRatio).toBe('9:16');
+    expect(routeGeneration({ prompt: 'x', bodyPart: 'back of the hand' }).aspectRatio).toBe('1:1');
+  });
+
+  it('defaults to portrait, not square, when placement is unknown or absent', () => {
+    expect(routeGeneration({ prompt: 'x' }).aspectRatio).toBe('9:16');
+    expect(routeGeneration({ prompt: 'x', bodyPart: '' }).aspectRatio).toBe('9:16');
+    expect(routeGeneration({ prompt: 'x', bodyPart: 'somewhere undecided' }).aspectRatio).toBe('9:16');
   });
 
   it('maps fallback chains to catalog ids and excludes the primary', () => {
