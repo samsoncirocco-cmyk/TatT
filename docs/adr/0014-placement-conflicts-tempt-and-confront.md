@@ -1,0 +1,3 @@
+# Placement conflicts: tempt-and-confront, never silently adjust
+
+When a wanted design conflicts with placement reality (e.g. ribs + hyper-detailed fine-line), we render what the user asked for, and if they pick it, surface the tradeoff immediately — "you chose this, here's what happens to it over time" — alongside an adapted version. Silently constraining generation was rejected: it makes design decisions the user didn't consent to, and the trust moment comes from transparency, not from quietly making the problem disappear. Genuinely subtle conflicts are flagged in the artist brief instead, where the consult is better equipped to judge the marginal cases.

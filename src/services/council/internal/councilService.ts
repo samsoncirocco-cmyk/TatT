@@ -109,7 +109,7 @@ function requireCouncilApiUrl(): string {
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const OPENROUTER_SITE_URL = process.env.OPENROUTER_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://manama-next.vercel.app';
+const OPENROUTER_SITE_URL = process.env.OPENROUTER_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://tatt-app.vercel.app';
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_VERTEX_AI_PROJECT_ID || process.env.GCP_PROJECT_ID || 'tatt-pro';
 const REGION = process.env.GCP_REGION || 'us-central1';
@@ -393,6 +393,15 @@ const MOCK_RESPONSES = {
     return 'blurry, low quality, distorted, watermark, text, signature, cartoon, childish, unrealistic anatomy, multiple people, cluttered background, oversaturated, low contrast, pixelated, amateur, messy linework';
   }
 };
+
+/**
+ * Base negative prompt shared with the structured-input mode (ADR-0015).
+ * Kept as a thin wrapper so both modes draw from the same negative-prompt
+ * craft instead of drifting apart.
+ */
+export function getBaseNegativePrompt(userIdea = ''): string {
+  return MOCK_RESPONSES.negative(userIdea);
+}
 
 function buildCouncilSystemPrompt({ bodyPart, isStencilMode }: { bodyPart: string; isStencilMode: boolean }) {
   const flowToken = (COUNCIL_SKILL_PACK.anatomicalFlow as Record<string, string>)[bodyPart] || '';

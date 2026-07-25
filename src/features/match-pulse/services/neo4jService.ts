@@ -291,12 +291,15 @@ export async function findMatchingArtists(preferences: ArtistPreferences): Promi
         }
         
         if (preferences.budget) {
-            filtered = filtered.filter(a => 
+            filtered = filtered.filter(a =>
                 (a.hourlyRate || 0) <= preferences.budget! * 1.5
             );
         }
-        
-        return filtered.length > 0 ? filtered : MOCK_ARTISTS;
+
+        // Honest filtering: a narrow (or zero-result) filter must stay narrow,
+        // never silently balloon back out to the full mock roster dressed up
+        // as "matches."
+        return filtered;
     }
 
     const { styles = [], location, budget, keywords = [], hasPortfolio = false } = preferences;

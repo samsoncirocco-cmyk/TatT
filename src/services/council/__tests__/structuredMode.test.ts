@@ -1,0 +1,386 @@
+/**
+ * Structured-input mode tests (ADR-0015 / ADR-0012).
+ *
+ * Structured mode is template-based, so no provider is ever called — every
+ * test stubs global fetch and asserts the network stays untouched.
+ */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { enhance, enhanceStructured } from '../index';
+import type { IntakeRecord } from '../../intake/types';
+
+const baseRecord: IntakeRecord = {
+  placement: 'forearm',
+  styleTags: ['neo-traditional'],
+  meaning: 'a phoenix for my grandmother, rebirth after loss',
+  references: [],
+  ambiguousAxes: [],
+};
+
+beforeEach(() => {
+  vi.stubGlobal('fetch', vi.fn());
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe('enhanceStructured - questionnaire mode (2 ambiguous axes)', () => {
+  const record: IntakeRecord = {
+    ...baseRecord,
+    ambiguousAxes: ['bold-fine', 'color-blackwork'],
+  };
+
+  it('returns four variations covering all four quadrants of the two axes', async () => {
+    const result = await enhanceStructured(record);
+
+    expect(result.axisSelection.mode).toBe('questionnaire');
+    expect(result.axisSelection.axes).toHaveLength(2);
+    expect(result.axisSelection.axes).toEqual(
+      expect.arrayContaining(['bold-fine', 'color-blackwork'])
+    );
+
+    expect(result.variations).toHaveLength(4);
+    const quadrants = result.variations.map(v => JSON.stringify(v.axisPosition));
+    expect(new Set(quadrants).size).toBe(4);
+    for (const variation of result.variations) {
+      expect(Object.keys(variation.axisPosition).sort()).toEqual(
+        ['bold-fine', 'color-blackwork'].sort()
+      );
+    }
+  });
+
+  it('produces divergent prompts per quadrant reflecting each pole', async () => {
+    const result = await enhanceStructured(record);
+
+    const detailedPrompts = result.variations.map(v => v.prompts.detailed);
+    expect(new Set(detailedPrompts).size).toBe(4);
+
+    for (const variation of result.variations) {
+      const pos = variation.axisPosition as Record<string, string>;
+      const prompt = (variation.prompts.detailed || '').toLowerCase();
+      if (pos['bold-fine'] === 'bold') expect(prompt).toContain('bold');
+      if (pos['bold-fine'] === 'fine') expect(prompt).toContain('fine-line');
+      if (pos['color-blackwork'] === 'color') expect(prompt).toContain('color');
+      if (pos['color-blackwork'] === 'blackwork') expect(prompt).toContain('blackwork');
+    }
+  });
+
+  it('pushes the opposite pole into each variation negative prompt', async () => {
+    const result = await enhanceStructured(record);
+
+    for (const variation of result.variations) {
+      const pos = variation.axisPosition as Record<string, string>;
+      const negative = (variation.negativePrompt || '').toLowerCase();
+      expect(negative.length).toBeGreaterThan(0);
+      if (pos['color-blackwork'] === 'blackwork') {
+        expect(negative).toContain('color');
+      }
+      if (pos['color-blackwork'] === 'color') {
+        expect(negative).toContain('monochrome');
+      }
+    }
+  });
+
+  it('carries placement guidance and meaning into the prompts', async () => {
+    const result = await enhanceStructured(record);
+
+    for (const variation of result.variations) {
+      const ultra = variation.prompts.ultra || '';
+      expect(ultra).toContain('forearm');
+      expect(ultra).toContain('phoenix');
+      expect(ultra).toContain('neo-traditional');
+      // forearm aspect guidance from getAspectRatioGuidance
+      expect(ultra.toLowerCase()).toContain('vertical');
+    }
+  });
+});
+
+describe('enhanceStructured - palette (color vs monochrome)', () => {
+  const monochrome: IntakeRecord = { ...baseRecord, styleTags: ['blackwork', 'fine-line'] };
+  const color: IntakeRecord = { ...baseRecord, styleTags: ['color', 'anime'] };
+  const unresolved: IntakeRecord = { ...baseRecord, styleTags: ['illustrative'] };
+
+  it('front-loads monochrome and renders monochrome sessions as flash art on white', async () => {
+    const result = await enhanceStructured(monochrome);
+
+    for (const variation of result.variations) {
+      const prompt = variation.prompts.simple || '';
+      expect(prompt.startsWith('Monochrome, black and grey ink only, zero color.')).toBe(true);
+      expect(prompt).toContain('flash art on a plain white background');
+      expect(prompt).not.toContain('photograph of the finished tattoo on skin');
+      expect(variation.negativePrompt || '').toContain('color ink, saturated hues');
+    }
+  });
+
+  it('front-loads color but still presents as flash art, never saying monochrome', async () => {
+    const result = await enhanceStructured(color);
+
+    for (const variation of result.variations) {
+      const prompt = variation.prompts.ultra || variation.prompts.simple || '';
+      expect(prompt.startsWith('Vibrant color, clean ink saturation, tattoo-quality color rendering.')).toBe(true);
+      // Palette and presentation are separate decisions: color sessions are
+      // still flash art on white, so the placement preview can strip the
+      // background and composite onto the user's own photo.
+      expect(prompt).toContain('flash art on a plain white background');
+      expect(prompt).not.toContain('photograph of the finished tattoo on skin');
+      expect(prompt.toLowerCase()).not.toContain('monochrome');
+      expect((variation.negativePrompt || '').toLowerCase()).not.toContain('monochrome');
+    }
+  });
+
+  it('presents every palette as flash art so placement preview always works', async () => {
+    for (const record of [monochrome, color, unresolved]) {
+      const result = await enhanceStructured(record);
+      for (const variation of result.variations) {
+        const prompt = variation.prompts.simple || '';
+        expect(prompt).toContain('flash art on a plain white background');
+        expect(prompt).not.toContain('photograph of the finished tattoo on skin');
+      }
+    }
+  });
+
+  it('defaults to flash art with no palette lead when style resolves neither way', async () => {
+    const result = await enhanceStructured(unresolved);
+
+    for (const variation of result.variations) {
+      const prompt = variation.prompts.simple || '';
+      expect(prompt.startsWith('A ')).toBe(true);
+      expect(prompt).toContain('flash art on a plain white background');
+    }
+  });
+
+  it('pins one presentation across all four variations of a session', async () => {
+    for (const record of [monochrome, color, unresolved]) {
+      const result = await enhanceStructured({ ...record, ambiguousAxes: ['bold-fine', 'minimal-ornate'] });
+      // Compare the actual presentation clause, not a substring of it: the
+      // flash-art clause ends "...not photographed on skin", so a check for
+      // `includes('on skin')` is satisfied by BOTH presentations and can
+      // never catch a session that mixes them.
+      const presentations = result.variations.map(
+        v => (v.prompts.simple || '').match(/ Presented as [^]*$/)?.[0] ?? ''
+      );
+      expect(new Set(presentations).size).toBe(1);
+      expect(presentations[0]).toContain('flash art on a plain white background');
+    }
+  });
+
+  it('drops the multiple-people negative when the subject names a scene', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      subject: 'Izuku Midoriya (Deku) and Shoto Todoroki from My Hero Academia mid-fight',
+    });
+
+    for (const variation of result.variations) {
+      expect(variation.negativePrompt || '').not.toContain('multiple people');
+    }
+  });
+});
+
+describe('enhanceStructured - padding never contradicts a resolved axis', () => {
+  it('does not pad a blackwork session with the color axis', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      styleTags: ['blackwork'],
+      ambiguousAxes: ['minimal-ornate'],
+    });
+
+    expect(result.axisSelection.axes).not.toContain('color-blackwork');
+    for (const variation of result.variations) {
+      const prompt = (variation.prompts.detailed || '').toLowerCase();
+      expect(prompt).not.toContain('vibrant full-color');
+    }
+  });
+
+  it('does not pad a named-subject session with the literal-abstract axis', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      styleTags: ['color'],
+      subject: 'Son Goku from Dragon Ball Z charging a Kamehameha',
+      ambiguousAxes: ['minimal-ornate'],
+    });
+
+    expect(result.axisSelection.axes).not.toContain('literal-abstract');
+    expect(result.axisSelection.axes).not.toContain('color-blackwork');
+  });
+
+  it('still pads (least consequential) when the intake decided everything else', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      styleTags: ['blackwork', 'fine-line', 'minimalist', 'realism'],
+      ambiguousAxes: ['minimal-ornate'],
+    });
+
+    expect(result.axisSelection.axes).toHaveLength(2);
+    expect(result.axisSelection.rationale).toContain('decided every');
+  });
+});
+
+describe('enhanceStructured - named subject (IP rule)', () => {
+  it('prompts depict the named subject instead of paraphrasing the meaning', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      meaning: 'my love of my hero academia and its characters',
+      subject: 'Izuku Midoriya (Deku) from My Hero Academia, One For All lightning around his fist',
+      ambiguousAxes: ['bold-fine', 'color-blackwork'],
+    });
+
+    for (const variation of result.variations) {
+      const prompt = variation.prompts.simple || '';
+      expect(prompt).toContain('depicting Izuku Midoriya (Deku) from My Hero Academia');
+      expect(prompt).not.toContain('expressing');
+    }
+  });
+
+  it('without a subject the meaning clause is unchanged', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      meaning: 'strength through hard times',
+      ambiguousAxes: ['bold-fine', 'color-blackwork'],
+    });
+
+    expect(result.variations[0].prompts.simple).toContain('expressing "strength through hard times"');
+  });
+
+  it('the abstract pole no longer excludes figurative depiction', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      ambiguousAxes: ['literal-abstract', 'bold-fine'],
+    });
+
+    for (const variation of result.variations) {
+      expect(variation.negativePrompt || '').not.toContain('literal figurative depiction');
+    }
+  });
+});
+
+describe('enhanceStructured - more than 2 ambiguous axes', () => {
+  it('picks the two most visually consequential axes by documented priority', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      ambiguousAxes: ['minimal-ornate', 'bold-fine', 'literal-abstract', 'color-blackwork'],
+    });
+
+    // Priority: color-blackwork > literal-abstract > bold-fine > minimal-ornate
+    expect(result.axisSelection.mode).toBe('questionnaire');
+    expect(result.axisSelection.axes).toEqual(['color-blackwork', 'literal-abstract']);
+    expect(result.axisSelection.rationale).toContain('bold-fine');
+    expect(result.axisSelection.rationale).toContain('minimal-ornate');
+  });
+
+  it('pads a single ambiguous axis to two and says so in the rationale', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      ambiguousAxes: ['minimal-ornate'],
+    });
+
+    expect(result.axisSelection.mode).toBe('questionnaire');
+    expect(result.axisSelection.axes).toHaveLength(2);
+    expect(result.axisSelection.axes).toContain('minimal-ornate');
+    expect(result.axisSelection.rationale.toLowerCase()).toContain('padded');
+  });
+});
+
+describe('enhanceStructured - compositional fallback (empty ambiguousAxes)', () => {
+  it('locks style and varies composition across four distinct treatments', async () => {
+    const result = await enhanceStructured(baseRecord);
+
+    expect(result.axisSelection.mode).toBe('compositional');
+    expect(result.axisSelection.axes).toEqual([]);
+
+    expect(result.variations).toHaveLength(4);
+    const compositions = result.variations.map(
+      v => (v.axisPosition as { composition: string }).composition
+    );
+    expect(compositions.every(Boolean)).toBe(true);
+    expect(new Set(compositions).size).toBe(4);
+
+    // Style locks: every variation carries the same style spec.
+    for (const variation of result.variations) {
+      expect(variation.prompts.simple).toContain('neo-traditional');
+    }
+    const detailedPrompts = result.variations.map(v => v.prompts.detailed);
+    expect(new Set(detailedPrompts).size).toBe(4);
+  });
+});
+
+describe('enhanceStructured - rationale is logged, never silent (ADR-0012)', () => {
+  it('always returns a non-empty rationale and emits it via onDiscussionUpdate', async () => {
+    for (const ambiguousAxes of [
+      [] as IntakeRecord['ambiguousAxes'],
+      ['bold-fine', 'color-blackwork'] as IntakeRecord['ambiguousAxes'],
+    ]) {
+      const onDiscussionUpdate = vi.fn();
+      const result = await enhanceStructured(
+        { ...baseRecord, ambiguousAxes },
+        { onDiscussionUpdate }
+      );
+
+      expect(result.axisSelection.rationale.length).toBeGreaterThan(0);
+      expect(onDiscussionUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'axis-selection',
+          mode: result.axisSelection.mode,
+          rationale: result.axisSelection.rationale,
+        })
+      );
+    }
+  });
+
+  it('works without a callback (rationale still in the result)', async () => {
+    const result = await enhanceStructured(baseRecord);
+    expect(result.axisSelection.rationale.length).toBeGreaterThan(0);
+  });
+});
+
+describe('enhanceStructured - offline and non-invasive', () => {
+  it('never calls a provider (template-based, no network)', async () => {
+    await enhanceStructured({
+      ...baseRecord,
+      ambiguousAxes: ['literal-abstract', 'minimal-ornate'],
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('leaves the classic enhance() export untouched', () => {
+    expect(typeof enhance).toBe('function');
+  });
+});
+
+describe('enhanceStructured - monochrome sessions strip chromatic anchors', () => {
+  const gokuAnchors =
+    'Goku with wild spiky black hair (or golden Super Saiyan), orange gi with blue undershirt and belt (Dragon Ball Z), charging a kamehameha';
+
+  it('drops color words from the subject on a blackwork session', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      styleTags: ['blackwork'],
+      subject: gokuAnchors,
+      ambiguousAxes: ['minimal-ornate'],
+    });
+
+    for (const variation of result.variations) {
+      const prompt = (variation.prompts.simple || '').toLowerCase();
+      expect(prompt).toContain('goku');
+      // The action survives; the hues do not.
+      expect(prompt).toContain('kamehameha');
+      expect(prompt).not.toContain('orange');
+      expect(prompt).not.toContain('blue');
+      expect(prompt).not.toContain('golden');
+      // Tonal words are what blackwork is made of — they stay.
+      expect(prompt).toContain('black');
+    }
+  });
+
+  it('leaves the subject untouched on a color session', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      styleTags: ['color'],
+      subject: gokuAnchors,
+      ambiguousAxes: ['minimal-ornate'],
+    });
+
+    for (const variation of result.variations) {
+      expect((variation.prompts.simple || '').toLowerCase()).toContain('orange');
+    }
+  });
+});

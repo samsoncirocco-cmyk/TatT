@@ -19,6 +19,14 @@ const DEFAULT_BUDGET: BudgetConfig = {
 export const VERTEX_IMAGEN_COST_CENTS =
   Number(process.env.VERTEX_IMAGEN_COST_CENTS) || 4;
 
+// Conversational-intake turns (design bot, ADR-0019) are near-free next to
+// image renders, but untracked spend categories are how caps become fiction
+// — so they get their own line item from day one. Conservative flat
+// estimate: one cent per this many turns, charged by ceiling (the first
+// turn of every block adds the cent). Override via CONVERSATION_TURNS_PER_CENT.
+export const CONVERSATION_TURNS_PER_CENT =
+  Number(process.env.CONVERSATION_TURNS_PER_CENT) || 10;
+
 export type BudgetResult = {
   allowed: boolean;
   spentCents: number;
@@ -152,6 +160,70 @@ export async function recordSpend(amountCents: number, config: BudgetConfig = DE
       amount_cents: amountCents,
       error: error instanceof Error ? error.message : String(error),
     }, '[Budget] Firestore unavailable for spend tracking; skipping recordSpend.');
+  }
+}
+
+/**
+ * Record one conversational-intake turn as its own budget line item.
+ *
+ * Keeps a running `conversationTurns` counter and a `conversationSpendCents`
+ * category total on the budget doc, and rolls the cents into the global
+ * `spentCents` cap. Charging is ceiling-based on the turn counter: turns
+ * 1, 11, 21, … (with the default block of 10) each add one cent, the rest
+ * add none — a deliberate over-estimate of real chat-turn cost. Fails open
+ * like the other trackers.
+ */
+export async function recordConversationTurnSpend(): Promise<void> {
+  try {
+    if (!ensureAdminApp()) throw new Error('Firebase Admin not configured');
+    const db = getFirestore();
+    const ref = db.collection('budget').doc('global');
+
+    let newTotalCents = 0;
+
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      const data = snap.data() || {};
+
+      const turns =
+        typeof data.conversationTurns === 'number' ? data.conversationTurns : 0;
+      const spentCents =
+        typeof data.spentCents === 'number' ? data.spentCents : 0;
+
+      // Ceiling difference: exactly one cent at the start of each block.
+      const centsDelta =
+        Math.ceil((turns + 1) / CONVERSATION_TURNS_PER_CENT) -
+        Math.ceil(turns / CONVERSATION_TURNS_PER_CENT);
+
+      tx.set(
+        ref,
+        {
+          conversationTurns: FieldValue.increment(1),
+          conversationSpendCents: FieldValue.increment(centsDelta),
+          spentCents: FieldValue.increment(centsDelta),
+          lastUpdated: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      newTotalCents = spentCents + centsDelta;
+
+      logger.info({
+        event_type: 'budget.conversation_turn_recorded',
+        turn_count: turns + 1,
+        amount_cents: centsDelta,
+        new_total_cents: newTotalCents,
+      });
+    });
+
+    // Same pattern as recordSpend: monitoring write after the transaction.
+    await writeBudgetMetric(newTotalCents);
+  } catch (error) {
+    logger.warn({
+      event_type: 'budget.record_failed',
+      category: 'conversation-turn',
+      error: error instanceof Error ? error.message : String(error),
+    }, '[Budget] Firestore unavailable for conversation-turn tracking; skipping.');
   }
 }
 

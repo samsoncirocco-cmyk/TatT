@@ -15,7 +15,7 @@ Deploy the Next.js frontend to Vercel and the Express.js backend proxy (`server.
 
 ## Prerequisites
 
-- **Vercel account** with the project linked (current URL: `https://tat-t-3x8t.vercel.app`)
+- **Vercel account** with the project linked (current URL: `https://tatt-app.vercel.app`)
 - **Railway account** with the project created
 - **All database infrastructure** provisioned (see `database-setup.md`)
 - **Passing local build**: `npm run build` completes without errors
@@ -51,6 +51,9 @@ Deploy the Next.js frontend to Vercel and the Express.js backend proxy (`server.
    | `NEXT_PUBLIC_COUNCIL_DEMO_MODE` | `false` for real council |
    | `NEXT_PUBLIC_USE_OPENROUTER` | `true` if using OpenRouter |
    | `NEXT_PUBLIC_OPENROUTER_API_KEY` | OpenRouter API key |
+   | Stripe vars | `STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_CONNECT_WEBHOOK_SECRET`, `CRON_SECRET`, etc. — see `CLAUDE.md` |
+
+   `vercel.json` schedules a daily cron (`0 9 * * *`) hitting `/api/cron/expire-deposits` to refund unclaimed deposits — it fails without `CRON_SECRET` set in the Vercel environment.
 
 4. **Deploy**
 
@@ -58,11 +61,13 @@ Deploy the Next.js frontend to Vercel and the Express.js backend proxy (`server.
    vercel --prod
    ```
 
-   Or push to `main` if Git integration is configured -- Vercel auto-deploys on push.
+   Or push to `main` if Git integration is configured -- Vercel auto-deploys on push. `tatt-app` is the only Vercel project linked to this repo; any non-`main` branch pushed to the repo gets a preview deployment (`https://tatt-<random>.vercel.app`), so open a PR and share its preview URL for testing before merging to `main`.
+
+   GitHub Actions (`.github/workflows/ci-cd.yml`) runs a secret scan, advisory lint, JS + Python tests, and a demo-env build on every push/PR to `main`. The Cloud Run build/deploy jobs in that workflow are manual-dispatch-only — Vercel is the active deploy surface.
 
 5. **Verify the deployment**
 
-   Open `https://tat-t-3x8t.vercel.app` and confirm the app loads.
+   Open `https://tatt-app.vercel.app` and confirm the app loads.
 
 ### Part B: Deploy Backend to Railway
 
@@ -87,7 +92,7 @@ Deploy the Next.js frontend to Vercel and the Express.js backend proxy (`server.
    |----------|-------|
    | `REPLICATE_API_TOKEN` | Replicate API token |
    | `FRONTEND_AUTH_TOKEN` | Shared auth token (must match Vercel) |
-   | `ALLOWED_ORIGINS` | `https://tat-t-3x8t.vercel.app` (comma-separated if multiple) |
+   | `ALLOWED_ORIGINS` | `https://tatt-app.vercel.app` (comma-separated if multiple) |
    | `NEO4J_URI` | Production Neo4j URI |
    | `NEO4J_USER` | Neo4j username |
    | `NEO4J_PASSWORD` | Neo4j password |
@@ -130,7 +135,7 @@ Deploy the Next.js frontend to Vercel and the Express.js backend proxy (`server.
 
 ## Expected Output
 
-- Vercel: Build succeeds, site accessible at `https://tat-t-3x8t.vercel.app`
+- Vercel: Build succeeds, site accessible at `https://tatt-app.vercel.app`
 - Railway: Service running, health endpoint returns 200
 - End-to-end: Design generation, layer management, and artist matching all work from the production URL
 
@@ -141,7 +146,17 @@ Deploy the Next.js frontend to Vercel and the Express.js backend proxy (`server.
 - **CORS errors**: Verify `ALLOWED_ORIGINS` on Railway includes the exact Vercel URL (no trailing slash)
 - **502 on Railway**: The backend may need a moment to start; check `railway logs` for port binding issues
 - **GCP auth on Railway**: You cannot upload a file directly; use the `GOOGLE_CREDENTIALS` env var with the JSON content as a string, or use Railway's secret file feature
-- **`vercel.json` SPA rewrite**: The current `vercel.json` has a catch-all rewrite to `index.html` -- this may need updating for Next.js API routes
+- **"Module not found" only in production**: Usually a case-sensitive import (works on macOS, fails on Vercel's Linux builders) -- fix the import casing
+- **Function timeout on Vercel**: Hobby tier caps serverless functions at 10s; long LLM/generation calls need the Pro tier (60s) or an async pattern
+
+## Useful Vercel Commands
+
+```bash
+vercel ls                    # list deployments
+vercel env pull .env.local   # pull env vars locally
+vercel logs <deployment-url> # view logs
+vercel rollback <deployment-url>  # roll back (or "Promote to Production" on a previous deployment in the dashboard)
+```
 
 ## Cost
 

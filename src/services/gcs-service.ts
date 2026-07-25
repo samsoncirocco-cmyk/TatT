@@ -64,9 +64,14 @@ export interface StencilMetadata {
     userId?: string;
 }
 
-// Initialize Google Cloud Storage
+// Initialize Google Cloud Storage. Serverless has no credentials file —
+// the service account lives in GOOGLE_APPLICATION_CREDENTIALS_JSON there
+// (same variable google-auth-edge and the monitoring client read).
+const gcsCredsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GCP_SERVICE_ACCOUNT_KEY;
 const storage = new Storage({
-    keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+    ...(gcsCredsJson
+        ? { credentials: JSON.parse(gcsCredsJson) }
+        : { keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS }),
     projectId: process.env.GCP_PROJECT_ID
 });
 

@@ -95,15 +95,21 @@ export function generateMatchReasoning(scores, artist, preferences = {}) {
 }
 
 /**
- * Default weight configuration for hybrid matching
- * Weights should sum to 1.0
+ * Default weight configuration for hybrid matching — the single source of
+ * truth for artist-match ranking weights. Weights sum to 1.0.
+ *
+ * Rebalanced so no single signal dominates the ranking (each weight capped
+ * at 0.30): visual similarity was previously 0.40 alone, more than double
+ * every other signal. `rating` (shop/artist rating) was previously not
+ * scored at all, despite being fetched from the graph.
  */
 export const DEFAULT_WEIGHTS = {
-    visualSimilarity: 0.40,  // 40% - Vector similarity from CLIP embeddings
+    visualSimilarity: 0.30,  // 30% - Vector similarity from CLIP embeddings
     styleAlignment: 0.25,    // 25% - Style tag matching
     location: 0.15,          // 15% - Geographic proximity
+    rating: 0.15,            // 15% - Shop/artist rating
     budget: 0.10,            // 10% - Budget fit
-    randomVariety: 0.10      // 10% - Random factor for diversity
+    randomVariety: 0.05      // 5%  - Random factor for diversity (kept small — noise, not a ranking signal)
 };
 
 /**

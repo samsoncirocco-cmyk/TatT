@@ -37,8 +37,9 @@ describe('ProtectedRoute', () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
-  it('redirects signed-out users to /login with a return path', () => {
+  it('redirects signed-out users on an unknown device to /signup (issue #101)', () => {
     mockAuth.loading = false;
+    window.localStorage.removeItem('tatt:known-user');
     render(
       <ProtectedRoute>
         <div>secret forge</div>
@@ -46,21 +47,36 @@ describe('ProtectedRoute', () => {
     );
     expect(screen.queryByText('secret forge')).toBeNull();
     expect(replace).toHaveBeenCalledWith(
+      `/signup?redirect=${encodeURIComponent('/generate')}`,
+    );
+  });
+
+  it('redirects signed-out users on a known device to /login', () => {
+    mockAuth.loading = false;
+    window.localStorage.setItem('tatt:known-user', '1');
+    render(
+      <ProtectedRoute>
+        <div>secret forge</div>
+      </ProtectedRoute>,
+    );
+    expect(replace).toHaveBeenCalledWith(
       `/login?redirect=${encodeURIComponent('/generate')}`,
     );
+    window.localStorage.removeItem('tatt:known-user');
   });
 
   it('preserves the query string in the return path', () => {
     mockAuth.loading = false;
     mockPathname = '/matches';
     window.history.replaceState(null, '', '/matches?style=blackwork');
+    window.localStorage.removeItem('tatt:known-user');
     render(
       <ProtectedRoute>
         <div>matches</div>
       </ProtectedRoute>,
     );
     expect(replace).toHaveBeenCalledWith(
-      `/login?redirect=${encodeURIComponent('/matches?style=blackwork')}`,
+      `/signup?redirect=${encodeURIComponent('/matches?style=blackwork')}`,
     );
   });
 

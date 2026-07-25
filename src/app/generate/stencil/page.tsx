@@ -6,6 +6,7 @@ import StudioShell from "@/components/studio/StudioShell";
 import SlashHeadline from "@/components/punk/SlashHeadline";
 import TapeCTA from "@/components/punk/TapeCTA";
 import OutputCard from "@/components/punk/OutputCard";
+import Lightbox from "@/components/punk/Lightbox";
 import { useDesigns, useUser } from "@/lib/tattStorage";
 import {
   FREE_TIER_DAILY_CUTS,
@@ -22,55 +23,14 @@ const SUGGESTIONS = [
   { label: "Sticker-sheet layout" },
 ];
 
-const ITERATIONS = [
-  { id: 1, label: "Prompt Draft", time: "Ready" },
-  { id: 2, label: "Stencil Pass", time: "Next" },
-  { id: 3, label: "Artist Handoff", time: "Final" },
+/** The prompt checklist, compressed to a hint row under the input
+ *  (ADR-0018) — honest guidance, no panel real estate. */
+const PROMPT_HINTS = [
+  ["Subject", "what is it?"],
+  ["Placement", "where does it go?"],
+  ["Mood", "clean, loud, soft, brutal?"],
+  ["Constraint", "stencil, flash, coverup?"],
 ];
-
-function IterationRow({ label, time }: { label: string; time: string }) {
-  return (
-    <button className="w-full text-left group press">
-      <div className="aspect-square bg-black border-2 hairline mb-3 flex items-center justify-center overflow-hidden relative">
-        <span className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_1px_1px,#ff1f6b_1px,transparent_1.5px)] bg-[length:10px_10px]" />
-        <span className="font-display text-white/10 group-hover:text-pink transition-colors text-7xl relative">
-          {"//"}
-        </span>
-        <span className="absolute top-2 left-2 text-[9px] uppercase tracking-[0.2em] text-pink font-body">
-          Queue
-        </span>
-      </div>
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="font-display text-[16px] tracking-wide text-white group-hover:text-pink">
-          {label}
-        </span>
-        <span className="text-[10px] uppercase tracking-[0.18em] text-white/40 tabular-nums">
-          {time}
-        </span>
-      </div>
-    </button>
-  );
-}
-
-function RightSidebarContent() {
-  return (
-    <div className="p-8 space-y-8">
-      <div className="flex items-baseline justify-between border-b-2 hairline pb-4">
-        <h3 className="font-display text-[20px] tracking-wide text-white">
-          Pipeline
-        </h3>
-        <span className="text-[10px] uppercase tracking-[0.2em] text-pink tabular-nums">
-          {ITERATIONS.length}&nbsp;steps
-        </span>
-      </div>
-      <div className="space-y-7">
-        {ITERATIONS.map(({ id, ...it }) => (
-          <IterationRow key={id} {...it} />
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function StencilPageInner() {
   const [prompt, setPrompt] = useState("");
@@ -78,6 +38,7 @@ function StencilPageInner() {
   const [cutting, setCutting] = useState(false);
   const [selected, setSelected] = useState(0);
   const [savedCuts, setSavedCuts] = useState<Record<number, boolean>>({});
+  const [expanded, setExpanded] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -125,41 +86,40 @@ function StencilPageInner() {
       });
       const images: string[] = result?.images ?? [];
       if (!images.length) throw new Error("No cuts came back");
-      setCuts(images.slice(0, 4));
+      const nextCuts = images.slice(0, 4);
+      setCuts(nextCuts);
       setSelected(0);
-      setSavedCuts({});
+      // Every generation auto-saves to the library — no manual "Save" step.
+      // Each of the four cuts lands as its own design so pruning (single or
+      // multi-select delete on /designs) works per-cut.
+      nextCuts.forEach((image) => addDesign(trimmed, { image }));
+      setSavedCuts(Object.fromEntries(nextCuts.map((_, i) => [i, true])));
       void recordGeneration();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Generation failed");
     } finally {
       setCutting(false);
     }
-  }, [prompt, cutting, user, router]);
-
-  const handleSaveCut = (i: number) => {
-    if (savedCuts[i]) return;
-    addDesign(prompt.trim(), { image: cuts[i] });
-    setSavedCuts((s) => ({ ...s, [i]: true }));
-  };
+  }, [prompt, cutting, user, router, addDesign]);
 
   return (
-    <StudioShell rightSidebar={<RightSidebarContent />}>
+    <StudioShell>
       <div className="flex flex-col min-h-full relative">
         {/* Meta-bar — caps lock punk metadata */}
-        <div className="px-6 md:px-12 pt-6 pb-4 border-b hairline">
+        <div className="px-6 md:px-12 pt-4 pb-3 border-b hairline">
           <div className="max-w-6xl mx-auto flex items-center justify-between gap-4 text-[10px] uppercase tracking-[0.25em] text-white/50 tabular-nums font-body">
             <span>
               <span className="text-pink">●</span>&nbsp;&nbsp;Stencil&nbsp;Forge — Pop&nbsp;Punk&nbsp;Mode
             </span>
             <TapeCTA href="/generate" variant="ghost" size="sm" arrow={false}>
-              Back to Forge
+              Open Studio
             </TapeCTA>
           </div>
         </div>
 
-        <div className="flex-1 px-6 md:px-12 py-12 md:py-16 relative">
-          <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-8 xl:gap-10 items-start">
-            <section className="relative border-2 hairline bg-black p-6 sm:p-8 md:p-10 overflow-hidden">
+        <div className="flex-1 px-6 md:px-12 py-5 relative">
+          <div className="max-w-4xl mx-auto">
+            <section className="relative border-2 hairline bg-black p-5 sm:p-6 overflow-hidden">
               <div className="absolute inset-x-0 top-0 h-2 bg-pink" />
               <div className="hidden md:block absolute top-7 right-7 sticker px-3 py-1 z-10">
                 <div className="font-display text-[11px] tracking-widest leading-none">
@@ -170,78 +130,68 @@ function StencilPageInner() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_280px] gap-10">
-                <div>
-                  <SlashHeadline
-                    before={<>Make the<br />stencil</>}
-                    slashed="hit"
-                    sizeClassName="text-[52px] sm:text-[72px] md:text-[92px] leading-[0.86]"
-                    className="rise rise-1 text-balance"
-                  />
+              {/* Input-first (ADR-0018): headline is one compact line, the
+                  textarea + GENERATE stay above the fold at laptop size. */}
+              <SlashHeadline
+                before="Make the stencil"
+                slashed="hit"
+                sizeClassName="text-[32px] sm:text-[40px] md:text-[48px] leading-[0.9]"
+                className="rise rise-1 text-balance"
+              />
+              <p className="rise rise-2 mt-2 text-[13px] leading-[1.5] text-white/60 font-body">
+                Describe the tattoo like you would to an artist.{" "}
+                <span className="scribble text-pink">No sterile form screen.</span>
+              </p>
 
-                  <p className="rise rise-2 mt-8 max-w-2xl text-[14px] sm:text-[15px] leading-[1.6] text-white/70 font-body">
-                    Describe the tattoo like you would to an artist. We keep the page
-                    in the same hot-pink, black, tape-and-sticker system as the rest of
-                    the Forge.{" "}
-                    <span className="scribble text-pink">No sterile form screen.</span>
-                  </p>
+              <div className="rise rise-3 mt-4">
+                <label
+                  htmlFor="prompt"
+                  className="block text-[10px] uppercase tracking-[0.28em] text-pink mb-3 font-body"
+                >
+                  ▸ Your description
+                </label>
+                <textarea
+                  id="prompt"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="Roxas keyblade crossed with Cloud's buster sword, blackwork stencil, hot pink sticker accents, outer forearm."
+                  rows={4}
+                  className="w-full bg-black text-white placeholder-white/25 resize-none focus:outline-none text-[19px] md:text-[22px] leading-[1.45] tracking-tight border-2 hairline focus:border-pink p-5 transition-colors font-display"
+                />
 
-                  <div className="rise rise-3 mt-10">
-                    <label
-                      htmlFor="prompt"
-                      className="block text-[10px] uppercase tracking-[0.28em] text-pink mb-4 font-body"
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {SUGGESTIONS.map((s) => (
+                    <button
+                      key={s.label}
+                      onClick={() => appendSuggestion(s.label)}
+                      className="text-[10px] uppercase tracking-[0.2em] text-white/70 hover:text-black hover:bg-pink border hairline px-3 py-2 press font-body"
                     >
-                      ▸ Your description
-                    </label>
-                    <textarea
-                      id="prompt"
-                      value={prompt}
-                      onChange={(e) => setPrompt(e.target.value)}
-                      placeholder="Roxas keyblade crossed with Cloud's buster sword, blackwork stencil, hot pink sticker accents, outer forearm."
-                      rows={5}
-                      className="w-full bg-black text-white placeholder-white/25 resize-none focus:outline-none text-[19px] md:text-[22px] leading-[1.45] tracking-tight border-2 hairline focus:border-pink p-5 transition-colors font-display"
-                    />
-
-                    <div className="mt-6 flex flex-wrap gap-2">
-                      {SUGGESTIONS.map((s) => (
-                        <button
-                          key={s.label}
-                          onClick={() => appendSuggestion(s.label)}
-                          className="text-[10px] uppercase tracking-[0.2em] text-white/70 hover:text-black hover:bg-pink border hairline px-3 py-2 press font-body"
-                        >
-                          {s.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                      {s.label}
+                    </button>
+                  ))}
                 </div>
 
-                <div className="rise rise-4 border-2 hairline bg-black p-4">
-                  <div className="aspect-[4/5] border-2 hairline-white bg-black relative overflow-hidden">
-                    <div className="absolute inset-0 opacity-25 bg-[radial-gradient(circle_at_1px_1px,#ff1f6b_1px,transparent_1.5px)] bg-[length:12px_12px]" />
-                    <div className="absolute inset-6 border-2 border-pink/60 rotate-[-4deg]" />
-                    <div className="absolute inset-10 border-2 border-white/30 rotate-[5deg]" />
-                    <div className="absolute left-8 right-8 top-1/2 h-5 bg-pink rotate-[-8deg]" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="font-display text-[88px] leading-none text-white mix-blend-screen">
-                        TATT
-                      </span>
-                    </div>
-                    <span className="absolute left-3 top-3 text-[9px] uppercase tracking-[0.25em] text-pink font-body">
-                      Preview
+                {/* Checklist → hint row (ADR-0018) */}
+                <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-[10px] uppercase tracking-[0.18em] text-white/40 font-body">
+                  {PROMPT_HINTS.map(([title, body], i) => (
+                    <span key={title}>
+                      <span className="text-pink tabular-nums">0{i + 1}</span>
+                      &nbsp;<span className="text-white/70">{title}</span>
+                      &nbsp;·&nbsp;{body}
                     </span>
-                    <span className="absolute right-3 bottom-3 text-[9px] uppercase tracking-[0.25em] text-white/50 font-body">
-                      Stencil
-                    </span>
-                  </div>
-                  <p className="mt-4 text-[10px] uppercase tracking-[0.22em] leading-[1.6] text-white/45 font-body">
-                    Hit generate and four cuts land below. Save the one that
-                    bites to your designs, or iterate until it does.
-                  </p>
+                  ))}
                 </div>
+
+                {/* Auto-save is silent but not secret — say so once, here.
+                    Its original home was the pre-ADR-0018 preview panel,
+                    which no longer exists. */}
+                <p className="mt-2 text-[10px] uppercase tracking-[0.22em] leading-[1.6] text-white/45 font-body">
+                  Every cut auto-saves to your designs. Prune what
+                  doesn&apos;t bite from the library.
+                </p>
               </div>
 
-              <div className="rise rise-5 mt-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5 border-t-2 hairline pt-6">
+              <div className="rise rise-5 mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-t-2 hairline pt-4">
                 <div className="text-[10px] uppercase tracking-[0.24em] text-white/45 font-body">
                   Status:&nbsp;
                   <span className="text-pink">
@@ -290,6 +240,7 @@ function StencilPageInner() {
                         index={i + 1}
                         selected={selected === i}
                         onSelect={() => setSelected(i)}
+                        onExpand={() => setExpanded(i)}
                         badge={
                           savedCuts[i] ? (
                             <span className="text-[9px] uppercase tracking-[0.2em] text-pink font-body bg-black/70 px-2 py-1">
@@ -303,12 +254,6 @@ function StencilPageInner() {
                             onClick: () => router.push("/generate"),
                           },
                           {
-                            label: savedCuts[i] ? "Saved" : "Save",
-                            onClick: () => handleSaveCut(i),
-                            accent: true,
-                            disabled: !!savedCuts[i],
-                          },
-                          {
                             label: "Iterate",
                             onClick: handleGenerate,
                             disabled: cutting,
@@ -317,6 +262,27 @@ function StencilPageInner() {
                       />
                     ))}
                   </div>
+
+                  {expanded !== null && cuts[expanded] && (
+                    <Lightbox
+                      src={cuts[expanded]}
+                      alt={`Generated cut ${expanded + 1} large view`}
+                      caption={`Cut ${String(expanded + 1).padStart(2, "0")} · 1024²${
+                        selected === expanded ? " · Selected" : ""
+                      }`}
+                      onClose={() => setExpanded(null)}
+                      onPrev={
+                        cuts.length > 1
+                          ? () => setExpanded((expanded + cuts.length - 1) % cuts.length)
+                          : undefined
+                      }
+                      onNext={
+                        cuts.length > 1
+                          ? () => setExpanded((expanded + 1) % cuts.length)
+                          : undefined
+                      }
+                    />
+                  )}
 
                   {/* DESIGN → ARTIST SIGNAL — carries the prompt's style
                       descriptors to /matches as canonical graph styles. */}
@@ -331,56 +297,6 @@ function StencilPageInner() {
                 </div>
               )}
             </section>
-
-            <aside className="border-2 hairline bg-black p-6">
-              <div className="flex items-baseline justify-between border-b-2 hairline pb-4">
-                <h3 className="font-display text-[22px] tracking-wide text-white">
-                  Checklist
-                </h3>
-                <span className="text-[10px] uppercase tracking-[0.2em] text-pink">
-                  Live
-                </span>
-              </div>
-              <div className="mt-6 space-y-4">
-                {[
-                  ["Subject", "What is the tattoo?"],
-                  ["Placement", "Where does it go?"],
-                  ["Mood", "Clean, loud, soft, brutal, romantic."],
-                  ["Constraint", "Stencil, flash, artist handoff, coverup."],
-                ].map(([title, body], i) => (
-                  <div key={title} className="grid grid-cols-[42px_1fr] gap-4 border-b hairline-soft pb-4 last:border-b-0">
-                    <span className="font-display text-[28px] leading-none text-pink tabular-nums">
-                      0{i + 1}
-                    </span>
-                    <div>
-                      <div className="text-[11px] uppercase tracking-[0.22em] text-white font-body">
-                        {title}
-                      </div>
-                      <p className="mt-1 text-[12px] leading-[1.5] text-white/50 font-body">
-                        {body}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </aside>
-
-            {/* Mobile/tablet history */}
-            <div className="xl:hidden rise rise-4 mt-4 pt-8 border-t-2 hairline lg:col-span-2">
-              <div className="flex items-baseline justify-between mb-6">
-                <h3 className="font-display text-[20px] tracking-wide text-white">
-                  Pipeline
-                </h3>
-                <span className="text-[10px] uppercase tracking-[0.2em] text-pink tabular-nums">
-                  {ITERATIONS.length}&nbsp;steps
-                </span>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
-                {ITERATIONS.map(({ id, ...it }) => (
-                  <IterationRow key={id} {...it} />
-                ))}
-              </div>
-            </div>
           </div>
         </div>
 

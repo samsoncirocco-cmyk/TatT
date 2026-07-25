@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "updated": "2026-07-23",
+  "tags": [
+    {
+      "id": "fine-line",
+      "label": "Fine Line",
+      "aliases": ["fine line", "fineline", "single needle", "delicate linework"]
+    },
+    {
+      "id": "american-traditional",
+      "label": "American Traditional",
+      "aliases": ["traditional", "old school", "americana"]
+    },
+    {
+      "id": "blackwork",
+      "label": "Blackwork",
+      "aliases": ["black work", "black ink"]
+    },
+    {
+      "id": "watercolor",
+      "label": "Watercolor",
+      "aliases": ["water color", "watercolour"]
+    },
+    {
+      "id": "japanese",
+      "label": "Japanese",
+      "aliases": ["irezumi", "oriental"]
+    }
+  ]
+}

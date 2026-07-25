@@ -19,11 +19,27 @@ type StudioShellProps = {
 };
 
 const NAV = [
-  { label: "Forge", href: "/generate" },
+  // "Design" is the conversational front door (ADR-0009); "Forge" is the
+  // quick prompt→four-cuts flow; "Studio" is the multi-layer editor. Three
+  // different places on purpose — see issue #102.
+  { label: "Design", href: "/design" },
+  { label: "Forge", href: "/generate/stencil" },
+  { label: "Studio", href: "/generate" },
   { label: "Artists", href: "/artists" },
   { label: "My Designs", href: "/designs" },
   { label: "Pricing", href: "/pricing" },
 ];
+
+/** Longest matching href wins, so /generate/stencil lights up Forge without
+ *  also lighting up Studio (/generate is its prefix). */
+function activeHref(pathname: string | null): string | null {
+  if (!pathname) return null;
+  const matches = NAV.filter(
+    (n) => pathname === n.href || pathname.startsWith(n.href + "/")
+  );
+  if (matches.length === 0) return null;
+  return matches.reduce((a, b) => (b.href.length > a.href.length ? b : a)).href;
+}
 
 export default function StudioShell({
   children,
@@ -51,7 +67,7 @@ export default function StudioShell({
             </Link>
             <nav className="hidden md:flex items-center gap-5">
               {NAV.map((n) => {
-                const active = pathname === n.href || (n.href !== "/" && pathname?.startsWith(n.href));
+                const active = activeHref(pathname) === n.href;
                 return (
                   <Link
                     key={n.href}

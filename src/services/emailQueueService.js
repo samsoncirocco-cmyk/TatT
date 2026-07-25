@@ -74,9 +74,91 @@ export const getQueueStatus = (queueId) => {
     return exportQueue.find(t => t.id === queueId);
 };
 
+/**
+ * Send a transactional email through whatever provider is configured.
+ *
+ * Provider resolution (honest degradation — never throws, never blocks callers):
+ *   1. RESEND_API_KEY   → POST https://api.resend.com/emails
+ *   2. EMAIL_WEBHOOK_URL → POST the payload as JSON to a generic webhook
+ *   3. neither          → console.log the email (mock) and report unsent
+ *
+ * @param {Object} params
+ * @param {string} params.to      - Recipient email address
+ * @param {string} params.subject - Email subject line
+ * @param {string} params.text    - Plain-text body
+ * @param {string} [params.html]  - Optional HTML body
+ * @returns {Promise<{sent: boolean, id?: string, reason?: string}>}
+ */
+export async function sendTransactionalEmail({ to, subject, text, html }) {
+    const from = process.env.EMAIL_FROM || 'TatT <bookings@tatttester.com>';
+
+    // 1. Resend (primary provider)
+    if (process.env.RESEND_API_KEY) {
+        try {
+            const res = await fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ from, to, subject, text, ...(html ? { html } : {}) }),
+            });
+
+            if (!res.ok) {
+                const detail = await res.text().catch(() => '');
+                const reason = `resend responded ${res.status}: ${detail}`;
+                console.error(`[EMAIL] Resend send failed — ${reason}`);
+                return { sent: false, reason };
+            }
+
+            const body = await res.json().catch(() => ({}));
+            return { sent: true, id: body.id };
+        } catch (err) {
+            const reason = `resend request threw: ${err?.message || String(err)}`;
+            console.error(`[EMAIL] ${reason}`);
+            return { sent: false, reason };
+        }
+    }
+
+    // 2. Generic webhook fallback
+    if (process.env.EMAIL_WEBHOOK_URL) {
+        try {
+            const res = await fetch(process.env.EMAIL_WEBHOOK_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ from, to, subject, text, ...(html ? { html } : {}) }),
+            });
+
+            if (!res.ok) {
+                const detail = await res.text().catch(() => '');
+                const reason = `email webhook responded ${res.status}: ${detail}`;
+                console.error(`[EMAIL] Webhook send failed — ${reason}`);
+                return { sent: false, reason };
+            }
+
+            return { sent: true, id: undefined };
+        } catch (err) {
+            const reason = `email webhook request threw: ${err?.message || String(err)}`;
+            console.error(`[EMAIL] ${reason}`);
+            return { sent: false, reason };
+        }
+    }
+
+    // 3. No provider configured — log-only mock (never throws)
+    console.log('--------------------------------------------------');
+    console.log(`[EMAIL] (no provider configured — not sent)`);
+    console.log(`[EMAIL] From: ${from}`);
+    console.log(`[EMAIL] To: ${to}`);
+    console.log(`[EMAIL] Subject: ${subject}`);
+    console.log(`[EMAIL] Body: ${text}`);
+    console.log('--------------------------------------------------');
+    return { sent: false, reason: 'no provider configured' };
+}
+
 const emailQueueService = {
     queueStencilExport,
-    getQueueStatus
+    getQueueStatus,
+    sendTransactionalEmail
 };
 
 export default emailQueueService;

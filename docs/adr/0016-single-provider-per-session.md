@@ -1,0 +1,3 @@
+# One image provider per session
+
+All four reveal variations render on a single provider chosen by the generation module's existing routing. Mixing providers within a session confounds the pick signal — a pick could mean "I prefer this provider's rendering style" rather than the axis answer the reveal exists to collect, silently poisoning the preference data on top of the Council's deliberate axis differentiation. Provider-per-variation fan-out was rejected for that reason; overgenerate-and-curate (render ~8, reveal best 4) is deferred until funnel data shows dud variations actually losing picks.

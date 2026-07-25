@@ -171,6 +171,6 @@ Convert a finalized tattoo design into a high-quality, printable stencil (PDF or
 - Upload to GCS while generating second format
 
 ## Related Directives
-- `generate-tattoo.md` — Design generation (provides source image)
+- `generate-design.md` — Design generation (provides source image)
 - `layer-management.md` — Multi-layer designs may need layer merging before export
 - `api-endpoints.md` — Full API reference for stencil endpoints
