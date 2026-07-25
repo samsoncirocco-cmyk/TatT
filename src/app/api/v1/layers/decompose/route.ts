@@ -2,18 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import sharp from 'sharp';
 import { ImageAnnotatorClient } from '@google-cloud/vision';
 import { generateLayerId } from '@/lib/layerUtils';
+import { LAYER_UPLOAD_DIR as UPLOAD_DIR } from '@/lib/layerUploadDir';
 import path from 'path';
 import fs from 'fs/promises';
 import startCrypto from 'crypto';
-import os from 'os';
 import { uploadLayer, uploadLayerThumbnail, type GCSUploadResult } from '@/services/gcs-service';
 import { generateMask } from '@/lib/segmentation';
 import { verifyApiAuth } from '@/lib/api-auth';
 
 export const runtime = 'nodejs';
-
-// Use temp dir for serverless functions
-const UPLOAD_DIR = path.join(os.tmpdir(), 'manama-uploads');
 
 async function ensureLocalDir() {
     await fs.mkdir(UPLOAD_DIR, { recursive: true });
