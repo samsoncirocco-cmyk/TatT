@@ -15,9 +15,14 @@
  *                                            up to +0.20
  *
  * The judgment rule fires the proposal when confidence >=
- * CONFIDENCE_THRESHOLD AND both required fields (placement, meaning) are
- * present. missingFields lists every field that earned less than full
- * credit — "missing or weak", per the TurnLog contract.
+ * CONFIDENCE_THRESHOLD AND the required fields are present: placement, plus
+ * EITHER a meaning or a named subject. Requiring meaning outright stranded
+ * complete briefs that simply had no emotional "why" — an observed session
+ * gave placement, blackwork style and "goku charging a kamehameha", said
+ * "thats everything", and still could not advance. A named character is a
+ * concrete thing to draw, which is exactly what meaning was standing in for.
+ * missingFields lists every field that earned less than full credit —
+ * "missing or weak", per the TurnLog contract.
  */
 
 import type { IntakeRecord } from '@/services/intake';
@@ -42,7 +47,7 @@ export interface RecordReadiness {
   confidence: number;
   /** Fields that earned less than full credit — missing or weak. */
   missingFields: string[];
-  /** Both hard requirements (placement, meaning) present (ADR-0020). */
+  /** Placement plus something to draw — a meaning or a named subject (ADR-0020). */
   hasRequiredFields: boolean;
 }
 
@@ -92,6 +97,6 @@ export function scoreRecord(record: Partial<IntakeRecord>): RecordReadiness {
   return {
     confidence: Math.min(1, Number(confidence.toFixed(2))),
     missingFields,
-    hasRequiredFields: Boolean(placement && meaning),
+    hasRequiredFields: Boolean(placement && (meaning || (record.subject ?? '').trim())),
   };
 }

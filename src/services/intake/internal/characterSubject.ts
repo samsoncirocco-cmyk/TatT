@@ -66,32 +66,88 @@ function nameMatches(text: string, name: string, series: string): boolean {
 }
 
 /**
- * Build a subject phrase from any characters the text names, or undefined
- * when it names none. Multiple characters are preserved as a scene — the
- * whole point of the two-character briefs the IP rule exists to support.
+ * One character the text named. Structured rather than pre-joined because
+ * the two consumers need different halves of it: generation prompts want the
+ * full costume anchors (`description`), while the playback sentence the user
+ * reads wants only a short, human name ("Goku (Dragon Ball Z)") — dropping
+ * the costume prose into that sentence makes it unreadable.
  */
-export function characterSubjectFrom(text: string): string | undefined {
-  const source = (text || '').toLowerCase();
-  if (!source.trim()) return undefined;
+export interface CharacterMatch {
+  /** Canonical short name from the database, lowercase (e.g. "goku"). */
+  name: string;
+  /** Series the character belongs to (e.g. "Dragon Ball Z"). */
+  series: string;
+  /** Costume-level visual anchors the generation prompts depend on. */
+  description: string;
+}
 
-  const matched: CharacterEntry[] = [];
+/**
+ * Every character the text names, or an empty array when it names none.
+ * Multiple characters are preserved as a scene — the whole point of the
+ * two-character briefs the IP rule exists to support.
+ */
+export function charactersIn(text: string): CharacterMatch[] {
+  const source = (text || '').toLowerCase();
+  if (!source.trim()) return [];
+
+  const matched: CharacterMatch[] = [];
   for (const entry of ENTRIES) {
     if (matched.some((m) => m.description === entry.description)) continue;
     const names = [entry.name, ...entry.aliases];
-    if (names.some((name) => nameMatches(source, name, entry.series))) matched.push(entry);
+    if (names.some((name) => nameMatches(source, name, entry.series))) {
+      matched.push({ name: entry.name, series: entry.series, description: entry.description });
+    }
     // Two characters is already a scene; more than that stops being a
     // tattoo brief and starts being a poster.
     if (matched.length === 2) break;
   }
 
-  if (matched.length === 0) return undefined;
+  return matched;
+}
 
-  if (matched.length === 1) {
-    const [only] = matched;
+/**
+ * The prompt-facing subject: full costume anchors, exactly what
+ * `IntakeRecord.subject` has always carried.
+ */
+export function subjectPhraseFor(matches: CharacterMatch[]): string | undefined {
+  if (matches.length === 0) return undefined;
+
+  if (matches.length === 1) {
+    const [only] = matches;
     return `${only.description} (${only.series})`;
   }
 
-  const [first, second] = matched;
+  const [first, second] = matches;
   const seriesNote = first.series === second.series ? ` (${first.series})` : '';
   return `${first.description}; and ${second.description}${seriesNote}`;
+}
+
+function titleCase(name: string): string {
+  return name.replace(/\b[a-z]/g, (c) => c.toUpperCase());
+}
+
+/**
+ * The playback-facing label: short enough to read aloud in the "Here's what
+ * I'm hearing" sentence — "Goku (Dragon Ball Z)".
+ */
+export function characterLabelFor(matches: CharacterMatch[]): string | undefined {
+  if (matches.length === 0) return undefined;
+
+  if (matches.length === 1) {
+    const [only] = matches;
+    return `${titleCase(only.name)} (${only.series})`;
+  }
+
+  const [first, second] = matches;
+  const names = `${titleCase(first.name)} and ${titleCase(second.name)}`;
+  return first.series === second.series ? `${names} (${first.series})` : names;
+}
+
+/**
+ * Build a subject phrase from any characters the text names, or undefined
+ * when it names none. Convenience wrapper over charactersIn + subjectPhraseFor
+ * for the callers that only need the prompt-facing string.
+ */
+export function characterSubjectFrom(text: string): string | undefined {
+  return subjectPhraseFor(charactersIn(text));
 }
