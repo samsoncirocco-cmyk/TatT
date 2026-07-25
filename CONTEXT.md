@@ -89,6 +89,14 @@ scripted two-question version (ADR-0009) survives only as the LLM-down
 degraded mode.
 _Avoid_: form, questionnaire, prompt box
 
+**Consultant voice**:
+How the bot talks (ADR-0023): no validation prefixes, one question at a
+time, meaning paraphrased back rather than stitched in verbatim. Vague
+answers get a concrete contrast ("inner or outer?"), never generic filler.
+ADR-0023 is also the single source for the Flux/Krea routing table, the
+aspect-ratio-by-placement map, and the IP/character rule.
+_Avoid_: script, tone guidelines
+
 **Proposal**:
 The announce-and-confirm beat that ends intake (ADR-0020): the bot plays
 back what it heard in one line and generates the reveal on the user's yes.
