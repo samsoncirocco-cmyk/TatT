@@ -185,34 +185,35 @@ describe('Hybrid Matching Integration Tests', () => {
         it('should calculate correct composite score with standard weights', () => {
             // Test case from requirements:
             // Artist with perfect style match (1.0) but distant location (0.2)
-            // Expected: 0.4 + 0.25 + 0.03 + random ≈ 0.68-0.78
 
             const signals = {
-                visualSimilarity: 1.0,  // 40% weight = 0.40
+                visualSimilarity: 1.0,  // 30% weight = 0.30
                 styleAlignment: 1.0,     // 25% weight = 0.25
                 location: 0.2,           // 15% weight = 0.03
+                rating: 0.0,             // 15% weight = 0.00
                 budget: 0.0,             // 10% weight = 0.00
-                randomVariety: 0.3       // 10% weight = 0.03
+                randomVariety: 0.3       // 5%  weight = 0.015
             };
 
             const result = calculateCompositeScore(signals, DEFAULT_WEIGHTS);
 
-            // Expected: (1.0 * 0.4) + (1.0 * 0.25) + (0.2 * 0.15) + (0.0 * 0.1) + (0.3 * 0.1)
-            // = 0.4 + 0.25 + 0.03 + 0 + 0.03 = 0.71
-            expect(result.score).toBeCloseTo(0.71, 2);
+            // Expected: (1.0*0.30) + (1.0*0.25) + (0.2*0.15) + (0.0*0.15) + (0.0*0.10) + (0.3*0.05)
+            // = 0.30 + 0.25 + 0.03 + 0 + 0 + 0.015 = 0.595
+            expect(result.score).toBeCloseTo(0.595, 2);
         });
 
-        it('should weight visual similarity at 40%', () => {
+        it('should weight visual similarity at 30% — no single signal dominates', () => {
             const signals = {
                 visualSimilarity: 1.0,
                 styleAlignment: 0.0,
                 location: 0.0,
+                rating: 0.0,
                 budget: 0.0,
                 randomVariety: 0.0
             };
 
             const result = calculateCompositeScore(signals, DEFAULT_WEIGHTS);
-            expect(result.score).toBeCloseTo(0.4, 2);
+            expect(result.score).toBeCloseTo(0.3, 2);
         });
 
         it('should weight style alignment at 25%', () => {
@@ -220,12 +221,27 @@ describe('Hybrid Matching Integration Tests', () => {
                 visualSimilarity: 0.0,
                 styleAlignment: 1.0,
                 location: 0.0,
+                rating: 0.0,
                 budget: 0.0,
                 randomVariety: 0.0
             };
 
             const result = calculateCompositeScore(signals, DEFAULT_WEIGHTS);
             expect(result.score).toBeCloseTo(0.25, 2);
+        });
+
+        it('should weight rating at 15%', () => {
+            const signals = {
+                visualSimilarity: 0.0,
+                styleAlignment: 0.0,
+                location: 0.0,
+                rating: 1.0,
+                budget: 0.0,
+                randomVariety: 0.0
+            };
+
+            const result = calculateCompositeScore(signals, DEFAULT_WEIGHTS);
+            expect(result.score).toBeCloseTo(0.15, 2);
         });
     });
 });

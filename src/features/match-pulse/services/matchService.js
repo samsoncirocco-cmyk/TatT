@@ -12,8 +12,23 @@ import {
   isNeo4jEnabled
 } from './neo4jService.ts';
 import { findMatchingArtistsForDemo } from './demoMatchService';
+import { DEFAULT_WEIGHTS, weightedAverage } from '@/utils/scoreAggregation';
 
 const RRF_K = 60;
+
+// Mirrors the canonical weights in scoreAggregation.js (single source of
+// truth for ranking weights), mapped onto this service's shorter breakdown
+// key names. Note: `rating` reads as neutral (0.5) here today because
+// findArtistMatchesForPulse's Cypher query doesn't select a.rating yet —
+// tracked as follow-up work, not silently faked.
+const WEIGHTS = {
+  visual: DEFAULT_WEIGHTS.visualSimilarity,
+  style: DEFAULT_WEIGHTS.styleAlignment,
+  location: DEFAULT_WEIGHTS.location,
+  rating: DEFAULT_WEIGHTS.rating,
+  budget: DEFAULT_WEIGHTS.budget,
+  variety: DEFAULT_WEIGHTS.randomVariety
+};
 
 function reciprocalRankFusion(rankLists, k = RRF_K) {
   const scores = new Map();
@@ -63,26 +78,22 @@ function computeMatchBreakdown(artist, context, supabaseScore = 0) {
     ? (hourlyRate <= budget ? 1 : 0.4)
     : 0.6;
   const varietyScore = stableHashScore(artist.id || artist.name);
+  const ratingScore = typeof artist.rating === 'number'
+    ? Math.max(0, Math.min(1, artist.rating / 5))
+    : 0.5;
 
   return {
     visual,
     style: styleScore,
     location: locationScore,
+    rating: ratingScore,
     budget: budgetScore,
     variety: varietyScore
   };
 }
 
 function computeMatchScoreFromBreakdown(breakdown) {
-  const weighted = (
-    breakdown.visual * 0.4 +
-    breakdown.style * 0.25 +
-    breakdown.location * 0.2 +
-    breakdown.budget * 0.1 +
-    breakdown.variety * 0.05
-  );
-
-  return normalizePercent(weighted * 100);
+  return normalizePercent(weightedAverage(breakdown, WEIGHTS) * 100);
 }
 
 function buildReasoning(artist, breakdown, context) {

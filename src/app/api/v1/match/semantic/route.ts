@@ -40,6 +40,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({
             success: true,
             matches: result.matches,
+            broadened: result.broadened,
+            broadened_reason: result.broadenedReason,
             total_candidates: result.totalCandidates,
             query_info: result.queryInfo,
             performance: {
