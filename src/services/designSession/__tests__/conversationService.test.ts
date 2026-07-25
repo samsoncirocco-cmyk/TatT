@@ -21,6 +21,7 @@ import { generate, routeGeneration } from '../../generation';
 import { extractIntake } from '../../intake';
 import type { IntakeRecord } from '../../intake/types';
 import type { ConversationTurnResult, TurnLog } from '../../designConversation/types';
+import { logger } from '@/lib/logger';
 
 const OPENER = 'Where on your body are you thinking, and what should it mean?';
 
@@ -42,6 +43,10 @@ vi.mock('../../intake', () => ({ extractIntake: vi.fn() }));
 vi.mock('../../council', () => ({ enhanceStructured: vi.fn() }));
 vi.mock('../../generation', () => ({ generate: vi.fn(), routeGeneration: vi.fn() }));
 vi.mock('@/lib/firebase-admin', () => ({ ensureAdminApp: vi.fn(() => false) }));
+vi.mock('@/lib/logger', () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+  createRequestLogger: vi.fn(),
+}));
 
 const runTurnMock = vi.mocked(runTurn);
 const mockExtractIntake = vi.mocked(extractIntake);
@@ -291,6 +296,31 @@ describe('converse — conversation lifecycle', () => {
     const stored = (await memorySessionStore.get(opened.sessionId)) as StoredSession;
     expect(stored.conversation?.transcript).toHaveLength(1);
     expect(stored.conversation?.turnCount).toBe(0);
+  });
+
+  it('logs which providers failed when it downgrades to the scripted intake', async () => {
+    const opened = await converse({});
+    const attempts = [
+      { provider: 'vertex', model: 'gemini-2.0-flash', reason: '429 rate limited' },
+      { provider: 'openrouter', model: 'claude-3-5-sonnet', reason: 'not configured' },
+    ];
+    const failure = new ConversationUnavailableError('every provider down');
+    Object.assign(failure, { attempts });
+    runTurnMock.mockRejectedValueOnce(failure);
+
+    await expect(
+      converse({ sessionId: opened.sessionId, message: 'hello?' })
+    ).rejects.toMatchObject({ code: 'CONVERSATION_UNAVAILABLE' });
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event_type: 'design_conversation.scripted_fallback',
+        trigger: 'all_conversation_providers_exhausted',
+        session_id: opened.sessionId,
+        failed_providers: ['vertex', 'openrouter'],
+        attempts,
+      })
+    );
   });
 
   it('rethrows other engine failures untouched', async () => {

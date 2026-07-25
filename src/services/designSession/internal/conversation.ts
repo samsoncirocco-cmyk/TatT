@@ -14,6 +14,7 @@
  * the shared startFromRecord path, moving phase 'intake' → 'revealed'.
  */
 import { randomUUID } from 'crypto';
+import { logger } from '@/lib/logger';
 import {
   runTurn,
   opener,
@@ -136,6 +137,22 @@ export async function converse(request: ConverseRequest): Promise<ConverseRespon
     });
   } catch (error) {
     if (error instanceof ConversationUnavailableError) {
+      // The downgrade used to be silent: a live session dropped mid-way to
+      // "Keeping it simple today — two quick questions and we're off." with
+      // nothing in the logs explaining why or which provider gave out. The
+      // per-provider attempts are the whole diagnostic value, so they are
+      // recorded here rather than collapsed into a message string.
+      logger.warn({
+        event_type: 'design_conversation.scripted_fallback',
+        trigger: 'all_conversation_providers_exhausted',
+        session_id: session.id,
+        turn: userTurn,
+        // Which provider failed, and why — e.g.
+        // [{ provider: 'vertex', model: 'gemini-2.0-flash', reason: '429' }]
+        failed_providers: (error.attempts ?? []).map((attempt) => attempt.provider),
+        attempts: error.attempts ?? [],
+        pinned_model: conversation.model,
+      });
       // Typed domain error the route maps to 503 — the UI downgrades to the
       // scripted two-question intake (ADR-0019 degraded mode).
       throw new DesignSessionError(
