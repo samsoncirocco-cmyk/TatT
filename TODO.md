@@ -177,16 +177,23 @@ deletion and tag pushes 403 at the git proxy — so the delete/tag commands
 below are **Samson-run-locally** items.
 
 **Open-PR queue (merge order recommendation):** ~~#118 design-bot~~
-**MERGED 2026-07-24** (feat/design-bot added to the delete list below) ·
-#112 scheduling engine (already accepted, additive — merge) · #109
-debounce + #103 CTA-signup (small, merge) · #110 auto-save/delete, #105
-weighted rating, #104 thin-match broaden (medium — quick review each).
-Crew PRs base on pre-#108 main; if any turn CONFLICTING as the queue
-merges, update the branch. Each head branch is deletable the moment its
-PR merges (the #120–#127 fix/feat branches were already cleaned up this
-way same-day).
+**MERGED 2026-07-24** · #125 placement preview (reuses `feat/design-bot`
+with new work post-#118 — so that branch is **NOT** deletable, despite
+#118 having merged; see the delete-list caveat below) · #131 ADR-0023
+forge voice/routing (draft, docs-only) · #112 scheduling engine (already
+accepted, additive — merge) · #109 debounce + #103 CTA-signup (small,
+merge) · #110 auto-save/delete, #105 weighted rating, #104 thin-match
+broaden (medium — quick review each). Crew PRs base on pre-#108 main; if
+any turn CONFLICTING as the queue merges, update the branch. Each head
+branch is deletable the moment its PR merges (the #120–#130 fix/feat
+branches were already cleaned up this way same-day).
 
-**Delete now — 18 branches verified 100% landed on main** (recovery:
+**Branch-deletion rule learned here:** "its PR merged" is not sufficient
+grounds to delete a branch — check for a *newer* open PR on the same head
+first. `feat/design-bot` was on the delete list on those grounds and would
+have taken #125's unmerged commit (1019ca9) with it.
+
+**Delete now — 17 branches verified 100% landed on main** (recovery:
 `git push origin <sha>:refs/heads/<name>`):
 
 ```
@@ -198,7 +205,7 @@ git push origin --delete \
   fix/backlog-cleanup-sweep night/booking-response-hygiene \
   claude/hopeful-wilson-7107ac port-smartmatch-swipe-to-graph \
   feat/close-booking-loop-phase1 codex/tatt-security-hardening \
-  feat/generation-module feat/design-bot
+  feat/generation-module
 ```
 
 Evidence: first four are ancestors of main; the seven docs/brand/worktree/fix
@@ -207,8 +214,7 @@ merged #117 (f3cb135), claude/hopeful-wilson-7107ac = merged #111 (e9e3d33),
 port-smartmatch-swipe-to-graph = merged #54 (ac028fc),
 feat/close-booking-loop-phase1 = #108 closed with content on main as 01d962a
 (413a3c5), codex/tatt-security-hardening = merged #43 + 2 stale TODO-note
-commits (ab2342d), feat/generation-module = merged #51+#55 (5560978),
-feat/design-bot = merged #118 (a77c52f).
+commits (ab2342d), feat/generation-module = merged #51+#55 (5560978).
 
 **Legacy triage — 33 branches, all pre-dating the 2026-07-17 history rewrite**
 (decision 2026-07-24: archive-tag everything, delete groups A+C, hold B):
