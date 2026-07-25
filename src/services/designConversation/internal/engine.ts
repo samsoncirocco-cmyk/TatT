@@ -58,6 +58,12 @@ export interface RunTurnRequest {
    * TurnLog.model). The provider chain tries it first.
    */
   pinnedModel?: string;
+  /**
+   * Session this turn belongs to. Not used for conversation logic — passed
+   * to the provider chain purely so provider-failover and degraded-mode logs
+   * are traceable to a session (never any transcript content).
+   */
+  sessionId?: string;
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -257,6 +263,8 @@ export async function runConversationTurn(
     systemPrompt,
     messages: request.messages,
     pinnedModel: request.pinnedModel,
+    sessionId: request.sessionId,
+    userTurn: request.userTurn,
   });
 
   const record = sanitizeRecord(payload, ontology);
