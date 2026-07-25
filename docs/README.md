@@ -2,7 +2,7 @@
 
 This is the Next.js migration of the TatTester platform - an AI-powered tattoo design generator and visualization platform.
 
-**Live Production:** https://manama-next.vercel.app/
+**Live Production:** https://tatt-app.vercel.app/
 
 ## Getting Started
 
@@ -22,7 +22,7 @@ This is the Next.js migration of the TatTester platform - an AI-powered tattoo d
 
 ```bash
 # Navigate to the Next.js workspace
-cd manama-next
+cd TatT
 
 # Install dependencies (required for first-time setup)
 npm install --legacy-peer-deps
@@ -32,7 +32,7 @@ npm install --legacy-peer-deps
 
 ```bash
 # Navigate to the Next.js workspace
-cd manama-next
+cd TatT
 
 # Build and start Docker container
 docker-compose up dev
@@ -141,9 +141,9 @@ src/
 
 ## Deployment
 
-The app is automatically deployed to Vercel on every push to the `manama/next` branch.
+The app is automatically deployed to Vercel on every push to the `main` branch.
 
-**Production URL:** https://manama-next.vercel.app/
+**Production URL:** https://tatt-app.vercel.app/
 
 ## Known Issues
 

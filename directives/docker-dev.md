@@ -102,7 +102,7 @@ docker compose up dev
 ## Edge Cases
 
 - **Slow file watching on macOS**: The `:delegated` volume flag and polling env vars are already configured to mitigate this. If still slow, increase Docker Desktop resource allocation (CPU/RAM)
-- **`node_modules` mismatch**: If you see module errors after switching between native and Docker development, remove the named volume: `docker volume rm manama-next_node_modules` and rebuild
+- **`node_modules` mismatch**: If you see module errors after switching between native and Docker development, remove the named volume: `docker volume rm tatt-app_node_modules` and rebuild
 - **Port conflict**: If port 3000 or 3001 is in use, edit the port mapping in `docker-compose.yml` (e.g., `"3002:3000"`)
 - **`.env.local` not found**: The dev service mounts `.env.local` as read-only; the file must exist before starting the container
 - **Production build fails**: Run `npm run build` locally first to identify TypeScript or build errors before building the Docker image
