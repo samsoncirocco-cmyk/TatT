@@ -83,6 +83,62 @@ describe("RosterControls search box", () => {
     expect(input.value).toBe("");
   });
 
+  // Regression: the URL→input sync used to be suppressed by a single "last
+  // submitted value" latch that only released on an exact match. Any URL that
+  // never matched left it armed forever, and the box stopped tracking the URL
+  // for the rest of the session. Both routes below arm it and then check that
+  // the box still follows subsequent navigations.
+
+  it("keeps tracking the URL after Clear supersedes an in-flight search", () => {
+    const { rerender } = render(
+      <RosterControls styles={["Blackwork"]} q="austin" style="" hasPortfolio={false} />,
+    );
+    const input = screen.getByLabelText("▸ Search") as HTMLInputElement;
+
+    // A debounced search goes out...
+    fireEvent.change(input, { target: { value: "austin, tx" } });
+    vi.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+    expect(push).toHaveBeenLastCalledWith("/artists?q=austin%2C+tx");
+
+    // ...then Clear supersedes it, so ?q=austin,+tx never lands: the URL goes
+    // straight from ?q=austin to no query at all.
+    fireEvent.click(screen.getByText("Clear", { exact: false }));
+    rerender(
+      <RosterControls styles={["Blackwork"]} q="" style="" hasPortfolio={false} />,
+    );
+    expect(input.value).toBe("");
+
+    // Later, genuine external navigation (back button, a link, a shared URL).
+    rerender(
+      <RosterControls styles={["Blackwork"]} q="paris" style="" hasPortfolio={false} />,
+    );
+    expect(input.value).toBe("paris");
+  });
+
+  it("keeps tracking the URL when navigation lands somewhere other than the submitted query", () => {
+    const { rerender } = render(
+      <RosterControls styles={["Blackwork"]} q="paris" style="" hasPortfolio={false} />,
+    );
+    const input = screen.getByLabelText("▸ Search") as HTMLInputElement;
+
+    fireEvent.change(input, { target: { value: "austin" } });
+    vi.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+    expect(push).toHaveBeenLastCalledWith("/artists?q=austin");
+
+    // The user navigates away before ?q=austin lands — the URL settles on a
+    // query this component never submitted.
+    rerender(
+      <RosterControls styles={["Blackwork"]} q="london" style="" hasPortfolio={false} />,
+    );
+    expect(input.value).toBe("london");
+
+    // ...and the box keeps following the URL from then on.
+    rerender(
+      <RosterControls styles={["Blackwork"]} q="tokyo" style="" hasPortfolio={false} />,
+    );
+    expect(input.value).toBe("tokyo");
+  });
+
   it("composes the query with an active style pill", () => {
     render(
       <RosterControls

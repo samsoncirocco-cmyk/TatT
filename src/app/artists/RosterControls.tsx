@@ -30,19 +30,42 @@ export default function RosterControls({
   const searchParams = useSearchParams();
   const [input, setInput] = useState(q);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const submittedQueryRef = useRef<string | null>(null);
+  // Queries this component has pushed that haven't come back as `q` yet, in
+  // push order. A single "last submitted" value can't tell a stale echo of the
+  // user's own submit apart from genuine external navigation; the queue can,
+  // because an echo is by definition a value we pushed.
+  const pendingRef = useRef<string[]>([]);
 
-  // Keep the box in sync when q changes from elsewhere (e.g. Clear, or
-  // browser back/forward navigating to a different ?q=).
-  useEffect(() => {
-    if (submittedQueryRef.current !== null) {
-      if (q === submittedQueryRef.current) submittedQueryRef.current = null;
-      return;
-    }
+  const cancelDebounce = () => {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
       debounceRef.current = null;
     }
+  };
+
+  /** The query the URL is currently heading toward — our last push, or `q`. */
+  const targetQuery = () =>
+    pendingRef.current.length
+      ? pendingRef.current[pendingRef.current.length - 1]
+      : q;
+
+  /** Record a query we are about to push so its echo isn't mistaken for navigation. */
+  const pushPending = (value: string) => {
+    pendingRef.current.push(value);
+  };
+
+  // Keep the box in sync when q changes. Navigations land in push order, so a
+  // `q` we queued means every earlier queued push was superseded — drop them
+  // all and leave the box alone. A `q` we never queued came from somewhere
+  // else (back/forward, a link, a shared URL), so adopt it.
+  useEffect(() => {
+    const landed = pendingRef.current.indexOf(q);
+    if (landed !== -1) {
+      pendingRef.current.splice(0, landed + 1);
+      return;
+    }
+    pendingRef.current = [];
+    cancelDebounce();
     setInput(q);
   }, [q]);
 
@@ -68,15 +91,11 @@ export default function RosterControls({
   };
 
   const submitSearch = (value: string = input) => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-      debounceRef.current = null;
-    }
+    cancelDebounce();
     const trimmed = value.trim();
-    if (trimmed !== q || submittedQueryRef.current !== null) {
-      submittedQueryRef.current = trimmed;
-      apply({ q: trimmed });
-    }
+    if (trimmed === targetQuery()) return;
+    pushPending(trimmed);
+    apply({ q: trimmed });
   };
 
   const handleChange = (value: string) => {
@@ -144,11 +163,10 @@ export default function RosterControls({
           {(style || q || hasPortfolio) && (
             <button
               onClick={() => {
-                if (debounceRef.current) {
-                  clearTimeout(debounceRef.current);
-                  debounceRef.current = null;
-                }
+                cancelDebounce();
                 setInput("");
+                // Clear changes q too, so queue it like any other submit.
+                if (targetQuery() !== "") pushPending("");
                 apply({ q: "", style: "All", hasPortfolio: false });
               }}
               className="ml-auto text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-pink font-body shrink-0 press"
