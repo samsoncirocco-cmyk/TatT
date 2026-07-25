@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { characterSubjectFrom } from '../internal/characterSubject';
+import {
+  characterSubjectFrom,
+  charactersIn,
+  characterLabelFor,
+  subjectPhraseFor,
+} from '../internal/characterSubject';
 
 describe('characterSubjectFrom — deterministic subject backfill', () => {
   it('builds a costume-anchored subject from a single named character', () => {
@@ -44,5 +49,57 @@ describe('characterSubjectFrom — false-positive guards', () => {
 
     expect(subject).toBeDefined();
     expect(subject!.toLowerCase()).toContain('power');
+  });
+});
+
+describe('charactersIn — structured matches', () => {
+  it('returns name, series and description separately', () => {
+    const [goku] = charactersIn('goku from dragon ball z charging a kamehameha');
+
+    expect(goku.name).toBe('goku');
+    expect(goku.series).toBe('Dragon Ball');
+    // The costume anchors the prompts depend on stay on `description`.
+    expect(goku.description.toLowerCase()).toContain('orange gi');
+  });
+
+  it('returns an empty array when nothing is named', () => {
+    expect(charactersIn('keep it simple, black and grey')).toEqual([]);
+    expect(charactersIn('')).toEqual([]);
+  });
+});
+
+describe('characterLabelFor — the playback-facing short label', () => {
+  it('names the character and series without the costume prose', () => {
+    const label = characterLabelFor(charactersIn('goku charging a kamehameha'));
+
+    expect(label).toBe('Goku (Dragon Ball)');
+    // The whole point: the unreadable costume description must NOT be here.
+    expect(label!.toLowerCase()).not.toContain('orange gi');
+    expect(label!.toLowerCase()).not.toContain('spiky');
+  });
+
+  it('joins two characters from the same series under one series note', () => {
+    const label = characterLabelFor(charactersIn('deku and todoroki fighting each other'));
+
+    expect(label).toContain('Todoroki');
+    expect(label).toContain('(My Hero Academia)');
+    expect(label!.length).toBeLessThan(60);
+  });
+
+  it('is undefined when no character was named', () => {
+    expect(characterLabelFor([])).toBeUndefined();
+  });
+});
+
+describe('subjectPhraseFor — the prompt-facing anchors', () => {
+  it('still carries the full costume description (unchanged contract)', () => {
+    const matches = charactersIn('goku charging a kamehameha');
+
+    expect(subjectPhraseFor(matches)).toBe(characterSubjectFrom('goku charging a kamehameha'));
+    expect(subjectPhraseFor(matches)!.toLowerCase()).toContain('orange gi');
+  });
+
+  it('is undefined for no matches', () => {
+    expect(subjectPhraseFor([])).toBeUndefined();
   });
 });
