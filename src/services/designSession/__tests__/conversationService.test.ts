@@ -189,6 +189,8 @@ describe('converse — conversation lifecycle', () => {
       ],
       userTurn: 1,
       pinnedModel: undefined,
+      // Passed through purely for the provider-failover / degraded-mode logs.
+      sessionId: opened.sessionId,
     });
 
     // Everything persisted on the stored session (ADR-0022 day-one logs).
