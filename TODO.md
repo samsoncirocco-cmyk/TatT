@@ -5,10 +5,11 @@ agents. **Every agent: read this before starting work, update it when you
 finish or discover work.** Keep entries short; link PRs/issues; date your
 changes. Newest state wins — resolve edit conflicts by merging both lists.
 
-_Last updated: 2026-07-25 (booking loop Phase 1 landed on main via #108's
-branch — 01d962a + Bugbot fixes 772853e; duplicate PR #113 closed as
-superseded, its two deltas ported via merged #117; repo hygiene sweep executed
-— 30 branches archive-tagged and deleted, see "Repo hygiene" section below)_
+_Last updated: 2026-07-25 (branch sweep executed — 85 → 49 → 47, auto-delete
+turned ON, legacy/closed-PR pass archive-tagged then deleted 30 more; booking
+loop Phase 1 landed on main via #108's branch — 01d962a + Bugbot fixes
+772853e; duplicate PR #113 closed as superseded, its two deltas ported via
+merged #117; see "Repo hygiene" below)_
 
 ## Now (in priority order) — THE JOURNEY QUEUE
 
@@ -171,44 +172,74 @@ full run NOT launched. Resume after gate review.
 
 ## Repo hygiene — branch & PR close-out (executed 2026-07-25)
 
-Survey re-run against the live remote on 2026-07-25: **47 remote branches**
-(46 + `main`), classified by ancestry into `origin/main`, `git cherry`
-patch-equivalence, and PR state by head ref.
+**~~Delete 35 stale branches~~ — DONE 2026-07-25.** Branch count **85 → 49**;
+all 35 verified landed on main first, cross-checked so no open PR's head was
+on the list, and confirmed after the fact (0 of 35 remaining, all live heads
+intact). Caveat for the record: that pass deleted without archive tags — the
+remote had **zero** tags afterwards — so those 35 are recoverable only from
+the SHAs noted here and GitHub's own ref retention. Every later pass tags
+first.
 
-**Why branches accumulate — corrected 2026-07-25.** An earlier draft of this
-section claimed "Automatically delete head branches is OFF for this repo" and
-that every merged PR leaves its branch behind forever. **That was wrong.**
-`repos/samsoncirocco-cmyk/TatT.delete_branch_on_merge` is `true` — the setting
-is ON, and merged-PR branches do self-clean (verified live: #143, #135 and
-#110 all merged 2026-07-25 and their heads were gone from the remote
-immediately, with nobody running a delete). The earlier "70 → 83 branches"
-count was also wrong; the true figure is 47.
+**~~"Automatically delete head branches" was OFF~~ — turned ON 2026-07-25.**
+It is now `true` on `repos/samsoncirocco-cmyk/TatT` and demonstrably working:
+`chore/raise-council-test-timeout` (#147, merged 19:40 UTC) is the first head
+that self-deleted, and #143, #135 and #110 all vanished on merge afterwards
+with nobody running a delete. #145 (19:35) and #146 (19:30) merged just before
+the flip and were left behind, which dates the change to that five-minute
+window. **Anything in this file still describing the setting as OFF, or the
+remote as 70/83/85 branches, is stale** — the live count is **47** (46 +
+`main`).
 
-What actually survives is everything auto-delete never covers:
-- **Legacy heads** that pre-date the setting (and the 2026-07-17 history
+**But turning it on does not drive the count to zero**, because auto-delete
+fires on **merge only**. Four kinds of branch are outside its reach and always
+need a manual sweep:
+- **Legacy heads** pre-dating the setting (and the 2026-07-17 history
   rewrite) — the bulk of the residue.
-- **PRs closed without merging** — auto-delete fires on merge only, so a
-  closed PR's head stays forever (`#103`, `#104`, `#105`, `#136`, `#144`,
-  `#39`, `#35`, `#40`).
-- **Branches pushed with no PR at all** (`audit/engineering-guidelines-…`,
-  `samson/desktop-tatt-v1-gitignore-fix`).
+- **PRs closed without merging** — #103, #104, #105, #136, #144, #39, #35, #40.
+- **Branches pushed with no PR at all** —
+  `audit/engineering-guidelines-2026-07-14`, `samson/desktop-tatt-v1-gitignore-fix`.
 - **Heads re-pushed after their PR merged**, which resurrects the ref.
-
-So the setting needs no change and this is a genuine one-time cleanup, not a
-standing chore — but it will never reach zero on its own, because closed-PR
-and no-PR branches are outside its reach.
 
 **Branch-deletion rule:** "its PR merged" is not sufficient grounds to
 delete — check for a *newer* open PR on the same head first.
 `feat/design-bot` was on the delete list on those grounds and would have
 taken #125's unmerged commit (1019ca9) with it.
 
-**Recovery:** every branch below — including the ones held — was tagged
-`archive/<branch>` and the tags pushed to the remote *before* any deletion.
+**Verification method — two checks, because one alone gives false answers:**
+- **Ancestor or patch-equivalent to `origin/main`** (`git cherry` shows every
+  commit already upstream) — catches the merge-commit-merged branches.
+- **Squash-merged, so patch IDs differ** — these look unmerged to git and must
+  be verified by merged-PR head instead: e.g. `claude/hopeful-wilson-7107ac`
+  showed 8 "missing" commits but PR #111 squashed them into `37342b3`, and a
+  content diff over the 17 files it touched was empty.
+
+⚠️ **"N commits not on main" is NOT evidence of unmerged work** in a repo that
+squash-merges — roughly a third of the branches checked would have been kept
+by that reasoning alone. Verify by content or by PR state.
+
+**Batching outcome (2026-07-25).** #104+#105 were batched as **#135** —
+**merged**, so thin-result broadening and the rating signal are both on main.
+#103+#110+#109 were batched as **#136** — **closed unmerged**; the originals
+were taken individually instead: #110 **merged** direct, #109 still **open**
+and being worked.
+
+⚠️ **#103's work is currently lost.** PR #103 and batch #136 were both closed
+unmerged, so the first-time-visitor signup fix never landed —
+`hasEverAuthed` exists nowhere on main and `generate/stencil` still sends
+every signed-out visitor to `/login`. **Issue #101 is open with nothing
+pointing at it.** The commit is intact at `4e940dd` on `crew/101-cta-signup`
+if it should be revived; delete that branch only if the drop was deliberate.
+Lesson: don't let a fallback PR's fate depend on a batch PR — closing the
+batch orphaned the fallback.
+
+### Legacy + closed-PR sweep (2026-07-25)
+
+**Recovery first:** every branch below — deleted *and* held — was tagged
+`archive/<branch>` and the tags pushed to the remote **before** any deletion.
 Restore with `git push origin archive/<branch>:refs/heads/<branch>`.
 
-**Deleted — 30 branches, each re-verified 2026-07-25 as carrying no content
-missing from `main`:**
+**Deleted — 30 branches**, each re-verified against the live remote on
+2026-07-25 as carrying nothing missing from `main`:
 
 - Legacy group A (19, pre-rewrite): design/punk-site-redesign,
   fix/rate-limit-always-429, feat/handoff-screens-2, fix/ci-test-suites,
@@ -224,14 +255,11 @@ missing from `main`:**
   samsoncirocco-cmyk/map-codebase, fix/frontend-audit-yc,
   samson/desktop-tatt-v1-gitignore-fix, codex/main-manama-integration,
   manama/next
-- Recently merged, no newer open PR on the head (2):
+- Merged pre-flip, no newer open PR on the head (2):
   fix/monochrome-subject-color-scrub (#146), fix/presentation-flash-art (#145)
 - Closed crew PRs whose content landed via the merged batch #135 (2):
   crew/70-weighted-rating (#105), crew/73-thin-match-broaden (#104) — both
   patch-equivalent to `main` (`git cherry` reports zero unmerged commits)
-
-Everything the previous draft listed as "35 verified landed" was already gone
-from the remote by 2026-07-25 — auto-delete had taken them on merge.
 
 **Held — 10 branches tagged but NOT deleted:**
 
@@ -239,18 +267,18 @@ from the remote by 2026-07-25 — auto-delete had taken them on merge.
   ~/tatt-scraper): feat/artist-scraper, feat/scrape-scheduler,
   perf/parallel-scrape, data/national-dataset, data/scrape-20k,
   feat/wire-national-dataset, samson/port-artist-crawler.
-  `feat/wire-national-dataset` is the biggest unique-content risk — **357
-  commits ahead of main, 325 of them not patch-equivalent** (the earlier
-  "807 commits" figure was wrong). The other six are already ancestors of
-  `main` and could be dropped, but the group is held together pending the
-  dataset review.
+  `feat/wire-national-dataset` is the only real unique-content risk —
+  **357 commits ahead of main, 325 of them not patch-equivalent** (the
+  earlier "807 commits" figure was wrong). The other six are already
+  ancestors of `main`, but the group is held together pending the review.
 - Closed-PR heads with genuinely unlanded work (3): crew/101-cta-signup
-  (#103 closed; its batch #136 closed *unmerged*, so the CTA fix never
-  landed), crew/batch-forge-storage (#136, 6 unmerged commits, overlaps open
-  PR #109), fix/log-conversation-fallback (#144 closed unmerged).
+  (#103 — see the warning above), crew/batch-forge-storage (#136, 6 unmerged
+  commits, overlaps open PR #109), fix/log-conversation-fallback (#144
+  closed unmerged).
 
 **Skipped — heads of open PRs:** #122 (this branch), #131, #148, #109, #125,
 #112. Never delete a head with an open PR against it.
+
 
 ## Backlog
 
