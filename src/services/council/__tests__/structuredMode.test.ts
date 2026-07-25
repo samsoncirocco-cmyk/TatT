@@ -112,15 +112,30 @@ describe('enhanceStructured - palette (color vs monochrome)', () => {
     }
   });
 
-  it('front-loads color, photographs on skin, and never says monochrome', async () => {
+  it('front-loads color but still presents as flash art, never saying monochrome', async () => {
     const result = await enhanceStructured(color);
 
     for (const variation of result.variations) {
       const prompt = variation.prompts.ultra || variation.prompts.simple || '';
       expect(prompt.startsWith('Vibrant color, clean ink saturation, tattoo-quality color rendering.')).toBe(true);
-      expect(prompt).toContain('photograph of the finished tattoo on skin');
+      // Palette and presentation are separate decisions: color sessions are
+      // still flash art on white, so the placement preview can strip the
+      // background and composite onto the user's own photo.
+      expect(prompt).toContain('flash art on a plain white background');
+      expect(prompt).not.toContain('photograph of the finished tattoo on skin');
       expect(prompt.toLowerCase()).not.toContain('monochrome');
       expect((variation.negativePrompt || '').toLowerCase()).not.toContain('monochrome');
+    }
+  });
+
+  it('presents every palette as flash art so placement preview always works', async () => {
+    for (const record of [monochrome, color, unresolved]) {
+      const result = await enhanceStructured(record);
+      for (const variation of result.variations) {
+        const prompt = variation.prompts.simple || '';
+        expect(prompt).toContain('flash art on a plain white background');
+        expect(prompt).not.toContain('photograph of the finished tattoo on skin');
+      }
     }
   });
 

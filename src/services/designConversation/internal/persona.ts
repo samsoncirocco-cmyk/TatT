@@ -25,9 +25,26 @@ export const HANDOFF_MESSAGE =
   'great reason to talk to an artist directly. Want me to find a few who do ' +
   'free consultations in your style?';
 
+/** Opening words of the playback — also how the engine detects it already fired. */
+export const PROPOSAL_LEAD = "Here's what I'm hearing:";
+
+/** The standing offer that keeps the reveal one tap away at the proposal beat. */
+export const PROPOSAL_AFFORDANCE =
+  'Want to see four takes on this, or did I miss something?';
+
 /** The announce-and-confirm proposal beat (ADR-0020, exact phrasing style). */
 export function proposalReply(playback: string): string {
-  return `Here's what I'm hearing: ${playback}. Want to see four takes on this, or did I miss something?`;
+  return `${PROPOSAL_LEAD} ${playback}. ${PROPOSAL_AFFORDANCE}`;
+}
+
+/**
+ * A follow-up turn once the proposal has already been played back: the user
+ * asked something real ("do you know which characters im referring to?") and
+ * deserves an answer, not the same templated sentence again. The affordance
+ * is repeated so the reveal stays one tap away.
+ */
+export function proposalFollowUp(reply: string): string {
+  return `${reply} ${PROPOSAL_AFFORDANCE}`;
 }
 
 /** Persona block — near-verbatim ADR-0021. */
