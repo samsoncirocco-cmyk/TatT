@@ -1,12 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+
+/** Debounce delay (ms) before a typed search re-queries the live graph. */
+export const SEARCH_DEBOUNCE_MS = 300;
 
 /**
  * Search box + style chips for the /artists roster. Filters live in the
  * URL (?q=&style=&page=) so the server component re-queries the graph;
  * changing any filter resets to page 1.
+ *
+ * The search box debounces (SEARCH_DEBOUNCE_MS) so each keystroke doesn't
+ * fire a fresh Neo4j query — it composes with the style/hasPortfolio pills,
+ * which still apply instantly.
  */
 export default function RosterControls({
   styles,
@@ -22,6 +29,51 @@ export default function RosterControls({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [input, setInput] = useState(q);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Queries this component has pushed that haven't come back as `q` yet, in
+  // push order. A single "last submitted" value can't tell a stale echo of the
+  // user's own submit apart from genuine external navigation; the queue can,
+  // because an echo is by definition a value we pushed.
+  const pendingRef = useRef<string[]>([]);
+
+  const cancelDebounce = () => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+  };
+
+  /** The query the URL is currently heading toward — our last push, or `q`. */
+  const targetQuery = () =>
+    pendingRef.current.length
+      ? pendingRef.current[pendingRef.current.length - 1]
+      : q;
+
+  /** Record a query we are about to push so its echo isn't mistaken for navigation. */
+  const pushPending = (value: string) => {
+    pendingRef.current.push(value);
+  };
+
+  // Keep the box in sync when q changes. Navigations land in push order, so a
+  // `q` we queued means every earlier queued push was superseded — drop them
+  // all and leave the box alone. A `q` we never queued came from somewhere
+  // else (back/forward, a link, a shared URL), so adopt it.
+  useEffect(() => {
+    const landed = pendingRef.current.indexOf(q);
+    if (landed !== -1) {
+      pendingRef.current.splice(0, landed + 1);
+      return;
+    }
+    pendingRef.current = [];
+    cancelDebounce();
+    setInput(q);
+  }, [q]);
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
 
   const apply = (next: { q?: string; style?: string; hasPortfolio?: boolean }) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -38,9 +90,18 @@ export default function RosterControls({
     router.push(`/artists${params.size ? `?${params}` : ""}`);
   };
 
-  const submitSearch = () => {
-    const trimmed = input.trim();
-    if (trimmed !== q) apply({ q: trimmed });
+  const submitSearch = (value: string = input) => {
+    cancelDebounce();
+    const trimmed = value.trim();
+    if (trimmed === targetQuery()) return;
+    pushPending(trimmed);
+    apply({ q: trimmed });
+  };
+
+  const handleChange = (value: string) => {
+    setInput(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => submitSearch(value), SEARCH_DEBOUNCE_MS);
   };
 
   return (
@@ -57,8 +118,8 @@ export default function RosterControls({
           id="search"
           type="text"
           value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onBlur={submitSearch}
+          onChange={(e) => handleChange(e.target.value)}
+          onBlur={() => submitSearch()}
           onKeyDown={(e) => {
             if (e.key === "Enter") submitSearch();
           }}
@@ -102,7 +163,10 @@ export default function RosterControls({
           {(style || q || hasPortfolio) && (
             <button
               onClick={() => {
+                cancelDebounce();
                 setInput("");
+                // Clear changes q too, so queue it like any other submit.
+                if (targetQuery() !== "") pushPending("");
                 apply({ q: "", style: "All", hasPortfolio: false });
               }}
               className="ml-auto text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-pink font-body shrink-0 press"
