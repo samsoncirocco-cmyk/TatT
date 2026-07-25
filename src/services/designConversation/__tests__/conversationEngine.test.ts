@@ -18,6 +18,10 @@ import {
 } from '../index';
 import { scoreRecord, CONFIDENCE_THRESHOLD } from '../internal/confidence';
 import { resetStyleTagCache } from '../internal/ontology';
+import {
+  PROVIDER_FAILOVER_EVENT,
+  CONVERSATION_DEGRADED_EVENT,
+} from '../internal/providers';
 import { logger } from '@/lib/logger';
 
 vi.mock('@/lib/google-auth-edge', () => ({
@@ -423,6 +427,146 @@ describe('runTurn — provider chain', () => {
       expect(error.attempts.every((a) => a.reason === 'not configured')).toBe(true);
     });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+/* ── degradation logging (provider failover + scripted fallback) ─────────── */
+
+describe('runTurn — degradation logging', () => {
+  const warnMock = logger.warn as unknown as ReturnType<typeof vi.fn>;
+  const errorMock = logger.error as unknown as ReturnType<typeof vi.fn>;
+
+  function eventsOf(mock: ReturnType<typeof vi.fn>, eventType: string) {
+    return mock.mock.calls
+      .map((call) => call[0] as Record<string, unknown>)
+      .filter((entry) => entry?.event_type === eventType);
+  }
+
+  it('logs a failover event when one provider fails and another remains', async () => {
+    configureVertex();
+    configureOpenRouter();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 503, text: async () => 'overloaded' })
+      .mockResolvedValueOnce(openRouterResponse(SPARSE_PAYLOAD));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await runTurn({
+      messages: MESSAGES,
+      userTurn: 4,
+      sessionId: 'sess-abc',
+    });
+
+    // The turn was still served conversationally — no degraded event.
+    expect(result.turnLog.model).toBe('z-ai/glm-5.2');
+    expect(eventsOf(errorMock, CONVERSATION_DEGRADED_EVENT)).toHaveLength(0);
+
+    const failovers = eventsOf(warnMock, PROVIDER_FAILOVER_EVENT);
+    expect(failovers).toHaveLength(1);
+    expect(failovers[0]).toMatchObject({
+      event_type: 'design_conversation.provider.failover',
+      session_id: 'sess-abc',
+      turn: 4,
+      provider: 'vertex',
+      failure: 'provider_error',
+      error_class: 'ProviderHttpError',
+      status: 503,
+      next_provider: 'openrouter',
+      next_model: 'z-ai/glm-5.2',
+      outcome: 'failover',
+    });
+  });
+
+  it('records the error class and status of a failing OpenRouter fallback', async () => {
+    configureVertex();
+    configureOpenRouter();
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce({ ok: false, status: 429, text: async () => 'quota' })
+        .mockResolvedValueOnce({ ok: false, status: 401, statusText: 'Unauthorized' })
+    );
+
+    await expect(
+      runTurn({ messages: MESSAGES, userTurn: 2, sessionId: 'sess-xyz' })
+    ).rejects.toBeInstanceOf(ConversationUnavailableError);
+
+    const [degraded] = eventsOf(errorMock, CONVERSATION_DEGRADED_EVENT);
+    expect(degraded).toMatchObject({
+      event_type: 'design_conversation.degraded',
+      session_id: 'sess-xyz',
+      turn: 2,
+      outcome: 'scripted_fallback',
+      providers_attempted: ['vertex', 'openrouter'],
+    });
+    expect(degraded.attempts).toEqual([
+      {
+        provider: 'vertex',
+        model: 'gemini-2.5-flash-lite',
+        failure: 'provider_error',
+        error_class: 'ProviderHttpError',
+        status: 429,
+      },
+      {
+        provider: 'openrouter',
+        model: 'z-ai/glm-5.2',
+        failure: 'provider_error',
+        error_class: 'ProviderHttpError',
+        status: 401,
+      },
+    ]);
+  });
+
+  it('logs the scripted fallback when every provider is unavailable', async () => {
+    stubFetchNever();
+
+    await expect(
+      runTurn({ messages: MESSAGES, userTurn: 1, sessionId: 'sess-down' })
+    ).rejects.toBeInstanceOf(ConversationUnavailableError);
+
+    const degradeds = eventsOf(errorMock, CONVERSATION_DEGRADED_EVENT);
+    expect(degradeds).toHaveLength(1);
+    expect(degradeds[0]).toMatchObject({
+      session_id: 'sess-down',
+      turn: 1,
+      outcome: 'scripted_fallback',
+      providers_attempted: ['vertex', 'openrouter'],
+    });
+    expect(degradeds[0].attempts).toEqual([
+      {
+        provider: 'vertex',
+        model: 'gemini-2.5-flash-lite',
+        failure: 'not_configured',
+        error_class: null,
+        status: null,
+      },
+      {
+        provider: 'openrouter',
+        model: 'z-ai/glm-5.2',
+        failure: 'not_configured',
+        error_class: null,
+        status: null,
+      },
+    ]);
+  });
+
+  it('never logs prompt text, transcript content, or credentials', async () => {
+    configureVertex();
+    configureOpenRouter();
+    process.env.OPENROUTER_API_KEY = 'super-secret-key';
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('everything down')));
+
+    await expect(
+      runTurn({ messages: MESSAGES, userTurn: 1, sessionId: 'sess-quiet' })
+    ).rejects.toBeInstanceOf(ConversationUnavailableError);
+
+    const logged = JSON.stringify([...warnMock.mock.calls, ...errorMock.mock.calls]);
+    expect(logged).not.toContain('hummingbird');
+    expect(logged).not.toContain('grandmother');
+    expect(logged).not.toContain('super-secret-key');
+    // Not even the provider's own error message, which can echo the request.
+    expect(logged).not.toContain('everything down');
   });
 });
 
