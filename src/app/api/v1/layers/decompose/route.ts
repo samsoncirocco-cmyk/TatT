@@ -9,8 +9,19 @@ import startCrypto from 'crypto';
 import { uploadLayer, uploadLayerThumbnail, type GCSUploadResult } from '@/services/gcs-service';
 import { generateMask } from '@/lib/segmentation';
 import { verifyApiAuth } from '@/lib/api-auth';
+import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
+import { checkBudget, recordSpend } from '@/lib/budget-tracker';
 
 export const runtime = 'nodejs';
+
+// This route calls two paid providers per request: Vertex Vision API once
+// (object detection, ~$0.0015/image per CLAUDE.md) and Replicate SAM once
+// per detected object (up to 5). Neither was previously tracked against the
+// shared budget cap. Flat, conservative estimate; override via env.
+const LAYER_DECOMPOSE_BASE_COST_CENTS =
+    Number(process.env.LAYER_DECOMPOSE_BASE_COST_CENTS) || 1;
+const LAYER_DECOMPOSE_MASK_COST_CENTS =
+    Number(process.env.LAYER_DECOMPOSE_MASK_COST_CENTS) || 2;
 
 async function ensureLocalDir() {
     await fs.mkdir(UPLOAD_DIR, { recursive: true });
@@ -108,6 +119,19 @@ async function uploadThumbnailWithFallback(buffer: Buffer, designId: string, lay
 export async function POST(req: NextRequest) {
     const authError = await verifyApiAuth(req);
     if (authError) return authError;
+
+    const rateResult = await rateLimit(req, 'generation');
+    if (!rateResult.allowed) {
+        return rateLimitResponse(rateResult);
+    }
+
+    const budgetResult = await checkBudget();
+    if (!budgetResult.allowed) {
+        return NextResponse.json(
+            { error: 'Budget limit reached', spentCents: budgetResult.spentCents },
+            { status: 402 }
+        );
+    }
 
     const startTime = Date.now();
 
@@ -249,6 +273,13 @@ export async function POST(req: NextRequest) {
 
         const processedLayers = (await Promise.all(objectPromises)).filter(l => l !== null);
         layers.push(...processedLayers);
+
+        // Real spend: one Vision API call plus one Replicate SAM call per
+        // object layer actually produced (failed masks are skipped above and
+        // don't reach Replicate again).
+        await recordSpend(
+            LAYER_DECOMPOSE_BASE_COST_CENTS + LAYER_DECOMPOSE_MASK_COST_CENTS * processedLayers.length
+        );
 
         const durationMs = Date.now() - startTime;
 
