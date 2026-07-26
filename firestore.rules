@@ -31,9 +31,36 @@ service cloud.firestore {
     // Artist availability — one doc per artist, maintained server-side.
     // Missing doc means "unknown" (UI: "availability on request").
     // Readable by signed-in users; no client writes.
+    //
+    // This document now also carries the artist's own `schedule` and
+    // `overrides` (the windows they offer TatT). Writes STILL do not happen
+    // here: they go through PUT /api/v1/artist/availability, which proves
+    // `claimedByUid` first. A client-writable schedule would let anyone publish
+    // bookable time on someone else's profile.
     match /artist_availability/{artistId} {
       allow read: if request.auth != null;
       allow write: if false;
+    }
+
+    // Calendar connections — encrypted Google refresh tokens. Server only,
+    // and not readable either: this is the one collection holding a live
+    // credential for a third-party account. The non-secret summary reaches the
+    // artist through GET /api/v1/artist/calendar/connect.
+    match /artist_calendar_connections/{artistId} {
+      allow read, write: if false;
+    }
+
+    // OAuth state — single-use CSRF tokens for the calendar connect flow.
+    // A readable state token is a forgeable callback.
+    match /calendar_oauth_states/{state} {
+      allow read, write: if false;
+    }
+
+    // Slot holds — exclusive claims on an artist's time. Server only: a client
+    // that could write one could reserve an artist's entire month, and one that
+    // could delete one could steal a slot out from under whoever holds it.
+    match /booking_holds/{holdId} {
+      allow read, write: if false;
     }
 
     // Deny all other paths

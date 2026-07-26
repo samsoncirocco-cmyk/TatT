@@ -39,7 +39,20 @@ export const API_ROUTE_SECURITY: Record<string, RouteSecurityEntry> = {
   'predictions': { class: 'firebase-auth' },
   'predictions/[id]': { class: 'firebase-auth' },
   'v1/ar/visualize': { class: 'firebase-auth' },
+  'v1/artist/availability': { class: 'firebase-auth' },
+  'v1/artist/calendar/connect': { class: 'firebase-auth' },
+  'v1/artist/calendar/callback': {
+    class: 'public',
+    reason:
+      "Google's OAuth redirect targets the artist's BROWSER, so no Authorization header can be sent. " +
+      'Authentication is the `state` parameter: an unguessable, server-issued, single-use token minted ' +
+      'in v1/artist/calendar/connect while holding a verified Firebase uid and a proven claimedByUid ' +
+      'match, consumed inside a transaction and expiring in 10 minutes. The artist id comes from the ' +
+      'stored state, never from the query string, and the authorization code is exchanged server-side.',
+  },
+  'v1/artist/calendar/disconnect': { class: 'firebase-auth' },
   'v1/book': { class: 'firebase-auth' },
+  'v1/book/hold': { class: 'firebase-auth' },
   'v1/bookings': { class: 'firebase-auth' },
   'v1/bookings/[id]': { class: 'firebase-auth' },
   'v1/council/enhance': { class: 'firebase-auth' },
