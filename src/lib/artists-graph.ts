@@ -12,6 +12,7 @@
  */
 import { artistSlug } from "@/lib/artist-slug";
 import { CANONICAL_STYLES, styleMatchVariants } from "@/lib/style-vocabulary";
+import { NOT_REMOVED_CLAUSE } from "@/lib/takedown";
 
 export const ROSTER_PAGE_SIZE = 24;
 
@@ -70,8 +71,12 @@ export function buildRosterFilter(filter: RosterFilter): {
   // style yields an empty list, and `size(...) > 0 AND ...` then matches
   // nothing — a filter nobody can satisfy must return nothing, not everyone.
   const styleVariants = style ? styleMatchVariants(style) : [];
+  // Leads the clause and is not conditional on any filter: an artist who asked
+  // to be removed must be absent from every roster read, not merely from the
+  // unfiltered one. See docs/adr/0024.
   const where = `
-    ($q IS NULL
+    ${NOT_REMOVED_CLAUSE}
+    AND ($q IS NULL
       OR toLower(coalesce(a.name, '')) CONTAINS toLower($q)
       OR toLower(coalesce(a.city, '')) CONTAINS toLower($q)
       OR toLower(coalesce(a.shopName, '')) CONTAINS toLower($q))
@@ -170,10 +175,16 @@ export async function browseArtists(
   };
 }
 
-/** Single artist by graph id (`artist_*`); null when absent or graph is down. */
+/**
+ * Single artist by graph id (`artist_*`); null when absent or graph is down.
+ *
+ * A taken-down artist reads as absent — this backs the public profile page and
+ * /book, so it must not resolve for someone who asked to be removed.
+ */
 export async function getRosterArtistById(id: string): Promise<RosterArtist | null> {
   const query = `
     MATCH (a:Artist {id: $id})
+    WHERE ${NOT_REMOVED_CLAUSE}
     OPTIONAL MATCH (a)-[:SPECIALIZES_IN]->(st:Style)
     WITH a, collect(DISTINCT st.name) AS styles
     RETURN

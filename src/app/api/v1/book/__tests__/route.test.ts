@@ -250,3 +250,39 @@ describe('POST /api/v1/book — design-session Brief attach', () => {
     assertNoUndefined(doc);
   });
 });
+
+// An artist who asked to be removed must not be bookable. The existing
+// existence check deliberately fails OPEN on a Neo4j error so an outage never
+// drops a real booking — but the artist lookup itself now excludes removed
+// artists, so a takedown reads as "unknown artist" and the booking is refused.
+// See docs/adr/0024.
+describe('POST /api/v1/book — taken-down artists are not bookable', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    verifyApiAuthMock.mockResolvedValue(null);
+    verifyFirebaseTokenMock.mockResolvedValue({ uid: 'user-1' });
+    ensureAdminAppMock.mockReturnValue('env');
+    firestoreSetMock.mockResolvedValue(undefined);
+  });
+
+  it('refuses the booking and writes nothing when the artist lookup returns no rows', async () => {
+    // What a removed artist now looks like: the id-scoped query is gated on
+    // removedAt IS NULL, so it comes back empty.
+    cypherMock.mockResolvedValue([]);
+
+    const res = await POST(makeRequest({ ...VALID_BODY, artistId: 'artist_removed' }));
+
+    expect(res.status).toBe(400);
+    expect(firestoreSetMock).not.toHaveBeenCalled();
+  });
+
+  it('asks the graph for the artist with a removedAt guard', async () => {
+    cypherMock.mockResolvedValue([{}]);
+
+    await POST(makeRequest({ ...VALID_BODY, artistId: 'artist_10021' }));
+
+    expect(cypherMock).toHaveBeenCalledTimes(1);
+    const [cypher] = cypherMock.mock.calls[0];
+    expect(cypher).toContain('a.removedAt IS NULL');
+  });
+});

@@ -6,6 +6,7 @@
  */
 import { getApiAuthHeaders } from '@/lib/client-api-auth';
 import { styleMatchVariants } from '@/lib/style-vocabulary';
+import { NOT_REMOVED_CLAUSE } from '@/lib/takedown';
 
 // Type Definitions
 export interface ArtistPreferences {
@@ -270,6 +271,22 @@ export function buildHasPortfolioClause(): string {
 }
 
 /**
+ * Cypher fragment excluding artists who have been taken down (docs/adr/0024).
+ *
+ * Assumes the artist is bound as `a`. Every read in this module interpolates
+ * it as `${NOT_REMOVED}` — matching is the widest artist read surface in the
+ * app and, unlike the roster, has no shared WHERE builder, so the guard has to
+ * be applied per query site. An artist who asked to be removed and still turns
+ * up in match results has not been removed.
+ */
+export function buildNotRemovedClause(): string {
+    return NOT_REMOVED_CLAUSE;
+}
+
+/** Shorthand for interpolation into the query templates below. */
+const NOT_REMOVED = NOT_REMOVED_CLAUSE;
+
+/**
  * Find matching artists using Neo4j Cypher
  * Falls back to mock data when Neo4j unavailable
  */
@@ -335,6 +352,7 @@ export async function findMatchingArtists(preferences: ArtistPreferences): Promi
     WITH a, styles, portfolio, tattooTags + artistTags AS tags
 
     WHERE
+      ${NOT_REMOVED} AND
       // Style matching. $styleVariants is one lowercase spelling-group per
       // requested style (label + ontology id + aliases + the graph's own node
       // names), so "Japanese" matches artists stored as "Japanese (Irezumi)"
@@ -490,7 +508,8 @@ export async function findArtistMatchesForPulse(preferences: ArtistPreferences):
     WITH a, styles, portfolioImages, tattooTags + artistTags AS tags,
          (coalesce(a.city, '') + CASE WHEN a.state IS NULL THEN '' ELSE ', ' + a.state END) AS locationText
     WHERE
-      ($style IS NULL OR any(s IN styles WHERE toLower(s) = toLower($style)))
+      ${NOT_REMOVED}
+      AND ($style IS NULL OR any(s IN styles WHERE toLower(s) = toLower($style)))
       AND (
         $location IS NULL OR
         toLower(locationText) CONTAINS toLower($location) OR
@@ -598,6 +617,7 @@ export function isNeo4jEnabled(): boolean {
 export async function getArtistById(artistId: string): Promise<any | null> {
     const query = `
     MATCH (a:Artist {id: $artistId})
+    WHERE ${NOT_REMOVED}
     OPTIONAL MATCH (a)-[:SPECIALIZES_IN]->(st:Style)
     WITH a, collect(DISTINCT st.name) AS styles
     OPTIONAL MATCH (a)-[:CREATED]->(t:Tattoo)
@@ -625,7 +645,7 @@ export async function getArtistsByIds(artistIds: Array<string | number> = []): P
 
     const query = `
     MATCH (a:Artist)
-    WHERE a.id IN $artistIds
+    WHERE a.id IN $artistIds AND ${NOT_REMOVED}
     OPTIONAL MATCH (a)-[:SPECIALIZES_IN]->(st:Style)
     WITH a, collect(DISTINCT st.name) AS styles
     OPTIONAL MATCH (a)-[:CREATED]->(t:Tattoo)
@@ -667,6 +687,7 @@ export async function getArtistsByIds(artistIds: Array<string | number> = []): P
 export async function getArtistGenealogy(artistId: string): Promise<ArtistGenealogy | null> {
     const query = `
     MATCH (a:Artist {id: $artistId})
+    WHERE ${NOT_REMOVED}
 
     // Get direct mentor
     OPTIONAL MATCH (a)-[r:APPRENTICED_UNDER]->(directMentor:Artist)
@@ -738,7 +759,7 @@ export async function findArtistsByEmbeddingIds(embeddingIds: string[]): Promise
 
     const query = `
     MATCH (a:Artist)
-    WHERE a.embedding_id IN $embeddingIds
+    WHERE a.embedding_id IN $embeddingIds AND ${NOT_REMOVED}
     RETURN a
     ORDER BY a.name
   `;
