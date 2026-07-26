@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-25T21:56:46.952Z",
+  "generatedAt": "2026-07-26T16:42:20.673Z",
   "source": "instagram-bio",
   "inputDir": "/Users/samson/tatt-scraper/data/enrichment/instagram/apify-profiles",
   "guard": true,
@@ -30,7 +30,7 @@
       "Chicano": 12,
       "Anime": 142,
       "Minimalist": 0,
-      "Script": 60
+      "Lettering": 60
     },
     "countHistogram": {
       "1": 767,
@@ -57,7 +57,7 @@
     },
     {
       "artistId": "artist_bubbatattoos_",
-      "style": "Script",
+      "style": "Lettering",
       "match": "Lettering",
       "index": 59,
       "reason": "negated"
@@ -127,7 +127,7 @@
     },
     {
       "artistId": "artist_tattoosbymattsc",
-      "style": "Script",
+      "style": "Lettering",
       "match": "script",
       "index": 113,
       "reason": "negated"
@@ -1174,7 +1174,7 @@
       "handle": "alberto_noriegatattoos",
       "styles": [
         "Black & Grey",
-        "Script"
+        "Lettering"
       ],
       "bio": "♦️Black & Grey Tattoos + Lettering  \n♦️Denton, TX 📍| @inkaholics_tattoo940  \n❌DEPOSITS NON-REFUNDABLE❌\n🔗 Book through the “TEXT” tab 📲",
       "evidence": [
@@ -1184,7 +1184,7 @@
           "index": 2
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Lettering",
           "index": 25
         }
@@ -1301,7 +1301,7 @@
       "styles": [
         "Traditional",
         "Fine Line",
-        "Script"
+        "Lettering"
       ],
       "bio": "🇵🇷Tattoo Artist @torrestattoo.studio \nTraditional | Fine Line | Lettering 💉\nOmbré Powder Brow Specialist \nFor appointment inquiries DM or email 💌",
       "evidence": [
@@ -1316,7 +1316,7 @@
           "index": 54
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Lettering",
           "index": 66
         }
@@ -2086,7 +2086,7 @@
       "handle": "arinbeetatts",
       "styles": [
         "Black & Grey",
-        "Script"
+        "Lettering"
       ],
       "bio": "Alpha and Omega Tattoo parlor✨\nSt. George, Utah✨\nBlack and grey✨\nFloral and script✨\nPortraits too!✨\nDm for appointments✨\n435-915-6090✨",
       "evidence": [
@@ -2096,7 +2096,7 @@
           "index": 49
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "script",
           "index": 76
         }
@@ -2123,7 +2123,7 @@
       "styles": [
         "Black & Grey",
         "Fine Line",
-        "Script"
+        "Lettering"
       ],
       "bio": "North Mountain Tattoo\nChristian Tattoo Artist ✝️🕊️\n📍Phoenix, AZ \nFine Line | Black & Gray | Calligraphy\nDM for Appointments & Inquiries.",
       "evidence": [
@@ -2138,7 +2138,7 @@
           "index": 67
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Calligraphy\n",
           "index": 94
         }
@@ -2234,7 +2234,7 @@
       "styles": [
         "Black & Grey",
         "Realism",
-        "Script"
+        "Lettering"
       ],
       "bio": "DALLAS TATTOO ARTIST\nBlack & Grey Realism, Portraits, Script\nLLDROSE 🥀 LLJ🎰 6️⃣4️⃣0️⃣0️⃣",
       "evidence": [
@@ -2249,7 +2249,7 @@
           "index": 34
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Script\n",
           "index": 54
         }
@@ -2306,7 +2306,7 @@
       "styles": [
         "Black & Grey",
         "Realism",
-        "Script"
+        "Lettering"
       ],
       "bio": "⚜️Play 2 Win⚜️\nInland Empire 📍\nBlack & Grey Realism/Graffiti Lettering\n2xSICKKxCREW\nNani 🩷Daisy🍼👣",
       "evidence": [
@@ -2321,7 +2321,7 @@
           "index": 45
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Lettering\n",
           "index": 62
         }
@@ -2889,12 +2889,12 @@
       "artistId": "artist_basabetattoo",
       "handle": "basabetattoo",
       "styles": [
-        "Script"
+        "Lettering"
       ],
       "bio": "Born Weird Tattoo. Boise. All Styles. Cover Ups.  Lettering. Tattoo Repair. WALK INS WELCOME.",
       "evidence": [
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Lettering",
           "index": 50
         }
@@ -5536,7 +5536,7 @@
       "handle": "clyde_harless_tattoos",
       "styles": [
         "Black & Grey",
-        "Script"
+        "Lettering"
       ],
       "bio": "Custom Lettering & Black & Grey\nWords Carry Weight\n📍 Lexington, KY\nBy Appointment Only",
       "evidence": [
@@ -5546,7 +5546,7 @@
           "index": 19
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Lettering",
           "index": 7
         }
@@ -5860,7 +5860,7 @@
       "handle": "crazyleg_tattooz",
       "styles": [
         "Black & Grey",
-        "Script"
+        "Lettering"
       ],
       "bio": "Artist🤘@heart_luck_tattoo_co \n3926 John F Kennedy Pkwy Fort Collins, CO\nDM or text to BOOK💯\n⚠️ limited weekly availability\nScript&BlackNgrey",
       "evidence": [
@@ -5870,7 +5870,7 @@
           "index": 132
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Script",
           "index": 125
         }
@@ -5959,7 +5959,7 @@
       "handle": "crispinjamesart",
       "styles": [
         "Black & Grey",
-        "Script"
+        "Lettering"
       ],
       "bio": "Script | Lettering | Calligraffiti | Black & Grey\nTattoos Made with Purpose & Precision \n📍Bakersfield, CA\nBooking Link 👇🏼",
       "evidence": [
@@ -5969,7 +5969,7 @@
           "index": 37
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Script",
           "index": 0
         }
@@ -6229,7 +6229,7 @@
       "handle": "danibee_tattoo",
       "styles": [
         "Illustrative",
-        "Script"
+        "Lettering"
       ],
       "bio": "🩸  Self Sacrifice 🔺\n🩸  SATX @dandylandtx \n🩸  DMs Welcome\n🩸  Neo Trad, Illustrative B&G & Custom Lettering",
       "evidence": [
@@ -6239,7 +6239,7 @@
           "index": 75
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Lettering",
           "index": 101
         }
@@ -6787,7 +6787,7 @@
       "handle": "deadsoul.ink",
       "styles": [
         "Realism",
-        "Script"
+        "Lettering"
       ],
       "bio": "@alohasaltlake \n📍MURRAY, UTAH \n⚔️Realism \n⚔️Semirealism \n⚔️Lettering \n⚔️Cover Ups \n🔹BLESSED🔹",
       "evidence": [
@@ -6797,7 +6797,7 @@
           "index": 34
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Lettering",
           "index": 60
         }
@@ -6859,7 +6859,7 @@
       "handle": "dehart_tattoo",
       "styles": [
         "Traditional",
-        "Script"
+        "Lettering"
       ],
       "bio": "Tattoo artist at McNabbs Tattoo Parlor - 💥 Dm to book or contact shop directly. American traditional and ornamental lettering tattoos.",
       "evidence": [
@@ -6869,7 +6869,7 @@
           "index": 81
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "lettering ",
           "index": 117
         }
@@ -7138,7 +7138,7 @@
       "handle": "dirty_x_book",
       "styles": [
         "Black & Grey",
-        "Script"
+        "Lettering"
       ],
       "bio": "Tattoo Artist/ Black and Grey/ lettering/ custom work/💍geacecake13 🌊Slay",
       "evidence": [
@@ -7148,7 +7148,7 @@
           "index": 15
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "lettering",
           "index": 31
         }
@@ -7228,7 +7228,7 @@
       "handle": "dollfacetattoos",
       "styles": [
         "Black & Grey",
-        "Script"
+        "Lettering"
       ],
       "bio": "𝓞𝔀𝓷𝓮𝓻 @throughyourskin\nTattooer ✨Master  Piercer \n✨L🗡️A  Prez✨ Line Work Expert\n✨Lettering✨Floral  \n✨Black n Grey & Color\n✨ Tattoo Booking Form Below✨",
       "evidence": [
@@ -7238,7 +7238,7 @@
           "index": 107
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Lettering",
           "index": 87
         }
@@ -7409,7 +7409,7 @@
       "styles": [
         "Traditional",
         "Chicano",
-        "Script"
+        "Lettering"
       ],
       "bio": "Student of The Game\n@ridersonthestormhtx\nBooking Required\nTraditional / B&G\nChicano Lettering",
       "evidence": [
@@ -7424,7 +7424,7 @@
           "index": 76
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Lettering",
           "index": 84
         }
@@ -7952,7 +7952,7 @@
       "styles": [
         "Black & Grey",
         "Realism",
-        "Script"
+        "Lettering"
       ],
       "bio": "Tattoo Artist | Black N Gray Realism | Lettering\n📍 Cerritos CA\nCustom Tattoos | By appointment only\nAppointments or Questions:\nTXT (213)204-0143",
       "evidence": [
@@ -7967,7 +7967,7 @@
           "index": 29
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Lettering",
           "index": 39
         }
@@ -8009,7 +8009,7 @@
       "styles": [
         "Neo-Traditional",
         "Black & Grey",
-        "Script"
+        "Lettering"
       ],
       "bio": "Tatuador 🇲🇽\nCarpentersville-Waukegan-IL🇺🇲\n✒️Black and gray✒️Lettering ✒️Neotraditional \nTattoo artist in @tiot_cville @toughitouttattoowaukegan",
       "evidence": [
@@ -8024,7 +8024,7 @@
           "index": 48
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Lettering",
           "index": 64
         }
@@ -8361,12 +8361,12 @@
       "artistId": "artist_evaneskwilson",
       "handle": "evaneskwilson",
       "styles": [
-        "Script"
+        "Lettering"
       ],
       "bio": "Owner of Redtail Tattoo Studio and Gallery\n@ War Horse Tattoo Monthly\nCalligraphy, Fine Art, Murals, Design",
       "evidence": [
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Calligraphy",
           "index": 70
         }
@@ -8474,7 +8474,7 @@
       "styles": [
         "Black & Grey",
         "Realism",
-        "Script"
+        "Lettering"
       ],
       "bio": "✨️Black and Grey Realism | Lettering\n📍 353 Palisade Ave, Jersey City, NJ\n@fantasmita147 \nGalindoangel916@gmail.com\n@jp_ink_studios",
       "evidence": [
@@ -8489,7 +8489,7 @@
           "index": 17
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Lettering",
           "index": 27
         }
@@ -9391,7 +9391,7 @@
       "handle": "get_struck_303",
       "styles": [
         "Black & Grey",
-        "Script"
+        "Lettering"
       ],
       "bio": "🔎Mile high 303\n☎️720-571-4444\n✍🏽Freehand artist \n💉Black n grey/custom lettering",
       "evidence": [
@@ -9401,7 +9401,7 @@
           "index": 53
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "lettering",
           "index": 73
         }
@@ -10085,7 +10085,7 @@
       "styles": [
         "Black & Grey",
         "Realism",
-        "Script"
+        "Lettering"
       ],
       "bio": "📍 •\t“Realistic black & grey portraits Riverside Ca -By appointment  \nPortraits -roses -statues -script  \nDM “BOOK” 4pricing & available dates 📍",
       "evidence": [
@@ -10100,7 +10100,7 @@
           "index": 6
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "script  \n",
           "index": 97
         }
@@ -10571,7 +10571,7 @@
       "styles": [
         "Fine Line",
         "Anime",
-        "Script"
+        "Lettering"
       ],
       "bio": "TATTOO ARTIST NAME: ƁÅRƁÅÐØ$ \n484X358X1586 DM FOR APPOINTMENT \nFRECKLES/FINE-LINE/LETTERING/DOT WORK/HORROR/ANIME \nSick ink studios Whitehall PA",
       "evidence": [
@@ -10586,7 +10586,7 @@
           "index": 108
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "LETTERING",
           "index": 82
         }
@@ -10827,12 +10827,12 @@
       "artistId": "artist_ignaciogtattoos",
       "handle": "ignaciogtattoos",
       "styles": [
-        "Script"
+        "Lettering"
       ],
       "bio": "📍Everett, WA | @colbyavetattoo\nTATTOOS TEXT (206)499-2423\nALL STYLES AND LETTERING 🦅",
       "evidence": [
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "LETTERING",
           "index": 74
         }
@@ -10949,7 +10949,7 @@
       "styles": [
         "Black & Grey",
         "Fine Line",
-        "Script"
+        "Lettering"
       ],
       "bio": "✨Tattoo Artist at Iron Heart Tattoo - Eugene, OR✨🖤 Black & Grey \n✍️ Fine Line & Script\n🌿 Delicate • Detailed",
       "evidence": [
@@ -10964,7 +10964,7 @@
           "index": 69
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Script",
           "index": 81
         }
@@ -11230,7 +11230,7 @@
       "handle": "inkbyjessec",
       "styles": [
         "Neo-Traditional",
-        "Script"
+        "Lettering"
       ],
       "bio": "Tattoo Artist/ Piercer at @underthesurfacetattoos Cover-ups,NeoTraditional,Custom Lettering,etc\n19 years experience cleanest lines around 5613862172",
       "evidence": [
@@ -11240,7 +11240,7 @@
           "index": 60
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Lettering",
           "index": 82
         }
@@ -11413,7 +11413,7 @@
       "handle": "inked_by_franco",
       "styles": [
         "Black & Grey",
-        "Script"
+        "Lettering"
       ],
       "bio": "• Black & Grey | Lettering \n• 📍 @texasbodyart \n• ⚡️limited slots weekly",
       "evidence": [
@@ -11423,7 +11423,7 @@
           "index": 2
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Lettering",
           "index": 17
         }
@@ -11976,7 +11976,7 @@
         "Black & Grey",
         "Realism",
         "Japanese",
-        "Script"
+        "Lettering"
       ],
       "bio": "Artist/Owner @golden_cage_tattoo\nNo DM's😅\nBlack and grey realism\nexpert on cover-ups \nscript \nJapanese \n📥📚 goldencagetattoo@gmail.com\n8014732982",
       "evidence": [
@@ -11996,7 +11996,7 @@
           "index": 95
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "script \n",
           "index": 87
         }
@@ -12008,7 +12008,7 @@
       "styles": [
         "Black & Grey",
         "Anime",
-        "Script"
+        "Lettering"
       ],
       "bio": "ARTIST / FILMER  \nANIME/ LETTERING/ BLACK N GRAY \nDM for booking",
       "evidence": [
@@ -12023,7 +12023,7 @@
           "index": 18
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "LETTERING",
           "index": 25
         }
@@ -13596,12 +13596,12 @@
       "artistId": "artist_johnnysartwork",
       "handle": "johnnysartwork",
       "styles": [
-        "Script"
+        "Lettering"
       ],
       "bio": "✒ Calligraphy-Murals-Tattoos\n🎬 Palyanytsia\n📍@renaissancetattoostudio\n📍400 S El Camino Real, San Clemente, CA 92672",
       "evidence": [
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Calligraphy",
           "index": 2
         }
@@ -14000,7 +14000,7 @@
       "styles": [
         "Black & Grey",
         "Realism",
-        "Script"
+        "Lettering"
       ],
       "bio": "📍 Wilmington DE | @_inkoasis \n🗡️ Black & grey | realism,Lettering\n🗡️ 50$ DEPOSIT(non refundable) \n🗓️ BOOKING JULY & AUGUST",
       "evidence": [
@@ -14015,7 +14015,7 @@
           "index": 50
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Lettering",
           "index": 58
         }
@@ -15367,7 +15367,7 @@
       "handle": "kyle.tattoos",
       "styles": [
         "Tribal",
-        "Script"
+        "Lettering"
       ],
       "bio": "🌴 ᴏ’ᴀʜᴜ ᴛᴀᴛᴛᴏᴏ ᴀʀᴛɪꜱᴛ 🌴\n@properaftercare pro team artist \n| Blk & Gry | Polynesian Tribal | Custom Lettering \nBookings➡️ @booking.kyletattoos",
       "evidence": [
@@ -15377,7 +15377,7 @@
           "index": 85
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Lettering \n",
           "index": 101
         }
@@ -15851,7 +15851,7 @@
       "styles": [
         "Traditional",
         "Fine Line",
-        "Script"
+        "Lettering"
       ],
       "bio": "Tattoo Artist 🌈 Hawaii\n✨ B/G fine line, traditional, lettering + beyond\n✨ lexpetrofftattoo.com\n✨ Tattooing in Hawaii @southseastattoohilo",
       "evidence": [
@@ -15866,7 +15866,7 @@
           "index": 30
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "lettering",
           "index": 54
         }
@@ -15941,7 +15941,7 @@
       "styles": [
         "Black & Grey",
         "Realism",
-        "Script"
+        "Lettering"
       ],
       "bio": "Sacramento/Roseville Tattoo Artist\n» Black and Grey Realism\n» Custom Script\n» Text 2097910490 or click link to book\n» $200/hr minimum",
       "evidence": [
@@ -15956,7 +15956,7 @@
           "index": 52
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Script",
           "index": 69
         }
@@ -17295,7 +17295,7 @@
         "Traditional",
         "Fine Line",
         "Realism",
-        "Script"
+        "Lettering"
       ],
       "bio": "Tattoo Artist⚡️ @BrokenHeartsTC 💔 Minneapolis, MN\nLettering • Realism • Traditional • Fine Line • \nWalk-ins Welcome, Appointments Book via link v.\n🖤🌙🖤",
       "evidence": [
@@ -17315,7 +17315,7 @@
           "index": 63
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Lettering",
           "index": 51
         }
@@ -17385,12 +17385,12 @@
       "artistId": "artist_mex.art.tatto",
       "handle": "mex.art.tatto",
       "styles": [
-        "Script"
+        "Lettering"
       ],
       "bio": "⚜️L E T T E R - K I N G⚜️\n⚜️Specialized freehand Lettering ⚜️\n🔥100 minimum 🔥\n•Sp: jairo_10flores👻\n•Dalton Ga - SLPaz Gto🇲🇽🇺🇸",
       "evidence": [
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Lettering",
           "index": 49
         }
@@ -17720,7 +17720,7 @@
       "styles": [
         "Black & Grey",
         "Illustrative",
-        "Script"
+        "Lettering"
       ],
       "bio": "Shop: @sundeviltattoo  \n📍 Melbourne, FL\n📝 DM TO BOOK\n•Lettering\n•Black&Gray\n•Illustrative color",
       "evidence": [
@@ -17735,7 +17735,7 @@
           "index": 79
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Lettering",
           "index": 56
         }
@@ -17963,7 +17963,7 @@
       "styles": [
         "Black & Grey",
         "Fine Line",
-        "Script"
+        "Lettering"
       ],
       "bio": "atlanta ♡ \nbooking august\nblack & grey/fine line/low poly/script",
       "evidence": [
@@ -17978,7 +17978,7 @@
           "index": 39
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "script",
           "index": 58
         }
@@ -18277,7 +18277,7 @@
       "handle": "mrcupcaketattoo",
       "styles": [
         "Fine Line",
-        "Script"
+        "Lettering"
       ],
       "bio": "❤️Mr.Cupcake❤️ Fineline-Tradish-Cover Ups-Lettering .Large or Small I like em’ all… online booking and afterpay now available !",
       "evidence": [
@@ -18287,7 +18287,7 @@
           "index": 15
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Lettering",
           "index": 42
         }
@@ -18686,7 +18686,7 @@
       "styles": [
         "Black & Grey",
         "Realism",
-        "Script"
+        "Lettering"
       ],
       "bio": "Specializing in Black and Grey Realism and Script. For all booking please visit my website.",
       "evidence": [
@@ -18701,7 +18701,7 @@
           "index": 31
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Script",
           "index": 43
         }
@@ -19425,7 +19425,7 @@
         "Black & Grey",
         "Fine Line",
         "Anime",
-        "Script"
+        "Lettering"
       ],
       "bio": "⚡️TATTOO ARTIST⚡️\n ~Timeless Ink~Everett Ma\nFine line✍️\nColor ✍️\nBlack and grey ✍️\nScript ✍️\nAnime ✍️\nCover ups ✍️\nReworks ✍️\n✨Dm for all inquiries 🤝",
       "evidence": [
@@ -19445,7 +19445,7 @@
           "index": 93
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Script",
           "index": 83
         }
@@ -19674,7 +19674,7 @@
         "Traditional",
         "Blackwork",
         "Fine Line",
-        "Script"
+        "Lettering"
       ],
       "bio": "Auralite Art Collective \n3 Year Licensed Tattoo Artist \nTraditional, Blackwork, Lettering, B&G, Fineline\nBooking Link below 👇🏽",
       "evidence": [
@@ -19694,7 +19694,7 @@
           "index": 96
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Lettering",
           "index": 80
         }
@@ -19941,12 +19941,12 @@
       "artistId": "artist_pm.ink",
       "handle": "pm.ink",
       "styles": [
-        "Script"
+        "Lettering"
       ],
       "bio": "• @bloomintattoo \n•📍Deerfield beach, Florida 🇺🇸 🇨🇿\n• tattoos • murals • freehand lettering • oil painting \n• booking dm/email 📫",
       "evidence": [
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "lettering",
           "index": 86
         }
@@ -20211,12 +20211,12 @@
       "artistId": "artist_raindrop454",
       "handle": "raindrop454",
       "styles": [
-        "Script"
+        "Lettering"
       ],
       "bio": "CALLIGRAPHY PRINCESS 🎨",
       "evidence": [
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "CALLIGRAPHY ",
           "index": 0
         }
@@ -20898,7 +20898,7 @@
         "Traditional",
         "Black & Grey",
         "Illustrative",
-        "Script"
+        "Lettering"
       ],
       "bio": "Tattooing since 2001 \nAntifa since 78\nBright and bold traditional and illustrative, Black and grey, Lettering\n@enigmastudiosrva \n@rivercitytattoorva",
       "evidence": [
@@ -20918,7 +20918,7 @@
           "index": 70
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Lettering",
           "index": 100
         }
@@ -21121,7 +21121,7 @@
       "handle": "rubyruby_tattoo",
       "styles": [
         "Fine Line",
-        "Script"
+        "Lettering"
       ],
       "bio": "Fine line • Botanical • Lettering • Minimalistic\nDM to book an appt. minimum $150 (MON-THUR-FRI-SUN)\n😷 Required\n🦋 @camouflage_atl",
       "evidence": [
@@ -21131,7 +21131,7 @@
           "index": 0
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Lettering",
           "index": 24
         }
@@ -21560,7 +21560,7 @@
       "styles": [
         "Blackwork",
         "Fine Line",
-        "Script"
+        "Lettering"
       ],
       "bio": "🇪🇨Tattoo Artist | Fine Line • Blackwork • Color • lettering \n📍 Connecticut, USA \n🏬 Studio Tattoo @xclusiveink \n📩 DM or call (860) 471-6263",
       "evidence": [
@@ -21575,7 +21575,7 @@
           "index": 20
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "lettering",
           "index": 52
         }
@@ -21671,7 +21671,7 @@
       "styles": [
         "Fine Line",
         "Illustrative",
-        "Script"
+        "Lettering"
       ],
       "bio": "Boston MA | @etherealinkma 📍\nFine-line | Illustrative | Lettering \nRequest Form ↓",
       "evidence": [
@@ -21686,7 +21686,7 @@
           "index": 42
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Lettering \n",
           "index": 57
         }
@@ -22059,12 +22059,12 @@
       "artistId": "artist_sergeymurdoc",
       "handle": "sergeymurdoc",
       "styles": [
-        "Script"
+        "Lettering"
       ],
       "bio": "Sergei Briushinin\nfounder of •Ornamental Lettering•\nand @gypsyrotary\nSponsored: @hustlebutterdeluxe @allegoryink\nDM for Appointments",
       "evidence": [
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Lettering",
           "index": 41
         }
@@ -23576,7 +23576,7 @@
       "styles": [
         "Traditional",
         "Black & Grey",
-        "Script"
+        "Lettering"
       ],
       "bio": "Father•Tattooer\nWalk-ins & Appts\n📍@gatewaytattoocompany @tigerrosetattooog \nBlack&Grey•Traditional•Script\nDeposits required | Non-refundable\n~▲~",
       "evidence": [
@@ -23591,7 +23591,7 @@
           "index": 77
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Script\n",
           "index": 100
         }
@@ -23721,12 +23721,12 @@
       "artistId": "artist_tattoo_sal805",
       "handle": "tattoo_sal805",
       "styles": [
-        "Script"
+        "Lettering"
       ],
       "bio": "Tattoo Artist @downtowntattoo.ox                                      Appointments/deposit Req.  Non Refundable. Oxnard Ca.  Custom Lettering, BLK&GRY",
       "evidence": [
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Lettering",
           "index": 132
         }
@@ -23736,12 +23736,12 @@
       "artistId": "artist_tattoo_slick",
       "handle": "tattoo_slick",
       "styles": [
-        "Script"
+        "Lettering"
       ],
       "bio": "@ironwoodtattoocollective\n801-796-2444\n🙏🏽God first✝️  \n🏆🔏 Lettering/ B&G\n✈️ Boise,ID July17-19\n💪🏽Pro-team @bigsleepsink @taetu4u\n📆Hit the link!⤵️",
       "evidence": [
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Lettering",
           "index": 62
         }
@@ -23873,7 +23873,7 @@
       "styles": [
         "Traditional",
         "Black & Grey",
-        "Script"
+        "Lettering"
       ],
       "bio": "Tattooer since 08 black and grey, lettering, 💀, 🌹 traditional tattoos, @depictiontattoos Arlington TEXAS!!!",
       "evidence": [
@@ -23888,7 +23888,7 @@
           "index": 18
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "lettering",
           "index": 34
         }
@@ -26163,12 +26163,12 @@
       "artistId": "artist_trustydizon",
       "handle": "trustydizon",
       "styles": [
-        "Script"
+        "Lettering"
       ],
       "bio": "⚠️ 18+ ONLY \nCustom lettering / B&G \nLocated at @truthandtriumphtattoo Vandalia location\nAll booking & Info through my website",
       "evidence": [
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "lettering",
           "index": 20
         }
@@ -26200,7 +26200,7 @@
       "handle": "tylergtattoos",
       "styles": [
         "Black & Grey",
-        "Script"
+        "Lettering"
       ],
       "bio": "TATTOO ARTIST at \n@talontattoowsnc \nEASTCOAST\nBLACK AND GRAY\nDARK LETTERING\nCODES\n@anymeansnecessaryclothing -TYLERGREENFIELD",
       "evidence": [
@@ -26210,7 +26210,7 @@
           "index": 46
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "LETTERING\n",
           "index": 66
         }
@@ -26626,7 +26626,7 @@
       "handle": "vicer3tattoos",
       "styles": [
         "Illustrative",
-        "Script"
+        "Lettering"
       ],
       "bio": "Tattoo Artist\nBng illustrative and lettering tattoos\n(501)747-1272 to schedule\n🫡",
       "evidence": [
@@ -26636,7 +26636,7 @@
           "index": 18
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "lettering ",
           "index": 35
         }
@@ -26677,7 +26677,7 @@
       "handle": "victattoo22",
       "styles": [
         "Fine Line",
-        "Script"
+        "Lettering"
       ],
       "bio": "🇨🇴 \nMeaningful & minimal designs\nFine line & lettering tattoos\n📍 Signature Luxury Tattoo\n✉️ Bookings via DM",
       "evidence": [
@@ -26687,7 +26687,7 @@
           "index": 35
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "lettering ",
           "index": 47
         }
@@ -26735,7 +26735,7 @@
       "styles": [
         "Neo-Traditional",
         "Fine Line",
-        "Script"
+        "Lettering"
       ],
       "bio": "DENVER TATTOO ARTIST\n@tildeathdenver \nTo book DM or email vinnypxpxtattoos@gmail.com \n•PORTRAITS\n•DARK LETTERING\n•NEOTRADITIONAL\n•FINE LINE",
       "evidence": [
@@ -26750,7 +26750,7 @@
           "index": 130
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "LETTERING",
           "index": 103
         }
@@ -26851,7 +26851,7 @@
       "handle": "vxn.ink",
       "styles": [
         "Fine Line",
-        "Script"
+        "Lettering"
       ],
       "bio": "Bay Area Tattoo Artist \n▫️Fineline / Freehand / Floral / Lettering\n▫️Booking SEPT (M-F)\n▫️1189 Branham Ln, San Jose\n @newgenerationtattoo",
       "evidence": [
@@ -26861,7 +26861,7 @@
           "index": 26
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Lettering",
           "index": 57
         }
@@ -27022,7 +27022,7 @@
       "handle": "wicked_ink1018",
       "styles": [
         "Black & Grey",
-        "Script"
+        "Lettering"
       ],
       "bio": "🖋️ Tattoo Artist @viva.tattoostudio \n💉Now Booking – July\n✨ Black & Grey | Script | Custom Designs\n💵 $100 Shop Minimum | 📩 DM to book",
       "evidence": [
@@ -27032,7 +27032,7 @@
           "index": 61
         },
         {
-          "style": "Script",
+          "style": "Lettering",
           "match": "Script",
           "index": 76
         }

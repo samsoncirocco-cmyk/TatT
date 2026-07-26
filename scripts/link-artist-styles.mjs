@@ -63,7 +63,7 @@
 import { readFile } from 'node:fs/promises';
 import { config } from 'dotenv';
 
-import { normalizeStyleRecord, toStylePairs, CANONICAL_STYLE_NAMES } from './lib/artist-styles.mjs';
+import { normalizeStyleRecord, toStylePairs, resolveOntologyLabel } from './lib/artist-styles.mjs';
 
 config();
 config({ path: '.env.local', override: true });
@@ -291,10 +291,19 @@ async function main() {
       }
     }
 
-    // Vocabulary sanity: styles the artifact never uses are fine, but a style
-    // outside the canonical list should never have got this far.
-    const offVocab = styleNames.filter((s) => !CANONICAL_STYLE_NAMES.includes(s));
+    // Vocabulary sanity: by this point every name is a GRAPH spelling produced
+    // by toStylePairs, so anything that no longer resolves through the ontology
+    // means the two data files drifted from what was written.
+    const offVocab = styleNames.filter((s) => !resolveOntologyLabel(s));
     if (offVocab.length > 0) console.log(`  ⚠ off-vocabulary styles survived normalization: ${offVocab.join(', ')}`);
+
+    // The invariant the vocabulary rebase exists to protect: this import adds
+    // artists to Style nodes that already exist, and never mints a new one.
+    if (newStyleNodes.length > 0) {
+      console.log(`\n  ⚠ WOULD CREATE ${newStyleNodes.length} NEW Style node(s): ${newStyleNodes.join(', ')}`);
+      console.log('    A new Style node re-splits the controlled vocabulary (data/style-ontology.json).');
+      console.log('    Re-check the tag → graph-name mapping in scripts/lib/artist-styles.mjs before executing.');
+    }
 
     if (!opts.execute) {
       console.log('\n─── DRY RUN — nothing was written ───');

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { CANONICAL_STYLES } from '@/lib/design-style-signal';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { resolveCanonicalStyle } from '@/lib/style-vocabulary';
 import {
   CANONICAL_STYLE_NAMES,
   STYLE_PATTERNS,
@@ -9,17 +11,69 @@ import {
   isSafeArtistId,
   normalizeStyleRecord,
   toStylePairs,
+  resolveOntologyLabel,
+  graphStyleName,
 } from './artist-styles.mjs';
 
+// Read the real vocabulary files — the same pair src/lib/style-vocabulary.ts
+// reads — so growth of either one is caught here rather than in production.
+const readData = (f) => JSON.parse(readFileSync(path.join(process.cwd(), 'data', f), 'utf8'));
+const ONTOLOGY = readData('style-ontology.json');
+const GRAPH_VOCABULARY = readData('graph-style-vocabulary.json');
+
 describe('vocabulary lock', () => {
-  // The whole enrichment lane is only useful if it writes the exact style
-  // strings the matcher filters on. This test is the tripwire for drift.
-  it('is set-equal to CANONICAL_STYLES in src/lib/design-style-signal.ts', () => {
-    expect([...CANONICAL_STYLE_NAMES].sort()).toEqual([...CANONICAL_STYLES].sort());
+  // The whole enrichment lane is only useful if it writes names the graph and
+  // the matcher already agree on. These are the tripwires for drift.
+  it('emits only labels from data/style-ontology.json', () => {
+    const labels = new Set(ONTOLOGY.tags.map((t) => t.label));
+    expect(CANONICAL_STYLE_NAMES.filter((n) => !labels.has(n))).toEqual([]);
   });
 
-  it('has exactly one regex rule per canonical style', () => {
+  it('every rule is keyed by a real ontology tag id', () => {
+    const ids = new Set(ONTOLOGY.tags.map((t) => t.id));
+    expect(STYLE_PATTERNS.filter((r) => !ids.has(r.tag)).map((r) => r.tag)).toEqual([]);
+  });
+
+  it('has exactly one regex rule per emittable style', () => {
     expect(STYLE_PATTERNS.map((r) => r.style).sort()).toEqual([...CANONICAL_STYLE_NAMES].sort());
+  });
+
+  // The invariant PR #166 established and this lane must not undo: every name
+  // MERGE is given is a spelling the graph already uses, so no Style node is
+  // created and the vocabulary cannot re-split.
+  it('maps every emittable style to a graph spelling, never a new one', () => {
+    const graphNames = new Set(GRAPH_VOCABULARY.styles.flatMap((s) => s.graphNames));
+    const ontologyLabels = new Set(ONTOLOGY.tags.map((t) => t.label));
+    for (const label of CANONICAL_STYLE_NAMES) {
+      const name = graphStyleName(label);
+      expect(name, `${label} has no graph spelling`).toBeTruthy();
+      // Either the graph's own spelling for a tag it already answers with, or
+      // the ontology label for a tag whose node exists but carries no artists.
+      expect(graphNames.has(name) || ontologyLabels.has(name)).toBe(true);
+    }
+  });
+
+  it('never writes "Script" — it is an alias of Lettering (PR #166)', () => {
+    expect(CANONICAL_STYLE_NAMES).not.toContain('Script');
+    expect(resolveOntologyLabel('Script')).toBe('Lettering');
+    expect(graphStyleName('Script')).toBe('Lettering');
+  });
+
+  it('writes the graph spelling for Japanese, not the empty twin node', () => {
+    expect(graphStyleName('Japanese')).toBe('Japanese (Irezumi)');
+  });
+
+  // Anything this lane writes must be resolvable by the matcher, or the edge is
+  // unreachable from the UI.
+  it('every written name resolves in src/lib/style-vocabulary.ts', () => {
+    for (const label of CANONICAL_STYLE_NAMES) {
+      const name = graphStyleName(label);
+      const resolved = resolveCanonicalStyle(name);
+      // Tags the graph has no artists for yet (Lettering, Minimalist) are not
+      // matchable until sync-graph-style-vocabulary.mjs is re-run after import.
+      const matchableYet = GRAPH_VOCABULARY.styles.some((s) => s.graphNames.includes(name));
+      if (matchableYet) expect(resolved, `${name} does not resolve`).toBeTruthy();
+    }
   });
 });
 
@@ -78,7 +132,7 @@ describe('rejectSpuriousEvidence', () => {
     });
     expect(guard('$150hr deposit. I do not do script')).toEqual({
       kept: [],
-      rejected: ['Script:negated'],
+      rejected: ['Lettering:negated'],
     });
     expect(guard('We do NOT offer fine line or micro tattoos')).toEqual({
       kept: [],
@@ -138,16 +192,29 @@ describe('normalizeStyleRecord', () => {
     ).toEqual({ artistId: 'artist_x', styles: ['Fine Line', 'Realism'] });
   });
 
-  it('drops off-vocabulary styles the graph filter could never match', () => {
-    expect(normalizeStyleRecord({ artistId: 'artist_x', styles: ['Ornamental', 'Dotwork', 'Realism'] })).toEqual({
+  it('drops styles outside the controlled vocabulary', () => {
+    expect(
+      normalizeStyleRecord({ artistId: 'artist_x', styles: ['Steampunk', 'Trash Polka', 'Realism'] }),
+    ).toEqual({ artistId: 'artist_x', styles: ['Realism'] });
+  });
+
+  it('resolves an older spelling to its current label', () => {
+    // The committed artifact was harvested before PR #166 folded "script" into
+    // `lettering`; it must keep working without being regenerated.
+    expect(normalizeStyleRecord({ artistId: 'artist_x', styles: ['Script'] })).toEqual({
       artistId: 'artist_x',
-      styles: ['Realism'],
+      styles: ['Lettering'],
+    });
+    // …and an alias plus its label collapse to one entry, not two.
+    expect(normalizeStyleRecord({ artistId: 'artist_x', styles: ['Script', 'Lettering'] })).toEqual({
+      artistId: 'artist_x',
+      styles: ['Lettering'],
     });
   });
 
   it('returns null when the row is unusable', () => {
     expect(normalizeStyleRecord({ artistId: 'artist_x', styles: [] })).toBeNull();
-    expect(normalizeStyleRecord({ artistId: 'artist_x', styles: ['Ornamental'] })).toBeNull();
+    expect(normalizeStyleRecord({ artistId: 'artist_x', styles: ['Steampunk'] })).toBeNull();
     expect(normalizeStyleRecord({ styles: ['Realism'] })).toBeNull();
     expect(normalizeStyleRecord({ artistId: '../x', styles: ['Realism'] })).toBeNull();
     expect(normalizeStyleRecord(null)).toBeNull();
@@ -159,12 +226,20 @@ describe('toStylePairs', () => {
     expect(
       toStylePairs([
         { artistId: 'a1', styles: ['Realism', 'Anime'] },
-        { artistId: 'a2', styles: ['Script'] },
+        { artistId: 'a2', styles: ['Lettering'] },
       ]),
     ).toEqual([
       { artistId: 'a1', style: 'Realism' },
       { artistId: 'a1', style: 'Anime' },
-      { artistId: 'a2', style: 'Script' },
+      { artistId: 'a2', style: 'Lettering' },
+    ]);
+  });
+
+  // The seam that keeps the vocabulary from re-splitting: the artifact records
+  // the ontology label, the graph gets its own spelling.
+  it('translates the ontology label into the graph spelling', () => {
+    expect(toStylePairs([{ artistId: 'a1', styles: ['Japanese'] }])).toEqual([
+      { artistId: 'a1', style: 'Japanese (Irezumi)' },
     ]);
   });
 });

@@ -10,60 +10,134 @@
  * An artist without a matching style is excluded outright, so a WRONG tag surfaces
  * the wrong artist and a MISSING tag hides the right one. Precision beats recall.
  *
- * CANONICAL_STYLE_NAMES is the same list as CANONICAL_STYLES in
- * src/lib/design-style-signal.ts — the strings the UI sends verbatim as
- * style_preferences. scripts/lib/artist-styles.test.mjs asserts set-equality so the
- * two cannot silently drift.
+ * ── Vocabulary: derived, never hand-typed (ADR-0010, ADR-0011) ─────────────
+ * Every style name here comes from the two checked-in files PR #166 made the
+ * single controlled vocabulary, the same pair src/lib/style-vocabulary.ts reads:
+ *
+ *   data/style-ontology.json          tag id, display label, and the aliases
+ *                                     that absorb spelling drift.
+ *   data/graph-style-vocabulary.json  the graph's OWN spelling of each tag.
+ *
+ * This module therefore names two different things, and the difference is the
+ * whole point:
+ *
+ *   ontology LABEL  ("Japanese", "Lettering")     — what the artifact records
+ *   graph NAME      ("Japanese (Irezumi)")        — what MERGE writes
+ *
+ * Writing a label the graph does not use is how a vocabulary re-splits. Before
+ * this was derived, the extractor emitted "Script" (no such Style node — the
+ * import would have CREATED one, re-splitting the tag #166 had just folded into
+ * `lettering`) and "Japanese" (a real node carrying zero artists, while the 434
+ * Japanese artists sit on "Japanese (Irezumi)"). Both are now resolved through
+ * the ontology instead: "script" is an alias of `lettering`, and the `japanese`
+ * tag writes the graph's spelling.
  *
  * STYLE_PATTERNS is a faithful port of STYLE_PATTERNS in
  * ~/tatt-scraper/execution/enrich_artists.py, kept regex-for-regex identical so the
- * hand-measured precision of that lane carries over. Everything here is pure — no
- * I/O, no network — so it is directly unit-testable.
+ * hand-measured precision of that lane carries over. Each rule is keyed by its
+ * ontology TAG ID so the display name is looked up, not duplicated.
  */
 
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const DATA_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'data');
+const readData = (file) => JSON.parse(readFileSync(path.join(DATA_DIR, file), 'utf8'));
+
+const ONTOLOGY = readData('style-ontology.json');
+const GRAPH_VOCABULARY = readData('graph-style-vocabulary.json');
+
+/** Ontology tag id → its tag record. */
+const TAG_BY_ID = new Map(ONTOLOGY.tags.map((t) => [t.id, t]));
+
 /**
- * Canonical style vocabulary of the live artist graph. Mirrors CANONICAL_STYLES
- * in src/lib/design-style-signal.ts (locked by test, do not edit one alone).
+ * Ontology tag id → the name the GRAPH stores. A tag the graph already answers
+ * with keeps the graph's spelling ("japanese" → "Japanese (Irezumi)"); anything
+ * else falls back to the ontology label. Verified read-only against the live
+ * graph: every name this produces already exists as a `:Style` node, so the
+ * import creates no new Style node.
  */
-export const CANONICAL_STYLE_NAMES = [
-  'Traditional',
-  'Neo-Traditional',
-  'Black & Grey',
-  'Blackwork',
-  'Fine Line',
-  'Realism',
-  'Illustrative',
-  'Japanese',
-  'Watercolor',
-  'Geometric',
-  'Tribal',
-  'Chicano',
-  'Anime',
-  'Minimalist',
-  'Script',
-];
+const GRAPH_NAME_BY_TAG = new Map(
+  ONTOLOGY.tags.map((t) => {
+    const entry = GRAPH_VOCABULARY.styles.find((s) => s.tag === t.id);
+    return [t.id, entry?.graphNames?.[0] ?? t.label];
+  }),
+);
+
+/** Every spelling of a tag — id, label, aliases, graph names — lowercased. */
+const TAG_BY_SPELLING = new Map();
+for (const tag of ONTOLOGY.tags) {
+  const spellings = new Set([tag.id, tag.label, ...(tag.aliases ?? [])]);
+  const entry = GRAPH_VOCABULARY.styles.find((s) => s.tag === tag.id);
+  for (const n of entry?.graphNames ?? []) spellings.add(n);
+  for (const s of spellings) TAG_BY_SPELLING.set(String(s).toLowerCase(), tag.id);
+}
 
 /**
  * Bio → style rules, ported one-for-one from enrich_artists.py STYLE_PATTERNS.
  * Ordered so the output is deterministic regardless of Object key iteration.
+ * `tag` is the ontology id; `style` is its display label, derived not typed.
  */
 export const STYLE_PATTERNS = [
-  { style: 'Traditional', pattern: /\b(?:american\s+)?traditional\b(?!\s*chinese)/i },
-  { style: 'Neo-Traditional', pattern: /\bneo[\s-]?traditional\b/i },
-  { style: 'Black & Grey', pattern: /\bblack\s*(?:&|and|\+|n)\s*gr[ae]y\b/i },
-  { style: 'Blackwork', pattern: /\bblack[\s-]?work\b/i },
-  { style: 'Fine Line', pattern: /\bfine[\s-]?line\b/i },
-  { style: 'Realism', pattern: /\b(?:photo[\s-]?)?realis(?:m|tic)\b/i },
-  { style: 'Illustrative', pattern: /\billustrat(?:ive|ion)\b/i },
-  { style: 'Japanese', pattern: /\b(?:japanese|irezumi)\b/i },
-  { style: 'Watercolor', pattern: /\bwater[\s-]?colou?r\b/i },
-  { style: 'Geometric', pattern: /\bgeometr(?:ic|y)\b/i },
-  { style: 'Tribal', pattern: /\btribal\b/i },
-  { style: 'Chicano', pattern: /\bchicano\b/i },
-  { style: 'Anime', pattern: /\b(?:anime|manga)\b/i },
-  { style: 'Minimalist', pattern: /\bminimalis(?:t|m)\b/i },
-  { style: 'Script', pattern: /\b(?:script|lettering|calligraphy)\s*(?:tattoo|work|style)?\b/i },
-];
+  { tag: 'traditional', pattern: /\b(?:american\s+)?traditional\b(?!\s*chinese)/i },
+  { tag: 'neo-traditional', pattern: /\bneo[\s-]?traditional\b/i },
+  { tag: 'black-and-grey', pattern: /\bblack\s*(?:&|and|\+|n)\s*gr[ae]y\b/i },
+  { tag: 'blackwork', pattern: /\bblack[\s-]?work\b/i },
+  { tag: 'fine-line', pattern: /\bfine[\s-]?line\b/i },
+  { tag: 'realism', pattern: /\b(?:photo[\s-]?)?realis(?:m|tic)\b/i },
+  { tag: 'illustrative', pattern: /\billustrat(?:ive|ion)\b/i },
+  { tag: 'japanese', pattern: /\b(?:japanese|irezumi)\b/i },
+  { tag: 'watercolor', pattern: /\bwater[\s-]?colou?r\b/i },
+  { tag: 'geometric', pattern: /\bgeometr(?:ic|y)\b/i },
+  { tag: 'tribal', pattern: /\btribal\b/i },
+  { tag: 'chicano', pattern: /\bchicano\b/i },
+  { tag: 'anime', pattern: /\b(?:anime|manga)\b/i },
+  { tag: 'minimalist', pattern: /\bminimalis(?:t|m)\b/i },
+  // "script"/"calligraphy" are ALIASES of `lettering` in the ontology — the
+  // regex is unchanged, only the name it resolves to.
+  { tag: 'lettering', pattern: /\b(?:script|lettering|calligraphy)\s*(?:tattoo|work|style)?\b/i },
+].map((rule) => {
+  const tag = TAG_BY_ID.get(rule.tag);
+  if (!tag) {
+    throw new Error(
+      `[artist-styles] style rule "${rule.tag}" is not a tag in data/style-ontology.json — ` +
+        'the extractor may only emit names from the controlled vocabulary.',
+    );
+  }
+  return { ...rule, style: tag.label };
+});
+
+/**
+ * Ontology LABELS this extractor can emit — the vocabulary of the artifact.
+ * Derived from STYLE_PATTERNS, so adding a rule cannot forget to widen it.
+ */
+export const CANONICAL_STYLE_NAMES = STYLE_PATTERNS.map((r) => r.style);
+
+/**
+ * Resolve any spelling of a style — ontology id, alias, graph node name or
+ * display label, in any casing — to its ontology label. Returns null when the
+ * term is outside the controlled vocabulary; callers DROP it rather than guess
+ * (ADR-0011: nothing enters the vocabulary unreviewed).
+ *
+ * This is what lets the committed artifact keep working across a vocabulary
+ * change: a row that still says "Script" resolves to "Lettering".
+ */
+export function resolveOntologyLabel(raw) {
+  if (typeof raw !== 'string') return null;
+  const tagId = TAG_BY_SPELLING.get(raw.trim().toLowerCase());
+  return tagId ? TAG_BY_ID.get(tagId).label : null;
+}
+
+/**
+ * Ontology label → the `:Style {name}` the graph stores it under. This is the
+ * one place the artifact's vocabulary is translated into the graph's, and the
+ * only names MERGE is ever given.
+ */
+export function graphStyleName(label) {
+  const tagId = TAG_BY_SPELLING.get(String(label).trim().toLowerCase());
+  return tagId ? GRAPH_NAME_BY_TAG.get(tagId) : null;
+}
 
 const NEO_TRADITIONAL = STYLE_PATTERNS.find((r) => r.style === 'Neo-Traditional').pattern;
 const TRADITIONAL = STYLE_PATTERNS.find((r) => r.style === 'Traditional').pattern;
@@ -186,13 +260,12 @@ export function isSafeArtistId(artistId) {
   return typeof artistId === 'string' && /^[A-Za-z0-9_.-]+$/.test(artistId) && artistId.length <= 200;
 }
 
-/** Set of canonical names, lowercased, for cheap membership checks. */
-const CANONICAL_LOWER = new Set(CANONICAL_STYLE_NAMES.map((s) => s.toLowerCase()));
-
 /**
  * Validate + normalize one { artistId, styles } row from a style artifact.
- * Drops unknown style names (the graph filter is exact-name, so an off-vocabulary
- * tag is dead weight at best) and de-duplicates. Returns null when unusable.
+ * Every name is resolved through the ontology, so an artifact written under an
+ * older spelling still lands on today's vocabulary ("Script" → "Lettering") and
+ * casing is canonicalized. Names outside the controlled vocabulary are dropped.
+ * Returns null when unusable.
  */
 export function normalizeStyleRecord(raw) {
   if (!raw || typeof raw !== 'object') return null;
@@ -202,24 +275,31 @@ export function normalizeStyleRecord(raw) {
   const seen = new Set();
   const styles = [];
   for (const s of Array.isArray(raw.styles) ? raw.styles : []) {
-    if (typeof s !== 'string') continue;
-    if (!CANONICAL_LOWER.has(s.toLowerCase())) continue;
-    // Canonicalize casing so MERGE never creates a case-variant Style node.
-    const canonical = CANONICAL_STYLE_NAMES.find((c) => c.toLowerCase() === s.toLowerCase());
-    if (seen.has(canonical)) continue;
-    seen.add(canonical);
-    styles.push(canonical);
+    const label = resolveOntologyLabel(s);
+    if (!label || seen.has(label)) continue;
+    seen.add(label);
+    styles.push(label);
   }
   if (styles.length === 0) return null;
 
   return { artistId, styles };
 }
 
-/** Flatten normalized records into the (artistId, style) pairs the graph stores. */
+/**
+ * Flatten normalized records into the (artistId, style) pairs the graph stores.
+ *
+ * This is the seam where the artifact's ontology LABELS become the graph's own
+ * node NAMES — the only names MERGE ever sees. A label with no graph spelling
+ * is dropped rather than invented, so the import can never mint a Style node.
+ */
 export function toStylePairs(records) {
   const pairs = [];
   for (const rec of records) {
-    for (const style of rec.styles) pairs.push({ artistId: rec.artistId, style });
+    for (const style of rec.styles) {
+      const name = graphStyleName(style);
+      if (!name) continue;
+      pairs.push({ artistId: rec.artistId, style: name });
+    }
   }
   return pairs;
 }

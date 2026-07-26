@@ -45,7 +45,7 @@ describe('recordsFromArtifact', () => {
       source: 'instagram-bio',
       artists: [
         { artistId: 'artist_a', styles: ['Fine Line', 'Realism'], bio: '…' },
-        { artistId: 'artist_b', styles: ['Ornamental'] },   // off-vocabulary → dropped
+        { artistId: 'artist_b', styles: ['Steampunk'] },     // off-vocabulary → dropped
         { artistId: '../evil', styles: ['Realism'] },        // unsafe id → dropped
         { styles: ['Realism'] },                             // no id → dropped
       ],

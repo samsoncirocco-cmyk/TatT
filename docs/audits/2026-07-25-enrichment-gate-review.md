@@ -310,11 +310,42 @@ corpus, not carried over from the body above. Corrections first.
 On the vocabulary point: the graph carries 7 style names the UI can never
 select (`Color`, `Dotwork`, `Japanese (Irezumi)`, `Lettering`, `New School`,
 `Ornamental`, `Portrait`), and canonical **`Script` has no `Style` node at
-all** — the graph spells that concept `Lettering`. §3's conclusion still holds
-where it matters (enrichment writes in the *consumer* vocabulary, so there is
-no namespace risk), but the stated reason — sync with Neo4j — is not true.
-`scripts/lib/artist-styles.test.mjs` now locks the two lists that *do* need to
-agree; the graph-side drift is left as a separate question.
+all** — the graph spells that concept `Lettering`. §3's conclusion does **not**
+hold: writing in the consumer vocabulary was itself the namespace risk, because
+two of those names disagreed with the graph. See §9.4.
+
+### 9.4 Vocabulary rebase (2026-07-26) — supersedes §3 and §9.1
+
+PR #166 landed after this review was written and made
+`data/style-ontology.json` the single controlled vocabulary: the
+`ONTOLOGY_TO_CANONICAL_STYLE` bridge is gone, and **`Lettering` won over
+`Script`** — `"script"` is now an alias, not a name.
+
+The 2026-07-25 dry run reported it would create one new `Style` node, `Script`,
+which would have re-split the vocabulary #166 had just consolidated. A second,
+quieter instance of the same bug: the extractor emitted `Japanese`, a real node
+carrying **zero** artists, while the 434 Japanese artists sit on
+`Japanese (Irezumi)`.
+
+Both are fixed by deriving rather than hand-typing. `scripts/lib/artist-styles.mjs`
+now reads the same two files `src/lib/style-vocabulary.ts` reads, and keeps two
+names distinct:
+
+- **ontology label** (`Japanese`, `Lettering`) — what the artifact records
+- **graph name** (`Japanese (Irezumi)`) — what `MERGE` is given
+
+`toStylePairs()` is the one seam that translates the first into the second, so
+no other code can invent a spelling. `normalizeStyleRecord()` resolves through
+the ontology, so an artifact harvested under an older spelling still lands on
+today's vocabulary without being regenerated.
+
+Verified read-only against the live graph: it holds 21 `Style` nodes, and every
+name this lane can write — including `Lettering` (0 artists) and `Minimalist`
+(0 artists, and 0 tags in this corpus) — already exists among them. The fresh
+dry run confirms it: **`Style` nodes it would create: none.**
+
+The regex rules are untouched, so the hand-measured precision (97.3% tag,
+95.7% record) carries over unchanged. Only the names the edges point at moved.
 
 ### 9.2 Style really is a hard filter — confirmed
 
@@ -389,17 +420,26 @@ thing that mutates. `MERGE` + `ON CREATE SET` — a re-run creates nothing and
 never relabels an edge the seed import made. Writes only `SPECIALIZES_IN`
 (the edge the filter reads), not `FEATURES_STYLE`.
 
-Dry run against the live graph, 2026-07-25:
+Dry run against the live graph, re-run 2026-07-26 after rebasing onto PR #166's
+unified style vocabulary (superseding the 2026-07-25 run — see §9.4):
 
 | | |
 |---|---|
 | Artists in artifact | 1,456 |
 | **Matched to an `Artist` node by id** | **1,456 — 100.0%, zero misses** |
-| Pairs already linked (no-op on re-run) | 544 |
-| **Edges it would create** | **1,872** |
-| Artists gaining their first style | 1,174 |
-| `Style` nodes it would create | `Script` (only) |
-| Style coverage | 2,606 → 3,780 of 10,427 — **25.0% → 36.3%** |
+| Pairs already linked (no-op on re-run) | 574 |
+| **Edges it would create** | **1,842** |
+| Artists gaining an edge | 1,150 |
+| **Artists gaining their FIRST style** | **1,002** |
+| **`Style` nodes it would create** | **none** |
+| Style coverage | 2,606 → 3,608 of 10,427 — **25.0% → 34.6%** |
+
+Two numbers moved for reasons worth naming. `Japanese` now writes the graph's
+own spelling `Japanese (Irezumi)`, where 434 artists already sit — so 30 pairs
+that used to count as new are already linked (574 vs 544; 1,842 vs 1,872).
+And *artists gaining their first style* is now measured rather than assumed:
+of the 1,150 artists gaining an edge, 148 already carry a style, so coverage
+rises by 1,002. The earlier 1,174/3,780 figure conflated the two.
 
 The 100% match rate is not luck: the IG scrape and the graph are the same
 10,427 artists, both keyed `artist_<handle>` by
