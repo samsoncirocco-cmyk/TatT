@@ -30,8 +30,18 @@ function baseUrl(req: NextRequest): string {
   return req.nextUrl.origin.replace(/\/$/, '');
 }
 
-function back(req: NextRequest, params: Record<string, string>): NextResponse {
-  const url = new URL('/artist/availability', baseUrl(req));
+function back(
+  req: NextRequest,
+  params: Record<string, string>,
+  artistId?: string
+): NextResponse {
+  // Land back on the editor for the artist who started the flow. Without an id
+  // (a bad or expired state, where we never learned who they were) the roster
+  // is the only honest place to send them.
+  const url = new URL(
+    artistId ? `/artist/${encodeURIComponent(artistId)}/availability` : '/artists',
+    baseUrl(req)
+  );
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   return NextResponse.redirect(url);
 }
@@ -76,14 +86,14 @@ export async function GET(req: NextRequest) {
   if (!stored?.artistId) return back(req, { calendar: 'error', reason: 'bad_state' });
 
   const config = googleOAuthConfig(baseUrl(req));
-  if (!config) return back(req, { calendar: 'error', reason: 'not_configured' });
+  if (!config) return back(req, { calendar: 'error', reason: 'not_configured' }, stored.artistId);
 
   const exchanged = await exchangeCodeForTokens({ ...config, code });
   if (!exchanged.ok) {
     console.warn(
       `[calendar/callback] token exchange failed for ${stored.artistId}: ${exchanged.reason}`
     );
-    return back(req, { calendar: 'error', reason: exchanged.reason });
+    return back(req, { calendar: 'error', reason: exchanged.reason }, stored.artistId);
   }
 
   // Trust the scopes GOOGLE granted, not the ones we asked for: an artist can
@@ -102,8 +112,8 @@ export async function GET(req: NextRequest) {
     writeEnabled,
   });
   if (!saved.ok) {
-    return back(req, { calendar: 'error', reason: saved.reason });
+    return back(req, { calendar: 'error', reason: saved.reason }, stored.artistId);
   }
 
-  return back(req, { calendar: 'connected', write: writeEnabled ? '1' : '0' });
+  return back(req, { calendar: 'connected', write: writeEnabled ? '1' : '0' }, stored.artistId);
 }

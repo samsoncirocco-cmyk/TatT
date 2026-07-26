@@ -42,7 +42,8 @@ describe("validating the windows an artist offers", () => {
   });
 
   it("rejects a missing timezone", () => {
-    const { timezone: _drop, ...noTz } = GOOD;
+    const noTz: Record<string, unknown> = { ...GOOD };
+    delete noTz.timezone;
     const res = validateArtistSchedule({ schedule: noTz, overrides: [] });
     expect(res.ok).toBe(false);
   });
