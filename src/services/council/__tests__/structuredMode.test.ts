@@ -8,6 +8,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { enhance, enhanceStructured } from '../index';
 import type { IntakeRecord } from '../../intake/types';
 
+/** The front-loaded presentation clause every prompt must carry (ADR-0023). */
+const FLASH_ART_LEAD = 'Flash art tattoo design on a pure white background';
+
 const baseRecord: IntakeRecord = {
   placement: 'forearm',
   styleTags: ['neo-traditional'],
@@ -86,11 +89,71 @@ describe('enhanceStructured - questionnaire mode (2 ambiguous axes)', () => {
 
     for (const variation of result.variations) {
       const ultra = variation.prompts.ultra || '';
-      expect(ultra).toContain('forearm');
       expect(ultra).toContain('phoenix');
       expect(ultra).toContain('neo-traditional');
-      // forearm aspect guidance from getAspectRatioGuidance
+      // Placement reaches the model as COMPOSITION, never as "a tattoo on the
+      // forearm" — naming the body part made Imagen render a photographed
+      // limb 12 times out of 12. The forearm guidance itself still lands.
       expect(ultra.toLowerCase()).toContain('vertical');
+      expect(ultra).toContain('wraps around limb');
+      expect(ultra).not.toContain('tattoo on the forearm');
+    }
+  });
+});
+
+/*
+ * These three assertions are the whole fix. Measured against the real
+ * `assessBackdrop` guard over Vertex Imagen output, the prompt that violated
+ * them scored 0/12 — every render came back a photograph of a tattoo on a
+ * forearm — and the prompt that satisfies them scored 12/12. Any one of them
+ * regressing puts renders back in front of the guard that it must reject, so
+ * they are pinned individually rather than as one opaque string compare.
+ */
+describe('enhanceStructured - flash-art presentation (ADR-0023)', () => {
+  const records: [string, IntakeRecord][] = [
+    ['monochrome', { ...baseRecord, styleTags: ['blackwork'], placement: 'left forearm' }],
+    ['color', { ...baseRecord, styleTags: ['color'], placement: 'upper arm' }],
+    ['unresolved', { ...baseRecord, styleTags: [], placement: 'calf' }],
+  ];
+
+  it.each(records)('front-loads the presentation for a %s session', async (_label, record) => {
+    const { variations } = await enhanceStructured(record);
+    for (const v of variations) {
+      for (const prompt of Object.values(v.prompts)) {
+        if (!prompt) continue;
+        // Within the opening sentence, not trailing after the subject: the
+        // trailing version lost to the subject description every time.
+        expect(prompt.indexOf(FLASH_ART_LEAD)).toBeLessThan(120);
+      }
+    }
+  });
+
+  it.each(records)('never anchors the design onto a body part (%s)', async (_label, record) => {
+    const { variations } = await enhanceStructured(record);
+    for (const v of variations) {
+      for (const prompt of Object.values(v.prompts)) {
+        if (!prompt) continue;
+        // "A ... tattoo on the left forearm" is an explicit positive
+        // instruction to draw a limb, and it sat ~55 tokens ahead of the
+        // correction. Placement reaches the model through the aspect ratio
+        // (getAnatomicalAspectRatio) instead.
+        expect(prompt).not.toMatch(new RegExp(`tattoo on the ${record.placement}`, 'i'));
+        expect(prompt.toLowerCase()).not.toContain('on skin');
+        expect(prompt.toLowerCase()).not.toContain('untouched skin');
+      }
+    }
+  });
+
+  it.each(records)('excludes the observed scene failure modes (%s)', async (_label, record) => {
+    const { variations } = await enhanceStructured(record);
+    for (const v of variations) {
+      const negatives = v.negativePrompt || '';
+      // On-skin photographs (this prompt's own failure) plus the two modes
+      // the 300-render Vertex portfolio corpus fails on: artwork shot as a
+      // sheet of paper on a desk, and artwork on a black backdrop.
+      for (const token of ['tattooed skin', 'desk', 'sheet of paper', 'black background']) {
+        expect(negatives).toContain(token);
+      }
     }
   });
 });
@@ -106,8 +169,7 @@ describe('enhanceStructured - palette (color vs monochrome)', () => {
     for (const variation of result.variations) {
       const prompt = variation.prompts.simple || '';
       expect(prompt.startsWith('Monochrome, black and grey ink only, zero color.')).toBe(true);
-      expect(prompt).toContain('flash art on a plain white background');
-      expect(prompt).not.toContain('photograph of the finished tattoo on skin');
+      expect(prompt).toContain(FLASH_ART_LEAD);
       expect(variation.negativePrompt || '').toContain('color ink, saturated hues');
     }
   });
@@ -121,8 +183,7 @@ describe('enhanceStructured - palette (color vs monochrome)', () => {
       // Palette and presentation are separate decisions: color sessions are
       // still flash art on white, so the placement preview can strip the
       // background and composite onto the user's own photo.
-      expect(prompt).toContain('flash art on a plain white background');
-      expect(prompt).not.toContain('photograph of the finished tattoo on skin');
+      expect(prompt).toContain(FLASH_ART_LEAD);
       expect(prompt.toLowerCase()).not.toContain('monochrome');
       expect((variation.negativePrompt || '').toLowerCase()).not.toContain('monochrome');
     }
@@ -132,35 +193,27 @@ describe('enhanceStructured - palette (color vs monochrome)', () => {
     for (const record of [monochrome, color, unresolved]) {
       const result = await enhanceStructured(record);
       for (const variation of result.variations) {
-        const prompt = variation.prompts.simple || '';
-        expect(prompt).toContain('flash art on a plain white background');
-        expect(prompt).not.toContain('photograph of the finished tattoo on skin');
+        expect(variation.prompts.simple || '').toContain(FLASH_ART_LEAD);
       }
     }
   });
 
-  it('defaults to flash art with no palette lead when style resolves neither way', async () => {
+  it('leads with the presentation and no palette clause when style resolves neither way', async () => {
     const result = await enhanceStructured(unresolved);
 
     for (const variation of result.variations) {
-      const prompt = variation.prompts.simple || '';
-      expect(prompt.startsWith('A ')).toBe(true);
-      expect(prompt).toContain('flash art on a plain white background');
+      expect((variation.prompts.simple || '').startsWith(FLASH_ART_LEAD)).toBe(true);
     }
   });
 
   it('pins one presentation across all four variations of a session', async () => {
     for (const record of [monochrome, color, unresolved]) {
       const result = await enhanceStructured({ ...record, ambiguousAxes: ['bold-fine', 'minimal-ornate'] });
-      // Compare the actual presentation clause, not a substring of it: the
-      // flash-art clause ends "...not photographed on skin", so a check for
-      // `includes('on skin')` is satisfied by BOTH presentations and can
-      // never catch a session that mixes them.
       const presentations = result.variations.map(
-        v => (v.prompts.simple || '').match(/ Presented as [^]*$/)?.[0] ?? ''
+        v => (v.prompts.simple || '').includes(FLASH_ART_LEAD)
       );
       expect(new Set(presentations).size).toBe(1);
-      expect(presentations[0]).toContain('flash art on a plain white background');
+      expect(presentations[0]).toBe(true);
     }
   });
 
