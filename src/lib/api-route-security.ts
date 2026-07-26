@@ -38,7 +38,6 @@ export const API_ROUTE_SECURITY: Record<string, RouteSecurityEntry> = {
   'neo4j/query': { class: 'firebase-auth' },
   'predictions': { class: 'firebase-auth' },
   'predictions/[id]': { class: 'firebase-auth' },
-  'v1/ar/visualize': { class: 'firebase-auth' },
   'v1/artist/availability': { class: 'firebase-auth' },
   'v1/artist/calendar/connect': { class: 'firebase-auth' },
   'v1/artist/calendar/callback': {
@@ -61,6 +60,7 @@ export const API_ROUTE_SECURITY: Record<string, RouteSecurityEntry> = {
   'v1/design-session/[id]': { class: 'firebase-auth' },
   'v1/design-session/[id]/confirm': { class: 'firebase-auth' },
   'v1/design-session/[id]/pick': { class: 'firebase-auth' },
+  'v1/design-session/[id]/placement-preview': { class: 'firebase-auth' },
   'v1/design-session/[id]/refine': { class: 'firebase-auth' },
   'v1/design-session/converse': { class: 'firebase-auth' },
   'v1/designs/share': { class: 'firebase-auth' },

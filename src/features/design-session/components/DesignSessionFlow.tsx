@@ -9,6 +9,7 @@ import { ThinkingLine } from './ThinkingLine';
 import { RevealGrid, type RevealMode } from './RevealGrid';
 import { RefinementPrompt } from './RefinementPrompt';
 import { HandoffCard } from './HandoffCard';
+import { PlacementPreview } from './PlacementPreview';
 
 // ADR-0009: exactly two opening questions — placement and meaning — rendered
 // as conversation, never labeled form fields.
@@ -175,6 +176,10 @@ export function DesignSessionFlow({ initialSession }: { initialSession?: DesignS
         <>
           <ChatBubble role="bot">Done. One pass, one answer, one design.</ChatBubble>
           <HandoffCard session={session} />
+          {/* Placement preview — a canvas artifact, not a regen, so it lives
+              outside the ADR-0013 hard stop. Saving updates the session so
+              the Brief carries the preview into the booking. */}
+          <PlacementPreview session={session} onAttached={setSession} />
         </>
       )}
 

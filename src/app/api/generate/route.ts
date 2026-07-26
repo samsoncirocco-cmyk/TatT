@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
 import { generate } from '@/services/generation';
+import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
+import { checkBudget, recordSpend, VERTEX_IMAGEN_COST_CENTS } from '@/lib/budget-tracker';
 import {
   enforceQuota,
   getUsageSnapshot,
@@ -13,10 +15,30 @@ export const runtime = 'nodejs';
 // Thin adapter: the generation module produces images; this route composes
 // generation + GCS upload (upload is deliberately NOT the module's job —
 // spec: generation-module).
+//
+// Cost controls (issue #181): this route is auth-gated but was missing the
+// shared rate limit and monthly budget cap that /api/v1/generate enforces —
+// any signed-in user could generate real, billable Vertex AI images with
+// neither. imagen-upload's own enforceQuota() is a route-local daily-request
+// guard (off by default unless VERTEX_DAILY_REQUEST_LIMIT is set) — it stays
+// as a secondary check, not a replacement for the shared limiter/tracker.
 
 export async function POST(request: NextRequest) {
   const authError = await verifyApiAuth(request);
   if (authError) return authError;
+
+  const rateResult = await rateLimit(request, 'generation');
+  if (!rateResult.allowed) {
+    return rateLimitResponse(rateResult);
+  }
+
+  const budgetResult = await checkBudget();
+  if (!budgetResult.allowed) {
+    return NextResponse.json(
+      { error: 'Budget limit reached', spentCents: budgetResult.spentCents },
+      { status: 402 }
+    );
+  }
 
   try {
     const body = await request.json();
@@ -59,6 +81,11 @@ export async function POST(request: NextRequest) {
     });
 
     recordUsage(result.images.length);
+
+    // Real Vertex AI spend, on the same shared tracker /api/v1/generate uses
+    // — this route only ever calls Vertex/imagen3 (allowProviderFallback:
+    // false above), so there's no replicate-fallback cost branch to handle.
+    await recordSpend(VERTEX_IMAGEN_COST_CENTS * result.images.length);
 
     const uploaded = await uploadGeneratedImages(result.images, {
       style: style || '',

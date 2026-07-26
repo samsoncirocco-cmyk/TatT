@@ -398,7 +398,7 @@ export default function BookClient({
                 <div className="font-display text-[18px] tracking-widest leading-none tabular-nums">
                   {bookingId}
                 </div>
-                <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-1">
+                <div className="font-body text-[10px] uppercase tracking-widest leading-none mt-1">
                   Confirmation
                 </div>
               </div>
@@ -455,7 +455,7 @@ export default function BookClient({
               </div>
             </div>
             <div className="ml-auto sticker px-3 py-1.5 -rotate-2">
-              <span className="font-body text-[9px] uppercase tracking-[0.18em]">
+              <span className="font-body text-[10px] uppercase tracking-[0.18em]">
                 {artist.availabilityLabel}
               </span>
             </div>
@@ -505,7 +505,7 @@ export default function BookClient({
                       {s.label}
                     </span>
                     <span
-                      className={`block text-[9px] uppercase tracking-[0.18em] font-body mt-0.5 truncate ${
+                      className={`block text-[10px] uppercase tracking-[0.18em] font-body mt-0.5 truncate ${
                         active ? "text-pink" : "text-white/35"
                       }`}
                     >
@@ -598,7 +598,7 @@ export default function BookClient({
                       <span className="block font-display text-[18px] leading-none tracking-wide">
                         {shortDate(date)}
                       </span>
-                      <span className="block text-[9px] uppercase tracking-[0.2em] mt-1.5 opacity-70">
+                      <span className="block text-[10px] uppercase tracking-[0.2em] mt-1.5 opacity-70">
                         {sel ? "✓ Requested" : "Tap to request"}
                       </span>
                     </button>
@@ -654,7 +654,7 @@ export default function BookClient({
                     } press flex flex-col items-center justify-center gap-2 text-white/70 hover:text-pink`}
                   >
                     <span className="font-display text-[18px] tracking-wide">No design</span>
-                    <span className="text-[9px] uppercase tracking-[0.2em] font-body">
+                    <span className="text-[10px] uppercase tracking-[0.2em] font-body">
                       Decide in chair
                     </span>
                   </button>
@@ -708,7 +708,7 @@ export default function BookClient({
                       <span className="block font-display text-[18px] tracking-wide text-white">
                         {s.label}
                       </span>
-                      <span className="block text-[9px] uppercase tracking-[0.2em] text-white/50 font-body mt-1">
+                      <span className="block text-[10px] uppercase tracking-[0.2em] text-white/50 font-body mt-1">
                         {s.desc} · ${depositDollarsForSize(s.id)} deposit
                       </span>
                     </button>
@@ -822,11 +822,11 @@ export default function BookClient({
               </h2>
               <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5 text-[13px] font-body">
                 <div>
-                  <dt className="text-[9px] uppercase tracking-[0.22em] text-white/40">Artist</dt>
+                  <dt className="text-[10px] uppercase tracking-[0.22em] text-white/40">Artist</dt>
                   <dd className="mt-1 text-white">{artist.name} · {artist.location}</dd>
                 </div>
                 <div>
-                  <dt className="text-[9px] uppercase tracking-[0.22em] text-white/40">
+                  <dt className="text-[10px] uppercase tracking-[0.22em] text-white/40">
                     Requested dates ({timePref.toLowerCase()})
                   </dt>
                   <dd className="mt-1 text-white">
@@ -836,11 +836,11 @@ export default function BookClient({
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-[9px] uppercase tracking-[0.22em] text-white/40">Piece</dt>
+                  <dt className="text-[10px] uppercase tracking-[0.22em] text-white/40">Piece</dt>
                   <dd className="mt-1 text-white capitalize">{size} · {placement}</dd>
                 </div>
                 <div>
-                  <dt className="text-[9px] uppercase tracking-[0.22em] text-white/40">Design</dt>
+                  <dt className="text-[10px] uppercase tracking-[0.22em] text-white/40">Design</dt>
                   <dd className="mt-1 text-white">
                     {chosenDesign
                       ? chosenDesign.prompt.split(/[\s,]+/).slice(0, 4).join(" ")
@@ -848,17 +848,17 @@ export default function BookClient({
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-[9px] uppercase tracking-[0.22em] text-white/40">Budget</dt>
+                  <dt className="text-[10px] uppercase tracking-[0.22em] text-white/40">Budget</dt>
                   <dd className="mt-1 text-white">
                     {BUDGETS.find((b) => b.value === budget)?.label ?? budget}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-[9px] uppercase tracking-[0.22em] text-white/40">Contact</dt>
+                  <dt className="text-[10px] uppercase tracking-[0.22em] text-white/40">Contact</dt>
                   <dd className="mt-1 text-white">{name} · {email}</dd>
                 </div>
                 <div className="sm:col-span-2">
-                  <dt className="text-[9px] uppercase tracking-[0.22em] text-white/40">Vision</dt>
+                  <dt className="text-[10px] uppercase tracking-[0.22em] text-white/40">Vision</dt>
                   <dd className="mt-1 text-white/80 leading-[1.6] normal-case">
                     &ldquo;{description.trim()}&rdquo;
                   </dd>
@@ -870,7 +870,7 @@ export default function BookClient({
                   <div className="font-display text-[16px] tracking-widest leading-none tabular-nums">
                     ${deposit}
                   </div>
-                  <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-1">
+                  <div className="font-body text-[10px] uppercase tracking-widest leading-none mt-1">
                     Deposit
                   </div>
                 </div>
@@ -900,7 +900,7 @@ export default function BookClient({
                     ? selectedSlot.startTime
                     : `${selectedDates.length}/${MAX_REQUESTED_SLOTS}`}
                 </div>
-                <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-1">
+                <div className="font-body text-[10px] uppercase tracking-widest leading-none mt-1">
                   {reserving ? "Time picked" : "Dates requested"}
                 </div>
               </div>

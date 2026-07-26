@@ -122,10 +122,10 @@ function StencilPageInner() {
             <section className="relative border-2 hairline bg-black p-5 sm:p-6 overflow-hidden">
               <div className="absolute inset-x-0 top-0 h-2 bg-pink" />
               <div className="hidden md:block absolute top-7 right-7 sticker px-3 py-1 z-10">
-                <div className="font-display text-[11px] tracking-widest leading-none">
+                <div className="font-display text-[14px] tracking-widest leading-none">
                   LOUD
                 </div>
-                <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-0.5">
+                <div className="font-body text-[10px] uppercase tracking-widest leading-none mt-0.5">
                   Lines
                 </div>
               </div>
@@ -243,7 +243,7 @@ function StencilPageInner() {
                         onExpand={() => setExpanded(i)}
                         badge={
                           savedCuts[i] ? (
-                            <span className="text-[9px] uppercase tracking-[0.2em] text-pink font-body bg-black/70 px-2 py-1">
+                            <span className="text-[10px] uppercase tracking-[0.2em] text-pink font-body bg-black/70 px-2 py-1">
                               ★ Saved
                             </span>
                           ) : undefined

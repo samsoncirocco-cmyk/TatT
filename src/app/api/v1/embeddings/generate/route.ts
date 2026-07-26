@@ -5,10 +5,16 @@ import { generateEmbedding } from '@/services/vertex-ai-service.js';
 // @ts-ignore
 import { storeEmbedding } from '@/services/vectorDbService';
 import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
+import { checkBudget, recordSpend } from '@/lib/budget-tracker';
 import { createRequestLogger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+// Vertex multimodal embeddings are cheap per call, but a rate limit alone
+// doesn't cap total spend — nothing here reached the shared monthly budget
+// tracker before. Override via EMBEDDING_COST_CENTS.
+const EMBEDDING_COST_CENTS = Number(process.env.EMBEDDING_COST_CENTS) || 1;
 
 export async function POST(req: NextRequest) {
     const reqLogger = createRequestLogger('embeddings');
@@ -19,6 +25,14 @@ export async function POST(req: NextRequest) {
     const rateResult = await rateLimit(req, 'default');
     if (!rateResult.allowed) {
         return rateLimitResponse(rateResult);
+    }
+
+    const budgetResult = await checkBudget();
+    if (!budgetResult.allowed) {
+        return NextResponse.json(
+            { error: 'Budget limit reached', spentCents: budgetResult.spentCents },
+            { status: 402 }
+        );
     }
 
     try {
@@ -41,6 +55,8 @@ export async function POST(req: NextRequest) {
             source_images: imageUrls,
             model_version: 'vertex-multimodal-v1'
         });
+
+        await recordSpend(EMBEDDING_COST_CENTS);
 
         // Log embedding completion
         reqLogger.complete('embeddings.completed', {

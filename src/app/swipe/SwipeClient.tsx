@@ -176,10 +176,10 @@ export default function SwipeClient() {
                           .toUpperCase()}
                       </span>
                       <div className="absolute top-4 right-4 sticker px-2 py-1">
-                        <div className="font-display text-[11px] tracking-widest leading-none">
+                        <div className="font-display text-[14px] tracking-widest leading-none">
                           {card.matchPercent}%
                         </div>
-                        <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-0.5">
+                        <div className="font-body text-[10px] uppercase tracking-widest leading-none mt-0.5">
                           Match
                         </div>
                       </div>
@@ -198,7 +198,7 @@ export default function SwipeClient() {
                             {card.styles.map((s) => (
                               <span
                                 key={s}
-                                className="text-[9px] uppercase tracking-[0.18em] text-white/70 border hairline px-2 py-1 font-body"
+                                className="text-[10px] uppercase tracking-[0.18em] text-white/70 border hairline px-2 py-1 font-body"
                               >
                                 {s}
                               </span>

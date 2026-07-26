@@ -20,7 +20,10 @@ export default function StickerPricetag({
   size = "md",
 }: Props) {
   const pad = size === "sm" ? "px-2 py-1" : "px-3 py-1";
-  const primarySize = size === "sm" ? "text-[10px]" : "text-[11px]";
+  // Both lines scale together: the pricetag reads as a tidy rectangle only
+  // while the condensed Anton primary and the wide Space Mono secondary
+  // render at roughly equal width (Anton ≈ 1.4x the Mono px for equal width).
+  const primarySize = size === "sm" ? "text-[13px]" : "text-[14px]";
   return (
     <div className={`sticker ${pad} ${className}`}>
       <div
@@ -29,7 +32,7 @@ export default function StickerPricetag({
         {primary}
       </div>
       {secondary && (
-        <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-0.5">
+        <div className="font-body text-[10px] uppercase tracking-widest leading-none mt-0.5">
           {secondary}
         </div>
       )}
