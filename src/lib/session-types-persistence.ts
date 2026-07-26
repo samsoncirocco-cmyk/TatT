@@ -10,11 +10,39 @@
  *   minimumBookingNoticeHours, intakeFields (JSON string), isActive, position,
  *   cancellationPolicyHoursFullRefund, cancellationPolicyHoursPartialRefund,
  *   cancellationPolicyPartialRefundBps, createdAt, updatedAt
+ *
+ * OWNERSHIP CONTRACT — read this before adding a function here.
+ * A :SessionType id is not a capability. Every single-node read and every
+ * write takes a `SessionTypeRef { artistId, id }` and matches through the
+ * owning artist:
+ *
+ *   MATCH (:Artist {id: $artistId})-[:OFFERS]->(st:SessionType {id: $id})
+ *
+ * The artistId is a required field of a required argument, so a caller
+ * cannot forget it — omitting it is a compile error, not a silent
+ * cross-tenant write. A miss returns "not found" without revealing whether
+ * the id exists under a different artist.
+ *
+ * Callers are responsible for proving the artistId belongs to the signed-in
+ * user before calling in. Today that binding lives on the :Artist node as
+ * `claimedByUid` (set by /api/v1/connect/claim); a route must verify the
+ * Firebase uid against it. This module trusts artistId and nothing else.
  */
 import {
   validateSessionTypeInput,
+  validateSessionTypeUpdate,
   type CreateSessionTypeInput,
+  type UpdateSessionTypeInput,
 } from "./session-types";
+
+/**
+ * Identifies one session type AND the artist that must own it. Passed as a
+ * single object so the two ids can never be swapped positionally.
+ */
+export interface SessionTypeRef {
+  artistId: string;
+  id: string;
+}
 
 export interface SessionTypeRecord {
   id: string;
@@ -74,6 +102,20 @@ async function runWrite(
     return result as { records: Array<unknown> };
   } finally {
     await session.close();
+  }
+}
+
+/**
+ * Reject an empty scope before it reaches Cypher. An empty artistId would
+ * simply match nothing, but failing here names the real bug (a caller that
+ * lost the artist binding) instead of reporting a missing session type.
+ */
+function requireRef(ref: SessionTypeRef): void {
+  if (!ref?.artistId?.trim()) {
+    throw new Error("artistId is required to address a session type");
+  }
+  if (!ref?.id?.trim()) {
+    throw new Error("id is required to address a session type");
   }
 }
 
@@ -218,64 +260,50 @@ export async function getSessionTypesByArtist(
   });
 }
 
-/** Get a specific session type by id. */
+/**
+ * Get one session type, scoped to its owning artist. Returns null when the
+ * artist does not own a session type with that id — deliberately
+ * indistinguishable from "no such id".
+ */
 export async function getSessionType(
-  id: string,
+  ref: SessionTypeRef,
 ): Promise<SessionTypeRecord | null> {
+  requireRef(ref);
   const rows = await runRead(
-    `MATCH (st:SessionType {id: $id})
+    `MATCH (:Artist {id: $artistId})-[:OFFERS]->(st:SessionType {id: $id})
      RETURN st`,
-    { id },
+    { artistId: ref.artistId, id: ref.id },
   );
   if (!rows.length) return null;
   const node = (rows[0] as Record<string, Record<string, unknown>>).st;
   return rowToRecord(node ?? (rows[0] as Record<string, unknown>));
 }
 
-/** Update a session type. Only non-null fields are SET. */
+/**
+ * Update a session type owned by `ref.artistId`. Only the fields present in
+ * `updates` are SET. Patches face exactly the rules create does — the shared
+ * validator in ./session-types is the single source of truth.
+ */
 export async function updateSessionType(
-  id: string,
-  updates: Partial<CreateSessionTypeInput> & { isActive?: boolean },
+  ref: SessionTypeRef,
+  updates: UpdateSessionTypeInput,
 ): Promise<void> {
-  if (updates.durationMinutes !== undefined) {
-    if (updates.durationMinutes < 15 || updates.durationMinutes > 720) {
-      throw new Error("durationMinutes must be 15-720");
-    }
+  requireRef(ref);
+  const validated = validateSessionTypeUpdate(updates);
+  if (!validated.ok) {
+    throw new Error(validated.error);
   }
-  if (updates.depositType !== undefined) {
-    if (
-      updates.depositType !== "flat" &&
-      updates.depositType !== "percentage" &&
-      updates.depositType !== "none"
-    ) {
-      throw new Error("depositType must be flat, percentage, or none");
-    }
-  }
-  if (updates.depositAmount !== undefined && updates.depositAmount < 0) {
-    throw new Error("depositAmount must be >= 0");
-  }
-  if (
-    updates.minimumBookingNoticeHours !== undefined &&
-    updates.minimumBookingNoticeHours < 0
-  ) {
-    throw new Error("minimumBookingNoticeHours must be >= 0");
-  }
-  if (
-    updates.beforeBufferMinutes !== undefined &&
-    updates.beforeBufferMinutes < 0
-  ) {
-    throw new Error("beforeBufferMinutes must be >= 0");
-  }
-  if (
-    updates.afterBufferMinutes !== undefined &&
-    updates.afterBufferMinutes < 0
-  ) {
-    throw new Error("afterBufferMinutes must be >= 0");
+  // artistId is not patchable: reassigning a session type to another artist
+  // is not an update, and allowing it here would reopen the hole this
+  // function's scoping closes.
+  if (updates.artistId !== undefined && updates.artistId !== ref.artistId) {
+    throw new Error("artistId cannot be changed via updateSessionType");
   }
 
   const setClauses: string[] = ["st.updatedAt = $updatedAt"];
   const params: Record<string, unknown> = {
-    id,
+    artistId: ref.artistId,
+    id: ref.id,
     updatedAt: new Date().toISOString(),
   };
 
@@ -347,17 +375,21 @@ export async function updateSessionType(
   }
 
   const result = await runWrite(
-    `MATCH (st:SessionType {id: $id})
+    `MATCH (:Artist {id: $artistId})-[:OFFERS]->(st:SessionType {id: $id})
      SET ${setClauses.join(", ")}
      RETURN st.id AS id`,
     params,
   );
   if (!result.records.length) {
-    throw new Error(`Session type not found — cannot update (id=${id}).`);
+    // Same message whether the id is unknown or owned by someone else — do
+    // not turn this into an oracle for other artists' session-type ids.
+    throw new Error(
+      `Session type not found for this artist — cannot update (id=${ref.id}).`,
+    );
   }
 }
 
-/** Soft-delete: set isActive = false. */
-export async function deactivateSessionType(id: string): Promise<void> {
-  await updateSessionType(id, { isActive: false });
+/** Soft-delete: set isActive = false. Scoped through the owning artist. */
+export async function deactivateSessionType(ref: SessionTypeRef): Promise<void> {
+  await updateSessionType(ref, { isActive: false });
 }

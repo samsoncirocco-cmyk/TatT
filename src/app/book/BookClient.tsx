@@ -20,7 +20,7 @@ import TapeCTA from "@/components/punk/TapeCTA";
 import { useBookings, useDesigns, type TattDesign } from "@/lib/tattStorage";
 import { getApiAuthHeaders } from "@/lib/client-api-auth";
 import {
-  depositForSize,
+  depositDollarsForSize,
   MAX_REQUESTED_SLOTS,
   type RequestedSlot,
 } from "@/lib/booking";
@@ -125,7 +125,7 @@ export default function BookClient({
 
   const days = useMemo(() => upcomingDays(28), []);
   const chosenDesign = designs.find((d) => d.id === designId);
-  const deposit = depositForSize(size || undefined);
+  const deposit = depositDollarsForSize(size || undefined);
 
   const detailsValid =
     size && placement && description.trim().length > 10 && name.trim() && email.trim() && budget;
@@ -537,7 +537,7 @@ export default function BookClient({
                         {s.label}
                       </span>
                       <span className="block text-[9px] uppercase tracking-[0.2em] text-white/50 font-body mt-1">
-                        {s.desc} · ${depositForSize(s.id)} deposit
+                        {s.desc} · ${depositDollarsForSize(s.id)} deposit
                       </span>
                     </button>
                   ))}

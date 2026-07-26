@@ -2,7 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   availabilityLabel,
   defaultAvailability,
-  depositForSize,
+  depositCentsForSize,
+  depositDollarsForSize,
+  DEPOSIT_CENTS_BY_SIZE,
   normalizeAvailability,
   normalizeRequestedSlots,
   validateBookingRequest,
@@ -55,12 +57,26 @@ describe("availability model", () => {
   });
 });
 
-describe("depositForSize", () => {
-  it("maps sizes and falls back to medium", () => {
-    expect(depositForSize("small")).toBe(75);
-    expect(depositForSize("SLEEVE")).toBe(500);
-    expect(depositForSize("gigantic")).toBe(150);
-    expect(depositForSize(undefined)).toBe(150);
+describe("deposit ladder", () => {
+  it("maps sizes to cents and falls back to medium", () => {
+    expect(depositCentsForSize("small")).toBe(7500);
+    expect(depositCentsForSize("SLEEVE")).toBe(50000);
+    expect(depositCentsForSize("gigantic")).toBe(15000);
+    expect(depositCentsForSize(undefined)).toBe(15000);
+  });
+
+  it("derives dollars from the same cents table", () => {
+    expect(depositDollarsForSize("small")).toBe(75);
+    expect(depositDollarsForSize("SLEEVE")).toBe(500);
+    expect(depositDollarsForSize("gigantic")).toBe(150);
+    expect(depositDollarsForSize(undefined)).toBe(150);
+  });
+
+  it("keeps every rung a whole number of cents", () => {
+    for (const cents of Object.values(DEPOSIT_CENTS_BY_SIZE)) {
+      expect(Number.isInteger(cents)).toBe(true);
+      expect(cents).toBeGreaterThan(0);
+    }
   });
 });
 

@@ -68,9 +68,14 @@ export interface CreateSessionTypeInput {
 // ─── Deposit calculation ──────────────────────────────────────────────
 
 /**
- * Compute the deposit amount in cents for a given session type and
+ * Compute the deposit amount in CENTS for a given session type and
  * estimated session price. For 'flat' deposits the session price is
  * irrelevant. For 'percentage' the price must be provided.
+ *
+ * Unit contract: every money value that crosses this module's boundary is
+ * integer cents, matching Stripe and `depositCentsForSize` in ./booking.
+ * `depositDollarsForSize` is the only dollars-valued helper in the codebase
+ * and exists purely for display. Never mix the two — see ADR 0023.
  */
 export function computeDepositCents(
   sessionType: Pick<SessionType, "depositType" | "depositAmount">,
@@ -98,71 +103,154 @@ export function validateSessionTypeSlug(slug: string): boolean {
   return SLUG_RE.test(slug) && slug.length >= 2 && slug.length <= 60;
 }
 
+/** Fields an update may carry, on top of the create fields. */
+export type UpdateSessionTypeInput = Partial<CreateSessionTypeInput> & {
+  isActive?: boolean;
+};
+
+export type SessionTypeValidation<T> =
+  | { ok: true; value: T }
+  | { ok: false; error: string };
+
+/**
+ * Field-level rules shared by create and update. Every rule fires only when
+ * the field is actually present, so one function covers a full create payload
+ * and a partial patch — create and update can never drift apart.
+ *
+ * Returns an error string, or null when every present field is in range.
+ */
+function checkPresentFields(input: UpdateSessionTypeInput): string | null {
+  if (
+    input.name !== undefined &&
+    (!input.name.trim() || input.name.length > 100)
+  ) {
+    return "name is required (max 100 chars)";
+  }
+  if (
+    input.slug !== undefined &&
+    (!input.slug.trim() || !validateSessionTypeSlug(input.slug.trim()))
+  ) {
+    return "slug must be 2-60 chars, lowercase, hyphens only";
+  }
+  if (
+    input.durationMinutes !== undefined &&
+    (input.durationMinutes < 15 || input.durationMinutes > 720)
+  ) {
+    return "durationMinutes must be 15-720";
+  }
+
+  const { depositType, depositAmount } = input;
+  if (
+    depositType !== undefined &&
+    depositType !== "flat" &&
+    depositType !== "percentage" &&
+    depositType !== "none"
+  ) {
+    return "depositType must be flat, percentage, or none";
+  }
+  // depositAmount's UNIT is decided by depositType — cents for 'flat', basis
+  // points for 'percentage'. Accepting an amount without its type would mean
+  // range-checking a number whose unit we do not know, which is exactly the
+  // 100x mistake this module exists to prevent. Demand both together.
+  if (depositAmount !== undefined && depositType === undefined) {
+    return "depositType must be supplied alongside depositAmount (the amount's unit depends on it)";
+  }
+  if (
+    depositType === "flat" &&
+    depositAmount !== undefined &&
+    (depositAmount < 0 || depositAmount > 100000)
+  ) {
+    return "flat deposit must be 0-100000 cents ($0-$1000)";
+  }
+  if (
+    depositType === "percentage" &&
+    depositAmount !== undefined &&
+    (depositAmount < 0 || depositAmount > 10000)
+  ) {
+    return "percentage deposit must be 0-10000 bps (0-100%)";
+  }
+
+  if (
+    input.minimumBookingNoticeHours !== undefined &&
+    input.minimumBookingNoticeHours < 0
+  ) {
+    return "minimumBookingNoticeHours must be >= 0";
+  }
+  if (input.beforeBufferMinutes !== undefined && input.beforeBufferMinutes < 0) {
+    return "beforeBufferMinutes must be >= 0";
+  }
+  if (input.afterBufferMinutes !== undefined && input.afterBufferMinutes < 0) {
+    return "afterBufferMinutes must be >= 0";
+  }
+
+  if (
+    input.cancellationPolicyHoursFullRefund !== undefined &&
+    input.cancellationPolicyHoursFullRefund < 0
+  ) {
+    return "cancellationPolicyHoursFullRefund must be >= 0";
+  }
+  if (
+    input.cancellationPolicyHoursPartialRefund !== undefined &&
+    input.cancellationPolicyHoursPartialRefund < 0
+  ) {
+    return "cancellationPolicyHoursPartialRefund must be >= 0";
+  }
+  // Upper bound matters more than the lower one: >10000 bps is a refund
+  // larger than the deposit, which Stripe would happily attempt. Reject
+  // rather than clamp — silently paying out 100% when the artist typed
+  // 50000 would be a money bug that never surfaces. See ADR 0023.
+  if (
+    input.cancellationPolicyPartialRefundBps !== undefined &&
+    (input.cancellationPolicyPartialRefundBps < 0 ||
+      input.cancellationPolicyPartialRefundBps > 10000)
+  ) {
+    return "cancellationPolicyPartialRefundBps must be 0-10000 bps (0-100%)";
+  }
+
+  return null;
+}
+
+/**
+ * Validate a partial update. Only the fields present are checked; nothing is
+ * defaulted, so an update never silently rewrites a field the caller left
+ * alone. Used by `updateSessionType` so patches face the same rules as create.
+ */
+export function validateSessionTypeUpdate(
+  updates: UpdateSessionTypeInput,
+): SessionTypeValidation<UpdateSessionTypeInput> {
+  const error = checkPresentFields(updates);
+  if (error) return { ok: false, error };
+  return { ok: true, value: updates };
+}
+
 export function validateSessionTypeInput(
   input: Partial<CreateSessionTypeInput>,
-): { ok: true; value: CreateSessionTypeInput } | { ok: false; error: string } {
+): SessionTypeValidation<CreateSessionTypeInput> {
   if (!input.artistId?.trim()) {
     return { ok: false, error: "artistId is required" };
   }
-  if (!input.name?.trim() || input.name.length > 100) {
+  // Create additionally requires these three to be present at all.
+  if (!input.name?.trim()) {
     return { ok: false, error: "name is required (max 100 chars)" };
   }
-  if (!input.slug?.trim() || !validateSessionTypeSlug(input.slug || "")) {
+  if (!input.slug?.trim()) {
     return {
       ok: false,
       error: "slug must be 2-60 chars, lowercase, hyphens only",
     };
   }
-  if (
-    !input.durationMinutes ||
-    input.durationMinutes < 15 ||
-    input.durationMinutes > 720
-  ) {
+  if (!input.durationMinutes) {
     return { ok: false, error: "durationMinutes must be 15-720" };
   }
 
+  const error = checkPresentFields(input);
+  if (error) return { ok: false, error };
+
   const depositType = input.depositType ?? "none";
   const depositAmount = input.depositAmount ?? 0;
-
-  if (
-    depositType !== "flat" &&
-    depositType !== "percentage" &&
-    depositType !== "none"
-  ) {
-    return {
-      ok: false,
-      error: "depositType must be flat, percentage, or none",
-    };
-  }
-  if (depositType === "flat" && (depositAmount < 0 || depositAmount > 100000)) {
-    return {
-      ok: false,
-      error: "flat deposit must be 0-100000 cents ($0-$1000)",
-    };
-  }
-  if (
-    depositType === "percentage" &&
-    (depositAmount < 0 || depositAmount > 10000)
-  ) {
-    return {
-      ok: false,
-      error: "percentage deposit must be 0-10000 bps (0-100%)",
-    };
-  }
-
   const minimumBookingNoticeHours = input.minimumBookingNoticeHours ?? 24;
-  if (minimumBookingNoticeHours < 0) {
-    return { ok: false, error: "minimumBookingNoticeHours must be >= 0" };
-  }
-
   const beforeBufferMinutes = input.beforeBufferMinutes ?? 30;
-  if (beforeBufferMinutes < 0) {
-    return { ok: false, error: "beforeBufferMinutes must be >= 0" };
-  }
   const afterBufferMinutes = input.afterBufferMinutes ?? 30;
-  if (afterBufferMinutes < 0) {
-    return { ok: false, error: "afterBufferMinutes must be >= 0" };
-  }
 
   return {
     ok: true,
