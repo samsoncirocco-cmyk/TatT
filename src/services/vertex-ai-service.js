@@ -9,7 +9,7 @@
  */
 
 import { VertexAI } from '@google-cloud/vertexai';
-import { uploadToGCS } from './gcs-service';
+import { uploadToGCS } from './gcs-service.ts';
 
 // Initialize Vertex AI
 const projectId = process.env.GCP_PROJECT_ID || 'tatt-pro';
