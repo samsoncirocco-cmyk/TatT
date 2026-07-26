@@ -26,7 +26,12 @@ export class ShareRequestError extends Error {
 }
 
 export interface CreateShareRequest {
-  imageUrl: string;
+  /**
+   * The cuts to share, cover first. One entry is the /designs/[id] path;
+   * several is a Forge selection. Either way the route mints ONE link — a
+   * share is a single artifact you send someone, not a link per image.
+   */
+  imageUrls: string[];
   prompt: string;
   style?: string;
   bodyPart?: string;

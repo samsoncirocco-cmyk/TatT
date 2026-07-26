@@ -34,7 +34,7 @@ function expectNoLinkRendered() {
 }
 
 const props = {
-  imageUrl: "https://cdn.example.com/cut.png",
+  imageUrls: ["https://cdn.example.com/cut.png"],
   prompt: "a tiger, blackwork",
   redirectTo: "/designs/abc",
 };
@@ -60,7 +60,7 @@ describe("ShareDesignAction", () => {
   });
 
   it("disables sharing when the design has no cut yet, and says why", () => {
-    render(<ShareDesignAction {...props} imageUrl={undefined} />);
+    render(<ShareDesignAction {...props} imageUrls={[]} />);
 
     expect((screen.getByRole("button") as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText(/nothing to share/i)).toBeTruthy();
@@ -122,7 +122,7 @@ describe("ShareDesignAction", () => {
     vi.unstubAllGlobals();
   });
 
-  it("sends imageUrl and prompt — the fields the viewer page renders", async () => {
+  it("sends imageUrls and prompt — the fields the viewer page renders", async () => {
     const fetchMock = vi.fn(async () =>
       jsonResponse(200, {
         success: true,
@@ -139,7 +139,7 @@ describe("ShareDesignAction", () => {
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("/api/v1/designs/share");
     expect(JSON.parse(init.body as string)).toEqual({
-      imageUrl: "https://cdn.example.com/cut.png",
+      imageUrls: ["https://cdn.example.com/cut.png"],
       prompt: "a tiger, blackwork",
     });
     expect((init.headers as Record<string, string>).Authorization).toBe("Bearer token");
@@ -241,5 +241,140 @@ describe("ShareDesignAction", () => {
       "https://tatt.app/share/abc1234567"
     );
     vi.unstubAllGlobals();
+  });
+});
+
+/**
+ * Selecting several cuts must produce ONE link holding the set. The whole
+ * point of selection was to avoid a share button — and therefore a link —
+ * per cut, so "N picks, N links" is the failure mode these pin down.
+ */
+describe("ShareDesignAction — a selection of several cuts", () => {
+  const three = [
+    "https://cdn.example.com/one.png",
+    "https://cdn.example.com/two.png",
+    "https://cdn.example.com/three.png",
+  ];
+
+  beforeEach(() => {
+    currentUser = signedInUser;
+    getApiAuthHeaders.mockClear();
+    getApiAuthHeaders.mockResolvedValue({ Authorization: "Bearer token" });
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: vi.fn().mockResolvedValue(undefined) },
+    });
+  });
+
+  it("mints one link for the whole selection, not one per cut", async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse(200, {
+        success: true,
+        shareId: "set1234567",
+        shareUrl: "https://tatt.app/share/set1234567",
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ShareDesignAction {...props} imageUrls={three} />);
+    expect(screen.getByRole("button").textContent).toContain("Share 3 cuts");
+
+    fireEvent.click(screen.getByRole("button"));
+    const field = (await screen.findByLabelText("Share link")) as HTMLInputElement;
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByLabelText("Share link")).toHaveLength(1);
+    expect(field.value).toBe("https://tatt.app/share/set1234567");
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(JSON.parse(init.body as string).imageUrls).toEqual(three);
+    vi.unstubAllGlobals();
+  });
+
+  it("sends every cut when the user selects all of them", async () => {
+    const all = [...three, "https://cdn.example.com/four.png"];
+    const fetchMock = vi.fn(async () =>
+      jsonResponse(200, {
+        success: true,
+        shareId: "all1234567",
+        shareUrl: "https://tatt.app/share/all1234567",
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ShareDesignAction {...props} imageUrls={all} />);
+    expect(screen.getByRole("button").textContent).toContain("Share 4 cuts");
+
+    fireEvent.click(screen.getByRole("button"));
+    await screen.findByLabelText("Share link");
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(JSON.parse(init.body as string).imageUrls).toEqual(all);
+    // ...and the panel is honest about what the one link contains.
+    expect(document.body.textContent).toContain("all 4 cuts");
+    vi.unstubAllGlobals();
+  });
+
+  it("drops a minted link when the selection changes under it", async () => {
+    // A link belongs to the exact set it was minted from. Leaving it on
+    // screen after the user ticks another cut says the link contains
+    // something it does not.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse(200, {
+          success: true,
+          shareId: "abc1234567",
+          shareUrl: "https://tatt.app/share/abc1234567",
+        })
+      )
+    );
+
+    const { rerender } = render(
+      <ShareDesignAction {...props} imageUrls={three.slice(0, 1)} />
+    );
+    fireEvent.click(screen.getByRole("button"));
+    await screen.findByLabelText("Share link");
+
+    rerender(<ShareDesignAction {...props} imageUrls={three.slice(0, 2)} />);
+
+    await waitFor(() => expect(screen.queryByLabelText("Share link")).toBeNull());
+    expectNoLinkRendered();
+    expect(screen.getByRole("button").textContent).toContain("Share 2 cuts");
+    vi.unstubAllGlobals();
+  });
+
+  it("shows no link for a multi-cut selection when the store is unavailable", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse(503, {
+          success: false,
+          error: "Sharing is temporarily unavailable.",
+          code: "SHARE_STORE_UNAVAILABLE",
+        })
+      )
+    );
+
+    render(<ShareDesignAction {...props} imageUrls={three} />);
+    fireEvent.click(screen.getByRole("button"));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("No link was created");
+    expectNoLinkRendered();
+    vi.unstubAllGlobals();
+  });
+
+  it("explains why sharing is disabled before anything is selected", () => {
+    render(
+      <ShareDesignAction
+        {...props}
+        imageUrls={[]}
+        emptyHint="Select a cut above — everything you select goes in one link."
+      />
+    );
+
+    expect((screen.getByRole("button") as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText(/everything you select goes in one link/i)).toBeTruthy();
   });
 });

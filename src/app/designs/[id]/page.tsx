@@ -188,7 +188,7 @@ export default function DesignDetailPage({
                 one view where a single design has an identity to send. */}
             <ShareDesignAction
               className="mt-3"
-              imageUrl={design.image}
+              imageUrls={design.image ? [design.image] : []}
               prompt={design.prompt}
               redirectTo={`/designs/${design.id}`}
             />
