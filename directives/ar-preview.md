@@ -50,15 +50,19 @@ alpha so only the linework composites.
 remove, so the whole rectangle survives opaque, and overlaying it pastes *a
 stranger's forearm* onto the user's camera feed.
 
-So the guard runs first and fails closed:
+So the guard runs first and fails closed.
 
-**Location:** `src/services/ar/designSource.ts`
+**Classification and strip:** `src/lib/designBackdrop.ts` — shared with the
+placement-preview composite. One threshold, one ramp, one place to change it.
+It samples the border ring, because ink sits in the middle of both a flash
+render and an on-skin render, so the edge is what distinguishes paper from
+skin. Flash art measures ~1.0; an on-skin render measures ~0.0, since skin
+fails the all-channels-≥235 test even at very pale tones.
 
-- `analyzeDesignSource()` samples the image's border ring — ink sits in the
-  middle of both a flash render and an on-skin render, so the edge is what
-  distinguishes paper from skin. Flash art measures ~1.0; an on-skin render
-  measures ~0.0, because skin fails an all-channels-≥235 test even at very pale
-  tones.
+**AR adapter:** `src/services/ar/designSource.ts` — DOM plumbing only. Reads an
+`<img>`/`<canvas>` back into a pixel buffer, delegates the verdict, and returns
+something renderable.
+
 - Images already carrying real alpha are accepted as-is.
 - **Unreadable pixels are rejected**, not guessed at. A tainted cross-origin
   canvas means the guard cannot verify the background, and rendering anyway is

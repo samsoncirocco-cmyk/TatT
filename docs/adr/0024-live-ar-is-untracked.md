@@ -84,8 +84,18 @@ feature: it is indistinguishable from a working one until a user trusts it.
 A design can only be composited if its background lifts to real alpha. An
 on-skin render has no white to remove, so the whole rectangle would survive
 opaque and the preview would paste a stranger's skin onto the user's camera.
-`designSource.ts` measures this and fails closed — including when the pixels
-cannot be read at all.
+
+The classification and the alpha ramp are **not reimplemented here**. They live
+in `src/lib/designBackdrop.ts`, shared with the placement-preview composite
+(#125), which states plainly: import it, do not write a second copy that
+drifts. `src/services/ar/designSource.ts` is a DOM adapter over it — it reads
+an `<img>`/`<canvas>` into a pixel buffer and returns a renderable canvas (or
+`null`), and owns no thresholds of its own. Only the rejection *copy* differs,
+because the AR surface pastes onto a live camera rather than an uploaded photo.
+
+Both implementations were written independently before #125 merged, and the AR
+suite passed unchanged when swapped onto the shared module — a useful
+confirmation that the two agreed on the underlying judgement.
 
 ## Consequences
 
