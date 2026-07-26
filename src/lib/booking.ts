@@ -157,9 +157,23 @@ export function normalizeRequestedSlots(input: unknown): RequestedSlot[] {
  * The lifecycle of a captured booking. Distinct from AvailabilityStatus:
  * availability describes an artist's schedule; this describes one booking
  * record as it moves from request → paid deposit → confirmed → done.
+ *
+ * `held` is the reservation path's missing middle (ADR 0027). On the request
+ * model a booking goes straight `pending → deposit_paid`, which is why two
+ * clients could pay for the same time: nothing ever reserved it. On the
+ * reservation model, taking an exclusive hold on a concrete slot moves the
+ * booking to `held`, and only a booking in `held` may pay for that slot.
+ *
+ * The two edges out of `held` that are not payment matter as much as the one
+ * that is:
+ *  - `held → pending` — the hold lapsed, was abandoned, or the payment failed.
+ *    The SLOT is released to everyone else; the BOOKING survives as a plain
+ *    request, so the client loses their reservation but never their enquiry.
+ *  - `held → expired` — the whole booking is being retired, not just the hold.
  */
 export type BookingStatus =
   | "pending"
+  | "held"
   | "deposit_paid"
   | "confirmed"
   | "declined"
@@ -176,7 +190,8 @@ export const INITIAL_BOOKING_STATUS: BookingStatus = "pending";
  * statuses it may move to. Terminal states map to an empty array.
  */
 const BOOKING_TRANSITIONS: Record<BookingStatus, readonly BookingStatus[]> = {
-  pending: ["deposit_paid", "cancelled", "expired"],
+  pending: ["held", "deposit_paid", "cancelled", "expired"],
+  held: ["deposit_paid", "pending", "cancelled", "expired"],
   deposit_paid: ["confirmed", "declined", "refunded", "cancelled"],
   confirmed: ["completed", "cancelled", "refunded"],
   declined: ["refunded"],
