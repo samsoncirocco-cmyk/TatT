@@ -6,7 +6,12 @@
 // tempting bug — `catch { return new Set() }` — silently re-imports every
 // artist who ever asked to be removed. See docs/adr/0025 §4.
 import { describe, expect, it, vi } from 'vitest';
-import { filterTombstoned, loadTombstoneGate, makeTombstoneGate } from './takedown-tombstone.mjs';
+import {
+  TOMBSTONE_KEYS_CYPHER,
+  filterTombstoned,
+  loadTombstoneGate,
+  makeTombstoneGate,
+} from './takedown-tombstone.mjs';
 
 describe('makeTombstoneGate', () => {
   const gate = makeTombstoneGate([
@@ -117,5 +122,39 @@ describe('loadTombstoneGate — fail closed', () => {
 
     expect(gate.keyCount).toBe(0);
     expect(gate.isTombstoned({ instagram: 'anyone' }).blocked).toBe(false);
+  });
+});
+
+// The load-bearing claim of ADR 0026: reinstatement opens a door for the artist
+// WITHOUT opening one for the crawler. If these ever fail, a reinstated artist
+// has become re-scrapeable and the takedown promise is broken for them.
+describe('a reinstated artist stays blocked from re-ingest (ADR 0026)', () => {
+  it('the ingest query does not filter out reinstated tombstones', () => {
+    // A future "helpful" `WHERE t.reinstatedAt IS NULL` here would silently make
+    // every reinstated artist re-scrapeable. The gate reads keys, nothing else.
+    expect(TOMBSTONE_KEYS_CYPHER).not.toMatch(/reinstated/i);
+    expect(TOMBSTONE_KEYS_CYPHER).not.toMatch(/WHERE/i);
+  });
+
+  it('still blocks the handle after reinstatement marks the tombstone', async () => {
+    // markTombstoneReinstated sets properties on the node; the key is untouched,
+    // so it is still returned by the reader and still in the gate.
+    const gate = await loadTombstoneGate(vi.fn().mockResolvedValue(['instagram:tattoosbyging']));
+
+    expect(gate.isTombstoned({ instagram: '@TattoosByGing' })).toEqual({
+      blocked: true,
+      matchedKey: 'instagram:tattoosbyging',
+    });
+  });
+
+  it('blocks a re-crawl even under a freshly minted random id', async () => {
+    // The crawler mints a new id every run, which is why the handle leads.
+    const gate = await loadTombstoneGate(vi.fn().mockResolvedValue(['instagram:tattoosbyging']));
+    const { blocked } = gate.isTombstoned({
+      instagram: 'tattoosbyging',
+      artistId: 'artist_brandnew123',
+    });
+
+    expect(blocked).toBe(true);
   });
 });
