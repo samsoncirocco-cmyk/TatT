@@ -38,6 +38,7 @@ import { verifyApiAuth } from '@/lib/api-auth';
 import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { checkBudget, recordSpend } from '@/lib/budget-tracker';
 import { getAnatomicalAspectRatio } from '@/services/generation/internal/routing';
+import { ONTOLOGY_TAG_IDS } from '@/lib/style-vocabulary';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -126,7 +127,7 @@ no fences.
 Fields (all required):
 {
   "placement":     one of: sleeve, half-sleeve, forearm, upper-arm, chest, back, thigh, calf, hand, foot, ribs, neck, finger, other,
-  "style":         one of: color-anime, neo-traditional, traditional-american, blackwork, realism, fineline, watercolor, japanese-irezumi, tribal, geometric, lettering, mixed,
+  "style":         one of: ${ONTOLOGY_TAG_IDS.join(', ')}, mixed,
   "subject_type":  one of: named-characters, real-person, animals, objects, abstract, typography, scene, none,
   "subjects":      list of strings; empty for typography or pure abstract,
   "relationships": short string describing how subjects relate,
@@ -195,7 +196,7 @@ image and the brief it was supposed to satisfy. Judge:
 1. Does the image match the BRIEF (placement, style, subjects, vibes)?
 2. Are all named subjects present and identifiable?
 3. Does the composition fit the placement?
-4. Is the style applied (e.g. fineline should not look thick)?
+4. Is the style applied (e.g. fine-line should not look thick)?
 
 Output JSON ONLY:
 {

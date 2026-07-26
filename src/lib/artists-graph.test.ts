@@ -10,24 +10,27 @@ describe("buildRosterFilter", () => {
   it("nulls out empty filters so the WHERE clause passes everything", () => {
     expect(buildRosterFilter({}).params).toEqual({
       q: null,
-      style: null,
+      styleVariants: [],
       hasPortfolio: false,
     });
     expect(buildRosterFilter({ q: "  ", style: "" }).params).toEqual({
       q: null,
-      style: null,
+      styleVariants: [],
       hasPortfolio: false,
     });
   });
 
   it("trims and forwards active filters as parameters, never inline", () => {
     const { where, params } = buildRosterFilter({ q: " austin ", style: "Blackwork" });
-    expect(params).toEqual({ q: "austin", style: "Blackwork", hasPortfolio: false });
+    expect(params.q).toBe("austin");
+    expect(params.hasPortfolio).toBe(false);
+    // The style reaches Cypher as its spelling group, not as a bare name.
+    expect(params.styleVariants).toContain("blackwork");
     // Values must reach Cypher only via $params (no string interpolation).
     expect(where).not.toContain("austin");
     expect(where).not.toContain("Blackwork");
     expect(where).toContain("$q");
-    expect(where).toContain("$style");
+    expect(where).toContain("$styleVariants");
   });
 
   it("gates the roster on real stored portfolioImages, not the stale count", () => {
@@ -41,11 +44,11 @@ describe("buildRosterFilter", () => {
   });
 
   it("searches name, city, and shop; matches style case-insensitively", () => {
-    const { where } = buildRosterFilter({ q: "x" });
+    const { where } = buildRosterFilter({ q: "x", style: "Blackwork" });
     expect(where).toContain("a.name");
     expect(where).toContain("a.city");
     expect(where).toContain("a.shopName");
-    expect(where).toContain("toLower(s) = toLower($style)");
+    expect(where).toContain("toLower(s) IN $styleVariants");
   });
 });
 

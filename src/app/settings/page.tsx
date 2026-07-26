@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
 import PunkToggle from "@/components/punk/PunkToggle";
 import { useUser } from "@/lib/tattStorage";
+import { CANONICAL_STYLES } from "@/lib/style-vocabulary";
 
 const NAV = ["Profile", "Notifications", "Billing", "Delete Account"];
 
@@ -31,11 +32,12 @@ const NOTIF_OPTIONS = [
   },
 ] as const;
 
-const STYLES = [
-  "Fineline", "Traditional", "Blackwork", "Japanese",
-  "Geometric", "Neo-Trad", "Surreal", "Lettering",
-  "Botanical", "Color Realism", "Minimal", "Tribal",
-];
+// Style preferences feed artist matching, so they must be the same vocabulary
+// the match query speaks. This list used to be its own invention — 6 of its 12
+// entries ("Neo-Trad", "Surreal", "Botanical", "Color Realism", "Minimal",
+// plus "Fineline") existed nowhere else in the codebase, so saving them was a
+// no-op the user could never see the effect of.
+const STYLES = CANONICAL_STYLES;
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -43,7 +45,7 @@ export default function SettingsPage() {
   const [active, setActive] = useState(0);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [picked, setPicked] = useState<string[]>(["Fineline", "Blackwork"]);
+  const [picked, setPicked] = useState<string[]>(["Fine Line", "Blackwork"]);
   const [saved, setSaved] = useState(false);
   const [notifs, setNotifs] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(NOTIF_OPTIONS.map((o) => [o.key, o.default])),
