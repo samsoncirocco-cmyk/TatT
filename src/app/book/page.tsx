@@ -1,7 +1,8 @@
-import BookClient, { type BookArtist } from "./BookClient";
+import BookClient, { type BookArtist, type BookOffer } from "./BookClient";
 import { getRosterArtistById } from "@/lib/artists-graph";
 import { getArtistAvailability } from "@/lib/availability";
 import { availabilityLabel } from "@/lib/booking";
+import { getBookingOffer } from "@/lib/booking-offer";
 
 // The artist comes from the live graph and availability from Firestore
 // on every request — never statically rendered.
@@ -21,6 +22,19 @@ export default async function BookPage({
   let artist: BookArtist | null = null;
   let artistLoadFailed = false;
 
+  /**
+   * The honest default, and what every artist gets unless a live calendar read
+   * says otherwise. If anything below throws we ship this — a booking page that
+   * over-promises is worse than one that under-promises (ADR 0027).
+   */
+  let offer: BookOffer = {
+    mode: "request",
+    label: "Availability on request",
+    detail:
+      "Pick the dates that suit you — the artist confirms a time after your request lands.",
+    slots: [],
+  };
+
   if (artistId) {
     try {
       const found = await getRosterArtistById(artistId);
@@ -37,6 +51,22 @@ export default async function BookPage({
           availabilityLabel: availabilityLabel(availability.status),
           availabilityNote: availability.note ?? null,
         };
+
+        // Reservation or request, decided per artist from live signals. The
+        // server guarantees `slots` is empty unless the mode is "reservation",
+        // so the client cannot render a time we are unable to hold.
+        const resolved = await getBookingOffer({ artistId: found.id });
+        offer = {
+          mode: resolved.decision.mode,
+          label: resolved.decision.label,
+          detail: resolved.decision.detail,
+          slots: resolved.slots.map((s) => ({
+            date: s.date,
+            startTime: s.startTime,
+            endTime: s.endTime,
+          })),
+          ...(resolved.timezone ? { timezone: resolved.timezone } : {}),
+        };
       }
     } catch {
       // Graph unreachable — be honest about it instead of faking an artist.
@@ -50,6 +80,7 @@ export default async function BookPage({
       requestedArtistId={artistId}
       artistLoadFailed={artistLoadFailed}
       designSessionId={designSessionId}
+      offer={offer}
     />
   );
 }

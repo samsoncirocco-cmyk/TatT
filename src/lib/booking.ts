@@ -73,16 +73,37 @@ export function availabilityLabel(status: AvailabilityStatus): string {
 
 export type TattooSize = "small" | "medium" | "large" | "sleeve";
 
-export const DEPOSIT_BY_SIZE: Record<TattooSize, number> = {
-  small: 75,
-  medium: 150,
-  large: 300,
-  sleeve: 500,
+/**
+ * The size-based deposit ladder, in CENTS.
+ *
+ * Cents is the unit of record for every money value in this codebase: it is
+ * what Stripe's `unit_amount` takes, what `platformFeeCents` computes on,
+ * what the `depositCents` charge metadata carries, and what
+ * `computeDepositCents` in ./session-types returns. A dollars/cents mix-up
+ * here is a 100x billing error, so there is exactly one table and it is
+ * denominated in cents — see ADR 0026.
+ *
+ * Dollars appear only at the presentation edge, via depositDollarsForSize.
+ */
+export const DEPOSIT_CENTS_BY_SIZE: Record<TattooSize, number> = {
+  small: 7_500,
+  medium: 15_000,
+  large: 30_000,
+  sleeve: 50_000,
 };
 
-export function depositForSize(size: string | undefined): number {
+/** The deposit for a size bucket, in cents. Use this for anything Stripe. */
+export function depositCentsForSize(size: string | undefined): number {
   const normalized = size?.toLowerCase() as TattooSize;
-  return DEPOSIT_BY_SIZE[normalized] ?? DEPOSIT_BY_SIZE.medium;
+  return DEPOSIT_CENTS_BY_SIZE[normalized] ?? DEPOSIT_CENTS_BY_SIZE.medium;
+}
+
+/**
+ * Whole-dollar view of the same ladder, for UI copy ("$150 deposit") only.
+ * Never hand this to Stripe or to any function whose name ends in `Cents`.
+ */
+export function depositDollarsForSize(size: string | undefined): number {
+  return depositCentsForSize(size) / 100;
 }
 
 // ─── Requested slots ───────────────────────────────────────────────────
@@ -136,9 +157,23 @@ export function normalizeRequestedSlots(input: unknown): RequestedSlot[] {
  * The lifecycle of a captured booking. Distinct from AvailabilityStatus:
  * availability describes an artist's schedule; this describes one booking
  * record as it moves from request → paid deposit → confirmed → done.
+ *
+ * `held` is the reservation path's missing middle (ADR 0027). On the request
+ * model a booking goes straight `pending → deposit_paid`, which is why two
+ * clients could pay for the same time: nothing ever reserved it. On the
+ * reservation model, taking an exclusive hold on a concrete slot moves the
+ * booking to `held`, and only a booking in `held` may pay for that slot.
+ *
+ * The two edges out of `held` that are not payment matter as much as the one
+ * that is:
+ *  - `held → pending` — the hold lapsed, was abandoned, or the payment failed.
+ *    The SLOT is released to everyone else; the BOOKING survives as a plain
+ *    request, so the client loses their reservation but never their enquiry.
+ *  - `held → expired` — the whole booking is being retired, not just the hold.
  */
 export type BookingStatus =
   | "pending"
+  | "held"
   | "deposit_paid"
   | "confirmed"
   | "declined"
@@ -155,7 +190,8 @@ export const INITIAL_BOOKING_STATUS: BookingStatus = "pending";
  * statuses it may move to. Terminal states map to an empty array.
  */
 const BOOKING_TRANSITIONS: Record<BookingStatus, readonly BookingStatus[]> = {
-  pending: ["deposit_paid", "cancelled", "expired"],
+  pending: ["held", "deposit_paid", "cancelled", "expired"],
+  held: ["deposit_paid", "pending", "cancelled", "expired"],
   deposit_paid: ["confirmed", "declined", "refunded", "cancelled"],
   confirmed: ["completed", "cancelled", "refunded"],
   declined: ["refunded"],
