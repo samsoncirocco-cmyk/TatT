@@ -193,9 +193,69 @@ async function reconcileBookingDeposit(
 
       console.log('[Stripe] booking reconciled → deposit_paid', { bookingId, eventId: event.id });
     });
+
+    await resolveHoldForPaidBooking(metadata.holdId, bookingId, event);
   } catch (err) {
     // A lost reconciliation is real money — never silent.
     console.error('[Stripe] booking reconciliation failed (best-effort):', err);
+  }
+}
+
+/**
+ * Close out the slot hold behind a paid reservation.
+ *
+ * The happy path converts the hold, which keeps the slot out of everyone
+ * else's grid permanently instead of letting it lapse back on sale under a
+ * client who has paid for it.
+ *
+ * The unhappy path is the one worth writing down. `resolvePaidHold` says
+ * `slot_lost` when money arrived for a reservation that had already expired or
+ * been released — someone else may now hold that time. Pinning the Checkout
+ * Session's `expires_at` to the hold should make this unreachable; if it
+ * happens anyway, the booking is flagged for refund rather than confirmed,
+ * because confirming is how a platform double-books and finds out from the
+ * angry client. Left for a human deliberately: an automatic refund on a
+ * should-be-impossible path is a worse failure than a loud flag.
+ */
+async function resolveHoldForPaidBooking(
+  holdId: string | undefined,
+  bookingId: string,
+  event: Stripe.Event
+): Promise<void> {
+  // No holdId means the request model, where nothing was ever reserved.
+  if (!holdId) return;
+  try {
+    const { getHold, convertHoldById } = await import('@/lib/booking-holds-persistence');
+    const { resolvePaidHold } = await import('@/lib/booking-holds');
+    const hold = await getHold(holdId);
+    if (!hold) {
+      console.error('[Stripe] paid booking references a hold that does not exist', {
+        bookingId,
+        holdId,
+      });
+      return;
+    }
+
+    const paidAtMs = event.created * 1000;
+    if (resolvePaidHold(hold, paidAtMs) === 'confirm') {
+      await convertHoldById(holdId);
+      return;
+    }
+
+    console.error('[Stripe] DOUBLE-BOOKING RISK: deposit paid for a lapsed hold', {
+      bookingId,
+      holdId,
+      holdExpiresAt: hold.expiresAt,
+      holdStatus: hold.status,
+      paidAt: new Date(paidAtMs).toISOString(),
+    });
+    const { getFirestore } = await import('firebase-admin/firestore');
+    await getFirestore()
+      .collection('booking_requests')
+      .doc(bookingId)
+      .set({ holdLost: true, holdLostAt: new Date().toISOString() }, { merge: true });
+  } catch (err) {
+    console.error('[Stripe] hold resolution failed:', err);
   }
 }
 
