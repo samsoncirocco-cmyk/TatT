@@ -96,6 +96,25 @@ describe('memorySessionStore', () => {
     expect(await memorySessionStore.get('unknown')).toBeNull();
   });
 
+  /**
+   * Every design-session route is its own Next.js entry point, and each
+   * bundles its own instance of ../internal/store. A Map held in module
+   * scope is therefore per-route, not per-process: a session written by
+   * /converse was invisible to /[id]/confirm, which answered the user's
+   * "show me" with "Session not found". Two module instances of the same
+   * file reproduce exactly that.
+   */
+  it('shares sessions across module instances (one per Next route bundle)', async () => {
+    const writer = await import('../internal/store');
+    await writer.memorySessionStore.save(makeSession({ id: 'cross-route' }));
+
+    vi.resetModules();
+    const reader = await import('../internal/store');
+    expect(reader.memorySessionStore).not.toBe(writer.memorySessionStore);
+
+    expect(await reader.memorySessionStore.get('cross-route')).not.toBeNull();
+  });
+
   it('stores and returns copies, not live references', async () => {
     const session = makeSession();
     await memorySessionStore.save(session);
