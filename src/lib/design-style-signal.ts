@@ -10,28 +10,18 @@
  * both sides agree on the vocabulary.
  */
 
-// Canonical style vocabulary of the live artist graph. Keep in sync with
-// the Neo4j style names — these strings are sent verbatim as
-// style_preferences to /api/v1/match/semantic.
-export const CANONICAL_STYLES = [
-  "Traditional",
-  "Neo-Traditional",
-  "Black & Grey",
-  "Blackwork",
-  "Fine Line",
-  "Realism",
-  "Illustrative",
-  "Japanese",
-  "Watercolor",
-  "Geometric",
-  "Tribal",
-  "Chicano",
-  "Anime",
-  "Minimalist",
-  "Script",
-] as const;
+// The canonical style vocabulary now comes from style-vocabulary.ts, which
+// derives it from data/style-ontology.json + data/graph-style-vocabulary.json
+// rather than repeating it here. Re-exported so the many existing importers
+// of this module keep working.
+import {
+  CANONICAL_STYLES,
+  canonicalStyleForTag,
+  resolveCanonicalStyle,
+  type CanonicalStyle,
+} from "./style-vocabulary";
 
-export type CanonicalStyle = (typeof CANONICAL_STYLES)[number];
+export { CANONICAL_STYLES, resolveCanonicalStyle, type CanonicalStyle };
 
 /** Max styles carried in a design signal — more than 3 stops being a signal. */
 const MAX_SIGNAL_STYLES = 3;
@@ -39,6 +29,10 @@ const MAX_SIGNAL_STYLES = 3;
 // Ordered keyword rules. First match wins per style; more specific styles
 // (Neo-Traditional) are listed before their substrings (Traditional), and
 // the Traditional pattern explicitly refuses a "neo-" prefix.
+//
+// Every `style` here must be a matchable canonical style — a rule for a style
+// the graph cannot answer with would send users to an empty result page.
+// style-vocabulary.test.ts asserts that against the real vocabulary files.
 const STYLE_RULES: Array<{ style: CanonicalStyle; pattern: RegExp }> = [
   { style: "Neo-Traditional", pattern: /neo[\s-]?traditional/ },
   {
@@ -59,8 +53,8 @@ const STYLE_RULES: Array<{ style: CanonicalStyle; pattern: RegExp }> = [
   { style: "Tribal", pattern: /tribal|polynesian|maori|samoan/ },
   { style: "Chicano", pattern: /chicano|payasa|lowrider/ },
   { style: "Anime", pattern: /anime|manga/ },
-  { style: "Minimalist", pattern: /minimal/ },
-  { style: "Script", pattern: /script|lettering|calligraph|typograph/ },
+  { style: "New School", pattern: /new[\s-]?school|cartoon/ },
+  { style: "Ornamental", pattern: /ornamental|filigree|baroque|adorn/ },
 ];
 
 /**
@@ -86,12 +80,11 @@ export function stylesFromDescriptors(descriptors: string[]): CanonicalStyle[] {
  */
 export function parseStylesParam(param: string | null | undefined): CanonicalStyle[] {
   if (!param) return [];
-  const byLower = new Map<string, CanonicalStyle>(
-    CANONICAL_STYLES.map((s) => [s.toLowerCase(), s]),
-  );
   const seen = new Set<CanonicalStyle>();
   for (const raw of param.split(",")) {
-    const style = byLower.get(raw.trim().toLowerCase());
+    // resolveCanonicalStyle also accepts ontology ids, aliases and the graph's
+    // own spellings, so a link built by any other surface still lands.
+    const style = resolveCanonicalStyle(raw);
     if (style && !seen.has(style)) {
       seen.add(style);
       if (seen.size >= MAX_SIGNAL_STYLES) break;
@@ -101,70 +94,27 @@ export function parseStylesParam(param: string | null | undefined): CanonicalSty
 }
 
 // ---------------------------------------------------------------------------
-// Ontology bridge (design bot → match flow)
+// Design bot → match flow
 // ---------------------------------------------------------------------------
-// TODO(match-ontology): temporary bridge. The design bot speaks style-ontology
-// ids (data/style-ontology.json, ADR-0010) while matching still speaks the
-// live artist graph's canonical style names. Delete this mapping once the
-// match pipeline adopts the ontology as its own controlled vocabulary.
-
-/**
- * Explicit ontology-id → canonical-style mapping. Every entry is a curated
- * human decision — no fuzzy matching (ADR-0010: matching runs on a controlled
- * vocabulary). Sub-styles collapse into their graph parent the same way the
- * STYLE_RULES keywords above already do (dotwork → Blackwork, irezumi →
- * Japanese, manga → Anime, lettering → Script, portrait → Realism).
- */
-export const ONTOLOGY_TO_CANONICAL_STYLE: Readonly<Record<string, CanonicalStyle>> = {
-  americana: "Traditional",
-  anime: "Anime",
-  "black-and-grey": "Black & Grey",
-  blackwork: "Blackwork",
-  chicano: "Chicano",
-  dotwork: "Blackwork",
-  "fine-line": "Fine Line",
-  geometric: "Geometric",
-  illustrative: "Illustrative",
-  irezumi: "Japanese",
-  japanese: "Japanese",
-  lettering: "Script",
-  manga: "Anime",
-  minimalist: "Minimalist",
-  "neo-traditional": "Neo-Traditional",
-  portrait: "Realism",
-  realism: "Realism",
-  traditional: "Traditional",
-  tribal: "Tribal",
-  watercolor: "Watercolor",
-};
-
-/**
- * Ontology ids deliberately left unmapped — the live graph has no canonical
- * style for them (palette descriptors, or styles the roster doesn't carry).
- * Kept as an explicit list so ontology growth fails a test instead of
- * silently dropping a new tag; dropping is a decision here, never a guess.
- */
-export const UNMAPPED_ONTOLOGY_TAGS: readonly string[] = [
-  "abstract",
-  "biomechanical",
-  "color",
-  "new-school",
-  "ornamental",
-  "surrealism",
-];
+// The hand-written ONTOLOGY_TO_CANONICAL_STYLE bridge that used to live here
+// is gone (TODO.md "retire the CANONICAL_STYLES bridge"). Both sides now read
+// data/style-ontology.json: the design bot emits tag ids, and
+// canonicalStyleForTag resolves each one — following the ontology's own
+// `parent` roll-up for sub-styles — to a style the graph can actually answer
+// with. One vocabulary, no second mapping to keep in step.
 
 /**
  * Map a brief's ontology style tags (IntakeRecord.styleTags / Brief.styleTags)
  * onto canonical graph styles for /api/v1/match/semantic. Deduped,
  * order-preserving, capped at MAX_SIGNAL_STYLES like every other signal in
- * this module. Unmappable tags are dropped with a logged note — no fuzzy
- * guessing.
+ * this module. Tags the graph has no artists for are dropped with a logged
+ * note — no fuzzy guessing (ADR-0011).
  */
 export function canonicalStylesFromOntologyTags(tags: string[]): CanonicalStyle[] {
   const mapped: CanonicalStyle[] = [];
   const dropped: string[] = [];
   for (const tag of tags) {
-    const style = ONTOLOGY_TO_CANONICAL_STYLE[tag];
+    const style = canonicalStyleForTag(tag);
     if (!style) {
       dropped.push(tag);
       continue;
