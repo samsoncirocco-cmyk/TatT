@@ -10,6 +10,62 @@
  * @param {Object} constraints - MediaStream constraints
  * @returns {Promise<MediaStream>} Camera stream
  */
+/**
+ * How long to wait for the camera stream to report its dimensions before
+ * giving up. Without this the UI can sit on a spinner forever.
+ */
+const METADATA_TIMEOUT_MS = 12000;
+
+/**
+ * Machine-readable failure reasons, so the UI can branch without string
+ * matching on user-facing copy.
+ */
+export const ARFailureReason = {
+  PERMISSION_DENIED: 'permission-denied',
+  NO_CAMERA: 'no-camera',
+  CAMERA_BUSY: 'camera-busy',
+  INSECURE_CONTEXT: 'insecure-context',
+  NO_CAMERA_API: 'no-camera-api',
+  STREAM_TIMEOUT: 'stream-timeout',
+  UNKNOWN: 'unknown'
+};
+
+function arError(message, reason) {
+  const error = new Error(message);
+  error.reason = reason;
+  return error;
+}
+
+/**
+ * Can this browser run the live camera preview at all?
+ *
+ * Checked before any UI promises AR, so an unsupported device gets a straight
+ * answer instead of a dead viewport.
+ *
+ * @returns {{supported: boolean, reason: string|null, message: string}}
+ */
+export function checkArSupport() {
+  if (!isCameraSupported()) {
+    return {
+      supported: false,
+      reason: ARFailureReason.NO_CAMERA_API,
+      message:
+        "This browser can't open a camera. Try Safari on iOS or Chrome on Android, or use the photo preview instead."
+    };
+  }
+
+  // getUserMedia is only exposed on secure origins; localhost counts.
+  if (typeof isSecureContext !== 'undefined' && isSecureContext === false) {
+    return {
+      supported: false,
+      reason: ARFailureReason.INSECURE_CONTEXT,
+      message: 'Live preview needs a secure (https) connection to use your camera.'
+    };
+  }
+
+  return { supported: true, reason: null, message: '' };
+}
+
 export async function requestCameraAccess(constraints = {}) {
   const defaultConstraints = {
     video: {
@@ -33,13 +89,22 @@ export async function requestCameraAccess(constraints = {}) {
 
     // Provide user-friendly error messages
     if (error.name === 'NotAllowedError') {
-      throw new Error('Camera permission denied. Please allow camera access in your browser settings.');
+      throw arError(
+        'Camera permission denied. Please allow camera access in your browser settings.',
+        ARFailureReason.PERMISSION_DENIED
+      );
     } else if (error.name === 'NotFoundError') {
-      throw new Error('No camera found. Please connect a camera and try again.');
+      throw arError(
+        'No camera found. Please connect a camera and try again.',
+        ARFailureReason.NO_CAMERA
+      );
     } else if (error.name === 'NotReadableError') {
-      throw new Error('Camera is already in use by another application.');
+      throw arError(
+        'Camera is already in use by another application.',
+        ARFailureReason.CAMERA_BUSY
+      );
     } else {
-      throw new Error(`Failed to access camera: ${error.message}`);
+      throw arError(`Failed to access camera: ${error.message}`, ARFailureReason.UNKNOWN);
     }
   }
 }
@@ -72,15 +137,49 @@ export function attachStreamToVideo(videoElement, stream) {
 
     videoElement.srcObject = stream;
 
+    let settled = false;
+    let timer = null;
+
+    const finish = (fn, arg) => {
+      if (settled) return;
+      settled = true;
+      if (timer !== null) clearTimeout(timer);
+      videoElement.onloadedmetadata = null;
+      videoElement.onerror = null;
+      fn(arg);
+    };
+
+    // The stream can already be past HAVE_METADATA by the time we attach the
+    // handler — loadedmetadata has fired and will not fire again. Waiting on
+    // it regardless is what leaves the viewport frozen on a spinner.
+    if (videoElement.readyState >= 1) {
+      console.log('[AR] Video metadata already available');
+      finish(resolve);
+      return;
+    }
+
     videoElement.onloadedmetadata = () => {
       console.log('[AR] Video metadata loaded');
-      resolve();
+      finish(resolve);
     };
 
     videoElement.onerror = (error) => {
       console.error('[AR] Video error:', error);
-      reject(new Error('Failed to load video stream'));
+      finish(reject, new Error('Failed to load video stream'));
     };
+
+    // Never hang. A camera that opens but never delivers a frame is a real
+    // failure mode (busy device, virtual camera, backgrounded tab) and the
+    // user deserves to be told rather than watched to spin.
+    timer = setTimeout(() => {
+      finish(
+        reject,
+        arError(
+          'The camera opened but never started sending video. Close other apps using the camera and try again.',
+          ARFailureReason.STREAM_TIMEOUT
+        )
+      );
+    }, METADATA_TIMEOUT_MS);
   });
 }
 
