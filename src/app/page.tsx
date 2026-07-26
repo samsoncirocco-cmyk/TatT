@@ -46,10 +46,10 @@ export default function Home() {
 
           <div className="relative z-[2] px-6 md:px-14 py-16 md:py-[70px] max-w-[820px] flex flex-col justify-center">
             <div className="sticker self-start px-3.5 py-1.5 mb-6 rise rise-1">
-              <div className="font-display text-[12px] tracking-widest leading-none">
+              <div className="font-display text-[14px] tracking-widest leading-none">
                 NEW
               </div>
-              <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-0.5">
+              <div className="font-body text-[10px] uppercase tracking-widest leading-none mt-0.5">
                 Side&nbsp;B&nbsp;Out&nbsp;Now
               </div>
             </div>
@@ -108,7 +108,7 @@ export default function Home() {
                     <div className="font-display text-[14px] tracking-widest leading-none">
                       Step&nbsp;{s.n}
                     </div>
-                    <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-1">
+                    <div className="font-body text-[10px] uppercase tracking-widest leading-none mt-1">
                       {s.title}
                     </div>
                   </div>

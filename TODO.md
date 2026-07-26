@@ -339,9 +339,14 @@ the code survives at `archive/security-hardening-followups`.
   reads the live ontology so any newly approved tag that lacks a bridge
   entry fails loudly until then.
 
-- **Forge polish (from 2026-07-20 UX review):** (1) raise the tape-label
+- **Forge polish (from 2026-07-20 UX review):** ~~(1) raise the tape-label
   font-size floor to ~10px (7-9px "SELECTED"/"LINES" labels fail WCAG
-  readability; keep letter-spacing/punk look); (2) add an expand/zoom
+  readability; keep letter-spacing/punk look)~~ — **FIXED**: every punk
+  surface is now ≥10px, tracking untouched; two-line stickers scaled both
+  lines together to keep the pricetag proportion, and
+  `src/components/punk/type-scale.test.ts` fails the build if the floor
+  regresses. Remaining sub-10px text lives only in the unreachable
+  old-theme files, which are slated for deletion. (2) add an expand/zoom
   affordance on generated cut cards — click already means "select", so
   there is no way to view a design large. Fold into any Forge-touching PR.
 

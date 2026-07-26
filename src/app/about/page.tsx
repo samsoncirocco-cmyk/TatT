@@ -68,7 +68,7 @@ export default function AboutPage() {
                 <div className="font-display text-[14px] tracking-widest leading-none">
                   Step&nbsp;{s.n}
                 </div>
-                <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-1">
+                <div className="font-body text-[10px] uppercase tracking-widest leading-none mt-1">
                   Of&nbsp;04
                 </div>
               </div>
