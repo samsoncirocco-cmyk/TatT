@@ -17,7 +17,7 @@ import type { IntakeRecord } from '../../intake/types';
 import { adjustPromptForAnswer } from '../internal/refinement';
 import type { DesignSession, Variation } from '../types';
 
-const FLASH_ART_CLAUSE = 'flash art on a plain white background';
+const FLASH_ART_CLAUSE = 'Flash art tattoo design on a pure white background';
 
 function recordWith(styleTags: string[]): IntakeRecord {
   return {
