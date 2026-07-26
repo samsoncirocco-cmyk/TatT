@@ -1,6 +1,7 @@
 'use client';
 
 import { use, useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import StudioShell from '@/components/studio/StudioShell';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -145,6 +146,18 @@ export default function ClaimArtistPage({ params }: { params: Promise<{ artistId
                 </div>
               </div>
             )}
+
+            {/* The other ending to the same recognition moment: an artist who
+                recognises the profile may want it gone, not run. See ADR 0024. */}
+            <div className="mt-10 pt-8 border-t hairline">
+              <p className="font-body text-[13px] text-white/50 leading-[1.55]">
+                This is your work but you never asked to be listed?{' '}
+                <Link href={`/takedown/${encodeURIComponent(artistId)}`} className="text-pink press">
+                  Have it removed instead
+                </Link>
+                .
+              </p>
+            </div>
 
             {phase === 'error' && error && (
               <div className="border-2 border-pink bg-black p-6">
