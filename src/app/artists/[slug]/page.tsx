@@ -93,10 +93,10 @@ export default async function ArtistProfilePage({
           <div className="md:col-span-7 relative">
             {artist.rating != null && (
               <div className="hidden sm:block absolute top-0 right-0 sticker px-3 py-1.5 z-10">
-                <div className="font-display text-[13px] tracking-widest leading-none tabular-nums">
+                <div className="font-display text-[14px] tracking-widest leading-none tabular-nums">
                   ★&nbsp;{artist.rating.toFixed(1)}
                 </div>
-                <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-0.5 tabular-nums">
+                <div className="font-body text-[10px] uppercase tracking-widest leading-none mt-0.5 tabular-nums">
                   Shop&nbsp;rating
                   {artist.reviewCount != null && (
                     <>&nbsp;·&nbsp;{artist.reviewCount.toLocaleString()}&nbsp;reviews</>
@@ -146,7 +146,7 @@ export default async function ArtistProfilePage({
                     <div className="font-display text-[30px] sm:text-[38px] leading-none text-pink tabular-nums">
                       ★{artist.rating.toFixed(1)}
                     </div>
-                    <div className="mt-2 text-[9px] uppercase tracking-[0.22em] text-white/50 font-body">
+                    <div className="mt-2 text-[10px] uppercase tracking-[0.22em] text-white/50 font-body">
                       Shop rating
                     </div>
                   </div>
@@ -156,7 +156,7 @@ export default async function ArtistProfilePage({
                     <div className="font-display text-[30px] sm:text-[38px] leading-none text-pink tabular-nums">
                       {artist.reviewCount.toLocaleString()}
                     </div>
-                    <div className="mt-2 text-[9px] uppercase tracking-[0.22em] text-white/50 font-body">
+                    <div className="mt-2 text-[10px] uppercase tracking-[0.22em] text-white/50 font-body">
                       Shop reviews
                     </div>
                   </div>

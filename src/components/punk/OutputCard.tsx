@@ -55,10 +55,10 @@ export default function OutputCard({
         <>
           <div className="absolute top-0 left-0 right-0 h-[6px] bg-pink z-[3]" />
           <div className="absolute top-3.5 right-3.5 sticker px-2.5 py-1 z-[3]">
-            <div className="font-display text-[10px] tracking-widest leading-none">
+            <div className="font-display text-[13px] tracking-widest leading-none">
               PICK
             </div>
-            <div className="font-body text-[7px] uppercase tracking-[0.2em] leading-none mt-0.5">
+            <div className="font-body text-[10px] uppercase tracking-[0.2em] leading-none mt-0.5">
               Selected
             </div>
           </div>
@@ -98,7 +98,7 @@ export default function OutputCard({
       </div>
 
       <div className="flex items-center justify-between px-3.5 py-3 border-t-2 hairline">
-        <span className="text-[9px] uppercase tracking-[0.2em] text-white/60 font-body tabular-nums">
+        <span className="text-[10px] uppercase tracking-[0.2em] text-white/60 font-body tabular-nums">
           Cut&nbsp;{String(index).padStart(2, "0")}&nbsp;·&nbsp;{sizeLabel}
         </span>
         {actions.length > 0 && (

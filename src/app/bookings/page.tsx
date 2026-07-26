@@ -88,10 +88,10 @@ function ServerBookingCard({ b }: { b: ServerBooking }) {
           </div>
         </div>
         <div className="sticker inline-block px-3 py-1">
-          <div className="font-display text-[11px] tracking-widest leading-none">
+          <div className="font-display text-[14px] tracking-widest leading-none">
             {statusLabel(b.status)}
           </div>
-          <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-0.5">
+          <div className="font-body text-[10px] uppercase tracking-widest leading-none mt-0.5">
             {active ? "Studio Hold" : "Request"}
           </div>
         </div>
@@ -131,10 +131,10 @@ function BookingCard({
           </div>
         </div>
         <div className="sticker inline-block px-3 py-1">
-          <div className="font-display text-[11px] tracking-widest leading-none">
+          <div className="font-display text-[14px] tracking-widest leading-none">
             Confirmed
           </div>
-          <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-0.5">
+          <div className="font-body text-[10px] uppercase tracking-widest leading-none mt-0.5">
             Studio&nbsp;Hold
           </div>
         </div>
