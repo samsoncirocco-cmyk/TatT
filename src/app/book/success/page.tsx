@@ -136,7 +136,7 @@ function SuccessContent() {
                 <div className="font-display text-[18px] tracking-widest leading-none tabular-nums">
                   ${depositValue}
                 </div>
-                <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-1">
+                <div className="font-body text-[10px] uppercase tracking-widest leading-none mt-1">
                   {isPaid ? "Deposit paid" : "Deposit due"}
                 </div>
               </div>
@@ -151,7 +151,7 @@ function SuccessContent() {
             <dl className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5 text-[13px] font-body max-w-2xl">
               {rows.map((r) => (
                 <div key={r.label}>
-                  <dt className="text-[9px] uppercase tracking-[0.22em] text-white/40">
+                  <dt className="text-[10px] uppercase tracking-[0.22em] text-white/40">
                     {r.label}
                   </dt>
                   <dd className="mt-1 text-white capitalize">{r.value}</dd>
@@ -176,7 +176,7 @@ function SuccessContent() {
             </p>
 
             {sessionId && (
-              <p className="mt-6 text-[9px] uppercase tracking-[0.15em] text-white/30 font-body break-all">
+              <p className="mt-6 text-[10px] uppercase tracking-[0.15em] text-white/30 font-body break-all">
                 Stripe session: {sessionId}
               </p>
             )}
