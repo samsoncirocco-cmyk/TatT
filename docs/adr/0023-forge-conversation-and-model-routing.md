@@ -67,11 +67,13 @@ The default is portrait, not square: tattoos sit on limbs far more often than no
 
 This map lives in exactly one place (`getAnatomicalAspectRatio`). Every entry point resolves through it — a second copy means the same placement renders at a different shape depending on which route served it, which is what happened while `/api/v1/council/generate` carried its own landscape-4:3 version.
 
-**Presentation is pinned by the color/monochrome axis, not chosen per render.** Color sessions render **tattoo-on-skin** — the design shown as applied ink on a real limb. Monochrome sessions render **flash art on white** — the design as a standalone sheet, no body.
+**Every session renders as flash art on white — the design only, never photographed on skin.** Presentation is fixed, not derived from palette or chosen per render.
 
-This is not an aesthetic preference; it is what each mode has to prove. Color's risk is how the palette reads against skin tone, which a white sheet cannot show. Monochrome's risk is line quality and contrast, which skin rendering muddies with shadow and curvature. Rendering each in its own mode also keeps a reveal's four designs visually comparable to each other — a set that mixes on-skin and on-white reads as four different products, and the user's pick starts tracking presentation instead of design.
+The original design pinned presentation to the palette: color on skin, monochrome on white, on the reasoning that color's real risk is how a palette reads against skin tone and a white sheet cannot show that. That is a fair argument about color, and it lost to a concrete failure. The placement preview strips a render's near-white background to real alpha and composites the design onto a photo of the user's own body with a multiply blend. An on-skin render has no white background to strip, so the preview pastes a stranger's limb onto the user's photo — precisely the flat-sticker, wrong-body result that step exists to prevent.
 
-The pin is derived from the axis, never a separate user choice, and never varies within a reveal. An unresolved axis pins flash art — see the prompt builder below for why that is the safe default rather than a third presentation mode.
+Palette and presentation are separate decisions. The palette clause already front-loads color versus monochrome, so presentation does not need to encode it a second time. Flash art everywhere keeps a reveal's four thumbnails internally consistent, keeps every render usable as a design asset, and preserves the preview.
+
+Seeing a design on skin is the placement preview's job, working from the user's own body rather than an invented one. That is where the original concern belongs, and it is better served there: a generated limb proves nothing about how the piece reads on *this* person.
 
 ### The color/monochrome axis
 
@@ -94,7 +96,7 @@ Palette is three-valued, not two: **color**, **monochrome**, and **unresolved**.
 
 Unresolved should not survive to render. The bot settles palette in a fixed question before the record counts as ready to propose, so by the time a prompt is built the axis has an answer. The empty branch is a backstop for the paths that bypass that question, not a supported third mode.
 
-That backstop still has to pick a presentation, and it picks **flash art on white** — the safe default, since flash art makes no claim about how ink sits on skin, while an on-skin render of an unstated palette invents both.
+Presentation is unaffected by which branch fires: every session is flash art on white regardless of palette, so an unresolved palette degrades to a missing clause and nothing more.
 
 This composes with the exclusion-folding rule below rather than replacing it: the front-loaded instruction sets the palette, and any remaining exclusions still fold into the positive prompt at the end.
 
@@ -152,7 +154,7 @@ Part 2's aspect-ratio map changes generated output for every session whose place
 
 The IP rule is enforced twice on purpose — once in extraction, once when completing the record — because the conversational lane and the questionnaire lane reach the reveal by different paths and both must lock the axis.
 
-The presentation pin makes the color/monochrome axis load-bearing beyond the prompt: it now decides how the render is framed, so a session whose axis resolves late or wrong produces a visually inconsistent reveal, not just an off-palette one. That is the intended coupling — presentation and palette are one decision — but it means the axis must be resolved before render, never during.
+Decoupling presentation from palette keeps the color/monochrome axis contained: it decides prompt text and nothing else. An axis that resolves late or wrong now costs an off-palette reveal rather than a visually inconsistent one, and the four thumbnails stay comparable no matter what the axis does. That is why the coupling was worth giving up — it bought consistency and the placement preview at the price of an argument about color that the preview answers better anyway.
 
 **The presentation measurements cover Vertex Imagen only.** Routing sends realism and portrait to Imagen and everything else to Flux or Krea, so the lane that serves most sessions is the lane with no backdrop measurement behind it — `REPLICATE_API_TOKEN` was not available when the fix was made. The two rules above are model-independent in principle (early tokens win, negation summons), and the fix is strictly a reduction in on-body cues, so it should not make Flux worse. But "should not" is not a measurement. Re-run `scripts/measure-backdrop.mjs` over Flux output before treating flash-art-on-white as proven for the default lane.
 
