@@ -214,39 +214,6 @@ export function captureFrame(videoElement, canvasElement) {
 }
 
 /**
- * Capture depth frame from video element
- * @param {HTMLVideoElement} videoElement - Video source
- * @returns {Promise<Float32Array>} Raw depth map
- */
-export async function captureDepthFrame(videoElement) {
-  if (!videoElement) {
-    throw new Error('Video element required');
-  }
-
-  // Import depth service dynamically to avoid circular dependencies if any
-  const { getDepthMap } = await import('./depthMappingService');
-  return getDepthMap(videoElement);
-}
-
-/**
- * Check if device supports depth sensing
- * @returns {Promise<Object>} Depth capabilities
- */
-export async function getDepthSensorCapabilities() {
-  // Most browsers don't expose this directly yet without WebXR
-  // We check for userMedia constraints that might indicate depth support
-  const supportsDepth = 'mediaDevices' in navigator &&
-    'getSupportedConstraints' in navigator.mediaDevices &&
-    navigator.mediaDevices.getSupportedConstraints().depth;
-
-  return {
-    isSupported: !!supportsDepth,
-    type: supportsDepth ? 'hardware' : 'monocular_fallback',
-    resolution: '640x480' // Estimated for fallback
-  };
-}
-
-/**
  * Check if device supports camera access
  * @returns {boolean} True if camera API is available
  */
@@ -273,18 +240,3 @@ export async function getAvailableCameras() {
     return [];
   }
 }
-
-/**
- * AR Session State
- */
-export const ARSessionState = {
-  IDLE: 'idle',
-  REQUESTING_PERMISSION: 'requesting_permission',
-  PERMISSION_DENIED: 'permission_denied',
-  NO_CAMERA: 'no_camera',
-  LOADING: 'loading',
-  ACTIVE: 'active',
-  CALIBRATING_DEPTH: 'calibrating_depth',
-  ERROR: 'error'
-};
-
