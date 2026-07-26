@@ -18,34 +18,37 @@ export async function POST(
     { params }: { params: Promise<{ id: string }> }
 ) {
     const reqLogger = createRequestLogger('design-session-pick');
-
-    const authError = await verifyApiAuth(req);
-    if (authError) return authError;
-
-    const rateResult = await rateLimit(req, 'default');
-    if (!rateResult.allowed) {
-        return rateLimitResponse(rateResult);
-    }
-
-    const { id } = await params;
-    const body = await req.json().catch(() => ({}));
-    const { pickId, mostNotYouId } = body;
-
-    if (!pickId || typeof pickId !== 'string' || !pickId.trim()) {
-        return invalidRequestResponse('pickId is required', 'INVALID_PICK_ID');
-    }
-    if (!mostNotYouId || typeof mostNotYouId !== 'string' || !mostNotYouId.trim()) {
-        return invalidRequestResponse('mostNotYouId is required', 'INVALID_MOST_NOT_YOU_ID');
-    }
-    if (pickId.trim() === mostNotYouId.trim()) {
-        return invalidRequestResponse(
-            'pickId and mostNotYouId must be different variations',
-            'PICK_IDS_IDENTICAL'
-        );
-    }
+    // Seeded before the try so a setup failure — including one thrown by
+    // `await params` itself — still logs a session_id.
+    let sessionId = 'unknown';
 
     try {
-        const session = await recordPick(id, {
+        const authError = await verifyApiAuth(req);
+        if (authError) return authError;
+
+        const rateResult = await rateLimit(req, 'default');
+        if (!rateResult.allowed) {
+            return rateLimitResponse(rateResult);
+        }
+
+        ({ id: sessionId } = await params);
+        const body = await req.json().catch(() => ({}));
+        const { pickId, mostNotYouId } = body;
+
+        if (!pickId || typeof pickId !== 'string' || !pickId.trim()) {
+            return invalidRequestResponse('pickId is required', 'INVALID_PICK_ID');
+        }
+        if (!mostNotYouId || typeof mostNotYouId !== 'string' || !mostNotYouId.trim()) {
+            return invalidRequestResponse('mostNotYouId is required', 'INVALID_MOST_NOT_YOU_ID');
+        }
+        if (pickId.trim() === mostNotYouId.trim()) {
+            return invalidRequestResponse(
+                'pickId and mostNotYouId must be different variations',
+                'PICK_IDS_IDENTICAL'
+            );
+        }
+
+        const session = await recordPick(sessionId, {
             pickId: pickId.trim(),
             mostNotYouId: mostNotYouId.trim(),
         });
@@ -62,7 +65,7 @@ export async function POST(
         });
     } catch (error) {
         reqLogger.error('design_session.pick.failed', error as Error, {
-            session_id: id,
+            session_id: sessionId,
             error_code: (error as { code?: string }).code || 'DESIGN_SESSION_FAILED',
         });
         return designSessionErrorResponse(error);
