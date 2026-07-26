@@ -1,24 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { enhance } from '@/services/council';
+import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
+import { checkBudget, recordSpend } from '@/lib/budget-tracker';
 
 export const runtime = 'nodejs';
 
+// Estimated cost of one Council enhancement call (Vertex Gemini), in cents —
+// see CLAUDE.md's Cost Monitoring table (~$0.02/request). Override via
+// COUNCIL_ENHANCE_COST_CENTS.
+const COUNCIL_ENHANCE_COST_CENTS =
+    Number(process.env.COUNCIL_ENHANCE_COST_CENTS) || 2;
+
 export async function POST(req: NextRequest) {
     // Council route might be public or protected. server.js had it protected.
-    // We'll skip verification in the file for now as it's cleaner to use middleware if possible, 
+    // We'll skip verification in the file for now as it's cleaner to use middleware if possible,
     // but sticking to the plan: use helper in each route.
     // Wait, I missed verifyApiAuth import in the previous step? No I added it.
     // I should add it here too.
 
     // Note: Previous express code used `validateCouncilEnhanceRequest` middleware.
     // I should probably implement that validation here or trust the service/frontend validation for now.
-    // The express route also had rate limiting.
+    // The express route also had rate limiting — now restored below (issue #181 follow-up:
+    // this route had neither a rate limit nor a budget check, unlike /api/v1/council/generate).
 
     try {
         // Re-import verifyApiAuth since I forgot it at top
         const { verifyApiAuth } = await import('@/lib/api-auth');
         const authError = await verifyApiAuth(req);
         if (authError) return authError;
+
+        const rateResult = await rateLimit(req, 'council');
+        if (!rateResult.allowed) {
+            return rateLimitResponse(rateResult);
+        }
+
+        const budgetResult = await checkBudget();
+        if (!budgetResult.allowed) {
+            return NextResponse.json(
+                { error: 'Budget limit reached', spentCents: budgetResult.spentCents },
+                { status: 402 }
+            );
+        }
 
         const body = await req.json();
         const { user_prompt, style, body_part, complexity = 'medium', isStencilMode = false } = body;
@@ -44,6 +66,10 @@ export async function POST(req: NextRequest) {
             isStencilMode: isStencilMode
         }) as any;
         const duration = Date.now() - startTime;
+
+        // Real Vertex Gemini spend, on the same shared tracker every other
+        // paid route uses.
+        await recordSpend(COUNCIL_ENHANCE_COST_CENTS);
 
         // The service returns { prompts: {...}, negativePrompt, metadata }
         // We need to shape it for the client if necessary, or just return result.
