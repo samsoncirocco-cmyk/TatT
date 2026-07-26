@@ -37,6 +37,8 @@ import OpenAI from 'openai';
 import { verifyApiAuth } from '@/lib/api-auth';
 import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { checkBudget, recordSpend } from '@/lib/budget-tracker';
+import { getAnatomicalAspectRatio } from '@/services/generation/internal/routing';
+import { ONTOLOGY_TAG_IDS } from '@/lib/style-vocabulary';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -125,7 +127,7 @@ no fences.
 Fields (all required):
 {
   "placement":     one of: sleeve, half-sleeve, forearm, upper-arm, chest, back, thigh, calf, hand, foot, ribs, neck, finger, other,
-  "style":         one of: color-anime, neo-traditional, traditional-american, blackwork, realism, fineline, watercolor, japanese-irezumi, tribal, geometric, lettering, mixed,
+  "style":         one of: ${ONTOLOGY_TAG_IDS.join(', ')}, mixed,
   "subject_type":  one of: named-characters, real-person, animals, objects, abstract, typography, scene, none,
   "subjects":      list of strings; empty for typography or pure abstract,
   "relationships": short string describing how subjects relate,
@@ -194,7 +196,7 @@ image and the brief it was supposed to satisfy. Judge:
 1. Does the image match the BRIEF (placement, style, subjects, vibes)?
 2. Are all named subjects present and identifiable?
 3. Does the composition fit the placement?
-4. Is the style applied (e.g. fineline should not look thick)?
+4. Is the style applied (e.g. fine-line should not look thick)?
 
 Output JSON ONLY:
 {
@@ -216,11 +218,16 @@ async function criticAgent(brief: any, imageUrl: string) {
 // Image generation via Replicate
 // ---------------------------------------------------------------------------
 
+// Placement → aspect ratio is ADR-0023's map, and there is exactly one of
+// it. This route used to carry a second, whole-string-equality copy with
+// landscape 4:3 for chest/back, so the same placement got a different shape
+// depending on which entry point served it.
 function aspectFor(placement: string): string {
-  if (placement === 'sleeve' || placement === 'half-sleeve') return '9:16';
-  if (placement === 'chest' || placement === 'back') return '4:3';
-  if (placement === 'hand' || placement === 'foot' || placement === 'finger') return '1:1';
-  return '3:4';
+  // Sleeves are the one case the shared map has no word for — a sleeve is a
+  // coverage area rather than a body part, and it is always portrait.
+  if (/\bsleeves?\b/i.test(placement)) return '9:16';
+  if (/\b(foot|feet|finger)s?\b/i.test(placement)) return '1:1';
+  return getAnatomicalAspectRatio(placement);
 }
 
 async function replicateRun(model: string, input: Record<string, any>, max429Retries = 3): Promise<string> {

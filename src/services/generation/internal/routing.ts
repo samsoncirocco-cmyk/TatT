@@ -39,7 +39,22 @@ export interface GenerationRoute {
   reasoning: string;
 }
 
-const normalizeStyle = (style?: string): string => (style || '').toLowerCase();
+// Style tags arrive as ontology ids ("new-school", "neo-traditional") but
+// STYLE_MODEL_MAPPING is keyed camelCase ("newSchool", "neoTraditional").
+// Lowercasing alone never bridged that, so those two fell through to the
+// flux-dev default instead of reaching krea2 — the ADR-0023 routing table
+// said one thing and the code did another. Compare on a form that strips
+// the difference: lowercase, no separators.
+const styleKey = (style: string): string => style.toLowerCase().replace(/[\s_-]/g, '');
+
+const STYLE_MAPPING_BY_KEY: Record<string, StyleModelMapping> = Object.fromEntries(
+  Object.entries(STYLE_MODEL_MAPPING as Record<string, StyleModelMapping>).map(
+    ([name, mapping]) => [styleKey(name), mapping]
+  )
+);
+
+const lookupStyleMapping = (style?: string): StyleModelMapping | undefined =>
+  STYLE_MAPPING_BY_KEY[styleKey(style || '')];
 
 const resolveModelId = (modelId: string): string => MODEL_ID_MAP[modelId] || modelId;
 
@@ -50,14 +65,78 @@ const resolveFallbackChain = (modelId: string): string[] => {
   return [...new Set(chain.map(resolveModelId).filter(Boolean))];
 };
 
-const getAnatomicalAspectRatio = (bodyPart?: string): AspectRatio => {
-  const verticalParts = ['forearm', 'shin', 'calf', 'arm', 'lowerarm', 'upperarm'];
-  const wideParts = ['back', 'chest', 'stomach'];
-  const normalized = (bodyPart || '').toLowerCase();
+/**
+ * Placement → aspect ratio (ADR-0023).
+ *
+ * Placement is free text from intake ("left forearm", "back of the upper
+ * arm"), never a bare enum, so this matches phrases inside the string. The
+ * previous whole-string equality check matched almost nothing real and every
+ * conversational session fell through to 1:1 — square renders for placements
+ * that are obviously portrait.
+ *
+ * Two placements can both match, and the limb ALWAYS wins over the torso —
+ * "back of the arm" is an arm piece, "back of the calf" is a calf piece.
+ * Region precedence is unconditional, not a length tiebreak: phrase length
+ * is not a proxy for anatomical specificity, and using it as one silently
+ * routed "back of the arm" and "back of the leg" to the torso because
+ * "back" (4) outranks "arm" and "leg" (3).
+ *
+ * Within a region the longest phrase wins, so "upper arm" beats "arm".
+ * Word boundaries keep "forearm" from matching the "arm" rule, and the
+ * optional trailing "s" keeps plurals ("hands", "wrists") matching.
+ */
+type PlacementRegion = 'limb' | 'torso';
 
-  if (verticalParts.includes(normalized)) return '9:16';
-  if (wideParts.includes(normalized)) return '4:3';
-  return '1:1';
+interface PlacementRule {
+  phrase: string;
+  region: PlacementRegion;
+  ratio: AspectRatio;
+}
+
+const DEFAULT_ASPECT_RATIO: AspectRatio = '9:16';
+
+const PLACEMENT_RULES: readonly PlacementRule[] = [
+  // Limbs run portrait — the design follows the length of the limb.
+  { phrase: 'upper arm', region: 'limb', ratio: '9:16' },
+  { phrase: 'lower arm', region: 'limb', ratio: '9:16' },
+  { phrase: 'forearm', region: 'limb', ratio: '9:16' },
+  { phrase: 'upperarm', region: 'limb', ratio: '9:16' },
+  { phrase: 'lowerarm', region: 'limb', ratio: '9:16' },
+  { phrase: 'bicep', region: 'limb', ratio: '9:16' },
+  { phrase: 'tricep', region: 'limb', ratio: '9:16' },
+  { phrase: 'thigh', region: 'limb', ratio: '9:16' },
+  { phrase: 'calf', region: 'limb', ratio: '9:16' },
+  { phrase: 'shin', region: 'limb', ratio: '9:16' },
+  { phrase: 'arm', region: 'limb', ratio: '9:16' },
+  { phrase: 'leg', region: 'limb', ratio: '9:16' },
+  // Extremities are small and banded — square holds them better than portrait.
+  { phrase: 'wrist', region: 'limb', ratio: '1:1' },
+  { phrase: 'ankle', region: 'limb', ratio: '1:1' },
+  { phrase: 'hand', region: 'limb', ratio: '1:1' },
+  // Torso stays portrait but wider.
+  { phrase: 'chest', region: 'torso', ratio: '3:4' },
+  { phrase: 'stomach', region: 'torso', ratio: '3:4' },
+  { phrase: 'sternum', region: 'torso', ratio: '3:4' },
+  { phrase: 'back', region: 'torso', ratio: '3:4' },
+];
+
+/** Limb outranks torso outright; ties inside a region go to the longer phrase. */
+const outranks = (candidate: PlacementRule, incumbent: PlacementRule): boolean => {
+  if (candidate.region !== incumbent.region) return candidate.region === 'limb';
+  return candidate.phrase.length > incumbent.phrase.length;
+};
+
+export const getAnatomicalAspectRatio = (bodyPart?: string): AspectRatio => {
+  const text = (bodyPart || '').toLowerCase();
+  if (!text) return DEFAULT_ASPECT_RATIO;
+
+  let best: PlacementRule | undefined;
+  for (const rule of PLACEMENT_RULES) {
+    if (!new RegExp(`\\b${rule.phrase}s?\\b`).test(text)) continue;
+    if (!best || outranks(rule, best)) best = rule;
+  }
+
+  return best?.ratio ?? DEFAULT_ASPECT_RATIO;
 };
 
 const buildNegativePrompt = (baseNegativePrompt: string | undefined, isStencilMode: boolean | undefined): string => {
@@ -70,12 +149,10 @@ export const inferProvider = (modelId: string): ProviderName =>
   modelId === 'imagen3' ? 'vertex-ai' : 'replicate';
 
 export function routeGeneration(request: GenerationRequest): GenerationRoute {
-  const style = normalizeStyle(request.style) || 'default';
   const mode = request.mode || 'standard';
 
   const styleMapping: StyleModelMapping | undefined =
-    (STYLE_MODEL_MAPPING as Record<string, StyleModelMapping>)[style] ||
-    (STYLE_MODEL_MAPPING as Record<string, StyleModelMapping>).default;
+    lookupStyleMapping(request.style) || lookupStyleMapping('default');
   let modelKey = styleMapping?.primary || 'flux_dev';
 
   if (mode === 'preview') {

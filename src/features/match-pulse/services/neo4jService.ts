@@ -5,6 +5,7 @@
  * Provides a feature-flagged alternative to JS-based matching.
  */
 import { getApiAuthHeaders } from '@/lib/client-api-auth';
+import { styleMatchVariants } from '@/lib/style-vocabulary';
 
 // Type Definitions
 export interface ArtistPreferences {
@@ -291,15 +292,30 @@ export async function findMatchingArtists(preferences: ArtistPreferences): Promi
         }
         
         if (preferences.budget) {
-            filtered = filtered.filter(a => 
+            filtered = filtered.filter(a =>
                 (a.hourlyRate || 0) <= preferences.budget! * 1.5
             );
         }
-        
-        return filtered.length > 0 ? filtered : MOCK_ARTISTS;
+
+        // Honest filtering: a narrow (or zero-result) filter must stay narrow,
+        // never silently balloon back out to the full mock roster dressed up
+        // as "matches."
+        return filtered;
     }
 
     const { styles = [], location, budget, keywords = [], hasPortfolio = false } = preferences;
+
+    // Expand each requested style into every spelling the graph might store
+    // it under (src/lib/style-vocabulary). Styles outside the vocabulary
+    // expand to nothing and are dropped.
+    const styleVariants = styles.map(styleMatchVariants).filter((group) => group.length > 0);
+    if (styles.length > 0 && styleVariants.length === 0) {
+        // Same honesty rule as the mock branch above: a filter that matches
+        // nothing must return nothing, never fall through to `size(...) = 0`
+        // and hand back the unfiltered roster dressed up as matches.
+        console.warn(`[Neo4j] No known styles in filter [${styles.join(', ')}] — returning no matches`);
+        return [];
+    }
 
     // Cypher query for artist matching.
     // Styles, tags and portfolio are gathered by traversing the graph model:
@@ -319,8 +335,11 @@ export async function findMatchingArtists(preferences: ArtistPreferences): Promi
     WITH a, styles, portfolio, tattooTags + artistTags AS tags
 
     WHERE
-      // Style matching (case-insensitive — UI sends canonical names)
-      (size($styles) = 0 OR any(style IN $styles WHERE any(s IN styles WHERE toLower(s) = toLower(style))))
+      // Style matching. $styleVariants is one lowercase spelling-group per
+      // requested style (label + ontology id + aliases + the graph's own node
+      // names), so "Japanese" matches artists stored as "Japanese (Irezumi)"
+      // without renaming anything in the graph. See src/lib/style-vocabulary.
+      (size($styleVariants) = 0 OR any(group IN $styleVariants WHERE any(v IN group WHERE any(s IN styles WHERE toLower(s) = v))))
 
       // Location matching (city-based, case-insensitive; state abbreviations match exactly)
       AND (
@@ -338,10 +357,11 @@ export async function findMatchingArtists(preferences: ArtistPreferences): Promi
 
     // Calculate match score using Cypher
     WITH a, styles, portfolio, tags,
-      // Style overlap score (40%)
+      // Style overlap score (40%) — scored per requested style, so a group
+      // with several spellings still counts once.
       CASE
-        WHEN size($styles) = 0 THEN 0.4
-        ELSE size([style IN $styles WHERE any(s IN styles WHERE toLower(s) = toLower(style))]) * 0.4 / size($styles)
+        WHEN size($styleVariants) = 0 THEN 0.4
+        ELSE size([group IN $styleVariants WHERE any(v IN group WHERE any(s IN styles WHERE toLower(s) = v))]) * 0.4 / size($styleVariants)
       END AS styleScore,
 
       // Keyword match score (25%)
@@ -397,7 +417,7 @@ export async function findMatchingArtists(preferences: ArtistPreferences): Promi
   `;
 
     const results = await executeCypherQuery(query, {
-        styles,
+        styleVariants,
         location: location || null,
         budget: budget || null,
         keywords,
@@ -538,10 +558,14 @@ export async function findArtistMatchesForPulse(preferences: ArtistPreferences):
 function generateMatchReasons(artist: any, preferences: ArtistPreferences): string[] {
     const reasons: string[] = [];
 
-    // Style matches
+    // Style matches. Compared through the same spelling groups the Cypher
+    // filter uses — a plain includes() would credit no reason at all for the
+    // artists stored as "Japanese (Irezumi)" that the "Japanese" pill just
+    // matched.
     if (preferences.styles && artist.styles) {
+        const artistStyles = (artist.styles as string[]).map(s => String(s).toLowerCase());
         const matchingStyles = preferences.styles.filter(s =>
-            artist.styles.includes(s)
+            styleMatchVariants(s).some(v => artistStyles.includes(v))
         );
         if (matchingStyles.length > 0) {
             reasons.push(`Specializes in ${matchingStyles.join(', ')}`);

@@ -128,7 +128,7 @@ Maps each directive to the scripts, services, and API routes that implement it. 
 | Vercel config | `vercel.json` |
 | TypeScript config | `tsconfig.json` |
 | Docker (alt deploy) | `Dockerfile`, `docker-compose.yml` |
-| Env reference | `TATT_ENV_REFERENCE.md`, `.env.example` |
+| Env reference | `.env.example`, `CLAUDE.md` (Environment Variables) |
 | **Scripts** | |
 | Verify changes | `scripts/verify-changes.sh` |
 | Test Docker | `scripts/test-docker.sh` |

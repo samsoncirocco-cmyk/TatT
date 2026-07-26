@@ -27,8 +27,8 @@ Get the Next.js frontend and Express.js backend proxy running locally with all r
 1. **Clone and enter the repo**
 
    ```bash
-   git clone <repo-url> manama-next
-   cd manama-next
+   git clone <repo-url> TatT
+   cd TatT
    ```
 
 2. **Install dependencies**

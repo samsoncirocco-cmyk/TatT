@@ -1,5 +1,9 @@
 version: '3.8'
 
+# Pin the Compose project name so container and volume names do not depend on
+# the checkout directory (the named volume below resolves to tatt-app_node_modules).
+name: tatt-app
+
 services:
   # Development service
   dev:
@@ -7,7 +11,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: development
-    container_name: manama-next-dev
+    container_name: tatt-app-dev
     ports:
       - "3000:3000"
     volumes:
@@ -33,7 +37,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: production
-    container_name: manama-next-prod
+    container_name: tatt-app-prod
     ports:
       - "3001:3000"
     environment:

@@ -1,24 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
-import { appendFileSync, existsSync, mkdirSync } from 'fs';
-import { join } from 'path';
 import { verifyApiAuth } from '@/lib/api-auth';
+import { verifyFirebaseToken } from '@/lib/auth-dal';
+import {
+  resolveSharedDesignStore,
+  SHARE_STORE_UNAVAILABLE,
+  type SharedDesign,
+} from '@/lib/shared-design-store';
 
-// In-memory store for demo mode (survives process lifetime)
-const sharedDesignsStore = new Map<string, SharedDesign>();
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
-export interface SharedDesign {
-  shareId: string;
-  imageUrl: string;
-  prompt: string;
-  style?: string;
-  bodyPart?: string;
-  generatedAt?: string;
-  sharedAt: string;
-  shareUrl: string;
-  views: number;
-}
-
+/**
+ * POST /api/v1/designs/share — mint a durable share link.
+ *
+ * Persistence lives in @/lib/shared-design-store (issue #64). If no durable
+ * store is available we return 503 instead of a shareId: a link that only
+ * exists in one instance's memory is a broken promise, not a share.
+ */
 export async function POST(request: NextRequest) {
   const authError = await verifyApiAuth(request);
   if (authError) return authError;
@@ -34,6 +33,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: 'imageUrl and prompt are required' }, { status: 400 });
   }
 
+  const store = resolveSharedDesignStore();
+  if (!store) {
+    console.error('[share] no durable store configured — refusing to mint a link that cannot be read');
+    return NextResponse.json(SHARE_STORE_UNAVAILABLE, { status: 503 });
+  }
+
+  // Owner uid — provenance only; stripped before the share is served.
+  // verifyApiAuth already accepted the token, so this is the same user.
+  const user = await verifyFirebaseToken(request);
+
   const shareId = randomUUID().slice(0, 10);
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://tatt-app.vercel.app';
   const design: SharedDesign = {
@@ -42,23 +51,22 @@ export async function POST(request: NextRequest) {
     prompt: body.prompt,
     style: body.style,
     bodyPart: body.bodyPart,
+    uid: user?.uid ?? null,
     generatedAt: new Date().toISOString(),
     sharedAt: new Date().toISOString(),
     shareUrl: `${baseUrl}/share/${shareId}`,
     views: 0,
   };
 
-  sharedDesignsStore.set(shareId, design);
-
-  // Persist to file for durability
   try {
-    const dir = '/tmp/tatt-data';
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-    appendFileSync(join(dir, 'shared-designs.jsonl'), JSON.stringify(design) + '\n');
-  } catch { /* non-fatal */ }
+    await store.save(design);
+  } catch (err) {
+    console.error(
+      `[share] ${shareId}: persist failed — no link issued:`,
+      err instanceof Error ? err.message : err
+    );
+    return NextResponse.json(SHARE_STORE_UNAVAILABLE, { status: 503 });
+  }
 
   return NextResponse.json({ success: true, shareId, shareUrl: design.shareUrl });
 }
-
-// Export for use in other routes
-export { sharedDesignsStore };

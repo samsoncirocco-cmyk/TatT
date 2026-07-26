@@ -1,5 +1,12 @@
 # Complete Change Workflow Guide
 
+> **SUPERSEDED (2026-07-25).** This describes the January 2026 two-computer
+> workflow, when the project was called `manama-next` and work was pushed
+> straight to a `manama/next` branch that deployed to `manama-next.vercel.app`.
+> None of that exists now: the branch is gone, the Vercel project is unlinked,
+> and `main` is protected — changes land via PR. Kept as a record of that era.
+> For the current flow see `directives/deploy.md` and `CLAUDE.md`.
+
 This guide shows exactly how to ensure changes make it to all environments.
 
 ## The Three Environments

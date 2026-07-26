@@ -5,7 +5,7 @@
 // `checkout.session.completed` event whose metadata carries a bookingId, the
 // booking_requests doc moves pending → deposit_paid; a replay of the same event
 // id is a no-op (idempotency).
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ── firebase-admin/firestore fake ──────────────────────────────────────────
 // A tiny in-memory doc store that supports the exact surface the route uses:
@@ -102,6 +102,8 @@ vi.mock('@/lib/notify', () => ({
   notifyArtistOfBooking: vi.fn().mockResolvedValue(undefined),
 }));
 
+import { createRelay } from '@/lib/booking-relay';
+import { notifyArtistOfBooking } from '@/lib/notify';
 import { POST } from './route';
 
 const CREATED_EPOCH = 1_700_000_000; // fixed → deterministic paidAt
@@ -240,5 +242,131 @@ describe('Stripe webhook — booking reconciliation (Task 1.3)', () => {
     expect(doc.depositAmount).toBe(75);
     expect(doc.reconstructedFromStripe).toBe(true);
     expect(doc.processedStripeEvents).toEqual(['evt_4']);
+  });
+});
+
+// ── Held-deposit relay branch (ADR-0005 / ADR-0007) ─────────────────────────
+// The relay's amountCents is what transferHeldDeposits later pays the artist.
+// It must be the DEPOSIT, never the client's total (deposit + booking fee) —
+// recording amount_total here would silently hand TatT's fee to the artist on
+// every held booking.
+const HELD_EPOCH = 1_700_000_000;
+
+function makeHeldEvent(id: string, metadataOverrides: Record<string, string> = {}) {
+  return {
+    id,
+    type: 'checkout.session.completed',
+    created: HELD_EPOCH,
+    data: {
+      object: {
+        id: 'cs_held_1',
+        mode: 'payment',
+        payment_status: 'paid',
+        // $150 deposit + $15 booking fee.
+        amount_total: 16_500,
+        payment_intent: 'pi_held_1',
+        customer_details: { email: 'client@example.com' },
+        metadata: {
+          depositState: 'held',
+          artistId: 'artist_1',
+          clientEmail: 'client@example.com',
+          depositAmount: '150',
+          depositCents: '15000',
+          bookingFeeCents: '1500',
+          ...metadataOverrides,
+        },
+      },
+    },
+  };
+}
+
+describe('Stripe webhook — held-deposit relay', () => {
+  const originalHoldDays = process.env.DEPOSIT_HOLD_DAYS;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    docStore.clear();
+    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test_dummy';
+    delete process.env.DEPOSIT_HOLD_DAYS;
+    retrievePiMock.mockResolvedValue({ id: 'pi_held_1', latest_charge: 'ch_held_1' });
+  });
+
+  afterAll(() => {
+    if (originalHoldDays === undefined) delete process.env.DEPOSIT_HOLD_DAYS;
+    else process.env.DEPOSIT_HOLD_DAYS = originalHoldDays;
+  });
+
+  it("records the artist's share as the deposit, NOT the client's total", async () => {
+    const event = makeHeldEvent('evt_held_1');
+    constructEventMock.mockReturnValueOnce(event);
+
+    const res = await POST(makeRequest(event));
+    expect(res.status).toBe(200);
+
+    expect(createRelay).toHaveBeenCalledTimes(1);
+    const relay = vi.mocked(createRelay).mock.calls[0][0];
+    expect(relay.amountCents).toBe(15_000);
+    // amount_total (16500) includes TatT's fee and must never be the relay amount.
+    expect(relay.amountCents).not.toBe(16_500);
+  });
+
+  it('keys the relay on the PaymentIntent and captures the charge for source_transaction', async () => {
+    const event = makeHeldEvent('evt_held_2');
+    constructEventMock.mockReturnValueOnce(event);
+
+    await POST(makeRequest(event));
+
+    const relay = vi.mocked(createRelay).mock.calls[0][0];
+    expect(relay.id).toBe('pi_held_1');
+    expect(relay.paymentIntentId).toBe('pi_held_1');
+    expect(relay.chargeId).toBe('ch_held_1');
+    expect(relay.artistId).toBe('artist_1');
+    expect(relay.customerEmail).toBe('client@example.com');
+  });
+
+  it('stamps a 7-day hold window by default (ADR-0006)', async () => {
+    const event = makeHeldEvent('evt_held_3');
+    constructEventMock.mockReturnValueOnce(event);
+
+    await POST(makeRequest(event));
+
+    const relay = vi.mocked(createRelay).mock.calls[0][0];
+    expect(relay.createdAtEpoch).toBe(HELD_EPOCH);
+    expect(relay.expiresAtEpoch).toBe(HELD_EPOCH + 7 * 86_400);
+  });
+
+  it('honours DEPOSIT_HOLD_DAYS', async () => {
+    process.env.DEPOSIT_HOLD_DAYS = '3';
+    const event = makeHeldEvent('evt_held_4');
+    constructEventMock.mockReturnValueOnce(event);
+
+    await POST(makeRequest(event));
+
+    expect(vi.mocked(createRelay).mock.calls[0][0].expiresAtEpoch).toBe(HELD_EPOCH + 3 * 86_400);
+  });
+
+  it('notifies the artist so they can claim and release the funds', async () => {
+    const event = makeHeldEvent('evt_held_5');
+    constructEventMock.mockReturnValueOnce(event);
+
+    await POST(makeRequest(event));
+
+    expect(notifyArtistOfBooking).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(notifyArtistOfBooking).mock.calls[0][0]).toMatchObject({
+      id: 'pi_held_1',
+      artistId: 'artist_1',
+      amountCents: 15_000,
+      status: 'pending',
+    });
+  });
+
+  it('does NOT record a relay for a routed (claimed-artist) session', async () => {
+    const event = makeEvent('evt_routed_1'); // depositState: 'routed'
+    constructEventMock.mockReturnValueOnce(event);
+
+    await POST(makeRequest(event));
+
+    expect(createRelay).not.toHaveBeenCalled();
+    expect(notifyArtistOfBooking).not.toHaveBeenCalled();
   });
 });

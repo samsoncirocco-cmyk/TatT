@@ -61,7 +61,7 @@ Deploy the Next.js frontend to Vercel and the Express.js backend proxy (`server.
    vercel --prod
    ```
 
-   Or push to `main` if Git integration is configured -- Vercel auto-deploys on push. Pushes to `manama/next` get preview deployments (`https://tatt-<random>.vercel.app`); share the preview URL for testing before merging to `main`.
+   Or push to `main` if Git integration is configured -- Vercel auto-deploys on push. `tatt-app` is the only Vercel project linked to this repo; any non-`main` branch pushed to the repo gets a preview deployment (`https://tatt-<random>.vercel.app`), so open a PR and share its preview URL for testing before merging to `main`.
 
    GitHub Actions (`.github/workflows/ci-cd.yml`) runs a secret scan, advisory lint, JS + Python tests, and a demo-env build on every push/PR to `main`. The Cloud Run build/deploy jobs in that workflow are manual-dispatch-only — Vercel is the active deploy surface.
 

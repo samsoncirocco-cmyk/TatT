@@ -1,6 +1,6 @@
 # Backend Server Instructions
 
-The `manama-next` application relies on a backend proxy server for:
+The TatT application relies on a backend proxy server for:
 
 - API Key security (Replicate, Neo4j)
 - Rate limiting
