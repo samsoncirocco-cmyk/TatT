@@ -15,17 +15,19 @@ export async function GET(
     req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const authError = await verifyApiAuth(req);
-    if (authError) return authError;
-
-    const rateResult = await rateLimit(req, 'default');
-    if (!rateResult.allowed) {
-        return rateLimitResponse(rateResult);
-    }
-
-    const { id } = await params;
-
+    // Setup lives inside the try so an auth/rate failure still returns the
+    // structured error envelope instead of escaping as a bare 500.
     try {
+        const authError = await verifyApiAuth(req);
+        if (authError) return authError;
+
+        const rateResult = await rateLimit(req, 'default');
+        if (!rateResult.allowed) {
+            return rateLimitResponse(rateResult);
+        }
+
+        const { id } = await params;
+
         const session = await getSession(id);
         if (!session) {
             return NextResponse.json(

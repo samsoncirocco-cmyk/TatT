@@ -112,25 +112,48 @@ J9. **Close the booking loop** — roadmap merged 2026-07-22 (PR #106):
     + `/bookings` now read server truth; 1.7 deleted dead
     `useBookingStore`/`BookingModal`; 1.8 `notify.ts` + `emailQueueService`
     real transactional email (Resend/webhook, honest degrade); 1.9 webhook
-    reconciliation integration test. **Still open:** (a) real email provider
-    env (`RESEND_API_KEY`/`EMAIL_FROM`/`OPS_NOTIFY_EMAIL`) not yet set in
-    prod — 1.8's code ships but delivery is env-gated, so artists still
-    aren't actually told a paid booking exists until Samson sets these;
+    reconciliation integration test. **Still open:** ~~(a) real email provider
+    env~~ — **DONE 2026-07-25**: `RESEND_API_KEY`/`EMAIL_FROM`/
+    `OPS_NOTIFY_EMAIL` (and `STRIPE_CONNECT_WEBHOOK_SECRET`) are now set in
+    Vercel production, so 1.8's delivery is no longer env-gated;
     (b) artist confirm/decline dashboard (Phase 2); (c) scheduling: merge
     PR #112 (accepted as-is 2026-07-22), then wire the slot picker into the
     booking wizard — integration point is `BookClient.tsx` step 1 (the
-    spec's original "replace Math.random()" target no longer exists);
+    spec's original "replace Math.random()" target no longer exists).
+    **Before #112 merges**, fix #162 (a mid-day booking strands the rest of
+    the day's slots — confirmed reproducing on `feat/scheduling-engine`) and
+    settle #155's remaining items (ADR 0024 availability model is still
+    `Proposed` and is Samson's call; stale `scheduling-engine.ts` docstring).
+    Also renumber one of the three colliding ADR-0023 files (`main`, PR #156
+    and `feat/scheduling-engine` each claim it). Note #150-#154 are closed:
+    they were fixed on `feat/scheduling-engine` by PRs #160/#161, and their
+    shared "merged to main as scaffolding" premise was false — the engine
+    files have never been on `main`;
     ~~DEPOSIT_BY_SIZE dedupe~~ **DONE via #117**.
 
 (Prior items now secondary: PR #40 feedback folds into J2/J3 scope; security
 reconciliation continues in parallel. Branch protection still blocked on
 GitHub plan.)
 
-**Enrichment (2026-07-20):** deterministic pipeline rebuilt at
-`~/tatt-scraper/execution/enrich_artists.py`; pilot produced 3 deterministic
-shards (~212 artists enriched, styles scrubbed where unverifiable — see
-`~/tatt-scraper/data/enrichment/pilot-run.log`). Pilot gate NOT yet passed;
-full run NOT launched. Resume after gate review.
+**Enrichment (corrected 2026-07-25):** the *shop-site* deterministic pipeline
+(`~/tatt-scraper/execution/enrich_artists.py`) is still at pilot scale (~212
+artists, `pilot-run.log`); its gate was never reviewed. **The separate
+Instagram/Apify sweep, however, has fully run** — the earlier "full run NOT
+launched" line described the wrong pipeline. Verified counts:
+
+- IG enrichment queue: **10,427** artists (`jq length` on
+  `~/tatt-scraper/data/enrichment/instagram/artist-queue.json`).
+- Profiles scraped: **10,427 of 10,427**, of which 9,252 had images
+  (`apify-run.log`; `apify-profiles/` holds exactly 10,427 files).
+- `portfolioImages` written to Neo4j: **7,828 artists / 62,313 images**
+  (7,828 distinct `SET portfolioImages` lines in `host_only.log`).
+
+⚠️ **The figure "2,606" that has circulated is wrong** — it is shard 2's
+`hosted:` count from a 3-shard parallel run (2605 / 2606 / 2617), not a total.
+Do not quote it. Note also that the graph-side artist count (8,949, from
+`data/cleanup-report.json` `counts.kept`) and the IG queue (10,427) disagree,
+and nothing in the repo reconciles them — worth resolving before either number
+is used for planning.
 
 ## Next
 
@@ -145,8 +168,12 @@ full run NOT launched. Resume after gate review.
      customer, then strike this. Partially verified from a session
      (2026-07-24): /api/checkout is live in prod at tatt-app.vercel.app
      (auth-gated, not 503), and the Stripe sandbox shows zero traffic, so
-     prod is not misconfigured onto test keys. Agents: do not re-flag
-     this as a blocking ops item.
+     prod is not misconfigured onto test keys. Note the claim → Connect
+     onboarding → deposit-release leg **cannot be verified end to end yet**:
+     `src/app/claim/[artistId]/page.tsx:58-59` mints a Connect
+     `clientSecret` then discards it, and `@stripe/react-connect-js` isn't
+     installed, so no artist can finish KYC (#96). Test that leg after #96
+     lands. Agents: do not re-flag this as a blocking ops item.
   2. ~~FIREBASE_* admin credentials~~ — **already set** (FIREBASE_PRIVATE_KEY,
      FIREBASE_CLIENT_EMAIL, FIREBASE_PROJECT_ID in production+preview;
      verified via Vercel API 2026-07-21). A real-booking end-to-end check in
@@ -159,9 +186,16 @@ full run NOT launched. Resume after gate review.
   5. ~~Disconnect manama-next + generous-success~~ — **already done**:
      generous-success is deleted; manama-next has no git link (verified via
      Vercel API 2026-07-21). tatt-app is the sole deploy target.
-- **Share API store is ephemeral in-memory** (carried from booking branch
-  report) — share links die on redeploy; needs a durable store if sharing
-  matters.
+- ~~**Share API store is ephemeral in-memory**~~ — **FIXED 2026-07-25 (PR
+  #157, `be555b3`)**: shared designs persist in Firestore, so links survive
+  redeploy. **But sharing is still half a feature**: nothing in the UI calls
+  the create endpoint. `POST src/app/api/v1/designs/share/route.ts` has zero
+  callers — grep for `designs/share` hits only the route files, their tests,
+  `api-route-security.ts:53-54`, and the *read* side
+  `src/app/share/[shareId]/page.tsx:18`. The one `Share2` icon
+  (`src/components/DesignLibrary.jsx:98`) is labelled "Export Database" and
+  calls `exportLibrary`; `DesignLibrary` is never imported by any page. A
+  working, tested, secured backend no user can reach — tracked under #83.
 
 8. ~~Merge PR #35 (README truth sync)~~ — **superseded**: README truth sync
    landed on main via PR #84 (2026-07-20); #35 is closed.
@@ -316,9 +350,16 @@ the code survives at `archive/security-hardening-followups`.
   affordance on generated cut cards — click already means "select", so
   there is no way to view a design large. Fold into any Forge-touching PR.
 
-- **Artist enrichment sweep** — only ~1.5k of 8,949 real artists have style
-  tags; enrich styles/portfolio/bio from each artist's `sourcePages`.
-  Large fan-out job; good multi-agent/ultracode candidate.
+- **Artist style tags are still empty** (corrected 2026-07-25) — the old
+  "~1.5k of 8,949 have style tags" line overstated it. `README.md:11` is
+  right: **style tags are not populated at all**, because Instagram bios
+  don't list styles. This needs the vision pass (#63), not a bio re-scrape.
+  Portfolio/bio enrichment is a *separate* and largely finished job —
+  7,828 artists have hosted `portfolioImages` (see the Enrichment block
+  above). Sizing note for #63: the corpus is 62,313 GCS-hosted images across
+  7,828 artists, and `scripts/generate-portfolio-embeddings.js` is **not** a
+  starting point — it runs CLIP over the orphaned synthetic
+  `src/data/artists.json`, which nothing reads.
 - Ask GitHub Support to purge the orphaned pre-scrub commits (password
   history) if repo visibility ever changes.
 - 99+ more cities can be queued in `~/tatt-scraper/data/queue.json` if the

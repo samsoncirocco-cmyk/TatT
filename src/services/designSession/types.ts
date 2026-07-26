@@ -56,6 +56,12 @@ export interface Brief {
   meaning: string;
   references: string[];
   finalImageUrl?: string;
+  /**
+   * Flattened placement-preview screenshot (design composited onto the
+   * user's own photo on the /design canvas). Same durability class as
+   * finalImageUrl — a signed/CDN URL, not a permanent asset reference.
+   */
+  placementPreviewUrl?: string;
   axisSelection: AxisSelection;
   /** Subtle placement concerns flagged for the consult (ADR-0014). */
   placementNotes: string[];

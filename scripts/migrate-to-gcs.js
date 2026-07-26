@@ -14,7 +14,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { uploadToGCS, fileExists } from '../src/services/gcs-service.js';
+import { uploadToGCS, fileExists } from '../src/services/gcs-service.ts';
 import { readFileSync, existsSync } from 'fs';
 import { createHash } from 'crypto';
 import { join } from 'path';

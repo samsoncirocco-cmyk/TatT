@@ -9,6 +9,7 @@
  * never break the Stripe webhook, so delivery is best-effort and swallowed.
  */
 import type { BookingRelay } from '@/lib/booking-relay';
+import { getArtistStripe } from '@/lib/artist-stripe';
 import { sendTransactionalEmail } from '@/services/emailQueueService';
 
 /** Notify an artist that a deposit is being held for them, with a claim link. */
@@ -24,11 +25,14 @@ export async function notifyArtistOfBooking(relay: BookingRelay): Promise<void> 
     claimLink,
   });
 
-  // Best-effort real email. For scraped/unclaimed artists we typically don't
-  // have the artist's own email, so fall back to an ops inbox. If we have
-  // neither, the log above is the only record — that's acceptable degradation.
-  const artistEmail = (relay as { artistEmail?: string }).artistEmail;
-  const to = artistEmail || process.env.OPS_NOTIFY_EMAIL;
+  // Best-effort real email. Look up the artist's own address from the graph
+  // (BookingRelay carries no such field). For scraped/unclaimed artists we
+  // often don't have one, so fall back to an ops inbox. If we have neither,
+  // the log above is the only record — that's acceptable degradation.
+  // getArtistStripe never throws (its read helper degrades to []/null on
+  // any Neo4j failure), so no try/catch is needed here.
+  const artist = await getArtistStripe(relay.artistId);
+  const to = artist?.email || process.env.OPS_NOTIFY_EMAIL;
   if (!to) return;
 
   const amount = (relay.amountCents / 100).toLocaleString('en-US', {

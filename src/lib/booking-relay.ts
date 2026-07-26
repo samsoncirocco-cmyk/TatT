@@ -8,8 +8,10 @@
  * owns the money movement that resolves it:
  *
  *   - accepted  → the artist finishes onboarding within the hold window; we
- *                 transfer (gross − platform fee) to their connected account
- *                 via a separate transfer with source_transaction = the charge.
+ *                 transfer the FULL deposit to their connected account via a
+ *                 separate transfer with source_transaction = the charge. The
+ *                 booking fee was charged to the client on top at checkout
+ *                 (ADR-0007), so nothing is deducted here.
  *   - refunded  → the hold window expires; we fully refund the customer (TatT
  *                 absorbs the Stripe processing fee).
  *
@@ -191,14 +193,15 @@ export async function setRelayStatus(id: string, status: BookingRelayStatus): Pr
 export interface TransferHeldResult {
   /** Number of relays transferred in this call. */
   count: number;
-  /** Total transferred to the artist across those relays, in cents (net of fee). */
+  /** Total transferred to the artist across those relays, in cents. */
   totalTransferredCents: number;
 }
 
 /**
  * Release held deposits to a now-onboarded artist. For each PENDING relay we
- * transfer (gross − platform fee) to the artist's connected account using
- * separate charges & transfers, with source_transaction = the original charge
+ * transfer the FULL recorded deposit (ADR-0007 — the booking fee was charged to
+ * the client on top, never deducted here) to the artist's connected account
+ * using separate charges & transfers, with source_transaction = the original charge
  * so Stripe draws from the held funds rather than the platform float. Idempotent:
  * only pending relays are touched, and each is flipped to 'accepted' on success.
  */

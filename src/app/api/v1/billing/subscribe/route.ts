@@ -8,7 +8,9 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
+import { verifyFirebaseToken } from '@/lib/auth-dal';
 import { stripe, stripeConfigured, STRIPE_NOT_CONFIGURED } from '@/lib/stripe';
+import { getArtistStripe } from '@/lib/artist-stripe';
 
 export const runtime = 'nodejs';
 
@@ -41,6 +43,28 @@ export async function POST(req: NextRequest) {
       { error: 'No subscription price configured. Set STRIPE_PRICE_ARTIST_SUB or pass priceId.' },
       { status: 400 }
     );
+  }
+
+  // If this checkout names an artist, the resulting subscription's metadata
+  // is what the webhook later uses to write subscriptionStatus onto that
+  // Artist node — so only the artist who claimed the profile may name it.
+  // Subscribing with no artistId (the profile isn't claimed yet, or this is
+  // a bare price-only checkout) skips the check entirely.
+  if (body.artistId) {
+    const user = await verifyFirebaseToken(req);
+    if (!user) {
+      return NextResponse.json({ error: 'Authentication required', code: 'AUTH_REQUIRED' }, { status: 401 });
+    }
+    const artist = await getArtistStripe(body.artistId);
+    if (!artist) {
+      return NextResponse.json({ error: 'Artist not found.' }, { status: 404 });
+    }
+    if (artist.claimedByUid !== user.uid) {
+      return NextResponse.json(
+        { error: 'This profile has not been claimed by your account.', code: 'NOT_OWNER' },
+        { status: 403 }
+      );
+    }
   }
 
   const baseUrl = getBaseUrl(req);

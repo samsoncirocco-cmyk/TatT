@@ -228,6 +228,26 @@ describe('DesignConversation', () => {
     expect(screen.queryByRole('button', { name: /show me/i })).toBeNull();
   });
 
+  it('treats typed confirmation intent as one confirm transition, never another proposal turn', async () => {
+    await reachProposal();
+    fetchMock.mockResolvedValueOnce(jsonResponse(revealedSession));
+
+    sendReply('yes, show me');
+
+    await screen.findByText(revealedSession.axisSelection.rationale);
+    const confirmCalls = fetchMock.mock.calls.filter(
+      ([path]) => path === '/api/v1/design-session/sess-1/confirm'
+    );
+    // Turns 0-2 walked to the proposal; nothing after it may re-converse.
+    const repeatedConverseCalls = fetchMock.mock.calls.filter(
+      ([path], index) => index >= 3 && path === '/api/v1/design-session/converse'
+    );
+    expect(confirmCalls).toHaveLength(1);
+    expect(repeatedConverseCalls).toHaveLength(0);
+    expect(screen.getAllByText(/Fine-line blackwork on the inner forearm/)).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: /show me/i })).toBeNull();
+  });
+
   it('treats a correction at the proposal as another turn and keeps chatting', async () => {
     await reachProposal();
 

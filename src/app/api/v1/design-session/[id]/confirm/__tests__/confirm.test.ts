@@ -13,6 +13,7 @@ const {
   rateLimitMock,
   rateLimitResponseMock,
   verifyApiAuthMock,
+  loggerErrorMock,
 } = vi.hoisted(() => ({
   confirmProposalMock: vi.fn(),
   recordSpendMock: vi.fn(),
@@ -20,6 +21,7 @@ const {
   rateLimitMock: vi.fn(),
   rateLimitResponseMock: vi.fn(),
   verifyApiAuthMock: vi.fn(),
+  loggerErrorMock: vi.fn(),
 }));
 
 vi.mock('@/services/designSession', () => ({
@@ -50,7 +52,7 @@ vi.mock('@/lib/logger', () => ({
   createRequestLogger: () => ({
     start: vi.fn(),
     complete: vi.fn(),
-    error: vi.fn(),
+    error: loggerErrorMock,
   }),
 }));
 
@@ -213,6 +215,43 @@ describe('POST /api/v1/design-session/[id]/confirm route adapter', () => {
     const res = await POST(makeRequest(URL, {}), routeParams('sess-1'));
 
     expect((await res.json()).retryable).toBe(false);
+  });
+
+  // Setup (auth, rate, budget, `await params`) throwing used to escape the
+  // route as an unstructured Next.js 500: no `code` for the client to branch
+  // on and no logged error. It runs inside the try now, so it lands on the
+  // same envelope as a service failure.
+  it('returns the structured envelope and logs when auth setup throws', async () => {
+    verifyApiAuthMock.mockRejectedValueOnce(new Error('Firebase admin not configured'));
+
+    const res = await POST(makeRequest(URL, {}), routeParams('sess-1'));
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body).toMatchObject({
+      error: 'Design session request failed',
+      code: 'DESIGN_SESSION_FAILED',
+      retryable: false,
+    });
+    expect(confirmProposalMock).not.toHaveBeenCalled();
+    expect(recordSpendMock).not.toHaveBeenCalled();
+
+    expect(loggerErrorMock).toHaveBeenCalledWith(
+      'design_session.confirm.failed',
+      expect.any(Error),
+      // params never resolved, so the seeded fallback carries the log line.
+      expect.objectContaining({ session_id: 'unknown', error_code: 'DESIGN_SESSION_FAILED' })
+    );
+  });
+
+  it('returns the structured envelope when the rate limiter store is unavailable', async () => {
+    rateLimitMock.mockRejectedValueOnce(new Error('rate limit store unavailable'));
+
+    const res = await POST(makeRequest(URL, {}), routeParams('sess-1'));
+
+    expect(res.status).toBe(500);
+    expect((await res.json()).code).toBe('DESIGN_SESSION_FAILED');
+    expect(confirmProposalMock).not.toHaveBeenCalled();
   });
 
   it('demo mode delegates to the real service and skips rate/budget/spend', async () => {
