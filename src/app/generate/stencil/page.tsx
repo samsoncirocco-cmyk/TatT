@@ -7,6 +7,7 @@ import SlashHeadline from "@/components/punk/SlashHeadline";
 import TapeCTA from "@/components/punk/TapeCTA";
 import OutputCard from "@/components/punk/OutputCard";
 import Lightbox from "@/components/punk/Lightbox";
+import ShareDesignAction from "@/features/share/components/ShareDesignAction";
 import { useDesigns, useUser } from "@/lib/tattStorage";
 import {
   FREE_TIER_DAILY_CUTS,
@@ -36,7 +37,15 @@ function StencilPageInner() {
   const [prompt, setPrompt] = useState("");
   const [cuts, setCuts] = useState<string[]>([]);
   const [cutting, setCutting] = useState(false);
-  const [selected, setSelected] = useState(0);
+  /**
+   * Which cuts the user has selected. Tapping a cut has always been the
+   * Forge's select gesture, but it drove nothing except a highlight — so
+   * rather than introduce a second, competing selection concept for
+   * sharing, that one gesture now has the job. One tap, one meaning:
+   * "this cut goes in the link". Starts empty because nothing is selected
+   * until the user says so.
+   */
+  const [selected, setSelected] = useState<Set<number>>(new Set());
   const [savedCuts, setSavedCuts] = useState<Record<number, boolean>>({});
   const [expanded, setExpanded] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +69,19 @@ function StencilPageInner() {
   const appendSuggestion = (s: string) => {
     setPrompt((p) => (p.trim() ? `${p.trim()}, ${s}` : s));
   };
+
+  const toggleSelected = (i: number) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i);
+      else next.add(i);
+      return next;
+    });
+  };
+
+  const allSelected = cuts.length > 0 && selected.size === cuts.length;
+  // Cut order, not click order — the share reads left-to-right like the grid.
+  const selectedCuts = cuts.filter((_, i) => selected.has(i));
 
   const handleGenerate = useCallback(async () => {
     const trimmed = prompt.trim();
@@ -88,7 +110,7 @@ function StencilPageInner() {
       if (!images.length) throw new Error("No cuts came back");
       const nextCuts = images.slice(0, 4);
       setCuts(nextCuts);
-      setSelected(0);
+      setSelected(new Set());
       // Every generation auto-saves to the library — no manual "Save" step.
       // Each of the four cuts lands as its own design so pruning (single or
       // multi-select delete on /designs) works per-cut.
@@ -229,8 +251,26 @@ function StencilPageInner() {
               {/* FOUR CUTS — generation output grid */}
               {cuts.length > 0 && (
                 <div className="mt-10">
-                  <div className="text-[10px] uppercase tracking-[0.28em] text-pink mb-4 font-body">
-                    ▸ Four cuts
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+                    <div className="text-[10px] uppercase tracking-[0.28em] text-pink font-body">
+                      ▸ Four cuts
+                    </div>
+                    <div className="flex items-center gap-4 text-[10px] uppercase tracking-[0.2em] font-body">
+                      <span className="text-white/45 tabular-nums">
+                        {selected.size}&nbsp;of&nbsp;{cuts.length}&nbsp;selected
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelected(
+                            allSelected ? new Set() : new Set(cuts.map((_, i) => i)),
+                          )
+                        }
+                        className="border hairline px-3 py-2 press text-white/70 hover:text-black hover:bg-pink"
+                      >
+                        {allSelected ? "Clear" : "Select all"}
+                      </button>
+                    </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     {cuts.map((src, i) => (
@@ -238,8 +278,8 @@ function StencilPageInner() {
                         key={`${src}-${i}`}
                         src={src}
                         index={i + 1}
-                        selected={selected === i}
-                        onSelect={() => setSelected(i)}
+                        selected={selected.has(i)}
+                        onSelect={() => toggleSelected(i)}
                         onExpand={() => setExpanded(i)}
                         badge={
                           savedCuts[i] ? (
@@ -268,7 +308,7 @@ function StencilPageInner() {
                       src={cuts[expanded]}
                       alt={`Generated cut ${expanded + 1} large view`}
                       caption={`Cut ${String(expanded + 1).padStart(2, "0")} · 1024²${
-                        selected === expanded ? " · Selected" : ""
+                        selected.has(expanded) ? " · Selected" : ""
                       }`}
                       onClose={() => setExpanded(null)}
                       onPrev={
@@ -283,6 +323,22 @@ function StencilPageInner() {
                       }
                     />
                   )}
+
+                  {/* SHARE — whatever is selected above goes in ONE link.
+                      This is why selection exists rather than a share button
+                      per cut: a share is a single thing you send a friend,
+                      so four cuts must not mean four links to send. */}
+                  <div className="mt-8 border-t-2 hairline pt-6">
+                    <div className="text-[10px] uppercase tracking-[0.28em] text-pink mb-3 font-body">
+                      ▸ Share selected
+                    </div>
+                    <ShareDesignAction
+                      imageUrls={selectedCuts}
+                      prompt={prompt}
+                      redirectTo="/generate/stencil"
+                      emptyHint="Select a cut above — everything you select goes in one link."
+                    />
+                  </div>
 
                   {/* DESIGN → ARTIST SIGNAL — carries the prompt's style
                       descriptors to /matches as canonical graph styles. */}
