@@ -12,6 +12,7 @@ import {
   recordPick,
   refine,
   getSession,
+  attachPlacementPreview,
   DesignSessionError,
 } from '../index';
 import { memorySessionStore, clearMemorySessions } from '../internal/store';
@@ -388,6 +389,44 @@ describe('getSession', () => {
   it('throws SESSION_NOT_FOUND for an unknown id', async () => {
     await expect(getSession('nope')).rejects.toBeInstanceOf(DesignSessionError);
     await expect(getSession('nope')).rejects.toMatchObject({ code: 'SESSION_NOT_FOUND' });
+  });
+});
+
+describe('attachPlacementPreview', () => {
+  const previewUrl = 'https://storage.test/design-sessions/x/placement-preview.png';
+
+  it('stores the preview URL on the completed session Brief and persists it', async () => {
+    const picked = await startAndPick('v3', 'v2');
+    await refine(picked.id, { answer: 'not stark enough' });
+
+    const session = await attachPlacementPreview(picked.id, previewUrl);
+    expect(session.brief?.placementPreviewUrl).toBe(previewUrl);
+    expect(session.phase).toBe('complete');
+
+    const fetched = await getSession(picked.id);
+    expect(fetched.brief?.placementPreviewUrl).toBe(previewUrl);
+  });
+
+  it('overwrites the previous preview on a re-place', async () => {
+    const picked = await startAndPick('v3', 'v2');
+    await refine(picked.id, { answer: 'not stark enough' });
+
+    await attachPlacementPreview(picked.id, previewUrl);
+    const session = await attachPlacementPreview(picked.id, 'https://storage.test/second.png');
+    expect(session.brief?.placementPreviewUrl).toBe('https://storage.test/second.png');
+  });
+
+  it('rejects before the session is complete (INVALID_PHASE)', async () => {
+    const picked = await startAndPick('v3', 'v2');
+    await expect(attachPlacementPreview(picked.id, previewUrl)).rejects.toMatchObject({
+      code: 'INVALID_PHASE',
+    });
+  });
+
+  it('throws SESSION_NOT_FOUND for an unknown id', async () => {
+    await expect(attachPlacementPreview('nope', previewUrl)).rejects.toMatchObject({
+      code: 'SESSION_NOT_FOUND',
+    });
   });
 });
 

@@ -14,7 +14,7 @@
  * Works in both browser (client-side) and Node.js (server-side) environments.
  */
 
-import { getDatabase, ref, set, onValue, off, get } from 'firebase/database';
+import { getDatabase, ref, set, onValue, get } from 'firebase/database';
 import { initializeApp } from 'firebase/app';
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
@@ -168,7 +168,7 @@ export function subscribeToMatches(
 ): () => void {
   if (DEMO_MODE) {
     console.log('[Firebase] Demo mode - emitting mock matches for user:', userId);
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       callback({
         designId: 'mock-design-1',
         updatedAt: Date.now(),
@@ -176,6 +176,7 @@ export function subscribeToMatches(
       });
     }, 1000);
     return () => {
+      clearTimeout(timer);
       console.log('[Firebase] Mock unsubscribe');
     };
   }
@@ -187,7 +188,7 @@ export function subscribeToMatches(
 
   const matchRef = ref(clientDatabase, `matches/${userId}/current`);
 
-  onValue(
+  const unsubscribe = onValue(
     matchRef,
     (snapshot) => {
       const data = snapshot.val();
@@ -202,7 +203,7 @@ export function subscribeToMatches(
   console.log(`[Firebase] Subscribed to matches for user: ${userId}`);
 
   return () => {
-    off(matchRef);
+    unsubscribe();
     console.log(`[Firebase] Unsubscribed from matches for user: ${userId}`);
   };
 }
