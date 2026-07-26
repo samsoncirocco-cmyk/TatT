@@ -75,7 +75,16 @@ export const SHARE_STORE_UNAVAILABLE = {
 
 // Only ever reached in demo mode and tests — environments where a single
 // long-lived process is guaranteed.
-const shares = new Map<string, SharedDesign>();
+//
+// A single process is not a single module instance, though: Next bundles each
+// route handler separately and re-evaluates modules on hot reload, so a plain
+// module-scoped Map left the POST that writes a share and the GET that reads
+// it holding different maps — every demo-mode link 404'd. Hang the map off
+// globalThis so all bundles and reloads share one.
+const globalStore = globalThis as typeof globalThis & {
+  __tattSharedDesigns?: Map<string, SharedDesign>;
+};
+const shares = (globalStore.__tattSharedDesigns ??= new Map<string, SharedDesign>());
 
 export const memorySharedDesignStore: SharedDesignStore = {
   async save(design) {
