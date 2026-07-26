@@ -70,14 +70,19 @@ const designs = [
   { id: 'b', image: 'onskin.png', title: 'On-skin render' },
 ];
 
+/** Prototype descriptors we replace, so they can be put back exactly. */
+const mediaProto = HTMLMediaElement.prototype;
+const originalPlay = Object.getOwnPropertyDescriptor(mediaProto, 'play');
+const originalReadyState = Object.getOwnPropertyDescriptor(mediaProto, 'readyState');
+
 beforeEach(() => {
   vi.stubGlobal('isSecureContext', true);
   // jsdom has no media element playback.
-  Object.defineProperty(HTMLMediaElement.prototype, 'play', {
+  Object.defineProperty(mediaProto, 'play', {
     configurable: true,
     value: vi.fn().mockResolvedValue(undefined),
   });
-  Object.defineProperty(HTMLMediaElement.prototype, 'readyState', {
+  Object.defineProperty(mediaProto, 'readyState', {
     configurable: true,
     get: () => 1,
   });
@@ -86,6 +91,13 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  // Put the prototype back. vi.restoreAllMocks() does not undo
+  // defineProperty, and a permanently patched HTMLMediaElement is exactly the
+  // kind of leak that surfaces as an unrelated suite failing somewhere else.
+  if (originalPlay) Object.defineProperty(mediaProto, 'play', originalPlay);
+  else Reflect.deleteProperty(mediaProto, 'play');
+  if (originalReadyState) Object.defineProperty(mediaProto, 'readyState', originalReadyState);
+  else Reflect.deleteProperty(mediaProto, 'readyState');
 });
 
 /** Click and let the resulting async state updates settle. */
