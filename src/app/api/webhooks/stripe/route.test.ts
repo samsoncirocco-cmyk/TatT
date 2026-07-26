@@ -102,7 +102,15 @@ vi.mock('@/lib/notify', () => ({
   notifyArtistOfBooking: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { createRelay } from '@/lib/booking-relay';
+// The account.updated fallback resolves the artist from the graph by
+// connected-account id; rows are staged per-test via `cypherRows`.
+const { cypherRows } = vi.hoisted(() => ({ cypherRows: [] as Array<Record<string, unknown>> }));
+vi.mock('@/features/match-pulse/services/neo4jService', () => ({
+  executeServerCypherQuery: vi.fn(async () => cypherRows),
+}));
+
+import { createRelay, transferHeldDeposits } from '@/lib/booking-relay';
+import { setArtistChargesEnabled } from '@/lib/artist-stripe';
 import { notifyArtistOfBooking } from '@/lib/notify';
 import { POST } from './route';
 
@@ -368,5 +376,80 @@ describe('Stripe webhook — held-deposit relay', () => {
 
     expect(createRelay).not.toHaveBeenCalled();
     expect(notifyArtistOfBooking).not.toHaveBeenCalled();
+  });
+});
+
+// ── account.updated → release held deposits ─────────────────────────────────
+// The other half of the money path: a relay recorded above only pays out if
+// this event actually reaches transferHeldDeposits. Nothing covered this, so
+// the chain could rot silently — and the failure mode is a customer refund
+// seven days later, not an error anyone sees.
+function makeAccountEvent(
+  id: string,
+  account: Record<string, unknown>
+) {
+  return {
+    id,
+    type: 'account.updated',
+    created: HELD_EPOCH,
+    data: { object: { id: 'acct_live_1', ...account } },
+  };
+}
+
+describe('Stripe webhook — account.updated releases held deposits', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    docStore.clear();
+    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test_dummy';
+    cypherRows.length = 0;
+  });
+
+  it('caches charges_enabled and flushes held deposits, keyed by account metadata', async () => {
+    const event = makeAccountEvent('evt_acct_1', {
+      charges_enabled: true,
+      metadata: { tattArtistId: 'artist_1' },
+    });
+    constructEventMock.mockReturnValueOnce(event);
+    vi.mocked(transferHeldDeposits).mockResolvedValueOnce({ count: 1, totalTransferredCents: 15_000 });
+
+    const res = await POST(makeRequest(event));
+    expect(res.status).toBe(200);
+    expect(setArtistChargesEnabled).toHaveBeenCalledWith('acct_live_1', true);
+    expect(transferHeldDeposits).toHaveBeenCalledWith('artist_1');
+  });
+
+  it('falls back to the Artist node keyed by the connected-account id', async () => {
+    // Accounts created before the metadata wiring (or restored by hand) have no
+    // tattArtistId — without this fallback their deposits would never release.
+    const event = makeAccountEvent('evt_acct_2', { charges_enabled: true, metadata: {} });
+    constructEventMock.mockReturnValueOnce(event);
+    cypherRows.push({ id: 'artist_from_graph' });
+
+    await POST(makeRequest(event));
+    expect(transferHeldDeposits).toHaveBeenCalledWith('artist_from_graph');
+  });
+
+  it('does NOT release while charges are still disabled', async () => {
+    const event = makeAccountEvent('evt_acct_3', {
+      charges_enabled: false,
+      metadata: { tattArtistId: 'artist_1' },
+    });
+    constructEventMock.mockReturnValueOnce(event);
+
+    await POST(makeRequest(event));
+    expect(setArtistChargesEnabled).toHaveBeenCalledWith('acct_live_1', false);
+    expect(transferHeldDeposits).not.toHaveBeenCalled();
+  });
+
+  it('still acknowledges the event when the transfer throws (Stripe must not retry-storm)', async () => {
+    const event = makeAccountEvent('evt_acct_4', {
+      charges_enabled: true,
+      metadata: { tattArtistId: 'artist_1' },
+    });
+    constructEventMock.mockReturnValueOnce(event);
+    vi.mocked(transferHeldDeposits).mockRejectedValueOnce(new Error('transfer blew up'));
+
+    const res = await POST(makeRequest(event));
+    expect(res.status).toBe(200);
   });
 });
