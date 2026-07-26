@@ -6,7 +6,7 @@
 // tempting bug — `catch { return new Set() }` — silently re-imports every
 // artist who ever asked to be removed. See docs/adr/0024 §4.
 import { describe, expect, it, vi } from 'vitest';
-import { loadTombstoneGate, makeTombstoneGate } from './takedown-tombstone.mjs';
+import { filterTombstoned, loadTombstoneGate, makeTombstoneGate } from './takedown-tombstone.mjs';
 
 describe('makeTombstoneGate', () => {
   const gate = makeTombstoneGate([
@@ -52,6 +52,43 @@ describe('makeTombstoneGate', () => {
   it('does not block on empty or missing identifiers', () => {
     expect(gate.isTombstoned({}).blocked).toBe(false);
     expect(gate.isTombstoned({ instagram: '', artistId: null }).blocked).toBe(false);
+  });
+});
+
+describe('filterTombstoned', () => {
+  const gate = makeTombstoneGate(['instagram:gone', 'artist:artist_dropped']);
+
+  it('splits a batch into allowed and blocked, keeping the reason', () => {
+    const { allowed, blocked } = filterTombstoned(gate, [
+      { id: 'artist_a', instagram: '@stays' },
+      { id: 'artist_b', instagram: '@GONE' },
+      { id: 'artist_dropped', instagram: '@also_stays' },
+    ]);
+
+    expect(allowed.map((a) => a.id)).toEqual(['artist_a']);
+    expect(blocked).toHaveLength(2);
+    expect(blocked[0].matchedKey).toBe('instagram:gone');
+    expect(blocked[1].matchedKey).toBe('artist:artist_dropped');
+  });
+
+  it('reads the handle from `handle` too — the crawler cohort stores it there', () => {
+    const { blocked } = filterTombstoned(gate, [{ id: 'artist_new_random_id', handle: 'gone' }]);
+    expect(blocked).toHaveLength(1);
+  });
+
+  it('reads source pages, blocking a whole scraped page', () => {
+    const pageGate = makeTombstoneGate(['source:http://shop.co/artists']);
+    const { blocked } = filterTombstoned(pageGate, [
+      { id: 'a', sourcePages: ['http://shop.co/artists'] },
+    ]);
+    expect(blocked).toHaveLength(1);
+  });
+
+  it('passes everything through when no tombstones exist', () => {
+    const empty = makeTombstoneGate([]);
+    const { allowed, blocked } = filterTombstoned(empty, [{ id: 'a' }, { id: 'b' }]);
+    expect(allowed).toHaveLength(2);
+    expect(blocked).toHaveLength(0);
   });
 });
 

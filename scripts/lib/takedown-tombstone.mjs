@@ -91,6 +91,40 @@ export async function loadTombstoneGate(readKeys) {
   return makeTombstoneGate(keys);
 }
 
+/**
+ * Split a batch of about-to-be-ingested artist records into those that may
+ * proceed and those a takedown blocks.
+ *
+ * Reads the handle from `instagram` OR `handle` — the national dataset uses the
+ * first, the crawler cohort the second — and checks `sourcePages` so a whole
+ * scraped page can be blocked at once.
+ *
+ * @returns {{allowed: object[], blocked: Array<{record: object, matchedKey: string}>}}
+ */
+export function filterTombstoned(gate, records) {
+  const allowed = [];
+  const blocked = [];
+
+  for (const record of records ?? []) {
+    const sourcePages = Array.isArray(record?.sourcePages) ? record.sourcePages : [];
+    const candidates = [
+      { instagram: record?.instagram ?? record?.handle, artistId: record?.id },
+      ...sourcePages.map((sourceUrl) => ({ sourceUrl })),
+    ];
+
+    let hit = null;
+    for (const candidate of candidates) {
+      const result = gate.isTombstoned(candidate);
+      if (result.blocked) { hit = result.matchedKey; break; }
+    }
+
+    if (hit) blocked.push({ record, matchedKey: hit });
+    else allowed.push(record);
+  }
+
+  return { allowed, blocked };
+}
+
 /** Cypher the ingest scripts use to read every tombstone key. */
 export const TOMBSTONE_KEYS_CYPHER = 'MATCH (t:TakedownTombstone) RETURN t.key AS key';
 

@@ -13,6 +13,11 @@ import fs from 'fs';
 import path from 'path';
 import neo4j from 'neo4j-driver';
 import 'dotenv/config';
+import {
+    filterTombstoned,
+    loadTombstoneGate,
+    neo4jTombstoneReader,
+} from '../lib/takedown-tombstone.mjs';
 
 // Configuration
 const CONFIG = {
@@ -38,8 +43,22 @@ async function importData() {
         if (!fs.existsSync(CONFIG.INPUT_FILE)) {
             throw new Error(`Input file missing: ${CONFIG.INPUT_FILE}`);
         }
-        const artists = JSON.parse(fs.readFileSync(CONFIG.INPUT_FILE, 'utf8'));
-        console.log(`[Importer] Loaded ${artists.length} verified artists.`);
+        const allArtists = JSON.parse(fs.readFileSync(CONFIG.INPUT_FILE, 'utf8'));
+        console.log(`[Importer] Loaded ${allArtists.length} verified artists.`);
+
+        // 1b. Takedown gate — the last thing standing between a re-scrape and
+        // an artist who asked to be removed. loadTombstoneGate THROWS if the
+        // list cannot be read; that abort is deliberate (docs/adr/0024 §4).
+        // A takedown a scrape undoes is not a takedown.
+        const gate = await loadTombstoneGate(neo4jTombstoneReader(session));
+        const { allowed: artists, blocked } = filterTombstoned(gate, allArtists);
+        console.log(`[Importer] Takedown gate: ${gate.keyCount} tombstone key(s) loaded.`);
+        if (blocked.length) {
+            console.log(`[Importer] SKIPPING ${blocked.length} tombstoned artist(s):`);
+            for (const b of blocked) {
+                console.log(`    ⛔ ${b.record.handle || b.record.id} — matched ${b.matchedKey}`);
+            }
+        }
 
         // 2. Clear existing demo data (Optional: good for iteration)
         // await session.run('MATCH (n:Artist {source: "crawled_verified"}) DETACH DELETE n');

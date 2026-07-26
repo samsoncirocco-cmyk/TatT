@@ -55,6 +55,11 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { config } from 'dotenv';
+import {
+  filterTombstoned,
+  loadTombstoneGate,
+  neo4jTombstoneReader,
+} from './lib/takedown-tombstone.mjs';
 
 config();
 config({ path: '.env.local', override: false });
@@ -289,9 +294,27 @@ async function main() {
     session = driver.session(process.env.NEO4J_DATABASE ? { database: process.env.NEO4J_DATABASE } : undefined);
   }
 
+  // Takedown gate. Without this, a stale scraped-images directory re-uploads a
+  // removed artist's photographs to GCS and re-SETs portfolioImages, silently
+  // undoing a takedown (docs/adr/0024). Skipped on a dry run only because a dry
+  // run has no session and uploads nothing.
+  let allowedRecords = records;
+  if (session) {
+    const gate = await loadTombstoneGate(neo4jTombstoneReader(session));
+    const { allowed, blocked } = filterTombstoned(gate, records);
+    allowedRecords = allowed;
+    console.log(`Takedown gate: ${gate.keyCount} tombstone key(s) loaded.`);
+    if (blocked.length) {
+      console.log(`⛔ Skipping ${blocked.length} tombstoned artist(s):`);
+      for (const b of blocked) {
+        console.log(`    - ${b.record.id ?? '(no id)'} (matched ${b.matchedKey})`);
+      }
+    }
+  }
+
   const summary = { processed: 0, hosted: 0, skipped: 0, imagesUploaded: 0 };
   try {
-    for (const rec of records) {
+    for (const rec of allowedRecords) {
       summary.processed++;
       const { artistId, urls } = await processArtist(rec, gcsBucket, opts);
       if (urls.length === 0) {
