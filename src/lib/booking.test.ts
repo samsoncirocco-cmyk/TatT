@@ -230,6 +230,7 @@ describe("validateBookingRequest", () => {
 describe("booking lifecycle state machine", () => {
   const ALL: BookingStatus[] = [
     "pending",
+    "held",
     "deposit_paid",
     "confirmed",
     "declined",
@@ -240,9 +241,14 @@ describe("booking lifecycle state machine", () => {
   ];
 
   const VALID_EDGES: Array<[BookingStatus, BookingStatus]> = [
+    ["pending", "held"],
     ["pending", "deposit_paid"],
     ["pending", "cancelled"],
     ["pending", "expired"],
+    ["held", "deposit_paid"],
+    ["held", "pending"],
+    ["held", "cancelled"],
+    ["held", "expired"],
     ["deposit_paid", "confirmed"],
     ["deposit_paid", "declined"],
     ["deposit_paid", "refunded"],

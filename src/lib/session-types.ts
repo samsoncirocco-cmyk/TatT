@@ -75,7 +75,7 @@ export interface CreateSessionTypeInput {
  * Unit contract: every money value that crosses this module's boundary is
  * integer cents, matching Stripe and `depositCentsForSize` in ./booking.
  * `depositDollarsForSize` is the only dollars-valued helper in the codebase
- * and exists purely for display. Never mix the two — see ADR 0023.
+ * and exists purely for display. Never mix the two — see ADR 0026.
  */
 export function computeDepositCents(
   sessionType: Pick<SessionType, "depositType" | "depositAmount">,
@@ -198,7 +198,7 @@ function checkPresentFields(input: UpdateSessionTypeInput): string | null {
   // Upper bound matters more than the lower one: >10000 bps is a refund
   // larger than the deposit, which Stripe would happily attempt. Reject
   // rather than clamp — silently paying out 100% when the artist typed
-  // 50000 would be a money bug that never surfaces. See ADR 0023.
+  // 50000 would be a money bug that never surfaces. See ADR 0026.
   if (
     input.cancellationPolicyPartialRefundBps !== undefined &&
     (input.cancellationPolicyPartialRefundBps < 0 ||
