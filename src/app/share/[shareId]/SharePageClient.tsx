@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import SlashHeadline from '@/components/punk/SlashHeadline';
+import StickerPricetag from '@/components/punk/StickerPricetag';
 import TapeCTA from '@/components/punk/TapeCTA';
 
 /**
@@ -117,16 +118,15 @@ export function SharePageClient({ design }: { design: SharedDesign }) {
                 alt={design.prompt}
                 className="absolute inset-0 w-full h-full object-cover"
               />
-              <div className="absolute top-3 right-3 sticker px-3 py-1 z-10">
-                <div className="font-display text-[11px] tracking-widest leading-none">
-                  {images.length > 1
+              <StickerPricetag
+                className="absolute top-3 right-3 z-10"
+                primary={
+                  images.length > 1
                     ? `${String(active + 1).padStart(2, '0')}/${String(images.length).padStart(2, '0')}`
-                    : 'INK'}
-                </div>
-                <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-0.5">
-                  Cut
-                </div>
-              </div>
+                    : 'INK'
+                }
+                secondary="Cut"
+              />
             </div>
 
             {/* The rest of the set. Only a multi-cut share has one. */}
