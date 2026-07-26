@@ -144,9 +144,12 @@ describe("generateAvailableSlots", () => {
       ],
     };
     const slots = generateAvailableSlots(params);
-    // The booking's footprint is 11:30-14:30, which straddles both Monday
-    // footprints (10:00-13:00 and 13:00-16:00), so Monday is fully consumed.
-    expect(slots.filter((s) => s.date === "2026-07-27").length).toBe(0);
+    // The booking's footprint is 11:30-14:30. Nothing fits before it (90 min),
+    // and the grid re-anchors to 14:30 after it. This case asserted 0 slots
+    // until #162: the grid was pinned to 10:00, so the whole afternoon was lost.
+    expect(
+      slots.filter((s) => s.date === "2026-07-27").map((s) => s.startTime),
+    ).toEqual(["15:00"]);
   });
 
   it("keeps slots whose footprint clears an existing booking", () => {
@@ -159,7 +162,9 @@ describe("generateAvailableSlots", () => {
     };
     const slots = generateAvailableSlots(params);
     const mondaySlots = slots.filter((s) => s.date === "2026-07-27");
-    expect(mondaySlots.map((s) => s.startTime)).toEqual(["13:30"]);
+    // Free time is 11:30-18:00, which holds two sessions. Before #162 the grid
+    // stayed pinned to 10:00 and offered only 13:30.
+    expect(mondaySlots.map((s) => s.startTime)).toEqual(["12:00", "15:00"]);
   });
 
   it("respects full-day block overrides", () => {
@@ -187,8 +192,11 @@ describe("generateAvailableSlots", () => {
       ],
     };
     const slots = generateAvailableSlots(params);
-    // Both Monday footprints (10:00-13:00, 13:00-16:00) hit the 12:00-14:00 block.
-    expect(slots.filter((s) => s.date === "2026-07-27").length).toBe(0);
+    // 10:00-12:00 is too short for a 180-minute footprint; the grid re-anchors
+    // to 14:00 and the offered footprint (14:00-17:00) clears the block.
+    expect(
+      slots.filter((s) => s.date === "2026-07-27").map((s) => s.startTime),
+    ).toEqual(["14:30"]);
   });
 
   it("keeps slots whose footprint clears a timed block override", () => {
@@ -423,7 +431,240 @@ describe("generateAvailableSlots", () => {
       ],
     };
     const slots = generateAvailableSlots(params);
-    expect(slots.map((s) => s.startTime)).toEqual(["03:30"]);
+    expect(slots.map((s) => s.startTime)).toEqual(["03:00"]);
+  });
+});
+
+// ─── #162: occupancy must re-anchor the grid, not strand the remainder ─
+
+describe("generateAvailableSlots around occupied time", () => {
+  const baseParams: GenerateSlotsParams = {
+    schedule: STANDARD_SCHEDULE,
+    overrides: [],
+    sessionType: STANDARD_SESSION,
+    existingBookings: [],
+    nowEpochMs: NOW_MS,
+    startDate: "2026-07-27", // Monday
+    endDate: "2026-07-27",
+  };
+
+  it("offers the afternoon when a mid-day booking splits the range", () => {
+    // The #162 repro: Monday 10:00-18:00 with one 12:00-14:00 booking.
+    // The booking's footprint is 11:30-14:30, leaving 14:30-18:00 free —
+    // room for a 15:00-17:00 session with both buffers inside the range.
+    const slots = generateAvailableSlots({
+      ...baseParams,
+      existingBookings: [
+        { date: "2026-07-27", startTime: "12:00", endTime: "14:00" },
+      ],
+    });
+    expect(slots.map((s) => [s.startTime, s.endTime])).toEqual([
+      ["15:00", "17:00"],
+    ]);
+  });
+
+  it("re-anchors to the end of a booking that opens the day", () => {
+    // Footprint 09:30-11:30 — free time is 11:30-18:00, which holds two
+    // sessions. Anchoring to 10:00 would have offered only one.
+    const slots = generateAvailableSlots({
+      ...baseParams,
+      existingBookings: [
+        { date: "2026-07-27", startTime: "10:00", endTime: "11:00" },
+      ],
+    });
+    expect(slots.map((s) => [s.startTime, s.endTime])).toEqual([
+      ["12:00", "14:00"],
+      ["15:00", "17:00"],
+    ]);
+  });
+
+  it("leaves the earlier grid intact when a booking closes the day", () => {
+    // Footprint 16:30-18:30 clips only the tail, which held no slot anyway.
+    const slots = generateAvailableSlots({
+      ...baseParams,
+      existingBookings: [
+        { date: "2026-07-27", startTime: "17:00", endTime: "18:00" },
+      ],
+    });
+    expect(slots.map((s) => s.startTime)).toEqual(["10:30", "13:30"]);
+  });
+
+  it("fills each of three free intervals left by two bookings", () => {
+    // 60-minute session, 15/15 buffers → a 90-minute footprint.
+    // Booking footprints 10:45-11:45 and 13:45-14:45 cut Monday into
+    // 10:00-10:45 (45 min — too short), 11:45-13:45, and 14:45-18:00.
+    const slots = generateAvailableSlots({
+      ...baseParams,
+      sessionType: {
+        durationMinutes: 60,
+        beforeBufferMinutes: 15,
+        afterBufferMinutes: 15,
+        minimumBookingNoticeHours: 24,
+      },
+      existingBookings: [
+        { date: "2026-07-27", startTime: "11:00", endTime: "11:30" },
+        { date: "2026-07-27", startTime: "14:00", endTime: "14:30" },
+      ],
+    });
+    expect(slots.map((s) => [s.startTime, s.endTime])).toEqual([
+      ["12:00", "13:00"],
+      ["15:00", "16:00"],
+      ["16:30", "17:30"],
+    ]);
+  });
+
+  it("offers nothing when every free interval is shorter than the footprint", () => {
+    // Footprints 11:30-14:30 and 15:00-18:00 leave 10:00-11:30 (90 min) and
+    // 14:30-15:00 (30 min) — neither fits the 180-minute footprint.
+    const slots = generateAvailableSlots({
+      ...baseParams,
+      existingBookings: [
+        { date: "2026-07-27", startTime: "12:00", endTime: "14:00" },
+        { date: "2026-07-27", startTime: "15:30", endTime: "17:30" },
+      ],
+    });
+    expect(slots).toEqual([]);
+  });
+
+  it("re-anchors after a block override the same way as after a booking", () => {
+    // A 12:00-14:00 block leaves 14:00-18:00 free → a 14:30 start fits.
+    const slots = generateAvailableSlots({
+      ...baseParams,
+      overrides: [
+        {
+          date: "2026-07-27",
+          type: "block",
+          startTime: "12:00",
+          endTime: "14:00",
+        },
+      ],
+    });
+    expect(slots.map((s) => [s.startTime, s.endTime])).toEqual([
+      ["14:30", "16:30"],
+    ]);
+  });
+
+  it("starts the grid at the notice cutoff instead of the range start", () => {
+    // Notice expires 12:10 Phoenix, mid-range. Anchoring to 10:00 would skip
+    // the 10:30 slot and offer only 13:30, stranding an hour and a half.
+    const slots = generateAvailableSlots({
+      ...baseParams,
+      sessionType: { ...STANDARD_SESSION, minimumBookingNoticeHours: 0 },
+      nowEpochMs: new Date("2026-07-27T19:10:00Z").getTime(), // 12:10 MST
+    });
+    expect(slots.map((s) => s.startTime)).toEqual(["12:15", "15:15"]);
+  });
+
+  it("keeps every remaining slot bookable when the day is already split", () => {
+    // #151's invariant, re-checked on a re-anchored grid: booking any offered
+    // slot must remove exactly that slot and leave the others untouched.
+    const params: GenerateSlotsParams = {
+      ...baseParams,
+      sessionType: {
+        durationMinutes: 60,
+        beforeBufferMinutes: 15,
+        afterBufferMinutes: 15,
+        minimumBookingNoticeHours: 24,
+      },
+      existingBookings: [
+        { date: "2026-07-27", startTime: "11:00", endTime: "11:30" },
+      ],
+    };
+    const slots = generateAvailableSlots(params);
+    expect(slots.length).toBeGreaterThan(1);
+
+    for (const booked of slots) {
+      const remaining = generateAvailableSlots({
+        ...params,
+        existingBookings: [
+          ...params.existingBookings,
+          {
+            date: booked.date,
+            startTime: booked.startTime,
+            endTime: booked.endTime,
+          },
+        ],
+      });
+      expect(remaining).toEqual(
+        slots.filter((s) => s.startTime !== booked.startTime),
+      );
+    }
+  });
+});
+
+// ─── #162: slot granularity aligns starts to the artist's own grid ─────
+
+describe("generateAvailableSlots slot granularity", () => {
+  const baseParams: GenerateSlotsParams = {
+    schedule: STANDARD_SCHEDULE,
+    overrides: [],
+    sessionType: STANDARD_SESSION,
+    nowEpochMs: NOW_MS,
+    startDate: "2026-07-27", // Monday
+    endDate: "2026-07-27",
+    // An off-grid booking: footprint 10:30-12:37 leaves free time starting at
+    // an awkward 12:37, which would otherwise surface as a 13:07 start.
+    existingBookings: [
+      { date: "2026-07-27", startTime: "11:00", endTime: "12:07" },
+    ],
+  };
+
+  it("rounds an off-grid start up to the default 15-minute grid", () => {
+    const slots = generateAvailableSlots(baseParams);
+    expect(slots.map((s) => [s.startTime, s.endTime])).toEqual([
+      ["13:15", "15:15"],
+    ]);
+  });
+
+  it("honours a coarser granularity", () => {
+    const slots = generateAvailableSlots({
+      ...baseParams,
+      slotGranularityMinutes: 60,
+    });
+    expect(slots.map((s) => [s.startTime, s.endTime])).toEqual([
+      ["14:00", "16:00"],
+    ]);
+  });
+
+  it("offers the exact free-interval start when granularity is 1 minute", () => {
+    const slots = generateAvailableSlots({
+      ...baseParams,
+      slotGranularityMinutes: 1,
+    });
+    expect(slots.map((s) => [s.startTime, s.endTime])).toEqual([
+      ["13:07", "15:07"],
+    ]);
+  });
+
+  it("falls back to the default when granularity is not a positive number", () => {
+    for (const bad of [0, -15, NaN]) {
+      const slots = generateAvailableSlots({
+        ...baseParams,
+        slotGranularityMinutes: bad,
+      });
+      expect(slots.map((s) => s.startTime)).toEqual(["13:15"]);
+    }
+  });
+
+  it("never lets granularity push a footprint past its free interval", () => {
+    // Whatever the grid, an offered slot's whole footprint stays inside the
+    // artist's open hours and clear of the booking.
+    for (const granularity of [1, 5, 15, 30, 60]) {
+      const slots = generateAvailableSlots({
+        ...baseParams,
+        slotGranularityMinutes: granularity,
+      });
+      for (const slot of slots) {
+        const footprintStart =
+          parseTimeToMinutes(slot.startTime) - STANDARD_SESSION.beforeBufferMinutes;
+        const footprintEnd =
+          parseTimeToMinutes(slot.endTime) + STANDARD_SESSION.afterBufferMinutes;
+        expect(footprintStart).toBeGreaterThanOrEqual(parseTimeToMinutes("10:00"));
+        expect(footprintEnd).toBeLessThanOrEqual(parseTimeToMinutes("18:00"));
+        // Booking footprint is 10:30-12:37.
+        expect(footprintStart).toBeGreaterThanOrEqual(parseTimeToMinutes("12:37"));
+      }
+    }
   });
 });
 

@@ -93,6 +93,15 @@ interface EpochInterval {
 const MINUTES_PER_DAY = 24 * 60;
 const MS_PER_MINUTE = 60 * 1000;
 
+/**
+ * Default spacing of the wall-clock grid that slot start times are rounded up
+ * to. 15 is the finest quantum the product uses anywhere: `durationMinutes` is
+ * validated as 15–720 in ./session-types, so no session can be shorter than one
+ * step. It only ever moves a start later, never adds a candidate, so a finer
+ * grid costs nothing in slot count — see `slotGranularityMinutes`.
+ */
+export const DEFAULT_SLOT_GRANULARITY_MINUTES = 15;
+
 // ─── Time helpers (pure) ──────────────────────────────────────────────
 
 /** True when `time` is a wall-clock "H:MM" / "HH:MM" with hour 0–23 and minute 0–59. */
@@ -346,6 +355,37 @@ function toBookedIntervals(
   return intervals;
 }
 
+/**
+ * Subtract a set of occupied intervals from one open interval, returning the
+ * free sub-intervals in chronological order. `occupied` may overlap itself and
+ * need not be sorted; intervals outside `open` are ignored.
+ */
+function freeIntervals(
+  open: EpochInterval,
+  occupied: EpochInterval[],
+): EpochInterval[] {
+  const relevant = occupied
+    .filter((o) => o.endMs > open.startMs && o.startMs < open.endMs)
+    .sort((a, b) => a.startMs - b.startMs);
+
+  const free: EpochInterval[] = [];
+  let cursor = open.startMs;
+  for (const busy of relevant) {
+    if (busy.startMs > cursor) {
+      free.push({ startMs: cursor, endMs: busy.startMs });
+    }
+    if (busy.endMs > cursor) cursor = busy.endMs;
+    if (cursor >= open.endMs) return free;
+  }
+  if (cursor < open.endMs) free.push({ startMs: cursor, endMs: open.endMs });
+  return free;
+}
+
+/** Round `valueMs` up to the next `stepMs` boundary measured from `originMs`. */
+function alignUp(valueMs: number, originMs: number, stepMs: number): number {
+  return originMs + Math.ceil((valueMs - originMs) / stepMs) * stepMs;
+}
+
 // ─── Slot generation (pure, no I/O) ───────────────────────────────────
 
 export interface GenerateSlotsParams {
@@ -359,6 +399,23 @@ export interface GenerateSlotsParams {
   startDate: string; // "YYYY-MM-DD"
   /** End of the date range (inclusive). */
   endDate: string; // "YYYY-MM-DD"
+  /**
+   * Spacing of the grid that slot start times are rounded up to, measured from
+   * each open range's own start — so an artist who opens at 10:00 is offered
+   * 10:00 / 10:15 / 10:30 …, and a session freed up at 12:37 surfaces as 13:15
+   * rather than 13:07.
+   *
+   * This is ALIGNMENT, not stride: it can only push a start later, never add a
+   * candidate. Two offered slots are still spaced a full footprint apart, which
+   * is what keeps them independently bookable. Defaults to
+   * `DEFAULT_SLOT_GRANULARITY_MINUTES`; anything that is not a positive finite
+   * number falls back to that default.
+   *
+   * Cost: up to `slotGranularityMinutes - 1` minutes of each free interval go
+   * unused, which can drop a slot when an interval is within a grid step of
+   * fitting one more. Pass 1 to disable alignment and take every minute.
+   */
+  slotGranularityMinutes?: number;
 }
 
 /**
@@ -368,11 +425,14 @@ export interface GenerateSlotsParams {
  * `[start - beforeBuffer, end + afterBuffer]`. Every rule below is expressed in
  * terms of footprints on the absolute (epoch ms) timeline, which is what keeps
  * the offered grid self-consistent and DST-correct:
- *  - a slot is offered only if its footprint fits inside an open range;
- *  - consecutive slots are spaced so their footprints never overlap, so booking
- *    one offered slot can never invalidate another;
- *  - a slot is dropped if its footprint hits a block override or the footprint
- *    of an existing booking.
+ *  - a slot is offered only if its whole footprint fits in free time;
+ *  - consecutive slots are spaced at least a footprint apart, so booking one
+ *    offered slot can never invalidate another;
+ *  - occupied time (block overrides, existing bookings' footprints) and the
+ *    minimum-notice cutoff are subtracted from the open hours *before* slots
+ *    are laid out, so the grid re-anchors after each of them instead of being
+ *    pinned to the range start. Pinning it was #162: a mid-day booking off the
+ *    grid stranded the entire rest of the day.
  *
  * Algorithm — for each date in [startDate, endDate]:
  *  a. Resolve `block` overrides; any that is not a usable timed window —
@@ -380,9 +440,15 @@ export interface GenerateSlotsParams {
  *  b. Keep the resolved block windows as absolute intervals
  *  c. Merge the recurring day's hours with any 'open' overrides into a
  *     disjoint set of open ranges (overlapping windows must not be sliced twice)
- *  d. Walk each open range on the epoch timeline, emitting slots whose
- *     footprint fits and which clear the minimum booking notice, blocks,
- *     and existing bookings
+ *  d. For each open range, trim the head to the minimum-notice cutoff, subtract
+ *     occupied intervals, and pack footprints into what is left — one slot per
+ *     footprint, each start rounded up to the granularity grid
+ *
+ * Slot count is bounded exactly as it was before #162: the free intervals of an
+ * open range are disjoint sub-ranges of it, and each yields at most
+ * `floor(length / footprint)` slots, so a range still yields at most
+ * `floor(rangeLength / footprint)` in total. Splitting a day into more free
+ * intervals cannot inflate the output.
  */
 export function generateAvailableSlots(params: GenerateSlotsParams): Slot[] {
   const slots: Slot[] = [];
@@ -394,6 +460,7 @@ export function generateAvailableSlots(params: GenerateSlotsParams): Slot[] {
     nowEpochMs,
     startDate,
     endDate,
+    slotGranularityMinutes,
   } = params;
 
   // Zero/negative duration would never advance the cursor → infinite loop.
@@ -406,7 +473,14 @@ export function generateAvailableSlots(params: GenerateSlotsParams): Slot[] {
   const afterBufferMs =
     Math.max(0, sessionType.afterBufferMinutes) * MS_PER_MINUTE;
   // One footprint per step, so two offered slots never contend for the same time.
-  const strideMs = beforeBufferMs + durationMs + afterBufferMs;
+  const footprintMs = beforeBufferMs + durationMs + afterBufferMs;
+
+  // A non-positive or non-finite grid would stall or NaN the cursor.
+  const granularityMs =
+    (Number.isFinite(slotGranularityMinutes) &&
+    (slotGranularityMinutes as number) > 0
+      ? (slotGranularityMinutes as number)
+      : DEFAULT_SLOT_GRANULARITY_MINUTES) * MS_PER_MINUTE;
 
   const noticeHours = Math.max(0, sessionType.minimumBookingNoticeHours);
   const minNoticeMs = noticeHours * 60 * 60 * 1000;
@@ -497,30 +571,49 @@ export function generateAvailableSlots(params: GenerateSlotsParams): Slot[] {
       if (!Number.isFinite(rangeStartMs) || !Number.isFinite(rangeEndMs))
         continue;
 
-      for (
-        let slotStartMs = rangeStartMs + beforeBufferMs;
-        slotStartMs + durationMs + afterBufferMs <= rangeEndMs;
-        slotStartMs += strideMs
-      ) {
-        if (slotStartMs < earliestBookable) continue;
+      // Minimum notice trims the head of the range rather than filtering
+      // candidates off a fixed grid — same reason as #162, so that a cutoff
+      // landing mid-range does not strand the time just after it. A slot must
+      // START at or after the cutoff; its before-buffer may precede it.
+      const openStartMs = Math.max(
+        rangeStartMs,
+        earliestBookable - beforeBufferMs,
+      );
+      if (openStartMs >= rangeEndMs) continue;
 
-        const slotEndMs = slotStartMs + durationMs;
-        const footprintStartMs = slotStartMs - beforeBufferMs;
-        const footprintEndMs = slotEndMs + afterBufferMs;
+      const free = freeIntervals({ startMs: openStartMs, endMs: rangeEndMs }, [
+        ...blockedIntervals,
+        ...bookedIntervals,
+      ]);
 
-        const conflicts = (i: EpochInterval) =>
-          timeOverlap(footprintStartMs, footprintEndMs, i.startMs, i.endMs);
-        if (blockedIntervals.some(conflicts)) continue;
-        if (bookedIntervals.some(conflicts)) continue;
+      for (const interval of free) {
+        // Pack footprints back to back, each start rounded up to the grid the
+        // artist's own opening time defines. Alignment only ever moves a start
+        // later, so the spacing stays >= one footprint and no two offered slots
+        // can contend for the same time.
+        let cursorMs = interval.startMs;
+        while (true) {
+          const slotStartMs = alignUp(
+            cursorMs + beforeBufferMs,
+            rangeStartMs,
+            granularityMs,
+          );
+          const footprintStartMs = slotStartMs - beforeBufferMs;
+          const footprintEndMs = footprintStartMs + footprintMs;
+          if (footprintEndMs > interval.endMs) break;
 
-        const slotStart = epochMsToZonedDateTime(slotStartMs, timeZone);
-        const slotEnd = epochMsToZonedDateTime(slotEndMs, timeZone);
-        slots.push({
-          date: slotStart.date,
-          startTime: slotStart.time,
-          endTime: slotEnd.time,
-          durationMinutes: sessionType.durationMinutes,
-        });
+          const slotEndMs = slotStartMs + durationMs;
+          const slotStart = epochMsToZonedDateTime(slotStartMs, timeZone);
+          const slotEnd = epochMsToZonedDateTime(slotEndMs, timeZone);
+          slots.push({
+            date: slotStart.date,
+            startTime: slotStart.time,
+            endTime: slotEnd.time,
+            durationMinutes: sessionType.durationMinutes,
+          });
+
+          cursorMs = footprintEndMs;
+        }
       }
     }
   }
