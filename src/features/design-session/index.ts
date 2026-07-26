@@ -1,6 +1,7 @@
 // Components
 export { DesignConversation } from './components/DesignConversation';
 export { DesignSessionFlow } from './components/DesignSessionFlow';
+export { PlacementPreview } from './components/PlacementPreview';
 
 // Services
 export {
@@ -9,5 +10,6 @@ export {
   submitRefinement,
   converse,
   confirmProposal,
+  attachPlacementPreview,
   ConversationUnavailableError,
 } from './services/designSessionApi';
