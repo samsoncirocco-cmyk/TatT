@@ -53,6 +53,10 @@ git -C /Users/samson/TatT log origin/main --oneline -5
 
 Then open `https://tatt-app.vercel.app/design` and confirm it returns a page.
 
+`main` was `3ddc0d6` when this was written, with #177, #148, #175 and #186 all
+merged. If your `main` is newer, that is fine — but if the *deployment* is
+older, stop and redeploy.
+
 **Pass:** `main` HEAD matches what you expect, and the site loads.
 
 **Fail:** The deployed build predates last night's merges.
@@ -112,11 +116,12 @@ means the generation or upload path is broken, which is a hard blocker.
 > on the Vertex Imagen lane, 16¢. Doing this twice (sessions A and B) costs at
 > most ~32¢. Conversation turns are ~1¢ per 10 turns.
 
-> **Note on blank tiles:** two of the four demo-mode placeholder URLs
-> (`src/lib/demo-images.ts`) are **404 right now** — verified this morning.
-> That only affects `NEXT_PUBLIC_DEMO_MODE=true`. If you see exactly two blank
-> tiles, check whether you are in demo mode before treating it as a generation
-> failure. The fix is in PR #177, unmerged.
+> **Blank tiles are fixed.** Two of the four demo-mode URLs used to 404, which
+> showed as two blank tiles. PR #177 has now merged and replaced them with four
+> repo-local flash-art renders. I verified all four exist and pass the backdrop
+> guard (border fractions 0.97–1.00), so demo mode now works end to end
+> including the placement preview. **A blank tile this morning is therefore a
+> real generation failure, not the old demo defect.**
 
 ---
 
@@ -138,6 +143,11 @@ of white paper lying on a dark desk, with pens and pencils beside it*. Those
 are genuinely scenes, and compositing one really would paste a desk onto your
 arm. The 0.5 border threshold and the 235 channel cutoff are sound. **The
 problem is upstream: the generator produces scenes instead of flash art.**
+
+For calibration: the four demo images that ship today are genuine flash art on
+white, and they score **0.97–1.00** — nowhere near the 0.5 line. The threshold
+is not marginal. Renders either sit at the top of the range or collapse to
+near zero; there is very little in between.
 
 Two things stop this from being a settled verdict, and only you can resolve
 them this morning:
@@ -280,10 +290,19 @@ enables, the save step failed, not the share step.
 
 ---
 
-## Step 9 — 📱 Live AR camera mirror 💵 free · 3 min · **only if PR #175 has merged**
+## Step 9 — 📱 Live AR camera mirror 💵 free · 3 min
 
-Live AR is **not on `main`** as of this writing. `/visualize` is a static
-"Coming Soon" page. Skip this step entirely unless #175 landed.
+**PR #175 merged overnight, so live AR is on `main` and will be in
+production.** `/visualize` is now a real camera surface, not the old "Coming
+Soon" page. This step is no longer optional — and note that **the default is
+now that it ships**, so if you do not want that, see
+[Decision 2](#decision-2--whether-live-ar-ships-at-all).
+
+The three failure paths below are each covered by a passing test
+(`useArSession` reports permission denial as terminal, surfaces a stalled
+camera rather than hanging, and releases every track on stop and unmount).
+That is real assurance about the *logic* — but jsdom cannot open a camera, so
+only this step proves the hardware path.
 
 **Do:** Open `/visualize` on your phone **at the deployed HTTPS URL** (not the
 dev server — see the secure-context note at the top). Test three failure paths
@@ -361,6 +380,10 @@ therefore your call.
 
 ### Decision 2 — Whether live AR ships at all
 
+**Note the default changed overnight: #175 merged, so live AR is on `main` and
+will go to production unless you decide otherwise.** This is now an opt-out,
+not an opt-in.
+
 What exists is **a working camera mirror with no body tracking.** That is not
 a shortfall in the implementation — MindAR has no body tracking, so tracked AR
 was never buildable on the chosen library. The honest framing is: the design
@@ -388,29 +411,36 @@ that this cannot meet.
 
 ## Appendix A — What I re-verified on merged `main` overnight
 
-Current `main` at time of writing: `7516c5d` (merge of #174). Full suite:
-**858 passed, 7 skipped, 86 files — green.**
+The queue settled while I was working. **#177, #148, #175 and #186 all merged**,
+so this was re-run against the final `main`.
+
+Current `main`: `3ddc0d6`. Full suite: **922 passed, 7 skipped, 92 files —
+green.**
 
 | Beat | Verdict |
 |---|---|
-| Typing `yes` at the proposal goes straight to reveal, once, no repeat | **Holds.** `confirmationIntent.ts` is on `main` (veto-list-first, then anchored allow-list). Covered green by *"treats typed confirmation intent as one confirm transition, never another proposal turn"* and *"renders the proposal reply once (no duplicate playback bubble)"* |
-| Tapping **Show me ▸** reaches the reveal | **Holds** at code and test level — but see note below |
-| All four reveal tiles render | **Does not hold on `main`.** 2 of the 4 demo URLs are 404, verified live this morning. Fix is in PR #177, **unmerged**. Demo mode only |
+| Typing `yes` at the proposal goes straight to reveal, once, no repeat | **Holds.** `confirmationIntent.ts` checks a veto list first, then an anchored allow-list — so *"yes but change the placement"* is correctly treated as a correction, not consent. Green via *"treats typed confirmation intent as one confirm transition, never another proposal turn"* and *"renders the proposal reply once (no duplicate playback bubble)"* |
+| Tapping **Show me ▸** reaches the reveal | **Holds** at code and test level — but see the correction below |
+| All four reveal tiles render | **Now holds.** #177 replaced the two dead Unsplash URLs with four repo-local renders. I confirmed all four files exist **and** pass the backdrop guard (0.97–1.00), so the demo path works through to the placement preview. A guard test now fails if one goes missing |
 | Placement step reads the intake tag and names it | **Holds.** *"names the placement resolved during intake rather than guessing at the photo"* |
 | On-skin design refused with an honest message | **Holds.** *"refuses a design photographed on skin, and adds nothing to the canvas"* |
 | Flash art composites, strips to real alpha, side-by-side renders | **Holds.** *"accepts flash art on white and composites it with the multiply blend"* and *"shows the design beside the composite"* |
 
-**Nothing regressed where the fixes met each other** — the combined suite is
-green and no beat broke as a result of combining branches.
+**Nothing regressed where the fixes met each other.** The combined suite is
+green, and the test count rose from 858 to 922 as the four PRs landed — no beat
+broke as a result of the branches meeting.
 
-Two corrections to the assumptions I was given:
+Live AR (#175) arrived with 17 passing tests, including the three failure paths
+in step 9: permission denial as a terminal error, a stalled camera surfaced
+rather than left hanging, and camera release on both stop and unmount.
+
+One correction to the assumptions I was given:
 
 - **There is no per-route store split in the design journey.** The `/design`
   route uses plain local `useState`; the only zustand stores in the repo serve
   `/generate`, `/matches`, `/swipe`, and auth. Whatever the reveal-reachability
-  fix addressed, it was not a store split.
-- **The four-tile fix is not on `main`.** It is in PR #177, which is still
-  open. If you want it for the morning, it needs to merge first.
+  fix addressed, it was not a store split — so there is no store-related
+  regression risk to watch for here.
 
 ---
 
