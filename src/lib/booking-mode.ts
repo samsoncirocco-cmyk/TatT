@@ -28,6 +28,7 @@
  * is the honest promise that shipped before any of this existed.
  */
 import { MAX_SYNC_AGE_MINUTES, type FreeBusyResult } from "./artist-calendar";
+import { HOLD_TTL_MINUTES } from "./booking-holds";
 
 export type BookingMode = "reservation" | "request";
 
@@ -108,8 +109,10 @@ const REQUEST_DETAIL =
   "Pick the dates that suit you — the artist confirms a time after your request lands.";
 
 const RESERVATION_LABEL = "Live calendar";
+// Derived from the real TTL rather than hardcoded, so the promise on screen
+// cannot drift away from the hold that backs it.
 const RESERVATION_DETAIL =
-  "These times are from the artist's own calendar. Picking one holds it for 30 minutes while you pay.";
+  `These times come from the artist's own calendar. Picking one holds it for ${HOLD_TTL_MINUTES} minutes while you pay.`;
 
 function request(
   reason: BookingModeReason,

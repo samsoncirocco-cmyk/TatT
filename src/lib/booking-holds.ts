@@ -32,14 +32,22 @@ import {
 /**
  * How long a slot stays held while the client pays.
  *
- * 30 minutes, and the number is not arbitrary: it is Stripe Checkout's minimum
- * `expires_at`. The Checkout Session is created with `expires_at` set to the
- * hold's own expiry, so Stripe itself refuses to take money for a slot whose
- * reservation has lapsed. A shorter hold would leave a window in which a
- * payable session outlives the reservation behind it — the exact race that
- * produces a paid-for slot somebody else already has.
+ * The number is set by Stripe, not by taste. The Checkout Session is created
+ * with `expires_at` pinned to the hold's own expiry, so that Stripe itself
+ * refuses to take money for a reservation that has lapsed — that pin is what
+ * closes the race where a payable session outlives the hold behind it and the
+ * client pays for a slot somebody else now has.
+ *
+ * Stripe rejects an `expires_at` less than 30 minutes out. So the hold has to
+ * clear that floor with room to spare: 35 minutes leaves five minutes of slack
+ * for clock skew and the round trip, and `/api/checkout` refreshes the hold as
+ * it creates the session so the full window is always available to pin to.
+ *
+ * Shorter than 30 would make the pin impossible and force us to let the session
+ * outlive the hold. Much longer starts holding an artist's day hostage to
+ * abandoned checkouts.
  */
-export const HOLD_TTL_MINUTES = 30;
+export const HOLD_TTL_MINUTES = 35;
 
 const MS_PER_MINUTE = 60_000;
 

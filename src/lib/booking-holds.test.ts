@@ -44,19 +44,22 @@ describe("hold lifetime", () => {
     expect(Date.parse(holdExpiresAt(NOW)) - NOW).toBe(HOLD_TTL_MINUTES * MINUTE);
   });
 
-  it("is exactly 30 minutes — Stripe Checkout's minimum expires_at", () => {
-    // The hold and the Checkout Session must expire together. Stripe refuses an
-    // expires_at less than 30 minutes out, so a shorter hold would leave a
-    // window where a payable session outlives the reservation behind it.
-    expect(HOLD_TTL_MINUTES).toBe(30);
+  it("clears Stripe Checkout's 30-minute expires_at floor with slack", () => {
+    // The Checkout Session's expires_at is pinned to the hold's expiry so
+    // Stripe refuses money for a lapsed reservation. Stripe rejects an
+    // expires_at under 30 minutes out, so the hold must outlast that floor with
+    // room for clock skew and the round trip — otherwise the pin is impossible
+    // and the session would have to outlive the hold.
+    expect(HOLD_TTL_MINUTES).toBeGreaterThan(30);
+    expect(HOLD_TTL_MINUTES).toBeLessThanOrEqual(60);
   });
 
   it("is live before expiry and dead after", () => {
     const h = hold();
     expect(isHoldLive(h, NOW)).toBe(true);
-    expect(isHoldLive(h, NOW + 29 * MINUTE)).toBe(true);
-    expect(isHoldLive(h, NOW + 30 * MINUTE)).toBe(false);
-    expect(isHoldLive(h, NOW + 31 * MINUTE)).toBe(false);
+    expect(isHoldLive(h, NOW + (HOLD_TTL_MINUTES - 1) * MINUTE)).toBe(true);
+    expect(isHoldLive(h, NOW + HOLD_TTL_MINUTES * MINUTE)).toBe(false);
+    expect(isHoldLive(h, NOW + (HOLD_TTL_MINUTES + 1) * MINUTE)).toBe(false);
   });
 
   it("is never live once released or converted", () => {
