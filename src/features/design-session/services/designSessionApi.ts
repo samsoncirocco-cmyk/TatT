@@ -128,6 +128,38 @@ export function attachPlacementPreview(
 }
 
 /**
+ * Mint a share link for a saved placement preview, through the existing
+ * durable share store (`POST /api/v1/designs/share`, issue #64) — the same
+ * endpoint and the same `shared_designs` collection that /designs shares go
+ * to. Deliberately NOT a second sharing mechanism: the preview is just
+ * another design image as far as the store is concerned.
+ *
+ * `imageUrl` must be the saved `brief.placementPreviewUrl`, never the raw
+ * canvas data URL — a share link has to outlive this browser tab.
+ *
+ * NOTE: PR #168 introduces `src/features/share/services/shareApi.ts` around
+ * this same endpoint. When it lands, collapse this onto that client rather
+ * than keeping two callers.
+ */
+export async function sharePlacementPreview(share: {
+  imageUrl: string;
+  prompt: string;
+  style?: string;
+  bodyPart?: string;
+}): Promise<string> {
+  const res = await postAuthed('/api/v1/designs/share', share);
+  const data = (await res.json().catch(() => null)) as
+    | { shareUrl?: string; error?: string }
+    | null;
+
+  if (!res.ok || !data?.shareUrl) {
+    // 503 is the store refusing to mint a link it cannot serve later.
+    throw new Error(data?.error ?? 'Could not create a share link — try again.');
+  }
+  return data.shareUrl;
+}
+
+/**
  * POST /api/v1/design-session/converse — one conversational intake turn
  * (ADR-0019). Omit sessionId and message to open a new conversation. A 503
  * (every provider down) throws ConversationUnavailableError so the UI can

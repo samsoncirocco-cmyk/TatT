@@ -3,7 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Canvas, Control, Transform } from 'fabric';
 import type { DesignSession, Variation } from '@/services/designSession/types';
-import { attachPlacementPreview } from '../services/designSessionApi';
+import {
+  assessBackdrop,
+  stripBackdrop,
+  OPAQUE_SCENE_MESSAGE,
+  UNREADABLE_MESSAGE,
+} from '@/lib/designBackdrop';
+import { attachPlacementPreview, sharePlacementPreview } from '../services/designSessionApi';
 
 /**
  * The placement-preview step: the user photographs their own arm (or any
@@ -34,46 +40,49 @@ const PINK = '#ff1f6b';
 
 type FabricModule = typeof import('fabric');
 
+type PreparedDesign =
+  | { ok: true; source: HTMLImageElement | HTMLCanvasElement }
+  | { ok: false; message: string };
+
 /**
- * Re-draw a design render with its near-white background stripped to real
- * alpha. Providers don't reliably return RGBA — most reveal renders are ink
- * on a white square. The soft ramp (235→255) keeps anti-aliased edges. If
- * the pixels are unreadable (tainted canvas), the original image is used
- * as-is — the multiply blend still cancels a white background visually.
+ * Vet a design render, then re-draw it with its near-white paper stripped to
+ * real alpha. The classification lives in @/lib/designBackdrop so this step
+ * and any other consumer share one threshold — see that file for why the
+ * border is the signal.
+ *
+ * Refusing is a real outcome here, not an edge case. ADR-0023 pins every
+ * render to flash art on white precisely so this step works, but a prompt is
+ * a request and the provider can ignore it. An on-skin render has no paper to
+ * strip, so compositing it would multiply a photograph of someone else's arm
+ * onto the user's own photo — a full-frame rectangle, not a tattoo. Better to
+ * say the design can't be previewed than to show that and call it a preview.
  */
-function stripWhiteBackground(img: HTMLImageElement): HTMLImageElement | HTMLCanvasElement {
+function prepareDesign(img: HTMLImageElement): PreparedDesign {
   const scratch = document.createElement('canvas');
   scratch.width = img.naturalWidth;
   scratch.height = img.naturalHeight;
   const ctx = scratch.getContext('2d');
-  if (!ctx) return img;
+  if (!ctx) return { ok: false, message: UNREADABLE_MESSAGE };
   ctx.drawImage(img, 0, 0);
 
   let pixels: ImageData;
   try {
     pixels = ctx.getImageData(0, 0, scratch.width, scratch.height);
   } catch {
-    return img;
+    // Tainted canvas — the CDN didn't answer the CORS preflight. We cannot
+    // see the pixels, so we cannot rule out a photograph, and the flattened
+    // export would fail on the same taint anyway. Refuse rather than guess.
+    return { ok: false, message: UNREADABLE_MESSAGE };
   }
 
-  const data = pixels.data;
-  let alreadyTransparent = false;
-  for (let i = 3; i < data.length; i += 4) {
-    if (data[i] < 250) {
-      alreadyTransparent = true;
-      break;
-    }
-  }
-  if (alreadyTransparent) return img;
+  const verdict = assessBackdrop(pixels);
+  if (verdict.kind === 'opaque-scene') return { ok: false, message: OPAQUE_SCENE_MESSAGE };
+  // Already RGBA: the provider cut it out for us, nothing to strip.
+  if (verdict.kind === 'transparent') return { ok: true, source: img };
 
-  for (let i = 0; i < data.length; i += 4) {
-    const lightest = Math.min(data[i], data[i + 1], data[i + 2]);
-    if (lightest >= 235) {
-      data[i + 3] = Math.round(255 * (1 - (lightest - 235) / 20));
-    }
-  }
+  stripBackdrop(pixels);
   ctx.putImageData(pixels, 0, 0);
-  return scratch;
+  return { ok: true, source: scratch };
 }
 
 /**
@@ -138,6 +147,7 @@ function touchGesture(touches: TouchList): { dist: number; angle: number } {
 }
 
 type SaveState = 'idle' | 'saving' | 'saved';
+type ShareState = 'idle' | 'sharing' | 'shared';
 
 export function PlacementPreview({
   session,
@@ -154,6 +164,14 @@ export function PlacementPreview({
       .filter((v) => v.imageUrl)
       .map((v, i) => ({ label: `Design ${i + 1}`, variation: v })),
   ];
+  const primaryDesign = designs[0];
+
+  /**
+   * The target zone, already resolved during intake. We trust that tag rather
+   * than trying to recognise the body part in the user's photo — the photo is
+   * theirs to frame, and guessing at it would be a v2 concern at best.
+   */
+  const placement = session.brief?.placement ?? null;
 
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [canvasReady, setCanvasReady] = useState(false);
@@ -161,6 +179,14 @@ export function PlacementPreview({
   const [opacity, setOpacity] = useState(1);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [error, setError] = useState<string | null>(null);
+  /** The flattened composite plus the ids actually on the canvas when it was taken. */
+  const [review, setReview] = useState<{ url: string; designIds: string[] } | null>(null);
+  const [shareState, setShareState] = useState<ShareState>('idle');
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  /** Durable URL returned by the save — the only thing that may be shared. */
+  const [savedPreviewUrl, setSavedPreviewUrl] = useState<string | null>(
+    session.brief?.placementPreviewUrl ?? null
+  );
 
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasElRef = useRef<HTMLCanvasElement>(null);
@@ -172,7 +198,17 @@ export function PlacementPreview({
     null
   );
 
-  const markDirty = useCallback(() => setSaveState('idle'), []);
+  /**
+   * Any edit invalidates the flattened composite, so the review panel and the
+   * share link it produced are dropped together. Showing a side-by-side that
+   * no longer matches the canvas would be worse than showing none.
+   */
+  const markDirty = useCallback(() => {
+    setSaveState('idle');
+    setReview(null);
+    setShareState('idle');
+    setShareUrl(null);
+  }, []);
 
   /** Build the stage whenever the photo changes: canvas sized to the photo, photo locked as background. */
   useEffect(() => {
@@ -256,13 +292,22 @@ export function PlacementPreview({
       return;
     }
 
-    const img = new fabric.FabricImage(stripWhiteBackground(designEl), {
+    const prepared = prepareDesign(designEl);
+    if (!prepared.ok) {
+      setError(prepared.message);
+      return;
+    }
+
+    const img = new fabric.FabricImage(prepared.source, {
       globalCompositeOperation: DESIGN_BLEND_MODE,
       originX: 'center',
       originY: 'center',
       borderColor: PINK,
       transparentCorners: false,
     });
+    // Tag the object so the side-by-side can name exactly what was placed,
+    // even after individual designs are removed with the corner knob.
+    (img as unknown as { designId?: string }).designId = variation.id;
 
     const scale = (canvas.getWidth() * INITIAL_DESIGN_FRACTION) / (img.width ?? 1);
     img.set({
@@ -425,7 +470,7 @@ export function PlacementPreview({
   };
 
   const handleDownload = () => {
-    const dataUrl = exportPng();
+    const dataUrl = review?.url ?? exportPng();
     if (!dataUrl) return;
     const link = document.createElement('a');
     link.href = dataUrl;
@@ -433,18 +478,55 @@ export function PlacementPreview({
     link.click();
   };
 
-  const handleSave = async () => {
+  /** Flatten and open the side-by-side: the design as drawn, next to it on you. */
+  const handleReview = () => {
+    const canvas = fabricCanvasRef.current;
     const dataUrl = exportPng();
+    if (!canvas || !dataUrl) return;
+    const designIds = canvas
+      .getObjects()
+      .map((obj) => (obj as unknown as { designId?: string }).designId)
+      .filter((id): id is string => !!id);
+    setError(null);
+    setReview({ url: dataUrl, designIds });
+  };
+
+  const handleSave = async () => {
+    const dataUrl = review?.url ?? exportPng();
     if (!dataUrl) return;
     setSaveState('saving');
     setError(null);
     try {
       const updated = await attachPlacementPreview(session.id, dataUrl);
       setSaveState('saved');
+      setSavedPreviewUrl(updated.brief?.placementPreviewUrl ?? null);
       onAttached?.(updated);
     } catch (err: unknown) {
       setSaveState('idle');
       setError(err instanceof Error ? err.message : 'Saving the preview failed — try again.');
+    }
+  };
+
+  /**
+   * Share the SAVED preview, never the local canvas export — the share store
+   * hands a URL to a stranger, so it has to point at something durable.
+   */
+  const handleShare = async () => {
+    if (!savedPreviewUrl) return;
+    setShareState('sharing');
+    setError(null);
+    try {
+      const url = await sharePlacementPreview({
+        imageUrl: savedPreviewUrl,
+        prompt: primaryDesign?.variation.prompt ?? 'Tattoo placement preview',
+        style: session.brief?.styleTags?.[0],
+        bodyPart: placement ?? undefined,
+      });
+      setShareUrl(url);
+      setShareState('shared');
+    } catch (err: unknown) {
+      setShareState('idle');
+      setError(err instanceof Error ? err.message : 'Could not create a share link — try again.');
     }
   };
 
@@ -460,8 +542,18 @@ export function PlacementPreview({
           See it on your skin<span className="text-pink">.</span>
         </h3>
         <p className="font-body text-[13px] leading-[1.55] text-white/70 mt-2">
-          Snap the spot it&rsquo;s going, then tap designs to lay them on — drag to place, pinch or
-          pull the knob to size and rotate.
+          {placement ? (
+            <>
+              Snap your <span className="text-pink">{placement}</span> — the spot you picked during
+              intake — then tap designs to lay them on. Drag to place, pinch or pull the knob to
+              size and rotate.
+            </>
+          ) : (
+            <>
+              Snap the spot it&rsquo;s going, then tap designs to lay them on — drag to place, pinch
+              or pull the knob to size and rotate.
+            </>
+          )}
         </p>
       </div>
 
@@ -535,18 +627,93 @@ export function PlacementPreview({
             </button>
             <button
               type="button"
-              onClick={handleSave}
-              disabled={saveState === 'saving'}
-              className="tape press px-4 py-2 font-display text-[16px] leading-none tracking-[0.02em] uppercase disabled:opacity-50"
+              onClick={handleReview}
+              className="tape press px-4 py-2 font-display text-[16px] leading-none tracking-[0.02em] uppercase"
             >
-              {saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved ✓' : 'Save to my booking'}
+              See it side by side
             </button>
           </div>
 
-          {saveState === 'saved' && (
-            <p className="font-body text-[13px] leading-[1.55] text-pink">
-              Placement preview saved — it travels with your brief to the artist.
-            </p>
+          {/* The output the spec asks for: the design as drawn, next to it on
+              you. Save and share act on this exact frame. */}
+          {review && (
+            <div className="border hairline p-4 space-y-4" data-testid="placement-review">
+              <div className="grid grid-cols-2 gap-4">
+                <figure className="space-y-2">
+                  <figcaption className="font-body text-[10px] uppercase tracking-[0.2em] text-white/50">
+                    The design
+                  </figcaption>
+                  <div className="flex flex-wrap gap-2">
+                    {designs
+                      .filter(({ variation }) => review.designIds.includes(variation.id))
+                      .map(({ label, variation }) => (
+                        // eslint-disable-next-line @next/next/no-img-element -- provider CDN image; next/image needs domain config
+                        <img
+                          key={variation.id}
+                          src={variation.imageUrl}
+                          alt={label}
+                          className="block w-full max-w-[160px] border hairline"
+                        />
+                      ))}
+                  </div>
+                </figure>
+                <figure className="space-y-2">
+                  <figcaption className="font-body text-[10px] uppercase tracking-[0.2em] text-white/50">
+                    {placement ? `On your ${placement}` : 'On you'}
+                  </figcaption>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- local canvas data URL */}
+                  <img
+                    src={review.url}
+                    alt="Your design placed on your photo"
+                    className="block w-full border hairline"
+                  />
+                </figure>
+              </div>
+
+              <p className="font-body text-[11px] leading-[1.5] text-white/45">
+                A preview to help you picture it — not the stencil. Your artist draws the final
+                piece from the brief.
+              </p>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saveState === 'saving'}
+                  className="tape press px-4 py-2 font-display text-[16px] leading-none tracking-[0.02em] uppercase disabled:opacity-50"
+                >
+                  {saveState === 'saving'
+                    ? 'Saving…'
+                    : saveState === 'saved'
+                      ? 'Saved ✓'
+                      : 'Save to my booking'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleShare}
+                  disabled={!savedPreviewUrl || shareState === 'sharing'}
+                  title={savedPreviewUrl ? undefined : 'Save the preview first'}
+                  className={toolButton}
+                >
+                  {shareState === 'sharing' ? 'Creating link…' : 'Share a link'}
+                </button>
+              </div>
+
+              {saveState === 'saved' && (
+                <p className="font-body text-[13px] leading-[1.55] text-pink">
+                  Placement preview saved — it travels with your brief to the artist.
+                </p>
+              )}
+
+              {shareState === 'shared' && shareUrl && (
+                <p className="font-body text-[13px] leading-[1.55] text-white/80">
+                  Share link:{' '}
+                  <a href={shareUrl} className="text-pink underline break-all">
+                    {shareUrl}
+                  </a>
+                </p>
+              )}
+            </div>
           )}
         </>
       )}
