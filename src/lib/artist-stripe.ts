@@ -62,6 +62,27 @@ export async function getArtistStripe(artistId: string): Promise<ArtistStripeInf
   };
 }
 
+/**
+ * Read the caller's own Stripe billing customer id (cus_..., set by
+ * setArtistSubscription in src/lib/booking-relay.ts after their first
+ * subscription checkout) via the artist profile they claimed. Never accept a
+ * client-supplied customer id for a billing-portal session — this lookup,
+ * keyed off the verified Firebase uid, is the only legitimate source.
+ * Returns null when the uid has no claimed artist, or that artist has no
+ * subscription yet.
+ */
+export async function getArtistStripeCustomerId(uid: string): Promise<string | null> {
+  const rows = await runRead(
+    `MATCH (a:Artist {claimedByUid: $uid})
+     RETURN a.stripeCustomerId AS stripeCustomerId
+     LIMIT 1`,
+    { uid }
+  );
+  if (!rows.length) return null;
+  const r = rows[0] as Record<string, unknown>;
+  return (r.stripeCustomerId as string) ?? null;
+}
+
 /** Persist the connected-account id onto the artist node (idempotent upsert of the field). */
 export async function setArtistStripeAccount(artistId: string, stripeAccountId: string): Promise<void> {
   await runWrite(
