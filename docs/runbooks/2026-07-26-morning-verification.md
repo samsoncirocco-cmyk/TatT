@@ -8,6 +8,16 @@ site — every overnight agent ran in demo mode at $0 spend, because agents
 cannot sign in (see [Appendix B](#appendix-b--why-no-agent-could-verify-this)).
 That gap is the whole reason this document exists.
 
+> ### ⚠️ Read this before you start
+>
+> **Production is running code older than every fix made last night, and
+> Vercel is refusing to deploy for 24 hours.** `/visualize` on
+> `tatt-app.vercel.app` still serves the retired "Coming Soon" placeholder,
+> whose text does not exist anywhere on `main`.
+>
+> Until that is resolved, **every step below tests the wrong build.** Start at
+> Step 0 and do not spend money until it passes.
+
 ## How to use this
 
 Steps are ordered **by what kills the release fastest**. Each step says what
@@ -33,17 +43,27 @@ over the LAN is not a secure context and the camera will silently never
 start.** For anything with a 📱 camera marker, use
 `https://tatt-app.vercel.app` or `https://tatttester.com`.
 
-**Vercel is currently rate-limiting builds.** The last checked PR reported a
-Vercel status of `FAILURE` pointing at `upgradeToPro=build-rate-limit`. Before
-you trust any preview URL, confirm the deployment you are looking at actually
-contains today's commits — a stale preview will make you verify last night's
-code and conclude the wrong thing.
+**Vercel is rate-limited and production is stale.** This is the single biggest
+problem this morning — read Step 0 before anything else.
 
 ---
 
-## Step 0 — Confirm what you are testing 💻 · free · 2 min
+## Step 0 — KILLER — Is production actually running the merged code? 💻 · free · 2 min
 
-**Do:** Check that `main` is green and that the deployment is current.
+**Read this first. As of last night the answer was no, and it is the thing
+most likely to stop you shipping today.**
+
+Vercel is refusing new deployments: `Deployment rate limited — retry in 24
+hours` (`upgradeToPro=build-rate-limit`). Meanwhile all four overnight PRs —
+#177, #148, #175, #186 — merged to `main`.
+
+I verified the gap directly. `https://tatt-app.vercel.app/visualize` currently
+serves the **old** "AR Mirror — Coming Soon" placeholder, styled with the
+retired `ducks-yellow` theme. The string *"Coming Soon"* **does not exist
+anywhere in the `/visualize` page on `main`.** Production is therefore running
+code older than every fix made last night.
+
+**Do:** Confirm whether that is still true.
 
 ```bash
 gh pr list --state merged --limit 5        # what landed overnight
@@ -51,19 +71,51 @@ git -C /Users/samson/TatT fetch origin
 git -C /Users/samson/TatT log origin/main --oneline -5
 ```
 
+Then load `https://tatt-app.vercel.app/visualize` and look for "Coming Soon".
+
+**Pass:** The page shows a real camera surface with no "Coming Soon" badge —
+the rate limit expired, a deploy went through, and prod is current.
+
+**Fail:** "Coming Soon" is still there.
+
+**Means:** **Stop, and fix this before spending a cent.** Everything below
+tests the deployed site. If prod is stale you would be verifying last night's
+code and drawing conclusions about code that is not running. Worse, you would
+conclude "it's broken" about things that were fixed hours ago.
+
+Your options, cheapest first:
+
+1. **Wait out the rate limit.** It is a 24-hour window from when it tripped,
+   so it may clear on its own this morning. Re-check before doing anything else.
+2. **Upgrade the Vercel plan.** The error links straight to the upgrade path.
+   This is the only option that gives you a deploy *on demand* today.
+3. **Verify against `npm run dev` instead** — but this only works for the 💻
+   browser steps. **The 📱 camera steps genuinely cannot be done this way**
+   (secure-context rule above), so live AR would remain unverified.
+
+`main` was `3ddc0d6` when this was written. If your `main` is newer that is
+fine — what matters is that the *deployment* is not older.
+
+---
+
+## Step 0b — Confirm `main` itself is green 💻 · free · 1 min
+
+**Do:** Confirm the suite passes on the commit you intend to ship.
+
+```bash
+cd /Users/samson/TatT && npm test
+```
+
 Then open `https://tatt-app.vercel.app/design` and confirm it returns a page.
 
-`main` was `3ddc0d6` when this was written, with #177, #148, #175 and #186 all
-merged. If your `main` is newer, that is fine — but if the *deployment* is
-older, stop and redeploy.
+**Pass:** Green suite (**922 passed, 7 skipped, 92 files** as of `3ddc0d6`),
+and `/design` loads.
 
-**Pass:** `main` HEAD matches what you expect, and the site loads.
+**Fail:** Red suite, or `/design` errors.
 
-**Fail:** The deployed build predates last night's merges.
-
-**Means:** You are testing yesterday's code. Trigger a redeploy first, or
-every result below is about the wrong build. Given the build rate limit, this
-is a live risk, not a formality.
+**Means:** A red suite on `main` is its own blocker — branch protection should
+have caught it, so a failure here suggests something merged that CI did not
+cover. Do not ship on a red `main` regardless of how the manual steps go.
 
 ---
 
