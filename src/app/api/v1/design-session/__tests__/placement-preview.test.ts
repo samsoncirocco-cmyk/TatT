@@ -146,4 +146,16 @@ describe('POST /api/v1/design-session/[id]/placement-preview', () => {
     expect(res.status).toBe(401);
     expect(attachMock).not.toHaveBeenCalled();
   });
+
+  // Setup runs inside the try, so a throwing dependency lands on the shared
+  // structured envelope instead of escaping as an unstructured Next.js 500.
+  it('returns the structured envelope when auth setup throws', async () => {
+    verifyApiAuthMock.mockRejectedValue(new Error('Firebase admin not configured'));
+
+    const res = await POST(makeRequest(URL, { imageData: PNG_DATA_URL }), routeParams('sess-1'));
+
+    expect(res.status).toBe(500);
+    expect(await res.json()).toMatchObject({ code: 'DESIGN_SESSION_FAILED', retryable: false });
+    expect(attachMock).not.toHaveBeenCalled();
+  });
 });

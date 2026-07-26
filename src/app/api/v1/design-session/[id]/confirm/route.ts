@@ -36,33 +36,36 @@ export async function POST(
     { params }: { params: Promise<{ id: string }> }
 ) {
     const reqLogger = createRequestLogger('design-session-confirm');
-
-    const authError = await verifyApiAuth(req);
-    if (authError) return authError;
-
-    const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
-
-    if (!demoMode) {
-        const rateResult = await rateLimit(req, 'generation');
-        if (!rateResult.allowed) {
-            return rateLimitResponse(rateResult);
-        }
-
-        const budgetResult = await checkBudget();
-        if (!budgetResult.allowed) {
-            return NextResponse.json(
-                { error: 'Budget limit reached', spentCents: budgetResult.spentCents },
-                { status: 402 }
-            );
-        }
-    }
-
-    const { id } = await params;
+    // Seeded before the try so a setup failure — including one thrown by
+    // `await params` itself — still logs a session_id.
+    let sessionId = 'unknown';
 
     try {
+        const authError = await verifyApiAuth(req);
+        if (authError) return authError;
+
+        const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+
+        if (!demoMode) {
+            const rateResult = await rateLimit(req, 'generation');
+            if (!rateResult.allowed) {
+                return rateLimitResponse(rateResult);
+            }
+
+            const budgetResult = await checkBudget();
+            if (!budgetResult.allowed) {
+                return NextResponse.json(
+                    { error: 'Budget limit reached', spentCents: budgetResult.spentCents },
+                    { status: 402 }
+                );
+            }
+        }
+
+        ({ id: sessionId } = await params);
+
         if (demoMode) await new Promise(r => setTimeout(r, 1500));
 
-        const session = await confirmProposal(id);
+        const session = await confirmProposal(sessionId);
 
         // The confirmed reveal is always 4 images on the session's locked
         // provider — demo renders are free stock images, nothing to record.
@@ -77,7 +80,7 @@ export async function POST(
         return NextResponse.json({ success: true, session });
     } catch (error) {
         reqLogger.error('design_session.confirm.failed', error as Error, {
-            session_id: id,
+            session_id: sessionId,
             error_code: (error as { code?: string }).code || 'DESIGN_SESSION_FAILED',
         });
         return designSessionErrorResponse(error);
