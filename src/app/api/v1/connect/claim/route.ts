@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
 import { verifyFirebaseToken } from '@/lib/auth-dal';
 import { listPendingByArtist } from '@/lib/booking-relay';
+import { NOT_REMOVED_CLAUSE } from '@/lib/takedown';
 
 export const runtime = 'nodejs';
 
@@ -62,8 +63,20 @@ export async function POST(req: NextRequest) {
 
   // Atomic first-writer-wins claim. coalesce keeps an existing owner; the
   // returned claimedByUid tells us whether the binding is ours.
+  //
+  // `removedAt IS NULL` is load-bearing, not tidiness. A taken-down artist is
+  // soft-deleted to a scrubbed husk that deliberately RETAINS the money-bearing
+  // properties — stripeAccountId, claimedByUid (ADR 0025 §2). Without this
+  // clause, anyone could claim a removed artist's husk through this route, which
+  // performs no identity check whatsoever (issue #192), and inherit their
+  // connected account. It would also be a way around reinstatement (ADR 0026),
+  // which is supposed to be the only door back in and does verify identity.
+  //
+  // A removed artist reads as absent here, exactly as it does on the profile
+  // page, the roster, the matcher and /api/v1/book.
   const rows = await runWriteReturning(
     `MATCH (a:Artist {id: $artistId})
+     WHERE ${NOT_REMOVED_CLAUSE}
      SET a.claimedByUid = coalesce(a.claimedByUid, $uid)
      RETURN a.claimedByUid AS claimedByUid,
             a.name AS name,

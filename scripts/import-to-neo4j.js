@@ -47,6 +47,11 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import dotenv from 'dotenv';
+import {
+  filterTombstoned,
+  loadTombstoneGate,
+  neo4jTombstoneReader,
+} from './lib/takedown-tombstone.mjs';
 
 // Load environment variables (.env then .env.local overrides)
 dotenv.config();
@@ -486,12 +491,28 @@ async function main() {
       console.log('ℹ️  Skipping database clean (pass --wipe to delete all existing data first)');
     }
 
+    // Takedown gate — every downstream import step works off `artists`, so
+    // filtering once here keeps a tombstoned artist out of the nodes, styles,
+    // tattoos and relationships alike. loadTombstoneGate THROWS if the list
+    // cannot be read, aborting the import on purpose: proceeding without it
+    // would silently re-ingest everyone who asked to be removed
+    // (docs/adr/0025 §4).
+    const gate = await loadTombstoneGate(neo4jTombstoneReader(session));
+    const { allowed: artists, blocked } = filterTombstoned(gate, artistsData.artists);
+    console.log(`\n🪦 Takedown gate: ${gate.keyCount} tombstone key(s) loaded.`);
+    if (blocked.length) {
+      console.log(`⛔ Skipping ${blocked.length} tombstoned artist(s):`);
+      for (const b of blocked) {
+        console.log(`    - ${b.record.instagram || b.record.id} (matched ${b.matchedKey})`);
+      }
+    }
+
     await importStyles(session, artistsData.styles);
-    await importArtists(session, artistsData.artists);
-    await importStyleRelationships(session, artistsData.artists);
-    await importTattoos(session, artistsData.artists);
-    await importMentorRelationships(session, artistsData.artists);
-    await importInfluenceRelationships(session, artistsData.artists);
+    await importArtists(session, artists);
+    await importStyleRelationships(session, artists);
+    await importTattoos(session, artists);
+    await importMentorRelationships(session, artists);
+    await importInfluenceRelationships(session, artists);
 
     await verifyImport(session);
 

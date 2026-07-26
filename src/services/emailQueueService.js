@@ -87,9 +87,11 @@ export const getQueueStatus = (queueId) => {
  * @param {string} params.subject - Email subject line
  * @param {string} params.text    - Plain-text body
  * @param {string} [params.html]  - Optional HTML body
+ * @param {string} [params.replyTo] - Optional Reply-To (e.g. a takedown
+ *        requester, so an ops reply reaches the person who asked)
  * @returns {Promise<{sent: boolean, id?: string, reason?: string}>}
  */
-export async function sendTransactionalEmail({ to, subject, text, html }) {
+export async function sendTransactionalEmail({ to, subject, text, html, replyTo }) {
     const from = process.env.EMAIL_FROM || 'TatT <bookings@tatttester.com>';
 
     // 1. Resend (primary provider)
@@ -101,7 +103,14 @@ export async function sendTransactionalEmail({ to, subject, text, html }) {
                     'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ from, to, subject, text, ...(html ? { html } : {}) }),
+                body: JSON.stringify({
+                    from,
+                    to,
+                    subject,
+                    text,
+                    ...(html ? { html } : {}),
+                    ...(replyTo ? { reply_to: replyTo } : {}),
+                }),
             });
 
             if (!res.ok) {
@@ -126,7 +135,14 @@ export async function sendTransactionalEmail({ to, subject, text, html }) {
             const res = await fetch(process.env.EMAIL_WEBHOOK_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ from, to, subject, text, ...(html ? { html } : {}) }),
+                body: JSON.stringify({
+                    from,
+                    to,
+                    subject,
+                    text,
+                    ...(html ? { html } : {}),
+                    ...(replyTo ? { replyTo } : {}),
+                }),
             });
 
             if (!res.ok) {

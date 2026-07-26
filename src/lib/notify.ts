@@ -9,6 +9,8 @@
  * never break the Stripe webhook, so delivery is best-effort and swallowed.
  */
 import type { BookingRelay } from '@/lib/booking-relay';
+import type { TakedownRequest } from '@/lib/takedown';
+import type { ReinstatementRequest } from '@/lib/reinstatement';
 import { getArtistStripe } from '@/lib/artist-stripe';
 import { sendTransactionalEmail } from '@/services/emailQueueService';
 
@@ -58,5 +60,166 @@ export async function notifyArtistOfBooking(relay: BookingRelay): Promise<void> 
     // the Stripe webhook. sendTransactionalEmail already avoids throwing, but
     // we guard here too as a belt-and-suspenders measure.
     console.error('[notify] transactional email failed (non-fatal)', err);
+  }
+}
+
+/** Outcome of a notification that the caller is expected to act on. */
+export type NotifyResult = { delivered: true } | { delivered: false; reason: string };
+
+/**
+ * Tell a human that an artist has asked to be removed. See docs/adr/0025.
+ *
+ * Unlike notifyArtistOfBooking, this is NOT best-effort and does NOT swallow.
+ * A booking notification can fail quietly because the money still moved and the
+ * record still exists. A takedown notification failing quietly means nobody
+ * learns that an artist asked us to stop using their photographs, while the
+ * artist is shown a confirmation. That is worse than having no takedown button
+ * at all, so the caller gets the truth and surfaces it.
+ *
+ * Never throws — a thrown provider error is reported as an undelivered result.
+ */
+export async function notifyOpsOfTakedownRequest(
+  request: TakedownRequest,
+  requestId: string,
+): Promise<NotifyResult> {
+  const to = process.env.OPS_NOTIFY_EMAIL;
+  if (!to) {
+    const reason =
+      'OPS_NOTIFY_EMAIL is not configured — a takedown request would reach nobody.';
+    console.error(`[notify] takedown request ${requestId} undeliverable: ${reason}`);
+    return { delivered: false, reason };
+  }
+
+  const base = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+  const scopeLine =
+    request.scope === 'images'
+      ? 'IMAGES ONLY — remove the re-hosted photos, keep the listing.'
+      : 'ALL — remove the photos and suppress the profile.';
+
+  const subject = `[Takedown] ${request.artistId} — artist requested removal`;
+  const text =
+    `A takedown request was submitted.\n\n` +
+    `Request id:   ${requestId}\n` +
+    `Artist id:    ${request.artistId}\n` +
+    `Profile:      ${base}/artists\n` +
+    `Contact:      ${request.contactEmail}\n` +
+    `Relationship: ${request.relationship} (self-declared — NOT verified)\n` +
+    `Scope:        ${scopeLine}\n\n` +
+    `Message:\n${request.message || '(none provided)'}\n\n` +
+    `--- Before you remove anything ---\n` +
+    `Nothing has been removed. This request changed no data.\n` +
+    `Verify the requester controls the artist's Instagram handle (ask them to post\n` +
+    `a one-time code, or message you from it). The handle is the identity anchor\n` +
+    `for this dataset — see docs/adr/0025 for what that does and does not prove.\n\n` +
+    `--- Dry run (reports what WOULD be removed, changes nothing) ---\n` +
+    `node scripts/execute-takedown.mjs --artist-id ${request.artistId}\n\n` +
+    `--- Execute for real (only after verification) ---\n` +
+    `node scripts/execute-takedown.mjs --artist-id ${request.artistId} ` +
+    `--scope ${request.scope} --execute --confirm ${request.artistId}\n`;
+
+  try {
+    const result = await sendTransactionalEmail({
+      to,
+      subject,
+      text,
+      // So an ops reply lands with the person who asked, not in a void.
+      replyTo: request.contactEmail,
+    });
+    if (!result?.sent) {
+      const reason = result?.reason || 'email provider reported the send as unsent';
+      console.error(`[notify] takedown request ${requestId} not delivered: ${reason}`);
+      return { delivered: false, reason };
+    }
+    console.log(`[notify] takedown request ${requestId} delivered to ops`, {
+      artistId: request.artistId,
+      scope: request.scope,
+    });
+    return { delivered: true };
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    console.error(`[notify] takedown request ${requestId} threw during send: ${reason}`);
+    return { delivered: false, reason };
+  }
+}
+
+/**
+ * Tell a human that a removed artist has asked to come back. See docs/adr/0026.
+ *
+ * Like the takedown notification and unlike the booking one, this does NOT
+ * swallow. A reinstatement request nobody reads is an artist waiting forever for
+ * a profile they asked for.
+ *
+ * The mail deliberately leads with what the operator must go and *check*. That
+ * check is the only identity verification anywhere in this flow — no code can
+ * look at an Instagram account — and a mail that read like an approval prompt
+ * would turn the one door through the takedown wall into a rubber stamp.
+ *
+ * Never throws — a thrown provider error is reported as an undelivered result.
+ */
+export async function notifyOpsOfReinstatementRequest(
+  request: ReinstatementRequest,
+  requestId: string,
+  verificationCode: string,
+): Promise<NotifyResult> {
+  const to = process.env.OPS_NOTIFY_EMAIL;
+  if (!to) {
+    const reason =
+      'OPS_NOTIFY_EMAIL is not configured — a reinstatement request would reach nobody.';
+    console.error(`[notify] reinstatement request ${requestId} undeliverable: ${reason}`);
+    return { delivered: false, reason };
+  }
+
+  const subject = `[Reinstatement] @${request.instagram} — removed artist asks to return`;
+  const text =
+    `A reinstatement request was submitted by a signed-in account.\n\n` +
+    `Request id:   ${requestId}\n` +
+    `Instagram:    @${request.instagram}\n` +
+    `Firebase uid: ${request.uid}\n` +
+    `Contact:      ${request.contactEmail}\n\n` +
+    `Message:\n${request.message || '(none provided)'}\n\n` +
+    `--- Nothing has changed ---\n` +
+    `No tombstone was lifted and no profile was unsuppressed; this request changed\n` +
+    `no data. It also does not confirm that this handle was ever removed — the\n` +
+    `route answers identically either way, so it cannot be used to find out who has\n` +
+    `asked to be taken down. The dry run below tells you the truth.\n\n` +
+    `--- YOU MUST CHECK THIS BEFORE APPROVING ---\n` +
+    `Open https://instagram.com/${request.instagram} and confirm this code is\n` +
+    `published there (bio, post, or story) by the account holder:\n\n` +
+    `    ${verificationCode}\n\n` +
+    `That check is the ONLY identity verification in this flow. Code cannot read\n` +
+    `Instagram. If you cannot see the code, stop — and see docs/adr/0026 for what\n` +
+    `this does and does not prove (notably: it does not survive a hijacked account).\n\n` +
+    `--- Dry run (reports what WOULD change, changes nothing) ---\n` +
+    `node scripts/execute-reinstatement.mjs --instagram ${request.instagram}\n\n` +
+    `--- Approve (only after seeing the code on the account) ---\n` +
+    `node scripts/execute-reinstatement.mjs --instagram ${request.instagram} \\\n` +
+    `  --handle-verified --execute --confirm ${request.instagram}\n\n` +
+    `Reinstatement restores NOTHING that was deleted: the photographs and the\n` +
+    `embedding are gone, and the node was scrubbed. The artist gets an empty\n` +
+    `profile bound to their account, which they fill in themselves. The ingest\n` +
+    `tombstone stays in place permanently either way, so no future scrape can\n` +
+    `re-add them.\n`;
+
+  try {
+    const result = await sendTransactionalEmail({
+      to,
+      subject,
+      text,
+      // So an ops reply lands with the artist who asked, not in a void.
+      replyTo: request.contactEmail,
+    });
+    if (!result?.sent) {
+      const reason = result?.reason || 'email provider reported the send as unsent';
+      console.error(`[notify] reinstatement request ${requestId} not delivered: ${reason}`);
+      return { delivered: false, reason };
+    }
+    console.log(`[notify] reinstatement request ${requestId} delivered to ops`, {
+      instagram: request.instagram,
+    });
+    return { delivered: true };
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    console.error(`[notify] reinstatement request ${requestId} threw during send: ${reason}`);
+    return { delivered: false, reason };
   }
 }

@@ -122,6 +122,42 @@ and anatomical-mapping modules and `/api/v1/ar/visualize` were removed — see
 | Add relationships | `scripts/add-sample-relationships.js` |
 | Sample queries | `scripts/SAMPLE_QUERIES.cypher` |
 
+### `directives/artist-takedown.md`
+
+Removal semantics and identity-proof decisions: `docs/adr/0025-artist-takedown-semantics.md`
+
+| Step | Implementation |
+|------|---------------|
+| Domain rules (validation, tombstone keys, suppression clause) | `src/lib/takedown.ts` |
+| Request persistence (`:TakedownRequest`) | `src/lib/takedown-graph.ts` |
+| API: submit a request (public, removes nothing) | `src/app/api/v1/artists/takedown/route.ts` |
+| Ops notification (reports failure, never swallows) | `src/lib/notify.ts` (`notifyOpsOfTakedownRequest`) |
+| UI: request form | `src/app/takedown/[artistId]/page.tsx` |
+| Read-path suppression | `src/lib/artists-graph.ts`, `src/features/match-pulse/services/neo4jService.ts`, `src/app/api/v1/book/route.ts`, `src/app/api/v1/connect/claim/route.ts` |
+| Homepage featured grid (curated candidates, suppression-checked, fails closed) | `src/lib/featured-artists.ts` |
+| Public disclosure of the scrape and the removal right (**draft, needs counsel**) | `src/app/legal/privacy/page.tsx` §4, `docs/legal/artist-data-counsel-notes.md` |
+| **Scripts** | |
+| Execute a takedown (dry-run by default) | `scripts/execute-takedown.mjs` |
+| Planner / executor | `scripts/lib/takedown-plan.mjs` |
+| Ingest tombstone gate (fails closed) | `scripts/lib/takedown-tombstone.mjs` |
+| Gated ingest paths | `scripts/import-to-neo4j.js`, `scripts/data_acquisition/import_to_neo4j.js`, `scripts/host-artist-images.mjs` |
+
+### `directives/artist-reinstatement.md`
+
+The one door through the takedown wall: `docs/adr/0026-reinstatement-self-signup.md`.
+The tombstone is **never** lifted — ingest stays permanently blocked; what opens
+is a separate, identity-checked self-signup.
+
+| Step | Implementation |
+|------|---------------|
+| Domain rules (validation, code TTL, refusal decision) | `src/lib/reinstatement.ts` |
+| Request persistence (`:ReinstatementRequest`) | `src/lib/reinstatement-graph.ts` |
+| API: submit a request (authenticated, changes nothing, reveals nothing) | `src/app/api/v1/artists/reinstate/route.ts` |
+| Ops notification (leads with the check the operator must perform) | `src/lib/notify.ts` (`notifyOpsOfReinstatementRequest`) |
+| **Scripts** | |
+| Execute a reinstatement (dry-run by default) | `scripts/execute-reinstatement.mjs` |
+| Planner / executor | `scripts/lib/reinstate-plan.mjs` |
+
 ### `directives/deploy.md`
 
 | Step | Implementation |
