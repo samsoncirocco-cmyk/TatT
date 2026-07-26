@@ -4,7 +4,10 @@ import { SharePageClient } from './SharePageClient';
 
 interface SharedDesign {
   shareId: string;
+  /** Cover cut — the one Open Graph gets, since OG takes exactly one image. */
   imageUrl: string;
+  /** Every cut in the share, cover first. Absent on pre-multi-cut shares. */
+  imageUrls?: string[];
   prompt: string;
   style?: string;
   bodyPart?: string;
@@ -28,19 +31,29 @@ async function getDesign(shareId: string): Promise<SharedDesign | null> {
 export async function generateMetadata({
   params,
 }: {
-  params: { shareId: string };
+  params: Promise<{ shareId: string }>;
 }): Promise<Metadata> {
-  const design = await getDesign(params.shareId);
+  const { shareId } = await params;
+  const design = await getDesign(shareId);
 
   if (!design) {
     return { title: 'Design Not Found — TatT' };
   }
 
-  const title = design.style
-    ? `${design.style} Tattoo Design — Made with TatT AI`
-    : 'AI Tattoo Design — Made with TatT';
+  // A share can hold several cuts. OG still takes exactly one image (the
+  // cover), but the words a friend reads in the chat preview should say how
+  // many they are actually about to see.
+  const cutCount = design.imageUrls?.length ?? 1;
+  const noun = cutCount > 1 ? `${cutCount} Tattoo Designs` : 'Tattoo Design';
 
-  const description = `"${design.prompt}" — See this ${design.style ?? 'custom'} tattoo design and create your own at TatT.`;
+  const title = design.style
+    ? `${design.style} ${noun} — Made with TatT AI`
+    : `AI ${noun} — Made with TatT`;
+
+  const description =
+    cutCount > 1
+      ? `"${design.prompt}" — See all ${cutCount} ${design.style ?? 'custom'} tattoo cuts and create your own at TatT.`
+      : `"${design.prompt}" — See this ${design.style ?? 'custom'} tattoo design and create your own at TatT.`;
 
   return {
     title,
@@ -69,8 +82,13 @@ export async function generateMetadata({
   };
 }
 
-export default async function SharePage({ params }: { params: { shareId: string } }) {
-  const design = await getDesign(params.shareId);
+export default async function SharePage({
+  params,
+}: {
+  params: Promise<{ shareId: string }>;
+}) {
+  const { shareId } = await params;
+  const design = await getDesign(shareId);
 
   if (!design) {
     notFound();

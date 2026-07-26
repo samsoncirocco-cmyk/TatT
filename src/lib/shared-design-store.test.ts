@@ -114,6 +114,21 @@ describe('memorySharedDesignStore', () => {
       'fine line fern on the forearm'
     );
   });
+
+  // Next bundles each route handler separately and re-evaluates modules on
+  // hot reload, so the POST that writes a share and the GET that reads it do
+  // not necessarily share a module instance. A module-scoped Map made every
+  // demo-mode link 404. Re-importing the module is that split, in a test.
+  it('is reachable from a second module instance — a link written by one route reads back on another', async () => {
+    await memorySharedDesignStore.save(makeShare());
+
+    vi.resetModules();
+    const reimported = await import('./shared-design-store');
+
+    expect(
+      (await reimported.memorySharedDesignStore.getAndCountView('abc1234567'))?.prompt
+    ).toBe('fine line fern on the forearm');
+  });
 });
 
 describe('firestoreSharedDesignStore', () => {
