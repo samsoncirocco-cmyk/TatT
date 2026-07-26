@@ -154,6 +154,21 @@ function sessionWith(designUrl: string): DesignSession {
   };
 }
 
+/**
+ * Adding a design is an async chain (loadImage → pixel vet → strip → canvas),
+ * so every assertion on it has to wait. testing-library's default 1s deadline
+ * is a wall clock, not a measure of the work, and it goes red on a loaded CI
+ * runner while the code is perfectly healthy — same reasoning as the raised
+ * testTimeout in vitest.config.ts. Give it headroom instead.
+ */
+const SETTLE = { timeout: 10_000 };
+
+/** Tap a tray design and wait for the canvas to actually take it. */
+async function addDesign(count: number) {
+  fireEvent.click(screen.getByRole('button', { name: 'Add Design 1 to the photo' }));
+  await waitFor(() => expect(canvasObjects).toHaveLength(count), SETTLE);
+}
+
 /** Drive the file input, then wait for the canvas to come up. */
 async function uploadPhoto() {
   imageFor.set('data:image/png;base64,UEhPVE8=', flashArt);
@@ -168,8 +183,9 @@ async function uploadPhoto() {
     this.onload?.({} as ProgressEvent<FileReader>);
   });
   fireEvent.change(input, { target: { files: [file] } });
-  await waitFor(() =>
-    expect(screen.getByRole('group', { name: 'Add a design to the photo' })).toBeTruthy()
+  await waitFor(
+    () => expect(screen.getByRole('group', { name: 'Add a design to the photo' })).toBeTruthy(),
+    SETTLE
   );
 }
 
@@ -187,7 +203,7 @@ describe('PlacementPreview — the on-skin guard', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Add Design 1 to the photo' }));
 
-    await waitFor(() => expect(screen.getByText(/not flash art on white/i)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/not flash art on white/i)).toBeTruthy(), SETTLE);
     // The whole point: nothing was composited. Without this guard the opaque
     // frame — a stranger's arm — would multiply onto the user's own photo.
     expect(canvasObjects).toHaveLength(0);
@@ -198,9 +214,7 @@ describe('PlacementPreview — the on-skin guard', () => {
     render(<PlacementPreview session={sessionWith('https://cdn.test/flash.png')} />);
     await uploadPhoto();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add Design 1 to the photo' }));
-
-    await waitFor(() => expect(canvasObjects).toHaveLength(1));
+    await addDesign(1);
     expect(screen.queryByText(/not flash art on white/i)).toBeNull();
 
     const placed = canvasObjects[0] as { options: Record<string, unknown> };
@@ -219,12 +233,11 @@ describe('PlacementPreview — side-by-side review', () => {
     imageFor.set('https://cdn.test/flash.png', flashArt);
     render(<PlacementPreview session={sessionWith('https://cdn.test/flash.png')} />);
     await uploadPhoto();
-    fireEvent.click(screen.getByRole('button', { name: 'Add Design 1 to the photo' }));
-    await waitFor(() => expect(canvasObjects).toHaveLength(1));
+    await addDesign(1);
 
     fireEvent.click(screen.getByRole('button', { name: 'See it side by side' }));
 
-    const review = await screen.findByTestId('placement-review');
+    const review = await screen.findByTestId('placement-review', undefined, SETTLE);
     expect(review.querySelector('img[alt="Your design placed on your photo"]')).toBeTruthy();
     expect(review.querySelector('img[alt="Design 1"]')).toBeTruthy();
     expect(screen.getByText('On your forearm')).toBeTruthy();
@@ -240,14 +253,13 @@ describe('PlacementPreview — side-by-side review', () => {
     imageFor.set('https://cdn.test/flash.png', flashArt);
     render(<PlacementPreview session={sessionWith('https://cdn.test/flash.png')} />);
     await uploadPhoto();
-    fireEvent.click(screen.getByRole('button', { name: 'Add Design 1 to the photo' }));
-    await waitFor(() => expect(canvasObjects).toHaveLength(1));
+    await addDesign(1);
     fireEvent.click(screen.getByRole('button', { name: 'See it side by side' }));
-    await screen.findByTestId('placement-review');
+    await screen.findByTestId('placement-review', undefined, SETTLE);
 
     // Adding a second design invalidates the flattened frame.
-    fireEvent.click(screen.getByRole('button', { name: 'Add Design 1 to the photo' }));
+    await addDesign(2);
 
-    await waitFor(() => expect(screen.queryByTestId('placement-review')).toBeNull());
+    await waitFor(() => expect(screen.queryByTestId('placement-review')).toBeNull(), SETTLE);
   });
 });
