@@ -3,18 +3,20 @@
  *
  * CLAIMED artist (has a connected account with charges enabled):
  *   MARKETPLACE destination charge — the deposit is routed to the artist's
- *   connected account and TatT keeps an application fee.
+ *   connected account and TatT keeps the client-paid booking fee as the
+ *   application fee (ADR-0007: the fee rides ON TOP, so the artist nets 100%).
  *
- *   customer pays $deposit
- *     ├─ application_fee_amount → TatT (platform)
- *     └─ remainder             → artist connected account (transfer_data.destination)
+ *   customer pays $deposit + $fee
+ *     ├─ application_fee_amount = $fee → TatT (platform)
+ *     └─ remainder             = $deposit → artist connected account (transfer_data.destination)
  *
  * UNCLAIMED artist (no connected account, or charges not enabled):
  *   HELD deposit — we can't route money to an artist who can't receive it, so
  *   the deposit is collected to the PLATFORM and HELD (a plain payment charge,
  *   NO transfer_data / application_fee_amount, metadata.depositState='held').
- *   The webhook records a :BookingRelay; when the artist finishes onboarding we
- *   transfer (gross − fee) to them, and if the hold window lapses we refund.
+ *   The webhook records a :BookingRelay holding the DEPOSIT only; when the
+ *   artist finishes onboarding we transfer that full deposit to them (TatT
+ *   keeps the fee), and if the hold window lapses we refund the customer.
  *
  * Either way tax is computed automatically (Stripe Tax) and Radar screens the
  * payment because the platform is merchant of record. We always return the

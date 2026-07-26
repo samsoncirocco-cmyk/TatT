@@ -1,0 +1,112 @@
+{
+  "source": "neo4j:SPECIALIZES_IN",
+  "generated": "2026-07-26",
+  "ontologyVersion": 3,
+  "styles": [
+    {
+      "tag": "anime",
+      "graphNames": [
+        "Anime"
+      ],
+      "artists": 256
+    },
+    {
+      "tag": "black-and-grey",
+      "graphNames": [
+        "Black & Grey"
+      ],
+      "artists": 1126
+    },
+    {
+      "tag": "blackwork",
+      "graphNames": [
+        "Blackwork"
+      ],
+      "artists": 391
+    },
+    {
+      "tag": "chicano",
+      "graphNames": [
+        "Chicano"
+      ],
+      "artists": 412
+    },
+    {
+      "tag": "fine-line",
+      "graphNames": [
+        "Fine Line"
+      ],
+      "artists": 620
+    },
+    {
+      "tag": "geometric",
+      "graphNames": [
+        "Geometric"
+      ],
+      "artists": 204
+    },
+    {
+      "tag": "illustrative",
+      "graphNames": [
+        "Illustrative"
+      ],
+      "artists": 679
+    },
+    {
+      "tag": "japanese",
+      "graphNames": [
+        "Japanese (Irezumi)"
+      ],
+      "artists": 434
+    },
+    {
+      "tag": "neo-traditional",
+      "graphNames": [
+        "Neo-Traditional"
+      ],
+      "artists": 469
+    },
+    {
+      "tag": "new-school",
+      "graphNames": [
+        "New School"
+      ],
+      "artists": 98
+    },
+    {
+      "tag": "ornamental",
+      "graphNames": [
+        "Ornamental"
+      ],
+      "artists": 185
+    },
+    {
+      "tag": "realism",
+      "graphNames": [
+        "Realism"
+      ],
+      "artists": 1028
+    },
+    {
+      "tag": "traditional",
+      "graphNames": [
+        "Traditional"
+      ],
+      "artists": 1259
+    },
+    {
+      "tag": "tribal",
+      "graphNames": [
+        "Tribal"
+      ],
+      "artists": 114
+    },
+    {
+      "tag": "watercolor",
+      "graphNames": [
+        "Watercolor"
+      ],
+      "artists": 159
+    }
+  ]
+}
