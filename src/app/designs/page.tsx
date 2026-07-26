@@ -162,7 +162,7 @@ export default function DesignsPage() {
                     ) : (
                       <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/50 mix-blend-multiply" />
                     )}
-                    <span className="absolute top-2 left-2 text-[9px] uppercase tracking-[0.2em] text-white/70 font-body bg-black/60 px-1.5 py-0.5">
+                    <span className="absolute top-2 left-2 text-[10px] uppercase tracking-[0.2em] text-white/70 font-body bg-black/60 px-1.5 py-0.5">
                       v1
                     </span>
                   </div>

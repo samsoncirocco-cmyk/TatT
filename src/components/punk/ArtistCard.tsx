@@ -109,25 +109,34 @@ export default function ArtistCard(props: Props) {
                         .toUpperCase()}
                     </span>
                   </div>
-                  <div className="absolute top-3 left-3 sticker px-2 py-1 -rotate-3">
-                    <span className="font-body text-[9px] uppercase tracking-[0.18em]">
-                      {handle}&nbsp;→
+                  {/* Long handles used to run under the match% sticker.
+                      Cap the width so the two never collide; the arrow
+                      stays pinned while the handle itself truncates. */}
+                  <div
+                    className={`absolute top-3 left-3 sticker px-2 py-1 -rotate-3 flex items-center gap-1 ${
+                      isMatch(props) && typeof props.matchPercent === "number"
+                        ? "max-w-[calc(100%-5.5rem)]"
+                        : "max-w-[calc(100%-1.5rem)]"
+                    }`}
+                  >
+                    <span className="font-body text-[10px] uppercase tracking-[0.18em] truncate">
+                      {handle}
                     </span>
+                    <span className="font-body text-[10px] shrink-0">→</span>
                   </div>
                 </>
               )}
             </>
           )}
 
-          {/* match% sticker — match variant only. Inlined to preserve
-              the original text-[11px] primary size (StickerPricetag's
-              sm variant uses text-[10px], which would be a 1px diff). */}
+          {/* match% sticker — match variant only. Inlined to keep the md
+              primary size against sm padding; sizes track StickerPricetag. */}
           {isMatch(props) && typeof props.matchPercent === "number" && (
             <div className="absolute top-3 right-3 sticker px-2 py-1 z-10">
-              <div className="font-display text-[11px] tracking-widest leading-none">
+              <div className="font-display text-[14px] tracking-widest leading-none">
                 {props.matchPercent}%
               </div>
-              <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-0.5">
+              <div className="font-body text-[10px] uppercase tracking-widest leading-none mt-0.5">
                 Match
               </div>
             </div>
@@ -135,7 +144,7 @@ export default function ArtistCard(props: Props) {
 
           {/* "Pinned" badge — match variant only, when favorited */}
           {isMatch(props) && isFav && (
-            <span className="absolute bottom-3 left-3 text-[9px] uppercase tracking-[0.2em] text-pink font-body">
+            <span className="absolute bottom-3 left-3 text-[10px] uppercase tracking-[0.2em] text-pink font-body">
               ★ Pinned
             </span>
           )}
@@ -146,7 +155,7 @@ export default function ArtistCard(props: Props) {
              variant uses chips outside. */}
           {!isMatch(props) && (
             <span
-              className={`absolute bottom-3 left-3 text-[9px] uppercase tracking-[0.2em] font-body ${
+              className={`absolute bottom-3 left-3 text-[10px] uppercase tracking-[0.2em] font-body ${
                 image ? "bg-cream text-black px-2 py-1" : "text-white/80"
               }`}
             >
@@ -169,7 +178,7 @@ export default function ArtistCard(props: Props) {
               {props.styles.map((s) => (
                 <span
                   key={s}
-                  className="text-[9px] uppercase tracking-[0.18em] text-white/70 border hairline px-2 py-1 font-body"
+                  className="text-[10px] uppercase tracking-[0.18em] text-white/70 border hairline px-2 py-1 font-body"
                 >
                   {s}
                 </span>

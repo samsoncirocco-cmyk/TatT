@@ -132,7 +132,7 @@ export default function StudioShell({
                   {userHydrated && user ? (
                     <>
                       <div className="px-5 py-3 border-b hairline-soft">
-                        <div className="text-[9px] uppercase tracking-[0.25em] text-white/40 font-body">
+                        <div className="text-[10px] uppercase tracking-[0.25em] text-white/40 font-body">
                           Signed in as
                         </div>
                         <div className="mt-1 text-[12px] text-pink font-body truncate">
@@ -248,7 +248,7 @@ export default function StudioShell({
             {userHydrated && user ? (
               <>
                 <div className="px-6 py-3 border-b hairline-soft">
-                  <div className="text-[9px] uppercase tracking-[0.25em] text-white/40 font-body">
+                  <div className="text-[10px] uppercase tracking-[0.25em] text-white/40 font-body">
                     Signed in as
                   </div>
                   <div className="mt-1 text-[12px] text-pink font-body truncate">

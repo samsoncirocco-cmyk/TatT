@@ -43,7 +43,15 @@ Two faces. Never a third.
 | System label | Space Mono | `font-body` | `text-[10px]` | 400 | `tracking-[0.25em]` to `tracking-[0.28em]` | UPPERCASE |
 | Chip | Space Mono | `font-body` | `text-[10px]` | 400 | `tracking-[0.2em]` | UPPERCASE |
 | Timestamp | Space Mono | `font-body` + `tabular-nums` | `text-[10px]` | 400 | `tracking-[0.18em]` | UPPERCASE |
-| Sticker callout | Anton + Space Mono | mixed | `text-[11px]` / `text-[8px]` | 400 | `tracking-widest` | UPPERCASE |
+| Sticker callout | Anton + Space Mono | mixed | `text-[14px]` / `text-[10px]` | 400 | `tracking-widest` | UPPERCASE |
+
+**Minimum type size: 10px.** Nothing user-facing renders below `text-[10px]`
+— 7–9px labels failed readability review (2026-07-20). The wide tracking is
+what makes these labels punk, and wide tracking at 8px is what made them
+unreadable; keep the tracking, keep the floor. On the two-line sticker the
+Anton primary runs ~1.4x the Space Mono secondary, which is what makes the
+pricetag read as a tidy rectangle — scale both lines together, never one
+alone. `src/components/punk/type-scale.test.ts` enforces the floor.
 
 Line heights: `leading-[0.88]` for hero display, `leading-[1.4]` for input, `leading-[1.55]` for body. System labels are always `leading-none` or default.
 
@@ -109,8 +117,8 @@ The `.tape` utility provides: pink fill, black text, `6px 6px 0 0 white` hard sh
 **How:**
 ```tsx
 <div className="sticker px-3 py-1 absolute -top-4 right-0 z-10">
-  <div className="font-display text-[11px] tracking-widest leading-none">EXPLICIT</div>
-  <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-0.5">Content</div>
+  <div className="font-display text-[14px] tracking-widest leading-none">EXPLICIT</div>
+  <div className="font-body text-[10px] uppercase tracking-widest leading-none mt-0.5">Content</div>
 </div>
 ```
 
@@ -211,6 +219,7 @@ Always Space Mono, always uppercase, always `tabular-nums`, always wrapped in a 
 - Caps-lock all system labels: `STATUS: READY`, `STEP 01/04`.
 - Pair `halftone` and `grain` on the page root — they're a unit.
 - Use Anton for anything 16px+ that needs presence. Use Space Mono for anything 15px or smaller.
+- Keep every user-facing label at `text-[10px]` or larger. If a label won't fit at 10px, shorten the copy or give it more room — don't shrink the type.
 - Leave aggressive negative space. Punk uses silence too.
 - Keep exactly one tape CTA, one sticker, one slashed word per screen.
 - Use `tabular-nums` on every numeric label.
