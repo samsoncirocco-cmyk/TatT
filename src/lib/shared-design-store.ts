@@ -25,10 +25,21 @@ import { ensureAdminApp } from '@/lib/firebase-admin';
 
 const COLLECTION = 'shared_designs';
 
+/** Hard cap on cuts in one share — the Forge produces four; the ceiling is
+ *  there so a malformed client cannot write an unbounded document. */
+export const MAX_SHARE_IMAGES = 12;
+
 /** A share as persisted. `uid` is server-side metadata and never returned. */
 export interface SharedDesign {
   shareId: string;
+  /**
+   * The cover cut. Stays its own field because Open Graph takes exactly one
+   * image, and because shares minted before multi-cut sharing existed have
+   * only this. Always equal to `imageUrls[0]` on shares written since.
+   */
   imageUrl: string;
+  /** Every cut in the share, cover first. Absent on pre-multi-cut shares. */
+  imageUrls?: string[];
   prompt: string;
   style?: string;
   bodyPart?: string;
@@ -61,7 +72,29 @@ export interface SharedDesignStore {
 export function toPublicShare(design: SharedDesign): PublicSharedDesign {
   const { shareId, imageUrl, prompt, style, bodyPart, generatedAt, sharedAt, shareUrl, views } =
     design;
-  return { shareId, imageUrl, prompt, style, bodyPart, generatedAt, sharedAt, shareUrl, views };
+  return {
+    shareId,
+    imageUrl,
+    imageUrls: shareImages(design),
+    prompt,
+    style,
+    bodyPart,
+    generatedAt,
+    sharedAt,
+    shareUrl,
+    views,
+  };
+}
+
+/**
+ * The cuts in a share, always as a non-empty list. Shares minted before
+ * multi-cut sharing carry only `imageUrl`, so every reader goes through here
+ * rather than reaching for `imageUrls` and finding undefined.
+ */
+export function shareImages(design: Pick<SharedDesign, 'imageUrl' | 'imageUrls'>): string[] {
+  const many = design.imageUrls?.filter((u) => typeof u === 'string' && u.length > 0) ?? [];
+  if (many.length > 0) return many;
+  return design.imageUrl ? [design.imageUrl] : [];
 }
 
 /** Body returned when no durable store is available. */
@@ -75,7 +108,16 @@ export const SHARE_STORE_UNAVAILABLE = {
 
 // Only ever reached in demo mode and tests — environments where a single
 // long-lived process is guaranteed.
-const shares = new Map<string, SharedDesign>();
+//
+// A single process is not a single module instance, though: Next bundles each
+// route handler separately and re-evaluates modules on hot reload, so a plain
+// module-scoped Map left the POST that writes a share and the GET that reads
+// it holding different maps — every demo-mode link 404'd. Hang the map off
+// globalThis so all bundles and reloads share one.
+const globalStore = globalThis as typeof globalThis & {
+  __tattSharedDesigns?: Map<string, SharedDesign>;
+};
+const shares = (globalStore.__tattSharedDesigns ??= new Map<string, SharedDesign>());
 
 export const memorySharedDesignStore: SharedDesignStore = {
   async save(design) {
