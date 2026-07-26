@@ -349,6 +349,59 @@ describe("generateAvailableSlots", () => {
     }
   });
 
+  // ─── #153: malformed block overrides must fail closed ───────────────
+
+  it("treats a block override with no endTime as a full-day block", () => {
+    const params: GenerateSlotsParams = {
+      ...baseParams,
+      overrides: [{ date: "2026-07-27", type: "block", startTime: "12:00" }],
+    };
+    const slots = generateAvailableSlots(params);
+    expect(slots.filter((s) => s.date === "2026-07-27").length).toBe(0);
+  });
+
+  it("treats a block override with unparseable times as a full-day block", () => {
+    const params: GenerateSlotsParams = {
+      ...baseParams,
+      overrides: [
+        {
+          date: "2026-07-27",
+          type: "block",
+          startTime: "noon",
+          endTime: "14:00",
+        },
+      ],
+    };
+    const slots = generateAvailableSlots(params);
+    expect(slots.filter((s) => s.date === "2026-07-27").length).toBe(0);
+  });
+
+  it("treats a block override whose end precedes its start as a full-day block", () => {
+    const params: GenerateSlotsParams = {
+      ...baseParams,
+      overrides: [
+        {
+          date: "2026-07-27",
+          type: "block",
+          startTime: "16:00",
+          endTime: "10:00",
+        },
+      ],
+    };
+    const slots = generateAvailableSlots(params);
+    expect(slots.filter((s) => s.date === "2026-07-27").length).toBe(0);
+  });
+
+  it("still honours a well-formed block override on other days", () => {
+    const params: GenerateSlotsParams = {
+      ...baseParams,
+      overrides: [{ date: "2026-07-27", type: "block", startTime: "12:00" }],
+    };
+    const slots = generateAvailableSlots(params);
+    // Only Monday is blocked — the malformed override must not leak days.
+    expect(slots.filter((s) => s.date === "2026-07-29").length).toBe(1);
+  });
+
   // ─── #152: bookings are absolute intervals, not date-keyed strings ───
 
   it("blocks the following morning when a booking runs past midnight", () => {
@@ -399,9 +452,9 @@ describe("generateAvailableSlots across DST transitions", () => {
     // 00:30-06:00 is only 4h30m of real time.
     const slots = generateAvailableSlots(dstParams);
     // 01:00 + 120 real minutes lands on 04:00 wall clock, not 03:00.
-    expect(
-      slots.map((s) => [s.date, s.startTime, s.endTime]),
-    ).toEqual([["2026-03-08", "01:00", "04:00"]]);
+    expect(slots.map((s) => [s.date, s.startTime, s.endTime])).toEqual([
+      ["2026-03-08", "01:00", "04:00"],
+    ]);
   });
 
   it("measures session duration in real elapsed time across fall-back", () => {

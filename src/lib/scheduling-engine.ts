@@ -278,6 +278,33 @@ export function mergeMinuteRanges(ranges: MinuteRange[]): MinuteRange[] {
 }
 
 /**
+ * Resolve a `block` override to the absolute window it takes out, or null when
+ * it is not a usable timed window — which covers both a deliberate full-day
+ * block (no bounds) and a malformed one (missing, unparseable, inverted, or
+ * nonexistent-in-zone bounds). Callers must treat null as blocking the day:
+ * a malformed block must never be more permissive than a well-formed one.
+ */
+function toBlockWindow(
+  override: AvailabilityOverride,
+  dateStr: string,
+  timeZone: string,
+): EpochInterval | null {
+  const { startTime, endTime } = override;
+  if (!startTime || !endTime) return null;
+  if (!isValidTimeString(startTime) || !isValidTimeString(endTime)) return null;
+
+  const startMinutes = parseTimeToMinutes(startTime);
+  const endMinutes = parseTimeToMinutes(endTime);
+  if (endMinutes <= startMinutes) return null;
+
+  const startMs = zonedMinutesToEpochMs(dateStr, startMinutes, timeZone);
+  const endMs = zonedMinutesToEpochMs(dateStr, endMinutes, timeZone);
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return null;
+
+  return { startMs, endMs };
+}
+
+/**
  * Convert existing bookings into absolute, buffered intervals.
  *
  * Bookings are absolute occupancy, not per-date wall-clock strings: a session
@@ -348,8 +375,9 @@ export interface GenerateSlotsParams {
  *    of an existing booking.
  *
  * Algorithm — for each date in [startDate, endDate]:
- *  a. Skip the day entirely on a full-day block override
- *  b. Collect timed block overrides as absolute intervals
+ *  a. Resolve `block` overrides; any that is not a usable timed window —
+ *     deliberate full-day or malformed — takes out the whole day
+ *  b. Keep the resolved block windows as absolute intervals
  *  c. Merge the recurring day's hours with any 'open' overrides into a
  *     disjoint set of open ranges (overlapping windows must not be sliced twice)
  *  d. Walk each open range on the epoch timeline, emitting slots whose
@@ -412,23 +440,21 @@ export function generateAvailableSlots(params: GenerateSlotsParams): Slot[] {
       (o) => o.date === dateStr && o.type === "block",
     );
 
-    // a. Full-day block override (no startTime = whole day)
-    if (dayBlocks.some((o) => !o.startTime)) continue;
-
-    // b. Partial-day block windows for this date, as absolute intervals
+    // a/b. Resolve block overrides to timed windows. Any block that does not
+    //      resolve — a deliberate full-day block, or a malformed one — takes
+    //      out the whole day. A block is the artist's "do not book me" signal,
+    //      so it must never fail in the permissive direction.
     const blockedIntervals: EpochInterval[] = [];
+    let fullDayBlocked = false;
     for (const o of dayBlocks) {
-      if (!o.startTime || !o.endTime) continue;
-      if (!isValidTimeString(o.startTime) || !isValidTimeString(o.endTime))
-        continue;
-      const blockedStart = parseTimeToMinutes(o.startTime);
-      const blockedEnd = parseTimeToMinutes(o.endTime);
-      if (blockedEnd <= blockedStart) continue;
-      const startMs = zonedMinutesToEpochMs(dateStr, blockedStart, timeZone);
-      const endMs = zonedMinutesToEpochMs(dateStr, blockedEnd, timeZone);
-      if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) continue;
-      blockedIntervals.push({ startMs, endMs });
+      const blockWindow = toBlockWindow(o, dateStr, timeZone);
+      if (!blockWindow) {
+        fullDayBlocked = true;
+        break;
+      }
+      blockedIntervals.push(blockWindow);
     }
+    if (fullDayBlocked) continue;
 
     // c. Merge the recurring day's hours with any 'open' overrides. Merging
     //    (rather than concatenating) is what stops an overlapping window from
@@ -460,7 +486,11 @@ export function generateAvailableSlots(params: GenerateSlotsParams): Slot[] {
 
     // d. Walk each open range on the absolute timeline.
     for (const range of openRanges) {
-      const rangeStartMs = zonedMinutesToEpochMs(dateStr, range.start, timeZone);
+      const rangeStartMs = zonedMinutesToEpochMs(
+        dateStr,
+        range.start,
+        timeZone,
+      );
       const rangeEndMs = zonedMinutesToEpochMs(dateStr, range.end, timeZone);
       // A boundary that does not exist in this zone (DST gap) makes the range
       // unusable; dropping it is the conservative direction.
