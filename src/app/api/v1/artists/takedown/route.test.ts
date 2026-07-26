@@ -8,7 +8,7 @@
 //
 //  2. It NEVER reports success unless a human was actually reached. A takedown
 //     request that silently fails is worse than no takedown button, because the
-//     artist walks away believing it was received. See docs/adr/0024.
+//     artist walks away believing it was received. See docs/adr/0025.
 //
 // It also, by construction, removes nothing — it records and notifies.
 import { beforeEach, describe, expect, it, vi } from 'vitest';

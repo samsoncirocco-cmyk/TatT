@@ -148,7 +148,7 @@ export default function ClaimArtistPage({ params }: { params: Promise<{ artistId
             )}
 
             {/* The other ending to the same recognition moment: an artist who
-                recognises the profile may want it gone, not run. See ADR 0024. */}
+                recognises the profile may want it gone, not run. See ADR 0025. */}
             <div className="mt-10 pt-8 border-t hairline">
               <p className="font-body text-[13px] text-white/50 leading-[1.55]">
                 This is your work but you never asked to be listed?{' '}

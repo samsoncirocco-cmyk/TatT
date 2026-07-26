@@ -496,7 +496,7 @@ async function main() {
     // tattoos and relationships alike. loadTombstoneGate THROWS if the list
     // cannot be read, aborting the import on purpose: proceeding without it
     // would silently re-ingest everyone who asked to be removed
-    // (docs/adr/0024 §4).
+    // (docs/adr/0025 §4).
     const gate = await loadTombstoneGate(neo4jTombstoneReader(session));
     const { allowed: artists, blocked } = filterTombstoned(gate, artistsData.artists);
     console.log(`\n🪦 Takedown gate: ${gate.keyCount} tombstone key(s) loaded.`);

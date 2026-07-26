@@ -186,7 +186,7 @@ export default async function ArtistProfilePage({
 
             {/* This profile was built from public listings without the artist's
                 consent. If they find it, both endings must be one click away:
-                run it, or have it removed. See docs/adr/0024. */}
+                run it, or have it removed. See docs/adr/0025. */}
             <p className="mt-10 pt-6 border-t hairline font-body text-[11px] text-white/40 leading-[1.6]">
               Is this you?{" "}
               <Link

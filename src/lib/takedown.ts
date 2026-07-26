@@ -1,6 +1,6 @@
 /**
  * Artist takedown — domain rules shared by the request route, the read-path
- * suppression, and the offline executor. See docs/adr/0024.
+ * suppression, and the offline executor. See docs/adr/0025.
  *
  * TatT re-hosts portfolio photographs for ~7.8k artists who never opted in.
  * This module is the vocabulary for undoing that for one artist:
@@ -83,7 +83,7 @@ export function normalizeInstagramHandle(raw: string | null | undefined): string
  * (`artist_dvpyb68gp` — `Math.random()` in artist_validator.js), so an id-keyed
  * tombstone would not survive a re-crawl. The handle is the only identifier
  * stable across ingest runs, and it is what the crawler knows *before* it mints
- * an id. See ADR 0024 §3.
+ * an id. See ADR 0025 §3.
  */
 export function tombstoneKeysFor(input: {
   artistId: string;
@@ -124,7 +124,7 @@ function asRecord(body: unknown): Record<string, unknown> | null {
  *
  * Intentionally shallow: this gates *shape*, not identity. Anyone may ask. The
  * identity check is a human reviewing the request before running the executor
- * (ADR 0024 §6) — which is also what stops takedown becoming a way to delete a
+ * (ADR 0025 §6) — which is also what stops takedown becoming a way to delete a
  * competitor.
  */
 export function validateTakedownRequest(body: unknown): ValidationResult<TakedownRequest> {

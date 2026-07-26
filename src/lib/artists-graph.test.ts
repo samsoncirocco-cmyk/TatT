@@ -34,7 +34,7 @@ describe("buildRosterFilter", () => {
   });
 
   // A takedown that the roster ignores is cosmetic. Every roster read must be
-  // gated on removedAt — see docs/adr/0024.
+  // gated on removedAt — see docs/adr/0025.
   it("suppresses taken-down artists unconditionally, whatever the filters", () => {
     for (const filter of [{}, { q: "austin" }, { style: "Blackwork" }, { hasPortfolio: true }]) {
       expect(buildRosterFilter(filter).where).toContain("a.removedAt IS NULL");

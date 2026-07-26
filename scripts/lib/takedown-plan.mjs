@@ -1,5 +1,5 @@
 /**
- * Artist takedown — planner and executor. See docs/adr/0024.
+ * Artist takedown — planner and executor. See docs/adr/0025.
  *
  * This is the only code in the repo that deletes an artist's data. It is
  * therefore built to refuse:
@@ -16,7 +16,7 @@
  * Every store is reached through an injected dependency, so this module cannot
  * touch anything on its own — the wiring lives in scripts/execute-takedown.mjs.
  *
- * Removal semantics (ADR 0024 §1–2):
+ * Removal semantics (ADR 0025 §1–2):
  *   GCS images        → hard delete   (the actual re-hosted photographs)
  *   Supabase embedding→ hard delete   (derived from their work, drives matching)
  *   :Artist node      → soft delete + scrub, NOT hard delete (money, audit,

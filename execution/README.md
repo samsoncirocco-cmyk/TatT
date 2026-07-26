@@ -124,7 +124,7 @@ and anatomical-mapping modules and `/api/v1/ar/visualize` were removed — see
 
 ### `directives/artist-takedown.md`
 
-Removal semantics and identity-proof decisions: `docs/adr/0024-artist-takedown-semantics.md`
+Removal semantics and identity-proof decisions: `docs/adr/0025-artist-takedown-semantics.md`
 
 | Step | Implementation |
 |------|---------------|

@@ -1,4 +1,4 @@
-// The removal executor. See docs/adr/0024.
+// The removal executor. See docs/adr/0025.
 //
 // This is the only code in the repo that deletes an artist's data, so the
 // tests below are mostly about what it REFUSES to do:

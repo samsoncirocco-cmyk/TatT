@@ -271,7 +271,7 @@ export function buildHasPortfolioClause(): string {
 }
 
 /**
- * Cypher fragment excluding artists who have been taken down (docs/adr/0024).
+ * Cypher fragment excluding artists who have been taken down (docs/adr/0025).
  *
  * Assumes the artist is bound as `a`. Every read in this module interpolates
  * it as `${NOT_REMOVED}` — matching is the widest artist read surface in the

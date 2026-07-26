@@ -4,7 +4,7 @@
 // file exists to pin down is FAIL-CLOSED: if the tombstone list cannot be
 // loaded, ingest must stop, not proceed with an empty (permissive) list. The
 // tempting bug — `catch { return new Set() }` — silently re-imports every
-// artist who ever asked to be removed. See docs/adr/0024 §4.
+// artist who ever asked to be removed. See docs/adr/0025 §4.
 import { describe, expect, it, vi } from 'vitest';
 import { filterTombstoned, loadTombstoneGate, makeTombstoneGate } from './takedown-tombstone.mjs';
 

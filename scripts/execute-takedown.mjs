@@ -1,5 +1,5 @@
 /**
- * Execute an artist takedown. See docs/adr/0024.
+ * Execute an artist takedown. See docs/adr/0025.
  *
  * DRY RUN BY DEFAULT. Running this with just an artist id prints exactly what
  * would be removed and changes nothing, anywhere.
@@ -20,7 +20,7 @@
  *   --confirm <id>     must exactly equal --artist-id; guards against a stray
  *                      --execute deleting the wrong artist
  *
- * What "removed" means, and why, is ADR 0024. The short version:
+ * What "removed" means, and why, is ADR 0025. The short version:
  *   GCS photos + Supabase embedding  → hard deleted
  *   :Artist node                     → soft-deleted and scrubbed, not dropped
  *                                      (held deposits, audit trail, and so a
@@ -52,7 +52,7 @@ function parseArgs(argv) {
   return opts;
 }
 
-// ─── Property scrub list (ADR 0024 §2) ──────────────────────────────────────
+// ─── Property scrub list (ADR 0025 §2) ──────────────────────────────────────
 // The husk must retain no personal data. Money/ownership properties are
 // deliberately NOT in this list.
 const SCRUBBED_PROPERTIES = [

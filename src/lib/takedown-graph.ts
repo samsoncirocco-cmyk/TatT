@@ -1,5 +1,5 @@
 /**
- * Neo4j persistence for takedown requests. See docs/adr/0024.
+ * Neo4j persistence for takedown requests. See docs/adr/0025.
  *
  * Kept separate from `takedown.ts` (pure rules) so the domain module stays
  * importable in tests without touching a driver — the same split

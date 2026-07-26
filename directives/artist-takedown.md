@@ -14,7 +14,7 @@ on `gs://tatt-pro-assets`. None of them opted in. This directive is how we
 honour one of them asking us to stop.
 
 The decisions behind it — soft vs hard delete, tombstones, what identity proof
-we require — are recorded in **`docs/adr/0024-artist-takedown-semantics.md`**.
+we require — are recorded in **`docs/adr/0025-artist-takedown-semantics.md`**.
 Read that first; this directive is only the runbook.
 
 ## When to use

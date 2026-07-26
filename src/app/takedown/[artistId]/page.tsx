@@ -5,7 +5,7 @@
  *
  * Sits beside /claim/[artistId]: the same recognition moment, the other
  * ending. An artist who finds themselves in TatT's graph without ever having
- * opted in gets here, and does NOT need an account first — see docs/adr/0024.
+ * opted in gets here, and does NOT need an account first — see docs/adr/0025.
  *
  * The page is careful about what it promises. It never says "removed"; it says
  * a person will review it. If the request could not be delivered, it says so

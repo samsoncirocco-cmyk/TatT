@@ -66,7 +66,7 @@ export async function notifyArtistOfBooking(relay: BookingRelay): Promise<void> 
 export type NotifyResult = { delivered: true } | { delivered: false; reason: string };
 
 /**
- * Tell a human that an artist has asked to be removed. See docs/adr/0024.
+ * Tell a human that an artist has asked to be removed. See docs/adr/0025.
  *
  * Unlike notifyArtistOfBooking, this is NOT best-effort and does NOT swallow.
  * A booking notification can fail quietly because the money still moved and the
@@ -109,7 +109,7 @@ export async function notifyOpsOfTakedownRequest(
     `Nothing has been removed. This request changed no data.\n` +
     `Verify the requester controls the artist's Instagram handle (ask them to post\n` +
     `a one-time code, or message you from it). The handle is the identity anchor\n` +
-    `for this dataset — see docs/adr/0024 for what that does and does not prove.\n\n` +
+    `for this dataset — see docs/adr/0025 for what that does and does not prove.\n\n` +
     `--- Dry run (reports what WOULD be removed, changes nothing) ---\n` +
     `node scripts/execute-takedown.mjs --artist-id ${request.artistId}\n\n` +
     `--- Execute for real (only after verification) ---\n` +

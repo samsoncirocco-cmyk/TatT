@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
         '@/features/match-pulse/services/neo4jService'
       );
       // The removedAt guard makes a taken-down artist read as "not found", so
-      // the fail-closed branch below refuses the booking (docs/adr/0024). An
+      // the fail-closed branch below refuses the booking (docs/adr/0025). An
       // artist who asked us to stop using their work must not keep receiving
       // booking requests through us.
       const records = await executeServerCypherQuery(

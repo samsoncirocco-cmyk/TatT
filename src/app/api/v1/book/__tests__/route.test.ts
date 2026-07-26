@@ -255,7 +255,7 @@ describe('POST /api/v1/book — design-session Brief attach', () => {
 // existence check deliberately fails OPEN on a Neo4j error so an outage never
 // drops a real booking — but the artist lookup itself now excludes removed
 // artists, so a takedown reads as "unknown artist" and the booking is refused.
-// See docs/adr/0024.
+// See docs/adr/0025.
 describe('POST /api/v1/book — taken-down artists are not bookable', () => {
   beforeEach(() => {
     vi.clearAllMocks();

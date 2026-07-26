@@ -1,4 +1,4 @@
-// Takedown domain rules. See docs/adr/0024.
+// Takedown domain rules. See docs/adr/0025.
 //
 // The load-bearing bit is tombstone key derivation: national-dataset artist ids
 // are derived from the instagram handle, but the crawler mints RANDOM ids

@@ -5,7 +5,7 @@
  * how one of them asks us to stop. It is the sibling of /api/v1/connect/claim:
  * the same recognition moment ("this is my profile"), with the other ending.
  *
- * Deliberate properties (see docs/adr/0024):
+ * Deliberate properties (see docs/adr/0025):
  *
  *  - PUBLIC. No Firebase token. Requiring a TatT account before you may ask TatT
  *    to stop using your photographs would be backwards. Abuse is bounded by an

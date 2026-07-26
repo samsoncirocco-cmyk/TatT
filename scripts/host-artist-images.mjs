@@ -296,7 +296,7 @@ async function main() {
 
   // Takedown gate. Without this, a stale scraped-images directory re-uploads a
   // removed artist's photographs to GCS and re-SETs portfolioImages, silently
-  // undoing a takedown (docs/adr/0024). Skipped on a dry run only because a dry
+  // undoing a takedown (docs/adr/0025). Skipped on a dry run only because a dry
   // run has no session and uploads nothing.
   let allowedRecords = records;
   if (session) {

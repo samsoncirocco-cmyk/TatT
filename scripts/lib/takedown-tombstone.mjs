@@ -1,6 +1,6 @@
 /**
  * The gate the discovery pipeline consults before ingesting an artist.
- * See docs/adr/0024 §3–4.
+ * See docs/adr/0025 §3–4.
  *
  * A takedown that a later scrape undoes is not a takedown. Every path that can
  * create or refresh an `:Artist` node — the validator, the graph importer, the

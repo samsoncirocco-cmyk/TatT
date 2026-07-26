@@ -6,7 +6,7 @@ import { buildHasPortfolioClause, buildNotRemovedClause } from "./neo4jService";
 // Matching is the widest artist read surface in the app, and unlike the roster
 // it has no shared WHERE builder — each query site was written separately. A
 // taken-down artist that still surfaces in match results has not been taken
-// down. See docs/adr/0024.
+// down. See docs/adr/0025.
 describe("buildNotRemovedClause", () => {
   it("gates on removedAt", () => {
     expect(buildNotRemovedClause()).toBe("a.removedAt IS NULL");

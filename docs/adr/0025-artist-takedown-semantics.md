@@ -1,4 +1,4 @@
-# ADR 0024 — Artist takedown: soft-delete the node, hard-delete the content, permanent tombstone
+# ADR 0025 — Artist takedown: soft-delete the node, hard-delete the content, permanent tombstone
 
 **Status:** Accepted (mechanism only — no live data has been removed)
 **Date:** 2026-07-25

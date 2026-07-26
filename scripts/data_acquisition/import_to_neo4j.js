@@ -48,7 +48,7 @@ async function importData() {
 
         // 1b. Takedown gate — the last thing standing between a re-scrape and
         // an artist who asked to be removed. loadTombstoneGate THROWS if the
-        // list cannot be read; that abort is deliberate (docs/adr/0024 §4).
+        // list cannot be read; that abort is deliberate (docs/adr/0025 §4).
         // A takedown a scrape undoes is not a takedown.
         const gate = await loadTombstoneGate(neo4jTombstoneReader(session));
         const { allowed: artists, blocked } = filterTombstoned(gate, allArtists);

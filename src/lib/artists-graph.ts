@@ -73,7 +73,7 @@ export function buildRosterFilter(filter: RosterFilter): {
   const styleVariants = style ? styleMatchVariants(style) : [];
   // Leads the clause and is not conditional on any filter: an artist who asked
   // to be removed must be absent from every roster read, not merely from the
-  // unfiltered one. See docs/adr/0024.
+  // unfiltered one. See docs/adr/0025.
   const where = `
     ${NOT_REMOVED_CLAUSE}
     AND ($q IS NULL
