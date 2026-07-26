@@ -2,9 +2,23 @@
 
 ## Status
 
-**Proposed — this is a product decision and it belongs to Samson, not to the
-implementing agent.** Nothing in this ADR is implemented. PR #112's scheduling
-engine remains unwired; no slot picker is connected to the booking wizard.
+**Accepted (2026-07-25) — Model B, reservation, conditional on real calendar
+sync, with Model A as the permanent per-artist fallback.**
+
+This ADR was written as `Proposed` and recommended Model A as the default with
+Model B as an opt-in graduation. **Samson overrode that recommendation.** His
+decision, verbatim:
+
+> "i want it to be a reservation, once the calendar is actually synched with the
+> artist calendars. obviously we need to get some artist client to properly map,
+> but we can use my samson.cirocco@gmail.com calendar to properly build out the
+> flow while were testing and building"
+
+The original recommendation is left below, unedited, under
+[Recommendation (superseded)](#recommendation-superseded). It was not wrong
+about the failure asymmetry — the decision answers it by making the reservation
+*conditional*, which is the part that matters. See
+[Decision](#decision-2026-07-25) for what was actually chosen.
 
 ## Context
 
@@ -78,7 +92,60 @@ angry client, and a damaged artist relationship.
    maintaining them keeps showing bookable slots forever. Model A degrades to
    "unknown"; Model B degrades to lying.
 
-## Recommendation
+## Decision (2026-07-25)
+
+**A booking is a reservation — for any artist whose calendar is actually
+synced. Every other artist gets the request model, and the UI says which one
+the client is getting.**
+
+The conditionality is the whole design, not a caveat on it. Restated as rules
+the code enforces:
+
+1. **The mode is resolved per artist, on every render, and fails closed.**
+   `resolveBookingMode()` (`src/lib/booking-mode.ts`) returns `"reservation"`
+   only when *all* of: the artist has claimed their profile, a calendar
+   connection exists, a live free/busy read succeeded, the read is fresh, and
+   the hold store is writable. Any other outcome — including an outcome we
+   cannot classify — is `"request"`. There is no code path that reaches
+   `"reservation"` by default, by cache, or by timeout.
+2. **A reservation is backed by an exclusive hold, or it is not a
+   reservation.** Selecting a slot takes a 30-minute hold before checkout; the
+   held slot disappears from every other client's grid for the life of the
+   hold. Without a writable hold store the artist drops to the request model
+   rather than offering slots two people can pay for. This closes the
+   double-booking hole named in "What breaks if they coexist" item 2 — which
+   is live today, on the request model, where nothing reserves a time at all.
+3. **Degradation is visible, never silent.** An artist who was in reservation
+   mode this morning and whose calendar is unreachable this afternoon shows
+   "Availability on request", not this morning's slots. A stale cache is
+   treated as no calendar. The failure the ADR called the loud one — a shown
+   slot that was never real — is unreachable by construction, because the
+   only thing that puts a slot on screen is a live read plus a live hold.
+4. **Model A is permanent, not a migration stage.** Point 4 of the superseded
+   recommendation survives the override intact. Most of the ~10k scraped
+   artists will never connect a calendar, and "availability on request" stays
+   the correct, honest answer for them indefinitely.
+
+### What this decision does *not* settle
+
+- **Deposit-confirms-slot** (failure 3 above) is only true on the reservation
+  path. On the request path the deposit still precedes artist confirmation and
+  the artist may still counter — unchanged, and correct for that model.
+- **No artist can reach reservation mode yet.** Nothing writes a calendar
+  connection: the Google OAuth consent screen, client credentials, and callback
+  are Samson's to authorise (see `docs/google-calendar-setup.md`). Until then
+  every artist resolves to `"request"`, which is exactly the honest default the
+  original recommendation asked for.
+- **Calendar write-back is built but disabled.** Confirmed bookings produce a
+  fully-formed event payload; execution is refused unless
+  `GOOGLE_CALENDAR_WRITE_ENABLED=true`. No agent has written to a real calendar.
+
+## Recommendation (superseded)
+
+*Superseded by [Decision (2026-07-25)](#decision-2026-07-25). Retained
+verbatim: the reasoning about failure asymmetry is what the conditionality in
+the decision is answering, and points 1–4 below were all adopted in some form —
+only the default, and the willingness to build toward Model B now, changed.*
 
 **Do not let both models read the same document untagged. Make the model an
 explicit, per-artist property, default to Model A, and let an artist graduate
@@ -114,11 +181,18 @@ product direction and treat Model A as legacy — accepting the build cost up
 front in exchange for a conventional booking experience and higher conversion.
 That is a defensible call, and it is the one this ADR does not make.
 
-## Consequences if adopted
+## Consequences
 
-- `normalizeAvailability` gains a discriminator branch; the current status path
-  is unchanged and stays the default.
-- The scheduling engine stays unwired until holds and the artist editor exist —
-  which is already true today, so nothing is delayed by deciding this way.
-- ADR 0007's payment split is unaffected either way; only *when* the deposit
-  becomes binding changes, and only under Model B.
+- The discriminator the recommendation asked for exists, but it is *derived*,
+  not stored: `resolveBookingMode()` computes it from live signals every time.
+  A stored flag can go stale and lie; a derived one cannot. Ops cannot flip an
+  artist into slot mode, because there is no field to flip.
+- `BookingStatus` gains `held` between `pending` and `deposit_paid`, and the
+  edge `held → pending` releases a lapsed hold without destroying the booking —
+  the client keeps their request and can pick again.
+- `normalizeAvailability` and the whole status path are untouched. Every artist
+  on the request model behaves exactly as before this change.
+- ADR 0007's payment split is unaffected; only *when* the deposit becomes
+  binding changes, and only on the reservation path.
+- The reservation path is gated, not dead: it activates the moment a calendar
+  connection exists for an artist, and not one step before.
