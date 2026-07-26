@@ -76,6 +76,44 @@ describe('POST /api/v1/designs/share', () => {
     expect(saveMock).not.toHaveBeenCalled();
   });
 
+  // A Forge selection of several cuts is ONE share. Minting a link per cut
+  // would put the user back where the four-share-buttons problem started.
+  it('stores a whole selection of cuts under a single share id', async () => {
+    const imageUrls = ['https://img/a.png', 'https://img/b.png', 'https://img/c.png'];
+    const res = await POST(postRequest({ imageUrls, prompt: 'fine line fern' }));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(saveMock).toHaveBeenCalledTimes(1);
+    const saved = saveMock.mock.calls[0][0];
+    expect(saved.imageUrls).toEqual(imageUrls);
+    // The cover is the first cut — Open Graph takes exactly one image.
+    expect(saved.imageUrl).toBe('https://img/a.png');
+    expect(json.shareUrl).toContain(`/share/${json.shareId}`);
+  });
+
+  it('still accepts a lone imageUrl, and normalises it into the list', async () => {
+    await POST(postRequest({ imageUrl: 'https://img/solo.png', prompt: 'fern' }));
+
+    const saved = saveMock.mock.calls[0][0];
+    expect(saved.imageUrl).toBe('https://img/solo.png');
+    expect(saved.imageUrls).toEqual(['https://img/solo.png']);
+  });
+
+  it('rejects an empty selection rather than minting a link to nothing', async () => {
+    const res = await POST(postRequest({ imageUrls: [], prompt: 'fern' }));
+    expect(res.status).toBe(400);
+    expect(saveMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects a selection larger than the cap', async () => {
+    const imageUrls = Array.from({ length: 13 }, (_, i) => `https://img/${i}.png`);
+    const res = await POST(postRequest({ imageUrls, prompt: 'fern' }));
+
+    expect(res.status).toBe(400);
+    expect(saveMock).not.toHaveBeenCalled();
+  });
+
   it('returns 503 and no shareId when no durable store is configured', async () => {
     // The degradation path: credentials missing. Handing back a link that
     // only lives in one instance's memory is the bug, not the fallback.
@@ -120,6 +158,28 @@ describe('GET /api/v1/designs/share/[shareId]', () => {
     expect(res.status).toBe(200);
     expect(json.shareId).toBe('abc1234567');
     expect(json.views).toBe(3);
+    expect(json.uid).toBeUndefined();
+    // A share minted before multi-cut sharing still reads as a one-cut set.
+    expect(json.imageUrls).toEqual(['https://img/design.png']);
+  });
+
+  it('returns every cut of a multi-cut share', async () => {
+    const imageUrls = ['https://img/a.png', 'https://img/b.png'];
+    getAndCountViewMock.mockResolvedValue({
+      shareId: 'set1234567',
+      imageUrl: 'https://img/a.png',
+      imageUrls,
+      prompt: 'fine line fern',
+      uid: 'user-1',
+      sharedAt: '2026-07-25T00:00:00.000Z',
+      shareUrl: 'https://tatt-app.vercel.app/share/set1234567',
+      views: 1,
+    });
+
+    const { request, params } = getRequest('set1234567');
+    const json = await (await GET(request, { params })).json();
+
+    expect(json.imageUrls).toEqual(imageUrls);
     expect(json.uid).toBeUndefined();
   });
 
