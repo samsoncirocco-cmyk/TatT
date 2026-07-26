@@ -127,17 +127,23 @@ const COMPOSITIONAL_TREATMENTS: { composition: string; phrase: string; detail: s
   {
     composition: 'dynamic flow',
     phrase: 'dynamic flowing composition',
-    detail: 'subject in motion along a diagonal axis, following the body contour',
+    detail: 'subject in motion along a sweeping diagonal axis, tapering at both ends',
   },
+  // Both of these used to describe the render as sitting on a body ("untouched
+  // skin") or bleeding off the canvas ("edges breaking the frame"). Presentation
+  // is pinned to flash art on white, and the backdrop guard measures the border,
+  // so each was asking for the render the guard rejects. The compositional
+  // intent — sparse vs dense — survives; the framing is expressed in white
+  // space instead of skin, and the crop stops short of the margin.
   {
     composition: 'negative space',
     phrase: 'open negative-space composition',
-    detail: 'small off-center subject with generous untouched skin as part of the design',
+    detail: 'small off-center subject with generous untouched white space as part of the design',
   },
   {
     composition: 'close crop',
     phrase: 'tightly cropped close-up framing',
-    detail: 'subject filling the canvas with edges deliberately breaking the frame',
+    detail: 'subject rendered large and close, held just inside a clean white margin',
   },
 ];
 
@@ -278,17 +284,55 @@ function paletteClause(palette: Palette): string {
  * clause already carries color vs monochrome, so presentation does not need
  * to encode it too.
  *
- * This used to photograph color sessions on skin, which broke the placement
- * preview: that step strips the near-white background to real alpha and
- * composites the design onto the user's own photo with a multiply blend. An
- * on-skin render has no white background to strip, so the preview would
- * paste a stranger's arm onto the user's body. Flash art everywhere keeps
- * the grid internally consistent, keeps every render a usable design asset,
- * and preserves the preview.
+ * Flash art on white is a hard product dependency, not a preference: the
+ * placement preview strips the near-white background to real alpha and
+ * composites onto the user's own photo with a multiply blend. An on-skin
+ * render has nothing to strip, so the preview would paste a stranger's arm
+ * onto the user's body — which is why `assessBackdrop` refuses it outright.
+ *
+ * This clause is FRONT-LOADED, and it asserts what the image IS rather than
+ * negating what it must not be. The previous version did the opposite on
+ * both counts — it trailed the prompt ("...not photographed on skin") — and
+ * measured 0/12 against the guard: every render came back as a photograph of
+ * a tattoo on a forearm. Two mechanics, both already documented in ADR-0023
+ * for the palette decision, explain it:
+ *
+ *   1. Early tokens win. The subject sentence opened "A ... tattoo on the
+ *      left forearm", an explicit positive instruction to draw a limb at
+ *      roughly token 10, while the correction sat at token 65. The ADR
+ *      recorded the same defeat for color ("explicit positive color words
+ *      beat a negative prompt every time"); placement is the presentation
+ *      axis's chromatic anchor, so it is gone from the sentence — aspect
+ *      ratio (`getAnatomicalAspectRatio`) and the composition guidance
+ *      already carry placement, and they carry it without naming a body.
+ *   2. Naming a thing summons it. "not photographed on skin" spends its two
+ *      most concrete tokens on "photographed" and "skin". Exclusions belong
+ *      in the negative prompt, which folds into an `Avoid:` clause for the
+ *      Flux lane anyway.
  */
-function presentationClause(): string {
-  return ' Presented as flash art on a plain white background — the design only, not photographed on skin.';
-}
+/*
+ * "Centered with clean white margins" rather than "filling the frame": the
+ * guard measures the BORDER, not the overall white fraction, so an artwork
+ * bled to the edges fails it exactly as hard as a photograph does. The
+ * margin is the thing being asked for.
+ */
+const PRESENTATION_LEAD =
+  'Flash art tattoo design on a pure white background — a flat scan of the ' +
+  'artwork alone, centered with clean white margins on all sides. ';
+
+/**
+ * Exclusions that keep the render a flat scan of artwork rather than a
+ * photograph of an object. Every entry is a mode observed in real output:
+ * on-skin photographs (the production prompt's failure), flash art shot as a
+ * sheet of paper angled on a dark desk with pens beside it, and artwork
+ * rendered on a black backdrop — the last two being what the 300-render
+ * Vertex portfolio corpus fails on.
+ */
+const PRESENTATION_NEGATIVES =
+  'photograph of a tattoo on skin, tattooed skin, human body, arm, leg, ' +
+  'sheet of paper, desk, table, wooden surface, product mockup, still life, ' +
+  'drop shadow, angled perspective view, black background, dark background, ' +
+  'vignette, border frame';
 
 /** Palette-specific negatives, appended to the shared base. */
 function paletteNegatives(palette: Palette): string[] {
@@ -383,28 +427,28 @@ function buildQuadrantVariation(
   const phrases = specs.map(spec => spec.phrase).join(', ');
   const details = specs.map(spec => spec.detail).join('; ');
 
-  const lead = paletteClause(ctx.palette);
-  const presentation = presentationClause();
-  const simple = `${lead}A ${ctx.styleDesc} style tattoo on the ${ctx.placement} ${subjectClause(ctx)}, rendered with ${phrases}.`;
+  const lead = paletteClause(ctx.palette) + PRESENTATION_LEAD;
+  const simple = `${lead}A ${ctx.styleDesc} style tattoo design ${subjectClause(ctx)}, rendered with ${phrases}.`;
   const detailed =
     `${simple} Treatment: ${details}. Composition follows ${ctx.aspectGuidance}.`;
   const ultra =
     `${detailed} Anatomical flow: ${ctx.flowToken}. ` +
-    'Clean readable forms with deliberate focal hierarchy, designed to sit naturally on the body ' +
+    'Clean readable forms with deliberate focal hierarchy, composed to read at tattoo scale ' +
     'and remain legible as it ages — suitable for professional tattooing.';
 
   const negativePrompt = [
     getBaseNegativePrompt(ctx.subject ?? ''),
     ...specs.map(spec => spec.negative),
     ...paletteNegatives(ctx.palette),
+    PRESENTATION_NEGATIVES,
   ].join(', ');
 
   return {
     axisPosition,
     prompts: {
-      simple: keepIfValid(simple + presentation),
-      detailed: keepIfValid(detailed + presentation),
-      ultra: keepIfValid(ultra + presentation),
+      simple: keepIfValid(simple),
+      detailed: keepIfValid(detailed),
+      ultra: keepIfValid(ultra),
     },
     negativePrompt,
   };
@@ -414,9 +458,8 @@ function buildCompositionalVariation(
   treatment: (typeof COMPOSITIONAL_TREATMENTS)[number],
   ctx: PromptContext
 ): StructuredVariation {
-  const lead = paletteClause(ctx.palette);
-  const presentation = presentationClause();
-  const simple = `${lead}A ${ctx.styleDesc} style tattoo on the ${ctx.placement} ${subjectClause(ctx)}, in a ${treatment.phrase}.`;
+  const lead = paletteClause(ctx.palette) + PRESENTATION_LEAD;
+  const simple = `${lead}A ${ctx.styleDesc} style tattoo design ${subjectClause(ctx)}, in a ${treatment.phrase}.`;
   const detailed =
     `${simple} Treatment: ${treatment.detail}. Composition follows ${ctx.aspectGuidance}.`;
   const ultra =
@@ -427,13 +470,14 @@ function buildCompositionalVariation(
   return {
     axisPosition: { composition: treatment.composition },
     prompts: {
-      simple: keepIfValid(simple + presentation),
-      detailed: keepIfValid(detailed + presentation),
-      ultra: keepIfValid(ultra + presentation),
+      simple: keepIfValid(simple),
+      detailed: keepIfValid(detailed),
+      ultra: keepIfValid(ultra),
     },
     negativePrompt: [
       getBaseNegativePrompt(ctx.subject ?? ''),
       ...paletteNegatives(ctx.palette),
+      PRESENTATION_NEGATIVES,
     ].join(', '),
   };
 }

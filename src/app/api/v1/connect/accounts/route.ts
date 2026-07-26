@@ -13,6 +13,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
+import { verifyFirebaseToken } from '@/lib/auth-dal';
 import { stripe, stripeConfigured, STRIPE_NOT_CONFIGURED } from '@/lib/stripe';
 import { getArtistStripe, setArtistStripeAccount } from '@/lib/artist-stripe';
 
@@ -24,6 +25,11 @@ export async function POST(req: NextRequest) {
 
   if (!stripeConfigured) {
     return NextResponse.json(STRIPE_NOT_CONFIGURED, { status: 503 });
+  }
+
+  const user = await verifyFirebaseToken(req);
+  if (!user) {
+    return NextResponse.json({ error: 'Authentication required', code: 'AUTH_REQUIRED' }, { status: 401 });
   }
 
   let artistId: string | undefined;
@@ -43,6 +49,16 @@ export async function POST(req: NextRequest) {
   const artist = await getArtistStripe(artistId);
   if (!artist) {
     return NextResponse.json({ error: 'Artist not found.' }, { status: 404 });
+  }
+
+  // Only the artist who claimed this profile may create its Connect account —
+  // otherwise any signed-in user could attach their own contact details to
+  // someone else's payout profile.
+  if (artist.claimedByUid !== user.uid) {
+    return NextResponse.json(
+      { error: 'This profile has not been claimed by your account.', code: 'NOT_OWNER' },
+      { status: 403 }
+    );
   }
 
   // Idempotent: never create a second account for an artist that already has one.

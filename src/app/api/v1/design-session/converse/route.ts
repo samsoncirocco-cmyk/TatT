@@ -27,43 +27,45 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
     const reqLogger = createRequestLogger('design-session-converse');
 
-    const authError = await verifyApiAuth(req);
-    if (authError) return authError;
-
-    const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
-
-    if (!demoMode) {
-        const rateResult = await rateLimit(req, 'default');
-        if (!rateResult.allowed) {
-            return rateLimitResponse(rateResult);
-        }
-    }
-
-    const body = await req.json().catch(() => ({}));
-    const { sessionId, message } = body as { sessionId?: unknown; message?: unknown };
-
-    if (sessionId !== undefined && (typeof sessionId !== 'string' || !sessionId.trim())) {
-        return invalidRequestResponse(
-            'sessionId must be a non-empty string when provided',
-            'INVALID_SESSION_ID'
-        );
-    }
-    if (message !== undefined && (typeof message !== 'string' || !message.trim())) {
-        return invalidRequestResponse(
-            'message must be a non-empty string when provided',
-            'INVALID_MESSAGE'
-        );
-    }
-    // The opening call (no sessionId) may omit the message — the bot sends
-    // the opener. Every later turn needs the user's message.
-    if (sessionId !== undefined && message === undefined) {
-        return invalidRequestResponse(
-            'message is required when continuing a conversation',
-            'INVALID_MESSAGE'
-        );
-    }
-
+    // Setup lives inside the try so an auth/rate failure still returns the
+    // structured error envelope and logs, instead of escaping as a bare 500.
     try {
+        const authError = await verifyApiAuth(req);
+        if (authError) return authError;
+
+        const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+
+        if (!demoMode) {
+            const rateResult = await rateLimit(req, 'default');
+            if (!rateResult.allowed) {
+                return rateLimitResponse(rateResult);
+            }
+        }
+
+        const body = await req.json().catch(() => ({}));
+        const { sessionId, message } = body as { sessionId?: unknown; message?: unknown };
+
+        if (sessionId !== undefined && (typeof sessionId !== 'string' || !sessionId.trim())) {
+            return invalidRequestResponse(
+                'sessionId must be a non-empty string when provided',
+                'INVALID_SESSION_ID'
+            );
+        }
+        if (message !== undefined && (typeof message !== 'string' || !message.trim())) {
+            return invalidRequestResponse(
+                'message must be a non-empty string when provided',
+                'INVALID_MESSAGE'
+            );
+        }
+        // The opening call (no sessionId) may omit the message — the bot sends
+        // the opener. Every later turn needs the user's message.
+        if (sessionId !== undefined && message === undefined) {
+            return invalidRequestResponse(
+                'message is required when continuing a conversation',
+                'INVALID_MESSAGE'
+            );
+        }
+
         const response = await converse({
             ...(typeof sessionId === 'string' ? { sessionId: sessionId.trim() } : {}),
             ...(typeof message === 'string' ? { message: message.trim() } : {}),

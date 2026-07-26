@@ -14,7 +14,7 @@ export interface ArtistStripeInfo {
   email: string | null;
   stripeAccountId: string | null;
   chargesEnabled: boolean;
-  /** Firebase uid that claimed this profile, or null if unclaimed. */
+  /** Firebase uid that claimed this profile (see /api/v1/connect/claim), or null if unclaimed. */
   claimedByUid: string | null;
 }
 
@@ -60,6 +60,27 @@ export async function getArtistStripe(artistId: string): Promise<ArtistStripeInf
     chargesEnabled: Boolean(r.chargesEnabled),
     claimedByUid: (r.claimedByUid as string) ?? null,
   };
+}
+
+/**
+ * Read the caller's own Stripe billing customer id (cus_..., set by
+ * setArtistSubscription in src/lib/booking-relay.ts after their first
+ * subscription checkout) via the artist profile they claimed. Never accept a
+ * client-supplied customer id for a billing-portal session — this lookup,
+ * keyed off the verified Firebase uid, is the only legitimate source.
+ * Returns null when the uid has no claimed artist, or that artist has no
+ * subscription yet.
+ */
+export async function getArtistStripeCustomerId(uid: string): Promise<string | null> {
+  const rows = await runRead(
+    `MATCH (a:Artist {claimedByUid: $uid})
+     RETURN a.stripeCustomerId AS stripeCustomerId
+     LIMIT 1`,
+    { uid }
+  );
+  if (!rows.length) return null;
+  const r = rows[0] as Record<string, unknown>;
+  return (r.stripeCustomerId as string) ?? null;
 }
 
 /** Persist the connected-account id onto the artist node (idempotent upsert of the field). */
