@@ -29,7 +29,7 @@ import { verifyFirebaseToken } from '@/lib/auth-dal';
 import { ensureAdminApp } from '@/lib/firebase-admin';
 import { stripe, stripeConfigured, platformFeeCents, CURRENCY } from '@/lib/stripe';
 import { getArtistStripe } from '@/lib/artist-stripe';
-import { depositForSize, type TattooSize } from '@/lib/booking';
+import { depositCentsForSize, type TattooSize } from '@/lib/booking';
 
 export const runtime = 'nodejs';
 
@@ -44,6 +44,11 @@ interface CheckoutPayload {
   clientName: string;
   clientEmail: string;
   bookingId?: string;
+  /**
+   * Set on the reservation path only. Names the exclusive hold this payment is
+   * for; absent means the request model, where nothing is reserved.
+   */
+  holdId?: string;
 }
 
 function getBaseUrl(req: NextRequest): string {
@@ -74,7 +79,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
   }
 
-  const { artistId, artistName, size, placement, date, time, budget, clientName, clientEmail, bookingId } = body;
+  const { artistId, artistName, size, placement, date, time, budget, clientName, clientEmail, bookingId, holdId } = body;
 
   if (!artistName || !size || !placement || !date || !time || !budget || !clientName || !clientEmail) {
     return NextResponse.json({ error: 'Missing required booking details.' }, { status: 400 });
@@ -106,8 +111,54 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const depositAmount = depositForSize(size);
-  const depositAmountInCents = depositAmount * 100;
+  // ---- Reservation path: the payment must be backed by a live hold. ----
+  //
+  // The hold is REFRESHED here rather than merely read, because the session's
+  // `expires_at` is pinned to the hold's expiry and Stripe rejects an
+  // `expires_at` under 30 minutes out. Refreshing restores the full window, so
+  // a client who spent ten minutes on the details form still gets a valid
+  // session — and the session can never outlive the reservation behind it,
+  // which is what stops money arriving for a slot we no longer hold.
+  let holdExpiresAtMs: number | null = null;
+  let activeHoldId = holdId;
+  if (holdId) {
+    const { getHold, placeHold } = await import('@/lib/booking-holds-persistence');
+    const hold = await getHold(holdId);
+    if (!hold || hold.status !== 'active') {
+      return NextResponse.json(
+        { error: 'That time is no longer held. Pick another.', code: 'HOLD_LOST' },
+        { status: 409 }
+      );
+    }
+    // A hold belongs to exactly one booking. Paying against someone else's is
+    // how one client's deposit confirms another client's slot.
+    if (bookingId && hold.bookingId !== bookingId) {
+      return NextResponse.json({ error: 'That hold is not for this booking.' }, { status: 403 });
+    }
+    const refreshed = await placeHold({
+      artistId: hold.artistId,
+      bookingId: hold.bookingId,
+      slot: {
+        date: hold.date,
+        startTime: hold.startTime,
+        endTime: hold.endTime,
+        timezone: hold.timezone,
+      },
+    });
+    if (!refreshed.ok) {
+      return NextResponse.json(
+        { error: 'That time is no longer available.', code: 'HOLD_LOST' },
+        { status: 409 }
+      );
+    }
+    activeHoldId = refreshed.hold.holdId;
+    holdExpiresAtMs = Date.parse(refreshed.hold.expiresAt);
+  }
+
+  // Cents is the source of truth; the dollars value below exists only for the
+  // human-readable metadata and the demo-mode success URL.
+  const depositAmountInCents = depositCentsForSize(size);
+  const depositAmount = depositAmountInCents / 100;
   // Client-paid booking fee, added ON TOP of the deposit so the artist keeps
   // 100% of their rate. The client pays (deposit + fee); TatT keeps the fee.
   const bookingFeeInCents = platformFeeCents(depositAmountInCents);
@@ -183,6 +234,9 @@ export async function POST(req: NextRequest) {
   // the webhook can reconcile a paid deposit. Only set when present — metadata
   // is Record<string,string> and must never carry undefined/empty values.
   if (bookingId) metadata.bookingId = bookingId;
+  // The webhook needs this to convert the hold on payment, or to refund when
+  // `resolvePaidHold` says the reservation was already lost.
+  if (activeHoldId) metadata.holdId = activeHoldId;
   // The booking owner's uid — lets the webhook seed an owner-readable
   // booking_requests doc if the original capture only reached the file fallback.
   if (callerUid) metadata.clientUid = callerUid;
@@ -242,6 +296,12 @@ export async function POST(req: NextRequest) {
       ],
       payment_intent_data,
       metadata,
+      // Stripe stops accepting payment for this session the moment the hold
+      // lapses. This is the load-bearing half of the reservation: without it a
+      // client could pay twenty minutes after their slot went back on sale.
+      ...(holdExpiresAtMs
+        ? { expires_at: Math.floor(holdExpiresAtMs / 1000) }
+        : {}),
     });
 
     if (!session.url) {

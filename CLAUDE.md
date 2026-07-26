@@ -216,7 +216,22 @@ STRIPE_CURRENCY=usd
 DEPOSIT_HOLD_DAYS=7                       # hold window before an unclaimed deposit auto-refunds
 CRON_SECRET=***                          # bearer secret guarding /api/cron/expire-deposits
 STRIPE_PRICE_ARTIST_SUB=price_***        # recurring Price id for the artist subscription
+
+# Google Calendar — per-artist availability sync (see docs/google-calendar-setup.md)
+GOOGLE_OAUTH_CLIENT_ID=***.apps.googleusercontent.com  # unset ⇒ every artist stays on booking requests
+GOOGLE_OAUTH_CLIENT_SECRET=***           # server only
+CALENDAR_TOKEN_ENCRYPTION_KEY=***        # base64 of 32 random bytes; seals every artist's refresh token
+GOOGLE_CALENDAR_WRITE_ENABLED=false      # write-back to an app-created calendar; false everywhere until deliberate
 ```
+
+**Booking model** (see `docs/adr/0027`): a booking is a **reservation** for an
+artist whose Google Calendar is synced, and a **request** for everyone else —
+resolved per artist on every render by `resolveBookingMode`, which fails closed
+to "request". Reservation requires all of: a claimed profile, a live calendar
+connection, published hours, a fresh free/busy read, and a writable hold store.
+Picking a slot takes a 35-minute exclusive hold (`booking_holds`) and the Stripe
+Checkout Session's `expires_at` is pinned to it, so Stripe refuses payment for a
+lapsed reservation.
 
 **Payment flows** (see `docs/adr/0005`–`0008`):
 - **Booking fee** — the client pays a booking fee (`PLATFORM_FEE_BPS`, default 10% of the deposit) **on top** of the deposit; the artist keeps **100%** of the deposit (ADR 0007). The artist subscription lane exists but is dormant at launch.

@@ -9,8 +9,20 @@
  * payments aren't configured the request is still saved and the UI
  * says so plainly — no fake charges, no fake confirmations.
  *
- * Availability is a request, not a reservation: we never show fake
- * open slots. The artist confirms after the request lands.
+ * Which of the two models the client gets is decided per artist, server-side,
+ * by `resolveBookingMode` (ADR 0027):
+ *
+ *  - RESERVATION — the artist has a synced calendar and published hours, so we
+ *    show concrete times. Picking one takes an exclusive hold before checkout,
+ *    and the deposit pays for that specific slot.
+ *  - REQUEST — everyone else, which is most of the roster and permanently so.
+ *    Unchanged from before: pick preferred dates, the artist confirms after.
+ *
+ * The principle that produced the request model is intact, not abandoned: we
+ * still never show a slot that is not real. The difference is that a synced
+ * calendar makes some slots real. `offer.slots` is non-empty only in
+ * reservation mode — the server guarantees it — so there is no path here that
+ * renders a time we cannot hold.
  */
 
 import { useMemo, useState } from "react";
@@ -20,10 +32,30 @@ import TapeCTA from "@/components/punk/TapeCTA";
 import { useBookings, useDesigns, type TattDesign } from "@/lib/tattStorage";
 import { getApiAuthHeaders } from "@/lib/client-api-auth";
 import {
-  depositForSize,
+  depositDollarsForSize,
   MAX_REQUESTED_SLOTS,
   type RequestedSlot,
 } from "@/lib/booking";
+
+/** One concrete bookable time, as offered by the server. */
+export type OfferedSlot = {
+  date: string;
+  startTime: string;
+  endTime: string;
+};
+
+/**
+ * What the server is willing to offer for this artist right now. `mode` is the
+ * honest statement of which product the client is getting, and `slots` is
+ * non-empty only when that mode is "reservation".
+ */
+export type BookOffer = {
+  mode: "reservation" | "request";
+  label: string;
+  detail: string;
+  slots: OfferedSlot[];
+  timezone?: string;
+};
 
 export type BookArtist = {
   id: string;
@@ -84,6 +116,24 @@ function shortDate(d: Date): string {
   return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
 
+/** "2026-08-06" → "Thu, Aug 6", parsed as a wall-clock date, not an instant. */
+function formatSlotDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  return shortDate(new Date(y, m - 1, d));
+}
+
+/** Group offered slots by day, preserving the server's ordering. */
+function groupSlotsByDate(slots: OfferedSlot[]): Array<[string, OfferedSlot[]]> {
+  const byDate = new Map<string, OfferedSlot[]>();
+  for (const slot of slots) {
+    const bucket = byDate.get(slot.date);
+    if (bucket) bucket.push(slot);
+    else byDate.set(slot.date, [slot]);
+  }
+  return [...byDate.entries()];
+}
+
 type Phase = "form" | "submitting" | "captured";
 
 export default function BookClient({
@@ -91,12 +141,15 @@ export default function BookClient({
   requestedArtistId,
   artistLoadFailed,
   designSessionId = "",
+  offer,
 }: {
   artist: BookArtist | null;
   requestedArtistId: string;
   artistLoadFailed: boolean;
   /** Design-session id from the "ds" query param — rides on the booking POST. */
   designSessionId?: string;
+  /** Which booking model this artist is on, and the times we can hold. */
+  offer: BookOffer;
 }) {
   const { addBooking } = useBookings();
   const { designs } = useDesigns();
@@ -108,6 +161,21 @@ export default function BookClient({
   // Step 01 — requested slots
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [timePref, setTimePref] = useState<(typeof TIME_PREFS)[number]>("Flexible");
+
+  // Step 01, reservation model — one concrete slot, which we will hold.
+  const [selectedSlot, setSelectedSlot] = useState<OfferedSlot | null>(null);
+  /**
+   * Set when a reservation degrades mid-flow: the slot was taken between
+   * loading the page and pressing book, or holds went unavailable. The UI drops
+   * to the request model and says so, rather than retrying into a promise it
+   * can no longer keep.
+   */
+  const [reservationLost, setReservationLost] = useState<string | null>(null);
+
+  // Reservation mode only survives while the server is still offering slots AND
+  // nothing has degraded underneath us.
+  const reserving =
+    offer.mode === "reservation" && offer.slots.length > 0 && !reservationLost;
 
   // Step 02 — design + details
   const [designId, setDesignId] = useState<string | null>(null);
@@ -124,8 +192,9 @@ export default function BookClient({
   const [paymentsUnavailable, setPaymentsUnavailable] = useState(false);
 
   const days = useMemo(() => upcomingDays(28), []);
+  const slotsByDate = useMemo(() => groupSlotsByDate(offer.slots), [offer.slots]);
   const chosenDesign = designs.find((d) => d.id === designId);
-  const deposit = depositForSize(size || undefined);
+  const deposit = depositDollarsForSize(size || undefined);
 
   const detailsValid =
     size && placement && description.trim().length > 10 && name.trim() && email.trim() && budget;
@@ -140,12 +209,21 @@ export default function BookClient({
     );
   };
 
-  const requestedSlots: RequestedSlot[] = selectedDates.map((date) =>
-    timePref === "Flexible" ? { date } : { date, time: timePref },
-  );
+  // On the reservation path the booking record carries the exact time being
+  // held, not a preference — the deposit is for that slot and nothing else.
+  const requestedSlots: RequestedSlot[] = reserving
+    ? selectedSlot
+      ? [{ date: selectedSlot.date, time: selectedSlot.startTime }]
+      : []
+    : selectedDates.map((date) =>
+        timePref === "Flexible" ? { date } : { date, time: timePref },
+      );
+
+  /** Has step 01 been answered, in whichever model applies? */
+  const timeChosen = reserving ? Boolean(selectedSlot) : selectedDates.length > 0;
 
   const submit = async () => {
-    if (!artist || !detailsValid || selectedDates.length === 0) return;
+    if (!artist || !detailsValid || !timeChosen) return;
     setPhase("submitting");
     setError(null);
 
@@ -182,9 +260,50 @@ export default function BookClient({
         artistSlug: artist.slug,
         artistName: artist.name,
         designId: chosenDesign?.id,
-        date: selectedDates[0],
+        date: reserving && selectedSlot ? selectedSlot.date : selectedDates[0],
         depositPaid: false,
       });
+
+      // 1b. Reservation path — hold the slot BEFORE paying for it. If the hold
+      // fails there is nothing to pay for, so we stop and say why rather than
+      // taking money for a time we do not have.
+      let holdId: string | undefined;
+      if (reserving && selectedSlot) {
+        const holdRes = await fetch("/api/v1/book/hold", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHeaders },
+          body: JSON.stringify({
+            artistId: artist.id,
+            bookingId: bookData.bookingId,
+            ...selectedSlot,
+          }),
+        });
+        const holdData = await holdRes.json().catch(() => null);
+
+        if (holdRes.status === 409) {
+          // Somebody else took it between the page loading and this click.
+          setSelectedSlot(null);
+          setReservationLost(
+            "That time was taken while you were filling this in. Pick your dates and the artist will confirm.",
+          );
+          setStep(0);
+          setPhase("form");
+          return;
+        }
+        if (!holdRes.ok || !holdData?.holdId) {
+          // Reservations are unavailable for this artist right now. The request
+          // the client already sent is safe — degrade to it honestly instead of
+          // failing the whole booking.
+          setSelectedSlot(null);
+          setReservationLost(
+            "We couldn't hold that time. Your request is saved — the artist will confirm a slot with you.",
+          );
+          setPaymentsUnavailable(false);
+          setPhase("captured");
+          return;
+        }
+        holdId = holdData.holdId;
+      }
 
       // 2. Deposit via Stripe Checkout. If payments aren't configured
       // the request above is still saved — degrade honestly.
@@ -196,12 +315,15 @@ export default function BookClient({
           artistName: artist.name,
           size,
           placement,
-          date: selectedDates[0],
-          time: timePref,
+          date: reserving && selectedSlot ? selectedSlot.date : selectedDates[0],
+          time: reserving && selectedSlot ? selectedSlot.startTime : timePref,
           budget,
           clientName: name.trim(),
           clientEmail: email.trim(),
           bookingId: bookData.bookingId,
+          // Present only on the reservation path. It ties this payment to the
+          // held slot and caps the Stripe session at the hold's expiry.
+          holdId,
         }),
       });
       const payData = await payRes.json().catch(() => null);
@@ -346,7 +468,11 @@ export default function BookClient({
               const done = i < step;
               const doneDetail =
                 i === 0
-                  ? `${selectedDates.length} date${selectedDates.length === 1 ? "" : "s"}`
+                  ? reserving
+                    ? selectedSlot
+                      ? `${formatSlotDate(selectedSlot.date)} ${selectedSlot.startTime}`
+                      : "No time picked"
+                    : `${selectedDates.length} date${selectedDates.length === 1 ? "" : "s"}`
                   : i === 1
                     ? size
                       ? `${size} / ${placement}`
@@ -391,22 +517,66 @@ export default function BookClient({
             })}
           </div>
 
-          {/* STEP 01 — REQUEST A TIME */}
+          {/* STEP 01 — PICK A TIME (reservation) or REQUEST DATES (request) */}
           {step === 0 && (
             <div className="mt-10 border-2 hairline p-6 md:p-8">
               <div className="flex items-baseline justify-between gap-4 flex-wrap mb-2">
                 <h2 className="font-display text-[24px] tracking-wide text-white">
-                  Request your dates
+                  {reserving ? "Pick your time" : "Request your dates"}
                 </h2>
                 <span className="text-[10px] uppercase tracking-[0.25em] text-pink font-body tabular-nums">
-                  Up to {MAX_REQUESTED_SLOTS}
+                  {reserving ? offer.label : `Up to ${MAX_REQUESTED_SLOTS}`}
                 </span>
               </div>
+
+              {/* The client is told which product they are getting, always. */}
               <p className="text-[11px] uppercase tracking-[0.18em] text-white/40 font-body leading-[1.8] max-w-xl">
-                {artist.availabilityNote ??
-                  `${artist.name} confirms your slot after you send the request — these are asks, not reservations.`}
+                {reserving
+                  ? offer.detail
+                  : (artist.availabilityNote ??
+                    `${artist.name} confirms your slot after you send the request — these are asks, not reservations.`)}
               </p>
 
+              {/* A reservation that stopped being available mid-flow says so. */}
+              {reservationLost && (
+                <p className="mt-4 text-[11px] uppercase tracking-[0.18em] text-pink font-body leading-[1.8] max-w-xl">
+                  {reservationLost}
+                </p>
+              )}
+
+              {reserving ? (
+                <div className="mt-6 space-y-6">
+                  {slotsByDate.map(([date, daySlots]) => (
+                    <div key={date}>
+                      <div className="text-[10px] uppercase tracking-[0.28em] text-pink mb-3 font-body">
+                        ▸ {formatSlotDate(date)}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {daySlots.map((slot) => {
+                          const sel =
+                            selectedSlot?.date === slot.date &&
+                            selectedSlot?.startTime === slot.startTime;
+                          return (
+                            <button
+                              key={`${slot.date}-${slot.startTime}`}
+                              type="button"
+                              onClick={() => setSelectedSlot(sel ? null : slot)}
+                              className={`text-[11px] uppercase tracking-[0.2em] border hairline px-4 py-3 press font-body tabular-nums ${
+                                sel
+                                  ? "bg-pink text-black border-pink"
+                                  : "text-white/70 hover:text-black hover:bg-pink"
+                              }`}
+                            >
+                              {slot.startTime}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+              <>
               <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {days.map(({ iso, date }) => {
                   const sel = selectedDates.includes(iso);
@@ -457,6 +627,8 @@ export default function BookClient({
                   ))}
                 </div>
               </div>
+              </>
+              )}
             </div>
           )}
 
@@ -537,7 +709,7 @@ export default function BookClient({
                         {s.label}
                       </span>
                       <span className="block text-[10px] uppercase tracking-[0.2em] text-white/50 font-body mt-1">
-                        {s.desc} · ${depositForSize(s.id)} deposit
+                        {s.desc} · ${depositDollarsForSize(s.id)} deposit
                       </span>
                     </button>
                   ))}
@@ -721,13 +893,15 @@ export default function BookClient({
 
           {/* ACTION ROW */}
           <div className="mt-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-            {selectedDates.length > 0 && step === 0 && (
+            {step === 0 && (reserving ? Boolean(selectedSlot) : selectedDates.length > 0) && (
               <div className="sticker inline-block px-5 py-3 self-start">
                 <div className="font-display text-[14px] tracking-widest leading-none tabular-nums">
-                  {selectedDates.length}/{MAX_REQUESTED_SLOTS}
+                  {reserving && selectedSlot
+                    ? selectedSlot.startTime
+                    : `${selectedDates.length}/${MAX_REQUESTED_SLOTS}`}
                 </div>
                 <div className="font-body text-[10px] uppercase tracking-widest leading-none mt-1">
-                  Dates requested
+                  {reserving ? "Time picked" : "Dates requested"}
                 </div>
               </div>
             )}
@@ -735,7 +909,7 @@ export default function BookClient({
               {step === 0 && (
                 <TapeCTA
                   size="md"
-                  disabled={selectedDates.length === 0}
+                  disabled={!timeChosen}
                   onClick={() => setStep(1)}
                 >
                   Next
