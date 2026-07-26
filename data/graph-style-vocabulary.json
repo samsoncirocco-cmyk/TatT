@@ -1,7 +1,7 @@
 {
   "source": "neo4j:SPECIALIZES_IN",
   "generated": "2026-07-26",
-  "ontologyVersion": 2,
+  "ontologyVersion": 3,
   "styles": [
     {
       "tag": "anime",
