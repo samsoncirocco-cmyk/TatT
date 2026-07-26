@@ -8,7 +8,9 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
+import { verifyFirebaseToken } from '@/lib/auth-dal';
 import { stripeConfigured, STRIPE_NOT_CONFIGURED } from '@/lib/stripe';
+import { getArtistStripe } from '@/lib/artist-stripe';
 import { transferHeldDeposits } from '@/lib/booking-relay';
 
 export const runtime = 'nodejs';
@@ -21,6 +23,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(STRIPE_NOT_CONFIGURED, { status: 503 });
   }
 
+  const user = await verifyFirebaseToken(req);
+  if (!user) {
+    return NextResponse.json({ error: 'Authentication required', code: 'AUTH_REQUIRED' }, { status: 401 });
+  }
+
   let artistId: string | undefined;
   try {
     ({ artistId } = (await req.json()) as { artistId?: string });
@@ -30,6 +37,20 @@ export async function POST(req: NextRequest) {
 
   if (!artistId) {
     return NextResponse.json({ error: 'artistId is required.' }, { status: 400 });
+  }
+
+  const artist = await getArtistStripe(artistId);
+  if (!artist) {
+    return NextResponse.json({ error: 'Artist not found.' }, { status: 404 });
+  }
+
+  // This triggers a real money movement — only the artist who claimed this
+  // profile may release deposits held for it.
+  if (artist.claimedByUid !== user.uid) {
+    return NextResponse.json(
+      { error: 'This profile has not been claimed by your account.', code: 'NOT_OWNER' },
+      { status: 403 }
+    );
   }
 
   try {
