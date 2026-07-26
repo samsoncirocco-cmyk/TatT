@@ -122,6 +122,24 @@ and anatomical-mapping modules and `/api/v1/ar/visualize` were removed — see
 | Add relationships | `scripts/add-sample-relationships.js` |
 | Sample queries | `scripts/SAMPLE_QUERIES.cypher` |
 
+### `directives/artist-takedown.md`
+
+Removal semantics and identity-proof decisions: `docs/adr/0024-artist-takedown-semantics.md`
+
+| Step | Implementation |
+|------|---------------|
+| Domain rules (validation, tombstone keys, suppression clause) | `src/lib/takedown.ts` |
+| Request persistence (`:TakedownRequest`) | `src/lib/takedown-graph.ts` |
+| API: submit a request (public, removes nothing) | `src/app/api/v1/artists/takedown/route.ts` |
+| Ops notification (reports failure, never swallows) | `src/lib/notify.ts` (`notifyOpsOfTakedownRequest`) |
+| UI: request form | `src/app/takedown/[artistId]/page.tsx` |
+| Read-path suppression | `src/lib/artists-graph.ts`, `src/features/match-pulse/services/neo4jService.ts`, `src/app/api/v1/book/route.ts` |
+| **Scripts** | |
+| Execute a takedown (dry-run by default) | `scripts/execute-takedown.mjs` |
+| Planner / executor | `scripts/lib/takedown-plan.mjs` |
+| Ingest tombstone gate (fails closed) | `scripts/lib/takedown-tombstone.mjs` |
+| Gated ingest paths | `scripts/import-to-neo4j.js`, `scripts/data_acquisition/import_to_neo4j.js`, `scripts/host-artist-images.mjs` |
+
 ### `directives/deploy.md`
 
 | Step | Implementation |
