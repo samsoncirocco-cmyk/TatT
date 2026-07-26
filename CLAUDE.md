@@ -7,6 +7,34 @@
 - **AR Preview** — Real-time body overlay with depth mapping for realistic placement visualization
 - **Artist Matching** — Semantic search via Supabase vectors + Neo4j graph relationships + Firebase real-time updates
 
+## Status: pre-launch, stealth
+
+**TatT is not live.** There are no customers, no onboarded artists, and no real
+transactions. Everything here is being built so it is *ready* when those exist —
+not to keep a running service alive.
+
+**How to judge severity.** A defect found in this repo is "this would be broken
+at launch", not "someone is suffering right now". Nobody is. Write findings that
+way: no "customers are losing money", no "an artist will email you tomorrow", no
+incident framing. The useful question is *would this be wrong on day one*, not
+*is this on fire*. Reserve urgency for the things below, which are real today.
+
+**What IS live and does deserve weight:**
+
+- **Spend.** Vertex, Replicate and OpenRouter calls cost real money against a
+  real cap (`BUDGET_MAX_SPEND_CENTS`). An unmetered generation path is a genuine
+  problem now, not at launch.
+- **Third-party data.** Roughly 7,828 artists were scraped and ~62,000 of their
+  photos are hosted on TatT infrastructure, publicly reachable, without consent.
+  That exposure exists today and is independent of launch.
+- **The deployed site is public.** tatttester.com, tatt-t.com and image2ink.com
+  serve anyone who finds them.
+- **Security gaps still get fixed properly** — but the framing is "close it
+  before anyone can reach it", not "we are being exploited".
+
+Being pre-launch lowers the urgency, not the standard. The work still has to be
+right; it just isn't an emergency.
+
 ### Mission
 Democratize custom tattoo design by lowering the barrier between idea and execution. Empower users to iterate quickly, visualize accurately, and connect with the right artists.
 
