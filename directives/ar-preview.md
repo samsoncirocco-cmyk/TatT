@@ -1,192 +1,153 @@
-# AR Preview
+# AR Preview (Live Camera Mirror)
 
 ## Goal
-Enable users to visualize their tattoo design overlaid on their body in real-time using augmented reality, with realistic depth mapping and perspective correction.
+Let a user point their phone at their skin and see a design sitting on it, in
+real time, before they commit. This is a **trust artifact** — it exists to make
+someone confident enough to book. It is not a stencil, and the artist does not
+work from it. The artist works from the brief.
 
 ## When to Use
-- User wants to preview design placement before committing
-- API endpoint: `POST /api/v1/ar/visualize`
-- Trigger: User clicks "Preview on Body" button in design view
+- User wants to see a design on their own body before booking
+- Route: `/visualize` (reachable from the homepage card)
+- Component: `ARMirror` (`src/features/ar/components/ARMirror.tsx`)
 
-## Prerequisites
-- Finalized design image (PNG with transparency preferred)
-- Target body part selection (arm, chest, back, leg, etc.)
-- Device camera access (mobile or desktop webcam)
-- MindAR library loaded (face/body tracking)
+## What this is — and what it deliberately is not
+
+**It is:** a live camera feed with the user's own generated design composited
+over it, positioned by the user, exportable as a PNG.
+
+**It is not tracked.** The design does not follow the arm. There is no body
+detection, no landmark estimation, no depth mapping, no perspective warp.
+
+This is a deliberate scope decision, not a gap left for later convenience:
+
+1. **Body/limb tracking is explicitly v2**, alongside lighting normalization
+   and skin-tone matching.
+2. **MindAR cannot do it anyway.** MindAR supports *image-target* and *face*
+   tracking only. Body tracking appears in its README roadmap as an aspiration
+   and is not implemented — there is no MindAR API that returns a shoulder,
+   elbow or wrist. Earlier versions of this directive described a "MindAR body
+   tracker" returning those landmarks; that was never buildable. See
+   `docs/adr/0024-live-ar-is-untracked.md`.
+3. **Placement is not inferred.** It is resolved during intake and carried on
+   `Brief.placement`. The AR step displays that tag; it never guesses from the
+   camera.
+
+An untracked preview that is honest about being untracked is worth more than a
+tracked one that invents its numbers. The previous implementation reported a
+"±2cm" accuracy badge computed as `0.95 - Math.random() * 0.05`.
+
+## Hard prerequisite: flash art on white
+
+**The design's background must be strippable to transparency.** This is a hard
+dependency, not a nicety.
+
+Providers do not reliably return RGBA — most reveal renders are ink on a white
+square. `stripWhiteBackground()` lifts near-white (the 235..255 ramp) to real
+alpha so only the linework composites.
+
+**An on-skin render fails this completely.** Nothing in it is white enough to
+remove, so the whole rectangle survives opaque, and overlaying it pastes *a
+stranger's forearm* onto the user's camera feed.
+
+So the guard runs first and fails closed:
+
+**Location:** `src/services/ar/designSource.ts`
+
+- `analyzeDesignSource()` samples the image's border ring — ink sits in the
+  middle of both a flash render and an on-skin render, so the edge is what
+  distinguishes paper from skin. Flash art measures ~1.0; an on-skin render
+  measures ~0.0, because skin fails an all-channels-≥235 test even at very pale
+  tones.
+- Images already carrying real alpha are accepted as-is.
+- **Unreadable pixels are rejected**, not guessed at. A tainted cross-origin
+  canvas means the guard cannot verify the background, and rendering anyway is
+  exactly the failure it exists to prevent. Design images are therefore loaded
+  with `crossOrigin = 'anonymous'`.
+- `prepareDesignForOverlay()` returns `canvas: null` for a rejected design, so
+  no caller can render one by forgetting to check the verdict.
+
+A blocked design shows the user why, and offers no export.
 
 ## Steps
 
-### 1. Initialize AR Session
-**Location:** `src/services/ar/mindarSession.js` → `initSession()`
-- Request camera permissions
-- Load MindAR body tracker:
-  - **Face tracking** for head/neck tattoos
-  - **Body tracking** for torso/limbs (if available)
-  - **Marker tracking** fallback for unsupported devices
-- Start video stream at 640x480 (balance quality vs performance)
+### 1. Check support before offering the camera
+**Location:** `src/services/ar/arService.js` → `checkArSupport()`
 
-### 2. Detect Body Landmarks
-**Location:** `src/services/ar/mindarLoader.js`
-- MindAR detects key body points:
-  - **Arm:** Shoulder, elbow, wrist
-  - **Chest:** Sternum, clavicle
-  - **Back:** Spine, shoulder blades
-  - **Leg:** Hip, knee, ankle
-- Return 3D coordinates + confidence scores (0-1)
-- Filter out low-confidence detections (<0.6)
+Returns `{ supported, reason, message }`. Missing `getUserMedia` or an insecure
+origin is answered *up front*, so an unsupported device never taps into a dead
+viewport. `http://localhost` is a secure context; a LAN IP is not.
 
-### 3. Calculate Depth Mapping
-**Location:** `src/services/ar/depthMappingService.js`
-- Estimate depth from camera to body part:
-  - Use landmark distances (e.g., shoulder to elbow)
-  - Compare to anatomical averages
-  - Adjust for camera FOV and distance
-- Apply depth-based scaling:
-  - Closer body parts → larger tattoo
-  - Farther body parts → smaller tattoo
-- Calculate curvature compensation:
-  - Cylindrical surfaces (arm, leg) → warp design
-  - Flat surfaces (back, chest) → minimal warping
+### 2. Open the camera
+**Location:** `src/features/ar/useArSession.ts`
 
-### 4. Position and Transform Design
-**Location:** `src/services/ar/arService.js` → `positionTattoo()`
-- Calculate transformation matrix:
-  - Translation: Center design on target landmark
-  - Rotation: Align with body orientation
-  - Scale: Adjust for depth and user-specified size
-  - Skew: Compensate for perspective distortion
-- Apply real-time tracking updates (60fps for smooth motion)
+`start()` walks `idle → requesting → starting → active`. Every failure lands on
+a terminal state carrying a machine-readable `reason` and a sentence the user
+can act on:
 
-### 5. Render Overlay
-**Location:** `src/services/ar/arService.js` → `renderOverlay()`
-- Composite design onto video stream:
-  - Blend mode: Multiply (for realistic skin interaction)
-  - Opacity: 80% (semi-transparent for realism)
-  - Shadow: Subtle drop shadow for depth perception
-- Apply lighting adjustment:
-  - Detect ambient lighting from video frame
-  - Adjust tattoo brightness/contrast to match
-- Add occlusion handling:
-  - Hide design behind body parts (e.g., arm in front of chest)
+| reason | cause |
+|---|---|
+| `permission-denied` | user declined the prompt |
+| `no-camera` | no video input device |
+| `camera-busy` | device held by another app |
+| `stream-timeout` | camera opened but never delivered a frame |
+| `insecure-context` | page not on https/localhost |
+| `no-camera-api` | browser has no getUserMedia |
 
-### 6. Real-Time Adjustment Controls
-**Location:** `src/components/ar/ARControls.tsx`
-- Provide UI sliders:
-  - **Size:** 50% - 200% of default
-  - **Rotation:** -180° to +180°
-  - **Position:** Fine-tune X/Y offset
-  - **Opacity:** 60% - 100%
-- Update rendering in real-time (<16ms latency)
+There is no state meaning "still trying, indefinitely". A spinner that never
+resolves is the bug class this replaced.
 
-### 7. Capture Screenshot
-**Location:** `src/services/ar/arService.js` → `captureFrame()`
-- Freeze current video frame
-- Render high-quality overlay (upscale to 1080p if possible)
-- Export as PNG or JPEG
-- Save to user's gallery or share directly
+### 3. Place the design
+The user drags it, and sets size, rotation and ink strength. Composited with
+`mix-blend-mode: multiply` so ink sinks into skin tone instead of floating like
+a sticker — white paper multiplies to skin, black ink stays black.
 
-### 8. Return to Client
-**Response Format (for API-based AR):**
-```json
-{
-  "sessionId": "ar_session_123",
-  "bodyPartDetected": "right_arm",
-  "landmarks": [
-    {"point": "shoulder", "x": 320, "y": 120, "confidence": 0.89},
-    {"point": "elbow", "x": 280, "y": 280, "confidence": 0.92},
-    {"point": "wrist", "x": 260, "y": 420, "confidence": 0.85}
-  ],
-  "transformMatrix": {
-    "scale": 1.2,
-    "rotation": 15,
-    "translation": [320, 240],
-    "depth": 0.8
-  },
-  "captureUrl": "https://storage.googleapis.com/.../ar_capture_123.png"
-}
-```
+### 4. Export
+`capture()` flattens the current video frame plus the overlay at the same
+transform, and downloads a PNG. What was on screen is what is saved.
 
-## Expected Output
-- **Real-time overlay:** 30-60 fps video with tattoo rendered on body
-- **Latency:** <50ms from camera frame to display
-- **Accuracy:** ±2cm positioning accuracy on body landmarks
-- **Capture resolution:** 1080p or device native resolution
+### 5. Release the camera
+`stop()` ends every track, clears `srcObject` and returns to `idle`. Unmount
+does the same. A stream arriving *after* the user cancelled is torn down rather
+than orphaned — otherwise the camera light stays on until the tab closes.
 
 ## Edge Cases
 
-### Camera Permission Denied
-- **Fallback:** Show static preview using uploaded body photo
-- **UI Message:** "Enable camera access for live AR preview, or upload a photo."
+| Case | Behaviour |
+|---|---|
+| Permission denied | Terminal error + "Try again" / "Go back" |
+| Camera busy | Terminal error naming the cause |
+| Camera opens, no frames | 12s timeout, then a specific error |
+| Unsupported browser / insecure origin | Said before the camera is offered |
+| On-skin design selected | Blocked, explained, no export |
+| Design image unreadable | Blocked — never rendered on a guess |
+| No generated designs | Entry button disabled with the reason |
 
-### Body Part Not Detected
-- **Fallback:** Manual placement mode (user taps screen to position)
-- **UI Guidance:** "Point camera at your [arm/chest/etc.] and hold steady."
-- **Retry:** Continue scanning for 10s, then prompt manual mode
+## Testing
 
-### Poor Lighting Conditions
-- **Detection:** Low brightness or high noise in video frame
-- **Solution:** Increase camera exposure, apply denoising filter
-- **UI Message:** "Move to a brighter area for better results."
+Headless (`npm test`): `designSource` (12), `arService` (15), `useArSession`
+(9), `ARMirror` (8). jsdom is backed by node-canvas here, so the alpha-strip and
+the on-skin guard run against **real pixels**, not mocked verdicts.
 
-### Device Not Supported (Old Browser)
-- **Detection:** WebGL not available or MindAR fails to load
-- **Fallback:** Static overlay using pre-defined body templates
-- **UI Message:** "AR preview not available. Use photo upload instead."
+A live camera cannot be tested in jsdom. Two options for a real browser:
 
-### Design Too Large for Body Part
-- **Detection:** Tattoo exceeds anatomical boundaries
-- **Solution:** Auto-scale to fit within detected surface
-- **UI Warning:** "Design scaled to fit [arm/chest]. Actual size may differ."
+- **`canvas.captureStream()`** — publish an animated canvas as a genuine
+  `MediaStream` and override `navigator.mediaDevices.getUserMedia`. Needs no
+  flags and no new dependency; this is how the feature was verified.
+- **Chrome fake-camera flags** — `--use-fake-device-for-media-stream` plus
+  `--use-file-for-fake-video-capture=/abs/path.y4m` (the first is required for
+  the second to do anything; the file must be I420 `yuv420p`). Would require
+  adding Playwright, which the repo does not have.
 
-### Rapid Movement (Motion Blur)
-- **Detection:** Landmark confidence drops below 0.5
-- **Solution:** Temporarily hide overlay until stable tracking resumes
-- **UI Message:** "Hold camera steady for best results."
+## Cost
+Free. Entirely client-side — no API calls, no server render, no storage unless
+the user exports (and that download is local).
 
-## Performance Optimization
+## Related
+- `generate-design.md` — produces the design (must be flash art on white)
+- `docs/adr/0024-live-ar-is-untracked.md` — why untracked, and the MindAR call
 
-### Frame Rate Throttling
-- **Mobile:** Limit to 30fps to conserve battery
-- **Desktop:** Full 60fps for smooth experience
-- **Low-end devices:** Drop to 15fps + reduce resolution
-
-### Lazy Loading
-- Load MindAR models only when AR mode is activated
-- Preload models in background during design generation
-
-### Caching
-- Cache body tracking models (localStorage, ~5MB)
-- Cache transformation matrices for common body parts
-
-## Device Requirements
-
-### Minimum Specs
-- **Mobile:** iOS 12+ / Android 8+, camera 720p, WebGL 2.0
-- **Desktop:** Chrome 90+, webcam 480p, WebGL 2.0
-- **RAM:** 2GB+ (MindAR body tracking is memory-intensive)
-
-### Recommended Specs
-- **Mobile:** iOS 14+ / Android 11+, camera 1080p
-- **Desktop:** Chrome 110+, webcam 1080p
-- **RAM:** 4GB+
-
-## Cost (per session)
-
-| Service | Cost | Notes |
-|---------|------|-------|
-| MindAR (client-side) | Free | Runs in browser, no API calls |
-| Video processing | Free | Local compute |
-| Capture storage (GCS) | ~$0.00004 | Per screenshot saved |
-
-**Average Session:** Free (no server costs unless capturing)
-
-## Related Directives
-- `generate-design.md` — Design generation (provides tattoo image)
-- `stencil-export.md` — Export finalized placement for artist
-- `api-endpoints.md` — API reference (if using server-side AR processing)
-
-## Future Enhancements
-- **3D body mesh:** Full body scanning for accurate surface mapping
-- **Skin tone matching:** Adjust tattoo colors based on detected skin tone
-- **Multi-tattoo preview:** Overlay multiple designs simultaneously
-- **Social sharing:** Export AR video clips (not just screenshots)
+## Future (v2)
+- Body/limb tracking via **MediaPipe Tasks Vision PoseLandmarker** (not MindAR)
+- Lighting normalization; skin-tone matching
+- Sharing an AR clip rather than a still

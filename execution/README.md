@@ -78,13 +78,15 @@ Maps each directive to the scripts, services, and API routes that implement it. 
 
 | Step | Implementation |
 |------|---------------|
-| AR service | `src/services/ar/arService.js` |
-| Depth mapping | `src/services/ar/depthMappingService.js` |
-| MindAR loader | `src/services/ar/mindarLoader.js` |
-| MindAR session | `src/services/ar/mindarSession.js` |
-| Anatomical mapping | `src/utils/anatomicalMapping.js` |
-| Visualize UI | `src/features/Visualize.jsx` |
-| API: AR visualize | `src/app/api/v1/ar/visualize/route.ts` |
+| Camera + support check | `src/services/ar/arService.js` |
+| On-skin guard + alpha strip | `src/services/ar/designSource.ts` |
+| Session lifecycle | `src/features/ar/useArSession.ts` |
+| Mirror UI | `src/features/ar/components/ARMirror.tsx` |
+| Entry page | `src/app/visualize/page.tsx` |
+
+No API route: the preview is entirely client-side. The depth-mapping, MindAR
+and anatomical-mapping modules and `/api/v1/ar/visualize` were removed — see
+`docs/adr/0024-live-ar-is-untracked.md`.
 
 ### `directives/layer-management.md`
 
@@ -161,7 +163,6 @@ Maps each directive to the scripts, services, and API routes that implement it. 
 | Council | `src/app/api/v1/council/enhance/route.ts` |
 | Match semantic | `src/app/api/v1/match/semantic/route.ts` |
 | Match update | `src/app/api/v1/match/update/route.ts` |
-| AR visualize | `src/app/api/v1/ar/visualize/route.ts` |
 | Stencil export | `src/app/api/v1/stencil/export/route.ts` |
 | Layer decompose | `src/app/api/v1/layers/decompose/route.ts` |
 | Upload layer | `src/app/api/v1/upload-layer/route.ts` |
