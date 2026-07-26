@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
 import TapeCTA from "@/components/punk/TapeCTA";
+import ShareDesignAction from "@/features/share/components/ShareDesignAction";
 import { useDesigns, type TattDesign } from "@/lib/tattStorage";
 
 function formatCreated(ts: number): string {
@@ -181,6 +182,16 @@ export default function DesignDetailPage({
                 ✕ Delete
               </button>
             </div>
+
+            {/* Sharing lives here, on its own line, because the link panel it
+                opens needs the full column width — and because this is the
+                one view where a single design has an identity to send. */}
+            <ShareDesignAction
+              className="mt-3"
+              imageUrl={design.image}
+              prompt={design.prompt}
+              redirectTo={`/designs/${design.id}`}
+            />
           </div>
         </div>
       </div>
