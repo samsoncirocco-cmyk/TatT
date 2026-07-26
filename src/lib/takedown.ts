@@ -45,8 +45,28 @@ export type TombstoneKey = {
 
 export type ValidationResult<T> = { ok: true; value: T } | { ok: false; error: string };
 
-/** Artist ids are used as GCS path segments (`artists/<id>/…`) — keep them inert. */
-const SAFE_ARTIST_ID = /^[A-Za-z0-9_-]+$/;
+/**
+ * Artist ids are used as GCS path segments (`artists/<id>/…`), so they must be
+ * inert. The property that matters is "cannot escape its prefix or name a
+ * different object" — not "contains no dots".
+ *
+ * An earlier `/^[A-Za-z0-9_-]+$/` conflated the two and **rejected 1,621 of the
+ * 10,427 artists in the national dataset (15.5%)**. Ids there are derived from
+ * the Instagram handle (`artist_pham.minh.phuc`), and Instagram allows dots — so
+ * the strict form meant an artist with a dot in their handle could not file a
+ * takedown request at all, and `tombstoneKeysFor` threw on them. A validator
+ * that silently refuses one in seven of the people this mechanism exists for is
+ * worse than the traversal risk it was guarding.
+ *
+ * Dots are therefore allowed, and traversal is blocked directly: no leading
+ * dot, and no `..` anywhere. `/` and `\` remain excluded by the character class.
+ */
+const SAFE_ARTIST_ID = /^[A-Za-z0-9_-][A-Za-z0-9._-]*$/;
+
+/** True when `id` is safe to interpolate into a storage path. */
+export function isSafeArtistId(id: string): boolean {
+  return SAFE_ARTIST_ID.test(id) && !id.includes('..');
+}
 
 /** Deliberately permissive: rejecting a real artist's odd address is the worse error. */
 const EMAIL_SHAPE = /^[^\s@]+@[^\s@.]+\.[^\s@]+$/;
@@ -91,7 +111,7 @@ export function tombstoneKeysFor(input: {
   sourcePages?: readonly string[] | null;
 }): TombstoneKey[] {
   const artistId = input.artistId?.trim();
-  if (!artistId || !SAFE_ARTIST_ID.test(artistId)) {
+  if (!artistId || !isSafeArtistId(artistId)) {
     throw new Error(`Unsafe artistId for tombstone: ${JSON.stringify(input.artistId)}`);
   }
 
@@ -133,7 +153,7 @@ export function validateTakedownRequest(body: unknown): ValidationResult<Takedow
 
   const artistId = typeof b.artistId === 'string' ? b.artistId.trim() : '';
   if (!artistId) return { ok: false, error: 'artistId is required.' };
-  if (!SAFE_ARTIST_ID.test(artistId)) {
+  if (!isSafeArtistId(artistId)) {
     return { ok: false, error: 'artistId contains unsupported characters.' };
   }
 
