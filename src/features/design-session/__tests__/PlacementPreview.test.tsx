@@ -156,10 +156,13 @@ function sessionWith(designUrl: string): DesignSession {
 
 /**
  * Adding a design is an async chain (loadImage → pixel vet → strip → canvas),
- * so every assertion on it has to wait. testing-library's default 1s deadline
- * is a wall clock, not a measure of the work, and it goes red on a loaded CI
- * runner while the code is perfectly healthy — same reasoning as the raised
- * testTimeout in vitest.config.ts. Give it headroom instead.
+ * so every assertion on it has to wait.
+ *
+ * Headroom is NOT what makes this file stable — every interaction below is
+ * gated on the component's own readiness signal, so nothing here races a clock.
+ * If one of these waits ever expires, the work genuinely is not happening;
+ * raising the number will only make the red run slower. Go read what the wait
+ * is gated on instead.
  */
 const SETTLE = { timeout: 10_000 };
 
@@ -169,7 +172,18 @@ async function addDesign(count: number) {
   await waitFor(() => expect(canvasObjects).toHaveLength(count), SETTLE);
 }
 
-/** Drive the file input, then wait for the canvas to come up. */
+/**
+ * Drive the file input, then wait for the canvas to come up.
+ *
+ * The wait has to be on the tray BUTTON being enabled, not on the tray merely
+ * existing. The tray renders the moment `photoUrl` is set, but its buttons stay
+ * `disabled` until the async canvas build (import fabric → loadImage → new
+ * Canvas → setCanvasReady) finishes. React does not deliver a click to a
+ * disabled button, and `waitFor` re-checks its assertion without re-clicking —
+ * so a click fired one macrotask too early is swallowed with no trace and the
+ * caller then waits out its entire deadline for a canvas object that will never
+ * arrive. Gate on the component's own readiness signal instead of racing it.
+ */
 async function uploadPhoto() {
   imageFor.set('data:image/png;base64,UEhPVE8=', flashArt);
   const input = screen.getByLabelText('Upload a photo of your body') as HTMLInputElement;
@@ -183,10 +197,10 @@ async function uploadPhoto() {
     this.onload?.({} as ProgressEvent<FileReader>);
   });
   fireEvent.change(input, { target: { files: [file] } });
-  await waitFor(
-    () => expect(screen.getByRole('group', { name: 'Add a design to the photo' })).toBeTruthy(),
-    SETTLE
-  );
+  await waitFor(() => {
+    const add = screen.getByRole('button', { name: 'Add Design 1 to the photo' });
+    expect(add.hasAttribute('disabled')).toBe(false);
+  }, SETTLE);
 }
 
 beforeEach(() => {
