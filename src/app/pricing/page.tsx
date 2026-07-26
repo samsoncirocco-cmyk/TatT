@@ -88,10 +88,10 @@ export default function PricingPage() {
                 )}
 
                 <div className="sticker inline-block px-3 py-1 mb-6">
-                  <div className="font-display text-[11px] tracking-widest leading-none">
+                  <div className="font-display text-[14px] tracking-widest leading-none">
                     {t.name}
                   </div>
-                  <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-0.5">
+                  <div className="font-body text-[10px] uppercase tracking-widest leading-none mt-0.5">
                     Tier
                   </div>
                 </div>
@@ -138,10 +138,10 @@ export default function PricingPage() {
           <div className="mt-16 md:mt-24 border-2 border-pink bg-black p-8 md:p-12 flex flex-col md:flex-row md:items-center md:justify-between gap-8">
             <div className="max-w-xl">
               <div className="sticker inline-block px-3 py-1 mb-6">
-                <div className="font-display text-[11px] tracking-widest leading-none">
+                <div className="font-display text-[14px] tracking-widest leading-none">
                   For Artists
                 </div>
-                <div className="font-body text-[8px] uppercase tracking-widest leading-none mt-0.5">
+                <div className="font-body text-[10px] uppercase tracking-widest leading-none mt-0.5">
                   Plan
                 </div>
               </div>

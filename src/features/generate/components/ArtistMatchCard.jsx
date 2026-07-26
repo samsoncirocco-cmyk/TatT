@@ -35,7 +35,7 @@ export default function ArtistMatchCard({ artist }) {
             {artist.styles.slice(0, 2).map((style) => (
               <span
                 key={style}
-                className="text-[9px] uppercase tracking-[0.2em] px-2 py-0.5 border hairline bg-black text-white/70 font-body"
+                className="text-[10px] uppercase tracking-[0.2em] px-2 py-0.5 border hairline bg-black text-white/70 font-body"
               >
                 {style}
               </span>
