@@ -28,9 +28,10 @@ async function getDesign(shareId: string): Promise<SharedDesign | null> {
 export async function generateMetadata({
   params,
 }: {
-  params: { shareId: string };
+  params: Promise<{ shareId: string }>;
 }): Promise<Metadata> {
-  const design = await getDesign(params.shareId);
+  const { shareId } = await params;
+  const design = await getDesign(shareId);
 
   if (!design) {
     return { title: 'Design Not Found — TatT' };
@@ -69,8 +70,13 @@ export async function generateMetadata({
   };
 }
 
-export default async function SharePage({ params }: { params: { shareId: string } }) {
-  const design = await getDesign(params.shareId);
+export default async function SharePage({
+  params,
+}: {
+  params: Promise<{ shareId: string }>;
+}) {
+  const { shareId } = await params;
+  const design = await getDesign(shareId);
 
   if (!design) {
     notFound();
