@@ -132,7 +132,7 @@ describe("token exchange", () => {
       jsonResponse({ access_token: "a", refresh_token: "r", expires_in: 60 }),
     );
     await exchangeCodeForTokens({ ...CREDS, code: "c", fetchImpl });
-    const [url, init] = fetchImpl.mock.calls[0] as [string, RequestInit];
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).not.toContain(CREDS.clientSecret);
     expect(String(init.body)).toContain("client_secret");
   });
@@ -188,7 +188,7 @@ describe("revocation", () => {
   it("posts the token to Google's revoke endpoint", async () => {
     const fetchImpl = vi.fn(async () => new Response("", { status: 200 }));
     expect(await revokeToken({ token: "rt-1", fetchImpl })).toBe(true);
-    const [url] = fetchImpl.mock.calls[0] as [string];
+    const [url] = fetchImpl.mock.calls[0] as unknown as [string];
     expect(url).toBe("https://oauth2.googleapis.com/revoke");
   });
 
@@ -417,7 +417,7 @@ describe("write-back", () => {
     expect(res.ok).toBe(true);
     if (!res.ok) return;
     expect(res.eventId).toBe("ev-1");
-    const [url] = fetchImpl.mock.calls[0] as [string];
+    const [url] = fetchImpl.mock.calls[0] as unknown as [string];
     expect(url).toContain("/calendars/cal-1/events");
   });
 });

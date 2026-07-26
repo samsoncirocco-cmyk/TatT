@@ -33,6 +33,7 @@ type ServerBooking = {
 
 const STATUS_LABELS: Record<BookingStatus, string> = {
   pending: "Awaiting deposit",
+  held: "Slot held — finish payment",
   deposit_paid: "Deposit paid",
   confirmed: "Confirmed",
   declined: "Declined",
