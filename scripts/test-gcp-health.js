@@ -12,9 +12,9 @@
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
-import { checkGCSHealth } from '../src/services/gcs-service.js';
+import { checkGCSHealth } from '../src/services/gcs-service.ts';
 import { checkVertexAIHealth } from '../src/services/vertex-ai-service.js';
-import { checkFirebaseHealth } from '../src/services/firebase-match-service.js';
+import { checkFirebaseHealth } from '../src/services/firebase-match-service.ts';
 
 console.log('='.repeat(60));
 console.log('TatT Pro - GCP Services Health Check');

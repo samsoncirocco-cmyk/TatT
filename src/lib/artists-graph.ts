@@ -11,27 +11,16 @@
  * module stays importable in tests without touching Neo4j.
  */
 import { artistSlug } from "@/lib/artist-slug";
+import { CANONICAL_STYLES, styleMatchVariants } from "@/lib/style-vocabulary";
 
 export const ROSTER_PAGE_SIZE = 24;
 
-/** Canonical style vocabulary of the live artist graph (matches /matches). */
-export const ROSTER_STYLES = [
-  "Traditional",
-  "Neo-Traditional",
-  "Black & Grey",
-  "Blackwork",
-  "Fine Line",
-  "Realism",
-  "Illustrative",
-  "Japanese",
-  "Watercolor",
-  "Geometric",
-  "Tribal",
-  "Chicano",
-  "Anime",
-  "Minimalist",
-  "Script",
-] as const;
+/**
+ * Roster filter chips. This used to be a copy-paste of CANONICAL_STYLES and
+ * had drifted into the same dead filters (/artists?style=Script matched
+ * nothing). It is the one vocabulary now — see src/lib/style-vocabulary.
+ */
+export const ROSTER_STYLES = CANONICAL_STYLES;
 
 export type RosterArtist = {
   id: string;
@@ -72,19 +61,23 @@ export type RosterFilter = {
  */
 export function buildRosterFilter(filter: RosterFilter): {
   where: string;
-  params: { q: string | null; style: string | null; hasPortfolio: boolean };
+  params: { q: string | null; styleVariants: string[]; hasPortfolio: boolean };
 } {
   const q = filter.q?.trim() || null;
   const style = filter.style?.trim() || null;
   const hasPortfolio = !!filter.hasPortfolio;
+  // Every spelling the graph may store this style under. An unrecognized
+  // style yields an empty list, and `size(...) > 0 AND ...` then matches
+  // nothing — a filter nobody can satisfy must return nothing, not everyone.
+  const styleVariants = style ? styleMatchVariants(style) : [];
   const where = `
     ($q IS NULL
       OR toLower(coalesce(a.name, '')) CONTAINS toLower($q)
       OR toLower(coalesce(a.city, '')) CONTAINS toLower($q)
       OR toLower(coalesce(a.shopName, '')) CONTAINS toLower($q))
-    AND ($style IS NULL OR any(s IN styles WHERE toLower(s) = toLower($style)))
+    AND (${style === null ? "true" : "size($styleVariants) > 0 AND any(s IN styles WHERE toLower(s) IN $styleVariants)"})
     AND (NOT $hasPortfolio OR (a.portfolioImages IS NOT NULL AND size(a.portfolioImages) > 0))`;
-  return { where, params: { q, style, hasPortfolio } };
+  return { where, params: { q, styleVariants, hasPortfolio } };
 }
 
 /** Clamp a raw page value to [1, ∞) and derive the Cypher skip window. */

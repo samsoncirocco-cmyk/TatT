@@ -116,10 +116,20 @@ export function toDesignSession(session: StoredSession): DesignSession {
 
 // ─── In-memory store ───────────────────────────────────────────────────
 
-// Module state is only relied on when Firestore is NOT active (demo mode,
-// creds-less dev, tests) — exactly the environments where a single
-// long-lived process is guaranteed.
-const sessions = new Map<string, StoredSession>();
+// Only relied on when Firestore is NOT active (demo mode, creds-less dev,
+// tests) — environments where a single long-lived process is guaranteed.
+//
+// Held on globalThis, NOT in module scope: every design-session route is its
+// own Next.js entry point and bundles its own instance of this module, so a
+// module-scoped Map is per-ROUTE, not per-process. A session written by
+// /converse was then invisible to /[id]/confirm, and tapping "show me" at
+// the proposal answered "Session not found" — the reveal was unreachable in
+// demo mode and in creds-less dev.
+const GLOBAL_KEY = '__tattDesignSessions';
+const globalStore = globalThis as typeof globalThis & {
+  [GLOBAL_KEY]?: Map<string, StoredSession>;
+};
+const sessions: Map<string, StoredSession> = (globalStore[GLOBAL_KEY] ??= new Map());
 
 export const memorySessionStore: SessionStore = {
   async get(id) {

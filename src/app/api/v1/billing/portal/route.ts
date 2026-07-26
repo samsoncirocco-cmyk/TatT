@@ -1,12 +1,15 @@
 /**
  * SaaS Billing — open the Stripe customer portal so an artist can manage their
- * subscription (update card, change plan, cancel). Requires the artist's Stripe
- * customer id (`cus_...`), which the billing webhook persists after their first
- * subscription checkout.
+ * subscription (update card, change plan, cancel). The Stripe customer id
+ * (`cus_...`) is derived server-side from the caller's own claimed artist
+ * profile — never taken from the request body, so there is nothing for a
+ * client to spoof to reach another customer's portal session.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
+import { verifyFirebaseToken } from '@/lib/auth-dal';
 import { stripe, stripeConfigured, STRIPE_NOT_CONFIGURED } from '@/lib/stripe';
+import { getArtistStripeCustomerId } from '@/lib/artist-stripe';
 
 export const runtime = 'nodejs';
 
@@ -26,15 +29,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(STRIPE_NOT_CONFIGURED, { status: 503 });
   }
 
-  let customerId: string | undefined;
-  try {
-    ({ customerId } = (await req.json()) as { customerId?: string });
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
+  const user = await verifyFirebaseToken(req);
+  if (!user) {
+    return NextResponse.json({ error: 'Authentication required', code: 'AUTH_REQUIRED' }, { status: 401 });
   }
 
+  const customerId = await getArtistStripeCustomerId(user.uid);
   if (!customerId) {
-    return NextResponse.json({ error: 'customerId is required.' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'No billing account found for this user.', code: 'NO_BILLING_CUSTOMER' },
+      { status: 404 }
+    );
   }
 
   try {

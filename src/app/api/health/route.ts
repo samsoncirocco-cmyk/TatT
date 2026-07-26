@@ -12,7 +12,6 @@ export async function GET(req: NextRequest) {
         endpoints: {
             v1: {
                 semantic_match: '/api/v1/match/semantic (100 req/hr)',
-                ar_visualization: '/api/v1/ar/visualize (50 req/hr)',
                 council_enhancement: '/api/v1/council/enhance (20 req/hr)',
                 stencil_export: '/api/v1/stencil/export (30 req/hr)',
                 layer_upload: '/api/v1/upload-layer (200 req/hr)',
