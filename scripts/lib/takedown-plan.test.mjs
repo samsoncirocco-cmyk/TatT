@@ -71,9 +71,19 @@ describe('planTakedown', () => {
     ]);
   });
 
-  it('flags the static homepage snapshot, which no database filter reaches', async () => {
+  it('tells the operator the homepage snapshot is now handled automatically', async () => {
+    // This warning used to say a database filter could not reach the homepage,
+    // which was true and is no longer: src/lib/featured-artists.ts suppression-
+    // checks the committed snapshot on every render. The note stays (rather than
+    // being deleted) so an operator who remembers the old manual step learns it
+    // is done for them — a stale warning that sends someone to re-run a script
+    // is how manual steps outlive their need.
     const plan = await planTakedown(makeDeps(), { artistId: 'artist_tattoosbyging' });
-    expect(plan.warnings.join(' ')).toMatch(/featured-artists\.json/);
+    const joined = plan.warnings.join(' ');
+
+    expect(joined).toMatch(/featured-artists\.json/);
+    expect(joined).toMatch(/handled automatically/i);
+    expect(joined).not.toMatch(/no database filter removes them/i);
   });
 
   it('blocks removal while a held deposit is pending — deleting orphans real money', async () => {

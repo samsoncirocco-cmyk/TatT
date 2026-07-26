@@ -123,10 +123,19 @@ export async function planTakedown(deps, { artistId, scope = 'all', reason = nul
 
   // Things a database filter genuinely cannot reach. Said out loud rather than
   // quietly left undone.
+  //
+  // The homepage used to belong on this list: src/data/featured-artists.json is
+  // a committed snapshot that was rendered directly, so a takedown left the
+  // person on the most prominent surface of the site until someone re-ran a
+  // script. src/lib/featured-artists.ts now suppression-checks that snapshot
+  // against the live graph on every render, failing closed, so it is handled
+  // automatically. It is reported as done rather than dropped, because an
+  // operator who read the old warning needs to know it no longer applies.
   plan.warnings.push(
-    'src/data/featured-artists.json is a committed static snapshot used by the ' +
-      'homepage. Re-run scripts/pick-featured-artists.mjs and redeploy if this ' +
-      'artist appears in it — no database filter removes them from that file.',
+    'Homepage featured grid: handled automatically. src/data/featured-artists.json is ' +
+      'now filtered through a live suppression check (src/lib/featured-artists.ts), so ' +
+      'this artist drops off the homepage within ~60s of the node being suppressed. ' +
+      'Re-run scripts/pick-featured-artists.mjs at your convenience to refill the grid.',
   );
   if (plan.gcsObjects.length) {
     plan.warnings.push(

@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   NOT_REMOVED_CLAUSE,
+  isSafeArtistId,
   normalizeInstagramHandle,
   tombstoneKeysFor,
   validateTakedownRequest,
@@ -59,6 +60,42 @@ describe('tombstoneKeysFor', () => {
 
   it('rejects an artistId that could smuggle a path segment', () => {
     expect(() => tombstoneKeysFor({ artistId: '../../etc' })).toThrow(/artistId/i);
+  });
+
+  // Instagram handles allow dots, and national-dataset ids are derived from the
+  // handle. A validator that rejects dots refuses 1,621 of the 10,427 artists in
+  // data/national-artists-2026-07-15.json — 15.5% of the people this mechanism
+  // exists to serve could not file a takedown request at all.
+  describe('dotted ids (Instagram handles contain dots)', () => {
+    it.each([
+      'artist_pham.minh.phuc',
+      'artist_joshbrown.615',
+      'artist_ink.by.aliza',
+      'artist_ak.tattooing',
+    ])('accepts %s', (artistId) => {
+      expect(tombstoneKeysFor({ artistId })).toEqual([{ key: `artist:${artistId}`, keyType: 'artist' }]);
+    });
+
+    it('still rejects traversal built from dots', () => {
+      for (const bad of ['..', 'a..b', 'artist_..', '../x', '.hidden', 'a/../b', 'a\\b']) {
+        expect(() => tombstoneKeysFor({ artistId: bad })).toThrow(/artistId/i);
+      }
+    });
+  });
+});
+
+describe('isSafeArtistId', () => {
+  it('accepts the two real id shapes in the dataset', () => {
+    // National dataset (derived from the handle) and crawler-minted random ids.
+    expect(isSafeArtistId('artist_pham.minh.phuc')).toBe(true);
+    expect(isSafeArtistId('artist_dvpyb68gp')).toBe(true);
+  });
+
+  it('blocks anything that could escape its GCS prefix', () => {
+    // The property that actually matters for `artists/<id>/…`.
+    for (const bad of ['..', 'a..b', '../etc', '.hidden', 'a/b', 'a\\b', '', ' ']) {
+      expect(isSafeArtistId(bad)).toBe(false);
+    }
   });
 });
 

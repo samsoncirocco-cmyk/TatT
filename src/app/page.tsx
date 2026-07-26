@@ -2,8 +2,16 @@ import Link from "next/link";
 import StudioShell from "@/components/studio/StudioShell";
 import SlashHeadline from "@/components/punk/SlashHeadline";
 import ArtistCard from "@/components/punk/ArtistCard";
-import featuredData from "@/data/featured-artists.json";
+import { getFeaturedArtists } from "@/lib/featured-artists";
 import { artistSlug } from "@/lib/artist-slug";
+
+// The featured grid is curated but suppression-checked against the live graph,
+// so a completed takedown drops off the homepage on its own rather than waiting
+// for someone to re-run a script and redeploy. Revalidated rather than
+// force-dynamic: the landing page stays cached, and the worst case is that a
+// removed artist lingers for up to a minute instead of indefinitely.
+// See src/lib/featured-artists.ts and docs/adr/0025.
+export const revalidate = 60;
 
 const STEPS = [
   {
@@ -23,12 +31,12 @@ const STEPS = [
   },
 ];
 
-// Real artists curated from the live graph (scripts/pick-featured-artists.mjs).
-// Cards link to the artist's live-graph profile page; the Instagram
-// link-out (their actual work) lives on the profile.
-const FEATURED = featuredData.artists;
+export default async function Home() {
+  // Curated from the live graph (scripts/pick-featured-artists.mjs), then
+  // suppression-checked on render. May be short, or empty, and is rendered
+  // honestly either way — backfilling would defeat the point.
+  const featured = await getFeaturedArtists();
 
-export default function Home() {
   return (
     <StudioShell>
       <div className="flex flex-col">
@@ -149,20 +157,33 @@ export default function Home() {
               </Link>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
-              {FEATURED.map((a, i) => (
-                <ArtistCard
-                  key={a.id}
-                  variant="compact"
-                  slug={artistSlug(a.name, a.id)}
-                  name={a.name}
-                  city={`${a.city}, ${a.state}`}
-                  style={a.styles[0]}
-                  color={["bg-pink", "bg-bone", "bg-cream", "bg-pink-deep"][i % 4]}
-                  handle={a.instagram}
-                />
-              ))}
-            </div>
+            {featured.length ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
+                {featured.map((a, i) => (
+                  <ArtistCard
+                    key={a.id}
+                    variant="compact"
+                    slug={artistSlug(a.name, a.id)}
+                    name={a.name}
+                    city={`${a.city}, ${a.state}`}
+                    style={a.styles[0]}
+                    color={["bg-pink", "bg-bone", "bg-cream", "bg-pink-deep"][i % 4]}
+                    handle={a.instagram}
+                  />
+                ))}
+              </div>
+            ) : (
+              // Empty is a legitimate outcome: everyone curated has been removed,
+              // or the graph could not vouch for them and the gate failed closed.
+              // Say nothing about why, and point at the roster instead.
+              <p className="text-[14px] text-white/60 font-body leading-[1.55] max-w-[46ch]">
+                Nothing featured right now.{" "}
+                <Link href="/artists" className="text-pink hover:underline">
+                  Browse the full roster
+                </Link>{" "}
+                instead.
+              </p>
+            )}
           </div>
         </section>
       </div>

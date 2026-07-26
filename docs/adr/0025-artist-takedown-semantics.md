@@ -160,9 +160,15 @@ domain-control proof.
 **Two things a graph filter does not reach**, and the executor reports both
 rather than pretending otherwise:
 
-- `src/data/featured-artists.json` is a **committed static snapshot** consumed by
-  the homepage. A DB filter does not remove anyone from it. It must be
-  regenerated (`scripts/pick-featured-artists.mjs`) and redeployed.
+- ~~`src/data/featured-artists.json` is a **committed static snapshot** consumed
+  by the homepage. A DB filter does not remove anyone from it. It must be
+  regenerated (`scripts/pick-featured-artists.mjs`) and redeployed.~~
+  **Closed by ADR 0026's PR.** The snapshot is now a *candidate* list:
+  `src/lib/featured-artists.ts` asks the graph on every render which candidates
+  may still be published and drops the rest, failing closed. A removed artist
+  leaves the homepage within the 60s revalidation window with no redeploy. The
+  curated file is kept because the four cards are an editorial choice; what
+  changed is that it no longer gets the last word.
 - CDN / browser caches of `storage.googleapis.com` URLs may serve deleted objects
   for a while after the delete.
 
