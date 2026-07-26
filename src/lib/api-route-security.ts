@@ -38,7 +38,6 @@ export const API_ROUTE_SECURITY: Record<string, RouteSecurityEntry> = {
   'neo4j/query': { class: 'firebase-auth' },
   'predictions': { class: 'firebase-auth' },
   'predictions/[id]': { class: 'firebase-auth' },
-  'v1/ar/visualize': { class: 'firebase-auth' },
   'v1/book': { class: 'firebase-auth' },
   'v1/bookings': { class: 'firebase-auth' },
   'v1/bookings/[id]': { class: 'firebase-auth' },

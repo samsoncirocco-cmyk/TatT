@@ -100,6 +100,19 @@ Presentation is unaffected by which branch fires: every session is flash art on 
 
 This composes with the exclusion-folding rule below rather than replacing it: the front-loaded instruction sets the palette, and any remaining exclusions still fold into the positive prompt at the end.
 
+### Presentation is front-loaded too, and stated positively
+
+The same two mechanics govern presentation, and the first implementation got both wrong. It appended `Presented as flash art on a plain white background — the design only, not photographed on skin` **after** the subject description, while the subject sentence opened `A ... tattoo on the left forearm`. Measured against the real `assessBackdrop` guard over Vertex Imagen output, that prompt scored **0 of 12**: every render came back a photograph of a tattoo on a forearm, the exact artefact the guard exists to reject.
+
+Two rules follow, and they are normative:
+
+- **Never name a body part as the surface.** `tattoo on the {placement}` is an explicit positive instruction to draw a limb, sitting ~55 tokens ahead of any correction — placement is to presentation what a chromatic anchor is to palette. Placement reaches the model through the aspect ratio (`getAnatomicalAspectRatio`) and the composition guidance, never as the thing the design sits on. The same applies to incidental phrasing: `untouched skin` and `following the body contour` in the compositional treatments were quietly asking for the same render.
+- **Assert what the image is; put exclusions in the negative prompt.** `not photographed on skin` spends its two most concrete tokens on *photographed* and *skin*. The replacement opens `Flash art tattoo design on a pure white background — a flat scan of the artwork alone, centered with clean white margins on all sides`, and the exclusions live in `negativePrompt` (which folds into the `Avoid:` clause for the Flux lane regardless).
+
+Note the margin, not the fill: the guard measures the **border**, so an artwork bled to the frame edges fails exactly as hard as a photograph. Asking for it to "fill the frame" would trade one failure for another.
+
+The rewritten prompt scores **12 of 12** on the same records and **12 of 12** on a held-out set of styles and placements it was not developed against. Those measurements are Vertex Imagen only; the Flux lane, which serves most styles, is unmeasured — see Consequences.
+
 ### Flux takes no negative prompt
 
 Neither Flux nor Krea has a `negative_prompt` input. Exclusions fold into the positive prompt text instead:
@@ -142,5 +155,7 @@ Part 2's aspect-ratio map changes generated output for every session whose place
 The IP rule is enforced twice on purpose — once in extraction, once when completing the record — because the conversational lane and the questionnaire lane reach the reveal by different paths and both must lock the axis.
 
 Decoupling presentation from palette keeps the color/monochrome axis contained: it decides prompt text and nothing else. An axis that resolves late or wrong now costs an off-palette reveal rather than a visually inconsistent one, and the four thumbnails stay comparable no matter what the axis does. That is why the coupling was worth giving up — it bought consistency and the placement preview at the price of an argument about color that the preview answers better anyway.
+
+**The presentation measurements cover Vertex Imagen only.** Routing sends realism and portrait to Imagen and everything else to Flux or Krea, so the lane that serves most sessions is the lane with no backdrop measurement behind it — `REPLICATE_API_TOKEN` was not available when the fix was made. The two rules above are model-independent in principle (early tokens win, negation summons), and the fix is strictly a reduction in on-body cues, so it should not make Flux worse. But "should not" is not a measurement. Re-run `scripts/measure-backdrop.mjs` over Flux output before treating flash-art-on-white as proven for the default lane.
 
 Naming the pole "monochrome" while the axis id stays `color-blackwork` is a deliberate half-measure. Renaming the id would touch the `VariationAxis` type, the pole tables, both extraction prompts, and every stored session record, and the rename buys clarity rather than behavior. The pole names are what reach the model and the user; the id is internal. If the record migration happens for another reason, fold the rename in then.

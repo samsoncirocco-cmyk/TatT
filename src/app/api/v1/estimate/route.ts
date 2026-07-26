@@ -2,11 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
 import { estimateCost, quickEstimate } from '@/services/costEstimatorService';
 import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
+import { checkBudget, recordSpend } from '@/lib/budget-tracker';
 import { createRequestLogger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30; // 30 second timeout for vision analysis
+
+// One full AI estimate (Vertex Gemini vision analysis), in cents. The
+// `quick` path below never reaches this — it's a deliberate no-AI fallback
+// and must keep working even when the budget is exhausted. Override via
+// ESTIMATE_COST_CENTS.
+const ESTIMATE_COST_CENTS = Number(process.env.ESTIMATE_COST_CENTS) || 3;
 
 /**
  * POST /api/v1/estimate
@@ -64,8 +71,18 @@ export async function POST(req: NextRequest) {
 
         if (quick) {
             // Quick estimate without AI (for rate-limited users or fast response)
+            // — deliberately never budget-gated; it's the fallback for when
+            // AI capacity is constrained, so it must still work when it is.
             result = quickEstimate(style, bodyPart, size || 'medium');
         } else {
+            const budgetResult = await checkBudget();
+            if (!budgetResult.allowed) {
+                return NextResponse.json(
+                    { error: 'Budget limit reached', spentCents: budgetResult.spentCents },
+                    { status: 402 }
+                );
+            }
+
             // Full AI analysis
             result = await estimateCost({
                 imageDataUrl,
@@ -74,6 +91,8 @@ export async function POST(req: NextRequest) {
                 bodyPart,
                 size: size || 'medium'
             });
+
+            await recordSpend(ESTIMATE_COST_CENTS);
         }
 
         const duration = Date.now() - startTime;
