@@ -128,6 +128,18 @@ describe('POST /api/v1/design-session route adapter', () => {
     expect(startSessionMock).not.toHaveBeenCalled();
   });
 
+  // Setup runs inside the try, so a throwing dependency lands on the shared
+  // structured envelope instead of escaping as an unstructured Next.js 500.
+  it('returns the structured envelope when auth setup throws', async () => {
+    verifyApiAuthMock.mockRejectedValueOnce(new Error('Firebase admin not configured'));
+
+    const res = await POST(makeRequest(URL, { placementAnswer: 'forearm', meaningAnswer: 'x y z' }));
+
+    expect(res.status).toBe(500);
+    expect(await res.json()).toMatchObject({ code: 'DESIGN_SESSION_FAILED', retryable: false });
+    expect(startSessionMock).not.toHaveBeenCalled();
+  });
+
   it('returns 402 when the budget is exhausted', async () => {
     checkBudgetMock.mockResolvedValueOnce({ allowed: false, spentCents: 50_000, remainingCents: 0 });
 

@@ -28,57 +28,61 @@ export async function POST(
     { params }: { params: Promise<{ id: string }> }
 ) {
     const reqLogger = createRequestLogger('design-session-placement-preview');
+    // Seeded before the try so a setup failure — including one thrown by
+    // `await params` itself — still logs a session_id.
+    let sessionId = 'unknown';
 
-    const authError = await verifyApiAuth(req);
-    if (authError) return authError;
-
-    const { id } = await params;
-    const body = await req.json().catch(() => ({}));
-    const { imageData } = body as { imageData?: unknown };
-
-    if (typeof imageData !== 'string' || !imageData) {
-        return invalidRequestResponse('imageData is required', 'INVALID_IMAGE_DATA');
-    }
-    if (imageData.length > MAX_IMAGE_DATA_LENGTH) {
-        return invalidRequestResponse('imageData exceeds the 8MB limit', 'IMAGE_TOO_LARGE');
-    }
-    const match = imageData.match(DATA_URL_PATTERN);
-    if (!match) {
-        return invalidRequestResponse(
-            'imageData must be a PNG or JPEG data URL',
-            'INVALID_IMAGE_DATA'
-        );
-    }
-
-    let previewUrl = imageData;
     try {
-        const { ensureAdminApp } = await import('@/lib/firebase-admin');
-        const gcsWired = process.env.NEXT_PUBLIC_DEMO_MODE !== 'true' && ensureAdminApp();
-        if (gcsWired) {
-            const { uploadToGCS } = await import('@/services/gcs-service');
-            const buffer = Buffer.from(match[2], 'base64');
-            const result = await uploadToGCS(
-                buffer,
-                `design-sessions/${id}/placement-preview.png`,
-                { contentType: `image/${match[1]}` }
-            );
-            previewUrl = result.url;
+        const authError = await verifyApiAuth(req);
+        if (authError) return authError;
+
+        ({ id: sessionId } = await params);
+        const body = await req.json().catch(() => ({}));
+        const { imageData } = body as { imageData?: unknown };
+
+        if (typeof imageData !== 'string' || !imageData) {
+            return invalidRequestResponse('imageData is required', 'INVALID_IMAGE_DATA');
         }
-    } catch (error) {
-        // Firestore-backed sessions can't hold a multi-MB data URL (1MB doc
-        // limit), so a failed GCS upload is terminal here — never fall
-        // through to persisting the raw payload.
-        reqLogger.error('design_session.placement_preview.upload_failed', error as Error, {
-            session_id: id,
-        });
-        return NextResponse.json(
-            { error: 'Preview image upload failed — try again.' },
-            { status: 502 }
-        );
-    }
+        if (imageData.length > MAX_IMAGE_DATA_LENGTH) {
+            return invalidRequestResponse('imageData exceeds the 8MB limit', 'IMAGE_TOO_LARGE');
+        }
+        const match = imageData.match(DATA_URL_PATTERN);
+        if (!match) {
+            return invalidRequestResponse(
+                'imageData must be a PNG or JPEG data URL',
+                'INVALID_IMAGE_DATA'
+            );
+        }
 
-    try {
-        const session = await attachPlacementPreview(id, previewUrl);
+        let previewUrl = imageData;
+        try {
+            const { ensureAdminApp } = await import('@/lib/firebase-admin');
+            const gcsWired = process.env.NEXT_PUBLIC_DEMO_MODE !== 'true' && ensureAdminApp();
+            if (gcsWired) {
+                const { uploadToGCS } = await import('@/services/gcs-service');
+                const buffer = Buffer.from(match[2], 'base64');
+                const result = await uploadToGCS(
+                    buffer,
+                    `design-sessions/${sessionId}/placement-preview.png`,
+                    { contentType: `image/${match[1]}` }
+                );
+                previewUrl = result.url;
+            }
+        } catch (error) {
+            // Firestore-backed sessions can't hold a multi-MB data URL (1MB doc
+            // limit), so a failed GCS upload is terminal here — never fall
+            // through to persisting the raw payload. Its own 502 stays distinct
+            // from the structured envelope the outer catch returns.
+            reqLogger.error('design_session.placement_preview.upload_failed', error as Error, {
+                session_id: sessionId,
+            });
+            return NextResponse.json(
+                { error: 'Preview image upload failed — try again.' },
+                { status: 502 }
+            );
+        }
+
+        const session = await attachPlacementPreview(sessionId, previewUrl);
 
         reqLogger.complete('design_session.placement_preview.success', {
             session_id: session.id,
@@ -91,7 +95,7 @@ export async function POST(
         });
     } catch (error) {
         reqLogger.error('design_session.placement_preview.failed', error as Error, {
-            session_id: id,
+            session_id: sessionId,
             error_code: (error as { code?: string }).code || 'DESIGN_SESSION_FAILED',
         });
         return designSessionErrorResponse(error);
