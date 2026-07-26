@@ -34,9 +34,10 @@ on:
   push:
     branches:
       - main
+  # Every PR gets the gate, not just PRs to main. Stacked PRs onto a feature
+  # branch were previously merging with only the Vercel preview check — the
+  # absence of a failure there is not evidence that tests passed.
   pull_request:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
