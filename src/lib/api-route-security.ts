@@ -55,6 +55,14 @@ export const API_ROUTE_SECURITY: Record<string, RouteSecurityEntry> = {
     class: 'public',
     reason: 'Public share links are the product feature: read-only fetch of a design by unguessable shareId.',
   },
+  'v1/artists/takedown': {
+    class: 'public',
+    reason:
+      'A scraped artist has no TatT account — requiring one before they may ask us to ' +
+      'stop using their photographs would be backwards. The route removes nothing: it ' +
+      'records a :TakedownRequest and emails ops, with no write path to GCS, Supabase, ' +
+      'or the :Artist node. Removal is a human-run CLI (docs/adr/0024). IP rate-limited.',
+  },
   'v1/embeddings/generate': { class: 'firebase-auth' },
   'v1/estimate': { class: 'firebase-auth' },
   'v1/generate': { class: 'firebase-auth' },

@@ -27,6 +27,8 @@ export interface TransactionalEmail {
   subject: string;
   text: string;
   html?: string;
+  /** Reply-To header — e.g. the takedown requester, so an ops reply reaches them. */
+  replyTo?: string;
 }
 
 export interface TransactionalEmailResult {
