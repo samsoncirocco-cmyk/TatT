@@ -27,7 +27,7 @@ import { verifyFirebaseToken } from '@/lib/auth-dal';
 import { ensureAdminApp } from '@/lib/firebase-admin';
 import { stripe, stripeConfigured, platformFeeCents, CURRENCY } from '@/lib/stripe';
 import { getArtistStripe } from '@/lib/artist-stripe';
-import { depositForSize, type TattooSize } from '@/lib/booking';
+import { depositCentsForSize, type TattooSize } from '@/lib/booking';
 
 export const runtime = 'nodejs';
 
@@ -104,8 +104,10 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const depositAmount = depositForSize(size);
-  const depositAmountInCents = depositAmount * 100;
+  // Cents is the source of truth; the dollars value below exists only for the
+  // human-readable metadata and the demo-mode success URL.
+  const depositAmountInCents = depositCentsForSize(size);
+  const depositAmount = depositAmountInCents / 100;
   // Client-paid booking fee, added ON TOP of the deposit so the artist keeps
   // 100% of their rate. The client pays (deposit + fee); TatT keeps the fee.
   const bookingFeeInCents = platformFeeCents(depositAmountInCents);

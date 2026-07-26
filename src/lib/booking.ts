@@ -73,16 +73,37 @@ export function availabilityLabel(status: AvailabilityStatus): string {
 
 export type TattooSize = "small" | "medium" | "large" | "sleeve";
 
-export const DEPOSIT_BY_SIZE: Record<TattooSize, number> = {
-  small: 75,
-  medium: 150,
-  large: 300,
-  sleeve: 500,
+/**
+ * The size-based deposit ladder, in CENTS.
+ *
+ * Cents is the unit of record for every money value in this codebase: it is
+ * what Stripe's `unit_amount` takes, what `platformFeeCents` computes on,
+ * what the `depositCents` charge metadata carries, and what
+ * `computeDepositCents` in ./session-types returns. A dollars/cents mix-up
+ * here is a 100x billing error, so there is exactly one table and it is
+ * denominated in cents — see ADR 0009.
+ *
+ * Dollars appear only at the presentation edge, via depositDollarsForSize.
+ */
+export const DEPOSIT_CENTS_BY_SIZE: Record<TattooSize, number> = {
+  small: 7_500,
+  medium: 15_000,
+  large: 30_000,
+  sleeve: 50_000,
 };
 
-export function depositForSize(size: string | undefined): number {
+/** The deposit for a size bucket, in cents. Use this for anything Stripe. */
+export function depositCentsForSize(size: string | undefined): number {
   const normalized = size?.toLowerCase() as TattooSize;
-  return DEPOSIT_BY_SIZE[normalized] ?? DEPOSIT_BY_SIZE.medium;
+  return DEPOSIT_CENTS_BY_SIZE[normalized] ?? DEPOSIT_CENTS_BY_SIZE.medium;
+}
+
+/**
+ * Whole-dollar view of the same ladder, for UI copy ("$150 deposit") only.
+ * Never hand this to Stripe or to any function whose name ends in `Cents`.
+ */
+export function depositDollarsForSize(size: string | undefined): number {
+  return depositCentsForSize(size) / 100;
 }
 
 // ─── Requested slots ───────────────────────────────────────────────────
