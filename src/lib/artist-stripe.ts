@@ -14,6 +14,8 @@ export interface ArtistStripeInfo {
   email: string | null;
   stripeAccountId: string | null;
   chargesEnabled: boolean;
+  /** Firebase uid that claimed this profile (see /api/v1/connect/claim), or null if unclaimed. */
+  claimedByUid: string | null;
 }
 
 async function runRead(query: string, params: Record<string, unknown>) {
@@ -44,7 +46,8 @@ export async function getArtistStripe(artistId: string): Promise<ArtistStripeInf
     `MATCH (a:Artist {id: $artistId})
      RETURN a.id AS id, a.name AS name, a.email AS email,
             a.stripeAccountId AS stripeAccountId,
-            coalesce(a.stripeChargesEnabled, false) AS chargesEnabled`,
+            coalesce(a.stripeChargesEnabled, false) AS chargesEnabled,
+            a.claimedByUid AS claimedByUid`,
     { artistId }
   );
   if (!rows.length) return null;
@@ -55,6 +58,7 @@ export async function getArtistStripe(artistId: string): Promise<ArtistStripeInf
     email: (r.email as string) ?? null,
     stripeAccountId: (r.stripeAccountId as string) ?? null,
     chargesEnabled: Boolean(r.chargesEnabled),
+    claimedByUid: (r.claimedByUid as string) ?? null,
   };
 }
 
