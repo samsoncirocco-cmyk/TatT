@@ -7,10 +7,9 @@ import {
   stylesFromDescriptors,
   parseStylesParam,
   matchesUrlForDesign,
-  ONTOLOGY_TO_CANONICAL_STYLE,
-  UNMAPPED_ONTOLOGY_TAGS,
   canonicalStylesFromOntologyTags,
 } from "./design-style-signal";
+import { canonicalStyleForTag } from "./style-vocabulary";
 
 describe("stylesFromDescriptors", () => {
   it("maps the forge suggestion chips to canonical styles", () => {
@@ -116,34 +115,43 @@ describe("ontology → canonical style bridge", () => {
     "../../data/style-ontology.json",
   );
   const ontology = JSON.parse(readFileSync(ontologyPath, "utf8")) as {
-    tags: Array<{ id: string }>;
+    tags: Array<{ id: string; label: string; parent?: string }>;
   };
+  const ontologyTags = ontology.tags;
   const ontologyIds = ontology.tags.map((t) => t.id);
 
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("accounts for every current ontology id — mapped XOR explicitly unmapped", () => {
+  it("accounts for every current ontology id — resolved or explicitly dropped", () => {
+    // There is no hand-written mapping left to fall out of step (the old
+    // ONTOLOGY_TO_CANONICAL_STYLE / UNMAPPED_ONTOLOGY_TAGS pair is gone).
+    // What still has to hold is that every tag gets a decision, and that a
+    // resolved one lands on a style the UI actually offers.
     for (const id of ontologyIds) {
-      const mapped = id in ONTOLOGY_TO_CANONICAL_STYLE;
-      const unmapped = UNMAPPED_ONTOLOGY_TAGS.includes(id);
-      expect(
-        mapped !== unmapped,
-        `ontology tag "${id}" must be either mapped or listed in UNMAPPED_ONTOLOGY_TAGS (exactly one)`,
-      ).toBe(true);
+      const style = canonicalStyleForTag(id);
+      if (style !== null) {
+        expect(CANONICAL_STYLES, `ontology tag "${id}" resolved to "${style}"`).toContain(style);
+      }
     }
   });
 
-  it("carries no stale entries for ids the ontology no longer has", () => {
-    for (const id of [...Object.keys(ONTOLOGY_TO_CANONICAL_STYLE), ...UNMAPPED_ONTOLOGY_TAGS]) {
-      expect(ontologyIds, `"${id}" is not a current ontology id`).toContain(id);
-    }
-  });
-
-  it("only maps onto canonical graph style names", () => {
-    for (const style of Object.values(ONTOLOGY_TO_CANONICAL_STYLE)) {
-      expect(CANONICAL_STYLES).toContain(style);
+  it("resolves a tag only to itself or an ancestor, never a sideways guess", () => {
+    const byId = new Map(ontologyTags.map((t) => [t.id, t]));
+    for (const id of ontologyIds) {
+      const style = canonicalStyleForTag(id);
+      if (style === null) continue;
+      // Walk the parent chain and check the resolved style is on it.
+      const chain: string[] = [];
+      let cursor: string | undefined = id;
+      while (cursor) {
+        chain.push(byId.get(cursor)!.label);
+        cursor = byId.get(cursor)?.parent;
+      }
+      expect(chain, `"${id}" resolved to "${style}", which is not on its parent chain`).toContain(
+        style,
+      );
     }
   });
 
