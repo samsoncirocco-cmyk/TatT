@@ -32,13 +32,30 @@ const LIMIT_CONFIG: Record<LimitType, { requests: number; window: string }> = {
 // ---------------------------------------------------------------------------
 
 let upstashLimiters: Map<LimitType, Ratelimit> | null = null;
+let warnedNoRedis = false;
 
 function getUpstashLimiters(): Map<LimitType, Ratelimit> | null {
   if (upstashLimiters) return upstashLimiters;
 
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) return null;
+  if (!url || !token) {
+    // The in-memory fallback below only counts requests seen by THIS
+    // serverless instance — on Vercel, concurrent traffic spreads across
+    // multiple instances, each with its own empty counter, so the real
+    // enforced limit is far weaker than LIMIT_CONFIG promises. That gap
+    // must be visible, not silent (see budget-tracker.ts / quota-tracker.ts
+    // for the same "log on degrade" pattern this was missing).
+    if (!warnedNoRedis) {
+      console.warn(
+        '[RateLimit] UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN not configured — ' +
+          'falling back to a per-instance in-memory limiter. This does not enforce a ' +
+          'shared limit across serverless instances.',
+      );
+      warnedNoRedis = true;
+    }
+    return null;
+  }
 
   const redis = new Redis({ url, token });
 

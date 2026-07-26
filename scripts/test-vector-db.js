@@ -4,7 +4,7 @@
  * Verifies that the vectorDbService correctly interacts with Supabase pgvector.
  */
 
-import { storeEmbedding, getEmbedding, getEmbeddingStats } from '../src/services/vectorDbService.js';
+import { storeEmbedding, getEmbedding, getEmbeddingStats } from '../src/services/vectorDbService.ts';
 import dotenv from 'dotenv';
 
 dotenv.config();

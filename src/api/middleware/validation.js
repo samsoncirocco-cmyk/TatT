@@ -1,9 +1,25 @@
 /**
  * API Request Validation Middleware
- * 
+ *
  * Provides validation functions for all API v1 endpoints.
  * Returns 400 Bad Request with detailed validation errors.
  */
+import ontology from '../../../data/style-ontology.json' with { type: 'json' };
+
+/**
+ * The closed style vocabulary (ADR-0010/0011, src/lib/style-vocabulary.ts),
+ * read from the same data/style-ontology.json the rest of the app derives
+ * it from — not a second hand-typed copy. The old hard-coded list here had
+ * already drifted: it rejected real ontology styles ("neo-traditional",
+ * "illustrative", "chicano", "black-and-grey", …) with a 400.
+ *
+ * This route is plain Node ESM (the legacy Express/Railway proxy in
+ * server.js, not the Next.js app), so it reads the ontology JSON directly
+ * with an import attribute rather than importing src/lib/style-vocabulary.ts
+ * — that module's own JSON imports have no import attribute, which Next's
+ * bundler tolerates but plain Node ESM does not.
+ */
+const VALID_STYLES = ontology.tags.map((tag) => tag.id);
 
 /**
  * Validate semantic match request
@@ -143,17 +159,13 @@ export function validateCouncilEnhanceRequest(req, res, next) {
         errors.push({ field: 'user_prompt', message: 'User prompt must be between 3 and 1000 characters' });
     }
 
-    // Style validation
-    const validStyles = [
-        'anime', 'traditional', 'fine-line', 'tribal', 'watercolor',
-        'blackwork', 'realism', 'geometric', 'japanese', 'minimalist'
-    ];
+    // Style validation — the closed ontology vocabulary (see VALID_STYLES above).
     if (!style) {
         errors.push({ field: 'style', message: 'Style is required' });
-    } else if (!validStyles.includes(style.toLowerCase())) {
+    } else if (!VALID_STYLES.includes(style.toLowerCase())) {
         errors.push({
             field: 'style',
-            message: `Style must be one of: ${validStyles.join(', ')}`
+            message: `Style must be one of: ${VALID_STYLES.join(', ')}`
         });
     }
 
