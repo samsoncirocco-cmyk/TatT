@@ -9,9 +9,11 @@
  * missing file breaks the build-time check below instead of the demo.
  */
 import { describe, it, expect } from 'vitest';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
+import sharp from 'sharp';
 import { DEMO_MOCK_IMAGES } from './demo-images';
+import { assessBackdrop } from './designBackdrop';
 
 const PUBLIC_DIR = join(process.cwd(), 'public');
 
@@ -30,5 +32,27 @@ describe('DEMO_MOCK_IMAGES', () => {
     for (const src of DEMO_MOCK_IMAGES) {
       expect(existsSync(join(PUBLIC_DIR, src))).toBe(true);
     }
+  });
+
+  /*
+   * Flash art on white is a hard product constraint (ADR-0023), and the
+   * placement preview enforces it on the actual pixels — an `opaque-scene`
+   * verdict is refused outright. Demo renders have to clear the same bar as
+   * real ones, or demo mode reaches the placement step and gets rejected.
+   * Asserted against assessBackdrop rather than by eye, so swapping in a
+   * photograph fails here instead of downstream.
+   */
+  it.each(DEMO_MOCK_IMAGES)('is flash art on white, not a scene: %s', async (src) => {
+    const { data, info } = await sharp(readFileSync(join(PUBLIC_DIR, src)))
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+
+    const verdict = assessBackdrop({
+      data: new Uint8ClampedArray(data),
+      width: info.width,
+      height: info.height,
+    });
+    expect(verdict.kind).not.toBe('opaque-scene');
   });
 });
