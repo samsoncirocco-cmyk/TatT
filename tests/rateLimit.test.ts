@@ -193,3 +193,27 @@ describe('LIMIT_CONFIG', () => {
     expect(LIMIT_CONFIG.generation).toEqual({ requests: 10, window: '1 m' });
   });
 });
+
+// -----------------------------------------------------------------------
+// Honest degradation — the in-memory fallback only enforces a limit
+// per serverless instance, not globally, which is a much weaker guarantee
+// than the Upstash-backed path. That gap must be observable, not silent.
+// -----------------------------------------------------------------------
+
+describe('honest degradation — missing Upstash config', () => {
+  it('warns once when falling back to the per-instance in-memory limiter', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const req = mockReq('10.0.0.50');
+
+    await rateLimit(req, 'generation');
+    await rateLimit(req, 'generation');
+    await checkRateLimit(req, 'council');
+
+    const upstashWarnings = warnSpy.mock.calls.filter(
+      ([msg]) => typeof msg === 'string' && msg.includes('UPSTASH_REDIS_REST_URL'),
+    );
+    expect(upstashWarnings).toHaveLength(1);
+
+    warnSpy.mockRestore();
+  });
+});
