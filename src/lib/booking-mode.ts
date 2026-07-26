@@ -48,6 +48,8 @@ export type BookingModeReason =
   | "not_configured"
   /** The last good read is too old to trust. */
   | "sync_stale"
+  /** The artist has connected a calendar but declared no windows to offer. */
+  | "no_published_hours"
   /** No exclusive hold can be written, so a "reservation" would reserve nothing. */
   | "holds_unavailable";
 
@@ -71,6 +73,13 @@ export interface BookingModeInput {
   /** Has a real person proved they own this profile (`claimedByUid`)? */
   claimed: boolean;
   connection: CalendarConnectionSummary | null;
+  /**
+   * Has the artist declared any windows they are willing to give TatT?
+   * A connected calendar tells us when they are busy; it never tells us when
+   * they will take a client. With no declared windows there is nothing to
+   * offer, and a calendar alone must not be read as "book any gap".
+   */
+  publishedHours: boolean;
   /** The live free/busy read. `null` means no read was attempted. */
   calendar: FreeBusyResult | null;
   /** Can an exclusive hold be written right now? */
@@ -145,9 +154,10 @@ function reasonForFailure(
  * Decide the booking model for one artist, right now.
  *
  * Order matters: authority first (has anyone the right to publish this
- * schedule?), then whether a calendar exists, then whether we could actually
- * read it, then whether the read is fresh, then whether a hold could be taken.
- * Only a clean pass through all five is a reservation.
+ * schedule?), then whether a calendar exists, then whether the artist offered
+ * TatT any hours, then whether we could actually read the calendar, then
+ * whether that read is fresh, then whether a hold could be taken. Only a clean
+ * pass through all six is a reservation.
  */
 export function resolveBookingMode(
   input: BookingModeInput,
@@ -163,19 +173,24 @@ export function resolveBookingMode(
     return request("no_calendar");
   }
 
-  // 3. We must have actually asked, and been answered. `null` — a caller who
+  // 3. The artist must have offered TatT something. A synced calendar with no
+  //    declared hours means "I have not opened any time to you" — reading it as
+  //    "book any gap in my week" is the opposite of what they said.
+  if (!input.publishedHours) return request("no_published_hours");
+
+  // 4. We must have actually asked, and been answered. `null` — a caller who
   //    never fetched — is a failure, not a pass.
   if (!input.calendar) return request("calendar_unreachable");
   if (!input.calendar.ok) return reasonForFailure(input.calendar);
 
-  // 4. The answer must be recent. Yesterday's free/busy is a guess about today,
+  // 5. The answer must be recent. Yesterday's free/busy is a guess about today,
   //    and serving it shows slots the artist has since filled.
   const ageMs = input.nowMs - input.calendar.fetchedAtMs;
   if (ageMs < 0 || ageMs > MAX_SYNC_AGE_MINUTES * 60_000) {
     return request("sync_stale");
   }
 
-  // 5. A slot we cannot hold is not reserved. Without a writable hold store,
+  // 6. A slot we cannot hold is not reserved. Without a writable hold store,
   //    "reservation" would mean the same double-booking as before, with a
   //    calendar bolted on the side.
   if (!input.holdsWritable) return request("holds_unavailable");

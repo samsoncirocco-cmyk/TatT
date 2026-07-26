@@ -23,6 +23,7 @@ function synced(over: Partial<BookingModeInput> = {}): BookingModeInput {
     artistId: "artist_a",
     claimed: true,
     connection: CONNECTED,
+    publishedHours: true,
     calendar: { ok: true, busy: [], fetchedAtMs: NOW },
     holdsWritable: true,
     nowMs: NOW,
@@ -44,6 +45,7 @@ describe("reservation is granted only when everything holds", () => {
     const degraded: Array<Partial<BookingModeInput>> = [
       { claimed: false },
       { connection: null },
+      { publishedHours: false },
       { calendar: null },
       { calendar: { ok: false, reason: "unreachable" } },
       { calendar: { ok: false, reason: "unauthorized" } },
@@ -80,6 +82,16 @@ describe("an artist with no calendar gets the request model", () => {
     expect(resolveBookingMode(synced({ connection: null })).artistActionRequired).toBe(
       false,
     );
+  });
+
+  it("degrades an artist who connected a calendar but offered no hours", () => {
+    // A calendar says when they are BUSY. It never says when they will take a
+    // client. Offering every gap in their week would book their evenings, their
+    // days off, and their lunch — the opposite of what connecting meant.
+    const d = resolveBookingMode(synced({ publishedHours: false }));
+    expect(d.mode).toBe("request");
+    expect(d.reason).toBe("no_published_hours");
+    expect(d.artistActionRequired).toBe(false);
   });
 
   it("degrades an unclaimed artist even if a connection somehow exists", () => {
@@ -217,6 +229,7 @@ describe("copy never overstates", () => {
     const patches: Array<Partial<BookingModeInput>> = [
       { connection: null },
       { claimed: false },
+      { publishedHours: false },
       { calendar: { ok: false, reason: "unreachable" } },
       { calendar: { ok: false, reason: "unauthorized" } },
       { calendar: { ok: false, reason: "calendar_error" } },
