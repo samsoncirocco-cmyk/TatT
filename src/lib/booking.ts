@@ -81,7 +81,7 @@ export type TattooSize = "small" | "medium" | "large" | "sleeve";
  * what the `depositCents` charge metadata carries, and what
  * `computeDepositCents` in ./session-types returns. A dollars/cents mix-up
  * here is a 100x billing error, so there is exactly one table and it is
- * denominated in cents — see ADR 0009.
+ * denominated in cents — see ADR 0023.
  *
  * Dollars appear only at the presentation edge, via depositDollarsForSize.
  */
