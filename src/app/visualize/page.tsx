@@ -110,7 +110,7 @@ export default function VisualizePage() {
             className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-6 py-3 font-medium text-white backdrop-blur-md transition-all hover:bg-white/20"
           >
             <Sparkles size={18} />
-            Design Forge
+            Design Studio
           </Link>
           <Link
             href="/"

@@ -19,19 +19,18 @@ type StudioShellProps = {
 };
 
 const NAV = [
-  // "Design" is the conversational front door (ADR-0009); "Forge" is the
-  // quick prompt→four-cuts flow; "Studio" is the multi-layer editor. Three
-  // different places on purpose — see issue #102.
+  // "Design" is the one consumer design entry (ADR-0028): one input, talk
+  // or type — a complete prompt takes the fast lane. "Studio" stays a
+  // separate power room behind explicit doors (ADR-0017).
   { label: "Design", href: "/design" },
-  { label: "Forge", href: "/generate/stencil" },
   { label: "Studio", href: "/generate" },
   { label: "Artists", href: "/artists" },
   { label: "My Designs", href: "/designs" },
   { label: "Pricing", href: "/pricing" },
 ];
 
-/** Longest matching href wins, so /generate/stencil lights up Forge without
- *  also lighting up Studio (/generate is its prefix). */
+/** Longest matching href wins, so nested routes light up their own entry
+ *  rather than every prefix match. */
 function activeHref(pathname: string | null): string | null {
   if (!pathname) return null;
   const matches = NAV.filter(

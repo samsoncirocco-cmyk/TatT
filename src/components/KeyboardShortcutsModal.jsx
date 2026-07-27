@@ -1,7 +1,7 @@
 /**
  * Keyboard Shortcuts Help Modal
  *
- * Displays all available keyboard shortcuts for The Forge
+ * Displays all available keyboard shortcuts for the Studio
  */
 
 import { useEffect, useState } from 'react';
@@ -114,7 +114,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }) {
                                 Keyboard Shortcuts
                             </h2>
                             <p className="text-xs font-mono text-studio-neon uppercase tracking-wider">
-                                Master The Forge
+                                Master The Studio
                             </p>
                         </div>
                     </div>

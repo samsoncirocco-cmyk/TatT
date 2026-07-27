@@ -26,7 +26,6 @@ const SRC = path.resolve(__dirname, "../../");
  * as the files themselves go.
  */
 const LEGACY_OLD_THEME = new Set([
-  "features/Journey.jsx",
   "components/JourneyContent.jsx",
   "components/GraphInsight.jsx",
   "components/VisualizeContent.jsx",

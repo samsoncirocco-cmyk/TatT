@@ -43,8 +43,17 @@ type ConversationAction =
  * consent (ADR-0020), warm-handoffs at the cadence cap (ADR-0021), and
  * degrades to the scripted two-question intake if the conversation engine
  * is unavailable. TurnLog stays server-side — telemetry is never rendered.
+ *
+ * One door, fast lane (ADR-0028): when the engine's proposal fires on the
+ * very first user turn — the existing readiness detection judged the first
+ * input a complete prompt — the consent tap is skipped and the confirm
+ * fires immediately, landing straight on the four-cut reveal. The confirm
+ * route keeps owning budget/rate policy and spend recording, and the
+ * Council still runs inside it (never the raw-prompt bypass). An
+ * `initialPrompt` (the /design?prompt= deep link) is sent as the user's
+ * first message instead of requesting the opener.
  */
-export function DesignConversation() {
+export function DesignConversation({ initialPrompt }: { initialPrompt?: string } = {}) {
   const [mode, setMode] = useState<SurfaceMode>('conversation');
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [sessionId, setSessionId] = useState<string | undefined>();
@@ -84,6 +93,17 @@ export function DesignConversation() {
         setPlayback(response.playback);
         setHandoffUrl(response.handoffUrl);
         setMessages((prev) => [...prev, { role: 'bot', text: response.reply }]);
+        // Fast lane (ADR-0028): a proposal on turn 1 means the first input
+        // was already a complete prompt — the reply above is the announce
+        // beat, and the reveal fires without waiting for a tap. Returning
+        // the promise keeps `pending` true until the renders land.
+        if (response.stage === 'proposal' && response.turn === 1) {
+          setLastAction({ kind: 'confirm' });
+          return confirmProposal(response.sessionId).then((session) => {
+            setRevealSession(session);
+            setMode('reveal');
+          });
+        }
       })
       .catch((err: unknown) => {
         if (err instanceof ConversationUnavailableError) {
@@ -95,11 +115,20 @@ export function DesignConversation() {
       .finally(() => setPending(false));
   };
 
-  // Opener on mount — the bot speaks first (ADR-0019).
+  // Opener on mount — the bot speaks first (ADR-0019). A deep-linked prompt
+  // (/design?prompt=…) is the user speaking first instead: it goes out as
+  // the first message with no opener round-trip, so a complete prompt takes
+  // the fast lane in a single turn (ADR-0028).
   useEffect(() => {
     if (openerRequested.current) return;
     openerRequested.current = true;
-    runAction({ kind: 'converse' });
+    const prompt = initialPrompt?.trim();
+    if (prompt) {
+      setMessages([{ role: 'user', text: prompt }]);
+      runAction({ kind: 'converse', message: prompt });
+    } else {
+      runAction({ kind: 'converse' });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only opener
   }, []);
 

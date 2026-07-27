@@ -134,9 +134,15 @@ export function canonicalStylesFromOntologyTags(tags: string[]): CanonicalStyle[
 /**
  * Build the /artists directory URL carrying a design's style signal.
  * The directory filters on a single style, so the strongest extracted
- * style (first in rule order) wins. The forge always cuts blackwork
- * stencils (see generateTattooDesign's style: "blackwork"), so Blackwork
- * is the honest fallback when the prompt itself names no style.
+ * style (first in rule order) wins; Blackwork is the honest fallback when
+ * the prompt itself names no style (the retired Forge always generated
+ * blackwork stencils, and that default carried over).
+ *
+ * Directory-filter plumbing without a live consumer since the Forge page
+ * retired into /design (ADR-0028): its "Find artists for this design" CTA
+ * was the one call site. Kept (with its tests) for the reveal-side
+ * find-artists handoff; the /matches redirect stub still depends on this
+ * module's parseStylesParam, so the module itself is load-bearing.
  */
 export function artistsUrlForDesign(prompt: string): string {
   const styles = stylesFromDescriptors([prompt]);
