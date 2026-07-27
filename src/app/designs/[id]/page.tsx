@@ -76,7 +76,7 @@ export default function DesignDetailPage({
             <div className="mt-10 flex flex-wrap items-center gap-5">
               <TapeCTA href="/designs" size="lg">Back to Designs</TapeCTA>
               <Link
-                href="/generate/stencil"
+                href="/design"
                 className="text-[10px] uppercase tracking-[0.25em] text-white/60 hover:text-pink border hairline px-4 py-3 press font-body"
               >
                 ▸ Start a new one
@@ -163,7 +163,7 @@ export default function DesignDetailPage({
 
             <div className="mt-10 flex flex-col sm:flex-row gap-3">
               <Link
-                href={`/generate/stencil?prompt=${encodeURIComponent(design.prompt)}`}
+                href={`/design?prompt=${encodeURIComponent(design.prompt)}`}
                 className="tape press inline-flex items-center justify-center px-6 py-4 font-display text-[20px] sm:text-[24px] leading-none tracking-[0.02em]"
               >
                 Iterate

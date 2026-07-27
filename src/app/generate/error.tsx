@@ -12,8 +12,8 @@ export default function GenerateError(props: {
       label="Studio"
       headline="jammed"
       description="The Studio couldn't finish that generation."
-      backHref="/generate/stencil"
-      backLabel="Start From Stencil"
+      backHref="/design"
+      backLabel="Start a New Design"
     />
   );
 }

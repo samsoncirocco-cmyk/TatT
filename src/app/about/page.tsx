@@ -100,10 +100,10 @@ export default function AboutPage() {
             <span className="text-pink">.</span>
           </h2>
           <Link
-            href="/generate/stencil"
+            href="/design"
             className="mt-10 tape press inline-flex items-center justify-center px-10 py-5 font-display text-[28px] sm:text-[38px] leading-none tracking-[0.02em]"
           >
-            Start Forging
+            Start Designing
             <span className="ml-3 text-[20px]">▸</span>
           </Link>
         </div>

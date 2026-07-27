@@ -115,7 +115,7 @@ export default function DesignsPage() {
                 Manage Billing
               </ManageBillingButton>
               <Link
-                href="/generate/stencil"
+                href="/design"
                 className="tape press inline-flex items-center justify-center px-6 py-3 font-display text-[20px] leading-none tracking-[0.02em]"
               >
                 New Design
@@ -133,13 +133,13 @@ export default function DesignsPage() {
                 No cuts yet<span className="text-pink">.</span>
               </div>
               <p className="mt-4 text-[12px] uppercase tracking-[0.2em] text-white/50 font-body">
-                Describe the ink you want and the Forge cuts four takes.
+                Describe the ink you want and get four takes to pick from.
               </p>
               <Link
-                href="/generate/stencil"
+                href="/design"
                 className="mt-10 tape press inline-flex items-center justify-center px-8 py-4 font-display text-[24px] leading-none tracking-[0.02em]"
               >
-                Open the Forge
+                Start Designing
                 <span className="ml-3 text-[18px]">▸</span>
               </Link>
             </div>

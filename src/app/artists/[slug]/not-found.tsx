@@ -51,7 +51,7 @@ export default function ArtistNotFound() {
               Browse the roster
             </TapeCTA>
             <Link
-              href="/generate/stencil"
+              href="/design"
               className="text-[10px] uppercase tracking-[0.25em] text-white/60 hover:text-pink border hairline px-4 py-3 press font-body"
             >
               ▸ Start a design instead

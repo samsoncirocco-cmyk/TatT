@@ -356,7 +356,7 @@ function StepVisualize({ concept, onNext }: { concept: (typeof DEMO_CONCEPTS)[0]
           <motion.div key="canvas" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <TattooPreview concept={concept} />
             <p className="text-center text-white/40 text-xs mt-3">
-              AI-generated design preview — adjust placement, scale & rotation in the Forge
+              AI-generated design preview — adjust placement, scale & rotation in the Studio
             </p>
           </motion.div>
         ) : (
@@ -484,11 +484,11 @@ function StepArtistMatch({ concept }: { concept: (typeof DEMO_CONCEPTS)[0] }) {
         ) : null}
 
         <Link
-          href="/generate"
+          href="/design"
           className="w-full py-3 rounded-2xl bg-gradient-to-r from-ducks-green to-teal-600 text-white font-bold flex items-center justify-center gap-2 text-sm"
         >
           <Sparkles size={16} />
-          Try the real Forge — build your design
+          Try it for real — design your tattoo
           <ArrowRight size={16} />
         </Link>
         <Link
