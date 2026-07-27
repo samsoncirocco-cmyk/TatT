@@ -13,8 +13,11 @@
  */
 import { artistSlug } from "@/lib/artist-slug";
 import {
+  IG_PERMALINK_CYPHER,
   filterPermalinksForDisplay,
   filterPortfolioForDisplay,
+  igEmbedsEnabled,
+  unclaimedPortfolioDisplayEnabled,
 } from "@/lib/portfolio-display";
 import { CANONICAL_STYLES, styleMatchVariants } from "@/lib/style-vocabulary";
 import { NOT_REMOVED_CLAUSE } from "@/lib/takedown";
@@ -64,7 +67,9 @@ export type RosterFilter = {
   q?: string;
   /** Exact style name (case-insensitive) from ROSTER_STYLES. */
   style?: string;
-  /** Only artists with real self-hosted portfolio images (not the stale count). */
+  /** Only artists whose profile would actually display portfolio work under
+   *  the current display policy (src/lib/portfolio-display) — never raw
+   *  scraped rows the kill switch withholds. */
   hasPortfolio?: boolean;
 };
 
@@ -72,9 +77,17 @@ export type RosterFilter = {
  * Build the shared WHERE clause + params for roster queries.
  * `styles` must already be collected into scope when the clause runs.
  */
-export function buildRosterFilter(filter: RosterFilter): {
+export function buildRosterFilter(
+  filter: RosterFilter,
+  env: Record<string, string | undefined> = process.env,
+): {
   where: string;
-  params: { q: string | null; styleVariants: string[]; hasPortfolio: boolean };
+  params: {
+    q: string | null;
+    styleVariants: string[];
+    hasPortfolio: boolean;
+    igPermalinkPattern: string;
+  };
 } {
   const q = filter.q?.trim() || null;
   const style = filter.style?.trim() || null;
@@ -83,6 +96,23 @@ export function buildRosterFilter(filter: RosterFilter): {
   // style yields an empty list, and `size(...) > 0 AND ...` then matches
   // nothing — a filter nobody can satisfy must return nothing, not everyone.
   const styleVariants = style ? styleMatchVariants(style) : [];
+  // What hasPortfolio means must track what the display policy will actually
+  // render (src/lib/portfolio-display), or a filtered roster fills with
+  // image-less cards. Same env-driven policy, expressed in Cypher:
+  //   - kill switch on (default): stored images count, claimed or not;
+  //   - kill switch off: unclaimed artists' scraped images are withheld, so
+  //     only claimed artists' images count — plus, once the embed tier is on,
+  //     an unclaimed artist with at least one canonical IG permalink (the
+  //     shape filterPermalinksForDisplay would keep).
+  const hasImages = "(a.portfolioImages IS NOT NULL AND size(a.portfolioImages) > 0)";
+  const isClaimed = "(a.claimedByUid IS NOT NULL AND a.claimedByUid <> '')";
+  const hasEmbeddablePermalink =
+    "any(p IN coalesce(a.portfolioPermalinks, []) WHERE trim(toString(p)) =~ $igPermalinkPattern)";
+  const displaysPortfolio = unclaimedPortfolioDisplayEnabled(env)
+    ? hasImages
+    : igEmbedsEnabled(env)
+      ? `((${isClaimed} AND ${hasImages}) OR (NOT ${isClaimed} AND ${hasEmbeddablePermalink}))`
+      : `(${isClaimed} AND ${hasImages})`;
   // Leads the clause and is not conditional on any filter: an artist who asked
   // to be removed must be absent from every roster read, not merely from the
   // unfiltered one. See docs/adr/0025.
@@ -93,8 +123,11 @@ export function buildRosterFilter(filter: RosterFilter): {
       OR toLower(coalesce(a.city, '')) CONTAINS toLower($q)
       OR toLower(coalesce(a.shopName, '')) CONTAINS toLower($q))
     AND (${style === null ? "true" : "size($styleVariants) > 0 AND any(s IN styles WHERE toLower(s) IN $styleVariants)"})
-    AND (NOT $hasPortfolio OR (a.portfolioImages IS NOT NULL AND size(a.portfolioImages) > 0))`;
-  return { where, params: { q, styleVariants, hasPortfolio } };
+    AND (NOT $hasPortfolio OR ${displaysPortfolio})`;
+  return {
+    where,
+    params: { q, styleVariants, hasPortfolio, igPermalinkPattern: IG_PERMALINK_CYPHER },
+  };
 }
 
 /** Clamp a raw page value to [1, ∞) and derive the Cypher skip window. */

@@ -9,6 +9,7 @@ import {
   rosterPageWindow,
   toRosterArtist,
 } from "./artists-graph";
+import { IG_PERMALINK_CYPHER } from "./portfolio-display";
 
 const mockedQuery = vi.hoisted(() => vi.fn(async () => [] as any[]));
 vi.mock("@/features/match-pulse/services/neo4jService", () => ({
@@ -21,11 +22,13 @@ describe("buildRosterFilter", () => {
       q: null,
       styleVariants: [],
       hasPortfolio: false,
+      igPermalinkPattern: IG_PERMALINK_CYPHER,
     });
     expect(buildRosterFilter({ q: "  ", style: "" }).params).toEqual({
       q: null,
       styleVariants: [],
       hasPortfolio: false,
+      igPermalinkPattern: IG_PERMALINK_CYPHER,
     });
   });
 
@@ -58,6 +61,60 @@ describe("buildRosterFilter", () => {
     expect(where).toContain("a.portfolioImages IS NOT NULL");
     expect(where).toContain("size(a.portfolioImages) > 0");
     expect(where).not.toContain("portfolioImageCount");
+  });
+
+  // hasPortfolio must mean "would actually display something", not "has
+  // scraped rows in the graph" — otherwise /artists?hasPortfolio=1 fills with
+  // image-less cards the moment the kill switch is off (flagged in PR #218).
+  describe("hasPortfolio tracks the display policy (TAT-31/TAT-40)", () => {
+    const KILL_SWITCH_OFF = { SHOW_UNCLAIMED_PORTFOLIOS: "false" };
+    const KILL_SWITCH_OFF_EMBEDS_ON = {
+      SHOW_UNCLAIMED_PORTFOLIOS: "false",
+      ENABLE_IG_EMBEDS: "true",
+    };
+
+    it("switch on (default): stored images count, claimed or not — current behavior", () => {
+      const { where } = buildRosterFilter({ hasPortfolio: true }, {});
+      expect(where).toContain("size(a.portfolioImages) > 0");
+      // No claim gate, no permalink tier: images alone decide.
+      expect(where).not.toContain("claimedByUid");
+      expect(where).not.toContain("portfolioPermalinks");
+    });
+
+    it("switch off, embeds off: only claimed artists' images count", () => {
+      const { where } = buildRosterFilter({ hasPortfolio: true }, KILL_SWITCH_OFF);
+      expect(where).toContain("(a.claimedByUid IS NOT NULL AND a.claimedByUid <> '')");
+      expect(where).toContain("size(a.portfolioImages) > 0");
+      // No embed tier ⇒ an unclaimed artist displays nothing ⇒ never matches.
+      expect(where).not.toContain("portfolioPermalinks");
+    });
+
+    it("switch off, embeds on: unclaimed artists count only via a displayable permalink", () => {
+      const { where, params } = buildRosterFilter(
+        { hasPortfolio: true },
+        KILL_SWITCH_OFF_EMBEDS_ON,
+      );
+      // Claimed lane: licensed hosted images.
+      expect(where).toContain("(a.claimedByUid IS NOT NULL AND a.claimedByUid <> '')");
+      expect(where).toContain("size(a.portfolioImages) > 0");
+      // Unclaimed lane: at least one permalink filterPermalinksForDisplay
+      // would keep — matched via the shared pattern, passed as a $param.
+      expect(where).toContain("NOT (a.claimedByUid IS NOT NULL AND a.claimedByUid <> '')");
+      expect(where).toContain("coalesce(a.portfolioPermalinks, [])");
+      expect(where).toContain("$igPermalinkPattern");
+      expect(params.igPermalinkPattern).toBe(IG_PERMALINK_CYPHER);
+      expect(where).not.toContain("instagram.com"); // pattern rides the param, never inline
+    });
+
+    it("the display policy never gates the roster when hasPortfolio is off", () => {
+      // $hasPortfolio=false short-circuits the clause; unfiltered browsing
+      // must list every artist (cards fall back to their no-image state).
+      for (const env of [{}, KILL_SWITCH_OFF, KILL_SWITCH_OFF_EMBEDS_ON]) {
+        const { where, params } = buildRosterFilter({}, env);
+        expect(params.hasPortfolio).toBe(false);
+        expect(where).toContain("NOT $hasPortfolio OR");
+      }
+    });
   });
 
   it("searches name, city, and shop; matches style case-insensitively", () => {
