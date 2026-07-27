@@ -50,6 +50,19 @@ describe("buildRosterFilter", () => {
     }
   });
 
+  it("suppresses artists after repeated confirmed dead/private refreshes", () => {
+    for (const filter of [{}, { q: "austin" }, { style: "Blackwork" }]) {
+      const where = buildRosterFilter(filter).where;
+      expect(where).toContain("coalesce(a.stale, false) = false");
+    }
+  });
+
+  it("suppresses only explicit negative bookability verdicts", () => {
+    expect(buildRosterFilter({}).where).toContain(
+      "coalesce(a.looksBookable, true) = true",
+    );
+  });
+
   it("gates the roster on real stored portfolioImages, not the stale count", () => {
     const { where, params } = buildRosterFilter({ hasPortfolio: true });
     expect(params.hasPortfolio).toBe(true);

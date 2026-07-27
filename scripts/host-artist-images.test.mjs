@@ -5,6 +5,7 @@ import {
   gcsObjectPath,
   publicUrl,
   normalizeRecord,
+  bookabilityRejection,
   buildArtistUpdate,
   parseArgs,
 } from './host-artist-images.mjs';
@@ -93,6 +94,27 @@ describe('normalizeRecord', () => {
       images: ['https://a/1.jpg'],
     });
   });
+
+  it('rejects a negative classifier verdict unless the operator explicitly bypasses it', () => {
+    const rejected = {
+      artistId: 'artist_1',
+      handle: 'shared.shop',
+      images: ['https://a/1.jpg'],
+      looksBookable: false,
+      filterReason: 'shop-account',
+    };
+    expect(bookabilityRejection(rejected)).toBe('shop-account');
+    expect(normalizeRecord(rejected)).toBeNull();
+    expect(normalizeRecord(rejected, { allowRejected: true })).toMatchObject({
+      artistId: 'artist_1',
+    });
+  });
+
+  it('keeps legacy records with no classifier field while new enrichers roll out', () => {
+    expect(
+      normalizeRecord({ artistId: 'artist_1', images: ['https://a/1.jpg'] }),
+    ).not.toBeNull();
+  });
 });
 
 describe('buildArtistUpdate', () => {
@@ -116,18 +138,27 @@ describe('buildArtistUpdate', () => {
     expect(query).not.toContain('artist_1');
     expect(query).not.toContain('instagram');
     expect(query).not.toContain('1784586910000');
+    // Portfolio refreshes may not overwrite artist-managed profile or
+    // verification state (TAT-10).
+    expect(query).not.toContain('artistManagedFields');
+    expect(query).not.toContain('profileManagedAtEpochMs');
+    expect(query).not.toContain('claimVerificationStatus');
+    expect(query).not.toContain('a.name');
+    expect(query).not.toContain('a.bio');
+    expect(query).not.toContain('a.instagram');
   });
 });
 
 describe('parseArgs', () => {
   it('parses flags and applies sensible defaults', () => {
-    const opts = parseArgs(['--input', './imgs', '--limit', '5', '--dry-run', '--timestamp', '123', '--source', 'ig', '--max-per-artist', '3']);
+    const opts = parseArgs(['--input', './imgs', '--limit', '5', '--dry-run', '--timestamp', '123', '--source', 'ig', '--max-per-artist', '3', '--no-filter']);
     expect(opts.input).toBe('./imgs');
     expect(opts.limit).toBe(5);
     expect(opts.dryRun).toBe(true);
     expect(opts.timestamp).toBe(123);
     expect(opts.source).toBe('ig');
     expect(opts.maxPerArtist).toBe(3);
+    expect(opts.noFilter).toBe(true);
   });
 
   it('defaults limit to all and dryRun to false', () => {
@@ -135,5 +166,6 @@ describe('parseArgs', () => {
     expect(opts.limit).toBe(Infinity);
     expect(opts.dryRun).toBe(false);
     expect(opts.maxPerArtist).toBe(8);
+    expect(opts.noFilter).toBe(false);
   });
 });

@@ -7,6 +7,7 @@
 import { getApiAuthHeaders } from '@/lib/client-api-auth';
 import { filterPermalinksForDisplay, filterPortfolioForDisplay } from '@/lib/portfolio-display';
 import { styleMatchVariants } from '@/lib/style-vocabulary';
+import { PUBLIC_ARTIST_CLAUSE } from '@/lib/artist-visibility';
 import { NOT_REMOVED_CLAUSE } from '@/lib/takedown';
 import { DEMO_PORTFOLIO_IMAGES } from '@/lib/demo-images';
 
@@ -290,7 +291,10 @@ export function buildNotRemovedClause(): string {
 }
 
 /** Shorthand for interpolation into the query templates below. */
-const NOT_REMOVED = NOT_REMOVED_CLAUSE;
+// Kept under the existing local name so the per-query guard test continues to
+// prove every Artist read is covered. The predicate now also suppresses
+// confirmed-stale handles; it still contains the takedown clause.
+const NOT_REMOVED = PUBLIC_ARTIST_CLAUSE;
 
 /**
  * Find matching artists using Neo4j Cypher
