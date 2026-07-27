@@ -50,6 +50,8 @@
  *   --source <name>       value for portfolioSource (default: instagram)
  *   --bucket <name>       GCS bucket override (default: env or tatt-pro-assets)
  *   --max-per-artist <n>  cap images uploaded per artist (default: 8)
+ *   --no-filter           deliberately import a record whose
+ *                         looksBookable verdict is false (audited in output)
  */
 
 import { readdir, readFile } from 'node:fs/promises';
@@ -110,8 +112,19 @@ export function publicUrl(bucket, objectPath) {
 }
 
 /** Validate + normalize one parsed artist-image record from the input dir. */
-export function normalizeRecord(raw) {
+export function bookabilityRejection(raw, allowRejected = false) {
+  if (allowRejected || !raw || typeof raw !== 'object') return null;
+  if (raw.looksBookable !== false) return null;
+  const reason =
+    typeof raw.filterReason === 'string' && raw.filterReason.trim()
+      ? raw.filterReason.trim()
+      : 'classifier-rejected';
+  return reason;
+}
+
+export function normalizeRecord(raw, { allowRejected = false } = {}) {
   if (!raw || typeof raw !== 'object') return null;
+  if (bookabilityRejection(raw, allowRejected)) return null;
   const artistId = raw.artistId;
   if (!isSafeArtistId(artistId)) return null;
   const images = Array.isArray(raw.images)
@@ -147,6 +160,7 @@ export function parseArgs(argv) {
     source: 'instagram',
     bucket: process.env.GCS_BUCKET_NAME || process.env.GCS_BUCKET || DEFAULT_BUCKET,
     maxPerArtist: DEFAULT_MAX_PER_ARTIST,
+    noFilter: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -159,6 +173,7 @@ export function parseArgs(argv) {
       case '--source': opts.source = next(); break;
       case '--bucket': opts.bucket = next(); break;
       case '--max-per-artist': opts.maxPerArtist = Math.max(1, Math.trunc(Number(next())) || DEFAULT_MAX_PER_ARTIST); break;
+      case '--no-filter': opts.noFilter = true; break;
       default: break;
     }
   }
@@ -198,7 +213,7 @@ async function downloadImage(url) {
 }
 
 /** Read + validate every *.json file in the input directory. */
-async function loadRecords(inputDir) {
+async function loadRecords(inputDir, opts) {
   const entries = await readdir(inputDir);
   const jsonFiles = entries.filter((f) => f.toLowerCase().endsWith('.json')).sort();
   const records = [];
@@ -206,9 +221,19 @@ async function loadRecords(inputDir) {
     const full = path.join(inputDir, file);
     try {
       const raw = JSON.parse(await readFile(full, 'utf8'));
-      const rec = normalizeRecord(raw);
-      if (rec) records.push(rec);
-      else console.log(`  ⚠ skipping ${file}: missing artistId or usable images[]`);
+      const rejected = bookabilityRejection(raw);
+      const rec = normalizeRecord(raw, { allowRejected: opts.noFilter });
+      if (rec) {
+        if (rejected && opts.noFilter) {
+          console.log(`  ⚠ FILTER BYPASS ${file}: looksBookable=false (${rejected})`);
+        }
+        records.push(rec);
+      }
+      else if (rejected) {
+        console.log(`  ⛔ skipping ${file}: looksBookable=false (${rejected})`);
+      } else {
+        console.log(`  ⚠ skipping ${file}: missing artistId or usable images[]`);
+      }
     } catch (err) {
       console.log(`  ⚠ skipping ${file}: ${err.message}`);
     }
@@ -270,8 +295,9 @@ async function main() {
   console.log(`  maxPerArtist: ${opts.maxPerArtist}`);
   console.log(`  limit:        ${opts.limit === Infinity ? 'all' : opts.limit}`);
   console.log(`  dryRun:       ${opts.dryRun}`);
+  console.log(`  filter:       ${opts.noFilter ? 'BYPASSED (--no-filter)' : 'enforced'}`);
 
-  const records = (await loadRecords(opts.input)).slice(0, opts.limit);
+  const records = (await loadRecords(opts.input, opts)).slice(0, opts.limit);
   console.log(`\nLoaded ${records.length} artist record(s) to process.`);
   if (records.length === 0) return;
 
