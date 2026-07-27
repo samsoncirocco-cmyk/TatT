@@ -353,7 +353,21 @@ interface PromptContext {
 }
 
 function buildContext(record: IntakeRecord): PromptContext {
-  const placement = record.placement || 'forearm';
+  // Placement is a hard generation constraint (ADR-0009) AND the anchor of
+  // the downstream placement-preview composite, which trusts the intake tag
+  // by spec. This used to fall back silently to 'forearm', which is exactly
+  // how an empty-placement brief once shipped a forearm render nobody asked
+  // for. Both intake lanes now guarantee placement before enhancement — the
+  // scripted route 400s without a placementAnswer, and the conversation
+  // gates its turn-12 forced proposal on placement (ADR-0021 amendment) —
+  // so an empty placement here is a broken caller. Refuse loudly.
+  const placement = (record.placement ?? '').trim();
+  if (!placement) {
+    throw new Error(
+      'enhanceStructured requires IntakeRecord.placement — refusing to guess a ' +
+        'body part; every intake lane must resolve placement before enhancement.'
+    );
+  }
   const anatomicalFlow = COUNCIL_SKILL_PACK.anatomicalFlow as Record<string, string>;
   return {
     styleDesc: record.styleTags.length > 0 ? record.styleTags.join(', ') : 'tattoo',
