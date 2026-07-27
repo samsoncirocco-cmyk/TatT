@@ -4,6 +4,7 @@ import SlashHeadline from "@/components/punk/SlashHeadline";
 import ArtistCard from "@/components/punk/ArtistCard";
 import { getFeaturedArtists } from "@/lib/featured-artists";
 import { artistSlug } from "@/lib/artist-slug";
+import { EXAMPLE_DESIGNS } from "@/lib/example-designs";
 
 // The featured grid is curated but suppression-checked against the live graph,
 // so a completed takedown drops off the homepage on its own rather than waiting
@@ -138,6 +139,59 @@ export default async function Home() {
                   </p>
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+
+        {/* EXAMPLE DESIGNS — the zero-signup product preview (TAT-36).
+            Real outputs of the generation pipeline, labeled as AI-generated
+            examples. NOT community posts (the gallery stays honestly empty
+            until people share), no view counts, no artist attribution. */}
+        <section className="px-6 md:px-12 py-20 md:py-28 border-t-2 hairline">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex items-baseline justify-between mb-6">
+              <h2 className="font-display text-white text-[32px] md:text-[48px] tracking-wide leading-none">
+                Straight out of the machine
+              </h2>
+              <span className="text-[10px] uppercase tracking-[0.25em] text-pink font-body">
+                AI-generated&nbsp;examples
+              </span>
+            </div>
+            <p className="mb-12 text-[14px] text-white/60 font-body leading-[1.55] max-w-[52ch]">
+              Four cuts from the same pipeline behind{" "}
+              <span className="text-white/80">Start your design</span> — shown
+              as examples, not community posts.
+            </p>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
+              {EXAMPLE_DESIGNS.map((d) => (
+                <figure key={d.src} className="border-2 hairline bg-white/[0.03]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={d.src}
+                    alt={d.alt}
+                    loading="lazy"
+                    className="w-full aspect-square object-cover"
+                  />
+                  <figcaption className="px-3 py-2.5 flex items-baseline justify-between gap-2">
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-white/70 font-body">
+                      {d.style}
+                    </span>
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-pink font-body whitespace-nowrap">
+                      Example
+                    </span>
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+
+            <div className="mt-12">
+              <Link
+                href="/design"
+                className="text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink font-body"
+              >
+                Make your own&nbsp;&nbsp;→
+              </Link>
             </div>
           </div>
         </section>
