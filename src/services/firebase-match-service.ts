@@ -16,6 +16,7 @@
 
 import { getDatabase, ref, set, onValue, get } from 'firebase/database';
 import { initializeApp } from 'firebase/app';
+import { DEMO_PORTFOLIO_IMAGES } from '@/lib/demo-images';
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
@@ -28,7 +29,7 @@ const MOCK_ARTISTS = [
     location: 'Brooklyn, NY',
     rating: 4.9,
     matchScore: 0.95,
-    portfolio: 'https://images.unsplash.com/photo-1598371839696-5c5bb00bdc28?w=400',
+    portfolio: DEMO_PORTFOLIO_IMAGES[0],
   },
   {
     id: 'artist-2',
@@ -37,7 +38,7 @@ const MOCK_ARTISTS = [
     location: 'San Francisco, CA',
     rating: 4.8,
     matchScore: 0.88,
-    portfolio: 'https://images.unsplash.com/photo-1611501275019-9b5cda994e8d?w=400',
+    portfolio: DEMO_PORTFOLIO_IMAGES[1],
   },
   {
     id: 'artist-3',
@@ -46,7 +47,7 @@ const MOCK_ARTISTS = [
     location: 'Portland, OR',
     rating: 4.7,
     matchScore: 0.82,
-    portfolio: 'https://images.unsplash.com/photo-1590246814883-57c511e76729?w=400',
+    portfolio: DEMO_PORTFOLIO_IMAGES[2],
   },
 ];
 
