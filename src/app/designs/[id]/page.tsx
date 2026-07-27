@@ -170,7 +170,7 @@ export default function DesignDetailPage({
                 <span className="ml-3 text-[16px]">▸</span>
               </Link>
               <Link
-                href="/matches"
+                href="/smart-match"
                 className="text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-black hover:bg-pink border-2 hairline px-4 py-4 press font-body inline-flex items-center justify-center"
               >
                 ▸ Find an artist

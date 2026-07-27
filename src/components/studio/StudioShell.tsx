@@ -103,7 +103,7 @@ export default function StudioShell({
             )}
             {favHydrated && favorites.length > 0 && (
               <Link
-                href="/matches"
+                href="/artists"
                 aria-label={`${favorites.length} favorited artists`}
                 className="hidden md:flex items-center px-4 border-l hairline-white text-[10px] uppercase tracking-[0.25em] text-pink hover:text-white press tabular-nums font-body"
               >
