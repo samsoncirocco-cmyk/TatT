@@ -21,6 +21,7 @@ import {
 } from '@/services/fetchWithAbort';
 import { routeGeneration } from '@/services/generation';
 import { getApiAuthHeaders } from '@/lib/client-api-auth';
+import { DEMO_MOCK_IMAGES } from '@/lib/demo-images';
 
 // Proxy server configuration (injected via env)
 // Use Next.js relative API path
@@ -31,13 +32,10 @@ const VERTEX_GENERATE_URL = '/api/v1/generate';
 // Demo mode for testing without API calls
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
-// Mock tattoo images for demo mode (using placeholder service)
-const MOCK_IMAGES = [
-  'https://images.unsplash.com/photo-1565058379802-bbe93b2f703f?w=1024&h=1024&fit=crop', // Tattoo 1
-  'https://images.unsplash.com/photo-1598371839696-5c5bb00bdc28?w=1024&h=1024&fit=crop', // Tattoo 2
-  'https://images.unsplash.com/photo-1611501275019-9b5cda994e8d?w=1024&h=1024&fit=crop', // Tattoo 3
-  'https://images.unsplash.com/photo-1590246814883-57c511e76729?w=1024&h=1024&fit=crop'  // Tattoo 4
-];
+// Mock tattoo images for demo mode — the shared repo-local set
+// (src/lib/demo-images.ts); two of the Unsplash photos this list once
+// carried 404'd.
+const MOCK_IMAGES = DEMO_MOCK_IMAGES;
 
 // Ratios each model's input schema actually accepts (mirrors the server
 // generation module, verified against the models' published OpenAPI schemas).
