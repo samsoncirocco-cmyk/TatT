@@ -15,7 +15,9 @@ export interface ConversationMessage {
  * Where the conversation stands after a turn (ADR-0020, ADR-0021).
  * 'chatting'  — keep talking.
  * 'proposal'  — bot played back what it heard and asked to generate (turn ~6
- *               by judgment, forced by turn 12).
+ *               by judgment, forced by turn 12 once placement is known — the
+ *               forced proposal never fires without a placement; the bot asks
+ *               for it directly instead, ADR-0021 amendment).
  * 'handoff'   — turn-20 warm handoff to artists with free consultations;
  *               never framed as a limit.
  */
@@ -34,7 +36,12 @@ export interface TurnLog {
   /** IntakeRecord fields still considered missing/weak. */
   missingFields: string[];
   /** Which cadence rule decided this turn's stage. */
-  firedRule: 'judgment' | 'turn12-force-proposal' | 'turn20-handoff' | 'none';
+  firedRule:
+    | 'judgment'
+    | 'turn12-force-proposal'
+    | 'turn12-ask-placement'
+    | 'turn20-handoff'
+    | 'none';
   /** Model that served the turn (per-session pinned; fallback noted). */
   model: string;
 }

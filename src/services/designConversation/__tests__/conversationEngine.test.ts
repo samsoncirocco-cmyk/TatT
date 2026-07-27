@@ -221,7 +221,19 @@ describe('runTurn — judgment cadence', () => {
 describe('runTurn — forced cadence (deterministic code, not model judgment)', () => {
   it('forces the proposal at user turn 12 with a best-guess playback', async () => {
     configureVertex();
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(vertexResponse(SPARSE_PAYLOAD)));
+    // Placement present, everything else sparse: the forced best-guess fires
+    // on every open question EXCEPT placement, which gates it (ADR-0021
+    // amendment) — this payload used to be fully sparse, which encoded the
+    // empty-placement → silent-forearm bug as correct behaviour.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        vertexResponse({
+          ...SPARSE_PAYLOAD,
+          record: { ...SPARSE_PAYLOAD.record, placement: 'shoulder' },
+        })
+      )
+    );
 
     const result = await runTurn({ messages: MESSAGES, userTurn: 12 });
 
@@ -232,6 +244,59 @@ describe('runTurn — forced cadence (deterministic code, not model judgment)', 
     expect(result.reply).toContain('Want to see four takes on this, or did I miss something?');
     // Best guess on a sparse record still reads as a judgment call, not a limit.
     expect(result.reply).not.toMatch(/limit|turn|cap/i);
+  });
+
+  it('asks for placement instead of proposing when turn 12 arrives without one (ADR-0021 amendment)', async () => {
+    configureVertex();
+    // Sparse record: no placement extracted by turn 12. The waiter may not
+    // walk to the kitchen without a real order — the bot must ask, not guess.
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(vertexResponse(SPARSE_PAYLOAD)));
+
+    const result = await runTurn({ messages: MESSAGES, userTurn: 12 });
+
+    expect(result.stage).toBe('chatting');
+    expect(result.turnLog.firedRule).toBe('turn12-ask-placement');
+    expect(result.playback).toBeUndefined();
+    expect(result.reply.toLowerCase()).toContain('where on your body');
+    // Still framed as a judgment call, never a surfaced limit.
+    expect(result.reply).not.toMatch(/limit|turn|cap/i);
+  });
+
+  it('holds the placement gate on later turns until an answer lands', async () => {
+    configureVertex();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(vertexResponse(SPARSE_PAYLOAD)));
+
+    const result = await runTurn({ messages: MESSAGES, userTurn: 15 });
+
+    expect(result.stage).toBe('chatting');
+    expect(result.turnLog.firedRule).toBe('turn12-ask-placement');
+  });
+
+  it('proposes past the gate once the placement answer lands, brief carrying it', async () => {
+    configureVertex();
+    const answeredMessages: ConversationMessage[] = [
+      ...MESSAGES,
+      { role: 'bot', text: 'Where on your body is this going?' },
+      { role: 'user', text: 'left forearm' },
+    ];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        vertexResponse({
+          reply: 'Left forearm it is.',
+          record: { ...SPARSE_PAYLOAD.record, placement: 'left forearm' },
+        })
+      )
+    );
+
+    const result = await runTurn({ messages: answeredMessages, userTurn: 13 });
+
+    expect(result.stage).toBe('proposal');
+    expect(result.turnLog.firedRule).toBe('turn12-force-proposal');
+    expect(result.record.placement).toBe('left forearm');
+    expect(result.playback).toContain('left forearm');
+    // Never the "placement still open" phrasing — the brief has a real answer.
+    expect(result.playback).not.toContain('placement still open');
   });
 
   it('hands off warmly at user turn 20 (ADR-0021 phrasing, never a limit)', async () => {
