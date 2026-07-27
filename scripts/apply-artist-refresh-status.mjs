@@ -85,14 +85,25 @@ async function main() {
           const response = await session.executeWrite((transaction) =>
             transaction.run(query, params),
           );
-          return response.records.length > 0;
+          const rawCount = response.records[0]?.get('matchCount');
+          return typeof rawCount?.toNumber === 'function'
+            ? rawCount.toNumber()
+            : Number(rawCount ?? 0);
         },
       },
       plan,
       { execute: opts.execute, confirm: opts.confirm },
     );
     if (!result.ok) {
-      throw new Error(result.error || `No artist matched: ${result.missing.join(', ')}`);
+      const details = [
+        result.missing.length ? `no artist matched: ${result.missing.join(', ')}` : null,
+        result.ambiguous?.length
+          ? `ambiguous handles: ${result.ambiguous
+              .map(({ handle, matchCount }) => `${handle} (${matchCount})`)
+              .join(', ')}`
+          : null,
+      ].filter(Boolean);
+      throw new Error(result.error || details.join('; '));
     }
     console.log(`\nAPPLIED ${result.applied} refresh status record(s).`);
   } finally {

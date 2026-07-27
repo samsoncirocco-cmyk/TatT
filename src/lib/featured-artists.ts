@@ -51,6 +51,7 @@
  * off the homepage. Only removals a human has actually executed count.
  */
 import featuredData from "@/data/featured-artists.json";
+import { PUBLIC_ARTIST_CLAUSE } from "@/lib/artist-visibility";
 import { tombstoneKeysFor } from "@/lib/takedown";
 
 export type FeaturedArtist = {
@@ -104,9 +105,7 @@ export function retainPublishable(
 export const PUBLISHABLE_FEATURED_CYPHER = `
   UNWIND $candidates AS c
   MATCH (a:Artist {id: c.id})
-  WHERE a.removedAt IS NULL
-    AND coalesce(a.stale, false) = false
-    AND coalesce(a.looksBookable, true) = true
+  WHERE ${PUBLIC_ARTIST_CLAUSE}
   OPTIONAL MATCH (t:TakedownTombstone)
   WHERE t.key IN c.keys
   WITH a, count(t) AS tombstones

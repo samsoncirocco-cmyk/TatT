@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   APPLY_REFRESH_STATUS_CYPHER,
+  DEAD_REFRESH_THRESHOLD,
   buildRefreshStatusUpdate,
   executeRefreshStatus,
   normalizeLedgerEntry,
@@ -92,10 +93,37 @@ describe('refresh status write boundary', () => {
       expect(query).not.toContain(`SET a.${protectedField}`);
     }
     expect(params.artistId).toBe('artist_active');
+    expect(params.handleVariants).toContain('@active.artist');
+    expect(query).toContain('WHEN $artistId IS NOT NULL THEN a.id = $artistId');
+    expect(query).toContain('size(matches) = 1');
+  });
+
+  it('derives suppression from trusted transitions rather than ledger booleans', () => {
+    expect(
+      normalizeLedgerEntry('active.artist', {
+        ...LEDGER.handles['active.artist'],
+        consecutiveDeadRefreshes: 9,
+        stale: true,
+      }),
+    ).toMatchObject({ stale: false, consecutiveDeadRefreshes: 0 });
+    expect(
+      normalizeLedgerEntry('gone.artist', {
+        ...LEDGER.handles['gone.artist'],
+        consecutiveDeadRefreshes: DEAD_REFRESH_THRESHOLD - 1,
+        stale: true,
+      }),
+    ).toMatchObject({ stale: false });
+    expect(
+      normalizeLedgerEntry('gone.artist', {
+        ...LEDGER.handles['gone.artist'],
+        lastRefreshStatus: 'transient',
+        stale: true,
+      }),
+    ).toMatchObject({ stale: null });
   });
 
   it('is dry-run by default and requires an exact execution confirmation', async () => {
-    const apply = vi.fn(async () => true);
+    const apply = vi.fn(async () => 1);
     const plan = planRefreshStatus(LEDGER);
     expect(await executeRefreshStatus({ apply }, plan)).toMatchObject({
       dryRun: true,
@@ -117,5 +145,23 @@ describe('refresh status write boundary', () => {
       { execute: true, confirm: 'APPLY-REFRESH-STATUS' },
     );
     expect(applied).toMatchObject({ executed: true, ok: true, applied: 2 });
+  });
+
+  it('fails the batch when artist resolution is missing or ambiguous', async () => {
+    const plan = planRefreshStatus(LEDGER);
+    const apply = vi.fn()
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(2);
+    const result = await executeRefreshStatus(
+      { apply },
+      plan,
+      { execute: true, confirm: 'APPLY-REFRESH-STATUS' },
+    );
+    expect(result).toMatchObject({
+      ok: false,
+      applied: 0,
+      missing: ['active.artist'],
+      ambiguous: [{ handle: 'gone.artist', matchCount: 2 }],
+    });
   });
 });

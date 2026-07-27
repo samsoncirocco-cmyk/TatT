@@ -7,35 +7,63 @@
  */
 
 const ALLOWED_STATUSES = new Set(['active', 'not_found', 'private', 'transient']);
+const DEAD_STATUSES = new Set(['not_found', 'private']);
+export const DEAD_REFRESH_THRESHOLD = 3;
 const HANDLE = /^[a-z0-9._]{1,30}$/;
 
 export const APPLY_REFRESH_STATUS_CYPHER = `
   MATCH (a:Artist)
-  WHERE
-    ($artistId IS NOT NULL AND a.id = $artistId)
-    OR toLower(coalesce(a.instagram, '')) = $handle
-    OR EXISTS {
-      MATCH (a)-[:HAS_INSTAGRAM]->(ig:Instagram)
-      WHERE toLower(coalesce(ig.handle, '')) = $handle
-    }
-  SET a.lastRefreshStatus = $lastRefreshStatus,
-      a.lastRefreshAt = $lastRefreshAt,
-      a.lastRefreshReason = $lastRefreshReason,
-      a.consecutiveDeadRefreshes = $consecutiveDeadRefreshes,
-      a.stale = $stale
-  FOREACH (_ IN CASE WHEN $looksBookable IS NULL THEN [] ELSE [1] END |
-    SET a.looksBookable = $looksBookable,
-        a.bookabilityReason = $bookabilityReason
+  WHERE CASE
+    WHEN $artistId IS NOT NULL THEN a.id = $artistId
+    ELSE
+      toLower(trim(coalesce(a.instagram, ''))) IN $handleVariants
+      OR EXISTS {
+        MATCH (a)-[:HAS_INSTAGRAM]->(ig:Instagram)
+        WHERE toLower(trim(coalesce(ig.handle, ''))) IN $handleVariants
+      }
+  END
+  WITH collect(a) AS matches
+  FOREACH (a IN CASE WHEN size(matches) = 1 THEN matches ELSE [] END |
+    SET a.lastRefreshStatus = $lastRefreshStatus,
+        a.lastRefreshAt = $lastRefreshAt,
+        a.lastRefreshReason = $lastRefreshReason,
+        a.consecutiveDeadRefreshes = $consecutiveDeadRefreshes
+    FOREACH (_ IN CASE WHEN $stale IS NULL THEN [] ELSE [1] END |
+      SET a.stale = $stale
+    )
+    FOREACH (_ IN CASE WHEN $looksBookable IS NULL THEN [] ELSE [1] END |
+      SET a.looksBookable = $looksBookable,
+          a.bookabilityReason = $bookabilityReason
+    )
+    FOREACH (_ IN CASE WHEN $lastSeenAt IS NULL THEN [] ELSE [1] END |
+      SET a.lastSeenAt = $lastSeenAt
+    )
   )
-  FOREACH (_ IN CASE WHEN $lastSeenAt IS NULL THEN [] ELSE [1] END |
-    SET a.lastSeenAt = $lastSeenAt
-  )
-  RETURN a.id AS id
+  RETURN size(matches) AS matchCount,
+         [a IN matches | a.id] AS matchedIds
 `;
 
 function normalizeHandle(raw) {
-  const handle = String(raw ?? '').trim().replace(/^@/, '').toLowerCase();
+  const source = String(raw ?? '').trim();
+  const fromUrl = /^https?:\/\/(?:www\.)?instagram\.com\//i.test(source);
+  const handle = source
+    .replace(/^https?:\/\/(?:www\.)?instagram\.com\//i, '')
+    .replace(/^@/, '')
+    .replace(fromUrl ? /\/.*$/ : /\/$/, '')
+    .trim()
+    .toLowerCase();
   return HANDLE.test(handle) ? handle : null;
+}
+
+function handleVariants(handle) {
+  return [
+    handle,
+    `@${handle}`,
+    `https://instagram.com/${handle}`,
+    `https://instagram.com/${handle}/`,
+    `https://www.instagram.com/${handle}`,
+    `https://www.instagram.com/${handle}/`,
+  ];
 }
 
 export function normalizeLedgerEntry(handleKey, raw) {
@@ -45,9 +73,12 @@ export function normalizeLedgerEntry(handleKey, raw) {
   const dead = Number(raw.consecutiveDeadRefreshes);
   if (!Number.isInteger(dead) || dead < 0) return null;
   if (typeof raw.lastRefreshAt !== 'string' || !raw.lastRefreshAt) return null;
+  const isDead = DEAD_STATUSES.has(raw.lastRefreshStatus);
+  const isActive = raw.lastRefreshStatus === 'active';
 
   return {
     handle,
+    handleVariants: handleVariants(handle),
     artistId:
       typeof raw.artistId === 'string' && raw.artistId.trim()
         ? raw.artistId.trim()
@@ -56,9 +87,16 @@ export function normalizeLedgerEntry(handleKey, raw) {
     lastRefreshAt: raw.lastRefreshAt,
     lastRefreshReason:
       typeof raw.lastRefreshReason === 'string' ? raw.lastRefreshReason : null,
-    consecutiveDeadRefreshes: dead,
-    stale: Boolean(raw.stale),
-    lastSeenAt: typeof raw.lastSeenAt === 'string' ? raw.lastSeenAt : null,
+    consecutiveDeadRefreshes: isActive ? 0 : dead,
+    // Active is positive recovery evidence. Confirmed dead/private observations
+    // suppress only at the durable threshold. A transient result changes
+    // neither visibility direction, so the Cypher leaves the stored bit alone.
+    stale: isActive ? false : isDead ? dead >= DEAD_REFRESH_THRESHOLD : null,
+    lastSeenAt: isActive
+      ? typeof raw.lastSeenAt === 'string' && raw.lastSeenAt
+        ? raw.lastSeenAt
+        : raw.lastRefreshAt
+      : null,
     looksBookable:
       typeof raw.looksBookable === 'boolean' ? raw.looksBookable : null,
     bookabilityReason:
@@ -128,17 +166,20 @@ export async function executeRefreshStatus(
   }
 
   const missing = [];
+  const ambiguous = [];
   let applied = 0;
   for (const entry of plan.entries) {
-    const matched = await deps.apply(entry);
-    if (matched) applied += 1;
-    else missing.push(entry.handle);
+    const matchCount = await deps.apply(entry);
+    if (matchCount === 1) applied += 1;
+    else if (matchCount === 0) missing.push(entry.handle);
+    else ambiguous.push({ handle: entry.handle, matchCount });
   }
   return {
     dryRun: false,
     executed: true,
-    ok: missing.length === 0,
+    ok: missing.length === 0 && ambiguous.length === 0,
     applied,
     missing,
+    ambiguous,
   };
 }
