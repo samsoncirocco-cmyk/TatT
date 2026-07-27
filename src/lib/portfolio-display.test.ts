@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  filterPermalinksForDisplay,
   filterPortfolioForDisplay,
+  igEmbedsEnabled,
   unclaimedPortfolioDisplayEnabled,
 } from "./portfolio-display";
 
@@ -68,5 +70,122 @@ describe("filterPortfolioForDisplay", () => {
   it("reads process.env by default so callers need no plumbing", () => {
     // No env argument — should behave as flag-on since the test env is unset.
     expect(filterPortfolioForDisplay({ portfolioImages: IMAGES })).toEqual(IMAGES);
+  });
+});
+
+describe("igEmbedsEnabled", () => {
+  it('defaults to DISABLED — only the literal "true" enables', () => {
+    expect(igEmbedsEnabled({})).toBe(false);
+    expect(igEmbedsEnabled({ ENABLE_IG_EMBEDS: "true" })).toBe(true);
+    expect(igEmbedsEnabled({ ENABLE_IG_EMBEDS: "false" })).toBe(false);
+    expect(igEmbedsEnabled({ ENABLE_IG_EMBEDS: "1" })).toBe(false);
+    expect(igEmbedsEnabled({ ENABLE_IG_EMBEDS: "" })).toBe(false);
+  });
+});
+
+describe("filterPermalinksForDisplay (TAT-40 policy matrix)", () => {
+  const PERMALINKS = [
+    "https://www.instagram.com/p/Abc123xyz_-/",
+    "https://www.instagram.com/reel/DEF456/",
+  ];
+  const embedsOn = { ENABLE_IG_EMBEDS: "true" };
+  const embedsOff = {};
+
+  it("embeds flag off (default): nothing leaves, regardless of claim state", () => {
+    expect(
+      filterPermalinksForDisplay({ portfolioPermalinks: PERMALINKS }, embedsOff),
+    ).toEqual([]);
+    expect(
+      filterPermalinksForDisplay(
+        { portfolioPermalinks: PERMALINKS, claimedByUid: "uid_1" },
+        embedsOff,
+      ),
+    ).toEqual([]);
+  });
+
+  it("embeds flag on: unclaimed artist's permalinks pass", () => {
+    expect(
+      filterPermalinksForDisplay({ portfolioPermalinks: PERMALINKS }, embedsOn),
+    ).toEqual(PERMALINKS);
+    expect(
+      filterPermalinksForDisplay(
+        { portfolioPermalinks: PERMALINKS, claimedByUid: null },
+        embedsOn,
+      ),
+    ).toEqual(PERMALINKS);
+  });
+
+  it("embeds flag on: claimed artist gets [] — licensed hosted images are their display", () => {
+    expect(
+      filterPermalinksForDisplay(
+        { portfolioPermalinks: PERMALINKS, claimedByUid: "uid_1" },
+        embedsOn,
+      ),
+    ).toEqual([]);
+  });
+
+  it("independent of the portfolio kill switch — permalinks flow either way when enabled", () => {
+    const killSwitchOff = { ENABLE_IG_EMBEDS: "true", SHOW_UNCLAIMED_PORTFOLIOS: "false" };
+    expect(
+      filterPermalinksForDisplay({ portfolioPermalinks: PERMALINKS }, killSwitchOff),
+    ).toEqual(PERMALINKS);
+    // ...and the kill switch still withholds the hosted images alongside.
+    expect(
+      filterPortfolioForDisplay(
+        { portfolioImages: IMAGES, portfolioPermalinks: PERMALINKS },
+        killSwitchOff,
+      ),
+    ).toEqual([]);
+  });
+
+  it("missing/empty portfolioPermalinks degrades to [] (backfill may not have run)", () => {
+    expect(filterPermalinksForDisplay({}, embedsOn)).toEqual([]);
+    expect(filterPermalinksForDisplay({ portfolioPermalinks: null }, embedsOn)).toEqual([]);
+    expect(filterPermalinksForDisplay({ portfolioPermalinks: [] }, embedsOn)).toEqual([]);
+    expect(
+      filterPermalinksForDisplay({ portfolioPermalinks: "not-an-array" }, embedsOn),
+    ).toEqual([]);
+  });
+
+  it("normalizes to canonical https://www.instagram.com permalinks and drops junk", () => {
+    expect(
+      filterPermalinksForDisplay(
+        {
+          portfolioPermalinks: [
+            "http://instagram.com/p/Abc123",
+            "  https://www.instagram.com/reel/DEF456/?utm_source=ig ",
+            "https://www.instagram.com/tv/GHI789/",
+            "https://www.instagram.com/some.artist/", // profile, not a post
+            "https://evil.example.com/p/Abc123/",
+            "javascript:alert(1)",
+            42,
+            null,
+          ],
+        },
+        embedsOn,
+      ),
+    ).toEqual([
+      "https://www.instagram.com/p/Abc123/",
+      "https://www.instagram.com/reel/DEF456/",
+      "https://www.instagram.com/tv/GHI789/",
+    ]);
+  });
+
+  it("dedupes permalinks that normalize to the same post", () => {
+    expect(
+      filterPermalinksForDisplay(
+        {
+          portfolioPermalinks: [
+            "https://instagram.com/p/Abc123",
+            "https://www.instagram.com/p/Abc123/",
+          ],
+        },
+        embedsOn,
+      ),
+    ).toEqual(["https://www.instagram.com/p/Abc123/"]);
+  });
+
+  it("reads process.env by default — and the test env has embeds off", () => {
+    expect(filterPermalinksForDisplay({ portfolioPermalinks: PERMALINKS })).toEqual([]);
   });
 });
