@@ -151,7 +151,7 @@ export default async function Home() {
           <div className="max-w-6xl mx-auto">
             <div className="flex items-baseline justify-between mb-6">
               <h2 className="font-display text-white text-[32px] md:text-[48px] tracking-wide leading-none">
-                Straight off the Forge
+                Straight out of the machine
               </h2>
               <span className="text-[10px] uppercase tracking-[0.25em] text-pink font-body">
                 AI-generated&nbsp;examples
