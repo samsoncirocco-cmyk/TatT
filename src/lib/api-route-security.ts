@@ -94,7 +94,6 @@ export const API_ROUTE_SECURITY: Record<string, RouteSecurityEntry> = {
   'v1/upload-layer': { class: 'firebase-auth' },
   // Stripe Connect (marketplace) — artist onboarding & payouts
   'v1/connect/accounts': { class: 'firebase-auth' },
-  'v1/connect/onboarding': { class: 'firebase-auth' },
   'v1/connect/onboarding-link': { class: 'firebase-auth' },
   'v1/connect/status': { class: 'firebase-auth' },
   'v1/connect/login-link': { class: 'firebase-auth' },
