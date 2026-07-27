@@ -8,8 +8,14 @@
  * decides the stage:
  *
  *   turn >= 20                                → 'handoff'  (warm, ADR-0021)
- *   turn >= 12                                → 'proposal' (forced best-guess
+ *   turn >= 12 AND placement present          → 'proposal' (forced best-guess
  *                                                playback, ADR-0020 phrasing)
+ *   turn >= 12, no placement                  → 'chatting' (ask for placement
+ *                                                directly — the forced proposal
+ *                                                never guesses the one field
+ *                                                with a hard downstream
+ *                                                dependency; ADR-0021
+ *                                                amendment)
  *   confidence >= threshold AND placement
  *     + meaning present                       → 'proposal' (judgment)
  *   otherwise                                 → 'chatting'
@@ -35,6 +41,7 @@ import type {
 import {
   buildSystemPrompt,
   HANDOFF_MESSAGE,
+  PLACEMENT_GATE_QUESTION,
   proposalReply,
   proposalFollowUp,
   PROPOSAL_LEAD,
@@ -300,10 +307,22 @@ export async function runConversationTurn(
     firedRule = 'turn20-handoff';
     reply = HANDOFF_MESSAGE;
   } else if (request.userTurn >= FORCE_PROPOSAL_TURN) {
-    stage = 'proposal';
-    firedRule = 'turn12-force-proposal';
-    playback = buildPlayback(record, characterLabel);
-    reply = proposalBeatReply(playback, payload, request.messages);
+    if ((record.placement ?? '').trim()) {
+      stage = 'proposal';
+      firedRule = 'turn12-force-proposal';
+      playback = buildPlayback(record, characterLabel);
+      reply = proposalBeatReply(playback, payload, request.messages);
+    } else {
+      // The placement gate (ADR-0021 amendment, owner decision 2026-07-27):
+      // the forced proposal may guess past every open question EXCEPT
+      // placement — it anchors the downstream composite step, and the render
+      // path refuses to invent one. Ask directly; the proposal fires on the
+      // next turn once the answer lands. Deterministic wording, so re-asking
+      // on later gated turns is the refusal semantics, not a model loop.
+      stage = 'chatting';
+      firedRule = 'turn12-ask-placement';
+      reply = PLACEMENT_GATE_QUESTION;
+    }
   } else if (confidence >= CONFIDENCE_THRESHOLD && hasRequiredFields) {
     stage = 'proposal';
     firedRule = 'judgment';
