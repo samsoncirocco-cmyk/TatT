@@ -126,6 +126,11 @@ export function planClaimApproval(
     if (!reviewNote || reviewNote.length < 20) {
       blockers.push('Manual review requires a specific note of at least 20 characters.');
     }
+    if (requestHandle || artistHandle) {
+      blockers.push(
+        'Manual review is allowed only when both request and artist lack a usable Instagram handle.',
+      );
+    }
     warnings.push(
       'Manual review is the no-Instagram fallback. The note becomes part of the durable ownership audit.',
     );

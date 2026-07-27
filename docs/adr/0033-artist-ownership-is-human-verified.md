@@ -25,9 +25,11 @@ The public claim route is request-only:
 - It tells ops exactly what to verify and reports delivery failure honestly.
 
 Approval is a human-run, dry-run-first command. The normal proof is seeing the
-current code on the profile's Instagram. The no-Instagram fallback requires a
-specific manual-review note that becomes part of the audit record. Approval
-atomically binds `claimedByUid`, marks `claimVerificationStatus = "verified"`,
+current code on the profile's Instagram. Manual review is available only when
+both the request and artist profile lack a usable Instagram handle; that
+no-Instagram fallback requires a specific note that becomes part of the audit
+record. Approval atomically binds `claimedByUid`, marks
+`claimVerificationStatus = "verified"`,
 records approver identity/method/note/time, and closes the request. The guarded
 write rechecks the code, issue time, and both handle snapshots in the ownership
 transaction; it refuses removed artists, expired codes, mismatched handles, and

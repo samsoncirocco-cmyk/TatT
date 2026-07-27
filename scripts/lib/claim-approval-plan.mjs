@@ -24,6 +24,21 @@ export const APPROVE_CLAIM_CYPHER = `
     AND coalesce(r.verificationCode, '') = coalesce($verificationCode, '')
     AND coalesce(r.instagram, '') = coalesce($requestInstagram, '')
     AND coalesce(a.instagram, '') = coalesce($artistInstagram, '')
+    AND (
+      (
+        $method = 'instagram_code'
+        AND $requestInstagramHandle IS NOT NULL
+        AND $artistInstagramHandle IS NOT NULL
+        AND $requestInstagramHandle = $artistInstagramHandle
+        AND coalesce(r.verificationCode, '') <> ''
+      )
+      OR (
+        $method = 'manual_review'
+        AND $requestInstagramHandle IS NULL
+        AND $artistInstagramHandle IS NULL
+        AND size(trim(coalesce($reviewNote, ''))) >= 20
+      )
+    )
     AND (a.claimedByUid IS NULL OR (
       a.claimedByUid = $uid
       AND coalesce(a.claimVerificationStatus, '') <> 'verified'
@@ -70,6 +85,8 @@ export function planClaimApproval(
   const warnings = [];
   const approver = approvedBy?.trim() || null;
   const note = reviewNote?.trim() || null;
+  const requestHandle = handle(request?.instagram);
+  const artistHandle = handle(artist?.instagram);
 
   if (!requestId) blockers.push('A claim request id is required.');
   if (!approver || approver.length < 3) {
@@ -94,7 +111,7 @@ export function planClaimApproval(
   }
 
   if (method === 'instagram') {
-    if (!handle(request?.instagram) || handle(request?.instagram) !== handle(artist?.instagram)) {
+    if (!requestHandle || requestHandle !== artistHandle) {
       blockers.push('Request and artist do not share one usable Instagram handle.');
     }
     if (!request?.verificationCode) blockers.push('The request has no verification code.');
@@ -102,6 +119,11 @@ export function planClaimApproval(
   } else if (method === 'manual') {
     if (!note || note.length < 20) {
       blockers.push('Manual review requires a specific note of at least 20 characters.');
+    }
+    if (requestHandle || artistHandle) {
+      blockers.push(
+        'Manual review is allowed only when both request and artist lack a usable Instagram handle.',
+      );
     }
     warnings.push('Manual review is the fallback when Instagram proof is unavailable.');
   } else {
@@ -156,6 +178,8 @@ export async function executeClaimApproval(deps, plan, { execute = false, confir
       verificationCode: plan.request.verificationCode,
       requestInstagram: plan.request.instagram,
       artistInstagram: plan.artist.instagram,
+      requestInstagramHandle: handle(plan.request.instagram),
+      artistInstagramHandle: handle(plan.artist.instagram),
       verificationTtlMs: CLAIM_VERIFICATION_TTL_MS,
     });
     if (!approved) throw new Error('The guarded write matched no pending request/unowned artist.');

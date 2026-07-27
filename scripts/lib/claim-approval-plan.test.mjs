@@ -89,6 +89,56 @@ describe('artist claim approval plan', () => {
     ).toEqual([]);
   });
 
+  it.each([
+    [
+      'both snapshots have a usable handle',
+      {
+        request: { ...facts().request, instagram: '@real.artist' },
+        artist: { ...facts().artist, instagram: '@real.artist' },
+      },
+    ],
+    [
+      'only the request has a usable handle',
+      {
+        request: { ...facts().request, instagram: '@real.artist' },
+        artist: { ...facts().artist, instagram: null },
+      },
+    ],
+    [
+      'only the artist has a usable handle',
+      {
+        request: { ...facts().request, instagram: 'not a usable handle' },
+        artist: { ...facts().artist, instagram: '@real.artist' },
+      },
+    ],
+  ])('refuses manual review when %s', (_label, factOverrides) => {
+    const plan = planClaimApproval(facts(factOverrides), {
+      requestId: 'CL-1234ABCD',
+      method: 'manual',
+      approvedBy: 'samson',
+      reviewNote: 'Video call plus government ID matched the public studio identity.',
+      now: NOW,
+    });
+    expect(plan.blockers.join(' ')).toMatch(/both request and artist lack a usable Instagram/i);
+  });
+
+  it('accepts manual review when both Instagram snapshots are unusable', () => {
+    const plan = planClaimApproval(
+      facts({
+        request: { ...facts().request, instagram: 'not a usable handle' },
+        artist: { ...facts().artist, instagram: 'https://instagram.com/' },
+      }),
+      {
+        requestId: 'CL-1234ABCD',
+        method: 'manual',
+        approvedBy: 'samson',
+        reviewNote: 'Video call plus government ID matched the public studio identity.',
+        now: NOW,
+      },
+    );
+    expect(plan.blockers).toEqual([]);
+  });
+
   it('requires a durable approving operator identity', () => {
     const plan = planClaimApproval(facts(), {
       requestId: 'CL-1234ABCD',
@@ -140,6 +190,8 @@ describe('artist claim approval execution', () => {
         verificationCode: 'TATT-ABCD1234',
         requestInstagram: '@real.artist',
         artistInstagram: '@real.artist',
+        requestInstagramHandle: 'real.artist',
+        artistInstagramHandle: 'real.artist',
         verificationTtlMs: 7 * 24 * 60 * 60 * 1000,
       }),
     );
@@ -150,6 +202,11 @@ describe('artist claim approval execution', () => {
     expect(APPROVE_CLAIM_CYPHER).toContain("coalesce(r.verificationCode, '')");
     expect(APPROVE_CLAIM_CYPHER).toContain("coalesce(r.instagram, '')");
     expect(APPROVE_CLAIM_CYPHER).toContain("coalesce(a.instagram, '')");
+    expect(APPROVE_CLAIM_CYPHER).toContain("$method = 'instagram_code'");
+    expect(APPROVE_CLAIM_CYPHER).toContain('$requestInstagramHandle = $artistInstagramHandle');
+    expect(APPROVE_CLAIM_CYPHER).toContain("$method = 'manual_review'");
+    expect(APPROVE_CLAIM_CYPHER).toContain('$requestInstagramHandle IS NULL');
+    expect(APPROVE_CLAIM_CYPHER).toContain('$artistInstagramHandle IS NULL');
     expect(APPROVE_CLAIM_CYPHER).toContain('a.claimVerifiedBy = $approvedBy');
     expect(APPROVE_CLAIM_CYPHER).toContain('r.approvedBy = $approvedBy');
   });
