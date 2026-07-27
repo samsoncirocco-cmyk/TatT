@@ -5,6 +5,7 @@
  * Provides a feature-flagged alternative to JS-based matching.
  */
 import { getApiAuthHeaders } from '@/lib/client-api-auth';
+import { filterPermalinksForDisplay, filterPortfolioForDisplay } from '@/lib/portfolio-display';
 import { styleMatchVariants } from '@/lib/style-vocabulary';
 import { NOT_REMOVED_CLAUSE } from '@/lib/takedown';
 import { DEMO_PORTFOLIO_IMAGES } from '@/lib/demo-images';
@@ -33,6 +34,10 @@ export interface ArtistRecord {
     hourlyRate?: number;
     portfolio?: string[];
     portfolioImages?: string[];
+    /** Instagram post permalinks (TAT-40 embed tier). Policy-filtered
+     *  server-side; match surfaces never mount iframes from these — only
+     *  the artist profile page renders embeds. */
+    portfolioPermalinks?: string[];
     instagram?: string;
     embedding_id?: string;
     tags?: string[];
@@ -543,6 +548,8 @@ export async function findArtistMatchesForPulse(preferences: ArtistPreferences):
       // real artists) Tattoo.imageUrl path so the shape stays identical.
       coalesce(a.portfolioImages, portfolioImages) AS portfolio,
       coalesce(a.portfolioImages, portfolioImages) AS portfolioImages,
+      a.portfolioPermalinks AS portfolioPermalinks,
+      a.claimedByUid AS claimedByUid,
       a.instagram AS instagram,
       tags AS tags,
       totalScore * 100 AS score
@@ -557,19 +564,29 @@ export async function findArtistMatchesForPulse(preferences: ArtistPreferences):
         limit
     });
 
-    return results.map((record: any): ArtistRecord => ({
-        id: record.id,
-        name: record.name,
-        city: record.city,
-        location: record.location,
-        styles: record.styles || [],
-        bodyParts: record.bodyParts || [],
-        portfolio: record.portfolio || [],
-        portfolioImages: record.portfolioImages || [],
-        instagram: record.instagram,
-        tags: record.tags || [],
-        score: Math.round(record.score || 0)
-    }));
+    return results.map((record: any): ArtistRecord => {
+        // Kill-switch gate (TAT-31): this query is the match path that emits
+        // scraped a.portfolioImages; withhold them for unclaimed artists when
+        // SHOW_UNCLAIMED_PORTFOLIOS=false. Server-side — this function runs
+        // in API routes (/api/v1/match/update) where the env flag is real.
+        const visibleImages = filterPortfolioForDisplay(record);
+        return {
+            id: record.id,
+            name: record.name,
+            city: record.city,
+            location: record.location,
+            styles: record.styles || [],
+            bodyParts: record.bodyParts || [],
+            portfolio: visibleImages,
+            portfolioImages: visibleImages,
+            // Embed tier (TAT-40): same policy seam as the roster mapper.
+            // [] unless ENABLE_IG_EMBEDS=true and the artist is unclaimed.
+            portfolioPermalinks: filterPermalinksForDisplay(record),
+            instagram: record.instagram,
+            tags: record.tags || [],
+            score: Math.round(record.score || 0)
+        };
+    });
 }
 
 /**
@@ -766,7 +783,22 @@ export async function findArtistsByEmbeddingIds(embeddingIds: string[]): Promise
   `;
 
     const results = await executeCypherQuery(query, { embeddingIds });
-    return results.map((record: any) => record.a);
+    // RETURN a ships the whole node — including scraped a.portfolioImages —
+    // into semantic-match responses. Apply the kill-switch gate (TAT-31)
+    // before the node leaves the server.
+    return results.map((record: any) => {
+        const artist = record.a;
+        if (artist && typeof artist === 'object') {
+            return {
+                ...artist,
+                portfolioImages: filterPortfolioForDisplay(artist),
+                // TAT-40: the raw node may carry portfolioPermalinks once the
+                // backfill runs — hold them to the same display policy.
+                portfolioPermalinks: filterPermalinksForDisplay(artist),
+            };
+        }
+        return artist;
+    });
 }
 
 /**
