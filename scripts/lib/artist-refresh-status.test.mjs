@@ -112,7 +112,7 @@ describe('refresh status write boundary', () => {
         consecutiveDeadRefreshes: DEAD_REFRESH_THRESHOLD - 1,
         stale: true,
       }),
-    ).toMatchObject({ stale: false });
+    ).toMatchObject({ stale: null });
     expect(
       normalizeLedgerEntry('gone.artist', {
         ...LEDGER.handles['gone.artist'],

@@ -91,7 +91,11 @@ export function normalizeLedgerEntry(handleKey, raw) {
     // Active is positive recovery evidence. Confirmed dead/private observations
     // suppress only at the durable threshold. A transient result changes
     // neither visibility direction, so the Cypher leaves the stored bit alone.
-    stale: isActive ? false : isDead ? dead >= DEAD_REFRESH_THRESHOLD : null,
+    stale: isActive
+      ? false
+      : isDead && dead >= DEAD_REFRESH_THRESHOLD
+        ? true
+        : null,
     lastSeenAt: isActive
       ? typeof raw.lastSeenAt === 'string' && raw.lastSeenAt
         ? raw.lastSeenAt
