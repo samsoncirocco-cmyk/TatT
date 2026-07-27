@@ -24,8 +24,8 @@
  * same files rather than a copy — so a new ontology tag or a re-synced graph
  * cannot quietly reintroduce a dead filter.
  *
- * Plain JSON imports keep this module client-safe (the /matches and
- * /smart-match pills are client components; no node:fs here).
+ * Plain JSON imports keep this module client-safe (the /smart-match
+ * pills are client components; no node:fs here).
  */
 
 import ontology from "../../data/style-ontology.json";

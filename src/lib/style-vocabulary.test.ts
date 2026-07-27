@@ -143,7 +143,7 @@ describe("no artist the graph holds is unreachable from the UI", () => {
 });
 
 describe("every code surface speaks the one vocabulary", () => {
-  it("shares one list between /matches, /smart-match and the /artists roster", () => {
+  it("shares one list between /smart-match and the /artists roster", () => {
     // ROSTER_STYLES was a copy-paste of CANONICAL_STYLES and drifted.
     expect(ROSTER_STYLES).toBe(CANONICAL_STYLES);
   });
