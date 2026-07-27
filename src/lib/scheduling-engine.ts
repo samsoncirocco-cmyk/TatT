@@ -1,18 +1,13 @@
 /**
  * Scheduling engine — generates bookable time slots from artist availability.
  *
- * This is the Cal.com core primitive: recurring weekly schedule → concrete
- * bookable slots, filtered by existing bookings, holds, overrides, and buffers.
+ * This is the Cal.com-style core primitive: caller-supplied recurring hours
+ * and date overrides become concrete slots after caller-supplied bookings,
+ * holds, buffers, minimum notice, and calendar conflicts are subtracted.
  *
- * In Cal.com this lives in the getAvailableSlots() server function. Here it
- * reads:
- *  - Recurring weekly schedule from Firestore (artist_availability/{artistId}/schedule)
- *  - Date overrides from the same Firestore doc
- *  - Session type config from Neo4j (:SessionType) for duration + buffers
- *  - Existing bookings from Neo4j (:BookingRelay or future :Booking nodes)
- *
- * Pure function: the slot generation logic has NO side effects and is unit-testable.
- * The I/O wrappers (fetchSlots) handle Firestore/Neo4j calls.
+ * This module is deliberately pure. It does not read Firestore, Neo4j, Google
+ * Calendar, or the hold store. `booking-offer.ts` owns that composition and
+ * passes trusted domain values into the functions below.
  */
 
 // ─── Types ─────────────────────────────────────────────────────────────

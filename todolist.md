@@ -30,8 +30,8 @@ delete or archive the rest. Scariest source of prod drift in the repo.
 
 ## 3. Matching stack
 `hybridMatchService`, `vectorDbService`, `firestore-vector-service`,
-`neo4jService`, `firebase-match-service`, `match-config-service`,
-`match-tracking`. Three storage backends behind no single interface — one
+`neo4jService`, `firebase-match-service`. Three storage backends behind no
+single interface — one
 `matching` module with one entry point.
 
 ## 4. Storage/upload layer

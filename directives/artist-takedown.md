@@ -126,6 +126,6 @@ tombstone deleted, but the photographs are gone. This is why Step 2 exists.
 
 - The public request route removes nothing and cannot: it has no write path to
   GCS, Supabase, or the `:Artist` node.
-- Ingest is gated on tombstones in `scripts/data_acquisition/import_to_neo4j.js`,
-  `scripts/import-to-neo4j.js`, and `scripts/host-artist-images.mjs`. All three
+- Ingest is gated on tombstones in `scripts/import-to-neo4j.js` and
+  `scripts/host-artist-images.mjs`. Both
   **abort** if the tombstone list cannot be read — that is deliberate.
