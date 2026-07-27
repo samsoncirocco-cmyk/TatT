@@ -172,10 +172,11 @@ rather than pretending otherwise:
 - CDN / browser caches of `storage.googleapis.com` URLs may serve deleted objects
   for a while after the delete.
 
-**Ingest gates.** The tombstone check is wired into `artist_validator.js` (before
-an id is minted, so no AI-verification spend on a tombstoned artist),
-`import_to_neo4j.js` (last gate before the graph), and `host-artist-images.mjs`
-(so a stale scrape directory cannot re-upload deleted photos).
+**Ingest gates.** The supported graph importer,
+`scripts/import-to-neo4j.js`, checks the tombstone list before writing artist
+data. `scripts/host-artist-images.mjs` applies the same gate so a stale scrape
+directory cannot re-upload deleted photos. Both fail closed when tombstones
+cannot be read.
 
 ## Alternatives rejected
 

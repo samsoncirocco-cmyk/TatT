@@ -2,12 +2,14 @@
  * Scheduling engine — generates bookable time slots from artist availability.
  *
  * This is the Cal.com-style core primitive: caller-supplied recurring hours
- * and date overrides become concrete slots after caller-supplied bookings,
- * holds, buffers, minimum notice, and calendar conflicts are subtracted.
+ * and date overrides become concrete slots after existing bookings, session
+ * duration and buffers, minimum notice, and the requested date range are
+ * applied.
  *
  * This module is deliberately pure. It does not read Firestore, Neo4j, Google
- * Calendar, or the hold store. `booking-offer.ts` owns that composition and
- * passes trusted domain values into the functions below.
+ * Calendar, or the hold store, and it does not filter holds or calendar
+ * conflicts. `booking-offer.ts` owns that composition and passes trusted
+ * domain values into the functions below.
  */
 
 // ─── Types ─────────────────────────────────────────────────────────────
