@@ -35,7 +35,7 @@ export default function ForgeGuide({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-mono uppercase tracking-[0.3em] text-studio-neon">
-              Forge Guide
+              Studio Guide
             </p>
             <h2
               id="forge-guide-title"

@@ -7,7 +7,7 @@ import TapeCTA from "@/components/punk/TapeCTA";
 export const metadata: Metadata = {
   title: "Gallery — TatT",
   description:
-    "Shared cuts from the TatT community. Nothing here yet — the Forge is where designs are born.",
+    "Shared cuts from the TatT community. Nothing here yet — the design session is where designs are born.",
 };
 
 /**
@@ -44,8 +44,8 @@ export default function GalleryPage() {
             <span className="scribble text-pink">no fake ink here.</span>
           </p>
           <div className="mt-12 flex flex-wrap items-center gap-5">
-            <TapeCTA href="/generate/stencil" size="lg">
-              Open the Forge
+            <TapeCTA href="/design" size="lg">
+              Start Designing
             </TapeCTA>
             <Link
               href="/designs"

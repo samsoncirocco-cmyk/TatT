@@ -6,17 +6,15 @@ import { useFavorites } from "@/lib/tattStorage";
 
 /**
  * Shared artist card — captures the inlined 3:4 tile + name + meta
- * pattern used on /artists, /matches, and the home featured grid.
+ * pattern used on /artists and the home featured grid.
  *
  * Variant matrix:
  *   - `compact`  : single style label below the tile (home grid)
  *   - `default`  : single style label inside the tile (/artists)
  *   - `match`    : style chip array below + optional match% sticker +
  *                  pink border when favorited + "Pinned" label
- *                  (/matches)
- *
- * The component preserves the inlined behavior exactly — adopting it
- * on the three existing sites should produce zero visual diff.
+ *                  (built for the retired /matches page, ADR-0029;
+ *                  no current call site)
  */
 type CommonProps = {
   slug: string;
@@ -27,7 +25,7 @@ type CommonProps = {
   handle?: string;          // instagram handle; no-photo tiles render a monogram + handle sticker so the color block reads deliberate, not like a failed image
   href?: string;            // defaults to /artists/${slug}
   external?: boolean;       // opens href in a new tab (e.g. Instagram profiles)
-  showFavorite?: boolean;   // defaults to false; /artists + /matches pass true
+  showFavorite?: boolean;   // defaults to false; /artists passes true
   favoriteSize?: number;    // forwards to FavoriteButton
   favoritePosition?: "top-right" | "top-left";
 };

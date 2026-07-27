@@ -50,6 +50,10 @@ export const API_ROUTE_SECURITY: Record<string, RouteSecurityEntry> = {
       'stored state, never from the query string, and the authorization code is exchanged server-side.',
   },
   'v1/artist/calendar/disconnect': { class: 'firebase-auth' },
+  // Artist console (TAT-38): both resolve the artist from the VERIFIED uid
+  // via claimedByUid — client-supplied artistIds are never accepted.
+  'v1/artist/me': { class: 'firebase-auth' },
+  'v1/artist/bookings': { class: 'firebase-auth' },
   'v1/book': { class: 'firebase-auth' },
   'v1/book/hold': { class: 'firebase-auth' },
   'v1/bookings': { class: 'firebase-auth' },

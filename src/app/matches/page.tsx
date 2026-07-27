@@ -1,19 +1,24 @@
-import { Suspense } from "react";
-import MatchesClient from "./MatchesClient";
+import { redirect } from "next/navigation";
+import { parseStylesParam } from "@/lib/design-style-signal";
 
 /**
- * Server wrapper — matches come from /api/v1/match/semantic (live Neo4j
- * graph). Every matched artist now has a live profile at
- * /artists/[slug] (slug = name + graph id), so no roster crosses over.
- *
- * Suspense boundary is required because MatchesClient reads the design
- * style signal from useSearchParams (/matches?styles=…&from=design).
- * The fallback renders the same shell without the signal applied.
+ * /matches is retired (ADR-0029): the deck chain (/smart-match → /swipe)
+ * is the funnel's Match step, and /artists is the one browse/compare
+ * list surface. This stub keeps old deep links working by mapping the
+ * design handoff (?styles=…&from=design) onto the directory's
+ * single-style filter — the strongest carried style wins, garbage
+ * degrades to the unfiltered roster.
  */
-export default function MatchesPage() {
-  return (
-    <Suspense fallback={null}>
-      <MatchesClient />
-    </Suspense>
+export default async function MatchesRedirect({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+  const styles = parseStylesParam(typeof sp.styles === "string" ? sp.styles : null);
+  redirect(
+    styles.length
+      ? `/artists?${new URLSearchParams({ style: styles[0] }).toString()}`
+      : "/artists",
   );
 }
