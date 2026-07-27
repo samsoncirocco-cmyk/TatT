@@ -49,8 +49,6 @@ yarn-error.log*
 *.temp
 *.log
 
-# Railway
-.railway/
 
 # Vercel
 .vercel/

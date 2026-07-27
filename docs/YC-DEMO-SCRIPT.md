@@ -2,7 +2,7 @@
 
 **Speaker:** Samson Cirocco
 **Product:** TatT — AI-Powered Tattoo Design Platform
-**Demo URL:** https://tatt-production.up.railway.app
+**Demo URL:** https://tatttester.com
 **Backup:** Local `npm run dev` on laptop (pre-loaded, tested)
 
 ---
@@ -21,7 +21,7 @@
 
 ### THE PRODUCT — Live Demo (0:20 – 1:10)
 
-> *[Switch to live demo — browser on tatt-production.up.railway.app]*
+> *[Switch to live demo — browser on tatttester.com]*
 >
 > "Let me show you. I want a Japanese-style dragon wrapping around my forearm."
 >
@@ -97,7 +97,7 @@
 ## Pre-Demo Checklist
 
 - [ ] Laptop on power, display mirrored to projector
-- [ ] Browser open to `tatt-production.up.railway.app`
+- [ ] Browser open to `tatttester.com`
 - [ ] Pre-generate 2-3 designs (cache warm)
 - [ ] Test AR on phone (mobile fallback)
 - [ ] Backup: pre-recorded 60s demo video ready

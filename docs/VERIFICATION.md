@@ -586,17 +586,7 @@ return useMemo(() => ({
 
 ### KI-007: CORS Errors on Railway
 
-**Symptom:** `Origin not allowed` errors in browser console.
-
-**Cause:** Frontend origin not in `ALLOWED_ORIGINS` env var.
-
-**Resolution:** 
-1. Add your Vercel domain to Railway's `ALLOWED_ORIGINS`
-2. Format: `https://tat-t-3x8t.vercel.app` (comma-separated)
-3. Include both www and non-www if applicable
-4. Railway auto-restarts after env changes
-
-**Status:** ⚠️ Configuration issue — follow DEPLOYMENT_QUICK_REFERENCE.md
+**Status:** ✅ Obsolete — the Railway Express proxy was retired 2026-07-20; all API traffic goes through Next.js API routes on Vercel (same origin, no CORS).
 
 ---
 
@@ -646,8 +636,6 @@ return useMemo(() => ({
 
 #### Deployment
 - [ ] Vercel environment variables configured
-- [ ] Railway environment variables configured
-- [ ] `VITE_PROXY_URL` points to production backend
 - [ ] GCS bucket configured for image persistence (optional but recommended)
 - [ ] SSL certificates valid
 
@@ -781,8 +769,7 @@ python3 execution/generate_embeddings.py --batch-size 10
 python3 execution/check_budget.py --threshold 0.9
 
 # Deployment
-vercel --prod            # Deploy to Vercel
-railway up               # Deploy to Railway
+vercel --prod            # Deploy to Vercel (Railway proxy retired 2026-07-20)
 ```
 
 ---

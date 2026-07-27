@@ -1,10 +1,15 @@
 # Deploy to Production
 
-> Directive for deploying the TatTester frontend to Vercel and the backend proxy to Railway
+> Directive for deploying TatT to Vercel
+
+> **Note:** The legacy Railway Express proxy (`server.js`) was retired on
+> 2026-07-20. Next.js API routes under `src/app/api/` are the only backend;
+> Vercel is the only deploy target.
 
 ## Goal
 
-Deploy the Next.js frontend to Vercel and the Express.js backend proxy (`server.js`) to Railway, with all environment variables configured and CORS origins aligned between the two services.
+Deploy the Next.js app (frontend + API routes) to Vercel with all environment
+variables configured.
 
 ## When to Use
 
@@ -16,14 +21,11 @@ Deploy the Next.js frontend to Vercel and the Express.js backend proxy (`server.
 ## Prerequisites
 
 - **Vercel account** with the project linked (current URL: `https://tatt-app.vercel.app`)
-- **Railway account** with the project created
 - **All database infrastructure** provisioned (see `database-setup.md`)
 - **Passing local build**: `npm run build` completes without errors
-- **Environment variables** ready for both platforms (see Steps)
+- **Environment variables** ready (see Steps)
 
 ## Steps
-
-### Part A: Deploy Frontend to Vercel
 
 1. **Install the Vercel CLI (if not already)**
 
@@ -39,14 +41,16 @@ Deploy the Next.js frontend to Vercel and the Express.js backend proxy (`server.
 
 3. **Set environment variables in Vercel dashboard**
 
-   Required variables for the frontend:
+   Required variables:
 
    | Variable | Value |
    |----------|-------|
-   | `NEXT_PUBLIC_PROXY_URL` | Railway backend URL (e.g., `https://your-app.up.railway.app/api`) |
-   | `NEXT_PUBLIC_FRONTEND_AUTH_TOKEN` | Shared auth token (must match Railway) |
+   | `REPLICATE_API_TOKEN` | Replicate API token |
    | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
    | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key |
+   | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
+   | `NEO4J_URI` / `NEO4J_USERNAME` / `NEO4J_PASSWORD` | Production Neo4j credentials |
+   | `GOOGLE_APPLICATION_CREDENTIALS` | GCP service account (or JSON via `GOOGLE_CREDENTIALS`) |
    | `NEXT_PUBLIC_DEMO_MODE` | `false` for production |
    | `NEXT_PUBLIC_COUNCIL_DEMO_MODE` | `false` for real council |
    | `NEXT_PUBLIC_USE_OPENROUTER` | `true` if using OpenRouter |
@@ -69,83 +73,20 @@ Deploy the Next.js frontend to Vercel and the Express.js backend proxy (`server.
 
    Open `https://tatt-app.vercel.app` and confirm the app loads.
 
-### Part B: Deploy Backend to Railway
+6. **Verify end-to-end**
 
-1. **Install the Railway CLI (if not already)**
-
-   ```bash
-   npm i -g @railway/cli
-   railway login
-   ```
-
-2. **Link the project (first time only)**
-
-   ```bash
-   railway link
-   ```
-
-3. **Set environment variables in Railway dashboard**
-
-   Required variables for the backend:
-
-   | Variable | Value |
-   |----------|-------|
-   | `REPLICATE_API_TOKEN` | Replicate API token |
-   | `FRONTEND_AUTH_TOKEN` | Shared auth token (must match Vercel) |
-   | `ALLOWED_ORIGINS` | `https://tatt-app.vercel.app` (comma-separated if multiple) |
-   | `NEO4J_URI` | Production Neo4j URI |
-   | `NEO4J_USER` | Neo4j username |
-   | `NEO4J_PASSWORD` | Neo4j password |
-   | `SUPABASE_URL` | Supabase project URL |
-   | `SUPABASE_ANON_KEY` | Supabase anon key |
-   | `SUPABASE_SERVICE_KEY` | Supabase service role key |
-   | `GOOGLE_APPLICATION_CREDENTIALS` | Path to GCP key (or use `GOOGLE_CREDENTIALS` with JSON content) |
-
-   Railway sets `PORT` automatically -- do not set it manually.
-
-4. **Deploy**
-
-   ```bash
-   railway up
-   ```
-
-   Railway uses the `railway.json` configuration:
-   - Builder: Nixpacks
-   - Start command: `npm run server`
-   - Restart policy: on failure (max 10 retries)
-
-5. **Verify the backend**
-
-   ```bash
-   curl https://your-app.up.railway.app/api/health
-   ```
-
-### Part C: Align CORS and Auth
-
-1. **Ensure `FRONTEND_AUTH_TOKEN` matches** between Vercel and Railway
-2. **Ensure `ALLOWED_ORIGINS` on Railway** includes the Vercel deployment URL
-3. The backend automatically adds the `VERCEL_URL` env var to allowed origins if set
-
-### Part D: Verify End-to-End
-
-1. Open the production frontend URL
-2. Generate a test design -- confirm it reaches the backend and returns an image
-3. Test artist matching -- confirm vector search returns results
-4. Check browser console for CORS errors
+   1. Generate a test design -- confirm the API routes return an image
+   2. Test artist matching -- confirm vector search returns results
+   3. Check browser console for errors
 
 ## Expected Output
 
 - Vercel: Build succeeds, site accessible at `https://tatt-app.vercel.app`
-- Railway: Service running, health endpoint returns 200
 - End-to-end: Design generation, layer management, and artist matching all work from the production URL
 
 ## Edge Cases
 
 - **Build fails on Vercel**: Check for missing `NEXT_PUBLIC_*` env vars; run `npm run build` locally first to catch issues
-- **Railway deploy fails**: Check `railway logs` for startup errors; common cause is missing env vars
-- **CORS errors**: Verify `ALLOWED_ORIGINS` on Railway includes the exact Vercel URL (no trailing slash)
-- **502 on Railway**: The backend may need a moment to start; check `railway logs` for port binding issues
-- **GCP auth on Railway**: You cannot upload a file directly; use the `GOOGLE_CREDENTIALS` env var with the JSON content as a string, or use Railway's secret file feature
 - **"Module not found" only in production**: Usually a case-sensitive import (works on macOS, fails on Vercel's Linux builders) -- fix the import casing
 - **Function timeout on Vercel**: Hobby tier caps serverless functions at 10s; long LLM/generation calls need the Pro tier (60s) or an async pattern
 
@@ -161,11 +102,10 @@ vercel rollback <deployment-url>  # roll back (or "Promote to Production" on a p
 ## Cost
 
 - **Vercel**: Free tier covers hobby projects (100GB bandwidth, serverless functions)
-- **Railway**: Free trial with $5 credit; Hobby plan at $5/month for always-on services
 - **Per-request costs**: Same as local (Replicate, OpenRouter, Vertex AI charges apply)
 
 ## Related Directives
 
 - [setup-local-dev.md](./setup-local-dev.md) -- Test locally before deploying
 - [database-setup.md](./database-setup.md) -- Production databases must be provisioned first
-- [docker-dev.md](./docker-dev.md) -- Test the production Docker image locally before Railway deploy
+- [docker-dev.md](./docker-dev.md) -- Test the production Docker image locally

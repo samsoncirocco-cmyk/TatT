@@ -101,7 +101,7 @@ Create and verify the Supabase database schema (tables, RLS, vector search), con
    NEO4J_PASSWORD=your_password_here
    ```
 
-3. **Verify connectivity** by starting the backend (`npm run server`) -- it logs Neo4j connection status on startup.
+3. **Verify connectivity** by starting the dev server (`npm run dev`) and hitting an endpoint that queries Neo4j (e.g. artist matching) -- connection errors surface in the server logs.
 
 ### Part D: Enable GCP APIs
 
@@ -158,4 +158,4 @@ Create and verify the Supabase database schema (tables, RLS, vector search), con
 ## Related Directives
 
 - [setup-local-dev.md](./setup-local-dev.md) -- Run after database setup to start the app
-- [deploy.md](./deploy.md) -- Production database credentials go in Vercel/Railway env vars
+- [deploy.md](./deploy.md) -- Production database credentials go in Vercel env vars

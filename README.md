@@ -42,7 +42,6 @@ The `--legacy-peer-deps` flag is required and enforced by `.npmrc` for CI parity
 Other scripts:
 
 - `npm run build` — Next production build (webpack, not turbopack)
-- `npm run server` — legacy Express proxy (`server.js`) for local dev; not used in production, where Next.js API routes under `src/app/api/` handle everything
 - `npm test` — vitest, ~20 test files across services/components/lib
 - `npm run lint` — ESLint
 - `npm run security:secrets` — scans tracked files for committed secrets; also runs in CI on every push/PR

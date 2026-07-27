@@ -16,19 +16,16 @@
 └──────────────────────┼─────────────────────────┼────────────────────┘
                        │                         │
                        ▼                         ▼
-┌──────────────────────────────┐  ┌──────────────────────────────────┐
-│    Next.js API Routes        │  │    Express Proxy (Railway)       │
-│    /api/v1/*                 │  │    server.js                     │
-│                              │  │                                  │
-│  • /generate                 │  │  • Replicate API proxy           │
-│  • /council/enhance          │  │  • Neo4j query proxy             │
-│  • /match/semantic           │  │  • CORS + auth middleware        │
-│  • /stencil/export           │  │  • Rate limiting                 │
-│  • /layers/decompose         │  │  • Layer upload handling         │
-│  • /storage/*                │  │                                  │
-└──────────┬───────────────────┘  └──────────────┬───────────────────┘
-           │                                      │
-           ▼                                      ▼
+┌────────────────────────────────────────────────────────────────────┐
+│                      Next.js API Routes                            │
+│                      /api/v1/*                                     │
+│                                                                    │
+│  • /generate          • /stencil/export                            │
+│  • /council/enhance   • /layers/decompose                          │
+│  • /match/semantic    • /storage/*                                 │
+└──────────┬─────────────────────────────────────────────────────────┘
+           │
+           ▼
 ┌─────────────────┐ ┌──────────┐ ┌─────────┐ ┌──────────┐
 │  Google Vertex   │ │Replicate │ │Supabase │ │  Neo4j   │
 │  AI (Imagen 3)   │ │  (SDXL)  │ │(pgvector│ │ (Graph)  │
@@ -139,27 +136,26 @@ All API routes follow the pattern `/api/v1/{resource}/{action}`:
 
 ## Security
 
-- **Auth Token**: Shared secret (`FRONTEND_AUTH_TOKEN`) between Vercel frontend and Railway backend
 - **Rate Limiting**: Per-IP rate limits on all API routes
-- **CORS**: Whitelisted origins only
 - **API Keys**: Server-side only — Replicate/Vertex keys never exposed to client
-- **Input Validation**: Centralized validation middleware (`src/api/middleware/validation.js`)
+- **Input Validation**: Per-route validation in the Next.js API handlers (`src/app/api/`)
 
 ## Deployment
 
 ```
-┌─────────────┐     ┌──────────────┐     ┌───────────────┐
-│   Vercel     │────▶│   Railway    │────▶│  Replicate    │
-│  (Frontend)  │     │  (Backend)   │     │  (AI Models)  │
-│  Next.js SSR │     │  Express.js  │     └───────────────┘
-└──────┬───────┘     └──────┬───────┘
-       │                     │
-       ▼                     ▼
+┌──────────────────────┐     ┌───────────────┐
+│       Vercel         │────▶│  Replicate    │
+│  Next.js SSR + API   │     │  (AI Models)  │
+└──────┬───────────────┘     └───────────────┘
+       │
+       ▼
 ┌─────────────┐     ┌───────────────┐     ┌───────────────┐
 │  Supabase   │     │   Neo4j      │     │  Google Cloud  │
 │  (DB+Auth)  │     │  (Graph DB)  │     │  Storage (GCS) │
 └─────────────┘     └───────────────┘     └───────────────┘
 ```
+
+The legacy Railway Express proxy (`server.js`) was retired 2026-07-20; Vercel is the only deploy target.
 
 ## Generated Data (`generated/`)
 

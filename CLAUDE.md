@@ -52,7 +52,7 @@ Democratize custom tattoo design by lowering the barrier between idea and execut
 | **Graph Database** | Neo4j | Artist relationships, collaboration history, style hierarchies |
 | **Real-time Sync** | Firebase Realtime Database | Live match updates, user presence |
 | **Storage** | Google Cloud Storage (GCS) | Layer storage, design exports |
-| **Deployment** | Vercel (Node serverless) + Railway (Express proxy) | Global CDN, serverless functions |
+| **Deployment** | Vercel (Node serverless) | Global CDN, serverless functions |
 
 ---
 
