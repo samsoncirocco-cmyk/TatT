@@ -44,8 +44,8 @@ function getUpstashLimiters(): Map<LimitType, Ratelimit> | null {
     // serverless instance — on Vercel, concurrent traffic spreads across
     // multiple instances, each with its own empty counter, so the real
     // enforced limit is far weaker than LIMIT_CONFIG promises. That gap
-    // must be visible, not silent (see budget-tracker.ts / quota-tracker.ts
-    // for the same "log on degrade" pattern this was missing).
+    // must be visible, not silent (see budget-tracker.ts for the same
+    // "log on degrade" pattern this was missing).
     if (!warnedNoRedis) {
       console.warn(
         '[RateLimit] UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN not configured — ' +

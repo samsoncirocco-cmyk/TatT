@@ -31,6 +31,7 @@ the repository proves otherwise.
 - [Document classification](status/document-classification.md)
 - [Accepted launch route verdicts](SITE_MAP.md)
 - [Documentation maintenance](operations/documentation-maintenance.md)
+- [Phoenix soft-launch runbook](operations/phoenix-soft-launch.md)
 
 ## Document classes
 

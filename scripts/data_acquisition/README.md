@@ -1,31 +1,24 @@
-# Shop Crawler Prototype
+# Retired data-acquisition prototypes
 
-This directory contains the prototype for the "Shop Crawler", the first component of the TatT Data Acquisition Strategy.
+The scripts left in this directory are historical crawler experiments. They are
+not the supported acquisition or import path and must not be used to label an
+artist as verified.
 
-## What it does
+The old prototype and “production” validators were removed by ADR-0032 because
+both fabricated portfolio, style, quality, and verification fields with
+`Math.random()`. Supplying `GEMINI_API_KEY` did not make the production-named
+validator real.
 
-1. **Finds Shops:** Simulates (or performs) a Google Places search for tattoo shops in target cities.
-2. **Visits Websites:** Navigates to the shop's website.
-3. **Extracts Artists:** Parses the HTML to find Instagram handles, which are the primary identifier for tattoo artists.
-
-## How to Run
+Use the evidence-preserving pipeline instead:
 
 ```bash
-# From the project root
-node src/scripts/data_acquisition/shop_crawler.js
+python execution/scrape_artists.py all --cities "Phoenix,Scottsdale,Tempe"
 ```
 
-## Configuration
-
-To use real Google Data (instead of the built-in mock data for NYC/Portland):
-
-1. Get a Google Places API Key.
-2. Add it to your `.env` file:
-
-    ```
-    GOOGLE_PLACES_API_KEY=your_key_here
-    ```
-
-## Output
-
-The script generates `src/scripts/data_acquisition/raw_artists.json`. This JSON file is the input for **Phase 2 (The Samson Test)**, where AI verifies the artist's portfolio.
+Read `execution/scrape_artists.py` before operating it. Its normalized output is
+written to `.tmp/scrape/artists.json` by default. It is discovered candidate
+data, not identity, consent, portfolio-quality, or professional verification.
+Review and promote that artifact deliberately before following
+`directives/import-artists.md`; the canonical importer reads
+`src/data/artists.json`, applies the takedown tombstone gate, and requires an
+operator-controlled execution.

@@ -1,6 +1,6 @@
 ---
 status: current
-verified_against: 2131a00
+verified_against: 8db5d3e
 verified_on: 2026-07-27
 ---
 
@@ -45,6 +45,19 @@ research material.
 Required procedure: compute counts from the active production source at the
 time of publication and include the query date. Do not copy a number from a
 handoff.
+
+## Artist verification
+
+- Archived session recap: fake `Math.random()` artist verification was replaced
+  by real Gemini calls.
+- Repository at `8db5d3e`: both legacy validator scripts still simulated every
+  result, including the branch selected when `GEMINI_API_KEY` was present.
+- ADR-0032: those validators and their direct automation are retired. Current
+  acquisition yields discovered candidates, not verified professionals.
+
+Resolution: do not reuse a `verified` value produced by the retired pipeline.
+Future verification must include its evidence and method; identity and media
+consent remain separate gates.
 
 ## ADR numbering
 

@@ -1,5 +1,5 @@
 schema_version: 1
-verified_against: 2131a00
+verified_against: 8db5d3e
 verified_on: 2026-07-27
 
 statuses:
@@ -11,6 +11,15 @@ statuses:
   retired: Explicitly removed or superseded.
 
 features:
+  simulated_artist_data_verification:
+    status: retired
+    evidence:
+      - docs/adr/0032-retire-simulated-artist-verification.md
+      - execution/scrape_artists.py
+      - scripts/data_acquisition/README.md
+    limitations:
+      - Evidence-backed artist verification is not implemented; acquisition produces candidate data only.
+
   conversational_design:
     status: implemented
     evidence:
@@ -91,11 +100,16 @@ features:
       - src/app/artists/[slug]/page.tsx
 
   booking_reservation:
-    status: implemented_unverified
+    status: implemented
     evidence:
+      - docs/adr/0027-availability-status-vs-concrete-slots.md
       - src/app/api/v1/book/hold/route.ts
+      - src/lib/booking-mode.ts
       - src/lib/booking-holds.ts
       - src/lib/scheduling-engine.ts
+      - src/lib/booking-mode.test.ts
+      - src/lib/booking-holds.test.ts
+      - src/lib/scheduling-engine.test.ts
 
   deposits_and_booking_fee:
     status: implemented_unverified
