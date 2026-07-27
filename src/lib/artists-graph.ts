@@ -12,7 +12,10 @@
  * module stays importable in tests without touching Neo4j.
  */
 import { artistSlug } from "@/lib/artist-slug";
-import { filterPortfolioForDisplay } from "@/lib/portfolio-display";
+import {
+  filterPermalinksForDisplay,
+  filterPortfolioForDisplay,
+} from "@/lib/portfolio-display";
 import { CANONICAL_STYLES, styleMatchVariants } from "@/lib/style-vocabulary";
 import { NOT_REMOVED_CLAUSE } from "@/lib/takedown";
 
@@ -42,6 +45,11 @@ export type RosterArtist = {
    *  — or when the SHOW_UNCLAIMED_PORTFOLIOS kill switch withholds them for
    *  an unclaimed artist (src/lib/portfolio-display). */
   portfolioImages: string[];
+  /** Instagram post permalinks for the embed tier (TAT-40). Non-empty only
+   *  when ENABLE_IG_EMBEDS=true AND the artist is unclaimed
+   *  (filterPermalinksForDisplay). Rendered as official Instagram embeds on
+   *  the profile page ONLY — card grids never mount iframes. */
+  portfolioPermalinks: string[];
 };
 
 export type RosterPage = {
@@ -125,6 +133,10 @@ export function toRosterArtist(record: any): RosterArtist {
     // one seam every roster surface reads through, when the switch is off and
     // the artist has not claimed the profile.
     portfolioImages: filterPortfolioForDisplay(record),
+    // The embed tier (TAT-40): permalinks pass only for unclaimed artists
+    // and only while ENABLE_IG_EMBEDS=true — [] otherwise, so this field is
+    // inert until the flag is deliberately flipped.
+    portfolioPermalinks: filterPermalinksForDisplay(record),
   };
 }
 
@@ -170,6 +182,7 @@ export async function browseArtists(
       a.rating AS rating,
       a.reviewCount AS reviewCount,
       a.portfolioImages AS portfolioImages,
+      a.portfolioPermalinks AS portfolioPermalinks,
       a.claimedByUid AS claimedByUid
     ORDER BY coalesce(a.reviewCount, 0) DESC, a.name ASC, a.id ASC
     SKIP toInteger($skip) LIMIT toInteger($limit)
@@ -212,6 +225,7 @@ export async function getRosterArtistById(id: string): Promise<RosterArtist | nu
       a.rating AS rating,
       a.reviewCount AS reviewCount,
       a.portfolioImages AS portfolioImages,
+      a.portfolioPermalinks AS portfolioPermalinks,
       a.claimedByUid AS claimedByUid
     LIMIT 1
   `;

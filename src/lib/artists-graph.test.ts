@@ -174,3 +174,82 @@ describe("roster portfolio kill switch", () => {
     expect(mockedQuery.mock.calls[0][0]).toContain("a.claimedByUid AS claimedByUid");
   });
 });
+
+// The Instagram embed tier (TAT-40): permalinks ride the same toRosterArtist
+// seam as the kill switch, and are inert ([]) until ENABLE_IG_EMBEDS=true.
+describe("roster Instagram permalinks (TAT-40)", () => {
+  const PERMALINKS = ["https://www.instagram.com/p/Abc123/"];
+
+  afterEach(() => {
+    mockedQuery.mockReset();
+    mockedQuery.mockResolvedValue([]);
+    vi.unstubAllEnvs();
+  });
+
+  it("selects portfolioPermalinks in the roster page and profile queries", () => {
+    const source = readFileSync(
+      resolve(process.cwd(), "src/lib/artists-graph.ts"),
+      "utf8",
+    );
+    const hits = source.match(/a\.portfolioPermalinks AS portfolioPermalinks/g) ?? [];
+    expect(hits.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("default (ENABLE_IG_EMBEDS unset): permalinks stay behind the flag — []", () => {
+    const row = toRosterArtist({
+      id: "artist_1",
+      name: "A",
+      portfolioPermalinks: PERMALINKS,
+      claimedByUid: null,
+    });
+    expect(row.portfolioPermalinks).toEqual([]);
+  });
+
+  it("flag on: an unclaimed artist's permalinks pass through", () => {
+    vi.stubEnv("ENABLE_IG_EMBEDS", "true");
+    const row = toRosterArtist({
+      id: "artist_1",
+      name: "A",
+      portfolioPermalinks: PERMALINKS,
+      claimedByUid: null,
+    });
+    expect(row.portfolioPermalinks).toEqual(PERMALINKS);
+  });
+
+  it("flag on: a claimed artist gets [] — hosted licensed images are their display", () => {
+    vi.stubEnv("ENABLE_IG_EMBEDS", "true");
+    const row = toRosterArtist({
+      id: "artist_1",
+      name: "A",
+      portfolioPermalinks: PERMALINKS,
+      claimedByUid: "uid_9",
+    });
+    expect(row.portfolioPermalinks).toEqual([]);
+  });
+
+  it("graph rows without the property (backfill not run) degrade to []", () => {
+    vi.stubEnv("ENABLE_IG_EMBEDS", "true");
+    const row = toRosterArtist({ id: "artist_1", name: "A", claimedByUid: null });
+    expect(row.portfolioPermalinks).toEqual([]);
+  });
+
+  it("kill switch off + embeds on: profile read is image-less but carries permalinks", async () => {
+    vi.stubEnv("SHOW_UNCLAIMED_PORTFOLIOS", "false");
+    vi.stubEnv("ENABLE_IG_EMBEDS", "true");
+    mockedQuery.mockResolvedValue([
+      {
+        id: "artist_1",
+        name: "A",
+        portfolioImages: ["https://storage.googleapis.com/tatt-pro-assets/a/0.jpg"],
+        portfolioPermalinks: PERMALINKS,
+        claimedByUid: null,
+      },
+    ]);
+    const artist = await getRosterArtistById("artist_1");
+    expect(artist?.portfolioImages).toEqual([]);
+    expect(artist?.portfolioPermalinks).toEqual(PERMALINKS);
+    expect(mockedQuery.mock.calls[0][0]).toContain(
+      "a.portfolioPermalinks AS portfolioPermalinks",
+    );
+  });
+});
