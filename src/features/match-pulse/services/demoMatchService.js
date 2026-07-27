@@ -6,6 +6,7 @@
  */
 
 import { findMatchingArtists as graphMatch } from './neo4jService';
+import { DEMO_AVATAR_IMAGES, DEMO_PORTFOLIO_IMAGES } from '@/lib/demo-images';
 
 /**
  * Find matching artists for a design (Demo version)
@@ -128,11 +129,11 @@ function getMockMatches(design) {
             city: 'Los Angeles, CA',
             styles: [design.style, 'traditional'],
             hourlyRate: 150,
-            profileImage: 'https://i.pravatar.cc/150?img=1',
+            profileImage: DEMO_AVATAR_IMAGES[0],
             portfolioImages: [
-                'https://images.unsplash.com/photo-1565058379802-bbe93b2f703f?w=400',
-                'https://images.unsplash.com/photo-1598371839696-5c5bb00bdc28?w=400',
-                'https://images.unsplash.com/photo-1611501275019-9b5cda994e8d?w=400'
+                DEMO_PORTFOLIO_IMAGES[3],
+                DEMO_PORTFOLIO_IMAGES[0],
+                DEMO_PORTFOLIO_IMAGES[1]
             ],
             specialties: [design.style, 'custom designs'],
             score: 0.92,
@@ -150,9 +151,9 @@ function getMockMatches(design) {
             city: 'San Francisco, CA',
             styles: [design.style, 'neo-traditional'],
             hourlyRate: 175,
-            profileImage: 'https://i.pravatar.cc/150?img=2',
+            profileImage: DEMO_AVATAR_IMAGES[1],
             portfolioImages: [
-                'https://images.unsplash.com/photo-1590246814883-57c511e76729?w=400'
+                DEMO_PORTFOLIO_IMAGES[2]
             ],
             specialties: [design.style, 'color work'],
             score: 0.88,
@@ -170,7 +171,7 @@ function getMockMatches(design) {
             city: 'Portland, OR',
             styles: [design.style],
             hourlyRate: 125,
-            profileImage: 'https://i.pravatar.cc/150?img=3',
+            profileImage: DEMO_AVATAR_IMAGES[2],
             portfolioImages: [],
             specialties: [design.style],
             score: 0.85,
@@ -188,7 +189,7 @@ function getMockMatches(design) {
             city: 'Seattle, WA',
             styles: [design.style, 'blackwork'],
             hourlyRate: 200,
-            profileImage: 'https://i.pravatar.cc/150?img=4',
+            profileImage: DEMO_AVATAR_IMAGES[3],
             portfolioImages: [],
             specialties: [design.style, 'large pieces'],
             score: 0.82,
@@ -206,7 +207,7 @@ function getMockMatches(design) {
             city: 'Austin, TX',
             styles: [design.style],
             hourlyRate: 140,
-            profileImage: 'https://i.pravatar.cc/150?img=5',
+            profileImage: DEMO_AVATAR_IMAGES[4],
             portfolioImages: [],
             specialties: [design.style],
             score: 0.78,

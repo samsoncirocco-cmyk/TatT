@@ -7,6 +7,7 @@
 import { getApiAuthHeaders } from '@/lib/client-api-auth';
 import { styleMatchVariants } from '@/lib/style-vocabulary';
 import { NOT_REMOVED_CLAUSE } from '@/lib/takedown';
+import { DEMO_PORTFOLIO_IMAGES } from '@/lib/demo-images';
 
 // Type Definitions
 export interface ArtistPreferences {
@@ -101,8 +102,8 @@ const MOCK_ARTISTS: ArtistRecord[] = [
         styles: ['Neo-Traditional', 'Japanese'],
         bodyParts: ['arm', 'back', 'leg'],
         hourlyRate: 250,
-        portfolio: ['https://images.unsplash.com/photo-1598371839696-5c5bb00bdc28?w=400'],
-        portfolioImages: ['https://images.unsplash.com/photo-1598371839696-5c5bb00bdc28?w=400'],
+        portfolio: [DEMO_PORTFOLIO_IMAGES[0]],
+        portfolioImages: [DEMO_PORTFOLIO_IMAGES[0]],
         instagram: '@luna.ink',
         tags: ['color', 'bold', 'traditional'],
         score: 95,
@@ -116,8 +117,8 @@ const MOCK_ARTISTS: ArtistRecord[] = [
         styles: ['Japanese', 'Blackwork'],
         bodyParts: ['arm', 'chest', 'back'],
         hourlyRate: 300,
-        portfolio: ['https://images.unsplash.com/photo-1611501275019-9b5cda994e8d?w=400'],
-        portfolioImages: ['https://images.unsplash.com/photo-1611501275019-9b5cda994e8d?w=400'],
+        portfolio: [DEMO_PORTFOLIO_IMAGES[1]],
+        portfolioImages: [DEMO_PORTFOLIO_IMAGES[1]],
         instagram: '@kai.tattoo',
         tags: ['traditional', 'japanese', 'detail'],
         score: 88,
@@ -131,8 +132,8 @@ const MOCK_ARTISTS: ArtistRecord[] = [
         styles: ['Blackwork', 'Minimalist'],
         bodyParts: ['wrist', 'ankle', 'shoulder'],
         hourlyRate: 200,
-        portfolio: ['https://images.unsplash.com/photo-1590246814883-57c511e76729?w=400'],
-        portfolioImages: ['https://images.unsplash.com/photo-1590246814883-57c511e76729?w=400'],
+        portfolio: [DEMO_PORTFOLIO_IMAGES[2]],
+        portfolioImages: [DEMO_PORTFOLIO_IMAGES[2]],
         instagram: '@river.minimal',
         tags: ['minimalist', 'geometric', 'clean'],
         score: 82,
@@ -146,8 +147,8 @@ const MOCK_ARTISTS: ArtistRecord[] = [
         styles: ['Traditional', 'Neo-Traditional'],
         bodyParts: ['arm', 'leg', 'chest'],
         hourlyRate: 220,
-        portfolio: ['https://images.unsplash.com/photo-1565058379802-bbe93b2f703f?w=400'],
-        portfolioImages: ['https://images.unsplash.com/photo-1565058379802-bbe93b2f703f?w=400'],
+        portfolio: [DEMO_PORTFOLIO_IMAGES[3]],
+        portfolioImages: [DEMO_PORTFOLIO_IMAGES[3]],
         instagram: '@alex.storm.ink',
         tags: ['bold', 'color', 'american traditional'],
         score: 78,
