@@ -327,12 +327,16 @@ the code survives at `archive/security-hardening-followups`.
 
 ## Backlog
 
-- **~~TECH DEBT — retire the CANONICAL_STYLES bridge~~ — FIXED 2026-07-25,
-  PR #166:** `src/lib/style-vocabulary.ts` derives the active match/roster
+- **TECH DEBT — retire the CANONICAL_STYLES bridge — PARTIAL 2026-07-25,
+  PR #166:** `src/lib/style-vocabulary.ts` now derives the active match/roster
   vocabulary from `data/style-ontology.json` plus the checked-in live graph
   snapshot. Smart-match, the semantic API, artist filters and settings share
   it; live-file tests fail on drift. The old hand-written bridge is gone.
-  TAT-6's remaining Trash Polka and Sketch suggestions are pending in
+  TAT-6 remains open because the legacy Supabase artist generator at
+  `scripts/generate-tattoo-artists-data.js` still hardcodes a separate
+  20-style list and its checked-in batches preserve that vocabulary. Migrate
+  or retire that path before calling the single-vocabulary acceptance complete.
+  Trash Polka and Sketch are pending in
   `data/ontology-proposals.json` for the normal human approve/merge/reject
   decision — they were not hand-added to the ontology.
 
