@@ -41,7 +41,7 @@ export default function ArtistCard({ artist, rank, matchScore, matchReasons }) {
                 {/* Avatar */}
                 <div className="relative">
                     <img
-                        src={artist.profileImage || '/default-avatar.png'}
+                        src={artist.profileImage || '/default-avatar.svg'}
                         alt={artist.name}
                         className="w-16 h-16 rounded-full object-cover border-2 border-ducks-green/30"
                     />
