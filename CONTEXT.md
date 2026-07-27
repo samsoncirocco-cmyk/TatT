@@ -60,18 +60,32 @@ Finding the right artist for a design via vector, graph, and real-time
 signals. Not yet a deep module; see todolist.md.
 _Avoid_: search, recommendations
 
-**Forge**:
-The main design surface at `/generate/stencil`: prompt → four cuts → find
-artists. The product every CTA and nav "Forge" link points at; input-first
-layout (ADR-0018). Kept deliberately separate from the Studio (ADR-0017).
-_Avoid_: stencil page (internal path name), calling the Studio "the Forge"
+**One door**:
+The single consumer design entry at `/design` (ADR-0028): one input that
+accepts talking or typing. Vague input runs intake; a complete prompt takes
+the fast lane. Every CTA points here.
+_Avoid_: choosing between design surfaces in nav or marketing
+
+**Fast lane**:
+The direct-prompt path inside the one door (ADR-0028): a complete prompt
+skips the conversation — never the Council — and lands on the shared four-cut
+reveal, still producing a Brief. Absorbs the Forge (ADR-0018, superseded as a
+destination); the Forge name leaves the UI.
+_Avoid_: Forge (retired from UI), raw prompt (Council always runs)
 
 **Studio**:
 The multi-layer power editor at `/generate` (canvas, placement, transforms).
-A power tool behind explicit doors ("Studio" nav/footer links, cut cards'
-"Layers", the Forge's "Open Studio") — never part of the main journey.
-Invest or delete based on real usage (ADR-0017).
+A power tool behind explicit doors — never part of the main journey; the
+optional editing room reachable from any picked design (ADR-0017, ADR-0028).
+Invest or delete based on real usage.
 _Avoid_: Forge (its old name), editor page
+
+**Artist console**:
+The artist-side home TatT launches with: bookings list, availability, payout
+status (ADR-0031). Does not exist yet — `/dashboard` currently redirects to
+the consumer design library. The free rung the paid artist plan later upsells
+from.
+_Avoid_: dashboard (currently a consumer redirect), CRM (that's the paid rung)
 
 ### Design bot (ADR-0009–0016)
 
