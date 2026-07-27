@@ -15,6 +15,7 @@ import {
   getFeaturedArtists,
   type FeaturedArtist,
 } from "@/lib/featured-artists";
+import { PUBLIC_ARTIST_CLAUSE } from "@/lib/artist-visibility";
 
 const execute = vi.hoisted(() => vi.fn());
 vi.mock("@/features/match-pulse/services/neo4jService", () => ({
@@ -75,7 +76,17 @@ describe("retainPublishable", () => {
 
 describe("PUBLISHABLE_FEATURED_CYPHER", () => {
   it("requires removedAt to be null", () => {
-    expect(PUBLISHABLE_FEATURED_CYPHER).toContain("a.removedAt IS NULL");
+    expect(PUBLISHABLE_FEATURED_CYPHER).toContain(PUBLIC_ARTIST_CLAUSE);
+  });
+
+  it("suppresses artists marked stale by repeated confirmed dead refreshes", () => {
+    expect(PUBLISHABLE_FEATURED_CYPHER).toContain("coalesce(a.stale, false) = false");
+  });
+
+  it("suppresses explicit negative account-quality verdicts", () => {
+    expect(PUBLISHABLE_FEATURED_CYPHER).toContain(
+      "coalesce(a.looksBookable, true) = true",
+    );
   });
 
   it("excludes anyone carrying a tombstone", () => {
