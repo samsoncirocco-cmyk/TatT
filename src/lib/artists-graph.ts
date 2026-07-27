@@ -12,12 +12,12 @@
  * module stays importable in tests without touching Neo4j.
  */
 import { artistSlug } from "@/lib/artist-slug";
+import { PUBLIC_ARTIST_CLAUSE } from "@/lib/artist-visibility";
 import {
   filterPermalinksForDisplay,
   filterPortfolioForDisplay,
 } from "@/lib/portfolio-display";
 import { CANONICAL_STYLES, styleMatchVariants } from "@/lib/style-vocabulary";
-import { NOT_REMOVED_CLAUSE } from "@/lib/takedown";
 
 export const ROSTER_PAGE_SIZE = 24;
 
@@ -87,7 +87,7 @@ export function buildRosterFilter(filter: RosterFilter): {
   // to be removed must be absent from every roster read, not merely from the
   // unfiltered one. See docs/adr/0025.
   const where = `
-    ${NOT_REMOVED_CLAUSE}
+    ${PUBLIC_ARTIST_CLAUSE}
     AND ($q IS NULL
       OR toLower(coalesce(a.name, '')) CONTAINS toLower($q)
       OR toLower(coalesce(a.city, '')) CONTAINS toLower($q)
@@ -211,7 +211,7 @@ export async function browseArtists(
 export async function getRosterArtistById(id: string): Promise<RosterArtist | null> {
   const query = `
     MATCH (a:Artist {id: $id})
-    WHERE ${NOT_REMOVED_CLAUSE}
+    WHERE ${PUBLIC_ARTIST_CLAUSE}
     OPTIONAL MATCH (a)-[:SPECIALIZES_IN]->(st:Style)
     WITH a, collect(DISTINCT st.name) AS styles
     RETURN

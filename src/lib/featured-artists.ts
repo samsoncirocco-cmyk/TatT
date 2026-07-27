@@ -105,6 +105,8 @@ export const PUBLISHABLE_FEATURED_CYPHER = `
   UNWIND $candidates AS c
   MATCH (a:Artist {id: c.id})
   WHERE a.removedAt IS NULL
+    AND coalesce(a.stale, false) = false
+    AND coalesce(a.looksBookable, true) = true
   OPTIONAL MATCH (t:TakedownTombstone)
   WHERE t.key IN c.keys
   WITH a, count(t) AS tombstones

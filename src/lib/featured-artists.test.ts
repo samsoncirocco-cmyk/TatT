@@ -78,6 +78,16 @@ describe("PUBLISHABLE_FEATURED_CYPHER", () => {
     expect(PUBLISHABLE_FEATURED_CYPHER).toContain("a.removedAt IS NULL");
   });
 
+  it("suppresses artists marked stale by repeated confirmed dead refreshes", () => {
+    expect(PUBLISHABLE_FEATURED_CYPHER).toContain("coalesce(a.stale, false) = false");
+  });
+
+  it("suppresses explicit negative account-quality verdicts", () => {
+    expect(PUBLISHABLE_FEATURED_CYPHER).toContain(
+      "coalesce(a.looksBookable, true) = true",
+    );
+  });
+
   it("excludes anyone carrying a tombstone", () => {
     expect(PUBLISHABLE_FEATURED_CYPHER).toContain("TakedownTombstone");
     expect(PUBLISHABLE_FEATURED_CYPHER).toContain("tombstones = 0");
