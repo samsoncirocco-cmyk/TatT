@@ -238,7 +238,7 @@ export default function SwipeClient() {
             </div>
             <p className="text-[12px] uppercase tracking-[0.2em] text-white/40 font-body mb-8">
               {liked.length > 0
-                ? "Book a pinned artist below, or browse all your matches."
+                ? "Book a pinned artist below, or browse the full roster."
                 : "Nothing pinned this round — try different preferences."}
             </p>
             {liked.length > 0 && (
@@ -263,10 +263,10 @@ export default function SwipeClient() {
             )}
             <button
               type="button"
-              onClick={() => router.push(liked.length > 0 ? "/matches" : "/smart-match")}
+              onClick={() => router.push(liked.length > 0 ? "/artists" : "/smart-match")}
               className="w-full text-[10px] uppercase tracking-[0.25em] bg-pink text-black px-8 py-4 press font-body"
             >
-              {liked.length > 0 ? "View Matches ▸" : "Try Again ▸"}
+              {liked.length > 0 ? "Browse the Roster ▸" : "Try Again ▸"}
             </button>
           </div>
         )}

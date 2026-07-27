@@ -6,7 +6,7 @@ import {
   CANONICAL_STYLES,
   stylesFromDescriptors,
   parseStylesParam,
-  matchesUrlForDesign,
+  artistsUrlForDesign,
   canonicalStylesFromOntologyTags,
 } from "./design-style-signal";
 import { canonicalStyleForTag } from "./style-vocabulary";
@@ -191,31 +191,24 @@ describe("ontology → canonical style bridge", () => {
   });
 });
 
-describe("matchesUrlForDesign", () => {
-  it("carries extracted styles plus from=design", () => {
-    const url = matchesUrlForDesign("skull, heavy black linework, traditional flash");
+describe("artistsUrlForDesign", () => {
+  it("filters the directory by the strongest extracted style", () => {
+    const url = artistsUrlForDesign("skull, heavy black linework, traditional flash");
     const params = new URLSearchParams(url.split("?")[1]);
-    expect(url.startsWith("/matches?")).toBe(true);
-    expect(params.get("from")).toBe("design");
-    expect(parseStylesParam(params.get("styles"))).toEqual([
-      "Traditional",
-      "Blackwork",
-    ]);
+    expect(url.startsWith("/artists?")).toBe(true);
+    expect(params.get("style")).toBe("Traditional");
   });
 
   it("falls back to Blackwork (the forge's actual output style) when the prompt names none", () => {
-    const url = matchesUrlForDesign("a cool dragon on my arm");
+    const url = artistsUrlForDesign("a cool dragon on my arm");
     const params = new URLSearchParams(url.split("?")[1]);
-    expect(params.get("styles")).toBe("Blackwork");
-    expect(params.get("from")).toBe("design");
+    expect(params.get("style")).toBe("Blackwork");
   });
 
-  it("round-trips through parseStylesParam", () => {
-    const url = matchesUrlForDesign("neo-traditional rose, fine line");
+  it("emits a style the directory's filter vocabulary accepts", () => {
+    const url = artistsUrlForDesign("neo-traditional rose, fine line");
     const params = new URLSearchParams(url.split("?")[1]);
-    expect(parseStylesParam(params.get("styles"))).toEqual([
-      "Neo-Traditional",
-      "Fine Line",
-    ]);
+    expect(params.get("style")).toBe("Neo-Traditional");
+    expect(CANONICAL_STYLES).toContain(params.get("style"));
   });
 });

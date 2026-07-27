@@ -14,9 +14,9 @@ import type { DesignSession } from "@/services/designSession/types";
  *
  * This is the swipe deck's entry point: pick styles + a location, submit,
  * and the top results from /api/v1/match/semantic land in useMatchStore
- * for /swipe to render as a card deck. No local/fake fallback — same
- * honesty gate as /matches (data.query_info?.graphSource !== "live" means
- * "say so," never dress up demo artists as real matches).
+ * for /swipe to render as a card deck. No local/fake fallback — the
+ * honesty gate (data.query_info?.graphSource !== "live" means "say so,"
+ * never dress up demo artists as real matches) lives here.
  *
  * Design-session handoff: arriving as /smart-match?ds=<sessionId> loads the
  * completed session's brief, pre-selects the mapped style pills, enriches the
@@ -98,7 +98,7 @@ export default function SmartMatchClient() {
         if (!data.success) throw new Error(data.error || "Matching failed");
 
         // Honesty gate — never let a demo-artist fallback masquerade as a
-        // real match deck. Same check as /matches.
+        // real match deck.
         if (data.query_info?.graphSource !== "live") {
           setStatus("error");
           setErrorMsg("The live artist graph is unreachable right now — we don't fake matches.");
