@@ -46,6 +46,8 @@ delete rejections or maintain a second classifier in another pipeline.
 
 There is intentionally no quarterly schedule yet. Each Apify run writes
 `apify-run-report.json`, including `usageTotalUsd` when Apify supplies it.
+Pass one `--sweep-id` across every batch; the report deduplicates actor run IDs
+and accumulates cost rather than overwriting the prior slice.
 After the host stage, capture GCS cost from the billing export and attach both
 amounts to the run record. Only schedule the sweep after one complete,
 measured run has an approved spend cap. The nightly crew runner is unrelated

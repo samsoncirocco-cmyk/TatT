@@ -2,6 +2,7 @@ from execution.apify_ig_enrich import (
     build_chunk_observations,
     extract_images,
     make_profile_record,
+    merge_run_report,
     parse_args,
     row_handle,
 )
@@ -70,3 +71,29 @@ def test_bookability_can_be_persisted_alongside_refresh_state():
     state["bookabilityReason"] = "shop-account"
     assert state["lastRefreshStatus"] == "active"
     assert state["looksBookable"] is False
+
+
+def test_cost_report_accumulates_a_sweep_and_dedupes_actor_runs():
+    first = merge_run_report(
+        {},
+        sweep_id="2026-Q3",
+        checked_at="2026-07-27T00:00:00Z",
+        run_slice={"start": 0, "count": 100},
+        summary={"written": 80},
+        actor_runs=[{"id": "run-1", "usageTotalUsd": 1.25}],
+    )
+    second = merge_run_report(
+        first,
+        sweep_id="2026-Q3",
+        checked_at="2026-07-28T00:00:00Z",
+        run_slice={"start": 100, "count": 100},
+        summary={"written": 75},
+        actor_runs=[
+            {"id": "run-1", "usageTotalUsd": 1.25},
+            {"id": "run-2", "usageTotalUsd": "2.50"},
+        ],
+    )
+    sweep = second["sweeps"]["2026-Q3"]
+    assert len(sweep["actorRuns"]) == 2
+    assert sweep["apifyUsageTotalUsd"] == 3.75
+    assert sweep["lastInvocation"]["slice"]["start"] == 100

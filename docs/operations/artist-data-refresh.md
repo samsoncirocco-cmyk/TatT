@@ -34,6 +34,10 @@ paths, audit entries retain each observation, and state transitions are based
 on the prior ledger. Rejected/dead local profiles are quarantined rather than
 deleted.
 
+Use the same `--sweep-id` for every process or slice in one quarterly sweep.
+The cost report deduplicates Apify actor run IDs and accumulates their actual
+reported usage under that sweep instead of overwriting the prior batch.
+
 ## Status semantics
 
 - `active`: resets the confirmed-dead counter, clears stale, and stamps

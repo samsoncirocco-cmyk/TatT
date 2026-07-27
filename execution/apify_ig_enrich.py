@@ -221,6 +221,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--status-ledger", type=Path, default=DEFAULT_LEDGER)
     parser.add_argument("--audit-log", type=Path, default=DEFAULT_AUDIT)
     parser.add_argument("--run-report", type=Path, default=DEFAULT_REPORT)
+    parser.add_argument(
+        "--sweep-id",
+        default=None,
+        help="cost/report grouping key; defaults to the UTC run date",
+    )
     parser.add_argument("--dead-threshold", type=int, default=DEFAULT_DEAD_THRESHOLD)
     parser.add_argument(
         "--no-filter",
@@ -231,6 +236,61 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     if args.dead_threshold < 1:
         parser.error("--dead-threshold must be at least 1")
     return args
+
+
+def merge_run_report(
+    existing: Mapping[str, Any] | None,
+    *,
+    sweep_id: str,
+    checked_at: str,
+    run_slice: Mapping[str, Any],
+    summary: Mapping[str, Any],
+    actor_runs: Iterable[Mapping[str, Any]],
+) -> dict[str, Any]:
+    """Accumulate one multi-process sweep without double-counting actor run IDs."""
+
+    report = dict(existing or {})
+    sweeps = dict(report.get("sweeps") or {})
+    sweep = dict(sweeps.get(sweep_id) or {})
+    by_id = {
+        str(run["id"]): dict(run)
+        for run in sweep.get("actorRuns") or []
+        if run.get("id")
+    }
+    for run in actor_runs:
+        if run.get("id"):
+            by_id[str(run["id"])] = dict(run)
+
+    def numeric_cost(value: Any) -> float | None:
+        try:
+            return float(value) if value is not None else None
+        except (TypeError, ValueError):
+            return None
+
+    costs = [
+        cost
+        for run in by_id.values()
+        if (cost := numeric_cost(run.get("usageTotalUsd"))) is not None
+    ]
+    sweep.update(
+        {
+            "startedAt": sweep.get("startedAt") or checked_at,
+            "lastRunAt": checked_at,
+            "actorRuns": sorted(by_id.values(), key=lambda run: str(run.get("id"))),
+            "apifyUsageTotalUsd": sum(costs) if costs else None,
+            # Preserve a value an operator added from the billing export.
+            "gcsCostUsd": sweep.get("gcsCostUsd"),
+            "gcsCostNote": sweep.get("gcsCostNote")
+            or "Capture from the GCS billing export after hosting; not guessed here.",
+            "lastInvocation": {
+                "slice": dict(run_slice),
+                "summary": dict(summary),
+                "actorRuns": [dict(run) for run in actor_runs],
+            },
+        }
+    )
+    sweeps[sweep_id] = sweep
+    return {"version": 2, "sweeps": sweeps}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -367,23 +427,19 @@ def main(argv: list[str] | None = None) -> int:
         }
     )
     write_json_atomic(args.status_ledger, ledger)
-    observed_costs = [
-        float(run["usageTotalUsd"])
-        for run in actor_runs
-        if isinstance(run.get("usageTotalUsd"), (int, float))
-    ]
+    sweep_id = args.sweep_id or checked_at[:10]
+    run_slice = {"start": args.start, "count": args.count, "requested": len(handles)}
+    report = merge_run_report(
+        load_json(args.run_report, {}),
+        sweep_id=sweep_id,
+        checked_at=checked_at,
+        run_slice=run_slice,
+        summary=summary,
+        actor_runs=actor_runs,
+    )
     write_json_atomic(
         args.run_report,
-        {
-            "version": 1,
-            "runAt": checked_at,
-            "slice": {"start": args.start, "count": args.count, "requested": len(handles)},
-            "summary": summary,
-            "actorRuns": actor_runs,
-            "apifyUsageTotalUsd": sum(observed_costs) if observed_costs else None,
-            "gcsCostUsd": None,
-            "gcsCostNote": "Capture from the GCS billing export after hosting; not guessed here.",
-        },
+        report,
     )
     stale_count = sum(1 for state in ledger["handles"].values() if state.get("stale"))
     print(f"DONE summary={summary} stale-in-ledger={stale_count}")
