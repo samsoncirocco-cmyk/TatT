@@ -1,3 +1,8 @@
+> **Status: historical proposal requiring revalidation.** The current product
+> UI does not implement this brand system consistently. Use
+> `docs/product/current-product.md` for current behavior and
+> `docs/status/known-contradictions.md` for the unresolved brand decision.
+
 # The Two-Door Brand Guide
 
 **Status:** active as of 2026-07-20. This is the copy and brand system for our two

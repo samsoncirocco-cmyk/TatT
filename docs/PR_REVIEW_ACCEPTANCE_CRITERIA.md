@@ -1,3 +1,7 @@
+> **Status: historical review artifact.** Findings and capability descriptions
+> capture a prior repository state. Use current tests, accepted ADRs, and
+> `docs/status/features.yaml` for present behavior.
+
 # Pull Request Review: Acceptance Criteria Validation
 
 **PR:** feat: Hybrid Vector-Graph Tattoo Design Discovery and AR Visualization Platform  

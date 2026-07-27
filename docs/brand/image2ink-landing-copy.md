@@ -1,3 +1,7 @@
+> **Status: historical proposal.** This marketing-door copy depends on the
+> unresolved brand architecture in `docs/brand/two-door-brand-guide.md`. Do not
+> publish it as current product truth.
+
 # Image2Ink — Landing Page Copy (image2ink.com)
 
 **Door:** discovery angle. Audience: 18–35 first-timers who want a tattoo but

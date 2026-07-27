@@ -1,3 +1,6 @@
+> **Status: legacy API reference.** Verify routes and response contracts
+> against `src/app/api/`. This file cannot establish current product claims.
+
 # TatT API Reference
 
 **Version:** v1  

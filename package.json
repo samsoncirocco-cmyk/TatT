@@ -12,6 +12,7 @@
     "build:clean": "rm -f .next/lock && next build --webpack",
     "start": "next start",
     "lint": "eslint .",
+    "docs:check": "node scripts/docs/validate-docs.mjs",
     "security:secrets": "node scripts/security/scan-secrets.mjs",
     "test": "vitest run",
     "test:watch": "vitest"

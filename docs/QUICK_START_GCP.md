@@ -1,3 +1,7 @@
+> **Status: legacy setup reference.** Product and placement claims in this
+> document are not current. Verify operations against source and use
+> `docs/status/features.yaml` for capability status.
+
 # TatT Pro Google Cloud Migration - Quick Reference
 
 ## 🎯 Mission

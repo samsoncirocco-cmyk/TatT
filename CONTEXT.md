@@ -81,11 +81,11 @@ Invest or delete based on real usage.
 _Avoid_: Forge (its old name), editor page
 
 **Artist console**:
-The artist-side home TatT launches with: bookings list, availability, payout
-status (ADR-0031). Does not exist yet — `/dashboard` currently redirects to
-the consumer design library. The free rung the paid artist plan later upsells
-from.
-_Avoid_: dashboard (currently a consumer redirect), CRM (that's the paid rung)
+The artist-side home at `/console`: bookings and status history, availability,
+and payout status (ADR-0031). Identity is resolved from the signed-in user; it
+is the free rung the paid artist plan later expands from.
+_Avoid_: dashboard (`/dashboard` is the consumer design-library redirect), CRM
+(that's the paid rung)
 
 ### Design bot (ADR-0009–0016)
 

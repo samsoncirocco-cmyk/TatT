@@ -1,0 +1,161 @@
+schema_version: 1
+verified_against: 2131a00
+verified_on: 2026-07-27
+
+statuses:
+  implemented: Source and focused test evidence exist; production operation is not implied.
+  partial: Material implementation exists, but the promised journey is incomplete.
+  accepted_not_implemented: Accepted by ADR, but repository convergence is incomplete.
+  implemented_unverified: Material source exists but operational verification or a required adjacent flow remains.
+  demo_only: Behavior relies on demo or mock adapters.
+  retired: Explicitly removed or superseded.
+
+features:
+  conversational_design:
+    status: implemented
+    evidence:
+      - src/app/design/page.tsx
+      - src/services/designConversation/index.ts
+      - src/services/designSession/index.ts
+      - src/services/designConversation/__tests__/conversationEngine.test.ts
+      - src/features/design-session/__tests__/DesignSessionFlow.test.tsx
+
+  one_design_door:
+    status: implemented
+    evidence:
+      - docs/adr/0028-one-door-design-surface.md
+      - src/app/generate/stencil/page.tsx
+      - src/app/generate/stencil/page.test.tsx
+      - src/features/design-session/__tests__/DesignSessionFlow.test.tsx
+
+  four_direction_generation:
+    status: implemented
+    evidence:
+      - src/services/generation/index.ts
+      - src/app/api/v1/design-session/[id]/confirm/route.ts
+      - src/app/api/v1/design-session/__tests__/demo-confirm-flow.test.ts
+
+  bounded_refinement:
+    status: implemented
+    evidence:
+      - src/app/api/v1/design-session/[id]/pick/route.ts
+      - src/app/api/v1/design-session/[id]/refine/route.ts
+      - src/app/api/v1/design-session/__tests__/refine.test.ts
+      - docs/adr/0013-refinement-hard-stop.md
+
+  photo_placement_preview:
+    status: implemented
+    evidence:
+      - src/features/design-session/components/PlacementPreview.tsx
+      - src/app/api/v1/design-session/[id]/placement-preview/route.ts
+      - src/features/design-session/__tests__/PlacementPreview.test.tsx
+
+  live_camera_overlay:
+    status: implemented
+    limitations:
+      - User positioned
+      - No body tracking
+      - No depth estimation
+      - No measurement accuracy claim
+    evidence:
+      - src/app/visualize/page.tsx
+      - docs/adr/0024-live-ar-is-untracked.md
+      - src/services/ar/__tests__/arService.test.js
+      - src/services/ar/__tests__/designSource.test.ts
+
+  anatomical_ar_tracking:
+    status: retired
+    evidence:
+      - docs/adr/0024-live-ar-is-untracked.md
+
+  smart_match_swipe_chain:
+    status: implemented
+    evidence:
+      - src/app/smart-match/page.tsx
+      - src/app/swipe/page.tsx
+      - src/app/smart-match/SmartMatchClient.test.tsx
+      - src/app/swipe/page.test.tsx
+
+  single_match_journey:
+    status: implemented
+    evidence:
+      - docs/adr/0029-match-step-is-the-deck-chain.md
+      - src/app/matches/page.tsx
+      - src/app/swipe/page.test.tsx
+      - src/lib/design-style-signal.test.ts
+
+  artist_directory:
+    status: implemented_unverified
+    evidence:
+      - src/app/artists/page.tsx
+      - src/app/artists/[slug]/page.tsx
+
+  booking_reservation:
+    status: implemented_unverified
+    evidence:
+      - src/app/api/v1/book/hold/route.ts
+      - src/lib/booking-holds.ts
+      - src/lib/scheduling-engine.ts
+
+  deposits_and_booking_fee:
+    status: implemented_unverified
+    evidence:
+      - src/app/api/checkout/route.ts
+      - src/app/api/webhooks/stripe/route.ts
+
+  artist_claim_and_connect:
+    status: partial
+    evidence:
+      - src/app/claim/[artistId]/page.tsx
+      - src/app/api/v1/connect/claim/route.ts
+      - src/app/api/v1/connect/accounts/route.ts
+    limitations:
+      - Identity assurance remains a launch blocker.
+
+  artist_calendar:
+    status: implemented_unverified
+    evidence:
+      - src/app/api/v1/artist/calendar/connect/route.ts
+      - src/lib/artist-calendar.ts
+      - src/lib/artist-calendar-connection.ts
+
+  artist_takedown:
+    status: implemented
+    evidence:
+      - src/app/takedown/[artistId]/page.tsx
+      - src/app/api/v1/artists/takedown/route.ts
+      - src/app/api/v1/artists/takedown/route.test.ts
+      - src/lib/takedown.test.ts
+
+  artist_reinstatement:
+    status: implemented
+    evidence:
+      - src/app/api/v1/artists/reinstate/route.ts
+      - src/app/artists/[slug]/ReinstateDoor.tsx
+      - src/app/api/v1/artists/reinstate/route.test.ts
+      - src/lib/reinstatement.test.ts
+
+  artist_console:
+    status: implemented
+    evidence:
+      - docs/adr/0031-business-offer-land-free-expand-later.md
+      - src/app/console/page.tsx
+      - src/app/console/page.test.tsx
+      - src/app/api/v1/artist/me/route.test.ts
+      - src/app/api/v1/artist/bookings/route.test.ts
+
+  honest_launch_pricing:
+    status: implemented_unverified
+    evidence:
+      - docs/adr/0030-launch-monetization-honest-pricing.md
+      - src/app/pricing/page.tsx
+    limitations:
+      - Pricing copy has no focused page test at this snapshot.
+
+  shared_design_links:
+    status: implemented
+    evidence:
+      - src/app/share/[shareId]/page.tsx
+      - src/app/api/v1/designs/share/route.ts
+      - src/app/api/v1/designs/share/__tests__/route.test.ts
+      - src/app/share/[shareId]/page.test.tsx
