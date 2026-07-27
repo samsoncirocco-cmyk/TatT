@@ -1,6 +1,6 @@
 ---
 status: current
-verified_against: 8db5d3e
+verified_against: 12d8312
 verified_on: 2026-07-27
 ---
 
@@ -20,7 +20,10 @@ network access.
 ## Refresh sequence
 
 1. Select the intended queue slice and approved spend cap.
-2. Run `execution/apify_ig_enrich.py` for that slice.
+2. Preview `execution/apify_ig_enrich.py` for that slice, then pass
+   `--execute --sweep-id <approved-id>` to authorize paid work. For the full
+   queue or parallel slices, use the tracked `execution/enrich_all.sh` or
+   `execution/parallel_enrich.sh` wrappers; both require those same gates.
 3. Review `refresh-audit.jsonl`, `refresh-status.json`, and
    `apify-run-report.json`.
 4. Investigate rejected accounts and any newly stale handles.
@@ -29,14 +32,22 @@ network access.
 7. Host accepted images with `scripts/host-artist-images.mjs`.
 8. Record GCS cost from the billing export alongside the captured Apify cost.
 
-The refresh is idempotent: stable artist IDs determine profile files and GCS
-paths, audit entries retain each observation, and state transitions are based
-on the prior ledger. Rejected/dead local profiles are quarantined rather than
-deleted.
+The refresh is retry-safe: stable artist IDs determine profile files and GCS
+paths, and a sweep ID contributes at most one refresh observation per handle.
+Ledger/report updates merge against the latest file under process locks, and
+audit appends are serialized, so parallel slices do not overwrite one
+another. Rejected/dead local profiles are quarantined rather than deleted.
 
 Use the same `--sweep-id` for every process or slice in one quarterly sweep.
 The cost report deduplicates Apify actor run IDs and accumulates their actual
-reported usage under that sweep instead of overwriting the prior batch.
+reported usage under that sweep instead of overwriting the prior batch. If
+even one actor run has no reported price, `apifyUsageTotalUsd` remains unknown;
+the known subtotal, missing-run count, and incomplete status make the gap
+explicit.
+
+Supply `APIFY_TOKEN` through the process environment. It is sent as a bearer
+authorization header and must never be put in command arguments, URLs, or
+checked-in environment files.
 
 ## Status semantics
 
@@ -47,7 +58,8 @@ reported usage under that sweep instead of overwriting the prior batch.
 - `transient`: actor timeout, network failure, malformed response, or missing
   row. It is never evidence of disappearance.
 
-Three consecutive `not_found` or `private` observations mark the artist
+Three consecutive `not_found` or `private` observations from distinct sweeps
+mark the artist
 `stale: true`. A transient observation breaks the counter but does not clear
 an already-stale artist. Only a confirmed active profile clears stale.
 

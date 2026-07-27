@@ -38,10 +38,17 @@ ownership, verification, payment, or portfolio fields.
    deliberate evidence-gathering run but does not silently relabel a negative
    classifier verdict as positive; publishing after a false positive requires a
    reviewed corrected verdict.
+6. A named sweep contributes at most one refresh observation per handle.
+   Ledger, audit, and cost-report mutations are process-safe so retries and
+   parallel slices cannot create false dead counts or overwrite evidence.
+7. Paid refresh is opt-in through `--execute`. Apify credentials come only from
+   the process environment and travel in an authorization header. A sweep cost
+   is complete only when every recorded actor run has reported pricing.
 
 ## Consequences
 
 - A single transient failure cannot hide an artist.
+- Retries within one sweep cannot advance the dead threshold.
 - A stale or rejected profile cannot leak through one public surface while
   disappearing from another.
 - Scrape-derived writes cannot replace `artistManagedFields`,
