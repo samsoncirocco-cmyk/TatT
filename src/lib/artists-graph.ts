@@ -12,6 +12,7 @@
  * module stays importable in tests without touching Neo4j.
  */
 import { artistSlug } from "@/lib/artist-slug";
+import { filterPortfolioForDisplay } from "@/lib/portfolio-display";
 import { CANONICAL_STYLES, styleMatchVariants } from "@/lib/style-vocabulary";
 import { NOT_REMOVED_CLAUSE } from "@/lib/takedown";
 
@@ -37,7 +38,9 @@ export type RosterArtist = {
   rating: number | null;
   reviewCount: number | null;
   /** Self-hosted portfolio image URLs (public GCS), written by
-   *  scripts/host-artist-images.mjs. Empty when the artist has no hosted work. */
+   *  scripts/host-artist-images.mjs. Empty when the artist has no hosted work
+   *  — or when the SHOW_UNCLAIMED_PORTFOLIOS kill switch withholds them for
+   *  an unclaimed artist (src/lib/portfolio-display). */
   portfolioImages: string[];
 };
 
@@ -96,7 +99,13 @@ export function rosterPageWindow(
   return { page, skip: (page - 1) * pageSize, limit: pageSize };
 }
 
-function toRosterArtist(record: any): RosterArtist {
+/**
+ * Map one graph record onto a RosterArtist. Exported for tests (pure, like
+ * buildRosterFilter): this is the seam where the SHOW_UNCLAIMED_PORTFOLIOS
+ * kill switch is applied, and mocking the driver around Promise.all is
+ * flakier than testing the mapper directly.
+ */
+export function toRosterArtist(record: any): RosterArtist {
   const id = String(record.id);
   const name = record.name ?? "";
   return {
@@ -112,7 +121,10 @@ function toRosterArtist(record: any): RosterArtist {
     instagram: record.instagram ?? null,
     rating: record.rating ?? null,
     reviewCount: record.reviewCount ?? null,
-    portfolioImages: Array.isArray(record.portfolioImages) ? record.portfolioImages : [],
+    // The kill-switch gate (TAT-31): scraped images are withheld here, at the
+    // one seam every roster surface reads through, when the switch is off and
+    // the artist has not claimed the profile.
+    portfolioImages: filterPortfolioForDisplay(record),
   };
 }
 
@@ -157,7 +169,8 @@ export async function browseArtists(
       a.instagram AS instagram,
       a.rating AS rating,
       a.reviewCount AS reviewCount,
-      a.portfolioImages AS portfolioImages
+      a.portfolioImages AS portfolioImages,
+      a.claimedByUid AS claimedByUid
     ORDER BY coalesce(a.reviewCount, 0) DESC, a.name ASC, a.id ASC
     SKIP toInteger($skip) LIMIT toInteger($limit)
   `;
@@ -198,7 +211,8 @@ export async function getRosterArtistById(id: string): Promise<RosterArtist | nu
       a.instagram AS instagram,
       a.rating AS rating,
       a.reviewCount AS reviewCount,
-      a.portfolioImages AS portfolioImages
+      a.portfolioImages AS portfolioImages,
+      a.claimedByUid AS claimedByUid
     LIMIT 1
   `;
   const records = await runServerQuery(query, { id });
