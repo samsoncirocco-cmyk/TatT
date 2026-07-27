@@ -88,3 +88,6 @@ __pycache__/
 Neo4j-*.txt
 .vercel
 .env*
+
+# TAT-40 intermediate artifact — regenerable from the scraper archive, never committed
+data/portfolio-permalinks.json
