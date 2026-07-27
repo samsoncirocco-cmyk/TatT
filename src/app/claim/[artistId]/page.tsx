@@ -11,6 +11,12 @@ import {
 
 type ClaimResult = {
   claimed: boolean;
+  verificationStatus: 'verified' | 'pending_verification';
+  requestId?: string;
+  instagram?: string | null;
+  verificationCode?: string | null;
+  expiresInDays?: number;
+  nextStep?: string;
   artistId: string;
   name: string | null;
   hasConnectedAccount: boolean;
@@ -32,7 +38,7 @@ type OnboardingStatus = {
 };
 
 /** 'working' covers claim + account + status; the rest are terminal renders. */
-type Phase = 'idle' | 'working' | 'ready' | 'error';
+type Phase = 'idle' | 'working' | 'pending_verification' | 'ready' | 'error';
 
 function formatUsd(cents: number): string {
   return (cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
@@ -87,6 +93,10 @@ export default function ClaimArtistPage({ params }: { params: Promise<{ artistId
     try {
       const claim = (await authedFetch('/api/v1/connect/claim', { artistId })) as unknown as ClaimResult;
       setResult(claim);
+      if (!claim.claimed || claim.verificationStatus !== 'verified') {
+        setPhase('pending_verification');
+        return;
+      }
 
       // Make sure a connected account exists, then read its REAL state from
       // Stripe. Both calls are idempotent server-side.
@@ -227,6 +237,29 @@ export default function ClaimArtistPage({ params }: { params: Promise<{ artistId
                 onStart={() => void startOnboarding()}
                 onRecheck={() => void recheck()}
               />
+            )}
+
+            {phase === 'pending_verification' && result && (
+              <div className="border-2 border-pink bg-black p-6">
+                <div className="font-body text-[10px] uppercase tracking-[0.25em] text-pink">
+                  Identity review required
+                </div>
+                <div className="mt-2 font-display text-white text-[24px] leading-none">
+                  Request received. The profile is not claimed yet.
+                </div>
+                <p className="mt-3 font-body text-[13px] text-white/70 leading-[1.6]">
+                  {result.nextStep}
+                </p>
+                {result.verificationCode && (
+                  <div className="mt-5 border hairline px-4 py-3 font-display text-[24px] tracking-[0.08em] text-white">
+                    {result.verificationCode}
+                  </div>
+                )}
+                <p className="mt-4 font-body text-[12px] text-white/50 leading-[1.6]">
+                  Reference {result.requestId}. Until a person approves it, you cannot edit this
+                  profile, open its Stripe account, or receive its deposits.
+                </p>
+              </div>
             )}
 
             {phase === 'ready' && error && (

@@ -144,6 +144,12 @@ export default async function ArtistProfilePage({
               <span>{artist.location}</span>
             </div>
 
+            {artist.bio && (
+              <p className="mt-7 max-w-2xl font-body text-[14px] leading-[1.7] text-white/70">
+                {artist.bio}
+              </p>
+            )}
+
             {/* STAT ROW — shop-level signals, labeled as such */}
             {(artist.rating != null || artist.reviewCount != null) && (
               <div className="mt-10 grid grid-cols-2 max-w-md border-t hairline pt-6 gap-6">
@@ -186,6 +192,16 @@ export default async function ArtistProfilePage({
                   className="text-[10px] uppercase tracking-[0.2em] text-white/50 hover:text-pink font-body self-start sm:self-center press"
                 >
                   {artist.instagram}&nbsp;→
+                </a>
+              )}
+              {artist.bookingUrl && (
+                <a
+                  href={artist.bookingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[10px] uppercase tracking-[0.2em] text-white/50 hover:text-pink font-body self-start sm:self-center press"
+                >
+                  Artist&apos;s booking site&nbsp;→
                 </a>
               )}
             </div>

@@ -1,5 +1,10 @@
 # Dual entry into the artist claim / onboarding flow
 
+> **Security amendment:** ADR-0033 supersedes the direct ownership-binding
+> portion of this decision. Both entry points remain, but `v1/connect/claim`
+> now creates a pending identity-review request. Connect onboarding and deposit
+> release start only after a human-approved verified ownership binding exists.
+
 ## Context
 
 An unclaimed artist becomes payable only after they create a Stripe connected
@@ -14,8 +19,9 @@ Support **two entry points** into one claim flow:
 
 1. **Deposit-driven** — `notifyArtistOfBooking` sends the artist a claim link
    when a held relay is recorded; they follow it to onboard.
-2. **Self-serve** — the artist starts onboarding directly via
-   `v1/connect/claim` → `v1/connect/claim-complete` (firebase-auth routes).
+2. **Self-serve** — the artist requests ownership via `v1/connect/claim`,
+   completes identity review, then continues through Connect onboarding and
+   `v1/connect/claim-complete` (firebase-auth routes).
 
 Both paths end at the same Stripe onboarding and, on success, the same release:
 `account.updated`/claim-complete calls `transferHeldDeposits(artistId)`, which

@@ -52,6 +52,12 @@ export async function POST(req: NextRequest) {
       { status: 403 }
     );
   }
+  if (!artist.claimVerified) {
+    return NextResponse.json(
+      { error: 'Identity review must finish before deposits can move.', code: 'CLAIM_NOT_VERIFIED' },
+      { status: 403 },
+    );
+  }
 
   try {
     const { count, totalTransferredCents } = await transferHeldDeposits(artistId);

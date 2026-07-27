@@ -60,6 +60,12 @@ export async function POST(req: NextRequest) {
       { status: 403 }
     );
   }
+  if (!artist.claimVerified) {
+    return NextResponse.json(
+      { error: 'Identity review must finish before payout setup.', code: 'CLAIM_NOT_VERIFIED' },
+      { status: 403 },
+    );
+  }
 
   // Idempotent: never create a second account for an artist that already has one.
   if (artist.stripeAccountId) {

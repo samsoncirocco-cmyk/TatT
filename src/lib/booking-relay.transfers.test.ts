@@ -91,6 +91,7 @@ describe('transferHeldDeposits — releasing a held deposit', () => {
     email: null,
     stripeAccountId: 'acct_artist_1',
     chargesEnabled: true,
+    claimVerified: true,
   };
 
   it('ADR-0007: transfers the FULL deposit, with no fee deducted', async () => {
@@ -169,6 +170,18 @@ describe('transferHeldDeposits — releasing a held deposit', () => {
     const result = await transferHeldDeposits('artist_1');
 
     expect(result).toEqual({ count: 0, totalTransferredCents: 0 });
+    expect(transfersCreate).not.toHaveBeenCalled();
+    expect(statusWrites()).toEqual([]);
+  });
+
+  it('refuses to pay a first-finder claim that was never identity-verified', async () => {
+    getArtistStripeMock.mockResolvedValue({ ...onboardedArtist, claimVerified: false });
+    readMock.mockResolvedValue([relayRow()]);
+
+    expect(await transferHeldDeposits('artist_1')).toEqual({
+      count: 0,
+      totalTransferredCents: 0,
+    });
     expect(transfersCreate).not.toHaveBeenCalled();
     expect(statusWrites()).toEqual([]);
   });

@@ -87,6 +87,7 @@ describe('POST /api/v1/connect/accounts — ownership guard', () => {
       stripeAccountId: null,
       chargesEnabled: false,
       claimedByUid: 'uid_caller',
+      claimVerified: true,
     });
     accountsCreateMock.mockResolvedValue({ id: 'acct_new' });
 
@@ -94,5 +95,22 @@ describe('POST /api/v1/connect/accounts — ownership guard', () => {
 
     expect(response.status).toBe(201);
     expect(setArtistStripeAccountMock).toHaveBeenCalledWith('artist_1', 'acct_new');
+  });
+
+  it('refuses the same uid until human identity review is complete', async () => {
+    getArtistStripeMock.mockResolvedValue({
+      id: 'artist_1',
+      name: 'Nadia Ink',
+      email: null,
+      stripeAccountId: null,
+      chargesEnabled: false,
+      claimedByUid: 'uid_caller',
+      claimVerified: false,
+    });
+
+    const response = await POST(makeRequest({ artistId: 'artist_1' }));
+    expect(response.status).toBe(403);
+    expect((await response.json()).code).toBe('CLAIM_NOT_VERIFIED');
+    expect(accountsCreateMock).not.toHaveBeenCalled();
   });
 });

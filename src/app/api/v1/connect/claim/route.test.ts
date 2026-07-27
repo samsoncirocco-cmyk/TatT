@@ -1,111 +1,131 @@
-// Takedown suppression on POST /api/v1/connect/claim.
-//
-// A taken-down artist is soft-deleted to a scrubbed husk that deliberately
-// RETAINS the money-bearing properties — stripeAccountId and claimedByUid
-// (ADR 0025 §2) — so held deposits are never orphaned.
-//
-// This route performs NO identity check of any kind: first caller wins the
-// binding (issue #192). Without a removedAt guard, anyone could therefore claim
-// a removed artist's husk and inherit their connected Stripe account, and it
-// would be a way around reinstatement (ADR 0026), which is meant to be the only
-// door back in and which does verify identity.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
-import { NOT_REMOVED_CLAUSE } from '@/lib/takedown';
 
-const { verifyApiAuthMock, verifyFirebaseTokenMock, listPendingByArtistMock, runMock } = vi.hoisted(
-  () => ({
-    verifyApiAuthMock: vi.fn(),
-    verifyFirebaseTokenMock: vi.fn(),
-    listPendingByArtistMock: vi.fn(),
-    runMock: vi.fn(),
-  }),
-);
-
-vi.mock('@/lib/api-auth', () => ({ verifyApiAuth: verifyApiAuthMock }));
-vi.mock('@/lib/auth-dal', () => ({ verifyFirebaseToken: verifyFirebaseTokenMock }));
-vi.mock('@/lib/booking-relay', () => ({ listPendingByArtist: listPendingByArtistMock }));
-vi.mock('neo4j-driver', () => ({
-  default: { int: (n: number) => n },
+const {
+  verifyFirebaseTokenMock,
+  requestArtistClaimMock,
+  notifyOpsOfArtistClaimMock,
+  listPendingByArtistMock,
+  rateLimitMock,
+} = vi.hoisted(() => ({
+  verifyFirebaseTokenMock: vi.fn(),
+  requestArtistClaimMock: vi.fn(),
+  notifyOpsOfArtistClaimMock: vi.fn(),
+  listPendingByArtistMock: vi.fn(),
+  rateLimitMock: vi.fn(),
 }));
-vi.mock('@/lib/neo4j', () => ({
-  NEO4J_DATABASE: null,
-  NEO4J_QUERY_TIMEOUT: 5000,
-  getNeo4jDriver: () => ({
-    session: () => ({
-      executeWrite: (work: (tx: unknown) => unknown) => work({ run: runMock }),
-      close: async () => {},
-    }),
-  }),
+
+vi.mock('@/lib/api-auth', () => ({ verifyApiAuth: vi.fn().mockResolvedValue(null) }));
+vi.mock('@/lib/auth-dal', () => ({ verifyFirebaseToken: verifyFirebaseTokenMock }));
+vi.mock('@/lib/artist-claim-graph', () => ({ requestArtistClaim: requestArtistClaimMock }));
+vi.mock('@/lib/notify', () => ({ notifyOpsOfArtistClaim: notifyOpsOfArtistClaimMock }));
+vi.mock('@/lib/booking-relay', () => ({ listPendingByArtist: listPendingByArtistMock }));
+vi.mock('@/lib/rate-limit', () => ({
+  rateLimit: rateLimitMock,
+  rateLimitResponse: vi.fn(() => new Response(JSON.stringify({ error: 'Too Many Requests' }), { status: 429 })),
 }));
 
 import { POST } from './route';
 
-function makeRequest(body: Record<string, unknown>) {
+function request() {
   return new NextRequest('http://localhost/api/v1/connect/claim', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer test-token' },
-    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer test' },
+    body: JSON.stringify({ artistId: 'artist_1' }),
   });
 }
 
-/** Mirror Neo4j: a WHERE that excludes the node yields zero records. */
-function graphReturns(rows: Array<Record<string, unknown>>) {
-  runMock.mockResolvedValue({ records: rows.map((r) => ({ toObject: () => r })) });
-}
+const artist = {
+  id: 'artist_1',
+  name: 'Nadia Ink',
+  instagram: '@nadia.ink',
+  claimedByUid: null,
+  claimVerificationStatus: null,
+  stripeAccountId: null,
+  chargesEnabled: false,
+};
+const pending = {
+  id: 'CL-1234ABCD',
+  artistId: 'artist_1',
+  uid: 'uid_1',
+  contactEmail: 'nadia@example.com',
+  instagram: '@nadia.ink',
+  verificationCode: 'TATT-ABCD1234',
+  status: 'pending_verification',
+  issuedAtEpochMs: Date.now(),
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
-  verifyApiAuthMock.mockResolvedValue(null);
-  verifyFirebaseTokenMock.mockResolvedValue({ uid: 'uid_caller' });
-  listPendingByArtistMock.mockResolvedValue([]);
+  verifyFirebaseTokenMock.mockResolvedValue({ uid: `uid_${Math.random()}`, email: 'nadia@example.com' });
+  requestArtistClaimMock.mockResolvedValue({ artist, request: pending });
+  notifyOpsOfArtistClaimMock.mockResolvedValue({ delivered: true });
+  listPendingByArtistMock.mockResolvedValue([
+    { amountCents: 12_500 },
+    { amountCents: 7_500 },
+  ]);
+  rateLimitMock.mockResolvedValue({ allowed: true, limit: 5, remaining: 4, reset: 0 });
 });
 
-describe('POST /api/v1/connect/claim — takedown suppression', () => {
-  it('a removed artist reads as not found, not as claimable', async () => {
-    // The husk exists in the graph; the WHERE clause filters it out, so the
-    // driver returns no rows and the route must treat that as 404.
-    graphReturns([]);
-
-    const res = await POST(makeRequest({ artistId: 'artist_removed' }));
-
-    expect(res.status).toBe(404);
-    expect((await res.json()).error).toMatch(/not found/i);
+describe('POST /api/v1/connect/claim', () => {
+  it('records a pending request without certifying ownership', async () => {
+    const response = await POST(request());
+    const body = await response.json();
+    expect(response.status).toBe(202);
+    expect(body).toMatchObject({
+      claimed: false,
+      verificationStatus: 'pending_verification',
+      requestId: 'CL-1234ABCD',
+      verificationCode: 'TATT-ABCD1234',
+      pendingDeposit: { count: 2, amountCents: 20_000 },
+    });
+    expect(notifyOpsOfArtistClaimMock).toHaveBeenCalledTimes(1);
   });
 
-  it('never writes claimedByUid for a removed artist', async () => {
-    graphReturns([]);
-
-    await POST(makeRequest({ artistId: 'artist_removed' }));
-
-    // One query ran, and it carried the suppression clause — so the SET inside
-    // it could not have matched a removed node.
-    expect(runMock).toHaveBeenCalledTimes(1);
-    const [cypher] = runMock.mock.calls[0];
-    expect(cypher).toContain(NOT_REMOVED_CLAUSE);
-    expect(cypher).toContain('SET a.claimedByUid');
+  it('does not pretend the request is actionable when ops delivery fails', async () => {
+    notifyOpsOfArtistClaimMock.mockResolvedValue({ delivered: false, reason: 'no inbox' });
+    const response = await POST(request());
+    expect(response.status).toBe(502);
+    expect(await response.json()).toMatchObject({
+      claimed: false,
+      verificationStatus: 'pending_verification',
+    });
   });
 
-  it('still claims a live, unclaimed artist', async () => {
-    // The guard must not break the normal path.
-    graphReturns([
-      { claimedByUid: 'uid_caller', name: 'Ging', stripeAccountId: null, chargesEnabled: false },
-    ]);
-
-    const res = await POST(makeRequest({ artistId: 'artist_ging' }));
-
-    expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ claimed: true, artistId: 'artist_ging' });
+  it('is idempotent for the same already-verified owner', async () => {
+    verifyFirebaseTokenMock.mockResolvedValue({ uid: 'uid_owner', email: 'nadia@example.com' });
+    requestArtistClaimMock.mockResolvedValue({
+      artist: {
+        ...artist,
+        claimedByUid: 'uid_owner',
+        claimVerificationStatus: 'verified',
+        stripeAccountId: 'acct_1',
+        chargesEnabled: true,
+      },
+      request: null,
+    });
+    const response = await POST(request());
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      claimed: true,
+      verificationStatus: 'verified',
+      hasConnectedAccount: true,
+      chargesEnabled: true,
+    });
+    expect(notifyOpsOfArtistClaimMock).not.toHaveBeenCalled();
   });
 
-  it('still rejects a live artist already claimed by someone else', async () => {
-    graphReturns([
-      { claimedByUid: 'uid_other', name: 'Ging', stripeAccountId: null, chargesEnabled: false },
-    ]);
-
-    const res = await POST(makeRequest({ artistId: 'artist_ging' }));
-
-    expect(res.status).toBe(409);
-    expect((await res.json()).code).toBe('ALREADY_CLAIMED');
+  it('never replaces another verified owner', async () => {
+    requestArtistClaimMock.mockResolvedValue({
+      artist: {
+        ...artist,
+        claimedByUid: 'uid_other',
+        claimVerificationStatus: 'verified',
+      },
+      request: pending,
+    });
+    const response = await POST(request());
+    expect(response.status).toBe(409);
+    expect((await response.json()).code).toBe('ALREADY_CLAIMED');
   });
 });

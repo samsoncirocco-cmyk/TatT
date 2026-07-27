@@ -1,54 +1,40 @@
 /**
- * Claim an Artist profile for the signed-in Firebase user.
+ * Request ownership of an Artist profile.
  *
- * A tattoo artist who was seeded into the graph (and may already have held
- * deposits waiting for them) proves ownership by signing in with Google and
- * calling this route. We bind the verified Firebase uid to the Artist node via
- * `claimedByUid`. The bind is atomic and idempotent: the first caller wins, and
- * re-claiming by the same uid is a no-op success. A different uid trying to
- * claim an already-claimed artist gets 409.
- *
- * Response tells the client what to do next: whether a connected Stripe account
- * already exists (skip account creation) and how much held deposit is waiting.
+ * A Firebase login proves a TatT account, not control of the Instagram handle
+ * that anchors a scraped artist profile. This public-facing route therefore
+ * cannot write `claimedByUid`. It records a pending request, issues a code for
+ * the artist to publish, and notifies an operator. Only the dry-run-first
+ * approval CLI can create the trusted ownership binding.
  */
+import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
 import { verifyFirebaseToken } from '@/lib/auth-dal';
+import {
+  CLAIM_VERIFICATION_TTL_MS,
+  formatClaimVerificationCode,
+} from '@/lib/artist-claim';
+import { requestArtistClaim } from '@/lib/artist-claim-graph';
 import { listPendingByArtist } from '@/lib/booking-relay';
-import { NOT_REMOVED_CLAUSE } from '@/lib/takedown';
+import { notifyOpsOfArtistClaim } from '@/lib/notify';
+import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
-
-/** Small write helper that returns rows (the shared cypher helper is read-only). */
-async function runWriteReturning(query: string, params: Record<string, unknown>) {
-  const { getNeo4jDriver, NEO4J_DATABASE, NEO4J_QUERY_TIMEOUT } = await import('@/lib/neo4j');
-  const neo4j = (await import('neo4j-driver')).default;
-  const driver = getNeo4jDriver();
-  if (!driver) {
-    throw new Error('Neo4j driver not configured — cannot claim artist.');
-  }
-  const session = driver.session(NEO4J_DATABASE ? { database: NEO4J_DATABASE } : undefined);
-  try {
-    const result = await session.executeWrite(
-      (tx: { run: (q: string, p: Record<string, unknown>) => Promise<{ records: Array<{ toObject(): Record<string, unknown> }> }> }) =>
-        tx.run(query, params),
-      { timeout: neo4j.int(NEO4J_QUERY_TIMEOUT) }
-    );
-    return result.records.map((rec: { toObject(): Record<string, unknown> }) => rec.toObject());
-  } finally {
-    await session.close();
-  }
-}
 
 export async function POST(req: NextRequest) {
   const authError = await verifyApiAuth(req);
   if (authError) return authError;
 
   const user = await verifyFirebaseToken(req);
-  if (!user) {
-    return NextResponse.json({ error: 'Authentication required', code: 'AUTH_REQUIRED' }, { status: 401 });
+  if (!user?.uid) {
+    return NextResponse.json(
+      { error: 'Authentication required', code: 'AUTH_REQUIRED' },
+      { status: 401 },
+    );
   }
-  const uid = user.uid;
+  const limit = await rateLimit(req, 'artist-claim', user.uid);
+  if (!limit.allowed) return rateLimitResponse(limit);
 
   let artistId: string | undefined;
   try {
@@ -56,60 +42,103 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
   }
-
   if (!artistId) {
     return NextResponse.json({ error: 'artistId is required.' }, { status: 400 });
   }
 
-  // Atomic first-writer-wins claim. coalesce keeps an existing owner; the
-  // returned claimedByUid tells us whether the binding is ours.
-  //
-  // `removedAt IS NULL` is load-bearing, not tidiness. A taken-down artist is
-  // soft-deleted to a scrubbed husk that deliberately RETAINS the money-bearing
-  // properties — stripeAccountId, claimedByUid (ADR 0025 §2). Without this
-  // clause, anyone could claim a removed artist's husk through this route, which
-  // performs no identity check whatsoever (issue #192), and inherit their
-  // connected account. It would also be a way around reinstatement (ADR 0026),
-  // which is supposed to be the only door back in and does verify identity.
-  //
-  // A removed artist reads as absent here, exactly as it does on the profile
-  // page, the roster, the matcher and /api/v1/book.
-  const rows = await runWriteReturning(
-    `MATCH (a:Artist {id: $artistId})
-     WHERE ${NOT_REMOVED_CLAUSE}
-     SET a.claimedByUid = coalesce(a.claimedByUid, $uid)
-     RETURN a.claimedByUid AS claimedByUid,
-            a.name AS name,
-            a.stripeAccountId AS stripeAccountId,
-            coalesce(a.stripeChargesEnabled, false) AS chargesEnabled`,
-    { artistId, uid }
-  );
+  const requestId = `CL-${randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+  const verificationCode = formatClaimVerificationCode(randomUUID());
 
-  if (!rows.length) {
-    return NextResponse.json({ error: 'Artist not found.' }, { status: 404 });
-  }
-
-  const r = rows[0];
-  const owner = (r.claimedByUid as string) ?? null;
-  if (owner !== uid) {
+  let recorded;
+  try {
+    recorded = await requestArtistClaim({
+      id: requestId,
+      artistId,
+      uid: user.uid,
+      contactEmail: typeof user.email === 'string' ? user.email : null,
+      verificationCode,
+    });
+  } catch (err) {
+    console.error('[claim] could not record ownership request:', err);
     return NextResponse.json(
-      { error: 'This profile has already been claimed by another account.', code: 'ALREADY_CLAIMED' },
-      { status: 409 }
+      { error: 'Could not record your claim request. Nothing changed.' },
+      { status: 503 },
     );
   }
 
+  if (!recorded.artist) {
+    return NextResponse.json({ error: 'Artist not found.' }, { status: 404 });
+  }
+  if (recorded.artist.claimedByUid) {
+    if (
+      recorded.artist.claimedByUid === user.uid &&
+      recorded.artist.claimVerificationStatus === 'verified'
+    ) {
+      const pending = await listPendingByArtist(artistId);
+      return NextResponse.json({
+        claimed: true,
+        verificationStatus: 'verified',
+        artistId,
+        name: recorded.artist.name,
+        hasConnectedAccount: Boolean(recorded.artist.stripeAccountId),
+        chargesEnabled: recorded.artist.chargesEnabled,
+        pendingDeposit: {
+          count: pending.length,
+          amountCents: pending.reduce((sum, relay) => sum + relay.amountCents, 0),
+        },
+      });
+    }
+    return NextResponse.json(
+      { error: 'This profile already has an owner.', code: 'ALREADY_CLAIMED' },
+      { status: 409 },
+    );
+  }
+  if (!recorded.request) {
+    return NextResponse.json(
+      { error: 'This claim request is no longer pending.', code: 'CLAIM_NOT_PENDING' },
+      { status: 409 },
+    );
+  }
   const pending = await listPendingByArtist(artistId);
   const pendingDeposit = {
     count: pending.length,
-    amountCents: pending.reduce((sum, p) => sum + p.amountCents, 0),
+    amountCents: pending.reduce((sum, relay) => sum + relay.amountCents, 0),
   };
 
-  return NextResponse.json({
-    claimed: true,
-    artistId,
-    name: (r.name as string) ?? null,
-    hasConnectedAccount: Boolean(r.stripeAccountId),
-    chargesEnabled: Boolean(r.chargesEnabled),
-    pendingDeposit,
-  });
+  const delivery = await notifyOpsOfArtistClaim(recorded.request, recorded.artist.name);
+  if (!delivery.delivered) {
+    console.error(`[claim] request ${recorded.request.id} not delivered: ${delivery.reason}`);
+    return NextResponse.json(
+      {
+        claimed: false,
+        verificationStatus: 'pending_verification',
+        requestId: recorded.request.id,
+        error:
+          'We recorded the request but could not deliver it to our review team. ' +
+          'Nothing was claimed and no money can move.',
+        fallbackEmail: process.env.OPS_NOTIFY_EMAIL || 'support@tatttester.com',
+      },
+      { status: 502 },
+    );
+  }
+
+  const handle = recorded.request.instagram?.replace(/^@/, '') || null;
+  return NextResponse.json(
+    {
+      claimed: false,
+      verificationStatus: 'pending_verification',
+      requestId: recorded.request.id,
+      artistId,
+      name: recorded.artist.name,
+      pendingDeposit,
+      instagram: handle,
+      verificationCode: handle ? recorded.request.verificationCode : null,
+      expiresInDays: Math.round(CLAIM_VERIFICATION_TTL_MS / (24 * 60 * 60 * 1000)),
+      nextStep: handle
+        ? `Post ${recorded.request.verificationCode} on @${handle} in your bio, a post, or a story. ` +
+          'A person will verify it before the profile or payouts become yours.'
+        : 'This profile has no reachable Instagram handle. Our team must verify you manually before the profile or payouts become yours.',
+    },
+    { status: 202 },
+  );
 }

@@ -74,6 +74,7 @@ function defaultHandlers(status: StatusOverrides = {}) {
   return {
     '/connect/claim': {
       claimed: true,
+      verificationStatus: 'verified',
       artistId: 'artist_1',
       name: 'Nadia Ink',
       hasConnectedAccount: true,
@@ -131,6 +132,28 @@ describe('claim page — Stripe onboarding states', () => {
 
     expect(await screen.findByRole('button', { name: /log in with google/i })).toBeTruthy();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('pending identity review never creates a Connect account or checks payout status', async () => {
+    const handlers = defaultHandlers();
+    handlers['/connect/claim'] = {
+      claimed: false,
+      verificationStatus: 'pending_verification',
+      requestId: 'CL-1234ABCD',
+      artistId: 'artist_1',
+      name: 'Nadia Ink',
+      instagram: 'nadia.ink',
+      verificationCode: 'TATT-ABCD1234',
+      nextStep: 'Post the code on @nadia.ink.',
+      pendingDeposit: { count: 1, amountCents: 15_000 },
+    };
+    const fetchMock = stubFetch(handlers);
+    await renderPage();
+
+    expect(await screen.findByText(/identity review required/i)).toBeTruthy();
+    expect(screen.getByText('TATT-ABCD1234')).toBeTruthy();
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/connect/accounts'))).toBe(false);
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/connect/status'))).toBe(false);
   });
 
   it('not yet onboarded: says payouts are OFF and offers the Stripe setup link', async () => {
