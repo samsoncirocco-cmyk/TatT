@@ -28,7 +28,7 @@
 name: CI/CD Pipeline
 
 # No paths filter: config files outside src/ (next.config.ts, tsconfig.json,
-# vercel/railway configs) can break the build, and a filtered-out PR check
+# vercel config) can break the build, and a filtered-out PR check
 # also blocks merge forever when checks are required.
 on:
   push:

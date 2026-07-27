@@ -9,7 +9,7 @@ Run the Next.js application inside Docker using the multi-stage Dockerfile and d
 ## When to Use
 
 - When you want an isolated, reproducible dev environment
-- When testing the production Docker image before deploying to Railway
+- When testing the production Docker image locally
 - When working on a machine without Node.js 20 installed
 - When debugging environment-specific issues (Linux vs macOS)
 
@@ -117,5 +117,5 @@ docker compose up dev
 ## Related Directives
 
 - [setup-local-dev.md](./setup-local-dev.md) -- Alternative: run natively without Docker
-- [deploy.md](./deploy.md) -- Use production Docker mode to validate before deploying to Railway
+- [deploy.md](./deploy.md) -- Use production Docker mode to validate before deploying
 - [database-setup.md](./database-setup.md) -- Database infrastructure is external to Docker; must be set up separately

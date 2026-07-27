@@ -202,7 +202,7 @@ All secrets managed in GCP Secret Manager:
 
 **Secret name:** `replicate-api-token`
 **Env var:** `REPLICATE_API_TOKEN`
-**Used by:** Backend proxy (server.js)
+**Used by:** Next.js API routes (`src/app/api/`)
 **How to rotate:**
 1. Generate new token at https://replicate.com/account/api-tokens
 2. Add new version: `echo -n "[TOKEN]" | gcloud secrets versions add replicate-api-token --data-file=-`
