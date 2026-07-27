@@ -11,14 +11,14 @@ statuses:
   retired: Explicitly removed or superseded.
 
 features:
-  artist_data_verification:
+  simulated_artist_data_verification:
     status: retired
     evidence:
       - docs/adr/0032-retire-simulated-artist-verification.md
       - execution/scrape_artists.py
       - scripts/data_acquisition/README.md
     limitations:
-      - Acquisition produces candidate data, not identity, consent, or portfolio-quality verification.
+      - Evidence-backed artist verification is not implemented; acquisition produces candidate data only.
 
   conversational_design:
     status: implemented
