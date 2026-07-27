@@ -4,10 +4,12 @@
  * Maps free-text forge descriptors (the stencil prompt + suggestion chips
  * like "Pop-punk flash" / "Heavy black linework") onto the canonical style
  * vocabulary of the live artist graph, and (de)serializes that signal
- * through the /matches?styles=…&from=design query string.
+ * through query strings: the forge links to /artists?style=…, and the
+ * legacy /matches?styles=…&from=design deep link is parsed here so its
+ * redirect can map it onto the directory's filter (ADR-0029).
  *
- * Shared by the Stencil Forge (producer) and MatchesClient (consumer) so
- * both sides agree on the vocabulary.
+ * Shared by the Stencil Forge (producer) and the /artists directory /
+ * /matches redirect (consumers) so all sides agree on the vocabulary.
  */
 
 // The canonical style vocabulary now comes from style-vocabulary.ts, which
@@ -130,17 +132,14 @@ export function canonicalStylesFromOntologyTags(tags: string[]): CanonicalStyle[
 }
 
 /**
- * Build the /matches URL carrying a design's style signal.
- * The forge always cuts blackwork stencils (see generateTattooDesign's
- * style: "blackwork"), so Blackwork is the honest fallback when the
- * prompt itself names no style.
+ * Build the /artists directory URL carrying a design's style signal.
+ * The directory filters on a single style, so the strongest extracted
+ * style (first in rule order) wins. The forge always cuts blackwork
+ * stencils (see generateTattooDesign's style: "blackwork"), so Blackwork
+ * is the honest fallback when the prompt itself names no style.
  */
-export function matchesUrlForDesign(prompt: string): string {
+export function artistsUrlForDesign(prompt: string): string {
   const styles = stylesFromDescriptors([prompt]);
-  const effective = styles.length ? styles : (["Blackwork"] as CanonicalStyle[]);
-  const params = new URLSearchParams({
-    styles: effective.join(","),
-    from: "design",
-  });
-  return `/matches?${params.toString()}`;
+  const style: CanonicalStyle = styles[0] ?? "Blackwork";
+  return `/artists?${new URLSearchParams({ style }).toString()}`;
 }

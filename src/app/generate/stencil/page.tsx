@@ -15,7 +15,7 @@ import {
   recordGeneration,
 } from "@/lib/cloudSync";
 import { generateTattooDesign } from "@/features/generate/services/replicateService";
-import { matchesUrlForDesign } from "@/lib/design-style-signal";
+import { artistsUrlForDesign } from "@/lib/design-style-signal";
 
 const SUGGESTIONS = [
   { label: "Pop-punk flash" },
@@ -341,9 +341,10 @@ function StencilPageInner() {
                   </div>
 
                   {/* DESIGN → ARTIST SIGNAL — carries the prompt's style
-                      descriptors to /matches as canonical graph styles. */}
+                      descriptors to the /artists directory as a canonical
+                      graph style filter. */}
                   <div className="mt-8 flex flex-col sm:flex-row sm:items-center gap-4 border-t-2 hairline pt-6">
-                    <TapeCTA href={matchesUrlForDesign(prompt)} size="lg">
+                    <TapeCTA href={artistsUrlForDesign(prompt)} size="lg">
                       Find artists for this design
                     </TapeCTA>
                     <span className="text-[10px] uppercase tracking-[0.22em] text-white/45 font-body">
