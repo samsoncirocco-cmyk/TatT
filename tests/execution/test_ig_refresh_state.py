@@ -25,6 +25,46 @@ def test_only_marks_stale_after_consecutive_confirmed_dead_refreshes():
         assert state["consecutiveDeadRefreshes"] == attempt
 
 
+def test_same_sweep_retry_gets_only_one_dead_vote():
+    first = update_handle_state(
+        None,
+        status="not_found",
+        checked_at="2026-01-01T00:00:00Z",
+        dead_threshold=2,
+        observation_sweep_id="2026-Q1",
+    )
+    retry = update_handle_state(
+        first,
+        status="private",
+        checked_at="2026-01-01T01:00:00Z",
+        dead_threshold=2,
+        observation_sweep_id="2026-Q1",
+    )
+    next_sweep = update_handle_state(
+        retry,
+        status="not_found",
+        checked_at="2026-04-01T00:00:00Z",
+        dead_threshold=2,
+        observation_sweep_id="2026-Q2",
+    )
+    assert retry == first
+    assert retry["consecutiveDeadRefreshes"] == 1
+    assert retry["stale"] is False
+    assert next_sweep["consecutiveDeadRefreshes"] == 2
+    assert next_sweep["stale"] is True
+
+
+def test_dead_observation_below_threshold_never_clears_existing_stale():
+    state = update_handle_state(
+        {"stale": True, "consecutiveDeadRefreshes": 0},
+        status="private",
+        checked_at="2026-01-01T00:00:00Z",
+        dead_threshold=3,
+        observation_sweep_id="2026-Q1",
+    )
+    assert state["stale"] is True
+
+
 def test_transient_failure_never_creates_or_clears_stale_and_active_recovers():
     first = update_handle_state(
         None,

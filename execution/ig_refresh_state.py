@@ -51,8 +51,13 @@ def update_handle_state(
     checked_at: str,
     reason: str | None = None,
     dead_threshold: int = DEFAULT_DEAD_THRESHOLD,
+    observation_sweep_id: str | None = None,
 ) -> dict[str, Any]:
-    """Apply one observation without letting transient failures mark artists stale."""
+    """Apply at most one observation per handle and sweep.
+
+    Actor retries and overlapping workers can report the same handle more than
+    once. A sweep therefore gets one vote toward the dead threshold.
+    """
 
     if status not in {"active", "not_found", "private", "transient"}:
         raise ValueError(f"unknown refresh status: {status}")
@@ -60,6 +65,12 @@ def update_handle_state(
         raise ValueError("dead_threshold must be at least 1")
 
     state = dict(previous or {})
+    if (
+        observation_sweep_id
+        and state.get("lastObservationSweepId") == observation_sweep_id
+    ):
+        return state
+
     previous_dead = int(state.get("consecutiveDeadRefreshes") or 0)
     was_stale = bool(state.get("stale"))
     state.update(
@@ -69,6 +80,8 @@ def update_handle_state(
             "lastRefreshReason": reason,
         }
     )
+    if observation_sweep_id:
+        state["lastObservationSweepId"] = observation_sweep_id
 
     if status == "active":
         state.update(
@@ -83,7 +96,7 @@ def update_handle_state(
         state.update(
             {
                 "consecutiveDeadRefreshes": consecutive,
-                "stale": consecutive >= dead_threshold,
+                "stale": True if consecutive >= dead_threshold else was_stale,
             }
         )
     else:

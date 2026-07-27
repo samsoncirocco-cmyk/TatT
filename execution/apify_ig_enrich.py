@@ -16,6 +16,7 @@ is applied separately by the dry-run-by-default TatT operator tool.
 from __future__ import annotations
 
 import argparse
+import fcntl
 import json
 import os
 import time
@@ -62,23 +63,26 @@ def load_token() -> str:
     token = os.environ.get("APIFY_TOKEN", "").strip()
     if token:
         return token
-    env_path = Path("/opt/org/.env")
-    if env_path.exists():
-        for line in env_path.read_text().splitlines():
-            if line.startswith("APIFY_TOKEN="):
-                token = line.split("=", 1)[1].strip()
-                if token:
-                    return token
     raise RuntimeError("APIFY_TOKEN is required")
 
 
-def api(method: str, url: str, body: Any = None, timeout: int = 120) -> Any:
+def api(
+    method: str,
+    url: str,
+    body: Any = None,
+    timeout: int = 120,
+    *,
+    token: str,
+) -> Any:
     data = json.dumps(body).encode() if body is not None else None
     request = urllib.request.Request(
         url,
         data=data,
         method=method,
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
     )
     with urllib.request.urlopen(request, timeout=timeout) as response:
         return json.loads(response.read().decode())
@@ -87,29 +91,39 @@ def api(method: str, url: str, body: Any = None, timeout: int = 120) -> Any:
 def run_chunk(usernames: list[str], token: str) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """Run one paid actor chunk.  Called only from ``main``."""
 
-    encoded_token = urllib.parse.quote(token, safe="")
     run = api(
         "POST",
-        f"https://api.apify.com/v2/acts/{ACTOR}/runs?token={encoded_token}",
+        f"https://api.apify.com/v2/acts/{ACTOR}/runs",
         {"usernames": usernames},
+        token=token,
     )["data"]
     run_id = run["id"]
     dataset_id = run["defaultDatasetId"]
     final = run
-    for _ in range(120):
-        final = api(
+    try:
+        for _ in range(120):
+            final = api(
+                "GET",
+                f"https://api.apify.com/v2/actor-runs/{run_id}",
+                token=token,
+            )["data"]
+            if final.get("status") in TERMINAL_STATUSES:
+                break
+            time.sleep(5)
+        if final.get("status") != "SUCCEEDED":
+            return final, []
+        items = api(
             "GET",
-            f"https://api.apify.com/v2/actor-runs/{run_id}?token={encoded_token}",
-        )["data"]
-        if final.get("status") in TERMINAL_STATUSES:
-            break
-        time.sleep(5)
-    items = api(
-        "GET",
-        f"https://api.apify.com/v2/datasets/{dataset_id}/items"
-        f"?token={encoded_token}&clean=true",
-    )
-    return final, items
+            f"https://api.apify.com/v2/datasets/{dataset_id}/items?clean=true",
+            token=token,
+        )
+        return final, items
+    except (OSError, RuntimeError, urllib.error.URLError) as error:
+        # The paid actor already exists. Keep its ID in the cost report so a
+        # missing price makes the sweep explicitly incomplete.
+        failed = dict(final)
+        failed.update({"id": run_id, "status": "ERROR", "error": str(error)})
+        return failed, []
 
 
 def extract_images(row: Mapping[str, Any]) -> list[str]:
@@ -195,10 +209,27 @@ def write_json_atomic(path: Path, value: Any) -> None:
     temporary.replace(path)
 
 
+def update_json_locked(path: Path, fallback: Any, updater: Any) -> Any:
+    """Read/merge/write JSON while holding a process-safe sidecar lock."""
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = path.with_suffix(path.suffix + ".lock")
+    with lock_path.open("a+") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        current = load_json(path, fallback)
+        updated = updater(current)
+        write_json_atomic(path, updated)
+        fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+    return updated
+
+
 def append_audit(path: Path, record: Mapping[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a") as stream:
+        fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
         stream.write(json.dumps(record, sort_keys=True) + "\n")
+        stream.flush()
+        fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
 
 
 def quarantine_profile(output_dir: Path, artist_id: str) -> bool:
@@ -213,6 +244,11 @@ def quarantine_profile(output_dir: Path, artist_id: str) -> bool:
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--execute",
+        action="store_true",
+        help="authorize paid Apify calls and local artifact writes",
+    )
     parser.add_argument("--start", type=int, default=0)
     parser.add_argument("--count", type=int, default=500)
     parser.add_argument("--chunk", type=int, default=100)
@@ -249,6 +285,7 @@ def merge_run_report(
 ) -> dict[str, Any]:
     """Accumulate one multi-process sweep without double-counting actor run IDs."""
 
+    actor_runs = tuple(actor_runs)
     report = dict(existing or {})
     sweeps = dict(report.get("sweeps") or {})
     sweep = dict(sweeps.get(sweep_id) or {})
@@ -272,12 +309,23 @@ def merge_run_report(
         for run in by_id.values()
         if (cost := numeric_cost(run.get("usageTotalUsd"))) is not None
     ]
+    missing_cost_count = len(by_id) - len(costs)
+    pricing_status = (
+        "no-runs"
+        if not by_id
+        else "complete"
+        if missing_cost_count == 0
+        else "incomplete"
+    )
     sweep.update(
         {
             "startedAt": sweep.get("startedAt") or checked_at,
             "lastRunAt": checked_at,
             "actorRuns": sorted(by_id.values(), key=lambda run: str(run.get("id"))),
-            "apifyUsageTotalUsd": sum(costs) if costs else None,
+            "apifyUsageKnownSubtotalUsd": sum(costs),
+            "apifyUsageMissingRunCount": missing_cost_count,
+            "apifyUsagePricingStatus": pricing_status,
+            "apifyUsageTotalUsd": sum(costs) if pricing_status == "complete" else None,
             # Preserve a value an operator added from the billing export.
             "gcsCostUsd": sweep.get("gcsCostUsd"),
             "gcsCostNote": sweep.get("gcsCostNote")
@@ -295,9 +343,6 @@ def merge_run_report(
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    token = load_token()
-    args.out.mkdir(parents=True, exist_ok=True)
-
     queue = load_json(args.queue, [])[args.start : args.start + args.count]
     by_handle = {
         normalize_handle(item.get("ig")): str(item["id"])
@@ -305,12 +350,18 @@ def main(argv: list[str] | None = None) -> int:
         if normalize_handle(item.get("ig")) and item.get("id")
     }
     handles = list(by_handle)
-    ledger = load_json(
-        args.status_ledger,
-        {"version": 1, "deadThreshold": args.dead_threshold, "handles": {}},
-    )
-    ledger.setdefault("handles", {})
     checked_at = utc_now()
+    sweep_id = args.sweep_id or checked_at[:10]
+    if not args.execute:
+        print(
+            "DRY RUN: no paid calls or artifact writes; "
+            f"slice={args.start}:{args.start + args.count} handles={len(handles)} "
+            f"chunk={args.chunk} sweep={sweep_id}. Pass --execute to run."
+        )
+        return 0
+
+    token = load_token()
+    args.out.mkdir(parents=True, exist_ok=True)
     summary = {
         "requested": len(handles),
         "written": 0,
@@ -338,6 +389,7 @@ def main(argv: list[str] | None = None) -> int:
                     "usageTotalUsd": run.get("usageTotalUsd"),
                     "startedAt": run.get("startedAt"),
                     "finishedAt": run.get("finishedAt"),
+                    "error": run.get("error"),
                 }
             )
         except (OSError, RuntimeError, urllib.error.URLError) as error:
@@ -348,18 +400,82 @@ def main(argv: list[str] | None = None) -> int:
             )
 
         observations = build_chunk_observations(chunk, items, actor_status)
+        evaluations = {}
         for handle, (status, refresh_reason, row) in observations.items():
-            artist_id = by_handle[handle]
-            previous = ledger["handles"].get(handle)
-            state = update_handle_state(
-                previous,
-                status=status,
-                checked_at=checked_at,
-                reason=refresh_reason,
-                dead_threshold=args.dead_threshold,
+            verdict = None
+            filter_reason = None
+            if status == "active" and row is not None:
+                verdict, filter_reason = looks_bookable(row)
+            evaluations[handle] = (
+                status,
+                refresh_reason,
+                row,
+                verdict,
+                filter_reason,
             )
-            state["artistId"] = artist_id
-            ledger["handles"][handle] = state
+
+        states: dict[str, dict[str, Any]] = {}
+        duplicate_handles: set[str] = set()
+
+        def merge_ledger(current: Mapping[str, Any] | None) -> dict[str, Any]:
+            ledger = dict(current or {})
+            ledger_handles = dict(ledger.get("handles") or {})
+            for handle, (
+                status,
+                refresh_reason,
+                _row,
+                verdict,
+                filter_reason,
+            ) in evaluations.items():
+                previous = ledger_handles.get(handle)
+                if (
+                    previous
+                    and previous.get("lastObservationSweepId") == sweep_id
+                ):
+                    duplicate_handles.add(handle)
+                    states[handle] = dict(previous)
+                    continue
+                state = update_handle_state(
+                    previous,
+                    status=status,
+                    checked_at=checked_at,
+                    reason=refresh_reason,
+                    dead_threshold=args.dead_threshold,
+                    observation_sweep_id=sweep_id,
+                )
+                state["artistId"] = by_handle[handle]
+                if verdict is not None:
+                    state["looksBookable"] = verdict
+                    state["bookabilityReason"] = filter_reason
+                ledger_handles[handle] = state
+                states[handle] = state
+            ledger.update(
+                {
+                    "version": 1,
+                    "deadThreshold": args.dead_threshold,
+                    "lastRunAt": checked_at,
+                    "handles": ledger_handles,
+                }
+            )
+            return ledger
+
+        ledger = update_json_locked(
+            args.status_ledger,
+            {"version": 1, "deadThreshold": args.dead_threshold, "handles": {}},
+            merge_ledger,
+        )
+
+        for handle, (
+            status,
+            refresh_reason,
+            row,
+            verdict,
+            filter_reason,
+        ) in evaluations.items():
+            if handle in duplicate_handles:
+                continue
+            artist_id = by_handle[handle]
+            state = states[handle]
 
             audit = {
                 "artistId": artist_id,
@@ -382,12 +498,6 @@ def main(argv: list[str] | None = None) -> int:
                 append_audit(args.audit_log, {**audit, "action": "preserved-transient"})
                 continue
 
-            verdict, filter_reason = looks_bookable(row)
-            # Persist the verdict independently from the local profile file so
-            # the TatT status applier can suppress an already-imported
-            # brand/shop account without deleting its node.
-            state["looksBookable"] = verdict
-            state["bookabilityReason"] = filter_reason
             audit.update({"looksBookable": verdict, "filterReason": filter_reason})
             if not verdict and not args.no_filter:
                 summary["rejected"] += 1
@@ -419,27 +529,18 @@ def main(argv: list[str] | None = None) -> int:
             f"rows={len(items)} cumulative={summary}"
         )
 
-    ledger.update(
-        {
-            "version": 1,
-            "deadThreshold": args.dead_threshold,
-            "lastRunAt": checked_at,
-        }
-    )
-    write_json_atomic(args.status_ledger, ledger)
-    sweep_id = args.sweep_id or checked_at[:10]
     run_slice = {"start": args.start, "count": args.count, "requested": len(handles)}
-    report = merge_run_report(
-        load_json(args.run_report, {}),
-        sweep_id=sweep_id,
-        checked_at=checked_at,
-        run_slice=run_slice,
-        summary=summary,
-        actor_runs=actor_runs,
-    )
-    write_json_atomic(
+    report = update_json_locked(
         args.run_report,
-        report,
+        {},
+        lambda current: merge_run_report(
+            current,
+            sweep_id=sweep_id,
+            checked_at=checked_at,
+            run_slice=run_slice,
+            summary=summary,
+            actor_runs=actor_runs,
+        ),
     )
     stale_count = sum(1 for state in ledger["handles"].values() if state.get("stale"))
     print(f"DONE summary={summary} stale-in-ledger={stale_count}")
