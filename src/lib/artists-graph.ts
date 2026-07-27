@@ -2,9 +2,10 @@
  * Server-side accessors over the live Neo4j artist graph (10,427 real
  * artists) for the /artists roster + profile pages.
  *
- * Same pattern as /matches (PR #46): server components call these, which
- * hit the driver via executeServerCypherQuery. The dataset never ships
- * to the client — pages pass down only the current page of plain rows.
+ * Server components call these, which hit the driver via
+ * executeServerCypherQuery (pattern introduced with the retired /matches
+ * page, PR #46). The dataset never ships to the client — pages pass down
+ * only the current page of plain rows.
  *
  * Query-shaping helpers (buildRosterFilter, rosterPageWindow) are pure
  * and unit-tested; the fetchers import the driver path lazily so this
