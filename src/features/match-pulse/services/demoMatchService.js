@@ -6,6 +6,7 @@
  */
 
 import { findMatchingArtists as graphMatch } from './neo4jService';
+import { DEMO_PORTFOLIO_IMAGES } from '@/lib/demo-images';
 
 /**
  * Find matching artists for a design (Demo version)
@@ -130,9 +131,9 @@ function getMockMatches(design) {
             hourlyRate: 150,
             profileImage: 'https://i.pravatar.cc/150?img=1',
             portfolioImages: [
-                'https://images.unsplash.com/photo-1565058379802-bbe93b2f703f?w=400',
-                'https://images.unsplash.com/photo-1598371839696-5c5bb00bdc28?w=400',
-                'https://images.unsplash.com/photo-1611501275019-9b5cda994e8d?w=400'
+                DEMO_PORTFOLIO_IMAGES[3],
+                DEMO_PORTFOLIO_IMAGES[0],
+                DEMO_PORTFOLIO_IMAGES[1]
             ],
             specialties: [design.style, 'custom designs'],
             score: 0.92,
@@ -152,7 +153,7 @@ function getMockMatches(design) {
             hourlyRate: 175,
             profileImage: 'https://i.pravatar.cc/150?img=2',
             portfolioImages: [
-                'https://images.unsplash.com/photo-1590246814883-57c511e76729?w=400'
+                DEMO_PORTFOLIO_IMAGES[2]
             ],
             specialties: [design.style, 'color work'],
             score: 0.88,
