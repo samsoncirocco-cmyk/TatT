@@ -151,40 +151,17 @@ python validate_env.py
 - Neo4j credentials wrong: Verify .env values match 1Password
 - Firestore not accessible: Ensure GCP project ID is correct
 
-### Step 6: Run Development Servers
+### Step 6: Run the Development Server
 
-**Terminal 1 (Frontend):**
 ```bash
 npm run dev
 ```
 
-**Expected output:**
-```
-VITE v5.x.x  ready in 847 ms
+The Next.js dev server hosts both the frontend and the API routes (`src/app/api/`) — there is no separate backend process. (The legacy Express proxy was retired 2026-07-20.)
 
-➜  Local:   http://localhost:3000/
-➜  Network: use --host to expose
-➜  press h + enter to show help
-```
-
-**Terminal 2 (Backend Proxy):**
-```bash
-npm run server
-```
-
-**Expected output:**
-```
-[Server] Proxy server running on port 3001
-[Server] CORS enabled for: http://localhost:3000
-[Server] Rate limiting active
-```
-
-**Verify both servers running:**
+**Verify the server is running:**
 ```bash
 curl http://localhost:3000/api/health
-# Expected: {"status":"healthy"}
-
-curl http://localhost:3001/api/health
 # Expected: {"status":"healthy"}
 ```
 
@@ -311,8 +288,8 @@ Frontend (Next.js + React):
   - src/hooks/ → Custom hooks (state + service orchestration)
   - src/services/ → Business logic and API clients
 
-Backend (Express proxy):
-  - server.js → Main proxy server
+Backend (Next.js API routes):
+  - src/app/api/ → All server-side endpoints
   - Proxies Replicate, council, and other APIs
   - Hides API tokens from client
 

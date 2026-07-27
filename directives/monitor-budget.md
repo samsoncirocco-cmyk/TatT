@@ -223,12 +223,8 @@ Typical Phase 1 cost distribution:
 If budget alerts fire at 75%+ and spend must be reduced immediately:
 
 ```bash
-# Reduce Replicate rate limit from 10/min to 2/min
-# Edit server.js:
-# const replicateRateLimiter = rateLimit({
-#   windowMs: 60 * 1000,
-#   max: 2,  // Changed from 10
-# });
+# Reduce the Replicate rate limit (e.g. from 10/min to 2/min) in the
+# rate-limit config used by the generation API routes (src/lib/rate-limit.ts)
 
 # Redeploy to Cloud Run
 gcloud run deploy pangyo-production --image gcr.io/[PROJECT_ID]/pangyo:latest

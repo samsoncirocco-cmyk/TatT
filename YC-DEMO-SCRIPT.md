@@ -70,7 +70,7 @@
 
 ## Demo Checklist (Pre-Stage)
 
-- [ ] Production URL loaded: `https://tatt-production.up.railway.app`
+- [ ] Production URL loaded: `https://tatttester.com`
 - [ ] Network tested on venue WiFi (have mobile hotspot backup)
 - [ ] Pre-cached a generation so the demo isn't waiting on cold API calls
 - [ ] Council enhancement pre-run to show the 3-agent output instantly

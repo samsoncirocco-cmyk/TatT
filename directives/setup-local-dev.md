@@ -99,22 +99,15 @@ Get the Next.js frontend and Express.js backend proxy running locally with all r
    npm run dev
    ```
 
-7. **Start the Express backend proxy (port 3002) in a separate terminal**
+   All backend work (Replicate calls, Neo4j queries, layer uploads, semantic matching) runs in the Next.js API routes under `src/app/api/` — no separate server needed. (The legacy Express proxy was retired 2026-07-20.)
 
-   ```bash
-   npm run server
-   ```
-
-   The backend proxies Replicate API calls, handles Neo4j queries, layer uploads, and semantic matching.
-
-8. **Open the app**
+7. **Open the app**
 
    Navigate to `http://localhost:3000` in your browser.
 
 ## Expected Output
 
 - `npm run dev` prints `ready - started server on 0.0.0.0:3000`
-- `npm run server` prints listening on the configured port (default 3002)
 - The verification scripts report successful Supabase, GCP, and vector search connections
 - The app loads in the browser showing The Forge design interface
 
@@ -122,14 +115,12 @@ Get the Next.js frontend and Express.js backend proxy running locally with all r
 
 - **`--legacy-peer-deps` errors**: If `npm install` fails even with the flag, delete `node_modules` and `package-lock.json`, then re-run
 - **Port 3000 already in use**: Kill the process or set `PORT=3001` before `npm run dev`
-- **Port 3002 already in use**: Set `PORT=3003` in `.env.local` and update `VITE_PROXY_URL` accordingly
-- **CORS errors in browser**: Ensure `ALLOWED_ORIGINS` in `.env.local` includes `http://localhost:3000`
 - **GCP auth fails**: Verify the service account JSON file path is correct and the file is valid
 - **Supabase verify fails**: Run the schema SQL manually (see `database-setup.md`); also check that a firewall or VPN isn't blocking the connection
 - **Neo4j connection timeout**: Aura free tier auto-pauses after inactivity — resume the instance in the Neo4j console
 - **Module not found errors**: Delete `node_modules` and `package-lock.json`, then re-run `npm install --legacy-peer-deps`
 - **TypeScript errors only in VS Code**: CMD+Shift+P → "TypeScript: Select TypeScript Version" → "Use Workspace Version"
-- **VITE_ prefixed vars not working**: This is a Next.js project; use `NEXT_PUBLIC_` prefix for client-side vars. Legacy `VITE_` vars are read by `server.js` only
+- **VITE_ prefixed vars not working**: This is a Next.js project; use `NEXT_PUBLIC_` prefix for client-side vars
 
 ## Cost
 
@@ -142,4 +133,4 @@ Get the Next.js frontend and Express.js backend proxy running locally with all r
 
 - [database-setup.md](./database-setup.md) -- Set up Supabase schema and Neo4j before first run
 - [docker-dev.md](./docker-dev.md) -- Alternative: run in Docker instead of native Node
-- [deploy.md](./deploy.md) -- Deploy to Vercel + Railway after local testing
+- [deploy.md](./deploy.md) -- Deploy to Vercel after local testing
