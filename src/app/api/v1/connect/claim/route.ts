@@ -99,12 +99,6 @@ export async function POST(req: NextRequest) {
       { status: 409 },
     );
   }
-  const pending = await listPendingByArtist(artistId);
-  const pendingDeposit = {
-    count: pending.length,
-    amountCents: pending.reduce((sum, relay) => sum + relay.amountCents, 0),
-  };
-
   const delivery = await notifyOpsOfArtistClaim(recorded.request, recorded.artist.name);
   if (!delivery.delivered) {
     console.error(`[claim] request ${recorded.request.id} not delivered: ${delivery.reason}`);
@@ -123,6 +117,9 @@ export async function POST(req: NextRequest) {
   }
 
   const handle = recorded.request.instagram?.replace(/^@/, '') || null;
+  const expiresAt = new Date(
+    recorded.request.issuedAtEpochMs + CLAIM_VERIFICATION_TTL_MS,
+  ).toISOString();
   return NextResponse.json(
     {
       claimed: false,
@@ -130,10 +127,9 @@ export async function POST(req: NextRequest) {
       requestId: recorded.request.id,
       artistId,
       name: recorded.artist.name,
-      pendingDeposit,
       instagram: handle,
       verificationCode: handle ? recorded.request.verificationCode : null,
-      expiresInDays: Math.round(CLAIM_VERIFICATION_TTL_MS / (24 * 60 * 60 * 1000)),
+      expiresAt,
       nextStep: handle
         ? `Post ${recorded.request.verificationCode} on @${handle} in your bio, a post, or a story. ` +
           'A person will verify it before the profile or payouts become yours.'

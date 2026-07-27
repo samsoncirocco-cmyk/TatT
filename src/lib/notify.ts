@@ -91,9 +91,9 @@ export async function notifyOpsOfArtistClaim(
     handle && request.verificationCode
       ? `Open https://instagram.com/${handle} and confirm this code is visible in the bio, a post, or a story:\n\n` +
         `    ${request.verificationCode}\n\n` +
-        `Then use --method instagram --handle-verified.`
+        `Then use --method instagram --approved-by "<your operator id>" --handle-verified.`
       : `This profile has no usable Instagram handle. Verify identity out of band, record exactly what you checked, ` +
-        `and use --method manual --review-note "<specific evidence>".`;
+        `and use --method manual --approved-by "<your operator id>" --review-note "<specific evidence>".`;
   const subject = `[Artist claim] ${artistName || request.artistId} — identity review required`;
   const text =
     `A signed-in account requested ownership of an artist profile.\n\n` +
@@ -111,7 +111,7 @@ export async function notifyOpsOfArtistClaim(
     `node scripts/approve-artist-claim.mjs --request-id ${request.id}\n\n` +
     `Approval after Instagram proof:\n` +
     `node scripts/approve-artist-claim.mjs --request-id ${request.id} --method instagram ` +
-    `--handle-verified --execute --confirm ${request.id}\n`;
+    `--approved-by "<your operator id>" --handle-verified --execute --confirm ${request.id}\n`;
 
   try {
     const result = await sendTransactionalEmail({

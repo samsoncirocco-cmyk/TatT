@@ -51,6 +51,7 @@ export type ClaimApprovalFacts = {
 export type ClaimApprovalPlan = {
   requestId: string | null;
   method: ClaimVerificationMethod;
+  approvedBy: string | null;
   reviewNote: string | null;
   facts: ClaimApprovalFacts;
   blockers: string[];
@@ -67,12 +68,14 @@ export function planClaimApproval(
   input: {
     requestId?: string | null;
     method?: ClaimVerificationMethod;
+    approvedBy?: string | null;
     handleVerified?: boolean;
     reviewNote?: string | null;
     now?: number;
   },
 ): ClaimApprovalPlan {
   const method = input.method ?? 'instagram_code';
+  const approvedBy = input.approvedBy?.trim() || null;
   const reviewNote = input.reviewNote?.trim() || null;
   const blockers: string[] = [];
   const warnings: string[] = [];
@@ -81,6 +84,9 @@ export function planClaimApproval(
   const now = input.now ?? Date.now();
 
   if (!input.requestId) blockers.push('A claim request id is required.');
+  if (!approvedBy || approvedBy.length < 3) {
+    blockers.push('The approving operator identity is required.');
+  }
   if (!request) blockers.push('No pending claim request exists with that id.');
   if (!artist) blockers.push('The artist profile no longer exists.');
 
@@ -128,6 +134,7 @@ export function planClaimApproval(
   return {
     requestId: input.requestId ?? null,
     method,
+    approvedBy,
     reviewNote,
     facts,
     blockers,

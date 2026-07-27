@@ -4,16 +4,22 @@
  * Instagram proof:
  *   node scripts/approve-artist-claim.mjs --request-id CL-1234ABCD
  *   node scripts/approve-artist-claim.mjs --request-id CL-1234ABCD \
- *     --method instagram --handle-verified --execute --confirm CL-1234ABCD
+ *     --method instagram --approved-by samson --handle-verified \
+ *     --execute --confirm CL-1234ABCD
  *
  * No-Instagram fallback:
  *   node scripts/approve-artist-claim.mjs --request-id CL-1234ABCD \
+ *     --approved-by samson \
  *     --method manual --review-note "Video call and studio ID checked by Samson" \
  *     --execute --confirm CL-1234ABCD
  */
 import neo4j from 'neo4j-driver';
 import { config } from 'dotenv';
-import { executeClaimApproval, planClaimApproval } from './lib/claim-approval-plan.mjs';
+import {
+  APPROVE_CLAIM_CYPHER,
+  executeClaimApproval,
+  planClaimApproval,
+} from './lib/claim-approval-plan.mjs';
 
 config();
 config({ path: '.env.local', override: false });
@@ -22,6 +28,7 @@ function parseArgs(argv) {
   const options = {
     requestId: null,
     method: 'instagram',
+    approvedBy: null,
     handleVerified: false,
     reviewNote: null,
     execute: false,
@@ -31,6 +38,7 @@ function parseArgs(argv) {
     const next = () => argv[++index];
     if (argv[index] === '--request-id') options.requestId = next();
     else if (argv[index] === '--method') options.method = next();
+    else if (argv[index] === '--approved-by') options.approvedBy = next();
     else if (argv[index] === '--handle-verified') options.handleVerified = true;
     else if (argv[index] === '--review-note') options.reviewNote = next();
     else if (argv[index] === '--execute') options.execute = true;
@@ -101,6 +109,7 @@ try {
     {
       requestId: options.requestId,
       method: options.method,
+      approvedBy: options.approvedBy,
       handleVerified: options.handleVerified,
       reviewNote: options.reviewNote,
     },
@@ -111,6 +120,7 @@ try {
     instagram: artist?.instagram ?? null,
     verificationCode: request?.verificationCode ?? null,
     method: plan.method,
+    approvedBy: plan.approvedBy,
     blockers: plan.blockers,
     warnings: plan.warnings,
     dryRun: !options.execute,
@@ -119,31 +129,7 @@ try {
   const deps = {
     async approveAtomically(fields) {
       const result = await session.executeWrite((tx) =>
-        tx.run(
-          `MATCH (r:ArtistClaimRequest {
-             id: $requestId,
-             artistId: $artistId,
-             uid: $uid,
-             status: 'pending_verification'
-           })
-           MATCH (a:Artist {id: $artistId})
-           WHERE a.removedAt IS NULL
-             AND (a.claimedByUid IS NULL OR (
-               a.claimedByUid = $uid
-               AND coalesce(a.claimVerificationStatus, '') <> 'verified'
-             ))
-           SET a.claimedByUid = $uid,
-               a.claimVerificationStatus = 'verified',
-               a.claimVerificationMethod = $method,
-               a.claimVerificationNote = $reviewNote,
-               a.claimVerifiedAtEpochMs = timestamp(),
-               r.status = 'approved',
-               r.verificationMethod = $method,
-               r.reviewNote = $reviewNote,
-               r.closedAtEpochMs = timestamp()
-           RETURN a.id AS artistId`,
-          fields,
-        ),
+        tx.run(APPROVE_CLAIM_CYPHER, fields),
       );
       return result.records.length === 1;
     },

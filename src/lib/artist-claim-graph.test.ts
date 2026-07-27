@@ -50,7 +50,11 @@ describe('pending artist claim persistence', () => {
     });
     const [query] = runMock.mock.calls[0];
     expect(query).toContain('ArtistClaimRequest');
+    expect(query).toContain('coalesce(r.issuedAtEpochMs, 0) <= timestamp() - $verificationTtlMs');
+    expect(query).toContain('FOREACH (_ IN CASE WHEN expired THEN [1] ELSE [] END');
+    expect(query).toContain('r.verificationCode = $verificationCode');
     expect(query).not.toMatch(/SET\s+a\.claimedByUid/i);
     expect(query).not.toContain('stripeAccountId =');
+    expect(runMock.mock.calls[0][1].verificationTtlMs).toBe(7 * 24 * 60 * 60 * 1000);
   });
 });

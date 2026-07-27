@@ -15,13 +15,13 @@ type ClaimResult = {
   requestId?: string;
   instagram?: string | null;
   verificationCode?: string | null;
-  expiresInDays?: number;
+  expiresAt?: string;
   nextStep?: string;
   artistId: string;
   name: string | null;
   hasConnectedAccount: boolean;
   chargesEnabled: boolean;
-  pendingDeposit: { count: number; amountCents: number };
+  pendingDeposit?: { count: number; amountCents: number };
 };
 
 type OnboardingStatus = {
@@ -144,8 +144,8 @@ export default function ClaimArtistPage({ params }: { params: Promise<{ artistId
     }
   }, [refreshStatus]);
 
-  const heldCount = status?.heldDeposit.count ?? result?.pendingDeposit.count ?? 0;
-  const heldCents = status?.heldDeposit.amountCents ?? result?.pendingDeposit.amountCents ?? 0;
+  const heldCount = status?.heldDeposit.count ?? result?.pendingDeposit?.count ?? 0;
+  const heldCents = status?.heldDeposit.amountCents ?? result?.pendingDeposit?.amountCents ?? 0;
   const displayName = status?.artistName ?? result?.name ?? artistId;
 
   return (

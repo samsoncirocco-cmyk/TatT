@@ -26,6 +26,10 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { normalizeGraphStyleList } from './lib/artist-styles.mjs';
+import {
+  preserveArtistManagedField,
+  preserveVerifiedIdentityField,
+} from './lib/artist-managed-import.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -198,21 +202,21 @@ async function importArtists() {
         MERGE (city)-[:HAS_SHOP]->(shop)
 
         MERGE (a:Artist {id: $id})
-        SET a.name = $name,
-            a.shopName = $shopName,
-            a.city = $city,
-            a.state = $state,
+        SET a.name = ${preserveArtistManagedField('name', '$name')},
+            a.shopName = ${preserveArtistManagedField('shopName', '$shopName')},
+            a.city = ${preserveArtistManagedField('city', '$city')},
+            a.state = ${preserveArtistManagedField('state', '$state')},
             a.lat = $lat,
             a.lng = $lng,
             a.location = CASE
               WHEN $lat IS NOT NULL AND $lng IS NOT NULL
               THEN point({latitude: $lat, longitude: $lng})
               ELSE null END,
-            a.instagram = $instagram,
+            a.instagram = ${preserveVerifiedIdentityField('instagram', '$instagram')},
             a.hourlyRate = $hourlyRate,
             a.rating = $rating,
             a.reviewCount = $reviewCount,
-            a.bio = $bio,
+            a.bio = ${preserveArtistManagedField('bio', '$bio')},
             a.yearsExperience = $yearsExperience,
             a.bookingAvailable = $bookingAvailable,
             a.embedding_id = $embedding_id,

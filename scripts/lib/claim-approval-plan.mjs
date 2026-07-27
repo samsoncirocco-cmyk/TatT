@@ -6,6 +6,42 @@
 
 export const CLAIM_VERIFICATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
+/**
+ * The write rechecks every proof fact inside the same transaction that creates
+ * ownership. A safe dry-run can become stale; this query must not.
+ */
+export const APPROVE_CLAIM_CYPHER = `
+  MATCH (r:ArtistClaimRequest {
+    id: $requestId,
+    artistId: $artistId,
+    uid: $uid,
+    status: 'pending_verification'
+  })
+  MATCH (a:Artist {id: $artistId})
+  WHERE a.removedAt IS NULL
+    AND r.issuedAtEpochMs = $issuedAtEpochMs
+    AND r.issuedAtEpochMs > timestamp() - $verificationTtlMs
+    AND coalesce(r.verificationCode, '') = coalesce($verificationCode, '')
+    AND coalesce(r.instagram, '') = coalesce($requestInstagram, '')
+    AND coalesce(a.instagram, '') = coalesce($artistInstagram, '')
+    AND (a.claimedByUid IS NULL OR (
+      a.claimedByUid = $uid
+      AND coalesce(a.claimVerificationStatus, '') <> 'verified'
+    ))
+  SET a.claimedByUid = $uid,
+      a.claimVerificationStatus = 'verified',
+      a.claimVerificationMethod = $method,
+      a.claimVerificationNote = $reviewNote,
+      a.claimVerifiedBy = $approvedBy,
+      a.claimVerifiedAtEpochMs = timestamp(),
+      r.status = 'approved',
+      r.verificationMethod = $method,
+      r.reviewNote = $reviewNote,
+      r.approvedBy = $approvedBy,
+      r.closedAtEpochMs = timestamp()
+  RETURN a.id AS artistId
+`;
+
 const handle = (value) => {
   if (!value) return null;
   const normalized = String(value)
@@ -19,15 +55,26 @@ const handle = (value) => {
 
 export function planClaimApproval(
   facts,
-  { requestId, method = 'instagram', handleVerified = false, reviewNote = null, now = Date.now() } = {},
+  {
+    requestId,
+    method = 'instagram',
+    approvedBy = null,
+    handleVerified = false,
+    reviewNote = null,
+    now = Date.now(),
+  } = {},
 ) {
   const request = facts.request ?? null;
   const artist = facts.artist ?? null;
   const blockers = [];
   const warnings = [];
+  const approver = approvedBy?.trim() || null;
   const note = reviewNote?.trim() || null;
 
   if (!requestId) blockers.push('A claim request id is required.');
+  if (!approver || approver.length < 3) {
+    blockers.push('The approving operator identity is required.');
+  }
   if (!request) blockers.push('No pending claim request exists with that id.');
   if (!artist) blockers.push('The artist profile no longer exists.');
   if (request && requestId && request.id !== requestId) blockers.push('Loaded the wrong request.');
@@ -61,7 +108,16 @@ export function planClaimApproval(
     blockers.push(`Unknown verification method: ${method}.`);
   }
 
-  return { requestId: requestId ?? null, method, reviewNote: note, request, artist, blockers, warnings };
+  return {
+    requestId: requestId ?? null,
+    method,
+    approvedBy: approver,
+    reviewNote: note,
+    request,
+    artist,
+    blockers,
+    warnings,
+  };
 }
 export async function executeClaimApproval(deps, plan, { execute = false, confirm = null } = {}) {
   const wouldChange = {
@@ -94,7 +150,13 @@ export async function executeClaimApproval(deps, plan, { execute = false, confir
       artistId: plan.artist.id,
       uid: plan.request.uid,
       method: plan.method === 'instagram' ? 'instagram_code' : 'manual_review',
+      approvedBy: plan.approvedBy,
       reviewNote: plan.reviewNote,
+      issuedAtEpochMs: plan.request.issuedAtEpochMs,
+      verificationCode: plan.request.verificationCode,
+      requestInstagram: plan.request.instagram,
+      artistInstagram: plan.artist.instagram,
+      verificationTtlMs: CLAIM_VERIFICATION_TTL_MS,
     });
     if (!approved) throw new Error('The guarded write matched no pending request/unowned artist.');
     return { dryRun: false, executed: true, ok: true, wouldChange };

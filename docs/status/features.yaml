@@ -140,6 +140,7 @@ features:
       - src/app/api/v1/connect/claim/route.test.ts
       - src/app/api/v1/connect/accounts/route.ts
       - scripts/lib/claim-approval-plan.test.mjs
+      - scripts/lib/artist-managed-import.test.mjs
       - docs/adr/0033-artist-ownership-is-human-verified.md
     limitations:
       - Identity approval is deliberately human-operated at launch.

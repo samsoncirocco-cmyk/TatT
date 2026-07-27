@@ -28,8 +28,10 @@ Approval is a human-run, dry-run-first command. The normal proof is seeing the
 current code on the profile's Instagram. The no-Instagram fallback requires a
 specific manual-review note that becomes part of the audit record. Approval
 atomically binds `claimedByUid`, marks `claimVerificationStatus = "verified"`,
-records method/note/time, and closes the request. It refuses removed artists,
-expired codes, mismatched handles, and any attempt to replace an owner.
+records approver identity/method/note/time, and closes the request. The guarded
+write rechecks the code, issue time, and both handle snapshots in the ownership
+transaction; it refuses removed artists, expired codes, mismatched handles, and
+any attempt to replace an owner.
 
 Every trust-bearing path requires both the uid match and verified status:
 
@@ -45,9 +47,10 @@ money movement.
 
 A verified artist can edit name, shop, bio, booking URL, city, and state.
 Writes record `artistManagedFields` and `profileManagedAtEpochMs`. Refresh and
-import jobs must preserve those fields. Instagram is not self-editable because
-it is the identity anchor. Hosted portfolio uploads remain outside this path
-until the consented-media work in TAT-40 is configured.
+import jobs use the shared `scripts/lib/artist-managed-import.mjs` Cypher
+contract to preserve those fields. Instagram is not self-editable and verified
+imports preserve it because it is the identity anchor. Hosted portfolio uploads
+remain outside this path until the consented-media work in TAT-40 is configured.
 
 ## Consequences
 

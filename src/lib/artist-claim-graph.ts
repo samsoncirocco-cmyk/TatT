@@ -1,4 +1,7 @@
-import type { PendingArtistClaim } from '@/lib/artist-claim';
+import {
+  CLAIM_VERIFICATION_TTL_MS,
+  type PendingArtistClaim,
+} from '@/lib/artist-claim';
 import { NOT_REMOVED_CLAUSE } from '@/lib/takedown';
 
 type ClaimRequestInput = {
@@ -61,6 +64,16 @@ export async function requestArtistClaim(input: ClaimRequestInput): Promise<{
        r.verificationCode = $verificationCode,
        r.status = 'pending_verification',
        r.issuedAtEpochMs = timestamp()
+     WITH a, r,
+          r.status = 'pending_verification'
+            AND coalesce(r.issuedAtEpochMs, 0) <= timestamp() - $verificationTtlMs AS expired
+     FOREACH (_ IN CASE WHEN expired THEN [1] ELSE [] END |
+       SET r.id = $requestId,
+           r.contactEmail = $contactEmail,
+           r.instagram = a.instagram,
+           r.verificationCode = $verificationCode,
+           r.issuedAtEpochMs = timestamp()
+     )
      SET r.lastRequestedAtEpochMs = timestamp()
      RETURN a.id AS artistId,
             a.name AS name,
@@ -81,6 +94,7 @@ export async function requestArtistClaim(input: ClaimRequestInput): Promise<{
       requestId: input.id,
       contactEmail: input.contactEmail,
       verificationCode: input.verificationCode,
+      verificationTtlMs: CLAIM_VERIFICATION_TTL_MS,
     },
   );
   if (!rows.length) return { artist: null, request: null };

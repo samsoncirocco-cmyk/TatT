@@ -145,13 +145,13 @@ describe('claim page — Stripe onboarding states', () => {
       instagram: 'nadia.ink',
       verificationCode: 'TATT-ABCD1234',
       nextStep: 'Post the code on @nadia.ink.',
-      pendingDeposit: { count: 1, amountCents: 15_000 },
     };
     const fetchMock = stubFetch(handlers);
     await renderPage();
 
     expect(await screen.findByText(/identity review required/i)).toBeTruthy();
     expect(screen.getByText('TATT-ABCD1234')).toBeTruthy();
+    expect(screen.queryByText('$150.00')).toBeNull();
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/connect/accounts'))).toBe(false);
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/connect/status'))).toBe(false);
   });

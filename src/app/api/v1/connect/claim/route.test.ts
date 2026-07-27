@@ -77,8 +77,12 @@ describe('POST /api/v1/connect/claim', () => {
       verificationStatus: 'pending_verification',
       requestId: 'CL-1234ABCD',
       verificationCode: 'TATT-ABCD1234',
-      pendingDeposit: { count: 2, amountCents: 20_000 },
     });
+    expect(body.pendingDeposit).toBeUndefined();
+    expect(body.expiresAt).toBe(
+      new Date(pending.issuedAtEpochMs + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    );
+    expect(listPendingByArtistMock).not.toHaveBeenCalled();
     expect(notifyOpsOfArtistClaimMock).toHaveBeenCalledTimes(1);
   });
 

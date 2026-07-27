@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { executeClaimApproval, planClaimApproval } from './claim-approval-plan.mjs';
+import {
+  APPROVE_CLAIM_CYPHER,
+  executeClaimApproval,
+  planClaimApproval,
+} from './claim-approval-plan.mjs';
 
 const NOW = 2_000_000_000_000;
 const facts = (overrides = {}) => ({
@@ -25,6 +29,7 @@ describe('artist claim approval plan', () => {
     const plan = planClaimApproval(facts(), {
       requestId: 'CL-1234ABCD',
       method: 'instagram',
+      approvedBy: 'samson',
       handleVerified: true,
       now: NOW,
     });
@@ -52,6 +57,7 @@ describe('artist claim approval plan', () => {
     const plan = planClaimApproval(facts(factOverrides), {
       requestId: 'CL-1234ABCD',
       method: 'instagram',
+      approvedBy: 'samson',
       now: NOW,
       ...input,
     });
@@ -67,6 +73,7 @@ describe('artist claim approval plan', () => {
       planClaimApproval(noHandle, {
         requestId: 'CL-1234ABCD',
         method: 'manual',
+        approvedBy: 'samson',
         reviewNote: 'ID checked',
         now: NOW,
       }).blockers,
@@ -75,10 +82,21 @@ describe('artist claim approval plan', () => {
       planClaimApproval(noHandle, {
         requestId: 'CL-1234ABCD',
         method: 'manual',
+        approvedBy: 'samson',
         reviewNote: 'Video call plus government ID matched the public studio identity.',
         now: NOW,
       }).blockers,
     ).toEqual([]);
+  });
+
+  it('requires a durable approving operator identity', () => {
+    const plan = planClaimApproval(facts(), {
+      requestId: 'CL-1234ABCD',
+      method: 'instagram',
+      handleVerified: true,
+      now: NOW,
+    });
+    expect(plan.blockers.join(' ')).toMatch(/operator identity/i);
   });
 });
 
@@ -88,6 +106,7 @@ describe('artist claim approval execution', () => {
     const plan = planClaimApproval(facts(), {
       requestId: 'CL-1234ABCD',
       method: 'instagram',
+      approvedBy: 'samson',
       handleVerified: true,
       now: NOW,
     });
@@ -103,6 +122,7 @@ describe('artist claim approval execution', () => {
     const plan = planClaimApproval(facts(), {
       requestId: 'CL-1234ABCD',
       method: 'instagram',
+      approvedBy: 'samson',
       handleVerified: true,
       now: NOW,
     });
@@ -113,5 +133,24 @@ describe('artist claim approval execution', () => {
     );
     expect(result.ok).toBe(true);
     expect(approveAtomically).toHaveBeenCalledTimes(1);
+    expect(approveAtomically).toHaveBeenCalledWith(
+      expect.objectContaining({
+        approvedBy: 'samson',
+        issuedAtEpochMs: NOW - 1_000,
+        verificationCode: 'TATT-ABCD1234',
+        requestInstagram: '@real.artist',
+        artistInstagram: '@real.artist',
+        verificationTtlMs: 7 * 24 * 60 * 60 * 1000,
+      }),
+    );
+  });
+
+  it('rechecks proof, expiry, and approver identity in the atomic write', () => {
+    expect(APPROVE_CLAIM_CYPHER).toContain('r.issuedAtEpochMs > timestamp() - $verificationTtlMs');
+    expect(APPROVE_CLAIM_CYPHER).toContain("coalesce(r.verificationCode, '')");
+    expect(APPROVE_CLAIM_CYPHER).toContain("coalesce(r.instagram, '')");
+    expect(APPROVE_CLAIM_CYPHER).toContain("coalesce(a.instagram, '')");
+    expect(APPROVE_CLAIM_CYPHER).toContain('a.claimVerifiedBy = $approvedBy');
+    expect(APPROVE_CLAIM_CYPHER).toContain('r.approvedBy = $approvedBy');
   });
 });

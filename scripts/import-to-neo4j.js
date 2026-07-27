@@ -53,6 +53,10 @@ import {
   neo4jTombstoneReader,
 } from './lib/takedown-tombstone.mjs';
 import { normalizeGraphStyleList } from './lib/artist-styles.mjs';
+import {
+  preserveArtistManagedField,
+  preserveVerifiedIdentityField,
+} from './lib/artist-managed-import.mjs';
 
 // Load environment variables (.env then .env.local overrides)
 dotenv.config();
@@ -211,21 +215,21 @@ async function importArtists(session, artists) {
 
       // Artist node
       MERGE (a:Artist {id: artist.id})
-      SET a.name = artist.name,
-          a.shopName = artist.shopName,
-          a.city = artist.city,
-          a.state = artist.state,
+      SET a.name = ${preserveArtistManagedField('name', 'artist.name')},
+          a.shopName = ${preserveArtistManagedField('shopName', 'artist.shopName')},
+          a.city = ${preserveArtistManagedField('city', 'artist.city')},
+          a.state = ${preserveArtistManagedField('state', 'artist.state')},
           a.lat = artist.lat,
           a.lng = artist.lng,
           a.location = CASE
             WHEN artist.lat IS NOT NULL AND artist.lng IS NOT NULL
             THEN point({latitude: artist.lat, longitude: artist.lng})
             ELSE null END,
-          a.instagram = artist.instagram,
+          a.instagram = ${preserveVerifiedIdentityField('instagram', 'artist.instagram')},
           a.hourlyRate = artist.hourlyRate,
           a.rating = artist.rating,
           a.reviewCount = artist.reviewCount,
-          a.bio = artist.bio,
+          a.bio = ${preserveArtistManagedField('bio', 'artist.bio')},
           a.yearsExperience = artist.yearsExperience,
           a.bookingAvailable = artist.bookingAvailable,
           a.embedding_id = artist.embedding_id,
