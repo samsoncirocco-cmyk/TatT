@@ -385,6 +385,27 @@ describe('enhanceStructured - rationale is logged, never silent (ADR-0012)', () 
   });
 });
 
+describe('enhanceStructured - placement is required, never guessed', () => {
+  // Regression: an empty placement used to fall back silently to 'forearm',
+  // so the brief said "" while the render showed a forearm piece. Both intake
+  // lanes now guarantee placement before enhancement (the scripted route
+  // 400s without a placementAnswer; the conversation gates its turn-12
+  // forced proposal on it), so an empty placement here is a broken caller —
+  // fail loudly rather than render a body part nobody asked for.
+  it('throws on an empty placement instead of silently rendering a forearm', async () => {
+    await expect(
+      enhanceStructured({ ...baseRecord, placement: '' })
+    ).rejects.toThrow(/placement/i);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('throws on a whitespace-only placement', async () => {
+    await expect(
+      enhanceStructured({ ...baseRecord, placement: '   ' })
+    ).rejects.toThrow(/placement/i);
+  });
+});
+
 describe('enhanceStructured - offline and non-invasive', () => {
   it('never calls a provider (template-based, no network)', async () => {
     await enhanceStructured({

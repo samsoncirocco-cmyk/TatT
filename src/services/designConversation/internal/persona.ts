@@ -25,6 +25,17 @@ export const HANDOFF_MESSAGE =
   'great reason to talk to an artist directly. Want me to find a few who do ' +
   'free consultations in your style?';
 
+/**
+ * The turn-12 placement gate (ADR-0021 amendment, owner decision 2026-07-27):
+ * the forced proposal may fire past every open question EXCEPT placement,
+ * which anchors the composite/placement-preview step downstream. Without it
+ * the bot asks this — direct, in voice, never framed as a limit — and
+ * proposes on the next turn once the answer lands.
+ */
+export const PLACEMENT_GATE_QUESTION =
+  "One thing I can't decide for you before I show you anything: where on " +
+  'your body is this going? Everything else about the design flows from that.';
+
 /** Opening words of the playback — also how the engine detects it already fired. */
 export const PROPOSAL_LEAD = "Here's what I'm hearing:";
 
