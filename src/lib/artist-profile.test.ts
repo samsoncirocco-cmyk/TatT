@@ -32,4 +32,3 @@ describe('artist-managed profile validation', () => {
     if (!result.ok) expect(result.error).toMatch(error);
   });
 });
-

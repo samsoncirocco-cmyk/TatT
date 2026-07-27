@@ -63,7 +63,6 @@ export function planClaimApproval(
 
   return { requestId: requestId ?? null, method, reviewNote: note, request, artist, blockers, warnings };
 }
-
 export async function executeClaimApproval(deps, plan, { execute = false, confirm = null } = {}) {
   const wouldChange = {
     artistId: plan.artist?.id ?? null,
@@ -109,4 +108,3 @@ export async function executeClaimApproval(deps, plan, { execute = false, confir
     };
   }
 }
-

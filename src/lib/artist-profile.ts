@@ -67,4 +67,3 @@ export function validateArtistProfilePatch(
   if (!fields.length) return { ok: false, error: 'No editable profile fields were supplied.' };
   return { ok: true, value, fields };
 }
-

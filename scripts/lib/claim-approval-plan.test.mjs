@@ -20,7 +20,6 @@ const facts = (overrides = {}) => ({
   },
   ...overrides,
 });
-
 describe('artist claim approval plan', () => {
   it('permits matching, current Instagram proof', () => {
     const plan = planClaimApproval(facts(), {
@@ -116,4 +115,3 @@ describe('artist claim approval execution', () => {
     expect(approveAtomically).toHaveBeenCalledTimes(1);
   });
 });
-

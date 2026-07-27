@@ -54,4 +54,3 @@ describe('pending artist claim persistence', () => {
     expect(query).not.toContain('stripeAccountId =');
   });
 });
-

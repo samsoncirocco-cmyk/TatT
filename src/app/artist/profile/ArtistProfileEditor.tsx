@@ -195,7 +195,6 @@ export default function ArtistProfileEditor() {
     </StudioShell>
   );
 }
-
 function Field({
   label,
   value,
@@ -221,4 +220,3 @@ function Field({
     </div>
   );
 }
-

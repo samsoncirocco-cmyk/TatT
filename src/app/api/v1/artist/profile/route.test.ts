@@ -66,7 +66,6 @@ beforeEach(() => {
     ],
   });
 });
-
 describe('/api/v1/artist/profile', () => {
   it('refuses profile access until the claim is human-verified', async () => {
     getArtistByClaimedUidMock.mockResolvedValue(null);
@@ -102,4 +101,3 @@ describe('/api/v1/artist/profile', () => {
     expect(runMock).not.toHaveBeenCalled();
   });
 });
-

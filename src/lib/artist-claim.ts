@@ -32,7 +32,6 @@ export function normalizeInstagramHandle(raw: unknown): string | null {
     .toLowerCase();
   return /^[a-z0-9._]{1,30}$/.test(value) ? value : null;
 }
-
 export function formatClaimVerificationCode(seed: string): string {
   const clean = seed.replace(/[^a-z0-9]/gi, '').toUpperCase().slice(0, 8);
   return `TATT-${clean.padEnd(8, 'X')}`;
@@ -135,4 +134,3 @@ export function planClaimApproval(
     warnings,
   };
 }
-
