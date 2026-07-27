@@ -50,8 +50,19 @@ describe("ShareDesignAction", () => {
     });
   });
 
-  it("sends the user to sign in rather than offering a button that cannot work", () => {
+  it("sends an unknown device to signup rather than offering a button that cannot work", () => {
     currentUser = null;
+    window.localStorage.clear();
+    render(<ShareDesignAction {...props} />);
+
+    const link = screen.getByText("▸ Sign in to share");
+    expect(link.getAttribute("href")).toBe("/signup?redirect=%2Fdesigns%2Fabc");
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("sends a device that has signed in before to login instead", () => {
+    currentUser = null;
+    window.localStorage.setItem("tatt:known-user", "1");
     render(<ShareDesignAction {...props} />);
 
     const link = screen.getByText("▸ Sign in to share");
