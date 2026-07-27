@@ -54,7 +54,7 @@ export default function NotFound() {
           <div className="mt-10 flex flex-wrap items-center gap-5">
             <TapeCTA href="/" size="lg">Go Home</TapeCTA>
             <Link
-              href="/generate/stencil"
+              href="/design"
               className="text-[10px] uppercase tracking-[0.25em] text-white/60 hover:text-pink border hairline px-4 py-3 press font-body"
             >
               ▸ Start a design instead

@@ -3,7 +3,7 @@
 /**
  * Punk booking flow — real capture, honest availability.
  *
- * Path: pick artist (from /artists or /matches via ?artistId=) →
+ * Path: pick artist (from /artists or /swipe via ?artistId=) →
  * request time slots → design + details → review → POST /api/v1/book
  * (Firestore capture) → POST /api/checkout (Stripe deposit). When
  * payments aren't configured the request is still saved and the UI
@@ -367,11 +367,11 @@ export default function BookClient({
               <p className="mt-4 text-[11px] uppercase tracking-[0.2em] text-white/40 font-body leading-[1.9]">
                 {artistLoadFailed
                   ? "The live roster is unreachable right now — try again in a minute."
-                  : "Browse the roster or your matches, then hit Book the Chair on their profile."}
+                  : "Browse the roster or get matched, then hit Book the Chair on their profile."}
               </p>
               <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
                 <TapeCTA href="/artists" size="md">Browse the roster</TapeCTA>
-                <TapeCTA href="/matches" variant="ghost" size="sm">Your matches</TapeCTA>
+                <TapeCTA href="/smart-match" variant="ghost" size="sm">Get matched</TapeCTA>
               </div>
             </div>
           </div>

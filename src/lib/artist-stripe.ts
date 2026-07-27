@@ -40,18 +40,12 @@ async function runWrite(query: string, params: Record<string, unknown>): Promise
   }
 }
 
-/** Read the Stripe mapping for one artist, or null if the artist doesn't exist. */
-export async function getArtistStripe(artistId: string): Promise<ArtistStripeInfo | null> {
-  const rows = await runRead(
-    `MATCH (a:Artist {id: $artistId})
-     RETURN a.id AS id, a.name AS name, a.email AS email,
+const ARTIST_STRIPE_FIELDS = `a.id AS id, a.name AS name, a.email AS email,
             a.stripeAccountId AS stripeAccountId,
             coalesce(a.stripeChargesEnabled, false) AS chargesEnabled,
-            a.claimedByUid AS claimedByUid`,
-    { artistId }
-  );
-  if (!rows.length) return null;
-  const r = rows[0] as Record<string, unknown>;
+            a.claimedByUid AS claimedByUid`;
+
+function toArtistStripeInfo(r: Record<string, unknown>): ArtistStripeInfo {
   return {
     id: String(r.id),
     name: (r.name as string) ?? null,
@@ -60,6 +54,36 @@ export async function getArtistStripe(artistId: string): Promise<ArtistStripeInf
     chargesEnabled: Boolean(r.chargesEnabled),
     claimedByUid: (r.claimedByUid as string) ?? null,
   };
+}
+
+/** Read the Stripe mapping for one artist, or null if the artist doesn't exist. */
+export async function getArtistStripe(artistId: string): Promise<ArtistStripeInfo | null> {
+  const rows = await runRead(
+    `MATCH (a:Artist {id: $artistId})
+     RETURN ${ARTIST_STRIPE_FIELDS}`,
+    { artistId }
+  );
+  if (!rows.length) return null;
+  return toArtistStripeInfo(rows[0] as Record<string, unknown>);
+}
+
+/**
+ * Reverse lookup: the artist profile this Firebase uid has claimed, or null
+ * if the uid never claimed one. This is how artist-facing surfaces (the
+ * /console page) resolve "which artist am I?" from the VERIFIED token —
+ * never from a client-supplied artistId. Throws on infra failure so callers
+ * can distinguish "not an artist" from "couldn't look it up".
+ */
+export async function getArtistByClaimedUid(uid: string): Promise<ArtistStripeInfo | null> {
+  if (!uid) return null;
+  const rows = await runRead(
+    `MATCH (a:Artist {claimedByUid: $uid})
+     RETURN ${ARTIST_STRIPE_FIELDS}
+     LIMIT 1`,
+    { uid }
+  );
+  if (!rows.length) return null;
+  return toArtistStripeInfo(rows[0] as Record<string, unknown>);
 }
 
 /**

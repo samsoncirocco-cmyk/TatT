@@ -67,16 +67,16 @@ describe('ProtectedRoute', () => {
 
   it('preserves the query string in the return path', () => {
     mockAuth.loading = false;
-    mockPathname = '/matches';
-    window.history.replaceState(null, '', '/matches?style=blackwork');
+    mockPathname = '/smart-match';
+    window.history.replaceState(null, '', '/smart-match?ds=session-1');
     window.localStorage.removeItem('tatt:known-user');
     render(
       <ProtectedRoute>
-        <div>matches</div>
+        <div>smart match</div>
       </ProtectedRoute>,
     );
     expect(replace).toHaveBeenCalledWith(
-      `/signup?redirect=${encodeURIComponent('/matches?style=blackwork')}`,
+      `/signup?redirect=${encodeURIComponent('/smart-match?ds=session-1')}`,
     );
   });
 

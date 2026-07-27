@@ -11,7 +11,7 @@ export default function DesignsError(props: {
       {...props}
       label="Designs"
       description="Your saved designs didn't load — they're still in localStorage."
-      backHref="/generate/stencil"
+      backHref="/design"
       backLabel="Start a New Design"
     />
   );

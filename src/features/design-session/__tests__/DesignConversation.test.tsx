@@ -228,6 +228,51 @@ describe('DesignConversation', () => {
     expect(screen.queryByRole('button', { name: /show me/i })).toBeNull();
   });
 
+  it('fast-lanes a complete first prompt: a turn-1 proposal auto-confirms into the reveal (ADR-0028)', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(converseResponse()))
+      .mockResolvedValueOnce(
+        jsonResponse(
+          converseResponse({
+            reply:
+              "Here's what I'm hearing: Fine-line blackwork on the inner forearm — strength after a rough year. Want to see four takes, or did I miss something?",
+            stage: 'proposal',
+            playback: 'Fine-line blackwork on the inner forearm — strength after a rough year.',
+            turn: 1,
+          })
+        )
+      )
+      .mockResolvedValueOnce(jsonResponse(revealedSession));
+
+    render(<DesignConversation />);
+    await screen.findByText(OPENER);
+
+    sendReply('fine-line blackwork on my inner forearm — strength after a rough year');
+
+    // Straight to the reveal — the confirm fired without a consent tap.
+    await screen.findByText(revealedSession.axisSelection.rationale);
+    expect(fetchMock.mock.calls[2][0]).toBe('/api/v1/design-session/sess-1/confirm');
+    expect(screen.getAllByAltText(/^Design \d$/)).toHaveLength(4);
+    expect(screen.queryByRole('button', { name: /show me/i })).toBeNull();
+  });
+
+  it('sends a deep-linked prompt as the first message instead of the opener (ADR-0028)', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        converseResponse({ reply: 'Where on your body is it going?', stage: 'chatting', turn: 1 })
+      )
+    );
+
+    render(<DesignConversation initialPrompt="a dragon" />);
+
+    // The prompt is the user's opening line — one round trip, no opener.
+    await screen.findByText('Where on your body is it going?');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ message: 'a dragon' });
+    expect(screen.getByText('a dragon')).toBeTruthy();
+    expect(screen.queryByText(OPENER)).toBeNull();
+  });
+
   it('treats typed confirmation intent as one confirm transition, never another proposal turn', async () => {
     await reachProposal();
     fetchMock.mockResolvedValueOnce(jsonResponse(revealedSession));

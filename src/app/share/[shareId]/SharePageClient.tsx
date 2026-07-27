@@ -87,7 +87,7 @@ export function SharePageClient({ design }: { design: SharedDesign }) {
             </span>
           </Link>
           <Link
-            href="/generate/stencil"
+            href="/design"
             className="text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink press font-body"
           >
             Make your own
@@ -227,7 +227,7 @@ export function SharePageClient({ design }: { design: SharedDesign }) {
             </div>
 
             <div className="mt-10 flex flex-col sm:flex-row gap-3">
-              <TapeCTA href="/generate/stencil" size="sm">
+              <TapeCTA href="/design" size="sm">
                 Make your own
               </TapeCTA>
               <Link

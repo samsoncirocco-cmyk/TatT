@@ -15,7 +15,7 @@ const NOTIF_OPTIONS = [
   {
     key: "cuts",
     label: "Generation done",
-    description: "Ping when your four cuts land in the Forge.",
+    description: "Ping when your four takes land in the design session.",
     default: true,
   },
   {
