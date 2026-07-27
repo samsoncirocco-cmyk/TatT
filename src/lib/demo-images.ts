@@ -38,3 +38,19 @@ export const DEMO_PORTFOLIO_IMAGES = [
     '/portfolio/artist_27_1768520643269_0.png',
     '/portfolio/artist_30_1768520677564_0.png',
 ];
+
+// Demo-mode artist AVATARS (demoMatchService mock matches). These replaced
+// i.pravatar.cc URLs, which served photographs of real strangers as "our
+// artists" and could rot exactly like the Unsplash links did. Repo-local
+// initial marks in the site palette instead. NOT design imagery — the
+// flash-on-white rule above does not apply; the test only pins existence.
+//
+// Index order matches getMockMatches: 0 Alex Rivera, 1 Jordan Chen,
+// 2 Sam Taylor, 3 Morgan Lee, 4 Casey Brooks.
+export const DEMO_AVATAR_IMAGES = [
+    '/avatars/demo-alex-rivera.svg',
+    '/avatars/demo-jordan-chen.svg',
+    '/avatars/demo-sam-taylor.svg',
+    '/avatars/demo-morgan-lee.svg',
+    '/avatars/demo-casey-brooks.svg',
+];
