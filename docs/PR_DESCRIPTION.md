@@ -1,3 +1,6 @@
+> **Status: historical PR artifact.** This is not current product or
+> architecture documentation. Start at `docs/README.md`.
+
 # feat: Hybrid Vector-Graph Tattoo Design Discovery and AR Visualization Platform
 
 ## 📋 Overview
