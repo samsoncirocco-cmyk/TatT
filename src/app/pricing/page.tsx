@@ -83,7 +83,7 @@ export default function PricingPage() {
 
           <div className="mt-10 flex flex-col sm:flex-row sm:items-center gap-6">
             <Link
-              href="/generate"
+              href="/design"
               className="press inline-flex items-center justify-center px-8 py-4 font-display text-[22px] leading-none tracking-[0.02em] tape"
             >
               Start Designing
