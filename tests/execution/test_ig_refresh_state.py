@@ -54,6 +54,52 @@ def test_same_sweep_retry_gets_only_one_dead_vote():
     assert next_sweep["stale"] is True
 
 
+def test_same_sweep_active_result_replaces_transient_without_losing_baseline():
+    prior = {
+        "stale": False,
+        "consecutiveDeadRefreshes": 2,
+        "lastRefreshStatus": "not_found",
+    }
+    transient = update_handle_state(
+        prior,
+        status="transient",
+        checked_at="2026-01-01T00:00:00Z",
+        dead_threshold=3,
+        observation_sweep_id="2026-Q1",
+    )
+    active = update_handle_state(
+        transient,
+        status="active",
+        checked_at="2026-01-01T01:00:00Z",
+        dead_threshold=3,
+        observation_sweep_id="2026-Q1",
+    )
+    assert transient["lastRefreshStatus"] == "transient"
+    assert active["lastRefreshStatus"] == "active"
+    assert active["consecutiveDeadRefreshes"] == 0
+    assert active["stale"] is False
+    assert active["lastSeenAt"] == "2026-01-01T01:00:00Z"
+
+
+def test_same_sweep_dead_result_replaces_transient_using_pre_sweep_counter():
+    transient = update_handle_state(
+        {"stale": False, "consecutiveDeadRefreshes": 2},
+        status="transient",
+        checked_at="2026-01-01T00:00:00Z",
+        dead_threshold=3,
+        observation_sweep_id="2026-Q1",
+    )
+    dead = update_handle_state(
+        transient,
+        status="not_found",
+        checked_at="2026-01-01T01:00:00Z",
+        dead_threshold=3,
+        observation_sweep_id="2026-Q1",
+    )
+    assert dead["consecutiveDeadRefreshes"] == 3
+    assert dead["stale"] is True
+
+
 def test_dead_observation_below_threshold_never_clears_existing_stale():
     state = update_handle_state(
         {"stale": True, "consecutiveDeadRefreshes": 0},

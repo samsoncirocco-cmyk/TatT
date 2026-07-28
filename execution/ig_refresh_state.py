@@ -8,6 +8,12 @@ from typing import Any, Mapping
 
 DEFAULT_DEAD_THRESHOLD = 3
 DEAD_STATUSES = frozenset({"not_found", "private"})
+OBSERVATION_RANK = {
+    "transient": 1,
+    "not_found": 2,
+    "private": 2,
+    "active": 3,
+}
 NOT_FOUND = re.compile(
     r"not[\s_-]?found|does not exist|doesn't exist|no such user|"
     r"user unavailable|account (?:has been )?disabled|deleted account",
@@ -65,14 +71,30 @@ def update_handle_state(
         raise ValueError("dead_threshold must be at least 1")
 
     state = dict(previous or {})
-    if (
+    same_sweep = bool(
         observation_sweep_id
         and state.get("lastObservationSweepId") == observation_sweep_id
-    ):
-        return state
+    )
+    if same_sweep:
+        previous_status = str(state.get("lastRefreshStatus") or "transient")
+        if OBSERVATION_RANK[status] <= OBSERVATION_RANK.get(previous_status, 1):
+            return state
+        previous_dead = int(
+            state.get(
+                "sweepBaselineConsecutiveDeadRefreshes",
+                state.get("consecutiveDeadRefreshes") or 0,
+            )
+        )
+        was_stale = bool(
+            state.get("sweepBaselineStale", state.get("stale"))
+        )
+    else:
+        previous_dead = int(state.get("consecutiveDeadRefreshes") or 0)
+        was_stale = bool(state.get("stale"))
+        if observation_sweep_id:
+            state["sweepBaselineConsecutiveDeadRefreshes"] = previous_dead
+            state["sweepBaselineStale"] = was_stale
 
-    previous_dead = int(state.get("consecutiveDeadRefreshes") or 0)
-    was_stale = bool(state.get("stale"))
     state.update(
         {
             "lastRefreshStatus": status,

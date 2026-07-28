@@ -78,10 +78,12 @@ def test_record_carries_filter_and_freshness_evidence():
 
 
 def test_filter_is_on_by_default_and_bypass_is_explicit():
-    assert parse_args([]).no_filter is False
-    assert parse_args(["--no-filter"]).no_filter is True
-    assert parse_args([]).execute is False
-    assert parse_args(["--execute"]).execute is True
+    base = ["--queue", "queue.json"]
+    assert parse_args(base).no_filter is False
+    assert parse_args([*base, "--no-filter"]).no_filter is True
+    assert parse_args(base).execute is False
+    assert parse_args([*base, "--execute"]).execute is True
+    assert parse_args(base).count is None
 
 
 def test_dry_run_never_loads_token_or_writes_artifacts(tmp_path, monkeypatch, capsys):
@@ -147,7 +149,14 @@ def test_actor_urls_never_include_token(monkeypatch):
         return []
 
     monkeypatch.setattr(enrich, "api", fake_api)
-    run_chunk(["ink.sam"], "secret-value")
+    checkpoints = []
+    run_chunk(
+        ["ink.sam"],
+        "secret-value",
+        attempt_id="attempt-1",
+        checked_at="2026-07-27T00:00:00Z",
+        checkpoint=checkpoints.append,
+    )
     assert requests
     assert all(token == "secret-value" for _, _, token in requests)
     assert all("secret-value" not in url and "token=" not in url for _, url, _ in requests)
@@ -160,10 +169,197 @@ def test_paid_run_id_survives_a_polling_failure(monkeypatch):
         raise OSError("poll failed")
 
     monkeypatch.setattr(enrich, "api", fake_api)
-    run, items = run_chunk(["ink.sam"], "secret-value")
+    checkpoints = []
+    run, items = run_chunk(
+        ["ink.sam"],
+        "secret-value",
+        attempt_id="attempt-1",
+        checked_at="2026-07-27T00:00:00Z",
+        checkpoint=checkpoints.append,
+    )
     assert run["id"] == "paid-run"
-    assert run["status"] == "ERROR"
+    assert run["status"] == "POLL_ERROR"
+    assert checkpoints[0]["status"] == "POSTING"
+    assert any(record.get("id") == "paid-run" for record in checkpoints)
     assert items == []
+
+
+def test_ambiguous_post_failure_is_checkpointed_before_and_after_call(monkeypatch):
+    monkeypatch.setattr(
+        enrich,
+        "api",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("unknown POST result")),
+    )
+    checkpoints = []
+    with pytest.raises(OSError, match="unknown POST result"):
+        run_chunk(
+            ["ink.sam"],
+            "secret-value",
+            attempt_id="attempt-1",
+            checked_at="2026-07-27T00:00:00Z",
+            checkpoint=checkpoints.append,
+        )
+    assert [record["status"] for record in checkpoints] == ["POSTING", "POST_ERROR"]
+    assert all(record["attemptId"] == "attempt-1" for record in checkpoints)
+    assert all(record["spendStatus"] == "ambiguous" for record in checkpoints)
+
+
+def test_missing_or_empty_queue_fails_instead_of_succeeding_with_zero(tmp_path):
+    with pytest.raises(RuntimeError, match="does not exist"):
+        main(["--queue", str(tmp_path / "missing.json")])
+    empty = tmp_path / "empty.json"
+    empty.write_text("[]")
+    with pytest.raises(RuntimeError, match="non-empty"):
+        main(["--queue", str(empty)])
+
+
+def _runner_args(tmp_path, queue):
+    return [
+        "--execute",
+        "--queue",
+        str(queue),
+        "--out",
+        str(tmp_path / "profiles"),
+        "--status-ledger",
+        str(tmp_path / "ledger.json"),
+        "--audit-log",
+        str(tmp_path / "audit.jsonl"),
+        "--run-report",
+        str(tmp_path / "report.json"),
+        "--sweep-id",
+        "sweep-1",
+        "--chunk",
+        "1",
+    ]
+
+
+def _fake_paid_run(outcomes):
+    calls = {"count": 0}
+
+    def fake(_chunk, _token, *, attempt_id, checked_at, checkpoint):
+        calls["count"] += 1
+        record = {
+            "attemptId": attempt_id,
+            "id": f"run-{calls['count']}",
+            "status": "SUCCEEDED",
+            "terminal": True,
+            "spendStatus": "identified",
+            "usageTotalUsd": 0.5,
+            "startedAt": checked_at,
+        }
+        checkpoint(record)
+        return record, outcomes[calls["count"] - 1]
+
+    return fake
+
+
+def test_successful_same_sweep_retry_replaces_transient_and_finishes_effects(
+    tmp_path,
+    monkeypatch,
+):
+    queue = tmp_path / "queue.json"
+    queue.write_text(json.dumps([{"id": "artist-1", "ig": "@ink.sam"}]))
+    active_row = {
+        "username": "ink.sam",
+        "biography": "Blackwork tattoo artist. Books open.",
+        "latestPosts": [{"displayUrl": "https://cdn.example/one.jpg"}],
+    }
+    monkeypatch.setattr(enrich, "load_token", lambda: "secret")
+    monkeypatch.setattr(enrich, "run_chunk", _fake_paid_run([[], [active_row], [active_row]]))
+    args = _runner_args(tmp_path, queue)
+
+    assert main(args) == 0
+    first = json.loads((tmp_path / "ledger.json").read_text())
+    assert first["handles"]["ink.sam"]["lastRefreshStatus"] == "transient"
+
+    assert main(args) == 0
+    second = json.loads((tmp_path / "ledger.json").read_text())
+    assert second["handles"]["ink.sam"]["lastRefreshStatus"] == "active"
+    assert (tmp_path / "profiles" / "artist-1.json").is_file()
+
+    assert main(args) == 0
+    audit = [
+        json.loads(line)
+        for line in (tmp_path / "audit.jsonl").read_text().splitlines()
+    ]
+    assert [record["refreshStatus"] for record in audit] == ["transient", "active"]
+    assert len({record["eventId"] for record in audit}) == 2
+
+
+def test_ledger_checkpoint_happens_after_idempotent_downstream_effects(
+    tmp_path,
+    monkeypatch,
+):
+    queue = tmp_path / "queue.json"
+    queue.write_text(json.dumps([{"id": "artist-1", "ig": "@ink.sam"}]))
+    active_row = {
+        "username": "ink.sam",
+        "biography": "Blackwork tattoo artist. Books open.",
+    }
+    monkeypatch.setattr(enrich, "load_token", lambda: "secret")
+    monkeypatch.setattr(enrich, "run_chunk", _fake_paid_run([[active_row], [active_row]]))
+    original_write = enrich.write_json_atomic
+    failed = {"ledger": False}
+    ledger_path = tmp_path / "ledger.json"
+
+    def fail_first_ledger_write(path, value):
+        if path == ledger_path and not failed["ledger"]:
+            failed["ledger"] = True
+            raise OSError("ledger checkpoint failed")
+        return original_write(path, value)
+
+    monkeypatch.setattr(enrich, "write_json_atomic", fail_first_ledger_write)
+    args = _runner_args(tmp_path, queue)
+    with pytest.raises(OSError, match="ledger checkpoint failed"):
+        main(args)
+    assert not ledger_path.exists()
+    assert (tmp_path / "profiles" / "artist-1.json").is_file()
+
+    assert main(args) == 0
+    audit = (tmp_path / "audit.jsonl").read_text().splitlines()
+    assert len(audit) == 1
+    assert json.loads(audit[0])["eventId"] == "sweep-1:ink.sam:active:written"
+    assert json.loads(ledger_path.read_text())["handles"]["ink.sam"]["lastRefreshStatus"] == "active"
+
+
+def test_same_sweep_retry_repairs_legacy_ledger_without_effect_checkpoint(
+    tmp_path,
+    monkeypatch,
+):
+    queue = tmp_path / "queue.json"
+    queue.write_text(json.dumps([{"id": "artist-1", "ig": "@ink.sam"}]))
+    ledger = tmp_path / "ledger.json"
+    ledger.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "handles": {
+                    "ink.sam": {
+                        "artistId": "artist-1",
+                        "lastObservationSweepId": "sweep-1",
+                        "lastRefreshStatus": "active",
+                        "lastRefreshAt": "2026-07-27T00:00:00Z",
+                        "lastRefreshReason": None,
+                        "lastSeenAt": "2026-07-27T00:00:00Z",
+                        "consecutiveDeadRefreshes": 0,
+                        "stale": False,
+                    }
+                },
+            }
+        )
+    )
+    active_row = {
+        "username": "ink.sam",
+        "biography": "Blackwork tattoo artist. Books open.",
+    }
+    monkeypatch.setattr(enrich, "load_token", lambda: "secret")
+    monkeypatch.setattr(enrich, "run_chunk", _fake_paid_run([[active_row]]))
+
+    assert main(_runner_args(tmp_path, queue)) == 0
+    repaired = json.loads(ledger.read_text())["handles"]["ink.sam"]
+    assert repaired["lastEffectsSweepId"] == "sweep-1"
+    assert repaired["lastEffectsStatus"] == "active"
+    assert (tmp_path / "profiles" / "artist-1.json").is_file()
 
 
 def test_bookability_can_be_persisted_alongside_refresh_state():
@@ -185,7 +381,15 @@ def test_cost_report_accumulates_a_sweep_and_dedupes_actor_runs():
         checked_at="2026-07-27T00:00:00Z",
         run_slice={"start": 0, "count": 100},
         summary={"written": 80},
-        actor_runs=[{"id": "run-1", "usageTotalUsd": 1.25}],
+        actor_runs=[
+            {
+                "attemptId": "attempt-1",
+                "id": "run-1",
+                "status": "SUCCEEDED",
+                "terminal": True,
+                "usageTotalUsd": 1.25,
+            }
+        ],
     )
     second = merge_run_report(
         first,
@@ -194,8 +398,20 @@ def test_cost_report_accumulates_a_sweep_and_dedupes_actor_runs():
         run_slice={"start": 100, "count": 100},
         summary={"written": 75},
         actor_runs=[
-            {"id": "run-1", "usageTotalUsd": 1.25},
-            {"id": "run-2", "usageTotalUsd": "2.50"},
+            {
+                "attemptId": "attempt-1",
+                "id": "run-1",
+                "status": "SUCCEEDED",
+                "terminal": True,
+                "usageTotalUsd": 1.25,
+            },
+            {
+                "attemptId": "attempt-2",
+                "id": "run-2",
+                "status": "FAILED",
+                "terminal": True,
+                "usageTotalUsd": "2.50",
+            },
         ],
     )
     sweep = second["sweeps"]["2026-Q3"]
@@ -215,13 +431,74 @@ def test_cost_total_is_unknown_when_any_actor_run_has_no_price():
         run_slice={"start": 0, "count": 100},
         summary={"written": 80},
         actor_runs=[
-            {"id": "run-1", "usageTotalUsd": 1.25},
-            {"id": "run-2", "usageTotalUsd": None},
+            {
+                "attemptId": "attempt-1",
+                "id": "run-1",
+                "status": "SUCCEEDED",
+                "terminal": True,
+                "usageTotalUsd": 1.25,
+            },
+            {
+                "attemptId": "attempt-2",
+                "id": "run-2",
+                "status": "SUCCEEDED",
+                "terminal": True,
+                "usageTotalUsd": None,
+            },
         ],
     )
     sweep = report["sweeps"]["2026-Q3"]
     assert sweep["apifyUsageKnownSubtotalUsd"] == 1.25
     assert sweep["apifyUsageMissingRunCount"] == 1
+    assert sweep["apifyUsagePricingStatus"] == "incomplete"
+    assert sweep["apifyUsageTotalUsd"] is None
+
+
+def test_cost_total_is_unknown_for_priced_nonterminal_run():
+    report = merge_run_report(
+        {},
+        sweep_id="2026-Q3",
+        checked_at="2026-07-27T00:00:00Z",
+        run_slice={"start": 0, "count": 100},
+        summary={},
+        actor_runs=[
+            {
+                "attemptId": "attempt-1",
+                "id": "run-1",
+                "status": "RUNNING",
+                "terminal": False,
+                "usageTotalUsd": 1.25,
+            }
+        ],
+    )
+    sweep = report["sweeps"]["2026-Q3"]
+    assert sweep["apifyUsageKnownSubtotalUsd"] == 1.25
+    assert sweep["apifyUsageNonterminalRunCount"] == 1
+    assert sweep["apifyUsagePricingStatus"] == "incomplete"
+    assert sweep["apifyUsageTotalUsd"] is None
+
+
+def test_ambiguous_post_attempt_is_preserved_and_blocks_complete_total():
+    report = merge_run_report(
+        {},
+        sweep_id="2026-Q3",
+        checked_at="2026-07-27T00:00:00Z",
+        run_slice={"start": 0, "count": 100},
+        summary={},
+        actor_runs=[
+            {
+                "attemptId": "attempt-1",
+                "id": None,
+                "status": "POST_ERROR",
+                "terminal": False,
+                "spendStatus": "ambiguous",
+                "usageTotalUsd": None,
+            }
+        ],
+    )
+    sweep = report["sweeps"]["2026-Q3"]
+    assert len(sweep["actorRuns"]) == 1
+    assert sweep["apifyUsageAmbiguousAttemptCount"] == 1
     assert sweep["apifyUsagePricingStatus"] == "incomplete"
     assert sweep["apifyUsageTotalUsd"] is None
 

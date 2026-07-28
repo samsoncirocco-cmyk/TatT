@@ -23,6 +23,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping
@@ -47,7 +48,6 @@ except ModuleNotFoundError:  # direct ``python execution/apify_ig_enrich.py``
 
 ACTOR = "apify~instagram-profile-scraper"
 ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_QUEUE = ROOT / "data" / "enrichment" / "instagram" / "artist-queue.json"
 DEFAULT_OUT = ROOT / "data" / "enrichment" / "instagram" / "apify-profiles"
 DEFAULT_LEDGER = ROOT / "data" / "enrichment" / "instagram" / "refresh-status.json"
 DEFAULT_AUDIT = ROOT / "data" / "enrichment" / "instagram" / "refresh-audit.jsonl"
@@ -64,6 +64,35 @@ def load_token() -> str:
     if token:
         return token
     raise RuntimeError("APIFY_TOKEN is required")
+
+
+def load_required_queue(path: Path) -> list[dict[str, Any]]:
+    if not path.is_file():
+        raise RuntimeError(f"artist queue does not exist: {path}")
+    try:
+        queue = json.loads(path.read_text())
+    except json.JSONDecodeError as error:
+        raise RuntimeError(f"artist queue is not valid JSON: {path}") from error
+    if not isinstance(queue, list) or not queue:
+        raise RuntimeError(f"artist queue must be a non-empty JSON array: {path}")
+
+    invalid = []
+    handles = set()
+    artist_ids = set()
+    for index, item in enumerate(queue):
+        artist_id = str(item.get("id") or "").strip() if isinstance(item, dict) else ""
+        handle = normalize_handle(item.get("ig")) if isinstance(item, dict) else ""
+        if not artist_id or not handle or handle in handles or artist_id in artist_ids:
+            invalid.append(index)
+            continue
+        handles.add(handle)
+        artist_ids.add(artist_id)
+    if invalid:
+        raise RuntimeError(
+            "artist queue has missing or duplicate id/ig records at indexes: "
+            f"{invalid[:10]}"
+        )
+    return queue
 
 
 def api(
@@ -88,41 +117,109 @@ def api(
         return json.loads(response.read().decode())
 
 
-def run_chunk(usernames: list[str], token: str) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    """Run one paid actor chunk.  Called only from ``main``."""
+def run_chunk(
+    usernames: list[str],
+    token: str,
+    *,
+    attempt_id: str,
+    checked_at: str,
+    checkpoint: Any,
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """Run one paid actor chunk while durably checkpointing spend evidence."""
 
-    run = api(
-        "POST",
-        f"https://api.apify.com/v2/acts/{ACTOR}/runs",
-        {"usernames": usernames},
-        token=token,
-    )["data"]
-    run_id = run["id"]
-    dataset_id = run["defaultDatasetId"]
-    final = run
+    attempt = {
+        "attemptId": attempt_id,
+        "id": None,
+        "status": "POSTING",
+        "terminal": False,
+        "usageTotalUsd": None,
+        "requestedCount": len(usernames),
+        "startedAt": checked_at,
+        "spendStatus": "ambiguous",
+    }
+    # If the process dies during POST, the operator can still see that spend
+    # may have occurred. Do not launch until this checkpoint is durable.
+    checkpoint(attempt)
     try:
-        for _ in range(120):
-            final = api(
-                "GET",
-                f"https://api.apify.com/v2/actor-runs/{run_id}",
-                token=token,
-            )["data"]
-            if final.get("status") in TERMINAL_STATUSES:
-                break
-            time.sleep(5)
-        if final.get("status") != "SUCCEEDED":
-            return final, []
-        items = api(
-            "GET",
-            f"https://api.apify.com/v2/datasets/{dataset_id}/items?clean=true",
+        response = api(
+            "POST",
+            f"https://api.apify.com/v2/acts/{ACTOR}/runs",
+            {"usernames": usernames},
             token=token,
         )
-        return final, items
     except (OSError, RuntimeError, urllib.error.URLError) as error:
-        # The paid actor already exists. Keep its ID in the cost report so a
-        # missing price makes the sweep explicitly incomplete.
-        failed = dict(final)
-        failed.update({"id": run_id, "status": "ERROR", "error": str(error)})
+        failed = {**attempt, "status": "POST_ERROR", "error": str(error)}
+        checkpoint(failed)
+        raise
+
+    run = dict(response.get("data") or {})
+    run_id = run.get("id")
+    dataset_id = run.get("defaultDatasetId")
+    if not run_id or not dataset_id:
+        malformed = {
+            **attempt,
+            **run,
+            "status": "MALFORMED_POST_RESPONSE",
+            "terminal": False,
+            "spendStatus": "ambiguous",
+        }
+        checkpoint(malformed)
+        raise RuntimeError("Apify actor POST returned no run or dataset ID")
+
+    final = {
+        **attempt,
+        **run,
+        "attemptId": attempt_id,
+        "id": run_id,
+        "terminal": str(run.get("status") or "") in TERMINAL_STATUSES,
+        "spendStatus": "identified",
+    }
+    checkpoint(final)
+    try:
+        for _ in range(120):
+            polled = dict(
+                api(
+                    "GET",
+                    f"https://api.apify.com/v2/actor-runs/{run_id}",
+                    token=token,
+                )["data"]
+            )
+            final = {
+                **final,
+                **polled,
+                "attemptId": attempt_id,
+                "id": run_id,
+                "terminal": str(polled.get("status") or "") in TERMINAL_STATUSES,
+                "spendStatus": "identified",
+            }
+            if final["terminal"]:
+                checkpoint(final)
+                break
+            time.sleep(5)
+        else:
+            checkpoint(final)
+
+        if final.get("status") != "SUCCEEDED":
+            return final, []
+        try:
+            items = api(
+                "GET",
+                f"https://api.apify.com/v2/datasets/{dataset_id}/items?clean=true",
+                token=token,
+            )
+            return final, items
+        except (OSError, RuntimeError, urllib.error.URLError) as error:
+            failed_dataset = {**final, "dataError": str(error)}
+            checkpoint(failed_dataset)
+            return failed_dataset, []
+    except (OSError, RuntimeError, urllib.error.URLError) as error:
+        failed = {
+            **final,
+            "status": "POLL_ERROR",
+            "terminal": False,
+            "error": str(error),
+        }
+        checkpoint(failed)
         return failed, []
 
 
@@ -223,13 +320,28 @@ def update_json_locked(path: Path, fallback: Any, updater: Any) -> Any:
     return updated
 
 
-def append_audit(path: Path, record: Mapping[str, Any]) -> None:
+def append_audit_once(
+    path: Path,
+    record: Mapping[str, Any],
+    *,
+    event_id: str,
+) -> bool:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a") as stream:
+    with path.open("a+") as stream:
         fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
-        stream.write(json.dumps(record, sort_keys=True) + "\n")
+        stream.seek(0)
+        for line in stream:
+            try:
+                if json.loads(line).get("eventId") == event_id:
+                    fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+                    return False
+            except json.JSONDecodeError:
+                continue
+        stream.seek(0, os.SEEK_END)
+        stream.write(json.dumps({**record, "eventId": event_id}, sort_keys=True) + "\n")
         stream.flush()
         fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+    return True
 
 
 def quarantine_profile(output_dir: Path, artist_id: str) -> bool:
@@ -250,9 +362,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="authorize paid Apify calls and local artifact writes",
     )
     parser.add_argument("--start", type=int, default=0)
-    parser.add_argument("--count", type=int, default=500)
+    parser.add_argument(
+        "--count",
+        type=int,
+        default=None,
+        help="records to process; defaults to the rest of the explicit queue",
+    )
     parser.add_argument("--chunk", type=int, default=100)
-    parser.add_argument("--queue", type=Path, default=DEFAULT_QUEUE)
+    parser.add_argument("--queue", type=Path, required=True)
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
     parser.add_argument("--status-ledger", type=Path, default=DEFAULT_LEDGER)
     parser.add_argument("--audit-log", type=Path, default=DEFAULT_AUDIT)
@@ -271,6 +388,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     args = parser.parse_args(argv)
     if args.dead_threshold < 1:
         parser.error("--dead-threshold must be at least 1")
+    if args.start < 0:
+        parser.error("--start cannot be negative")
+    if args.count is not None and args.count < 1:
+        parser.error("--count must be at least 1")
+    if args.chunk < 1:
+        parser.error("--chunk must be at least 1")
     return args
 
 
@@ -289,14 +412,26 @@ def merge_run_report(
     report = dict(existing or {})
     sweeps = dict(report.get("sweeps") or {})
     sweep = dict(sweeps.get(sweep_id) or {})
-    by_id = {
-        str(run["id"]): dict(run)
+    def run_key(run: Mapping[str, Any]) -> str | None:
+        if run.get("attemptId"):
+            return f"attempt:{run['attemptId']}"
+        if run.get("id"):
+            return f"run:{run['id']}"
+        return None
+
+    by_attempt = {
+        key: dict(run)
         for run in sweep.get("actorRuns") or []
-        if run.get("id")
+        if (key := run_key(run))
     }
     for run in actor_runs:
-        if run.get("id"):
-            by_id[str(run["id"])] = dict(run)
+        key = run_key(run)
+        if not key:
+            continue
+        current = by_attempt.get(key)
+        if current and current.get("terminal") and not run.get("terminal"):
+            continue
+        by_attempt[key] = dict(run)
 
     def numeric_cost(value: Any) -> float | None:
         try:
@@ -306,24 +441,43 @@ def merge_run_report(
 
     costs = [
         cost
-        for run in by_id.values()
+        for run in by_attempt.values()
         if (cost := numeric_cost(run.get("usageTotalUsd"))) is not None
     ]
-    missing_cost_count = len(by_id) - len(costs)
+    missing_cost_count = len(by_attempt) - len(costs)
+    nonterminal_count = sum(
+        1
+        for run in by_attempt.values()
+        if not bool(run.get("terminal"))
+        or str(run.get("status") or "") not in TERMINAL_STATUSES
+    )
+    ambiguous_count = sum(
+        1
+        for run in by_attempt.values()
+        if not run.get("id") or run.get("spendStatus") == "ambiguous"
+    )
+    complete = bool(by_attempt) and not (
+        missing_cost_count or nonterminal_count or ambiguous_count
+    )
     pricing_status = (
         "no-runs"
-        if not by_id
+        if not by_attempt
         else "complete"
-        if missing_cost_count == 0
+        if complete
         else "incomplete"
     )
     sweep.update(
         {
             "startedAt": sweep.get("startedAt") or checked_at,
             "lastRunAt": checked_at,
-            "actorRuns": sorted(by_id.values(), key=lambda run: str(run.get("id"))),
+            "actorRuns": sorted(
+                by_attempt.values(),
+                key=lambda run: str(run.get("attemptId") or run.get("id")),
+            ),
             "apifyUsageKnownSubtotalUsd": sum(costs),
             "apifyUsageMissingRunCount": missing_cost_count,
+            "apifyUsageNonterminalRunCount": nonterminal_count,
+            "apifyUsageAmbiguousAttemptCount": ambiguous_count,
             "apifyUsagePricingStatus": pricing_status,
             "apifyUsageTotalUsd": sum(costs) if pricing_status == "complete" else None,
             # Preserve a value an operator added from the billing export.
@@ -343,19 +497,32 @@ def merge_run_report(
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    queue = load_json(args.queue, [])[args.start : args.start + args.count]
+    full_queue = load_required_queue(args.queue)
+    if args.start >= len(full_queue):
+        raise RuntimeError(
+            f"--start {args.start} is outside queue with {len(full_queue)} records"
+        )
+    stop = len(full_queue) if args.count is None else args.start + args.count
+    queue = full_queue[args.start:stop]
     by_handle = {
         normalize_handle(item.get("ig")): str(item["id"])
         for item in queue
-        if normalize_handle(item.get("ig")) and item.get("id")
     }
     handles = list(by_handle)
+    if not handles:
+        raise RuntimeError("selected queue slice contains no valid artist handles")
     checked_at = utc_now()
     sweep_id = args.sweep_id or checked_at[:10]
+    run_slice = {
+        "start": args.start,
+        "count": len(queue),
+        "requested": len(handles),
+        "queueRecords": len(full_queue),
+    }
     if not args.execute:
         print(
             "DRY RUN: no paid calls or artifact writes; "
-            f"slice={args.start}:{args.start + args.count} handles={len(handles)} "
+            f"slice={args.start}:{args.start + len(queue)} handles={len(handles)} "
             f"chunk={args.chunk} sweep={sweep_id}. Pass --execute to run."
         )
         return 0
@@ -371,33 +538,59 @@ def main(argv: list[str] | None = None) -> int:
         "quarantined": 0,
         "withImages": 0,
     }
-    actor_runs = []
+    actor_runs: dict[str, dict[str, Any]] = {}
+
+    def checkpoint_actor_run(record: Mapping[str, Any]) -> None:
+        attempt_id = str(record.get("attemptId") or "")
+        if not attempt_id:
+            raise RuntimeError("paid-run checkpoint is missing attemptId")
+        actor_runs[attempt_id] = dict(record)
+        update_json_locked(
+            args.run_report,
+            {},
+            lambda current: merge_run_report(
+                current,
+                sweep_id=sweep_id,
+                checked_at=checked_at,
+                run_slice=run_slice,
+                summary=summary,
+                actor_runs=[record],
+            ),
+        )
 
     print(
-        f"START Apify enrich slice={args.start}:{args.start + args.count} "
+        f"START Apify enrich slice={args.start}:{args.start + len(queue)} "
         f"handles={len(handles)} chunk={args.chunk} filter={not args.no_filter}"
     )
     for offset in range(0, len(handles), args.chunk):
         chunk = handles[offset : offset + args.chunk]
+        attempt_id = (
+            f"{sweep_id}:{args.start + offset}:{uuid.uuid4().hex}"
+        )
         try:
-            run, items = run_chunk(chunk, token)
-            actor_status = str(run.get("status") or "UNKNOWN")
-            actor_runs.append(
-                {
-                    "id": run.get("id"),
-                    "status": actor_status,
-                    "usageTotalUsd": run.get("usageTotalUsd"),
-                    "startedAt": run.get("startedAt"),
-                    "finishedAt": run.get("finishedAt"),
-                    "error": run.get("error"),
-                }
+            run, items = run_chunk(
+                chunk,
+                token,
+                attempt_id=attempt_id,
+                checked_at=checked_at,
+                checkpoint=checkpoint_actor_run,
             )
+            actor_status = str(run.get("status") or "UNKNOWN")
         except (OSError, RuntimeError, urllib.error.URLError) as error:
             actor_status = "ERROR"
             items = []
-            actor_runs.append(
-                {"id": None, "status": actor_status, "usageTotalUsd": None, "error": str(error)}
-            )
+            if attempt_id not in actor_runs:
+                checkpoint_actor_run(
+                    {
+                        "attemptId": attempt_id,
+                        "id": None,
+                        "status": "UNRECORDED_ERROR",
+                        "terminal": False,
+                        "usageTotalUsd": None,
+                        "spendStatus": "ambiguous",
+                        "error": str(error),
+                    }
+                )
 
         observations = build_chunk_observations(chunk, items, actor_status)
         evaluations = {}
@@ -414,9 +607,6 @@ def main(argv: list[str] | None = None) -> int:
                 filter_reason,
             )
 
-        states: dict[str, dict[str, Any]] = {}
-        duplicate_handles: set[str] = set()
-
         def merge_ledger(current: Mapping[str, Any] | None) -> dict[str, Any]:
             ledger = dict(current or {})
             ledger_handles = dict(ledger.get("handles") or {})
@@ -428,13 +618,6 @@ def main(argv: list[str] | None = None) -> int:
                 filter_reason,
             ) in evaluations.items():
                 previous = ledger_handles.get(handle)
-                if (
-                    previous
-                    and previous.get("lastObservationSweepId") == sweep_id
-                ):
-                    duplicate_handles.add(handle)
-                    states[handle] = dict(previous)
-                    continue
                 state = update_handle_state(
                     previous,
                     status=status,
@@ -443,12 +626,98 @@ def main(argv: list[str] | None = None) -> int:
                     dead_threshold=args.dead_threshold,
                     observation_sweep_id=sweep_id,
                 )
+                selected_status = str(state.get("lastRefreshStatus") or "")
+                if selected_status != status:
+                    continue
+                effects_complete = bool(
+                    previous
+                    and previous.get("lastEffectsSweepId") == sweep_id
+                    and previous.get("lastEffectsStatus") == selected_status
+                )
+                if previous is not None and state == previous and effects_complete:
+                    continue
+
+                artist_id = by_handle[handle]
                 state["artistId"] = by_handle[handle]
                 if verdict is not None:
                     state["looksBookable"] = verdict
                     state["bookabilityReason"] = filter_reason
+
+                audit = {
+                    "artistId": artist_id,
+                    "handle": handle,
+                    "observedAt": checked_at,
+                    "sweepId": sweep_id,
+                    "refreshStatus": status,
+                    "refreshReason": refresh_reason,
+                    "stale": state["stale"],
+                    "consecutiveDeadRefreshes": state["consecutiveDeadRefreshes"],
+                }
+
+                if status in {"not_found", "private"}:
+                    summary["dead"] += 1
+                    if quarantine_profile(args.out, artist_id):
+                        summary["quarantined"] += 1
+                    action = "quarantined-dead"
+                    append_audit_once(
+                        args.audit_log,
+                        {**audit, "action": action},
+                        event_id=f"{sweep_id}:{handle}:{status}:{action}",
+                    )
+                elif status != "active" or row is None:
+                    summary["transient"] += 1
+                    action = "preserved-transient"
+                    append_audit_once(
+                        args.audit_log,
+                        {**audit, "action": action},
+                        event_id=f"{sweep_id}:{handle}:{status}:{action}",
+                    )
+                else:
+                    audit.update(
+                        {
+                            "looksBookable": verdict,
+                            "filterReason": filter_reason,
+                        }
+                    )
+                    if not verdict and not args.no_filter:
+                        summary["rejected"] += 1
+                        if quarantine_profile(args.out, artist_id):
+                            summary["quarantined"] += 1
+                        action = "quarantined-filter"
+                        append_audit_once(
+                            args.audit_log,
+                            {**audit, "action": action},
+                            event_id=f"{sweep_id}:{handle}:{status}:{action}",
+                        )
+                    else:
+                        record = make_profile_record(
+                            artist_id=artist_id,
+                            handle=handle,
+                            row=row,
+                            verdict=bool(verdict),
+                            filter_reason=str(filter_reason),
+                            filter_bypassed=bool(not verdict and args.no_filter),
+                            refreshed_at=checked_at,
+                        )
+                        write_json_atomic(args.out / f"{artist_id}.json", record)
+                        action = "written-bypass" if not verdict else "written"
+                        append_audit_once(
+                            args.audit_log,
+                            {**audit, "action": action},
+                            event_id=f"{sweep_id}:{handle}:{status}:{action}",
+                        )
+                        summary["written"] += 1
+                        if record["images"]:
+                            summary["withImages"] += 1
+
+                # The ledger is written only after every downstream effect in
+                # this locked transaction succeeds. A crash leaves the sweep
+                # retryable; profile/quarantine writes are idempotent and
+                # audit events are deduplicated by eventId.
+                state["lastEffectsSweepId"] = sweep_id
+                state["lastEffectsStatus"] = selected_status
+                state["lastEffectsAction"] = action
                 ledger_handles[handle] = state
-                states[handle] = state
             ledger.update(
                 {
                     "version": 1,
@@ -465,72 +734,24 @@ def main(argv: list[str] | None = None) -> int:
             merge_ledger,
         )
 
-        for handle, (
-            status,
-            refresh_reason,
-            row,
-            verdict,
-            filter_reason,
-        ) in evaluations.items():
-            if handle in duplicate_handles:
-                continue
-            artist_id = by_handle[handle]
-            state = states[handle]
-
-            audit = {
-                "artistId": artist_id,
-                "handle": handle,
-                "observedAt": checked_at,
-                "refreshStatus": status,
-                "refreshReason": refresh_reason,
-                "stale": state["stale"],
-                "consecutiveDeadRefreshes": state["consecutiveDeadRefreshes"],
-            }
-
-            if status in {"not_found", "private"}:
-                summary["dead"] += 1
-                if quarantine_profile(args.out, artist_id):
-                    summary["quarantined"] += 1
-                append_audit(args.audit_log, {**audit, "action": "quarantined-dead"})
-                continue
-            if status != "active" or row is None:
-                summary["transient"] += 1
-                append_audit(args.audit_log, {**audit, "action": "preserved-transient"})
-                continue
-
-            audit.update({"looksBookable": verdict, "filterReason": filter_reason})
-            if not verdict and not args.no_filter:
-                summary["rejected"] += 1
-                if quarantine_profile(args.out, artist_id):
-                    summary["quarantined"] += 1
-                append_audit(args.audit_log, {**audit, "action": "quarantined-filter"})
-                continue
-
-            record = make_profile_record(
-                artist_id=artist_id,
-                handle=handle,
-                row=row,
-                verdict=verdict,
-                filter_reason=filter_reason,
-                filter_bypassed=bool(not verdict and args.no_filter),
-                refreshed_at=checked_at,
-            )
-            write_json_atomic(args.out / f"{artist_id}.json", record)
-            append_audit(
-                args.audit_log,
-                {**audit, "action": "written-bypass" if not verdict else "written"},
-            )
-            summary["written"] += 1
-            if record["images"]:
-                summary["withImages"] += 1
-
         print(
             f"chunk {offset // args.chunk + 1}: status={actor_status} "
             f"rows={len(items)} cumulative={summary}"
         )
+        update_json_locked(
+            args.run_report,
+            {},
+            lambda current: merge_run_report(
+                current,
+                sweep_id=sweep_id,
+                checked_at=checked_at,
+                run_slice=run_slice,
+                summary=summary,
+                actor_runs=actor_runs.values(),
+            ),
+        )
 
-    run_slice = {"start": args.start, "count": args.count, "requested": len(handles)}
-    report = update_json_locked(
+    update_json_locked(
         args.run_report,
         {},
         lambda current: merge_run_report(
@@ -539,7 +760,7 @@ def main(argv: list[str] | None = None) -> int:
             checked_at=checked_at,
             run_slice=run_slice,
             summary=summary,
-            actor_runs=actor_runs,
+            actor_runs=actor_runs.values(),
         ),
     )
     stale_count = sum(1 for state in ledger["handles"].values() if state.get("stale"))
