@@ -82,6 +82,9 @@ export type TattDesign = {
   color: string;     // tailwind bg class for the placeholder tile
   title?: string;
   image?: string;    // generated cut URL; tiles show it instead of color
+  /** Design-session id when the cut came out of /design — lets every
+   *  downstream surface thread ?ds= into /smart-match (ADR-0029). */
+  sessionId?: string;
 };
 
 export type TattBooking = {

@@ -185,6 +185,7 @@ function SuccessContent() {
             <div className="mt-10 flex flex-col sm:flex-row items-start gap-4">
               <TapeCTA href="/bookings" size="md">Your bookings</TapeCTA>
               <TapeCTA href="/artists" variant="ghost" size="sm">Back to the roster</TapeCTA>
+              <TapeCTA href="/design" variant="ghost" size="sm">Start another design</TapeCTA>
             </div>
           </div>
         </div>
