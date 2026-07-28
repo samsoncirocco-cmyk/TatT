@@ -3,7 +3,6 @@
  *
  * Sources:
  *  - src/config/modelRoutingRules.js  (STYLE_MODEL_MAPPING keys)
- *  - scripts/generate-tattoo-artists-data.js  (STYLES array, parsed as text)
  *  - Neo4j (read-only: Style node names + Artist.styles values); skipped
  *    gracefully when unreachable or unconfigured.
  *
@@ -15,7 +14,6 @@
  * Usage: node scripts/extract-style-ontology.mjs
  */
 
-import { readFileSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { STYLE_MODEL_MAPPING } from '../src/config/modelRoutingRules.js';
@@ -23,7 +21,6 @@ import {
   buildLookup,
   collectCandidates,
   loadJson,
-  parseConstArray,
   saveJson,
   updateProposals,
 } from './lib/ontology.mjs';
@@ -36,16 +33,8 @@ const PROPOSALS_PATH = path.join(ROOT, 'data', 'ontology-proposals.json');
 /** Harvest style terms from in-repo sources. Pure file reads, no network. */
 export function harvestRepoSources() {
   const mappingKeys = Object.keys(STYLE_MODEL_MAPPING).filter((k) => k !== 'default');
-  const artistDataSource = readFileSync(
-    path.join(ROOT, 'scripts', 'generate-tattoo-artists-data.js'),
-    'utf8',
-  );
   return [
     { source: 'repo:src/config/modelRoutingRules.js', terms: mappingKeys },
-    {
-      source: 'repo:scripts/generate-tattoo-artists-data.js',
-      terms: parseConstArray(artistDataSource, 'STYLES'),
-    },
   ];
 }
 

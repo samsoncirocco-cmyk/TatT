@@ -4,12 +4,15 @@ import path from 'node:path';
 import { resolveCanonicalStyle } from '@/lib/style-vocabulary';
 import {
   CANONICAL_STYLE_NAMES,
+  ONTOLOGY_STYLE_LABELS,
   STYLE_PATTERNS,
   extractStyleEvidence,
   stylesFromBio,
   rejectSpuriousEvidence,
   isSafeArtistId,
   normalizeStyleRecord,
+  normalizeGraphStyleList,
+  normalizeOntologyStyleList,
   toStylePairs,
   resolveOntologyLabel,
   graphStyleName,
@@ -27,6 +30,12 @@ describe('vocabulary lock', () => {
   it('emits only labels from data/style-ontology.json', () => {
     const labels = new Set(ONTOLOGY.tags.map((t) => t.label));
     expect(CANONICAL_STYLE_NAMES.filter((n) => !labels.has(n))).toEqual([]);
+  });
+
+  it('exports the complete approved ontology for generator and import paths', () => {
+    expect(ONTOLOGY_STYLE_LABELS).toEqual(ONTOLOGY.tags.map((t) => t.label));
+    expect(ONTOLOGY_STYLE_LABELS).toContain('Trash Polka');
+    expect(ONTOLOGY_STYLE_LABELS).toContain('Sketch');
   });
 
   it('every rule is keyed by a real ontology tag id', () => {
@@ -74,6 +83,35 @@ describe('vocabulary lock', () => {
       const matchableYet = GRAPH_VOCABULARY.styles.some((s) => s.graphNames.includes(name));
       if (matchableYet) expect(resolved, `${name} does not resolve`).toBeTruthy();
     }
+  });
+});
+
+describe('generator/import normalization', () => {
+  it('canonicalizes aliases for Supabase and de-duplicates them', () => {
+    expect(
+      normalizeOntologyStyleList(
+        ['Old School', 'Traditional', 'Photo Realism', 'Japanese (Irezumi)'],
+        'fixture',
+      ),
+    ).toEqual(['Traditional', 'Realism', 'Japanese']);
+  });
+
+  it('uses the graph spelling for Neo4j without inventing a second tag', () => {
+    expect(
+      normalizeGraphStyleList(
+        ['Japanese', 'Old School', 'Photo Realism', 'Trash Polka'],
+        'fixture',
+      ),
+    ).toEqual(['Japanese (Irezumi)', 'Traditional', 'Realism', 'Trash Polka']);
+  });
+
+  it('fails loudly when a write path receives an unapproved style', () => {
+    expect(() => normalizeOntologyStyleList(['Fine Line', 'Vaporwave'], 'fixture')).toThrow(
+      /outside data\/style-ontology\.json: Vaporwave/,
+    );
+    expect(() => normalizeGraphStyleList(['Steampunk'], 'fixture')).toThrow(
+      /outside data\/style-ontology\.json: Steampunk/,
+    );
   });
 });
 
@@ -194,7 +232,7 @@ describe('normalizeStyleRecord', () => {
 
   it('drops styles outside the controlled vocabulary', () => {
     expect(
-      normalizeStyleRecord({ artistId: 'artist_x', styles: ['Steampunk', 'Trash Polka', 'Realism'] }),
+      normalizeStyleRecord({ artistId: 'artist_x', styles: ['Steampunk', 'Vaporwave', 'Realism'] }),
     ).toEqual({ artistId: 'artist_x', styles: ['Realism'] });
   });
 

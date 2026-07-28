@@ -1,3 +1,8 @@
+> **Status: historical proposal.** This copy follows ADR-0004 but conflicts
+> with the currently implemented TatT mark and product journey. Do not publish
+> it without resolving the brand decision recorded in
+> `docs/status/known-contradictions.md`.
+
 # TattTester — Landing Page Copy (tatttester.com)
 
 **Door:** trust angle. Audience: 18–35 first-timers who roughly know what

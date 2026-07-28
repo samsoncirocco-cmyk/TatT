@@ -51,12 +51,15 @@ const GRAPH_VOCABULARY = readData('graph-style-vocabulary.json');
 /** Ontology tag id → its tag record. */
 const TAG_BY_ID = new Map(ONTOLOGY.tags.map((t) => [t.id, t]));
 
+/** Every approved style label, in ontology order. */
+export const ONTOLOGY_STYLE_LABELS = ONTOLOGY.tags.map((t) => t.label);
+
 /**
  * Ontology tag id → the name the GRAPH stores. A tag the graph already answers
  * with keeps the graph's spelling ("japanese" → "Japanese (Irezumi)"); anything
- * else falls back to the ontology label. Verified read-only against the live
- * graph: every name this produces already exists as a `:Style` node, so the
- * import creates no new Style node.
+ * else falls back to its approved ontology label. A newly approved tag may
+ * therefore create its first `:Style` node when an artist carrying it is
+ * imported, but an unapproved term can never create a node.
  */
 const GRAPH_NAME_BY_TAG = new Map(
   ONTOLOGY.tags.map((t) => {
@@ -130,6 +133,38 @@ export function resolveOntologyLabel(raw) {
 }
 
 /**
+ * Normalize a style array to ontology labels and fail on unknown input.
+ *
+ * Importers must never mint a second vocabulary from unchecked source data.
+ * Aliases remain accepted for old artifacts ("Old School" → "Traditional"),
+ * but an unreviewed term aborts the write path and must go through ADR-0011.
+ */
+export function normalizeOntologyStyleList(rawStyles, context = 'style list') {
+  if (!Array.isArray(rawStyles)) {
+    throw new TypeError(`[artist-styles] ${context} must be an array`);
+  }
+
+  const labels = [];
+  const unknown = [];
+  for (const raw of rawStyles) {
+    const label = resolveOntologyLabel(raw);
+    if (!label) {
+      unknown.push(String(raw));
+      continue;
+    }
+    if (!labels.includes(label)) labels.push(label);
+  }
+
+  if (unknown.length > 0) {
+    throw new Error(
+      `[artist-styles] ${context} contains style(s) outside data/style-ontology.json: ` +
+        unknown.join(', '),
+    );
+  }
+  return labels;
+}
+
+/**
  * Ontology label → the `:Style {name}` the graph stores it under. This is the
  * one place the artifact's vocabulary is translated into the graph's, and the
  * only names MERGE is ever given.
@@ -137,6 +172,18 @@ export function resolveOntologyLabel(raw) {
 export function graphStyleName(label) {
   const tagId = TAG_BY_SPELLING.get(String(label).trim().toLowerCase());
   return tagId ? GRAPH_NAME_BY_TAG.get(tagId) : null;
+}
+
+/**
+ * Normalize a style array to the graph's controlled spelling.
+ *
+ * Supabase stores ontology labels; Neo4j stores the spelling recorded in
+ * data/graph-style-vocabulary.json when one exists. Both resolve through the
+ * same ontology and reject unknowns.
+ */
+export function normalizeGraphStyleList(rawStyles, context = 'style list') {
+  const labels = normalizeOntologyStyleList(rawStyles, context);
+  return [...new Set(labels.map((label) => graphStyleName(label)))];
 }
 
 const NEO_TRADITIONAL = STYLE_PATTERNS.find((r) => r.style === 'Neo-Traditional').pattern;

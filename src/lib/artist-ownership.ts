@@ -1,8 +1,8 @@
 /**
  * Does this signed-in user own this artist profile?
  *
- * The binding is `claimedByUid` on the `:Artist` node, written by
- * `/api/v1/connect/claim`. Every artist-facing write route must prove it before
+ * The binding is `claimedByUid` plus `claimVerificationStatus = 'verified'` on
+ * the `:Artist` node, written only by the human-reviewed approval CLI. Every artist-facing write route must prove it before
  * touching artist state — `session-types-persistence.ts` says as much in its
  * header and leaves the check to its callers. This is that check, in one place.
  *
@@ -24,12 +24,16 @@ export async function isArtistOwner(
       "@/features/match-pulse/services/neo4jService"
     );
     const rows = await executeServerCypherQuery(
-      "MATCH (a:Artist {id: $artistId}) RETURN a.claimedByUid AS claimedByUid LIMIT 1",
+      `MATCH (a:Artist {id: $artistId})
+       RETURN a.claimedByUid AS claimedByUid,
+              a.claimVerificationStatus AS claimVerificationStatus
+       LIMIT 1`,
       { artistId },
     );
     if (!rows.length) return false;
     const claimedByUid = (rows[0] as Record<string, unknown>).claimedByUid;
-    return typeof claimedByUid === "string" && claimedByUid === uid;
+    const status = (rows[0] as Record<string, unknown>).claimVerificationStatus;
+    return claimedByUid === uid && status === "verified";
   } catch (err) {
     console.warn(
       `[artist-ownership] ownership check failed for ${artistId} — denying:`,
@@ -47,11 +51,15 @@ export async function isArtistClaimed(artistId: string): Promise<boolean> {
       "@/features/match-pulse/services/neo4jService"
     );
     const rows = await executeServerCypherQuery(
-      "MATCH (a:Artist {id: $artistId}) RETURN a.claimedByUid AS claimedByUid LIMIT 1",
+      `MATCH (a:Artist {id: $artistId})
+       RETURN a.claimedByUid AS claimedByUid,
+              a.claimVerificationStatus AS claimVerificationStatus
+       LIMIT 1`,
       { artistId },
     );
     if (!rows.length) return false;
-    return typeof (rows[0] as Record<string, unknown>).claimedByUid === "string";
+    const row = rows[0] as Record<string, unknown>;
+    return typeof row.claimedByUid === "string" && row.claimVerificationStatus === "verified";
   } catch {
     // Unknown ownership means no reservation mode. Same principle as above.
     return false;

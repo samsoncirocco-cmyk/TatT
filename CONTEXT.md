@@ -36,6 +36,30 @@ afraid of regret and of their own lack of artistic ability; found via
 TikTok/IG. The front door speaks to them; artists get a separate pitch.
 _Avoid_: user, customer (when the audience or emotional state matters)
 
+### Design system (ADR-0035, ADR-0036)
+
+**Register**:
+Which volume a surface speaks at. Two exist: Loud (the punk face — discovery
+and design surfaces) and Quiet (the calm hands — every commitment surface:
+money, identity, legal). The register flips at commitment, not before.
+_Avoid_: theme, mode (registers share one dark theme)
+
+**Quiet dark**:
+The Quiet register's look: the same black world with the volume down — warm
+grays, generous space, at most one pink accent, no tape/sticker/slash. Never
+a light-theme page; a light receipt card is the one sanctioned accent.
+_Avoid_: light mode, dark mode (it isn't a toggle)
+
+**Money sentence**:
+The one visible sentence every money surface must carry: who pays what, who
+keeps what (ADR-0007 as copy law). Quiet voice, no exceptions without an ADR.
+
+**Provenance label**:
+The plain statement on every unclaimed artist profile: unclaimed, work shown
+from the artist's public Instagram with credit, plus the claim door. Wording
+pending counsel; stance locked.
+_Avoid_: "unclaimed" badge with no explanation
+
 ### Product
 
 **Generation**:
@@ -81,11 +105,11 @@ Invest or delete based on real usage.
 _Avoid_: Forge (its old name), editor page
 
 **Artist console**:
-The artist-side home TatT launches with: bookings list, availability, payout
-status (ADR-0031). Does not exist yet — `/dashboard` currently redirects to
-the consumer design library. The free rung the paid artist plan later upsells
-from.
-_Avoid_: dashboard (currently a consumer redirect), CRM (that's the paid rung)
+The artist-side home at `/console`: bookings and status history, availability,
+and payout status (ADR-0031). Identity is resolved from the signed-in user; it
+is the free rung the paid artist plan later expands from.
+_Avoid_: dashboard (`/dashboard` is the consumer design-library redirect), CRM
+(that's the paid rung)
 
 ### Design bot (ADR-0009–0016)
 

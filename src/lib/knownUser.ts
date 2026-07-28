@@ -26,3 +26,14 @@ export function isKnownUser(): boolean {
     return false;
   }
 }
+
+/**
+ * The auth door for this device — /login for a known device, /signup for an
+ * unknown one — with an optional post-auth destination. Client-side only
+ * (reads localStorage): call it from effects or hydration-gated render paths,
+ * never during server render.
+ */
+export function authDoorHref(redirectTo?: string): string {
+  const door = isKnownUser() ? '/login' : '/signup';
+  return redirectTo ? `${door}?redirect=${encodeURIComponent(redirectTo)}` : door;
+}

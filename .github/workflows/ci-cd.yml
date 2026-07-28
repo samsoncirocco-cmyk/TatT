@@ -41,6 +41,23 @@ on:
   workflow_dispatch:
 
 jobs:
+  docs:
+    name: Validate documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validate canonical and classified documents
+        # Advisory while the rules prove themselves on normal repository work.
+        continue-on-error: true
+        run: npm run docs:check
+
   secret-scan:
     name: Scan for committed secrets
     runs-on: ubuntu-latest

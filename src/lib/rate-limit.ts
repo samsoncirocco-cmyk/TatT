@@ -6,7 +6,13 @@ import { Redis } from '@upstash/redis';
 // Types
 // ---------------------------------------------------------------------------
 
-export type LimitType = 'semantic-match' | 'council' | 'generation' | 'estimate' | 'default';
+export type LimitType =
+  | 'semantic-match'
+  | 'council'
+  | 'generation'
+  | 'estimate'
+  | 'artist-claim'
+  | 'default';
 
 interface RateLimitResult {
   allowed: boolean;
@@ -24,6 +30,7 @@ const LIMIT_CONFIG: Record<LimitType, { requests: number; window: string }> = {
   council:          { requests: 20,  window: '1 h' },
   generation:       { requests: 10,  window: '1 m' },
   estimate:         { requests: 30,  window: '1 m' },
+  'artist-claim':   { requests: 5,   window: '1 h' },
   default:          { requests: 60,  window: '1 m' },
 };
 
@@ -44,8 +51,8 @@ function getUpstashLimiters(): Map<LimitType, Ratelimit> | null {
     // serverless instance — on Vercel, concurrent traffic spreads across
     // multiple instances, each with its own empty counter, so the real
     // enforced limit is far weaker than LIMIT_CONFIG promises. That gap
-    // must be visible, not silent (see budget-tracker.ts / quota-tracker.ts
-    // for the same "log on degrade" pattern this was missing).
+    // must be visible, not silent (see budget-tracker.ts for the same
+    // "log on degrade" pattern this was missing).
     if (!warnedNoRedis) {
       console.warn(
         '[RateLimit] UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN not configured — ' +

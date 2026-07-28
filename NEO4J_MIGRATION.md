@@ -152,7 +152,7 @@ Browser → neo4jService.ts → POST /api/neo4j/query (route.ts) → getNeo4jDri
 **Scripts** — `scripts/import-to-neo4j.js` (primary importer, full new model),
 `scripts/test-neo4j-connection.js`, `scripts/insert-artists-to-neo4j.js`,
 `scripts/generate-neo4j-cypher.js`, `scripts/generate-tattoo-artists-data.js`,
-`scripts/data_acquisition/import_to_neo4j.js`, `scripts/seed-artist-embeddings.ts`.
+`scripts/seed-artist-embeddings.ts`.
 `scripts/migrate-neo4j-schema.js` was left as-is (its embedding/mentor index
 logic is still valid).
 

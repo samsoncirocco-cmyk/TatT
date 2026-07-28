@@ -6,6 +6,8 @@ This directory contains **pre-built data artifacts** for seeding the Supabase an
 
 The primary generation script is `scripts/generate-tattoo-artists-data.js`. It produces synthetic artist profiles with realistic names, locations, styles, specializations, color palettes, and pricing. Related scripts (`scripts/generate-neo4j-cypher.js`, `scripts/extend-artists-schema.js`) produce the Neo4j-specific formats.
 
+Artist styles use the approved vocabulary in `data/style-ontology.json`. Supabase artifacts store the ontology's canonical labels. Neo4j artifacts store the corresponding graph spelling from `data/graph-style-vocabulary.json` (for example, `Japanese (Irezumi)`). Generator and import paths normalize known legacy aliases and stop on unapproved terms instead of creating a second vocabulary. `Trash Polka` and `Sketch` were admitted through the proposal approval CLI and are available to newly generated data.
+
 ## File Reference
 
 ### Supabase / PostgreSQL
@@ -84,7 +86,7 @@ Each artist record includes:
   "location_region": "Western Australia",
   "location_country": "Australia",
   "has_multiple_locations": false,
-  "styles": ["watercolor", "illustrative"],
+  "styles": ["Watercolor", "Illustrative"],
   "color_palettes": ["vibrant", "pastel"],
   "specializations": ["floral", "nature"],
   "is_curated": true

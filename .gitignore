@@ -70,6 +70,13 @@ tsconfig.tsbuildinfo
 # Crawler runtime checkpoints — regenerated on every run, never commit
 # (path lives under src/, so match at any depth)
 **/data_acquisition/output/
+# Artist discovery/refresh runtime artifacts contain scraped profile data and
+# mutable checkpoints. Review them locally; never mix them into source PRs.
+/data/discovery/
+/data/enrichment/instagram/apify-profiles/
+/data/enrichment/instagram/refresh-status.json
+/data/enrichment/instagram/refresh-audit.jsonl
+/data/enrichment/instagram/apify-run-report.json
 .env.firebase
 
 # Python

@@ -11,6 +11,7 @@
 import { readFileSync, writeFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { preserveArtistManagedField } from './lib/artist-managed-import.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -96,7 +97,7 @@ function generateCypherScript(neo4jData, wipe = false) {
     lines.push(artistProps);
     lines.push('] AS artist');
     lines.push('MERGE (a:Artist {id: artist.id})');
-    lines.push('SET a.name = artist.name,');
+    lines.push(`SET a.name = ${preserveArtistManagedField('name', 'artist.name')},`);
     lines.push('    a.has_multiple_locations = artist.has_multiple_locations,');
     lines.push('    a.profile_url = artist.profile_url,');
     lines.push('    a.is_curated = artist.is_curated,');
@@ -218,7 +219,7 @@ function generateBatchCypher(neo4jData, wipe = false) {
     '// Create Artist nodes and relationships in batches',
     'UNWIND $artists AS artist',
     'MERGE (a:Artist {id: artist.id})',
-    'SET a.name = artist.name,',
+    `SET a.name = ${preserveArtistManagedField('name', 'artist.name')},`,
     '    a.has_multiple_locations = artist.has_multiple_locations,',
     '    a.profile_url = artist.profile_url,',
     '    a.is_curated = artist.is_curated,',

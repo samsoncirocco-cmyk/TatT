@@ -19,19 +19,6 @@ import path from "node:path";
 
 const SRC = path.resolve(__dirname, "../../");
 
-/**
- * Pre-punk "ducks-yellow" files. They are unreachable or slated for
- * deletion (see TODO.md) and are deliberately not being restyled — porting
- * their logic, not their look, is the standing rule. Delete entries here
- * as the files themselves go.
- */
-const LEGACY_OLD_THEME = new Set([
-  "components/JourneyContent.jsx",
-  "components/GraphInsight.jsx",
-  "components/VisualizeContent.jsx",
-  "components/generate/VersionThumbnail.jsx",
-]);
-
 function walk(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
@@ -52,8 +39,6 @@ describe("punk design system — type-size floor", () => {
 
     for (const file of walk(SRC)) {
       const rel = path.relative(SRC, file).split(path.sep).join("/");
-      if (LEGACY_OLD_THEME.has(rel)) continue;
-
       const src = fs.readFileSync(file, "utf8");
       src.split("\n").forEach((line, i) => {
         // Tailwind arbitrary font sizes: text-[9px], text-[8.5px], ...

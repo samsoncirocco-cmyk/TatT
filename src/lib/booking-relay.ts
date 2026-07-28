@@ -207,7 +207,7 @@ export interface TransferHeldResult {
  */
 export async function transferHeldDeposits(artistId: string): Promise<TransferHeldResult> {
   const artist = await getArtistStripe(artistId);
-  if (!artist || !artist.stripeAccountId || !artist.chargesEnabled) {
+  if (!artist || !artist.claimVerified || !artist.stripeAccountId || !artist.chargesEnabled) {
     return { count: 0, totalTransferredCents: 0 };
   }
   const destination = artist.stripeAccountId;

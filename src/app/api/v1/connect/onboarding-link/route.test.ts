@@ -43,6 +43,7 @@ function artist(overrides: Record<string, unknown> = {}) {
     stripeAccountId: 'acct_1TxCij2KLqoITkvS',
     chargesEnabled: false,
     claimedByUid: OWNER_UID,
+    claimVerified: true,
     ...overrides,
   };
 }

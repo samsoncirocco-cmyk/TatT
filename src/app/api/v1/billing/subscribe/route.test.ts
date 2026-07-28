@@ -65,6 +65,7 @@ describe('POST /api/v1/billing/subscribe — ownership', () => {
       stripeAccountId: null,
       chargesEnabled: false,
       claimedByUid: 'uid_caller',
+      claimVerified: true,
     });
 
     const response = await POST(makeRequest({ priceId: 'price_123', artistId: 'artist_1' }));

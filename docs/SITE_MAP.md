@@ -26,35 +26,37 @@ Every page below is judged by whether it moves someone along this line.
 |---|---|---|
 | `/` | core funnel | Needs real example designs (TAT-36 condition) |
 | `/design` | **core funnel — the one door** | ADR-0028; all CTAs point here (TAT-34) |
-| `/generate/stencil` (Forge) | merge → `/design` fast lane | ADR-0028 supersedes ADR-0018 as destination; reveal grid becomes shared component (TAT-34) |
+| `/generate/stencil` (Forge) | **redirects → `/design` fast lane** | Implemented in PR #214; preserves the prompt |
 | `/generate` (Studio) | keep — editing room | ADR-0017 stands; reachable from any picked design; facelift + path rename open (TAT-34, non-blocking) |
-| `/journey` | **cut** | Legacy flow, superseded twice over (TAT-34) |
+| `/journey` | **removed** | Legacy flow removed in PR #214 |
 | `/visualize` | core funnel | AR mirror = the conviction step between design and match |
 | `/designs`, `/designs/[id]` | keep | Consumer design library |
 | `/gallery` | keep + build | Honest empty state today; seed with real work (TAT-36) |
 | `/share/[shareId]` | keep | The deck's "social feedback loop", already built |
 | `/smart-match` → `/swipe` | **core funnel — the Match step** | ADR-0029; threads designSessionId into booking; swipes feed the taste algo |
-| `/matches` | merge → `/artists` | ADR-0029; redirect with filter mapping (TAT-35) |
+| `/matches` | **redirects → `/artists`** | Implemented in PR #212 with filter mapping |
 | `/artists`, `/artists/[slug]` | keep | The one browse/compare list + profiles |
 | `/book`, `/book/[artistId]`, `/book/success`, `/bookings` | core funnel | Deposit + booking fee (ADR-0005–0008, 0027) |
-| `/pricing` | rebuild honest | ADR-0030; artist plan + booking-fee explainer; consumer tiers stripped (TAT-37) |
-| `/dashboard` | rebuild → artist console | Today a consumer redirect; console = bookings, availability, payouts (ADR-0031, TAT-38) |
-| `/claim`, `/claim/[artistId]` | keep — unblock | TAT-16 (onboarding never renders), TAT-25 (no identity check) |
+| `/pricing` | **honest launch pricing** | Implemented in PR #210: free consumer design, booking fee, later artist subscription |
+| `/dashboard` | consumer compatibility redirect | Redirects to the consumer design library |
+| `/console` | **artist console** | Implemented in PR #213: bookings/history, availability, payout state |
+| `/claim`, `/claim/[artistId]` | verified request flow | Pending human review before ownership, Connect, or funds (ADR-0033) |
+| `/artist/profile` | artist profile manager | Verified owners edit artist-managed public fields; Instagram stays locked |
 | `/artist/[artistId]/availability` | keep | Hours + Google Calendar sync |
 | `/takedown/[artistId]` | keep | ADR-0025 |
 | `/settings`, `/login`, `/signup` | keep / core funnel | |
 | `/about` | keep | Absorbs anything worth saving from `/philosophy` |
-| `/demo` | **archive** | Mock walkthrough — violates the "no fake screens" launch bar (TAT-36) |
-| `/pitch` | **archive** | Investor artifact; wrong address on a stealth product (TAT-36) |
-| `/philosophy` | **archive** | Legacy; job belongs to `/about` (TAT-36) |
+| `/demo` | **removed** | Mock walkthrough removed in PR #211 |
+| `/pitch` | **removed** | Investor artifact removed in PR #211 |
+| `/philosophy` | **removed** | Legacy page removed in PR #211; `/about` remains |
 | `/legal/privacy`, `/legal/terms` | keep | |
 
 ## Business side (ADR-0031: land free, expand later)
 
-1. **Claim + get paid** — free claim, artist keeps 100% of deposits (ADR-0007).
-   Blocked by TAT-16/TAT-25.
-2. **Run your business** — minimal artist console (TAT-38): bookings +
-   history, availability, payout status.
+1. **Verify + claim + get paid** — free request, human identity review, then
+   Connect; artist keeps 100% of deposits (ADR-0007, ADR-0033).
+2. **Run your business** — `/console`: bookings + history, availability,
+   payout status (implemented in PR #213).
 3. **Paid pro tools** — Stripe Billing lane built, dormant (TAT-17). Sells
    only after rung 2 exists.
 

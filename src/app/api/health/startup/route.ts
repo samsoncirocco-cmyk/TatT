@@ -22,7 +22,7 @@ interface HealthCheck {
 
 async function checkFirestore(): Promise<HealthCheck> {
   try {
-    // Shared bootstrap — same init path budget-tracker/quota-tracker use,
+    // Shared bootstrap — the same init path budget-tracker uses,
     // so this check proves the budget-cap code path. The source matters:
     // 'project-only-adc' means no explicit credentials were usable and
     // auth defers to ADC, which does not work on Vercel — report that as
