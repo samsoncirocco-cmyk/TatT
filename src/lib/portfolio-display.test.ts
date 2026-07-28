@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  IG_PERMALINK_CYPHER,
   filterPermalinksForDisplay,
   filterPortfolioForDisplay,
   igEmbedsEnabled,
@@ -187,5 +188,32 @@ describe("filterPermalinksForDisplay (TAT-40 policy matrix)", () => {
 
   it("reads process.env by default — and the test env has embeds off", () => {
     expect(filterPermalinksForDisplay({ portfolioPermalinks: PERMALINKS })).toEqual([]);
+  });
+});
+
+// The Cypher twin of IG_PERMALINK, used by the roster's hasPortfolio filter
+// (src/lib/artists-graph) so the database's idea of a displayable permalink
+// stays the display policy's idea. Cypher `=~` is full-match and Cypher-side
+// values go through trim(), so the parity check mirrors both.
+describe("IG_PERMALINK_CYPHER (server-side filter parity)", () => {
+  const fullMatch = new RegExp(`^(?:${IG_PERMALINK_CYPHER.replace("(?i)", "")})$`, "i");
+  const embedsOn = { ENABLE_IG_EMBEDS: "true" };
+
+  it("accepts exactly the permalinks filterPermalinksForDisplay keeps", () => {
+    const samples = [
+      "https://www.instagram.com/p/Abc123xyz_-/",
+      "http://instagram.com/reel/DEF456",
+      "HTTPS://WWW.INSTAGRAM.COM/TV/GHI789/",
+      "  https://www.instagram.com/reel/DEF456/?utm_source=ig ",
+      "https://www.instagram.com/some.artist/", // profile, not a post
+      "https://evil.example.com/p/Abc123/",
+      "javascript:alert(1)",
+      "",
+    ];
+    for (const s of samples) {
+      const kept =
+        filterPermalinksForDisplay({ portfolioPermalinks: [s] }, embedsOn).length > 0;
+      expect(fullMatch.test(s.trim()), s).toBe(kept);
+    }
   });
 });
