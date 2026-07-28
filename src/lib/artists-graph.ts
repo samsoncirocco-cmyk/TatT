@@ -18,6 +18,7 @@ import {
   filterPermalinksForDisplay,
   filterPortfolioForDisplay,
   igEmbedsEnabled,
+  isClaimed,
   unclaimedPortfolioDisplayEnabled,
 } from "@/lib/portfolio-display";
 import { CANONICAL_STYLES, styleMatchVariants } from "@/lib/style-vocabulary";
@@ -55,9 +56,9 @@ export type RosterArtist = {
    *  (filterPermalinksForDisplay). Rendered as official Instagram embeds on
    *  the profile page ONLY — card grids never mount iframes. */
   portfolioPermalinks: string[];
-  /** True once an artist has claimed this profile (claimedByUid set). The
-   *  uid itself stays server-side — public surfaces only need the boolean,
-   *  e.g. to hide the "Claim this profile" entry point (TAT-16). */
+  /** True once an artist has claimed this profile (`claimedByUid` is set).
+   *  The uid itself stays server-side; public surfaces use this boolean to
+   *  hide both the claim door and the unclaimed-profile provenance label. */
   claimed: boolean;
 };
 
@@ -180,7 +181,7 @@ export function toRosterArtist(record: Record<string, unknown>): RosterArtist {
     // and only while ENABLE_IG_EMBEDS=true — [] otherwise, so this field is
     // inert until the flag is deliberately flipped.
     portfolioPermalinks: filterPermalinksForDisplay(record),
-    claimed: Boolean(record.claimedByUid),
+    claimed: isClaimed(record),
   };
 }
 

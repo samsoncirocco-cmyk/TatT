@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
       customer: customerId,
       amount: Math.round(body.amount * 100),
       currency: CURRENCY,
-      description: body.description || 'TatT services',
+      description: body.description || 'TattTester services',
     });
 
     // 3. Create the invoice (send-invoice collection, Tax on).

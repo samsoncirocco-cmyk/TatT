@@ -55,7 +55,7 @@ export default function AboutPage() {
             sizeClassName="text-[56px] sm:text-[88px] md:text-[120px] leading-[0.88]"
           />
           <p className="mt-8 text-[15px] text-white/70 font-body max-w-xl leading-[1.55]">
-            Four steps. No bullshit. Here&rsquo;s how TatT works.
+            Four steps. No bullshit. Here&rsquo;s how TattTester works.
           </p>
         </div>
       </div>

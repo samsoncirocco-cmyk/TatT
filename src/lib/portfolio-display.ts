@@ -57,7 +57,12 @@ export function filterPortfolioForDisplay(
   return isClaimed(artist) ? images : [];
 }
 
-function isClaimed(artist: PortfolioDisplaySubject): boolean {
+/**
+ * Has a real person proved they own this profile (`claimedByUid`)? Exported
+ * because the provenance label (ADR-0036) renders on exactly the profiles
+ * this returns false for — one definition of "claimed", not two.
+ */
+export function isClaimed(artist: PortfolioDisplaySubject): boolean {
   return typeof artist.claimedByUid === "string" && artist.claimedByUid.length > 0;
 }
 

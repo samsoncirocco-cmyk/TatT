@@ -3,6 +3,10 @@ import { getRosterArtistById } from "@/lib/artists-graph";
 import { getArtistAvailability } from "@/lib/availability";
 import { availabilityLabel } from "@/lib/booking";
 import { getBookingOffer } from "@/lib/booking-offer";
+// Server component — safe to read the platform take rate from the shared
+// Stripe config (never imported into client components). The money sentence
+// on the review step renders from this so the copy can't drift from the rate.
+import { PLATFORM_FEE_BPS } from "@/lib/stripe";
 
 // The artist comes from the live graph and availability from Firestore
 // on every request — never statically rendered.
@@ -81,6 +85,7 @@ export default async function BookPage({
       artistLoadFailed={artistLoadFailed}
       designSessionId={designSessionId}
       offer={offer}
+      feePercent={PLATFORM_FEE_BPS / 100}
     />
   );
 }

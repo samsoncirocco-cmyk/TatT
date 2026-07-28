@@ -88,7 +88,7 @@ export default function PrivacyPage() {
 
           <div className="mt-12 space-y-4 text-[14px] text-white/70 font-body leading-[1.7] border-t-2 hairline pt-10">
             <p className="text-[15px] text-white">
-              TatT holds personal data about two groups of people who are in very different
+              TattTester holds personal data about two groups of people who are in very different
               positions. Sections 1 to 3 cover people who signed up. Section 4 covers tattoo
               artists whose details we collected from the public internet without asking them
               first. If you are an artist who found your name or your work on this site and
@@ -129,7 +129,7 @@ export default function PrivacyPage() {
 
             <div className="border-l-2 border-pink pl-5 py-1 my-5">
               <p className="text-white text-[15px]">
-                We built TatT&rsquo;s artist directory by collecting public information about
+                We built TattTester&rsquo;s artist directory by collecting public information about
                 tattoo artists from the internet, and we did not ask permission first. If you
                 are one of those artists, you did not agree to any of this, and you can have it
                 removed. Section 4.2 tells you how.
@@ -150,7 +150,7 @@ export default function PrivacyPage() {
               We also{" "}
               <strong className="text-white">
                 downloaded portfolio photographs and re-hosted approximately 62,000 of them on
-                TatT&rsquo;s own storage
+                TattTester&rsquo;s own storage
               </strong>
               , rather than linking to them where they were published. Those images have been
               served from our infrastructure and displayed on artist profiles. We derived
@@ -165,7 +165,7 @@ export default function PrivacyPage() {
 
             <H3>4.2&nbsp;&mdash;&nbsp;Your right to have it removed, and how to use it</H3>
             <p>
-              You can ask us to remove you. You do not need a TatT account, a lawyer, or a
+              You can ask us to remove you. You do not need a TattTester account, a lawyer, or a
               reason.
             </p>
             <ul className="list-disc pl-6 space-y-2 marker:text-pink">
@@ -285,7 +285,7 @@ export default function PrivacyPage() {
               Removal is not a ban. The suppression list stops{" "}
               <em className="text-white/90">us</em> adding you; it does not stop{" "}
               <em className="text-white/90">you</em> joining. If you later decide you want a
-              TatT profile, you can create an account and claim one deliberately.
+              TattTester profile, you can create an account and claim one deliberately.
             </p>
             <p>Two things are worth knowing before you do:</p>
             <ul className="list-disc pl-6 space-y-2 marker:text-pink">

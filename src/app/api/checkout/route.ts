@@ -30,6 +30,7 @@ import { ensureAdminApp } from '@/lib/firebase-admin';
 import { stripe, stripeConfigured, platformFeeCents, CURRENCY } from '@/lib/stripe';
 import { getArtistStripe } from '@/lib/artist-stripe';
 import { depositCentsForSize, type TattooSize } from '@/lib/booking';
+import { bookingMoneyCopy } from '@/lib/money-copy';
 
 export const runtime = 'nodejs';
 
@@ -289,8 +290,10 @@ export async function POST(req: NextRequest) {
             currency: CURRENCY,
             unit_amount: bookingFeeInCents,
             product_data: {
-              name: 'TatT booking fee',
-              description: 'Platform booking fee — the artist keeps 100% of the deposit.',
+              name: 'TattTester booking fee',
+              // The money sentence (ADR-0036) on the Stripe-hosted summary:
+              // who pays what, who keeps what.
+              description: bookingMoneyCopy.checkoutFee,
             },
             tax_behavior: 'exclusive',
           },

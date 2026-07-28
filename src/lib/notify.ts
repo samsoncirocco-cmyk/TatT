@@ -13,6 +13,7 @@ import type { TakedownRequest } from '@/lib/takedown';
 import type { ReinstatementRequest } from '@/lib/reinstatement';
 import type { PendingArtistClaim } from '@/lib/artist-claim';
 import { getArtistStripe } from '@/lib/artist-stripe';
+import { artistDepositNotificationMoneyCopy } from '@/lib/money-copy';
 import { sendTransactionalEmail } from '@/services/emailQueueService';
 
 /** Notify an artist that a deposit is being held for them, with a claim link. */
@@ -43,13 +44,16 @@ export async function notifyArtistOfBooking(relay: BookingRelay): Promise<void> 
     currency: (process.env.STRIPE_CURRENCY || 'usd').toUpperCase(),
   });
 
-  const subject = 'A client left a deposit for you on TatT';
+  const subject = 'A client left a deposit for you on TattTester';
+  const moneySentence = artistDepositNotificationMoneyCopy(amount);
   const text =
-    `Good news — a client just left a ${amount} deposit for you on TatT.\n\n` +
+    `Good news — a client just left a ${amount} deposit for you on TattTester.\n\n` +
+    `${moneySentence}\n\n` +
     `Claim your profile and finish setup to release the funds:\n${claimLink}\n\n` +
     `The deposit is held securely until you claim it.`;
   const html =
-    `<p>Good news — a client just left a <strong>${amount}</strong> deposit for you on TatT.</p>` +
+    `<p>Good news — a client just left a <strong>${amount}</strong> deposit for you on TattTester.</p>` +
+    `<p>${moneySentence}</p>` +
     `<p>Claim your profile and finish setup to release the funds:</p>` +
     `<p><a href="${claimLink}">${claimLink}</a></p>` +
     `<p>The deposit is held securely until you claim it.</p>`;

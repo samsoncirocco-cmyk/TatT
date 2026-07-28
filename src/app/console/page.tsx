@@ -19,6 +19,7 @@ import Link from 'next/link';
 import StudioShell from '@/components/studio/StudioShell';
 import { useAuth } from '@/hooks/useAuth';
 import type { BookingStatus, BookingStatusEvent, RequestedSlot } from '@/lib/booking';
+import { bookingMoneyCopy } from '@/lib/money-copy';
 
 type ConsoleArtist = {
   id: string;
@@ -249,7 +250,7 @@ export default function ConsolePage() {
                 No profile yet<span className="text-pink">.</span>
               </h1>
               <p className="mt-6 text-[15px] text-white/70 font-body max-w-xl leading-[1.55]">
-                The console is for artists who have claimed their TatT profile. You may already be
+                The console is for artists who have claimed their TattTester profile. You may already be
                 listed — clients can book and leave deposits before you sign up.
               </p>
               <Link
@@ -349,6 +350,10 @@ export default function ConsolePage() {
                   {payoutError && (
                     <p className="mt-3 font-body text-[13px] text-pink">{payoutError}</p>
                   )}
+                  {/* The money sentence (ADR-0036): who pays what, who keeps what. */}
+                  <p className="mt-4 pt-4 border-t hairline font-body text-[12px] text-white/50 leading-[1.6]">
+                    {bookingMoneyCopy.artistConsole}
+                  </p>
                 </section>
 
                 {/* Availability */}
@@ -360,7 +365,7 @@ export default function ConsolePage() {
                     Your hours, your calendar.
                   </div>
                   <p className="mt-3 font-body text-[13px] text-white/70 leading-[1.55]">
-                    Declare the hours you give TatT, and optionally connect Google Calendar so busy
+                    Declare the hours you give TattTester, and optionally connect Google Calendar so busy
                     times are subtracted automatically.
                   </p>
                   <Link

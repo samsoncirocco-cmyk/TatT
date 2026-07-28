@@ -18,6 +18,7 @@ import SlashHeadline from "@/components/punk/SlashHeadline";
 import TapeCTA from "@/components/punk/TapeCTA";
 import { getApiAuthHeaders } from "@/lib/client-api-auth";
 import type { BookingStatus } from "@/lib/booking";
+import { bookingMoneyCopy } from "@/lib/money-copy";
 
 /** Statuses at or past a paid deposit — safe to say "Deposit paid". */
 const PAID_STATUSES: ReadonlySet<BookingStatus> = new Set<BookingStatus>([
@@ -163,6 +164,9 @@ function SuccessContent() {
             <p className="mt-8 text-[11px] uppercase tracking-[0.18em] text-white/50 font-body leading-[1.9] max-w-xl">
               {isPaid ? (
                 <>
+                  {/* The money sentence (ADR-0036): who pays what, who keeps what. */}
+                  {bookingMoneyCopy.bookingSuccess}
+                  <br />
                   Your requested time goes to the artist — they confirm the final slot.
                   <br />
                   Balance settles at the shop.

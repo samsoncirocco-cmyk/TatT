@@ -41,7 +41,7 @@ export default function ArtistNotFound() {
 
           <p className="mt-10 max-w-xl text-[15px] leading-[1.55] text-white/70 font-body">
             There&apos;s no profile at this address. Maybe the link rotted, maybe
-            this artist was never on TatT, maybe they asked us to remove them —
+            this artist was never on TattTester, maybe they asked us to remove them —
             we don&apos;t say which, on purpose, so that nobody can use this page
             to find out who asked to be taken down.
           </p>

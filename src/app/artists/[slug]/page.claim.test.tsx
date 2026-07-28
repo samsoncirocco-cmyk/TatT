@@ -5,7 +5,7 @@
 // An artist who finds their scraped profile must be able to reach
 // /claim/[artistId] from it in one click — that link IS the self-serve half of
 // the dual-entry claim flow (docs/adr/0008). But once a profile has an owner,
-// offering "Claim this profile" is a dead end: the claim routes 403 anyone who
+// offering "Claim your profile" is a dead end: the claim routes 403 anyone who
 // isn't the claimant. So the door renders only while the profile is unclaimed.
 // The takedown door (docs/adr/0025) stays either way — that flow does its own
 // verification.
@@ -54,13 +54,13 @@ afterEach(() => {
 describe("profile claim entry point (TAT-16)", () => {
   it("unclaimed: links the artist straight into /claim/[artistId]", async () => {
     const { getByRole } = await renderProfile(graphRow());
-    const link = getByRole("link", { name: /claim this profile/i });
+    const link = getByRole("link", { name: /claim your profile/i });
     expect(link.getAttribute("href")).toBe("/claim/artist_1");
   });
 
   it("claimed: the claim door is gone — the profile already has an owner", async () => {
     const { queryByRole } = await renderProfile(graphRow({ claimedByUid: "uid_9" }));
-    expect(queryByRole("link", { name: /claim this profile/i })).toBeNull();
+    expect(queryByRole("link", { name: /claim your profile/i })).toBeNull();
   });
 
   it("the takedown door stays one click away in both states", async () => {
@@ -75,5 +75,38 @@ describe("profile claim entry point (TAT-16)", () => {
     expect(
       claimed.getByRole("link", { name: /have it removed/i }).getAttribute("href"),
     ).toBe("/takedown/artist_1");
+  });
+});
+
+describe("profile provenance label (TAT-43)", () => {
+  it("does not claim work is displayed when the profile only has a monogram", async () => {
+    const { container } = await renderProfile(graphRow());
+
+    expect(container.textContent).toContain("No portfolio work is shown here yet.");
+    expect(container.textContent).not.toContain("The work shown here");
+  });
+
+  it("credits the artist and source when hosted work is actually displayed", async () => {
+    const { container } = await renderProfile(
+      graphRow({
+        portfolioImages: [
+          "https://storage.googleapis.com/tatt-pro-assets/artists/artist_1/0.jpg",
+        ],
+      }),
+    );
+
+    expect(container.textContent).toContain(
+      "The work shown here is credited to Sam Ink",
+    );
+    expect(container.textContent).toContain("from their public Instagram");
+  });
+
+  it("does not render an unclaimed provenance label on a claimed profile", async () => {
+    const { container } = await renderProfile(
+      graphRow({ claimedByUid: "uid_9" }),
+    );
+
+    expect(container.textContent).not.toContain("This profile is unclaimed");
+    expect(container.textContent).not.toContain("The work shown here");
   });
 });

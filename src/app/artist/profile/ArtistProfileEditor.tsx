@@ -185,7 +185,7 @@ export default function ArtistProfileEditor() {
                 </span>
               )}
               <p className="font-body text-[12px] leading-[1.6] text-white/45">
-                Portfolio uploads are intentionally unavailable until TatT’s consented Instagram
+                Portfolio uploads are intentionally unavailable until TattTester’s consented Instagram
                 media path is approved and configured. Your availability already has its own editor.
               </p>
             </div>

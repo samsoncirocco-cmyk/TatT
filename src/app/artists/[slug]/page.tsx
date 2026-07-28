@@ -30,6 +30,8 @@ export default async function ArtistProfilePage({
   const firstNames = nameParts.join(" ");
   const igUrl = instagramUrl(artist.instagram);
   const heroImage = artist.portfolioImages[0];
+  const hasDisplayedWork =
+    Boolean(heroImage) || artist.portfolioPermalinks.length > 0;
   const monogram = artist.name
     .split(/\s+/)
     .map((w) => w[0])
@@ -206,31 +208,63 @@ export default async function ArtistProfilePage({
               )}
             </div>
 
-            {/* This profile was built from public listings without the artist's
-                consent. If they find it, both endings must be one click away:
-                run it, or have it removed. See docs/adr/0025. Once claimed,
-                the claim door disappears — the profile already has an owner,
-                and /claim would only 403 anyone else (TAT-16). */}
-            <p className="mt-10 pt-6 border-t hairline font-body text-[11px] text-white/40 leading-[1.6]">
-              Is this you?{" "}
+            {/* Provenance label (ADR-0036 law 3): an unclaimed profile says
+                plainly that it is unclaimed and where the work comes from,
+                with credit — and keeps both endings one click away: run it,
+                or have it removed (docs/adr/0025). Profile page only; roster
+                cards stay unlabeled. Claimed artists run their own profile,
+                so they do not get the provenance label or claim door. The
+                removal door remains available in both states. */}
+            <div className="mt-10 pt-6 border-t hairline font-body text-[11px] text-white/40 leading-[1.6]">
+              {/* wording pending counsel review (TAT-31) */}
               {!artist.claimed && (
-                <>
-                  <Link
-                    href={`/claim/${encodeURIComponent(artist.id)}`}
-                    className="text-white/60 hover:text-pink press"
-                  >
-                    Claim this profile
-                  </Link>
-                  {" · "}
-                </>
+                <p>
+                  This profile is unclaimed — {artist.name} hasn&apos;t taken it
+                  over yet.{" "}
+                  {hasDisplayedWork ? (
+                    <>
+                      The work shown here is credited to {artist.name} and comes
+                      from their public Instagram
+                      {artist.instagram ? <> ({artist.instagram})</> : null}.
+                    </>
+                  ) : igUrl ? (
+                    <>
+                      No portfolio work is shown here yet.{" "}
+                      <a
+                        href={igUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-white/60 hover:text-pink press"
+                      >
+                        See their work on Instagram.
+                      </a>
+                    </>
+                  ) : (
+                    <>No portfolio work is shown here yet.</>
+                  )}
+                </p>
               )}
-              <Link
-                href={`/takedown/${encodeURIComponent(artist.id)}`}
-                className="text-white/60 hover:text-pink press"
-              >
-                Have it removed
-              </Link>
-            </p>
+              <p className={artist.claimed ? undefined : "mt-2"}>
+                Are you {artist.name}?{" "}
+                {!artist.claimed && (
+                  <>
+                    <Link
+                      href={`/claim/${encodeURIComponent(artist.id)}`}
+                      className="text-white/60 hover:text-pink press"
+                    >
+                      Claim your profile
+                    </Link>
+                    {" · "}
+                  </>
+                )}
+                <Link
+                  href={`/takedown/${encodeURIComponent(artist.id)}`}
+                  className="text-white/60 hover:text-pink press"
+                >
+                  Have it removed
+                </Link>
+              </p>
+            </div>
           </div>
         </div>
       </div>
