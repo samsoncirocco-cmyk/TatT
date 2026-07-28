@@ -1,5 +1,9 @@
+'use client';
+
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import type { DesignSession } from '@/services/designSession/types';
+import { useDesigns } from '@/lib/tattStorage';
 
 /**
  * The hard stop (ADR-0013). Shows the refined design plus the brief the
@@ -7,6 +11,10 @@ import type { DesignSession } from '@/services/designSession/types';
  * back, and any placement concerns surfaced honestly (ADR-0014). There is
  * deliberately NO regenerate/refine-again affordance here: refinement from
  * this point belongs to the canvas and the artist consult.
+ *
+ * Landing here also saves the refined cut into the local design library
+ * (once per session), so the funnel's next rooms — the AR mirror at
+ * /visualize and the /designs library — actually have the design waiting.
  */
 export function HandoffCard({ session }: { session: DesignSession }) {
   const brief = session.brief;
@@ -15,6 +23,29 @@ export function HandoffCard({ session }: { session: DesignSession }) {
   const meaning = brief?.meaning ?? session.intake.meaning;
   const placementNotes = brief?.placementNotes ?? [];
   const imageUrl = session.refinedVariation?.imageUrl;
+  const refinedPrompt = session.refinedVariation?.prompt ?? '';
+
+  // Persist the refined design to the local library exactly once, keyed by
+  // session id so re-renders (and revisits) never duplicate it. The saved id
+  // is derived from storage, so the CTA picks it up as soon as the write
+  // round-trips through useDesigns' change event.
+  const { designs, hydrated, addDesign } = useDesigns();
+  const savedDesignId = hydrated
+    ? (designs.find((d) => d.sessionId === session.id)?.id ?? null)
+    : null;
+  const savedOnce = useRef(false);
+  useEffect(() => {
+    if (!hydrated || !imageUrl || savedDesignId || savedOnce.current) return;
+    savedOnce.current = true;
+    addDesign(refinedPrompt, { image: imageUrl, sessionId: session.id });
+  }, [hydrated, imageUrl, savedDesignId, refinedPrompt, session.id, addDesign]);
+
+  // The AR mirror preselects ?design= when the save has landed; ds rides
+  // along so the mirror's own "Find your artist" exit keeps the thread.
+  const visualizeParams = new URLSearchParams();
+  if (savedDesignId) visualizeParams.set('design', savedDesignId);
+  visualizeParams.set('ds', session.id);
+  const visualizeHref = `/visualize?${visualizeParams.toString()}`;
 
   return (
     <div className="border-2 hairline bg-white/[0.02]">
@@ -72,11 +103,13 @@ export function HandoffCard({ session }: { session: DesignSession }) {
         </p>
 
         <div className="flex flex-col sm:flex-row gap-3 pt-1">
+          {/* The conviction step (ADR-0028 funnel): live camera, this design
+              already saved and waiting in the mirror's tray. */}
           <Link
-            href="/generate"
+            href={visualizeHref}
             className="tape press inline-flex items-center justify-center px-6 py-4 font-display text-[20px] leading-none tracking-[0.02em] uppercase"
           >
-            Fine-tune on the canvas<span className="ml-3 text-[14px]">▸</span>
+            See it on your skin<span className="ml-3 text-[14px]">▸</span>
           </Link>
           {/* Carries the session id so /smart-match can load the brief,
               pre-select mapped styles, and thread ds through to booking. */}
@@ -84,7 +117,13 @@ export function HandoffCard({ session }: { session: DesignSession }) {
             href={`/smart-match?ds=${encodeURIComponent(session.id)}`}
             className="press inline-flex items-center justify-center px-6 py-4 border hairline font-body text-[11px] uppercase tracking-[0.25em] text-white/80 hover:bg-pink hover:text-black"
           >
-            Find my artist
+            Find your artist
+          </Link>
+          <Link
+            href="/generate"
+            className="press inline-flex items-center justify-center px-6 py-4 border hairline font-body text-[11px] uppercase tracking-[0.25em] text-white/80 hover:bg-pink hover:text-black"
+          >
+            Fine-tune on the canvas
           </Link>
         </div>
       </div>
