@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useUser } from "@/lib/tattStorage";
+import { authDoorHref } from "@/lib/knownUser";
 import { createShare, isNoLinkCode, ShareRequestError } from "../services/shareApi";
 
 /**
@@ -116,7 +117,7 @@ export default function ShareDesignAction({
     <div className={className}>
       {signedOut ? (
         <Link
-          href={`/login?redirect=${encodeURIComponent(redirectTo)}`}
+          href={authDoorHref(redirectTo)}
           className={`${BUTTON_CLASS} text-white/70 hover:text-black hover:bg-pink`}
         >
           ▸ Sign in to share

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
 import PunkToggle from "@/components/punk/PunkToggle";
 import { useUser } from "@/lib/tattStorage";
+import { authDoorHref } from "@/lib/knownUser";
 import { CANONICAL_STYLES } from "@/lib/style-vocabulary";
 
 const NAV = ["Profile", "Notifications", "Billing", "Delete Account"];
@@ -231,7 +232,7 @@ export default function SettingsPage() {
                   {hydrated && !user && (
                     <p className="text-[10px] uppercase tracking-[0.25em] text-white/40 font-body">
                       Not signed in. Demo sign-in:&nbsp;
-                      <a href="/login" className="text-pink hover:underline">log in</a>.
+                      <a href={authDoorHref()} className="text-pink hover:underline">sign in</a>.
                     </p>
                   )}
                 </div>
