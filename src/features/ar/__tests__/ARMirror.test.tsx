@@ -198,4 +198,39 @@ describe('ARMirror', () => {
 
     expect(screen.getByText(/no generated designs yet/i)).toBeTruthy();
   });
+
+  it('preselects the carried-in design so the overlay is up without a tray tap', async () => {
+    installImageStub();
+    stubCamera(async () => ({ getTracks: () => [makeTrack()] }));
+    render(<ARMirror designs={designs} initialSelectedId="a" />);
+    await startCamera();
+
+    // The flash design composites straight away — transform controls appear
+    // without the user ever touching the tray.
+    await waitFor(() => expect(screen.getByRole('slider', { name: /size/i })).toBeTruthy());
+  });
+
+  it('ignores an initialSelectedId that is not in the tray', async () => {
+    installImageStub();
+    stubCamera(async () => ({ getTracks: () => [makeTrack()] }));
+    render(<ARMirror designs={designs} initialSelectedId="ghost" />);
+    await startCamera();
+
+    expect(screen.queryByRole('slider', { name: /size/i })).toBeNull();
+  });
+
+  it('offers the funnel-forward Find-your-artist door when a href is provided', async () => {
+    stubCamera(async () => ({ getTracks: () => [makeTrack()] }));
+    render(<ARMirror designs={designs} findArtistHref="/smart-match?ds=sess-1" />);
+
+    const links = screen.getAllByRole('link', { name: /find your artist/i });
+    expect(links.length).toBeGreaterThanOrEqual(1);
+    expect(links[0].getAttribute('href')).toBe('/smart-match?ds=sess-1');
+  });
+
+  it('renders no forward door without a href (exit stays the only chrome)', () => {
+    stubCamera(async () => ({ getTracks: () => [makeTrack()] }));
+    render(<ARMirror designs={designs} />);
+    expect(screen.queryByRole('link', { name: /find your artist/i })).toBeNull();
+  });
 });

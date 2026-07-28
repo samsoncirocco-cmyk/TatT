@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { Camera, X, Download, AlertTriangle, Loader2 } from 'lucide-react';
 import { useArSession } from '../useArSession';
 import { prepareDesignForOverlay, type DesignSourceVerdict } from '@/services/ar/designSource';
@@ -28,6 +29,12 @@ export interface ARMirrorProps {
   designs: ARMirrorDesign[];
   /** Placement tag resolved during intake. Displayed, never inferred. */
   placement?: string;
+  /** Design to preselect in the tray — e.g. the one just picked in /design.
+   *  Ignored when it isn't in `designs`. */
+  initialSelectedId?: string;
+  /** Funnel-forward URL (smart-match handoff). When set, the mirror offers
+   *  "Find your artist" instead of leaving exit as the only door out. */
+  findArtistHref?: string;
   onExit?: () => void;
 }
 
@@ -40,14 +47,24 @@ type OverlayState =
   | { kind: 'ready'; src: string; verdict: DesignSourceVerdict }
   | { kind: 'blocked'; verdict: DesignSourceVerdict };
 
-export default function ARMirror({ designs, placement, onExit }: ARMirrorProps) {
+export default function ARMirror({
+  designs,
+  placement,
+  initialSelectedId,
+  findArtistHref,
+  onExit,
+}: ARMirrorProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const captureCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
 
   const session = useArSession(videoRef);
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(() =>
+    initialSelectedId && designs.some((d) => d.id === initialSelectedId)
+      ? initialSelectedId
+      : null,
+  );
   const [overlay, setOverlay] = useState<OverlayState>({ kind: 'none' });
   const [position, setPosition] = useState({ x: 50, y: 50 }); // percent of stage
   const [size, setSize] = useState(40); // percent of stage width
@@ -198,7 +215,18 @@ export default function ARMirror({ designs, placement, onExit }: ARMirrorProps) 
         <h2 className="rounded bg-ducks-green/10 px-2 py-1 font-mono text-xs font-bold uppercase tracking-widest text-ducks-green">
           Live Preview{placement ? ` // ${placement}` : ''}
         </h2>
-        <div className="w-8" />
+        {/* Forward is a door too — trying it on should flow into matching,
+            not dead-end at the X. */}
+        {findArtistHref ? (
+          <Link
+            href={findArtistHref}
+            className="text-xs font-bold uppercase tracking-widest text-ducks-yellow transition-colors hover:text-white"
+          >
+            Find your artist →
+          </Link>
+        ) : (
+          <div className="w-8" />
+        )}
       </div>
 
       {/* Stage */}
@@ -320,6 +348,15 @@ export default function ARMirror({ designs, placement, onExit }: ARMirrorProps) 
                 <Download size={16} />
                 Save this view
               </button>
+              {/* The next room in the funnel, right where conviction lands. */}
+              {findArtistHref && (
+                <Link
+                  href={findArtistHref}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-ducks-yellow/40 bg-ducks-yellow/10 px-4 py-3 text-sm font-medium text-ducks-yellow transition-all hover:bg-ducks-yellow/20"
+                >
+                  Find your artist →
+                </Link>
+              )}
             </div>
           )}
 

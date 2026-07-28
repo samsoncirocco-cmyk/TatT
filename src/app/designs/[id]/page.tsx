@@ -7,6 +7,7 @@ import StudioShell from "@/components/studio/StudioShell";
 import TapeCTA from "@/components/punk/TapeCTA";
 import ShareDesignAction from "@/features/share/components/ShareDesignAction";
 import { useDesigns, type TattDesign } from "@/lib/tattStorage";
+import { smartMatchUrlForDesign } from "@/lib/design-style-signal";
 
 function formatCreated(ts: number): string {
   const d = new Date(ts);
@@ -161,19 +162,30 @@ export default function DesignDetailPage({
               </p>
             </div>
 
-            <div className="mt-10 flex flex-col sm:flex-row gap-3">
+            <div className="mt-10 flex flex-col sm:flex-row flex-wrap gap-3">
+              {/* Funnel forward (ADR-0028): AR conviction step first, match
+                  second — both carry this design's context along. */}
               <Link
-                href={`/design?prompt=${encodeURIComponent(design.prompt)}`}
+                href={`/visualize?${new URLSearchParams({
+                  design: design.id,
+                  ...(design.sessionId ? { ds: design.sessionId } : {}),
+                }).toString()}`}
                 className="tape press inline-flex items-center justify-center px-6 py-4 font-display text-[20px] sm:text-[24px] leading-none tracking-[0.02em]"
               >
-                Iterate
+                See it on your skin
                 <span className="ml-3 text-[16px]">▸</span>
               </Link>
               <Link
-                href="/smart-match"
+                href={smartMatchUrlForDesign(design.prompt, design.sessionId)}
                 className="text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-black hover:bg-pink border-2 hairline px-4 py-4 press font-body inline-flex items-center justify-center"
               >
-                ▸ Find an artist
+                ▸ Find your artist
+              </Link>
+              <Link
+                href={`/design?prompt=${encodeURIComponent(design.prompt)}`}
+                className="text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-black hover:bg-pink border-2 hairline px-4 py-4 press font-body inline-flex items-center justify-center"
+              >
+                ▸ Iterate
               </Link>
               <button
                 onClick={handleDelete}
