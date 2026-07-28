@@ -1,6 +1,6 @@
 ---
 status: current
-verified_against: 574b96e
+verified_against: 018bbaa
 verified_on: 2026-07-27
 ---
 
@@ -56,8 +56,11 @@ explicit.
 Supply `APIFY_TOKEN` through the process environment. It is sent as a bearer
 authorization header and must never be put in command arguments, URLs, or
 checked-in environment files. This applies to `discover_ig.py` as well as the
-refresh runner; every paid discovery command also requires `--execute` and an
-explicit valid queue.
+refresh runner; every paid discovery command also requires
+`--execute --sweep-id <approved-id>` and an explicit valid queue. Discovery
+records potential spend before POST in `apify-discovery-run-report.json`.
+Only terminal-success actor output enters the discovery caches; ambiguous,
+running, failed, aborted, timed-out, or dataset-error attempts stay retryable.
 
 ## Status semantics
 

@@ -42,9 +42,10 @@ ownership, verification, payment, or portfolio fields.
    a confirmed result may replace an earlier transient result. Downstream
    effects complete before the ledger checkpoint, and ledger, audit, and
    cost-report mutations are process-safe and retry-idempotent.
-7. Paid discovery and refresh are opt-in through `--execute` and require an
-   explicit valid queue. Apify credentials come only from the process
-   environment and travel in an authorization header.
+7. Paid discovery and refresh are opt-in through `--execute`, require an
+   explicit valid queue and sweep ID, and cache actor output only after
+   terminal success. Apify credentials come only from the process environment
+   and travel in an authorization header.
 8. Potential spend is durably checkpointed before actor POST. A sweep cost is
    complete only when every attempt has an identified, terminal, priced run;
    ambiguous POST outcomes remain visible and keep the total incomplete.

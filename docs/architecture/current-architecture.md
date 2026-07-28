@@ -1,6 +1,6 @@
 ---
 status: current
-verified_against: 574b96e
+verified_against: 018bbaa
 verified_on: 2026-07-27
 ---
 
@@ -78,12 +78,13 @@ restores it, and transient failures do not change visibility. Roster, profile,
 featured, and matching reads use the shared predicate in
 `src/lib/artist-visibility.ts`. The dry-run-first applier refuses ambiguous
 identity matches and does not write artist-managed profile, ownership,
-verification, payment, or portfolio fields. The upstream paid runner is
-dry-run by default, requires an explicit queue, gives each sweep one
-dead-threshold vote per handle, and lets confirmed retries replace transient
-results. It checkpoints downstream effects and paid-attempt evidence
-durably, while serializing shared ledger, audit, and cost-report updates
-across workers.
+verification, payment, or portfolio fields. The upstream paid discovery and
+refresh runners are dry-run by default and require an explicit queue and
+sweep ID. Discovery caches actor output only after terminal success. Refresh
+gives each sweep one dead-threshold vote per handle and lets confirmed retries
+replace transient results. Both paths checkpoint paid-attempt evidence before
+actor POST; refresh also checkpoints downstream effects. Shared ledger, audit,
+and cost-report updates are serialized across workers.
 
 ## Known architecture debt
 

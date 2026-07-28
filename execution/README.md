@@ -9,7 +9,9 @@ The Instagram operator path is deliberately split into three auditable stages:
 1. `discover_ig.py` collects and profiles possible new handles, then writes
    every accepted and rejected candidate to `data/discovery/candidates.json`.
    It requires an explicit valid `--queue`; paid collection and profiling also
-   require `--execute`.
+   require `--execute --sweep-id <id>`. Discovery writes its own
+   `apify-discovery-run-report.json` spend ledger and caches a seed, hashtag,
+   or profile chunk only after the actor reaches terminal `SUCCEEDED`.
 2. `apify_ig_enrich.py` refreshes known handles. The shared
    `ig_quality.py` gate is on by default; `--no-filter` is the explicit,
    audited override. The command is dry-run by default; paid actor work
@@ -55,8 +57,9 @@ delete rejections or maintain a second classifier in another pipeline.
 
 There is intentionally no quarterly schedule yet. Each Apify run writes
 `apify-run-report.json`, including `usageTotalUsd` when Apify supplies it.
-Pass one `--sweep-id` across every batch; the report deduplicates paid attempts
-and accumulates cost rather than overwriting the prior slice. The total stays
+Pass one `--sweep-id` across every batch; both discovery and refresh reports
+deduplicate paid attempts
+and accumulate cost rather than overwriting the prior slice. The total stays
 unknown when any POST outcome is ambiguous or any identified actor run is
 non-terminal or lacks pricing. The report exposes the known subtotal,
 missing/non-terminal/ambiguous counts, and `incomplete` status instead of
