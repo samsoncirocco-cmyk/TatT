@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import fcntl
 import json
+import math
 import os
 import time
 import urllib.error
@@ -434,10 +435,15 @@ def merge_run_report(
         by_attempt[key] = dict(run)
 
     def numeric_cost(value: Any) -> float | None:
+        if isinstance(value, bool):
+            return None
         try:
-            return float(value) if value is not None else None
+            parsed = float(value) if value is not None else None
         except (TypeError, ValueError):
             return None
+        if parsed is None or not math.isfinite(parsed) or parsed < 0:
+            return None
+        return parsed
 
     costs = [
         cost

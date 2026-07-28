@@ -478,6 +478,30 @@ def test_cost_total_is_unknown_for_priced_nonterminal_run():
     assert sweep["apifyUsageTotalUsd"] is None
 
 
+@pytest.mark.parametrize("invalid_cost", ["NaN", "Infinity", -1, True])
+def test_invalid_actor_price_never_completes_total(invalid_cost):
+    report = merge_run_report(
+        {},
+        sweep_id="2026-Q3",
+        checked_at="2026-07-27T00:00:00Z",
+        run_slice={"start": 0, "count": 100},
+        summary={},
+        actor_runs=[
+            {
+                "attemptId": "attempt-1",
+                "id": "run-1",
+                "status": "SUCCEEDED",
+                "terminal": True,
+                "usageTotalUsd": invalid_cost,
+            }
+        ],
+    )
+    sweep = report["sweeps"]["2026-Q3"]
+    assert sweep["apifyUsageMissingRunCount"] == 1
+    assert sweep["apifyUsagePricingStatus"] == "incomplete"
+    assert sweep["apifyUsageTotalUsd"] is None
+
+
 def test_ambiguous_post_attempt_is_preserved_and_blocks_complete_total():
     report = merge_run_report(
         {},
