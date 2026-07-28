@@ -239,6 +239,12 @@ export default function BookingsPage() {
             </Link>
           </div>
 
+          {/* The money sentence (ADR-0033): who pays what, who keeps what. */}
+          <p className="mt-4 font-body text-[12px] text-white/50 leading-[1.6]">
+            Every deposit goes to your artist in full — the booking fee you pay at
+            checkout is the only part we keep.
+          </p>
+
           {showEmpty ? (
             <div className="mt-20 border-2 hairline py-24 px-6 text-center">
               <div className="font-display text-[40px] sm:text-[56px] leading-[0.95] text-white">

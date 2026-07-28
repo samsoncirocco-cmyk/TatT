@@ -330,6 +330,11 @@ export default function ConsolePage() {
                   {payoutError && (
                     <p className="mt-3 font-body text-[13px] text-pink">{payoutError}</p>
                   )}
+                  {/* The money sentence (ADR-0033): who pays what, who keeps what. */}
+                  <p className="mt-4 pt-4 border-t hairline font-body text-[12px] text-white/50 leading-[1.6]">
+                    Clients pay your deposit plus TattTester&apos;s booking fee — you keep
+                    100% of every deposit; the fee is the only part we take.
+                  </p>
                 </section>
 
                 {/* Availability */}

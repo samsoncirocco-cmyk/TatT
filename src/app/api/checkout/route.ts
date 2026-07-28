@@ -288,7 +288,10 @@ export async function POST(req: NextRequest) {
             unit_amount: bookingFeeInCents,
             product_data: {
               name: 'TattTester booking fee',
-              description: 'Platform booking fee — the artist keeps 100% of the deposit.',
+              // The money sentence (ADR-0033) on the Stripe-hosted summary:
+              // who pays what, who keeps what.
+              description:
+                'You pay this fee on top of the deposit — the artist keeps 100% of the deposit; this fee is all TattTester takes.',
             },
             tax_behavior: 'exclusive',
           },

@@ -173,6 +173,11 @@ export default function ClaimArtistPage({ params }: { params: Promise<{ artistId
               <div className="mt-1 font-body text-[12px] text-white/60">
                 {heldCount} booking{heldCount === 1 ? '' : 's'} — released once Stripe clears your account.
               </div>
+              {/* The money sentence (ADR-0033): who pays what, who keeps what. */}
+              <p className="mt-3 font-body text-[12px] text-white/60 leading-[1.6]">
+                Clients paid this deposit plus our booking fee — the full deposit is
+                yours; the fee is the only part TattTester keeps.
+              </p>
             </div>
           )}
 
