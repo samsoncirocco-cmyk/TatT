@@ -209,6 +209,32 @@ describe("SmartMatchClient design-session prefill", () => {
     expect(screen.getByRole("button", { name: /find artists/i })).toBeTruthy();
   });
 
+  it("pre-selects pills from a ?styles= signal without auto-running", async () => {
+    searchParams = new URLSearchParams("styles=Traditional,Blackwork,not-a-style");
+    fetchMock.mockImplementation(async () => jsonResponse(liveMatchResponse));
+
+    render(<SmartMatchClient />);
+
+    // Valid styles land pressed; garbage is dropped, nothing fetched or pushed.
+    expect(
+      screen.getByRole("button", { name: "Traditional" }).getAttribute("aria-pressed")
+    ).toBe("true");
+    expect(
+      screen.getByRole("button", { name: "Blackwork" }).getAttribute("aria-pressed")
+    ).toBe("true");
+    expect(
+      screen.getByRole("button", { name: "Realism" }).getAttribute("aria-pressed")
+    ).toBe("false");
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+
+    // The user still owns the search — submitting uses the pre-selected pills.
+    fireEvent.click(screen.getByRole("button", { name: /find artists/i }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/swipe"));
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(body.style_preferences).toEqual(["Traditional", "Blackwork"]);
+  });
+
   it("does not touch the design-session API without a ds param", async () => {
     fetchMock.mockImplementation(async () => jsonResponse(liveMatchResponse));
 

@@ -5,7 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
 import SlashHeadline from "@/components/punk/SlashHeadline";
 import { getApiAuthHeaders } from "@/lib/client-api-auth";
-import { CANONICAL_STYLES, canonicalStylesFromOntologyTags } from "@/lib/design-style-signal";
+import {
+  CANONICAL_STYLES,
+  canonicalStylesFromOntologyTags,
+  parseStylesParam,
+} from "@/lib/design-style-signal";
 import { useMatchStore } from "@/store/useMatchStore";
 import type { DesignSession } from "@/services/designSession/types";
 
@@ -24,6 +28,11 @@ import type { DesignSession } from "@/services/designSession/types";
  * search — the user can still edit and re-run. A missing or errored session
  * falls back silently to the blank form. The "ds" param threads onward to
  * /swipe so the booking eventually carries designSessionId.
+ *
+ * Style-signal handoff: sessionless surfaces (a saved design's detail page,
+ * the AR mirror) arrive as /smart-match?styles=<canonical,names> — those
+ * pills come pre-selected but nothing auto-runs; the user still owns the
+ * search. Garbage style names are dropped by parseStylesParam, never thrown.
  */
 
 type Status = "idle" | "searching" | "error";
@@ -57,7 +66,9 @@ export default function SmartMatchClient() {
   const designSessionId = searchParams.get("ds");
   const setMatches = useMatchStore((s) => s.setMatches);
 
-  const [styles, setStyles] = useState<string[]>([]);
+  const [styles, setStyles] = useState<string[]>(() =>
+    parseStylesParam(searchParams.get("styles"))
+  );
   const [locationInput, setLocationInput] = useState("");
   // Placement + meaning lifted from the design brief; folded into the
   // semantic query so the vector search gets real signal, not just pills.
