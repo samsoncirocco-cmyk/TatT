@@ -140,7 +140,7 @@ export default function RosterControls({
               <button
                 key={s}
                 onClick={() => apply({ style: s })}
-                className={`text-[10px] uppercase tracking-[0.2em] border hairline px-3 py-2 press font-body shrink-0 ${
+                className={`min-h-[44px] text-[10px] uppercase tracking-[0.2em] border hairline px-3 py-2 press font-body shrink-0 ${
                   active
                     ? "bg-pink text-black border-pink"
                     : "text-white/70 hover:text-black hover:bg-pink"
@@ -152,7 +152,7 @@ export default function RosterControls({
           })}
           <button
             onClick={() => apply({ hasPortfolio: !hasPortfolio })}
-            className={`text-[10px] uppercase tracking-[0.2em] border hairline px-3 py-2 press font-body shrink-0 ${
+            className={`min-h-[44px] text-[10px] uppercase tracking-[0.2em] border hairline px-3 py-2 press font-body shrink-0 ${
               hasPortfolio
                 ? "bg-pink text-black border-pink"
                 : "text-white/70 hover:text-black hover:bg-pink"
@@ -169,7 +169,7 @@ export default function RosterControls({
                 if (targetQuery() !== "") pushPending("");
                 apply({ q: "", style: "All", hasPortfolio: false });
               }}
-              className="ml-auto text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-pink font-body shrink-0 press"
+              className="ml-auto min-h-[44px] text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-pink font-body shrink-0 press"
             >
               Clear&nbsp;✕
             </button>
