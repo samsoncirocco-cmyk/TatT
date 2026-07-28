@@ -13,13 +13,17 @@ import json
 import os
 import time
 import urllib.request
+import uuid
 from collections import Counter
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 try:
+    from execution.apify_ig_enrich import merge_run_report, update_json_locked
     from execution.ig_quality import looks_bookable
 except ModuleNotFoundError:  # direct ``python execution/discover_ig.py``
+    from apify_ig_enrich import merge_run_report, update_json_locked
     from ig_quality import looks_bookable
 
 
@@ -29,6 +33,11 @@ HASHTAG_ACTOR = "apify~instagram-hashtag-scraper"
 PROFILE_ACTOR = "apify~instagram-profile-scraper"
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "data" / "discovery"
+TERMINAL_STATUSES = {"SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT"}
+
+
+def utc_now() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def load_token() -> str:
@@ -100,18 +109,100 @@ def api(token: str, method: str, path: str, body: Any = None, timeout: int = 180
         return json.loads(response.read().decode())
 
 
-def run_actor(token: str, actor: str, actor_input: dict[str, Any], poll_max: int = 180):
-    run = api(token, "POST", f"/acts/{actor}/runs", actor_input)["data"]
-    run_id = run["id"]
-    dataset_id = run["defaultDatasetId"]
-    status = run["status"]
-    for _ in range(poll_max):
-        status = api(token, "GET", f"/actor-runs/{run_id}")["data"]["status"]
-        if status in {"SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT"}:
-            break
-        time.sleep(4)
-    items = api(token, "GET", f"/datasets/{dataset_id}/items?clean=true")
-    return status, items
+def run_actor(
+    token: str,
+    actor: str,
+    actor_input: dict[str, Any],
+    *,
+    checkpoint: Any,
+    operation: str,
+    poll_max: int = 180,
+    attempt_id: str | None = None,
+):
+    attempt_id = attempt_id or uuid.uuid4().hex
+    checked_at = utc_now()
+    attempt = {
+        "attemptId": attempt_id,
+        "id": None,
+        "actor": actor,
+        "operation": operation,
+        "status": "POSTING",
+        "terminal": False,
+        "usageTotalUsd": None,
+        "startedAt": checked_at,
+        "spendStatus": "ambiguous",
+    }
+    checkpoint(attempt)
+    try:
+        response = api(token, "POST", f"/acts/{actor}/runs", actor_input)
+    except Exception as error:
+        checkpoint({**attempt, "status": "POST_ERROR", "error": str(error)})
+        raise
+
+    run = dict(response.get("data") or {})
+    run_id = run.get("id")
+    dataset_id = run.get("defaultDatasetId")
+    if not run_id or not dataset_id:
+        checkpoint(
+            {
+                **attempt,
+                **run,
+                "status": "MALFORMED_POST_RESPONSE",
+                "terminal": False,
+                "spendStatus": "ambiguous",
+            }
+        )
+        raise RuntimeError("Apify discovery POST returned no run or dataset ID")
+
+    final = {
+        **attempt,
+        **run,
+        "attemptId": attempt_id,
+        "id": run_id,
+        "terminal": str(run.get("status") or "") in TERMINAL_STATUSES,
+        "spendStatus": "identified",
+    }
+    checkpoint(final)
+    if not final["terminal"]:
+        try:
+            for _ in range(poll_max):
+                polled = dict(api(token, "GET", f"/actor-runs/{run_id}")["data"])
+                final = {
+                    **final,
+                    **polled,
+                    "attemptId": attempt_id,
+                    "id": run_id,
+                    "terminal": str(polled.get("status") or "") in TERMINAL_STATUSES,
+                    "spendStatus": "identified",
+                }
+                if final["terminal"]:
+                    checkpoint(final)
+                    break
+                time.sleep(4)
+            else:
+                checkpoint(final)
+        except Exception as error:
+            checkpoint(
+                {
+                    **final,
+                    "status": "POLL_ERROR",
+                    "terminal": False,
+                    "error": str(error),
+                }
+            )
+            raise
+
+    if final.get("status") != "SUCCEEDED":
+        raise RuntimeError(
+            f"Apify discovery actor did not succeed: {final.get('status') or 'UNKNOWN'}"
+        )
+
+    try:
+        items = api(token, "GET", f"/datasets/{dataset_id}/items?clean=true")
+    except Exception as error:
+        checkpoint({**final, "dataError": str(error)})
+        raise
+    return "SUCCEEDED", items
 
 
 def existing_handles(queue_path: Path) -> set[str]:
@@ -128,8 +219,10 @@ def collect_followees(
     seeds: list[str],
     max_items: int,
     raw_path: Path,
+    checkpoint: Any,
 ) -> dict[str, list[str]]:
     raw = load(raw_path, {})
+    failures = []
     for original in seeds:
         seed = original.lstrip("@").strip().lower()
         if seed in raw:
@@ -140,9 +233,12 @@ def collect_followees(
                 token,
                 FOLLOW_ACTOR,
                 {"username": seed, "scrape_type": "following", "max_items": max_items},
+                checkpoint=checkpoint,
+                operation=f"collect-followees:{seed}",
             )
         except Exception as error:
             print(f"[followee] {seed}: ERROR {error}")
+            failures.append(seed)
             continue
         handles = {
             str(item.get("username") or item.get("handle") or item.get("user_name") or "")
@@ -153,6 +249,11 @@ def collect_followees(
         raw[seed] = sorted(handle for handle in handles if handle)
         save(raw_path, raw)
         print(f"[followee] {seed}: status={status} unique={len(raw[seed])}")
+    if failures:
+        raise RuntimeError(
+            "followee discovery failed and was not cached for: "
+            + ", ".join(failures)
+        )
     return raw
 
 
@@ -161,8 +262,10 @@ def collect_hashtags(
     tags: list[str],
     limit: int,
     raw_path: Path,
+    checkpoint: Any,
 ) -> dict[str, list[str]]:
     raw = load(raw_path, {})
+    failures = []
     for original in tags:
         tag = original.lstrip("#").strip().lower()
         if tag in raw:
@@ -173,9 +276,12 @@ def collect_hashtags(
                 token,
                 HASHTAG_ACTOR,
                 {"hashtags": [tag], "resultsLimit": limit},
+                checkpoint=checkpoint,
+                operation=f"collect-hashtags:{tag}",
             )
         except Exception as error:
             print(f"[hashtag] #{tag}: ERROR {error}")
+            failures.append(tag)
             continue
         handles = {
             str(item.get("ownerUsername") or item.get("owner_username") or "")
@@ -186,6 +292,11 @@ def collect_hashtags(
         raw[tag] = sorted(handle for handle in handles if handle)
         save(raw_path, raw)
         print(f"[hashtag] #{tag}: status={status} unique={len(raw[tag])}")
+    if failures:
+        raise RuntimeError(
+            "hashtag discovery failed and was not cached for: "
+            + ", ".join(failures)
+        )
     return raw
 
 
@@ -229,6 +340,7 @@ def enrich_candidates(
     raw_followees_path: Path,
     raw_hashtags_path: Path,
     profiles_path: Path,
+    checkpoint: Any,
 ) -> None:
     candidates = all_raw_candidates(
         queue_path,
@@ -249,7 +361,13 @@ def enrich_candidates(
     )
     for offset in range(0, len(todo), 50):
         chunk = todo[offset : offset + 50]
-        status, items = run_actor(token, PROFILE_ACTOR, {"usernames": chunk})
+        status, items = run_actor(
+            token,
+            PROFILE_ACTOR,
+            {"usernames": chunk},
+            checkpoint=checkpoint,
+            operation=f"enrich-candidates:{offset}:{len(chunk)}",
+        )
         for row in items:
             username = str(row.get("username") or "").lower()
             if username:
@@ -314,6 +432,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--queue", type=Path, required=True)
     parser.add_argument("--out", type=Path, default=OUT)
+    parser.add_argument("--run-report", type=Path, default=None)
+    parser.add_argument("--sweep-id", default=None)
     parser.add_argument(
         "--execute",
         action="store_true",
@@ -331,7 +451,7 @@ def main(argv: list[str] | None = None) -> int:
     commands.add_parser("filter")
     commands.add_parser("stats")
     args = parser.parse_args(argv)
-    load_required_queue(args.queue)
+    queue = load_required_queue(args.queue)
     raw_followees_path = args.out / "raw_followees.json"
     raw_hashtags_path = args.out / "raw_hashtags.json"
     profiles_path = args.out / "profiles.json"
@@ -364,14 +484,36 @@ def main(argv: list[str] | None = None) -> int:
             f"queue={args.queue}. Pass --execute to run."
         )
         return 0
+    if not args.sweep_id:
+        parser.error("--sweep-id is required with --execute")
 
     token = load_token()
+    run_report_path = args.run_report or args.out / "apify-discovery-run-report.json"
+
+    def checkpoint_actor_run(record: dict[str, Any]) -> None:
+        update_json_locked(
+            run_report_path,
+            {},
+            lambda current: merge_run_report(
+                current,
+                sweep_id=args.sweep_id,
+                checked_at=utc_now(),
+                run_slice={
+                    "command": args.command,
+                    "queueRecords": len(queue),
+                },
+                summary={"command": args.command},
+                actor_runs=[record],
+            ),
+        )
+
     if args.command == "collect-followees":
         collect_followees(
             token,
             args.seeds.split(","),
             args.max,
             raw_followees_path,
+            checkpoint_actor_run,
         )
     elif args.command == "collect-hashtags":
         collect_hashtags(
@@ -379,6 +521,7 @@ def main(argv: list[str] | None = None) -> int:
             args.tags.split(","),
             args.limit,
             raw_hashtags_path,
+            checkpoint_actor_run,
         )
     else:
         enrich_candidates(
@@ -388,6 +531,7 @@ def main(argv: list[str] | None = None) -> int:
             raw_followees_path=raw_followees_path,
             raw_hashtags_path=raw_hashtags_path,
             profiles_path=profiles_path,
+            checkpoint=checkpoint_actor_run,
         )
     return 0
 
