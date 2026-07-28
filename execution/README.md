@@ -2,6 +2,91 @@
 
 Maps each directive to the scripts, services, and API routes that implement it. No files were moved — this is a reference index.
 
+## Artist discovery and quarterly refresh
+
+The Instagram operator path is deliberately split into three auditable stages:
+
+1. `discover_ig.py` collects and profiles possible new handles, then writes
+   every accepted and rejected candidate to `data/discovery/candidates.json`.
+   It requires an explicit valid `--queue`; paid collection and profiling also
+   require `--execute --sweep-id <id>`. Discovery writes its own
+   `apify-discovery-run-report.json` spend ledger and caches a seed, hashtag,
+   or profile chunk only after the actor reaches terminal `SUCCEEDED`.
+2. `apify_ig_enrich.py` refreshes known handles. The shared
+   `ig_quality.py` gate is on by default; `--no-filter` is the explicit,
+   audited override. The command is dry-run by default; paid actor work
+   requires `--execute` and an explicit valid `--queue`. With no `--count`,
+   it processes the rest of that queue rather than a hidden default slice.
+3. `scripts/host-artist-images.mjs` hosts accepted images and
+   `scripts/apply-artist-refresh-status.mjs` applies the separate freshness
+   ledger. The status applier is dry-run by default.
+
+The refresh distinguishes confirmed `not_found` / `private` observations from
+transient actor or network failures. Three consecutive confirmed dead
+observations mark an artist stale. A confirmed active profile clears stale;
+transient failures never create or clear it. One sweep ID gets one observation
+per handle, so retries or overlapping workers cannot manufacture the three
+dead observations. A later confirmed active/dead result in the same sweep can
+replace an earlier transient result. Ledger state is checkpointed only after
+the profile/quarantine/audit effects complete, and audit event IDs make crash
+retries idempotent.
+
+Rejected and confirmed-dead profile files move into the local
+`apify-profiles/quarantine/` directory instead of being deleted. Every
+decision is appended to `refresh-audit.jsonl`. This keeps repeated runs
+idempotent without destroying review evidence.
+
+### Classifier limits
+
+The filter is conservative but heuristic:
+
+- A private individual artist is rejected because enrichment cannot verify
+  their current work or booking signal.
+- A studio bio containing “our artists,” hiring language, or multi-artist
+  booking language can reject an otherwise legitimate resident artist if the
+  profile itself is a shared shop account.
+- Sparse bios can pass as `tattoo-artist(weak)` when they clearly identify the
+  craft but provide no booking link.
+- Mixed tattoo/piercing accounts and unusually worded product promotions may
+  still require manual review.
+
+Tune the shared rules in `ig_quality.py` with focused tests. Do not silently
+delete rejections or maintain a second classifier in another pipeline.
+
+### Cadence and cost gate
+
+There is intentionally no quarterly schedule yet. Each Apify run writes
+`apify-run-report.json`, including `usageTotalUsd` when Apify supplies it.
+Pass one `--sweep-id` across every batch; both discovery and refresh reports
+deduplicate paid attempts
+and accumulate cost rather than overwriting the prior slice. The total stays
+unknown when any POST outcome is ambiguous or any identified actor run is
+non-terminal or lacks pricing. The report exposes the known subtotal,
+missing/non-terminal/ambiguous counts, and `incomplete` status instead of
+presenting a partial sum as complete. A durable ambiguous-spend checkpoint is
+written before POST and updated as soon as a run ID or terminal result exists,
+so a crash cannot erase paid-attempt evidence.
+After the host stage, capture GCS cost from the billing export and attach both
+amounts to the run record. Only schedule the sweep after one complete,
+measured run has an approved spend cap. The nightly crew runner is unrelated
+and must not launch this paid job.
+
+`enrich_all.sh`, `parallel_enrich.sh`, and the compatibility
+`enrich_artists.py` entrypoint all route into the audited runner. The shell
+runners require `--execute`, a stable `--sweep-id`, and an explicit queue.
+The parallel wrapper treats `--workers` as concurrency and schedules slices
+until the whole queue is covered. Parallel processes merge the ledger and cost
+report under file locks and audit-log appends are serialized. Supply
+`APIFY_TOKEN` only through the process environment; both discovery and refresh
+send it in an authorization header and never place it in a URL.
+
+Refresh/import writers may update portfolio, the audited `looksBookable`
+verdict/reason, and refresh-health properties only. Artist-owned profile
+fields (including `artistManagedFields` and
+`profileManagedAtEpochMs`) remain authoritative and must never be overwritten
+by a scrape. Instagram is immutable after identity verification, and
+`claimVerificationStatus` is verification state rather than scrape data.
+
 ## Directive → Implementation Map
 
 ### `directives/generate-design.md`
