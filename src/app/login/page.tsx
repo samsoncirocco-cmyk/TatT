@@ -4,7 +4,7 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
-import SlashHeadline from "@/components/punk/SlashHeadline";
+import QuietHeadline from "@/components/quiet/QuietHeadline";
 import FormField from "@/components/punk/FormField";
 import AuthBrandPanel from "@/components/punk/AuthBrandPanel";
 import { useUser } from "@/lib/tattStorage";
@@ -38,30 +38,25 @@ function LoginPageInner() {
   };
 
   return (
-    <StudioShell footer={false}>
+    <StudioShell quiet footer={false}>
       <div className="grid grid-cols-1 lg:grid-cols-2 min-h-[calc(100vh-140px)]">
         <AuthBrandPanel
+          quiet
           quote="Walked in with a prompt, walked out with a booked chair. The stencil was already in my artist's inbox."
           attribution="Dana K. — Free tier"
         />
 
         <div className="px-6 md:px-12 py-14 md:py-20 flex flex-col justify-center">
           <div className="max-w-md w-full mx-auto">
-            <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/50 font-body mb-8">
-              <span>
-                <span className="text-pink">●</span>&nbsp;&nbsp;Log In
-              </span>
-              <Link href={destination !== "/designs" ? `/signup?redirect=${encodeURIComponent(destination)}` : "/signup"} className="hover:text-pink">
-                New here?&nbsp;Sign Up
+            <div className="flex items-center justify-between text-[12px] text-quiet-dim font-body mb-10">
+              <span>Log in</span>
+              <Link href={destination !== "/designs" ? `/signup?redirect=${encodeURIComponent(destination)}` : "/signup"} className="hover:text-white">
+                New here?&nbsp;Sign up
               </Link>
             </div>
 
-            <SlashHeadline
-              before="Welcome"
-              slashed="back"
-              sizeClassName="text-[48px] sm:text-[64px] leading-[0.88]"
-            />
-            <p className="mt-4 text-[14px] text-white/60 font-body leading-[1.55]">
+            <QuietHeadline>Welcome back</QuietHeadline>
+            <p className="mt-5 text-[14px] text-quiet-dim font-body leading-[1.7]">
               Pick up where you left off.
             </p>
 
@@ -77,6 +72,7 @@ function LoginPageInner() {
               className="mt-10 space-y-6"
             >
               <FormField
+                quiet
                 id="email"
                 label="Email"
                 type="email"
@@ -86,6 +82,7 @@ function LoginPageInner() {
                 autoComplete="email"
               />
               <FormField
+                quiet
                 id="password"
                 label="Password"
                 type="password"
@@ -96,33 +93,32 @@ function LoginPageInner() {
               />
 
               {(authError || oauthError) && (
-                <div className="border-2 border-pink p-4 text-[11px] uppercase tracking-[0.2em] text-pink font-body leading-[1.5]">
-                  ▸ {authError || oauthError}
+                <div className="border border-pink/60 p-5 text-[13px] text-pink font-body leading-[1.6]">
+                  {authError || oauthError}
                 </div>
               )}
 
               <button
                 type="submit"
                 disabled={submitting}
-                className="tape press inline-flex items-center justify-center w-full px-8 py-4 font-display text-[24px] leading-none tracking-[0.02em] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="press inline-flex items-center justify-center w-full px-8 py-4 font-body text-[15px] leading-none bg-quiet text-black hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {submitting ? "Signing in…" : "Log In"}
-                <span className="ml-3 text-[18px]">▸</span>
+                {submitting ? "Signing in…" : "Log in"}
               </button>
             </form>
 
-            <div className="mt-10 flex items-center gap-4">
-              <div className="flex-1 border-t hairline" />
-              <span className="text-[10px] uppercase tracking-[0.25em] text-white/50 font-body">
+            <div className="mt-12 flex items-center gap-4">
+              <div className="flex-1 border-t hairline-quiet-soft" />
+              <span className="text-[12px] text-quiet-dim font-body">
                 Or continue with
               </span>
-              <div className="flex-1 border-t hairline" />
+              <div className="flex-1 border-t hairline-quiet-soft" />
             </div>
 
-            <div className="mt-8 grid grid-cols-3 gap-3">
+            <div className="mt-10 grid grid-cols-3 gap-3">
               <button
                 onClick={handleGoogle}
-                className="text-[10px] uppercase tracking-[0.2em] text-white/70 hover:text-black hover:bg-pink border-2 hairline px-3 py-3 press font-body"
+                className="text-[12px] text-quiet hover:text-black hover:bg-quiet border hairline-quiet px-3 py-3 press font-body"
               >
                 Google
               </button>
@@ -131,7 +127,7 @@ function LoginPageInner() {
                   key={p}
                   disabled
                   title="Coming soon"
-                  className="text-[10px] uppercase tracking-[0.2em] text-white/30 border-2 hairline-soft px-3 py-3 font-body cursor-not-allowed"
+                  className="text-[12px] text-white/30 border hairline-quiet-soft px-3 py-3 font-body cursor-not-allowed"
                 >
                   {p}&nbsp;·&nbsp;Soon
                 </button>
