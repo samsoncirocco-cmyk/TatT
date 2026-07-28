@@ -16,6 +16,7 @@ import { PUBLIC_ARTIST_CLAUSE } from "@/lib/artist-visibility";
 import {
   filterPermalinksForDisplay,
   filterPortfolioForDisplay,
+  isClaimed,
 } from "@/lib/portfolio-display";
 import { CANONICAL_STYLES, styleMatchVariants } from "@/lib/style-vocabulary";
 
@@ -50,6 +51,9 @@ export type RosterArtist = {
    *  (filterPermalinksForDisplay). Rendered as official Instagram embeds on
    *  the profile page ONLY — card grids never mount iframes. */
   portfolioPermalinks: string[];
+  /** Whether the artist has claimed this profile (`claimedByUid`). The
+   *  provenance label (ADR-0033) renders on profile pages when false. */
+  claimed: boolean;
 };
 
 export type RosterPage = {
@@ -137,6 +141,7 @@ export function toRosterArtist(record: any): RosterArtist {
     // and only while ENABLE_IG_EMBEDS=true — [] otherwise, so this field is
     // inert until the flag is deliberately flipped.
     portfolioPermalinks: filterPermalinksForDisplay(record),
+    claimed: isClaimed(record),
   };
 }
 

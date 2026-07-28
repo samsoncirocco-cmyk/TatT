@@ -190,25 +190,39 @@ export default async function ArtistProfilePage({
               )}
             </div>
 
-            {/* This profile was built from public listings without the artist's
-                consent. If they find it, both endings must be one click away:
-                run it, or have it removed. See docs/adr/0025. */}
-            <p className="mt-10 pt-6 border-t hairline font-body text-[11px] text-white/40 leading-[1.6]">
-              Is this you?{" "}
-              <Link
-                href={`/claim/${encodeURIComponent(artist.id)}`}
-                className="text-white/60 hover:text-pink press"
-              >
-                Claim this profile
-              </Link>
-              {" · "}
-              <Link
-                href={`/takedown/${encodeURIComponent(artist.id)}`}
-                className="text-white/60 hover:text-pink press"
-              >
-                Have it removed
-              </Link>
-            </p>
+            {/* Provenance label (ADR-0033 law 3): an unclaimed profile says
+                plainly that it is unclaimed and where the work comes from,
+                with credit — and keeps both endings one click away: run it,
+                or have it removed (docs/adr/0025). Profile page only; roster
+                cards stay unlabeled. Claimed artists run their own profile,
+                so none of this renders for them. */}
+            {!artist.claimed && (
+              <div className="mt-10 pt-6 border-t hairline font-body text-[11px] text-white/40 leading-[1.6]">
+                {/* wording pending counsel review (TAT-31) */}
+                <p>
+                  This profile is unclaimed — {artist.name} hasn&apos;t taken it
+                  over yet. The work shown here is {artist.name}&apos;s, from
+                  their public Instagram
+                  {artist.instagram ? <> ({artist.instagram})</> : null}.
+                </p>
+                <p className="mt-2">
+                  Are you {artist.name}?{" "}
+                  <Link
+                    href={`/claim/${encodeURIComponent(artist.id)}`}
+                    className="text-white/60 hover:text-pink press"
+                  >
+                    Claim your profile
+                  </Link>
+                  {" · "}
+                  <Link
+                    href={`/takedown/${encodeURIComponent(artist.id)}`}
+                    className="text-white/60 hover:text-pink press"
+                  >
+                    Have it removed
+                  </Link>
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
