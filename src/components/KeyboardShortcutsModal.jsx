@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { X, Keyboard } from 'lucide-react';
+import { Keyboard } from 'lucide-react';
 
 const SHORTCUTS = [
     {
@@ -101,29 +101,27 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }) {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <div className="studio-glass rounded-3xl border border-white/10 max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 halftone">
+            <div className="bg-black border-2 border-pink max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-white/10">
+                <div className="flex items-center justify-between px-6 py-4 border-b-2 hairline">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-[rgba(0,255,65,0.2)] flex items-center justify-center">
-                            <Keyboard className="w-5 h-5 text-studio-neon" />
-                        </div>
+                        <Keyboard className="w-5 h-5 text-pink" />
                         <div>
-                            <h2 className="text-2xl font-display font-black text-white">
+                            <h2 className="text-[20px] font-display tracking-wide uppercase text-white leading-none">
                                 Keyboard Shortcuts
                             </h2>
-                            <p className="text-xs font-mono text-studio-neon uppercase tracking-wider">
-                                Master The Studio
+                            <p className="mt-1 text-[10px] font-body text-pink uppercase tracking-[0.25em]">
+                                <span className="text-pink">●</span>&nbsp;&nbsp;Master The Studio
                             </p>
                         </div>
                     </div>
                     <button
                         onClick={onClose}
-                        className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center"
+                        className="text-[10px] font-body uppercase tracking-[0.22em] text-white/60 hover:text-pink"
                         aria-label="Close"
                     >
-                        <X className="w-5 h-5 text-white" />
+                        Close ✕
                     </button>
                 </div>
 
@@ -133,7 +131,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }) {
                         {SHORTCUTS.map((category, idx) => (
                             <div key={idx} className="space-y-4">
                                 {/* Category Title */}
-                                <h3 className="text-sm font-bold text-studio-neon uppercase tracking-wider">
+                                <h3 className="text-[12px] font-display text-pink uppercase tracking-[0.22em]">
                                     {category.category}
                                 </h3>
 
@@ -148,7 +146,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }) {
                                             <div className="flex items-center gap-2 flex-shrink-0">
                                                 {shortcut.keys.map((key, keyIdx) => (
                                                     <div key={keyIdx} className="flex items-center gap-1">
-                                                        <kbd className="px-2 py-1 text-xs font-mono font-bold bg-white/10 border border-white/20 rounded text-white min-w-[2rem] text-center">
+                                                        <kbd className="px-2 py-1 text-[11px] font-body bg-white/10 border hairline-white text-white min-w-[2rem] text-center">
                                                             {formatKey(key)}
                                                         </kbd>
                                                         {keyIdx < shortcut.keys.length - 1 && (
@@ -171,14 +169,14 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }) {
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 border-t border-white/10 bg-white/5">
+                <div className="px-6 py-4 border-t-2 hairline">
                     <div className="flex items-center justify-between">
-                        <p className="text-xs text-white/50">
-                            Press <kbd className="px-2 py-1 text-xs font-mono bg-white/10 border border-white/20 rounded">?</kbd> or <kbd className="px-2 py-1 text-xs font-mono bg-white/10 border border-white/20 rounded">/</kbd> anytime to open this menu
+                        <p className="text-[11px] text-white/50 font-body">
+                            Press <kbd className="px-2 py-1 text-[11px] font-body bg-white/10 border hairline-white">?</kbd> or <kbd className="px-2 py-1 text-[11px] font-body bg-white/10 border hairline-white">/</kbd> anytime to open this menu
                         </p>
                         <button
                             onClick={onClose}
-                            className="px-4 py-2 bg-studio-accent text-white font-black text-sm rounded-xl hover:bg-[rgba(255,62,0,0.9)] transition-colors"
+                            className="press px-4 py-2 bg-pink text-black font-display uppercase text-[12px] tracking-[0.2em] hover:bg-pink-deep"
                         >
                             Got it
                         </button>
