@@ -192,16 +192,22 @@ export default async function ArtistProfilePage({
 
             {/* This profile was built from public listings without the artist's
                 consent. If they find it, both endings must be one click away:
-                run it, or have it removed. See docs/adr/0025. */}
+                run it, or have it removed. See docs/adr/0025. Once claimed,
+                the claim door disappears — the profile already has an owner,
+                and /claim would only 403 anyone else (TAT-16). */}
             <p className="mt-10 pt-6 border-t hairline font-body text-[11px] text-white/40 leading-[1.6]">
               Is this you?{" "}
-              <Link
-                href={`/claim/${encodeURIComponent(artist.id)}`}
-                className="text-white/60 hover:text-pink press"
-              >
-                Claim this profile
-              </Link>
-              {" · "}
+              {!artist.claimed && (
+                <>
+                  <Link
+                    href={`/claim/${encodeURIComponent(artist.id)}`}
+                    className="text-white/60 hover:text-pink press"
+                  >
+                    Claim this profile
+                  </Link>
+                  {" · "}
+                </>
+              )}
               <Link
                 href={`/takedown/${encodeURIComponent(artist.id)}`}
                 className="text-white/60 hover:text-pink press"
