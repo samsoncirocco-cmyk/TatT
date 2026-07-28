@@ -22,6 +22,15 @@ export default {
         cream: {
           DEFAULT: '#e8d9b8',
         },
+        // QUIET DARK (ADR-0032) — the calm register's warm-gray band and the
+        // single light "receipt" card allowed on a final money summary.
+        quiet: {
+          DEFAULT: '#c9c5be',
+          dim: '#a8a49c',
+        },
+        receipt: {
+          DEFAULT: '#f2efe9',
+        },
         // Legacy migrated pages still use the old Ducks palette names.
         // Keep those classes compiling, but force them into the pop-punk system.
         ducks: {
