@@ -2,7 +2,7 @@
 status: accepted
 ---
 
-# Copy laws: the name flip, the money sentence, the provenance label
+# ADR 0036 — Copy laws: the name flip, the money sentence, the provenance label
 
 Facelift grill, 2026-07-27. Three standing rules for every user-facing string,
 enforced from now on:

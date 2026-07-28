@@ -2,7 +2,7 @@
 status: accepted
 ---
 
-# Two-register design system: punk face, calm hands
+# ADR 0035 — Two-register design system: punk face, calm hands
 
 Facelift grill, 2026-07-27. The site's customer is an anxious first-timer about
 to make a permanent decision and hand over a deposit; the brand is pop-punk

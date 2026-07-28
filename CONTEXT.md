@@ -36,7 +36,7 @@ afraid of regret and of their own lack of artistic ability; found via
 TikTok/IG. The front door speaks to them; artists get a separate pitch.
 _Avoid_: user, customer (when the audience or emotional state matters)
 
-### Design system (ADR-0032, ADR-0033)
+### Design system (ADR-0035, ADR-0036)
 
 **Register**:
 Which volume a surface speaks at. Two exist: Loud (the punk face — discovery
