@@ -327,17 +327,18 @@ the code survives at `archive/security-hardening-followups`.
 
 ## Backlog
 
-- **TECH DEBT — retire the CANONICAL_STYLES bridge (2026-07-23):** the match
-  flow (`src/lib/design-style-signal`, smart-match pills, `/api/v1/match/
-  semantic`) runs on its own pre-ontology style list; the design-bot phase-3
-  work bridges ontology tag ids → CANONICAL_STYLES with an explicit mapping
-  (no fuzzy matching, unmappable tags dropped and logged). This is exactly
-  the two-vocabularies drift problem ADR-0010/0011 exist to prevent — the
-  bridge is a stopgap. Fix: migrate the match flow (pills, semantic query,
-  artist tags in Neo4j/Supabase) onto `data/style-ontology.json` as the
-  single controlled vocabulary, then delete the mapping. A mapping unit test
-  reads the live ontology so any newly approved tag that lacks a bridge
-  entry fails loudly until then.
+- **TECH DEBT — retire the CANONICAL_STYLES bridge — PARTIAL 2026-07-25,
+  PR #166:** `src/lib/style-vocabulary.ts` now derives the active match/roster
+  vocabulary from `data/style-ontology.json` plus the checked-in live graph
+  snapshot. Smart-match, the semantic API, artist filters and settings share
+  it; live-file tests fail on drift. The old hand-written bridge is gone.
+  TAT-6 remains open because the legacy Supabase artist generator at
+  `scripts/generate-tattoo-artists-data.js` still hardcodes a separate
+  20-style list and its checked-in batches preserve that vocabulary. Migrate
+  or retire that path before calling the single-vocabulary acceptance complete.
+  Trash Polka and Sketch are pending in
+  `data/ontology-proposals.json` for the normal human approve/merge/reject
+  decision — they were not hand-added to the ontology.
 
 - **Forge polish (from 2026-07-20 UX review):** ~~(1) raise the tape-label
   font-size floor to ~10px (7-9px "SELECTED"/"LINES" labels fail WCAG

@@ -1,6 +1,6 @@
 ---
 status: current
-verified_against: 2131a00
+verified_against: 51057b4
 verified_on: 2026-07-27
 ---
 
@@ -25,6 +25,7 @@ those module interfaces, not through the repository's historical
 | Booking | `src/lib/scheduling-engine.ts`, booking routes, and checkout | Resolve booking mode, reserve inventory, collect deposits, and track state |
 | Artist calendar | `src/lib/artist-calendar.ts` and connection adapter | Authorize Google Calendar, read conflicts, and write TatT booking events |
 | Artist lifecycle | claim, takedown, reinstatement, and Connect routes | Move scraped profiles through ownership, suppression, return, and payout readiness |
+| Artist refresh hygiene | `scripts/lib/artist-refresh-status.mjs` and `src/lib/artist-visibility.ts` | Apply auditable reachability signals and keep stale or rejected profiles out of public reads |
 | Sharing | share routes and pages | Create and render addressable selected-design links |
 
 ## Primary data and infrastructure
@@ -68,6 +69,17 @@ reinstatement all touch artist state. Documentation must treat this as one
 lifecycle even though the implementation currently spans routes and graph
 helpers.
 
+### Artist freshness and public visibility
+
+[ADR 0034](../adr/0034-artist-refresh-suppression.md) makes stale and classifier
+suppression reversible graph state rather than deletion. Three consecutive
+confirmed dead/private observations suppress a profile; active evidence
+restores it, and transient failures do not change visibility. Roster, profile,
+featured, and matching reads use the shared predicate in
+`src/lib/artist-visibility.ts`. The dry-run-first applier refuses ambiguous
+identity matches and does not write artist-managed profile, ownership,
+verification, payment, or portfolio fields.
+
 ## Known architecture debt
 
 - Multiple design and matching routes implement overlapping journeys.
@@ -91,7 +103,8 @@ Focused infrastructure evidence:
 - Identity: `src/lib/api-auth.ts`, `src/lib/firebase-admin.ts`, and
   `src/lib/api-route-security.test.ts`
 - Neo4j artist and lifecycle state: `src/lib/artists-graph.ts`,
-  `src/lib/takedown-graph.ts`, and `src/lib/reinstatement-graph.ts`
+  `src/lib/takedown-graph.ts`, `src/lib/reinstatement-graph.ts`,
+  `src/lib/artist-visibility.ts`, and `scripts/lib/artist-refresh-status.mjs`
 - Semantic matching: `src/config/vectorDbConfig.js` and
   `src/app/api/v1/match/semantic/route.ts`
 - Storage: `src/services/storage/index.ts` and

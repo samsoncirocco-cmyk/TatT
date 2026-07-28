@@ -1,5 +1,5 @@
 schema_version: 1
-verified_against: 8db5d3e
+verified_against: c97392f
 verified_on: 2026-07-27
 
 statuses:
@@ -148,6 +148,18 @@ features:
       - src/app/artists/[slug]/ReinstateDoor.tsx
       - src/app/api/v1/artists/reinstate/route.test.ts
       - src/lib/reinstatement.test.ts
+
+  artist_refresh_suppression:
+    status: implemented_unverified
+    evidence:
+      - docs/adr/0034-artist-refresh-suppression.md
+      - scripts/lib/artist-refresh-status.mjs
+      - scripts/lib/artist-refresh-status.test.mjs
+      - src/lib/artist-visibility.ts
+      - src/lib/artist-visibility.test.ts
+    limitations:
+      - No production refresh-status apply has been verified.
+      - Full-sweep Apify and GCS cost, spend approval, and quarterly scheduling remain open under TAT-7.
 
   artist_console:
     status: implemented
