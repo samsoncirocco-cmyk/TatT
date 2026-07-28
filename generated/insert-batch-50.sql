@@ -13,7 +13,7 @@ INSERT INTO tattoo_artists (
       'https://tatt.example.com/artists/53c3b017-2e65-4a4e-9d3c-f3660f961cf3',
       false,
       '2025-09-29T13:28:22.034Z'::TIMESTAMPTZ,
-      ARRAY['Photo Realism','Realism','Fine Line','Dotwork']::TEXT[],
+      ARRAY['Realism','Fine Line','Dotwork']::TEXT[],
       ARRAY['Earth Tones']::TEXT[],
       ARRAY['Horror','Medical Cover-up']::TEXT[]
     ),
@@ -111,7 +111,7 @@ INSERT INTO tattoo_artists (
       'https://tatt.example.com/artists/4c7ea194-1f50-4b2a-8f24-d2d0b24bc66b',
       true,
       '2025-10-16T02:40:17.576Z'::TIMESTAMPTZ,
-      ARRAY['Photo Realism']::TEXT[],
+      ARRAY['Realism']::TEXT[],
       ARRAY['Black & Grey','Full Color']::TEXT[],
       ARRAY['Cultural','Cover-ups','Nature']::TEXT[]
     ),
@@ -153,7 +153,7 @@ INSERT INTO tattoo_artists (
       'https://tatt.example.com/artists/8a8c0c3d-3d2a-4d3e-9198-57851dcc0ceb',
       true,
       '2025-07-14T07:30:57.719Z'::TIMESTAMPTZ,
-      ARRAY['Fine Line','Watercolor','Photo Realism']::TEXT[],
+      ARRAY['Fine Line','Watercolor','Realism']::TEXT[],
       ARRAY['Bold Colors','Black Only']::TEXT[],
       ARRAY['Animal','Cover-ups','Small Delicate','Geometric']::TEXT[]
     ),
@@ -251,7 +251,7 @@ INSERT INTO tattoo_artists (
       'https://tatt.example.com/artists/1102a9cd-7f97-4a17-96ce-924c970e5237',
       true,
       '2025-12-08T05:38:11.596Z'::TIMESTAMPTZ,
-      ARRAY['Portrait','Watercolor','Fine Line','Photo Realism']::TEXT[],
+      ARRAY['Portrait','Watercolor','Fine Line','Realism']::TEXT[],
       ARRAY['Bold Colors']::TEXT[],
       ARRAY['Small Delicate','Mandala','Watercolor']::TEXT[]
     ),
@@ -573,7 +573,7 @@ INSERT INTO tattoo_artists (
       'https://tatt.example.com/artists/36bff623-8338-4cc4-82d8-373df9ccd392',
       false,
       '2025-01-06T13:31:23.155Z'::TIMESTAMPTZ,
-      ARRAY['Surrealism','Photo Realism','Minimalist']::TEXT[],
+      ARRAY['Surrealism','Realism','Minimalist']::TEXT[],
       ARRAY['Black & Grey','Vibrant','Full Color']::TEXT[],
       ARRAY['Portraits']::TEXT[]
     ),
@@ -671,7 +671,7 @@ INSERT INTO tattoo_artists (
       'https://tatt.example.com/artists/6a1b14c6-36c6-43a0-9240-34ab16b32b53',
       false,
       '2025-09-15T03:25:42.890Z'::TIMESTAMPTZ,
-      ARRAY['Photo Realism','Tribal']::TEXT[],
+      ARRAY['Realism','Tribal']::TEXT[],
       ARRAY['Black & Grey','Full Color','Monochrome']::TEXT[],
       ARRAY['Floral','Portraits','Minimalist','Horror','Cultural']::TEXT[]
     ),

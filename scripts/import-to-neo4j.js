@@ -52,6 +52,7 @@ import {
   loadTombstoneGate,
   neo4jTombstoneReader,
 } from './lib/takedown-tombstone.mjs';
+import { normalizeGraphStyleList } from './lib/artist-styles.mjs';
 
 // Load environment variables (.env then .env.local overrides)
 dotenv.config();
@@ -498,7 +499,18 @@ async function main() {
     // would silently re-ingest everyone who asked to be removed
     // (docs/adr/0025 §4).
     const gate = await loadTombstoneGate(neo4jTombstoneReader(session));
-    const { allowed: artists, blocked } = filterTombstoned(gate, artistsData.artists);
+    const { allowed, blocked } = filterTombstoned(gate, artistsData.artists);
+    const artists = allowed.map((artist) => ({
+      ...artist,
+      styles: normalizeGraphStyleList(
+        artist.styles ?? [],
+        `artist ${artist.id ?? artist.name ?? 'unknown'}`,
+      ),
+    }));
+    const graphStyles = normalizeGraphStyleList(
+      (artistsData.styles ?? []).filter((style) => style !== 'All Styles'),
+      'artists.json style index',
+    );
     console.log(`\n🪦 Takedown gate: ${gate.keyCount} tombstone key(s) loaded.`);
     if (blocked.length) {
       console.log(`⛔ Skipping ${blocked.length} tombstoned artist(s):`);
@@ -507,7 +519,7 @@ async function main() {
       }
     }
 
-    await importStyles(session, artistsData.styles);
+    await importStyles(session, graphStyles);
     await importArtists(session, artists);
     await importStyleRelationships(session, artists);
     await importTattoos(session, artists);
