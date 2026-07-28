@@ -7,6 +7,7 @@ import {
   stylesFromDescriptors,
   parseStylesParam,
   artistsUrlForDesign,
+  smartMatchUrlForDesign,
   canonicalStylesFromOntologyTags,
 } from "./design-style-signal";
 import { canonicalStyleForTag } from "./style-vocabulary";
@@ -210,5 +211,37 @@ describe("artistsUrlForDesign", () => {
     const params = new URLSearchParams(url.split("?")[1]);
     expect(params.get("style")).toBe("Neo-Traditional");
     expect(CANONICAL_STYLES).toContain(params.get("style"));
+  });
+});
+
+describe("smartMatchUrlForDesign", () => {
+  it("prefers the design-session id — the brief outranks any prompt signal", () => {
+    expect(smartMatchUrlForDesign("neo-traditional rose", "sess-42")).toBe(
+      "/smart-match?ds=sess-42",
+    );
+  });
+
+  it("URL-encodes session ids safely", () => {
+    expect(smartMatchUrlForDesign("", "sess/odd id")).toBe(
+      `/smart-match?ds=${encodeURIComponent("sess/odd id")}`,
+    );
+  });
+
+  it("carries extracted styles as ?styles= when no session exists", () => {
+    const url = smartMatchUrlForDesign("skull, heavy black linework, traditional flash");
+    const params = new URLSearchParams(url.split("?")[1]);
+    expect(url.startsWith("/smart-match?")).toBe(true);
+    expect(params.get("styles")).toBe("Traditional,Blackwork");
+  });
+
+  it("round-trips through parseStylesParam", () => {
+    const url = smartMatchUrlForDesign("neo-traditional rose, fine line");
+    const params = new URLSearchParams(url.split("?")[1]);
+    expect(parseStylesParam(params.get("styles"))).toEqual(["Neo-Traditional", "Fine Line"]);
+  });
+
+  it("hands off clean when the prompt names no style and no session exists", () => {
+    expect(smartMatchUrlForDesign("a cool dragon on my arm")).toBe("/smart-match");
+    expect(smartMatchUrlForDesign("")).toBe("/smart-match");
   });
 });

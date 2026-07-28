@@ -48,3 +48,49 @@ describe("DesignDetailPage — share action", () => {
     expect(await screen.findByText("▸ Sign in to share")).toBeTruthy();
   });
 });
+
+describe("DesignDetailPage — funnel CTAs", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("routes to the AR mirror with this design preselected", async () => {
+    const { id } = addDesignToStorage("a tiger", {
+      image: "https://cdn.example.com/cut.png",
+    });
+
+    await renderDetail(id);
+
+    expect(
+      screen.getByRole("link", { name: /see it on your skin/i }).getAttribute("href")
+    ).toBe(`/visualize?${new URLSearchParams({ design: id }).toString()}`);
+  });
+
+  it("threads the design-session id into both forward CTAs when the cut has one", async () => {
+    const { id } = addDesignToStorage("a tiger", {
+      image: "https://cdn.example.com/cut.png",
+      sessionId: "sess-7",
+    });
+
+    await renderDetail(id);
+
+    expect(
+      screen.getByRole("link", { name: /see it on your skin/i }).getAttribute("href")
+    ).toBe(`/visualize?${new URLSearchParams({ design: id, ds: "sess-7" }).toString()}`);
+    expect(
+      screen.getByRole("link", { name: /find your artist/i }).getAttribute("href")
+    ).toBe("/smart-match?ds=sess-7");
+  });
+
+  it("falls back to the prompt's style signal for sessionless cuts", async () => {
+    const { id } = addDesignToStorage("heavy black linework skull", {
+      image: "https://cdn.example.com/cut.png",
+    });
+
+    await renderDetail(id);
+
+    expect(
+      screen.getByRole("link", { name: /find your artist/i }).getAttribute("href")
+    ).toBe(`/smart-match?${new URLSearchParams({ styles: "Blackwork" }).toString()}`);
+  });
+});
