@@ -17,6 +17,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import StudioShell from '@/components/studio/StudioShell';
+import QuietHeadline from '@/components/quiet/QuietHeadline';
 import { useAuth } from '@/hooks/useAuth';
 import type { BookingStatus, BookingStatusEvent, RequestedSlot } from '@/lib/booking';
 
@@ -190,78 +191,68 @@ export default function ConsolePage() {
   const displayName = artist?.name ?? artist?.id ?? '';
 
   return (
-    <StudioShell>
-      <div className="px-6 md:px-12 pt-6 pb-4 border-b hairline">
-        <div className="max-w-4xl mx-auto flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/50 tabular-nums font-body">
-          <span>
-            <span className="text-pink">●</span>&nbsp;&nbsp;Artist Console
-          </span>
+    <StudioShell quiet>
+      <div className="px-6 md:px-12 pt-8 pb-6 border-b hairline-quiet-soft">
+        <div className="max-w-4xl mx-auto flex items-center justify-between text-[12px] text-quiet-dim tabular-nums font-body">
+          <span>Artist console</span>
           {artist && (
-            <span>
-              Artist:&nbsp;<span className="text-pink">{displayName}</span>
-            </span>
+            <span>Artist: {displayName}</span>
           )}
         </div>
       </div>
 
-      <div className="px-6 md:px-12 py-16 md:py-20">
+      <div className="px-6 md:px-12 py-24 md:py-32">
         <div className="max-w-4xl mx-auto">
           {/* ── Signed out ─────────────────────────────────────────── */}
           {!loading && !isAuthenticated && (
             <div>
-              <h1 className="font-display text-white text-[40px] md:text-[64px] leading-[0.9]">
-                Your studio desk<span className="text-pink">.</span>
-              </h1>
-              <p className="mt-6 text-[15px] text-white/70 font-body max-w-xl leading-[1.55]">
+              <QuietHeadline>Your studio desk</QuietHeadline>
+              <p className="mt-8 text-[15px] text-quiet-dim font-body max-w-xl leading-[1.7]">
                 Bookings, availability and payouts — sign in to see yours.
               </p>
               <button
                 type="button"
                 onClick={() => void loginWithGoogle()}
-                className="mt-10 inline-flex items-center justify-center px-8 py-4 font-display text-[20px] leading-none tracking-[0.02em] press tape"
+                className="mt-12 inline-flex items-center justify-center px-8 py-4 font-body text-[14px] leading-none press bg-quiet text-black hover:bg-white"
               >
                 Log in with Google
-                <span className="ml-2 text-[14px]">▸</span>
               </button>
             </div>
           )}
 
           {/* ── Resolving ──────────────────────────────────────────── */}
           {(loading || (isAuthenticated && artist === undefined && !error)) && (
-            <div className="font-body text-[12px] uppercase tracking-[0.28em] text-white/60">
-              <span className="text-pink">●</span>&nbsp;&nbsp;Loading your console…
+            <div className="font-body text-[13px] text-quiet-dim">
+              Loading your console…
             </div>
           )}
 
           {isAuthenticated && error && (
-            <div className="border-2 border-pink bg-black p-6">
-              <div className="font-body text-[12px] uppercase tracking-[0.25em] text-pink">
+            <div className="border border-pink/60 bg-black p-6">
+              <div className="font-body text-[13px] text-pink">
                 Couldn&apos;t load your console
               </div>
-              <p className="mt-2 font-body text-[13px] text-white/70">{error}</p>
+              <p className="mt-3 font-body text-[13px] text-quiet-dim">{error}</p>
             </div>
           )}
 
           {/* ── Signed in, no claimed profile ──────────────────────── */}
           {isAuthenticated && artist === null && (
             <div>
-              <h1 className="font-display text-white text-[40px] md:text-[64px] leading-[0.9]">
-                No profile yet<span className="text-pink">.</span>
-              </h1>
-              <p className="mt-6 text-[15px] text-white/70 font-body max-w-xl leading-[1.55]">
+              <QuietHeadline>No profile yet</QuietHeadline>
+              <p className="mt-8 text-[15px] text-quiet-dim font-body max-w-xl leading-[1.7]">
                 The console is for artists who have claimed their TattTester profile. You may already be
                 listed — clients can book and leave deposits before you sign up.
               </p>
               <Link
                 href="/claim"
-                className="mt-10 inline-flex items-center justify-center px-8 py-4 font-display text-[20px] leading-none tracking-[0.02em] press tape"
+                className="mt-12 inline-flex items-center justify-center px-8 py-4 font-body text-[14px] leading-none press bg-quiet text-black hover:bg-white"
               >
                 Claim your profile
-                <span className="ml-2 text-[14px]">▸</span>
               </Link>
-              <p className="mt-8 font-body text-[13px] text-white/50">
+              <p className="mt-10 font-body text-[13px] text-quiet-dim">
                 Just here for designs?{' '}
-                <Link href="/designs" className="text-pink underline underline-offset-4">
+                <Link href="/designs" className="text-quiet underline underline-offset-4 hover:text-white">
                   Your design library
                 </Link>
                 .
@@ -272,36 +263,33 @@ export default function ConsolePage() {
           {/* ── The console proper ─────────────────────────────────── */}
           {artist && (
             <div>
-              <h1 className="font-display text-white text-[40px] md:text-[64px] leading-[0.9]">
-                {displayName}
-                <span className="text-pink">.</span>
-              </h1>
+              <QuietHeadline>{displayName}</QuietHeadline>
 
-              <div className="mt-12 grid md:grid-cols-2 gap-6">
+              <div className="mt-16 grid md:grid-cols-2 gap-8">
                 {/* Payouts */}
                 <section
                   aria-label="Payouts"
-                  className={`border-2 bg-black p-6 ${payout && payout.state !== 'enabled' ? 'border-pink' : 'hairline'}`}
+                  className="border hairline-quiet bg-black p-8"
                 >
-                  <div className="font-body text-[10px] uppercase tracking-[0.25em] text-white/50">
+                  <div className="font-body text-[12px] text-quiet-dim">
                     Payouts
                   </div>
                   {!payout && !payoutError && (
-                    <div className="mt-3 font-body text-[12px] uppercase tracking-[0.28em] text-white/60">
-                      <span className="text-pink">●</span>&nbsp;&nbsp;Checking with Stripe…
+                    <div className="mt-4 font-body text-[13px] text-quiet-dim">
+                      Checking with Stripe…
                     </div>
                   )}
                   {payout && (
                     <>
-                      <div className="mt-2 font-display text-white text-[24px] leading-none">
+                      <div className="mt-3 font-display-quiet text-quiet text-[20px] leading-none">
                         {PAYOUT_STATE_COPY[payout.state]?.title ?? 'Payout status unknown.'}
                       </div>
-                      <p className="mt-3 font-body text-[13px] text-white/70 leading-[1.55]">
+                      <p className="mt-4 font-body text-[13px] text-quiet-dim leading-[1.7]">
                         {PAYOUT_STATE_COPY[payout.state]?.body ?? ''}
                       </p>
                       {payout.heldDeposit.count > 0 && (
-                        <p className="mt-3 font-body text-[13px] text-white/70">
-                          <span className="text-pink tabular-nums">
+                        <p className="mt-4 font-body text-[13px] text-quiet-dim">
+                          <span className="text-quiet tabular-nums">
                             {formatUsd(payout.heldDeposit.amountCents)}
                           </span>{' '}
                           in deposits held for you across {payout.heldDeposit.count} booking
@@ -313,14 +301,14 @@ export default function ConsolePage() {
                           type="button"
                           disabled={payoutLinkPending}
                           onClick={() => void openStripeDashboard()}
-                          className="mt-5 inline-flex items-center px-6 py-3 border-2 hairline text-white font-display text-[16px] hover:bg-pink hover:border-pink hover:text-black press disabled:opacity-50"
+                          className="mt-6 inline-flex items-center px-6 py-3 border hairline-quiet text-quiet font-body text-[13px] hover:border-quiet hover:text-white press disabled:opacity-50"
                         >
                           {payoutLinkPending ? 'Opening Stripe…' : 'Manage payouts'}
                         </button>
                       ) : (
                         <Link
                           href={`/claim/${encodeURIComponent(artist.id)}`}
-                          className="mt-5 inline-flex items-center px-6 py-3 border-2 border-pink text-white font-display text-[16px] hover:bg-pink hover:text-black press"
+                          className="mt-6 inline-flex items-center px-6 py-3 bg-quiet text-black font-body text-[13px] hover:bg-white press"
                         >
                           Finish payout setup
                         </Link>
@@ -328,30 +316,30 @@ export default function ConsolePage() {
                     </>
                   )}
                   {payoutError && (
-                    <p className="mt-3 font-body text-[13px] text-pink">{payoutError}</p>
+                    <p className="mt-4 font-body text-[13px] text-pink">{payoutError}</p>
                   )}
                   {/* The money sentence (ADR-0033): who pays what, who keeps what. */}
-                  <p className="mt-4 pt-4 border-t hairline font-body text-[12px] text-white/50 leading-[1.6]">
+                  <p className="mt-6 pt-6 border-t hairline-quiet-soft font-body text-[13px] text-quiet leading-[1.7]">
                     Clients pay your deposit plus TattTester&apos;s booking fee — you keep
                     100% of every deposit; the fee is the only part we take.
                   </p>
                 </section>
 
                 {/* Availability */}
-                <section aria-label="Availability" className="border-2 hairline bg-black p-6">
-                  <div className="font-body text-[10px] uppercase tracking-[0.25em] text-white/50">
+                <section aria-label="Availability" className="border hairline-quiet bg-black p-8">
+                  <div className="font-body text-[12px] text-quiet-dim">
                     Availability
                   </div>
-                  <div className="mt-2 font-display text-white text-[24px] leading-none">
+                  <div className="mt-3 font-display-quiet text-quiet text-[20px] leading-none">
                     Your hours, your calendar.
                   </div>
-                  <p className="mt-3 font-body text-[13px] text-white/70 leading-[1.55]">
+                  <p className="mt-4 font-body text-[13px] text-quiet-dim leading-[1.7]">
                     Declare the hours you give TattTester, and optionally connect Google Calendar so busy
                     times are subtracted automatically.
                   </p>
                   <Link
                     href={`/artist/${encodeURIComponent(artist.id)}/availability`}
-                    className="mt-5 inline-flex items-center px-6 py-3 border-2 hairline text-white font-display text-[16px] hover:bg-pink hover:border-pink hover:text-black press"
+                    className="mt-6 inline-flex items-center px-6 py-3 border hairline-quiet text-quiet font-body text-[13px] hover:border-quiet hover:text-white press"
                   >
                     Edit availability
                   </Link>
@@ -359,54 +347,54 @@ export default function ConsolePage() {
               </div>
 
               {/* Bookings */}
-              <section aria-label="Bookings" className="mt-6 border-2 hairline bg-black p-6">
-                <div className="font-body text-[10px] uppercase tracking-[0.25em] text-white/50">
+              <section aria-label="Bookings" className="mt-8 border hairline-quiet bg-black p-8">
+                <div className="font-body text-[12px] text-quiet-dim">
                   Bookings
                 </div>
 
                 {!bookings && !bookingsError && (
-                  <div className="mt-3 font-body text-[12px] uppercase tracking-[0.28em] text-white/60">
-                    <span className="text-pink">●</span>&nbsp;&nbsp;Loading bookings…
+                  <div className="mt-4 font-body text-[13px] text-quiet-dim">
+                    Loading bookings…
                   </div>
                 )}
                 {bookingsError && (
-                  <p className="mt-3 font-body text-[13px] text-pink">{bookingsError}</p>
+                  <p className="mt-4 font-body text-[13px] text-pink">{bookingsError}</p>
                 )}
                 {bookings && bookings.length === 0 && (
-                  <p className="mt-3 font-body text-[13px] text-white/60">
+                  <p className="mt-4 font-body text-[13px] text-quiet-dim">
                     No booking requests yet. When a client books you, it lands here.
                   </p>
                 )}
 
                 {bookings && bookings.length > 0 && (
-                  <ul className="mt-4 divide-y divide-white/10">
+                  <ul className="mt-6 divide-y divide-white/10">
                     {bookings.map((b) => (
-                      <li key={b.id} className="py-4">
+                      <li key={b.id} className="py-6">
                         <div className="flex flex-wrap items-baseline justify-between gap-2">
-                          <div className="font-display text-white text-[18px] leading-none">
+                          <div className="font-display-quiet text-quiet text-[16px] leading-none">
                             {b.clientName ?? 'Client'}
                             {b.budget && (
-                              <span className="ml-3 font-body text-[12px] text-white/50">
+                              <span className="ml-3 font-body text-[12px] text-quiet-dim">
                                 {b.budget}
                               </span>
                             )}
                           </div>
                           <div className="flex items-baseline gap-4">
-                            <span className="font-body text-[11px] uppercase tracking-[0.2em] text-pink">
+                            <span className="font-body text-[12px] text-quiet">
                               {(b.status && BOOKING_STATUS_LABELS[b.status]) ?? b.status ?? '—'}
                             </span>
-                            <span className="font-body text-[11px] text-white/40 tabular-nums">
+                            <span className="font-body text-[12px] text-quiet-dim/80 tabular-nums">
                               {formatDate(b.createdAt)}
                             </span>
                           </div>
                         </div>
                         {b.description && (
-                          <p className="mt-2 font-body text-[13px] text-white/70 leading-[1.55] line-clamp-2">
+                          <p className="mt-3 font-body text-[13px] text-quiet-dim leading-[1.7] line-clamp-2">
                             {b.description}
                           </p>
                         )}
                         {(b.requestedSlots?.length ?? 0) > 0 && (
-                          <p className="mt-2 font-body text-[12px] text-white/50">
+                          <p className="mt-3 font-body text-[12px] text-quiet-dim">
                             Asked for:{' '}
                             {b.requestedSlots!
                               .map((s) => `${s.date}${s.time ? ` (${s.time})` : ''}`)
@@ -414,17 +402,17 @@ export default function ConsolePage() {
                           </p>
                         )}
                         {(b.statusHistory?.length ?? 0) > 0 && (
-                          <details className="mt-2">
-                            <summary className="cursor-pointer font-body text-[11px] uppercase tracking-[0.2em] text-white/40 hover:text-pink">
+                          <details className="mt-3">
+                            <summary className="cursor-pointer font-body text-[12px] text-quiet-dim hover:text-white">
                               Status history
                             </summary>
-                            <ul className="mt-2 space-y-1">
+                            <ul className="mt-3 space-y-1.5">
                               {b.statusHistory!.map((event, i) => (
                                 <li
                                   key={`${event.at}-${i}`}
-                                  className="font-body text-[12px] text-white/60 tabular-nums"
+                                  className="font-body text-[12px] text-quiet-dim tabular-nums"
                                 >
-                                  <span className="text-pink">—</span>&nbsp;&nbsp;
+                                  —&nbsp;&nbsp;
                                   {BOOKING_STATUS_LABELS[event.status] ?? event.status} ·{' '}
                                   {formatDate(event.at)} · by {event.by}
                                 </li>
@@ -439,7 +427,7 @@ export default function ConsolePage() {
               </section>
 
               {user?.email && (
-                <div className="mt-8 font-body text-[10px] uppercase tracking-[0.25em] text-white/40">
+                <div className="mt-10 font-body text-[12px] text-quiet-dim/80">
                   Signed in as {user.email}
                 </div>
               )}
