@@ -37,7 +37,7 @@ export async function generateMetadata({
   const design = await getDesign(shareId);
 
   if (!design) {
-    return { title: 'Design Not Found — TatT' };
+    return { title: 'Design Not Found — TattTester' };
   }
 
   // A share can hold several cuts. OG still takes exactly one image (the
@@ -47,13 +47,13 @@ export async function generateMetadata({
   const noun = cutCount > 1 ? `${cutCount} Tattoo Designs` : 'Tattoo Design';
 
   const title = design.style
-    ? `${design.style} ${noun} — Made with TatT AI`
-    : `AI ${noun} — Made with TatT`;
+    ? `${design.style} ${noun} — Made with TattTester AI`
+    : `AI ${noun} — Made with TattTester`;
 
   const description =
     cutCount > 1
-      ? `"${design.prompt}" — See all ${cutCount} ${design.style ?? 'custom'} tattoo cuts and create your own at TatT.`
-      : `"${design.prompt}" — See this ${design.style ?? 'custom'} tattoo design and create your own at TatT.`;
+      ? `"${design.prompt}" — See all ${cutCount} ${design.style ?? 'custom'} tattoo cuts and create your own at TattTester.`
+      : `"${design.prompt}" — See this ${design.style ?? 'custom'} tattoo design and create your own at TattTester.`;
 
   return {
     title,
@@ -70,7 +70,7 @@ export async function generateMetadata({
         },
       ],
       type: 'website',
-      siteName: 'TatT — AI Tattoo Studio',
+      siteName: 'TattTester — AI Tattoo Studio',
     },
     twitter: {
       card: 'summary_large_image',

@@ -5,9 +5,9 @@ import SlashHeadline from "@/components/punk/SlashHeadline";
 import TapeCTA from "@/components/punk/TapeCTA";
 
 export const metadata: Metadata = {
-  title: "Gallery — TatT",
+  title: "Gallery — TattTester",
   description:
-    "Shared cuts from the TatT community. Nothing here yet — the design session is where designs are born.",
+    "Shared cuts from the TattTester community. Nothing here yet — the design session is where designs are born.",
 };
 
 /**

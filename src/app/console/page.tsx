@@ -249,7 +249,7 @@ export default function ConsolePage() {
                 No profile yet<span className="text-pink">.</span>
               </h1>
               <p className="mt-6 text-[15px] text-white/70 font-body max-w-xl leading-[1.55]">
-                The console is for artists who have claimed their TatT profile. You may already be
+                The console is for artists who have claimed their TattTester profile. You may already be
                 listed — clients can book and leave deposits before you sign up.
               </p>
               <Link
@@ -341,7 +341,7 @@ export default function ConsolePage() {
                     Your hours, your calendar.
                   </div>
                   <p className="mt-3 font-body text-[13px] text-white/70 leading-[1.55]">
-                    Declare the hours you give TatT, and optionally connect Google Calendar so busy
+                    Declare the hours you give TattTester, and optionally connect Google Calendar so busy
                     times are subtracted automatically.
                   </p>
                   <Link

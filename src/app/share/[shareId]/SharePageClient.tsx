@@ -68,7 +68,7 @@ export function SharePageClient({ design }: { design: SharedDesign }) {
 
   const shareOnX = () => {
     const text = encodeURIComponent(
-      `${images.length > 1 ? `${images.length} cuts` : 'My next tattoo'}, designed with TatT.\n\n"${design.prompt}"\n\n`
+      `${images.length > 1 ? `${images.length} cuts` : 'My next tattoo'}, designed with TattTester.\n\n"${design.prompt}"\n\n`
     );
     window.open(
       `https://twitter.com/intent/tweet?text=${text}&url=${encodeURIComponent(shareUrl)}`,
@@ -83,7 +83,7 @@ export function SharePageClient({ design }: { design: SharedDesign }) {
         <div className="max-w-5xl mx-auto px-6 md:px-12 py-4 flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center">
             <span className="font-display text-white text-3xl leading-none tracking-[0.01em] glitch">
-              TA<span className="text-pink">TT</span>
+              TATT<span className="text-pink">TESTER</span>
             </span>
           </Link>
           <Link
@@ -249,7 +249,7 @@ export function SharePageClient({ design }: { design: SharedDesign }) {
             </span>
           </span>
           <span>
-            <span className="text-pink">●</span>&nbsp;&nbsp;Made&nbsp;with&nbsp;TatT
+            <span className="text-pink">●</span>&nbsp;&nbsp;Made&nbsp;with&nbsp;TattTester
           </span>
         </div>
       </div>

@@ -6,7 +6,7 @@ import SignInPromptGate from "@/components/auth/SignInPromptGate";
 import { ToastProvider } from "@/contexts/ToastContext";
 
 export const metadata: Metadata = {
-  title: "TatT — Think it. Ink it.",
+  title: "TattTester — Think it. Ink it.",
   description: "AI-powered tattoo design and artist discovery — AR visualization coming soon.",
 };
 

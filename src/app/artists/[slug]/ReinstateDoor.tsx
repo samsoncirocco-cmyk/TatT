@@ -308,7 +308,7 @@ export default function ReinstateDoor() {
                   <li>
                     <span className="text-pink">—</span>&nbsp;&nbsp;If this handle
                     was <span className="text-white/80">never removed</span> from
-                    TatT, there&apos;s nothing to reclaim — we&apos;ll say so and
+                    TattTester, there&apos;s nothing to reclaim — we&apos;ll say so and
                     point you at a normal sign-up. This page stays silent about
                     that on purpose, so nobody can use it to find out who asked
                     to be removed.

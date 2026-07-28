@@ -287,7 +287,7 @@ export async function POST(req: NextRequest) {
             currency: CURRENCY,
             unit_amount: bookingFeeInCents,
             product_data: {
-              name: 'TatT booking fee',
+              name: 'TattTester booking fee',
               description: 'Platform booking fee — the artist keeps 100% of the deposit.',
             },
             tax_behavior: 'exclusive',
