@@ -34,7 +34,7 @@ export default function ClaimEntryPage() {
             <span className="text-pink">.</span>
           </h1>
           <p className="mt-6 text-[15px] text-white/70 font-body max-w-xl leading-[1.55]">
-            You may already be on TatT — clients can book and leave deposits before you sign up. Search
+            You may already be on TattTester — clients can book and leave deposits before you sign up. Search
             the directory, open your profile, and claim it.
           </p>
 

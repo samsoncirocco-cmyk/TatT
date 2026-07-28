@@ -34,7 +34,7 @@ export default function PunkFooter() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-10">
           <div>
             <span className="font-display text-white text-3xl leading-none tracking-[0.01em] glitch">
-              TA<span className="text-pink">TT</span>
+              TATT<span className="text-pink">TESTER</span>
             </span>
             <p className="mt-4 text-[12px] text-white/50 font-body leading-[1.55] max-w-[200px]">
               Think it. Ink it. AI-powered tattoo design, on your terms.
@@ -64,7 +64,7 @@ export default function PunkFooter() {
       <div className="border-t hairline px-6 md:px-12 py-4">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-[10px] uppercase tracking-[0.25em] text-white/40 tabular-nums font-body">
           <span>
-            <span className="text-pink">●</span>&nbsp;&nbsp;TatT&nbsp;/&nbsp;Side&nbsp;B&nbsp;/&nbsp;2026
+            <span className="text-pink">●</span>&nbsp;&nbsp;TattTester&nbsp;/&nbsp;Side&nbsp;B&nbsp;/&nbsp;2026
           </span>
           <span>All rights reserved.</span>
         </div>

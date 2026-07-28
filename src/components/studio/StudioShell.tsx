@@ -61,7 +61,7 @@ export default function StudioShell({
           <div className="flex items-center px-5 sm:px-8 py-4 gap-6">
             <Link href="/" className="flex items-center">
               <span className="font-display text-white text-3xl leading-none tracking-[0.01em] glitch">
-                TA<span className="text-pink">TT</span>
+                TATT<span className="text-pink">TESTER</span>
               </span>
             </Link>
             <nav className="hidden md:flex items-center gap-5">

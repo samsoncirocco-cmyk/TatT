@@ -25,13 +25,13 @@ const STEPS = [
     step: "02",
     name: "Book",
     price: `Deposit + ${FEE_PERCENT}%`,
-    body: `When you book an artist, you pay their deposit plus a ${FEE_PERCENT}% booking fee. That fee is the only thing TatT ever charges you.`,
+    body: `When you book an artist, you pay their deposit plus a ${FEE_PERCENT}% booking fee. That fee is the only thing TattTester ever charges you.`,
   },
   {
     step: "03",
     name: "Ink",
     price: "100% to the artist",
-    body: "Your entire deposit goes to the artist — TatT takes nothing out of it. The booking fee is how we keep the lights on.",
+    body: "Your entire deposit goes to the artist — TattTester takes nothing out of it. The booking fee is how we keep the lights on.",
   },
 ];
 
@@ -112,7 +112,7 @@ export default function PricingPage() {
                 <span className="text-pink">.</span>
               </h2>
               <p className="mt-5 text-[14px] text-white/70 font-body leading-[1.55]">
-                Take bookings, hold deposits, and manage clients on TatT.
+                Take bookings, hold deposits, and manage clients on TattTester.
                 You keep 100% of every deposit. Cancel any time from the
                 billing portal.
               </p>

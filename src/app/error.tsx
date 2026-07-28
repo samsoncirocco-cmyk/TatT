@@ -81,7 +81,7 @@ export default function Error({
         <div className="max-w-4xl mx-auto flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/50 tabular-nums font-body">
           <span>Code:&nbsp;<span className="text-pink">5xx</span></span>
           <span>
-            <span className="text-pink">●</span>&nbsp;&nbsp;TatT
+            <span className="text-pink">●</span>&nbsp;&nbsp;TattTester
           </span>
         </div>
       </div>

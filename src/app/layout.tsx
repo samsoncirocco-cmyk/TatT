@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     `https://${process.env.CANONICAL_HOST ?? "tatttester.com"}`
   ),
   alternates: { canonical: "./" },
-  title: "TatT — Think it. Ink it.",
+  title: "TattTester — Think it. Ink it.",
   description: "AI-powered tattoo design and artist discovery — AR visualization coming soon.",
 };
 

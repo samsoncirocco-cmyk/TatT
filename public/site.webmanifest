@@ -1,6 +1,6 @@
 {
-  "name": "TatT — AI Tattoo Studio",
-  "short_name": "TatT",
+  "name": "TattTester — AI Tattoo Studio",
+  "short_name": "TattTester",
   "description": "AI-powered tattoo design studio. Turn ideas into ink-ready art in seconds.",
   "start_url": "/",
   "display": "standalone",

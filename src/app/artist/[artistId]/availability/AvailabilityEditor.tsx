@@ -37,7 +37,7 @@ type Connection = {
 const SCOPE_COPY = {
   read: "See when you are busy — start and end times only. Not event titles, guests, locations or notes.",
   write:
-    "Put confirmed TatT bookings on a separate 'TatT Bookings' calendar we create in your account. We cannot see or change your existing calendars.",
+    "Put confirmed TattTester bookings on a separate 'TattTester Bookings' calendar we create in your account. We cannot see or change your existing calendars.",
 };
 
 function guessTimezone(): string {
@@ -201,7 +201,7 @@ export default function AvailabilityEditor({ artistId }: { artistId: string }) {
 
       <div className="px-6 md:px-12 py-12 md:py-16">
         <div className="max-w-3xl mx-auto">
-          <SlashHeadline before="Hours you" slashed="give TatT" size="section" />
+          <SlashHeadline before="Hours you" slashed="give TattTester" size="section" />
 
           {calendarResult === "connected" && (
             <p className="mt-6 text-[11px] uppercase tracking-[0.18em] text-pink font-body">
@@ -229,7 +229,7 @@ export default function AvailabilityEditor({ artistId }: { artistId: string }) {
           {/* ── 1. The hours you offer ───────────────────────────────── */}
           <div className="mt-10 border-2 hairline p-6 md:p-8">
             <h2 className="font-display text-[24px] tracking-wide text-white">
-              When will you take TatT clients?
+              When will you take TattTester clients?
             </h2>
             <p className="mt-3 text-[11px] uppercase tracking-[0.18em] text-white/40 font-body leading-[1.8] max-w-xl">
               Only these hours are ever offered. Leave it empty and clients send
@@ -359,7 +359,7 @@ export default function AvailabilityEditor({ artistId }: { artistId: string }) {
                   Connected{" "}
                   {new Date(connection!.connectedAt).toLocaleDateString()}.{" "}
                   {connection!.writeEnabled
-                    ? "Confirmed bookings are written to your TatT Bookings calendar."
+                    ? "Confirmed bookings are written to your TattTester Bookings calendar."
                     : "We read your busy times only."}
                 </p>
                 <button

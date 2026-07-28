@@ -35,7 +35,7 @@ export default function TermsPage() {
               1.&nbsp;Acceptance
             </h2>
             <p>
-              By accessing or using TatT, you agree to be bound by these terms. If you
+              By accessing or using TattTester, you agree to be bound by these terms. If you
               disagree with any part of the terms, you do not have permission to access
               the service.
             </p>
@@ -50,7 +50,7 @@ export default function TermsPage() {
               3.&nbsp;Artist Bookings
             </h2>
             <p>
-              TatT facilitates introductions between users and tattoo artists. The
+              TattTester facilitates introductions between users and tattoo artists. The
               tattoo procedure itself is a contract between the user and the artist.
             </p>
           </div>
