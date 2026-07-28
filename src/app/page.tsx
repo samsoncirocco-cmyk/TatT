@@ -149,7 +149,9 @@ export default async function Home() {
             until people share), no view counts, no artist attribution. */}
         <section className="px-6 md:px-12 py-20 md:py-28 border-t-2 hairline">
           <div className="max-w-6xl mx-auto">
-            <div className="flex items-baseline justify-between mb-6">
+            {/* Stacked below sm: the non-wrapping label otherwise squeezes the
+                h2 into a ~170px column at 375px, wrapping it to three lines. */}
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between mb-6">
               <h2 className="font-display text-white text-[32px] md:text-[48px] tracking-wide leading-none">
                 Straight out of the machine
               </h2>
@@ -188,7 +190,7 @@ export default async function Home() {
             <div className="mt-12">
               <Link
                 href="/design"
-                className="text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink font-body"
+                className="inline-block py-4 -my-4 text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink font-body"
               >
                 Make your own&nbsp;&nbsp;→
               </Link>
@@ -205,7 +207,7 @@ export default async function Home() {
               </h2>
               <Link
                 href="/artists"
-                className="text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink font-body"
+                className="inline-block py-4 -my-4 text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink font-body"
               >
                 See all&nbsp;&nbsp;→
               </Link>
