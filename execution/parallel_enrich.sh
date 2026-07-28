@@ -82,8 +82,8 @@ if ! [[ "$workers" =~ ^[1-9][0-9]*$ && "$batch_size" =~ ^[1-9][0-9]*$ ]]; then
   exit 2
 fi
 
-cd "$ROOT"
 queue_size="$(
+  PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" \
   python3 -c 'import sys; from pathlib import Path; from execution.apify_ig_enrich import load_required_queue; print(len(load_required_queue(Path(sys.argv[1]))))' \
     "$queue_file"
 )"
