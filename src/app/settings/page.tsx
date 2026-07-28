@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
+import QuietHeadline from "@/components/quiet/QuietHeadline";
 import PunkToggle from "@/components/punk/PunkToggle";
 import { useUser } from "@/lib/tattStorage";
 import { CANONICAL_STYLES } from "@/lib/style-vocabulary";
 
-const NAV = ["Profile", "Notifications", "Billing", "Delete Account"];
+const NAV = ["Profile", "Notifications", "Billing", "Delete account"];
 
 const NOTIF_KEY = "tatt:notification-prefs";
 
@@ -93,33 +94,31 @@ export default function SettingsPage() {
   };
 
   return (
-    <StudioShell>
-      <div className="px-6 md:px-12 pt-6 pb-4 border-b hairline">
-        <div className="max-w-5xl mx-auto flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/50 tabular-nums font-body">
-          <span><span className="text-pink">●</span>&nbsp;&nbsp;Settings</span>
-          <span>Account:&nbsp;<span className="text-pink">Pro</span></span>
+    <StudioShell quiet>
+      <div className="px-6 md:px-12 pt-8 pb-6 border-b hairline-quiet-soft">
+        <div className="max-w-5xl mx-auto flex items-center justify-between text-[12px] text-quiet-dim tabular-nums font-body">
+          <span>Settings</span>
+          <span>Account: Pro</span>
         </div>
       </div>
 
-      <div className="px-6 md:px-12 py-12 md:py-16">
+      <div className="px-6 md:px-12 py-20 md:py-28">
         <div className="max-w-5xl mx-auto">
-          <h1 className="font-display text-white text-[40px] sm:text-[64px] leading-[0.88] tracking-[0.005em]">
-            Settings<span className="text-pink">.</span>
-          </h1>
+          <QuietHeadline>Settings</QuietHeadline>
 
-          <div className="mt-10 grid grid-cols-1 md:grid-cols-12 gap-8">
+          <div className="mt-14 grid grid-cols-1 md:grid-cols-12 gap-10">
             {/* SIDEBAR */}
-            <nav className="md:col-span-3 border-2 hairline self-start">
+            <nav className="md:col-span-3 border hairline-quiet self-start">
               {NAV.map((item, i) => (
                 <button
                   key={item}
                   onClick={() => setActive(i)}
-                  className={`block w-full text-left px-5 py-4 text-[10px] uppercase tracking-[0.25em] font-body border-b hairline-soft last:border-b-0 press ${
+                  className={`block w-full text-left px-5 py-4 text-[13px] font-body border-b hairline-quiet-soft last:border-b-0 press ${
                     active === i
-                      ? "bg-pink text-black"
+                      ? "bg-quiet text-black"
                       : i === 3
-                      ? "text-pink hover:bg-pink hover:text-black"
-                      : "text-white/70 hover:bg-white/5 hover:text-pink"
+                      ? "text-pink/80 hover:bg-white/5 hover:text-pink"
+                      : "text-quiet-dim hover:bg-white/5 hover:text-white"
                   }`}
                 >
                   {item}
@@ -128,35 +127,35 @@ export default function SettingsPage() {
             </nav>
 
             {/* PANEL */}
-            <div className="md:col-span-9 border-2 hairline p-6 md:p-10">
+            <div className="md:col-span-9 border hairline-quiet p-8 md:p-12">
               {active === 0 ? (
-                <div className="space-y-8">
-                  <h2 className="font-display text-white text-[28px] tracking-wide border-b-2 hairline pb-4">
+                <div className="space-y-12">
+                  <h2 className="font-display-quiet text-quiet text-[22px] border-b hairline-quiet-soft pb-5">
                     Profile
                   </h2>
 
                   <div>
                     <label
                       htmlFor="s-name"
-                      className="block text-[10px] uppercase tracking-[0.28em] text-pink mb-3 font-body"
+                      className="block text-[12px] text-quiet-dim mb-4 font-body"
                     >
-                      ▸ Display Name
+                      Display name
                     </label>
                     <input
                       id="s-name"
                       type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className="w-full bg-black text-white placeholder-white/30 focus:outline-none text-[20px] leading-[1.4] tracking-tight border-2 hairline focus:border-pink p-4 transition-colors font-display"
+                      className="w-full bg-black text-quiet placeholder-white/30 focus:outline-none text-[16px] leading-[1.4] border hairline-quiet-soft focus:border-quiet p-4 transition-colors font-body"
                     />
                   </div>
 
                   <div>
                     <label
                       htmlFor="s-email"
-                      className="block text-[10px] uppercase tracking-[0.28em] text-pink mb-3 font-body"
+                      className="block text-[12px] text-quiet-dim mb-4 font-body"
                     >
-                      ▸ Email
+                      Email
                     </label>
                     <input
                       id="s-email"
@@ -164,28 +163,28 @@ export default function SettingsPage() {
                       value={email}
                       readOnly
                       aria-readonly
-                      className="w-full bg-black text-white/50 placeholder-white/30 focus:outline-none text-[20px] leading-[1.4] tracking-tight border-2 hairline-soft p-4 font-display cursor-not-allowed"
+                      className="w-full bg-black text-quiet-dim placeholder-white/30 focus:outline-none text-[16px] leading-[1.4] border hairline-quiet-soft p-4 font-body cursor-not-allowed"
                     />
-                    <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-white/40 font-body">
+                    <p className="mt-3 text-[12px] text-quiet-dim/80 font-body">
                       Email change requires re-auth. Contact support.
                     </p>
                   </div>
 
                   <div>
-                    <label className="block text-[10px] uppercase tracking-[0.28em] text-pink mb-3 font-body">
-                      ▸ Default Style Preferences
+                    <label className="block text-[12px] text-quiet-dim mb-4 font-body">
+                      Default style preferences
                     </label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {STYLES.map((s) => {
                         const on = picked.includes(s);
                         return (
                           <button
                             key={s}
                             onClick={() => toggle(s)}
-                            className={`text-[10px] uppercase tracking-[0.2em] border hairline px-3 py-3 press font-body text-left ${
+                            className={`text-[12px] border hairline-quiet-soft px-4 py-3 press font-body text-left ${
                               on
-                                ? "bg-pink text-black border-pink"
-                                : "text-white/70 hover:text-black hover:bg-pink"
+                                ? "bg-quiet text-black border-quiet"
+                                : "text-quiet hover:text-black hover:bg-quiet"
                             }`}
                           >
                             <span className="inline-block mr-2">{on ? "■" : "□"}</span>
@@ -196,48 +195,47 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  <div className="pt-6 border-t hairline flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                  <div className="pt-8 border-t hairline-quiet-soft flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                     <div className="flex items-center gap-4 flex-wrap">
                       <button
                         onClick={handleSave}
                         disabled={!user}
-                        className={`tape press inline-flex items-center justify-center px-8 py-4 font-display text-[24px] leading-none tracking-[0.02em] ${
+                        className={`press inline-flex items-center justify-center px-8 py-4 font-body text-[14px] leading-none bg-quiet text-black hover:bg-white ${
                           !user ? "opacity-40 cursor-not-allowed" : ""
                         }`}
                       >
-                        Save Changes
-                        <span className="ml-3 text-[18px]">▸</span>
+                        Save changes
                       </button>
                       {saved && (
-                        <span className="text-[10px] uppercase tracking-[0.25em] text-pink font-body">
-                          ● Saved
+                        <span className="text-[12px] text-quiet font-body">
+                          Saved
                         </span>
                       )}
                       {authError && !saved && (
-                        <span className="text-[10px] uppercase tracking-[0.2em] text-pink font-body">
-                          ▸ {authError}
+                        <span className="text-[12px] text-pink font-body">
+                          {authError}
                         </span>
                       )}
                     </div>
                     {user && (
                       <button
                         onClick={handleLogout}
-                        className="text-[10px] uppercase tracking-[0.25em] text-white/60 hover:text-pink border hairline px-4 py-3 press font-body"
+                        className="text-[12px] text-quiet-dim hover:text-white border hairline-quiet px-5 py-3 press font-body"
                       >
-                        Log Out
+                        Log out
                       </button>
                     )}
                   </div>
                   {hydrated && !user && (
-                    <p className="text-[10px] uppercase tracking-[0.25em] text-white/40 font-body">
+                    <p className="text-[12px] text-quiet-dim font-body">
                       Not signed in. Demo sign-in:&nbsp;
-                      <a href="/login" className="text-pink hover:underline">log in</a>.
+                      <a href="/login" className="text-quiet underline underline-offset-4 hover:text-white">log in</a>.
                     </p>
                   )}
                 </div>
               ) : active === 1 ? (
-                <div className="space-y-8">
-                  <h2 className="font-display text-white text-[28px] tracking-wide border-b-2 hairline pb-4">
+                <div className="space-y-12">
+                  <h2 className="font-display-quiet text-quiet text-[22px] border-b hairline-quiet-soft pb-5">
                     Notifications
                   </h2>
                   <div>
@@ -249,19 +247,20 @@ export default function SettingsPage() {
                         description={o.description}
                         checked={!!notifs[o.key]}
                         onChange={(v) => setNotif(o.key, v)}
+                        quiet
                       />
                     ))}
                   </div>
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-body">
+                  <p className="text-[12px] text-quiet-dim font-body">
                     Saved on your device. Email delivery lands with accounts v2.
                   </p>
                 </div>
               ) : (
-                <div className="py-16 text-center">
-                  <div className="font-display text-[28px] text-white/40 tracking-wide">
+                <div className="py-20 text-center">
+                  <div className="font-display-quiet text-[22px] text-quiet-dim">
                     {NAV[active]}
                   </div>
-                  <p className="mt-3 text-[10px] uppercase tracking-[0.25em] text-white/30 font-body">
+                  <p className="mt-4 text-[12px] text-quiet-dim/80 font-body">
                     Coming soon
                   </p>
                 </div>
