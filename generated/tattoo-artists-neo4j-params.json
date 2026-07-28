@@ -891,7 +891,7 @@
       "name": "Fine Line"
     },
     {
-      "name": "Japanese"
+      "name": "Japanese (Irezumi)"
     },
     {
       "name": "Realism"
@@ -900,7 +900,7 @@
       "name": "Watercolor"
     },
     {
-      "name": "Old School"
+      "name": "Traditional"
     },
     {
       "name": "Illustrative"
@@ -913,9 +913,6 @@
     },
     {
       "name": "Dotwork"
-    },
-    {
-      "name": "Traditional"
     },
     {
       "name": "Lettering"
@@ -940,9 +937,6 @@
     },
     {
       "name": "Neo-Traditional"
-    },
-    {
-      "name": "Photo Realism"
     },
     {
       "name": "Biomechanical"
@@ -1563,7 +1557,7 @@
       "created_at": "2026-04-10T20:54:30.116Z",
       "styles": [
         "Fine Line",
-        "Japanese"
+        "Japanese (Irezumi)"
       ]
     },
     {
@@ -1579,7 +1573,7 @@
       "styles": [
         "Realism",
         "Watercolor",
-        "Old School"
+        "Traditional"
       ]
     },
     {
@@ -1657,7 +1651,7 @@
         "Fine Line",
         "Lettering",
         "Watercolor",
-        "Old School"
+        "Traditional"
       ]
     },
     {
@@ -1672,7 +1666,7 @@
       "created_at": "2026-01-09T00:36:59.919Z",
       "styles": [
         "Fine Line",
-        "Old School",
+        "Traditional",
         "Surrealism",
         "Geometric"
       ]
@@ -1765,7 +1759,7 @@
       "is_curated": false,
       "created_at": "2026-06-22T20:33:33.688Z",
       "styles": [
-        "Old School",
+        "Traditional",
         "Realism",
         "Illustrative",
         "Watercolor"
@@ -1782,7 +1776,7 @@
       "is_curated": true,
       "created_at": "2025-12-02T15:01:44.250Z",
       "styles": [
-        "Japanese",
+        "Japanese (Irezumi)",
         "Lettering",
         "Fine Line",
         "Surrealism"
@@ -1895,7 +1889,7 @@
       "is_curated": true,
       "created_at": "2025-07-22T01:35:39.829Z",
       "styles": [
-        "Japanese",
+        "Japanese (Irezumi)",
         "Neo-Traditional"
       ]
     },
@@ -1929,7 +1923,7 @@
       "styles": [
         "Illustrative",
         "New School",
-        "Old School"
+        "Traditional"
       ]
     },
     {
@@ -1943,7 +1937,7 @@
       "is_curated": true,
       "created_at": "2026-06-27T11:43:56.494Z",
       "styles": [
-        "Japanese",
+        "Japanese (Irezumi)",
         "Geometric",
         "Abstract",
         "Lettering"
@@ -1976,7 +1970,7 @@
       "styles": [
         "Realism",
         "Watercolor",
-        "Old School"
+        "Traditional"
       ]
     },
     {
@@ -2039,7 +2033,7 @@
       "created_at": "2026-05-04T10:07:05.317Z",
       "styles": [
         "Tribal",
-        "Photo Realism",
+        "Realism",
         "Portrait"
       ]
     },
@@ -2054,7 +2048,7 @@
       "is_curated": false,
       "created_at": "2025-11-13T23:55:29.798Z",
       "styles": [
-        "Old School",
+        "Traditional",
         "Realism",
         "Illustrative",
         "Tribal"
@@ -2085,7 +2079,7 @@
       "is_curated": false,
       "created_at": "2025-10-22T06:07:25.604Z",
       "styles": [
-        "Japanese",
+        "Japanese (Irezumi)",
         "Traditional"
       ]
     },
@@ -2101,7 +2095,7 @@
       "created_at": "2026-07-08T17:07:38.048Z",
       "styles": [
         "Fine Line",
-        "Japanese",
+        "Japanese (Irezumi)",
         "Illustrative"
       ]
     },
@@ -2160,7 +2154,7 @@
       "created_at": "2026-04-03T04:11:52.391Z",
       "styles": [
         "Illustrative",
-        "Japanese"
+        "Japanese (Irezumi)"
       ]
     },
     {
@@ -2175,7 +2169,7 @@
       "created_at": "2025-10-16T19:03:43.848Z",
       "styles": [
         "Lettering",
-        "Japanese",
+        "Japanese (Irezumi)",
         "Blackwork"
       ]
     },
@@ -2235,7 +2229,7 @@
       "is_curated": true,
       "created_at": "2026-05-01T21:31:56.706Z",
       "styles": [
-        "Photo Realism",
+        "Realism",
         "Minimalist"
       ]
     },
@@ -2297,7 +2291,7 @@
       "is_curated": false,
       "created_at": "2025-09-01T01:51:25.165Z",
       "styles": [
-        "Japanese",
+        "Japanese (Irezumi)",
         "Biomechanical"
       ]
     },
@@ -2409,7 +2403,7 @@
       "created_at": "2026-03-14T21:28:29.670Z",
       "styles": [
         "Watercolor",
-        "Japanese",
+        "Japanese (Irezumi)",
         "Abstract",
         "Tribal"
       ]
@@ -2439,7 +2433,7 @@
       "is_curated": true,
       "created_at": "2025-08-14T23:27:25.807Z",
       "styles": [
-        "Photo Realism"
+        "Realism"
       ]
     },
     {
@@ -2547,7 +2541,7 @@
       "created_at": "2026-03-28T05:50:04.317Z",
       "styles": [
         "Neo-Traditional",
-        "Old School",
+        "Traditional",
         "Tribal",
         "Lettering"
       ]
@@ -2655,7 +2649,7 @@
       "created_at": "2026-01-30T01:49:44.177Z",
       "styles": [
         "Fine Line",
-        "Old School"
+        "Traditional"
       ]
     },
     {
@@ -2777,7 +2771,7 @@
       "created_at": "2026-05-12T13:16:18.213Z",
       "styles": [
         "Abstract",
-        "Japanese"
+        "Japanese (Irezumi)"
       ]
     },
     {
@@ -2824,7 +2818,7 @@
       "styles": [
         "Blackwork",
         "Fine Line",
-        "Photo Realism",
+        "Realism",
         "Portrait"
       ]
     },
@@ -2853,7 +2847,7 @@
       "is_curated": false,
       "created_at": "2025-07-24T19:47:53.550Z",
       "styles": [
-        "Japanese"
+        "Japanese (Irezumi)"
       ]
     },
     {
@@ -2943,7 +2937,7 @@
       "is_curated": false,
       "created_at": "2026-03-28T19:36:05.806Z",
       "styles": [
-        "Japanese",
+        "Japanese (Irezumi)",
         "Tribal",
         "Blackwork",
         "Fine Line"
@@ -2962,8 +2956,7 @@
       "styles": [
         "Realism",
         "Surrealism",
-        "Tribal",
-        "Photo Realism"
+        "Tribal"
       ]
     },
     {
@@ -2978,7 +2971,7 @@
       "created_at": "2026-02-05T02:48:26.160Z",
       "styles": [
         "Watercolor",
-        "Old School"
+        "Traditional"
       ]
     },
     {
@@ -3151,7 +3144,7 @@
       "created_at": "2026-04-27T16:46:09.954Z",
       "styles": [
         "Neo-Traditional",
-        "Japanese",
+        "Japanese (Irezumi)",
         "Illustrative",
         "Realism"
       ]
@@ -3260,7 +3253,6 @@
       "styles": [
         "Fine Line",
         "Traditional",
-        "Old School",
         "Dotwork"
       ]
     },
@@ -3322,7 +3314,7 @@
       "created_at": "2025-09-14T14:06:13.075Z",
       "styles": [
         "Neo-Traditional",
-        "Japanese",
+        "Japanese (Irezumi)",
         "Dotwork",
         "Fine Line"
       ]
@@ -3419,7 +3411,7 @@
         "Watercolor",
         "Fine Line",
         "Tribal",
-        "Photo Realism"
+        "Realism"
       ]
     },
     {
@@ -3451,7 +3443,7 @@
         "Realism",
         "Portrait",
         "Abstract",
-        "Old School"
+        "Traditional"
       ]
     },
     {
@@ -3541,7 +3533,7 @@
       "is_curated": true,
       "created_at": "2025-10-02T08:13:46.655Z",
       "styles": [
-        "Photo Realism",
+        "Realism",
         "Watercolor"
       ]
     },
@@ -3557,9 +3549,8 @@
       "created_at": "2026-03-05T09:48:36.342Z",
       "styles": [
         "Geometric",
-        "Old School",
-        "Fine Line",
-        "Traditional"
+        "Traditional",
+        "Fine Line"
       ]
     },
     {
@@ -3592,7 +3583,7 @@
       "styles": [
         "Biomechanical",
         "Fine Line",
-        "Japanese",
+        "Japanese (Irezumi)",
         "Illustrative"
       ]
     },
@@ -3608,7 +3599,7 @@
       "created_at": "2026-05-29T20:35:12.405Z",
       "styles": [
         "Minimalist",
-        "Old School",
+        "Traditional",
         "Fine Line",
         "Watercolor"
       ]
@@ -3674,7 +3665,7 @@
       "styles": [
         "Geometric",
         "Illustrative",
-        "Photo Realism",
+        "Realism",
         "New School"
       ]
     },
@@ -3781,7 +3772,7 @@
       "is_curated": false,
       "created_at": "2026-02-01T16:34:54.296Z",
       "styles": [
-        "Japanese",
+        "Japanese (Irezumi)",
         "Biomechanical"
       ]
     },
@@ -3796,7 +3787,7 @@
       "is_curated": true,
       "created_at": "2025-09-21T17:05:41.164Z",
       "styles": [
-        "Japanese",
+        "Japanese (Irezumi)",
         "Realism",
         "Neo-Traditional",
         "Dotwork"
@@ -3845,7 +3836,7 @@
       "styles": [
         "Minimalist",
         "Watercolor",
-        "Photo Realism"
+        "Realism"
       ]
     },
     {
@@ -3922,7 +3913,7 @@
       "is_curated": false,
       "created_at": "2025-09-28T02:25:56.351Z",
       "styles": [
-        "Old School",
+        "Traditional",
         "Fine Line",
         "Surrealism",
         "Geometric"
@@ -3939,7 +3930,7 @@
       "is_curated": false,
       "created_at": "2026-02-06T21:09:33.494Z",
       "styles": [
-        "Japanese",
+        "Japanese (Irezumi)",
         "Abstract",
         "Blackwork",
         "Traditional"
@@ -3956,7 +3947,7 @@
       "is_curated": false,
       "created_at": "2026-02-05T12:57:31.622Z",
       "styles": [
-        "Old School",
+        "Traditional",
         "Dotwork",
         "Illustrative"
       ]
@@ -4067,7 +4058,7 @@
       "styles": [
         "Fine Line",
         "Blackwork",
-        "Old School"
+        "Traditional"
       ]
     },
     {
@@ -4098,7 +4089,7 @@
       "is_curated": false,
       "created_at": "2025-08-17T15:03:48.254Z",
       "styles": [
-        "Japanese",
+        "Japanese (Irezumi)",
         "Fine Line",
         "Illustrative"
       ]
@@ -4131,7 +4122,7 @@
       "styles": [
         "Illustrative",
         "Geometric",
-        "Japanese"
+        "Japanese (Irezumi)"
       ]
     },
     {
@@ -4161,7 +4152,7 @@
       "is_curated": false,
       "created_at": "2026-02-05T18:42:03.428Z",
       "styles": [
-        "Old School"
+        "Traditional"
       ]
     },
     {
@@ -4176,7 +4167,7 @@
       "created_at": "2026-03-19T12:52:31.543Z",
       "styles": [
         "Minimalist",
-        "Photo Realism"
+        "Realism"
       ]
     },
     {
@@ -4192,7 +4183,7 @@
       "styles": [
         "Watercolor",
         "Surrealism",
-        "Japanese"
+        "Japanese (Irezumi)"
       ]
     },
     {
@@ -4266,7 +4257,7 @@
       "created_at": "2026-05-27T13:08:59.847Z",
       "styles": [
         "Watercolor",
-        "Japanese"
+        "Japanese (Irezumi)"
       ]
     },
     {
@@ -4388,7 +4379,7 @@
       "styles": [
         "Surrealism",
         "Geometric",
-        "Japanese",
+        "Japanese (Irezumi)",
         "Neo-Traditional"
       ]
     },
@@ -4418,7 +4409,7 @@
       "is_curated": false,
       "created_at": "2026-02-23T12:27:16.417Z",
       "styles": [
-        "Japanese",
+        "Japanese (Irezumi)",
         "Fine Line"
       ]
     },
@@ -4447,7 +4438,7 @@
       "is_curated": false,
       "created_at": "2025-07-29T06:28:33.850Z",
       "styles": [
-        "Japanese",
+        "Japanese (Irezumi)",
         "Illustrative"
       ]
     },
@@ -4494,7 +4485,7 @@
       "is_curated": true,
       "created_at": "2025-09-02T08:17:53.295Z",
       "styles": [
-        "Photo Realism",
+        "Realism",
         "Geometric"
       ]
     },
@@ -4618,7 +4609,7 @@
       "is_curated": false,
       "created_at": "2026-06-26T00:22:27.955Z",
       "styles": [
-        "Photo Realism",
+        "Realism",
         "Biomechanical",
         "Minimalist",
         "Watercolor"
@@ -4652,7 +4643,7 @@
       "created_at": "2026-06-06T08:15:05.825Z",
       "styles": [
         "Traditional",
-        "Japanese"
+        "Japanese (Irezumi)"
       ]
     },
     {

@@ -9,6 +9,7 @@ import { readFileSync, writeFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { CREATE_TABLE_SQL, loadBatchData, generateInsertSQL } from './setup-supabase-tattoo-artists.js';
+import { normalizeOntologyStyleList } from './lib/artist-styles.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -25,7 +26,11 @@ function generateBatchInsertSQL(artists) {
   }
   
   const values = artists.map(artist => {
-    const styles = artist.styles.map(s => `'${escapeSQL(s)}'`).join(',');
+    const normalizedStyles = normalizeOntologyStyleList(
+      artist.styles ?? [],
+      `artist ${artist.id ?? artist.name ?? 'unknown'}`,
+    );
+    const styles = normalizedStyles.map(s => `'${escapeSQL(s)}'`).join(',');
     const colors = artist.color_palettes.map(c => `'${escapeSQL(c)}'`).join(',');
     const specs = artist.specializations.map(s => `'${escapeSQL(s)}'`).join(',');
     
@@ -113,4 +118,3 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 }
 
 export { generateBatchInsertSQL };
-

@@ -99,7 +99,7 @@ export function parseStylesParam(param: string | null | undefined): CanonicalSty
 // Design bot → match flow
 // ---------------------------------------------------------------------------
 // The hand-written ONTOLOGY_TO_CANONICAL_STYLE bridge that used to live here
-// is gone (TODO.md "retire the CANONICAL_STYLES bridge"). Both sides now read
+// is gone. Both sides now read
 // data/style-ontology.json: the design bot emits tag ids, and
 // canonicalStyleForTag resolves each one — following the ontology's own
 // `parent` roll-up for sub-styles — to a style the graph can actually answer

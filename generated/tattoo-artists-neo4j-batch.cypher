@@ -1,8 +1,7 @@
 // Neo4j Batch Import Script (Optimized, canonical graph model)
 // Use this for better performance with large datasets
 
-// Clear existing data
-MATCH (n) DETACH DELETE n;
+// Existing data preserved (MERGE-based). Re-run generator with --wipe to include a full wipe statement.
 
 // Create indexes
 CREATE INDEX artist_id_index IF NOT EXISTS FOR (a:Artist) ON (a.id);

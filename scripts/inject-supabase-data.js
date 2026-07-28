@@ -10,15 +10,10 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
 import dotenv from 'dotenv';
+import { loadBatchData } from './setup-supabase-tattoo-artists.js';
 
 dotenv.config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 // Supabase credentials
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -94,8 +89,7 @@ async function createTable() {
 async function insertArtists() {
   console.log('\n📥 Loading artist data...');
   
-  const dataPath = join(__dirname, '../generated/tattoo-artists-batch-50.json');
-  const artists = JSON.parse(readFileSync(dataPath, 'utf-8'));
+  const artists = loadBatchData();
   
   console.log(`   Found ${artists.length} artists to insert`);
   
@@ -225,4 +219,3 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 }
 
 export { createTable, insertArtists, verifyData };
-

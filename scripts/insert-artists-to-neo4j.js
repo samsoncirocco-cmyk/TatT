@@ -25,6 +25,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import { normalizeGraphStyleList } from './lib/artist-styles.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -156,6 +157,10 @@ async function importArtists() {
     for (let i = 0; i < artists.length; i++) {
       const artist = artists[i];
 
+      const styles = normalizeGraphStyleList(
+        artist.styles ?? [],
+        `artist ${artist.id ?? artist.name ?? 'unknown'}`,
+      );
       const params = {
         id: artist.id,
         name: artist.name,
@@ -174,12 +179,12 @@ async function importArtists() {
         bookingAvailable: artist.bookingAvailable,
         embedding_id: artist.embedding_id || null,
         mentor_id: artist.mentor_id || null,
-        styles: artist.styles || [],
+        styles,
         tattoos: (artist.portfolioImages || []).map((imageUrl, idx) => ({
           id: `${artist.id}-t${idx}`,
           imageUrl,
           tags: artist.tags || [],
-          styles: artist.styles || []
+          styles
         }))
       };
 

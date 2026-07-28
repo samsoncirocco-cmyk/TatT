@@ -99,6 +99,21 @@ features:
       - src/app/artists/page.tsx
       - src/app/artists/[slug]/page.tsx
 
+  controlled_style_vocabulary:
+    status: implemented
+    evidence:
+      - data/style-ontology.json
+      - data/graph-style-vocabulary.json
+      - src/lib/style-vocabulary.ts
+      - src/lib/style-vocabulary.test.ts
+      - scripts/lib/artist-styles.mjs
+      - scripts/lib/artist-styles.test.mjs
+      - scripts/generate-tattoo-artists-data.test.js
+      - docs/adr/0010-two-tier-tag-vocabulary.md
+      - docs/adr/0011-ontology-growth-scrape-proposed-human-approved.md
+    limitations:
+      - Match pills expose only approved styles carried by at least one artist in the current graph snapshot.
+
   booking_reservation:
     status: implemented
     evidence:
