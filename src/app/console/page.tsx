@@ -278,6 +278,25 @@ export default function ConsolePage() {
               </h1>
 
               <div className="mt-12 grid md:grid-cols-2 gap-6">
+                {/* Profile */}
+                <section aria-label="Profile" className="border-2 hairline bg-black p-6">
+                  <div className="font-body text-[10px] uppercase tracking-[0.25em] text-white/50">
+                    Profile
+                  </div>
+                  <div className="mt-2 font-display text-white text-[24px] leading-none">
+                    Your listing, in your words.
+                  </div>
+                  <p className="mt-3 font-body text-[13px] text-white/70 leading-[1.55]">
+                    Update your bio, shop, location, and booking link. Your edits outrank scraped data.
+                  </p>
+                  <Link
+                    href="/artist/profile"
+                    className="mt-5 inline-flex items-center px-6 py-3 border-2 hairline text-white font-display text-[16px] hover:bg-pink hover:border-pink hover:text-black press"
+                  >
+                    Edit profile
+                  </Link>
+                </section>
+
                 {/* Payouts */}
                 <section
                   aria-label="Payouts"

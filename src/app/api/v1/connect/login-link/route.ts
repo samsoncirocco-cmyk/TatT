@@ -50,6 +50,12 @@ export async function POST(req: NextRequest) {
       { status: 403 }
     );
   }
+  if (!artist.claimVerified) {
+    return NextResponse.json(
+      { error: 'Identity review must finish before payout access.', code: 'CLAIM_NOT_VERIFIED' },
+      { status: 403 },
+    );
+  }
 
   try {
     const link = await stripe.accounts.createLoginLink(artist.stripeAccountId);

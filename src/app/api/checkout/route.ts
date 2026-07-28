@@ -193,7 +193,9 @@ export async function POST(req: NextRequest) {
   }
   // A "claimed" artist can receive funds directly (destination charge).
   // Otherwise we HOLD the deposit on the platform (held path below).
-  const artistReady = Boolean(artist.stripeAccountId && artist.chargesEnabled);
+  const artistReady = Boolean(
+    artist.claimVerified && artist.stripeAccountId && artist.chargesEnabled,
+  );
 
   const baseUrl = getBaseUrl(req);
   const successParams = new URLSearchParams({

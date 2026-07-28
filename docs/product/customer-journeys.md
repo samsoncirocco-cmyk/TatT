@@ -1,6 +1,6 @@
 ---
 status: current
-verified_against: 2131a00
+verified_against: 8db5d3e
 verified_on: 2026-07-27
 ---
 
@@ -63,14 +63,16 @@ as the main journey.
 flowchart LR
     A["Public scraped profile"] --> B["Customer discovers artist"]
     B --> C["Booking or claim prompt"]
-    C --> D["Artist claims profile"]
-    D --> E["Stripe Connect onboarding"]
+    C --> D["Pending identity review"]
+    D --> E["Verified ownership + Stripe Connect"]
     E --> F["Availability and calendar connection"]
     F --> G["Booking and deposit"]
     G --> H["Payout or held-funds release"]
 ```
 
-Most profiles are not claimed. The claim path, identity assurance, onboarding,
+Most profiles are not claimed. A public request changes no ownership or payout
+state; an operator verifies the Instagram code or documents the manual fallback
+before the profile becomes editable or payable. Identity assurance, onboarding,
 and payout readiness are therefore part of the booking product, not separate
 administrative concerns.
 
@@ -98,7 +100,10 @@ publicly disclosing why the profile is absent.
   `src/lib/booking-relay.test.ts`,
   `src/lib/booking-relay.transfers.test.ts`
 - Artist claims and Connect: `src/app/api/v1/connect/claim/route.test.ts`,
-  `src/app/api/v1/connect/claim-complete/route.test.ts`
+  `src/app/api/v1/connect/claim-complete/route.test.ts`,
+  `scripts/lib/claim-approval-plan.test.mjs`
+- Artist-managed profile: `src/app/api/v1/artist/profile/route.test.ts`,
+  `src/lib/artist-profile.test.ts`
 - Takedown suppression: `src/lib/takedown.test.ts`,
   `src/app/api/v1/artists/takedown/route.test.ts`
 - Reinstatement: `src/lib/reinstatement.test.ts`,

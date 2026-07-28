@@ -38,6 +38,8 @@ export type RosterArtist = {
   location: string;
   styles: string[];
   instagram: string | null;
+  bio: string | null;
+  bookingUrl: string | null;
   rating: number | null;
   reviewCount: number | null;
   /** Self-hosted portfolio image URLs (public GCS), written by
@@ -117,22 +119,26 @@ export function rosterPageWindow(
  * kill switch is applied, and mocking the driver around Promise.all is
  * flakier than testing the mapper directly.
  */
-export function toRosterArtist(record: any): RosterArtist {
+export function toRosterArtist(record: Record<string, unknown>): RosterArtist {
   const id = String(record.id);
-  const name = record.name ?? "";
+  const name = typeof record.name === "string" ? record.name : "";
+  const shopName = typeof record.shopName === "string" ? record.shopName : null;
+  const city = typeof record.city === "string" ? record.city : null;
+  const state = typeof record.state === "string" ? record.state : null;
   return {
     id,
     slug: artistSlug(name, id),
     name,
-    shopName: record.shopName ?? null,
-    city: record.city ?? null,
-    state: record.state ?? null,
-    location:
-      [record.city, record.state].filter(Boolean).join(", ") || "Location unknown",
-    styles: record.styles ?? [],
-    instagram: record.instagram ?? null,
-    rating: record.rating ?? null,
-    reviewCount: record.reviewCount ?? null,
+    shopName,
+    city,
+    state,
+    location: [city, state].filter(Boolean).join(", ") || "Location unknown",
+    styles: Array.isArray(record.styles) ? record.styles.map(String) : [],
+    instagram: typeof record.instagram === "string" ? record.instagram : null,
+    bio: typeof record.bio === "string" ? record.bio : null,
+    bookingUrl: typeof record.bookingUrl === "string" ? record.bookingUrl : null,
+    rating: typeof record.rating === "number" ? record.rating : null,
+    reviewCount: typeof record.reviewCount === "number" ? record.reviewCount : null,
     // The kill-switch gate (TAT-31): scraped images are withheld here, at the
     // one seam every roster surface reads through, when the switch is off and
     // the artist has not claimed the profile.
@@ -145,7 +151,7 @@ export function toRosterArtist(record: any): RosterArtist {
   };
 }
 
-async function runServerQuery(query: string, params: Record<string, any>) {
+async function runServerQuery(query: string, params: Record<string, unknown>) {
   const { executeServerCypherQuery } = await import(
     "@/features/match-pulse/services/neo4jService"
   );
@@ -184,6 +190,8 @@ export async function browseArtists(
       a.state AS state,
       styles AS styles,
       a.instagram AS instagram,
+      a.bio AS bio,
+      a.bookingUrl AS bookingUrl,
       a.rating AS rating,
       a.reviewCount AS reviewCount,
       a.portfolioImages AS portfolioImages,
@@ -227,6 +235,8 @@ export async function getRosterArtistById(id: string): Promise<RosterArtist | nu
       a.state AS state,
       styles AS styles,
       a.instagram AS instagram,
+      a.bio AS bio,
+      a.bookingUrl AS bookingUrl,
       a.rating AS rating,
       a.reviewCount AS reviewCount,
       a.portfolioImages AS portfolioImages,

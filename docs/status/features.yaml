@@ -133,13 +133,29 @@ features:
       - src/app/api/webhooks/stripe/route.ts
 
   artist_claim_and_connect:
-    status: partial
+    status: implemented_unverified
     evidence:
       - src/app/claim/[artistId]/page.tsx
       - src/app/api/v1/connect/claim/route.ts
+      - src/app/api/v1/connect/claim/route.test.ts
       - src/app/api/v1/connect/accounts/route.ts
+      - scripts/lib/claim-approval-plan.test.mjs
+      - scripts/lib/artist-managed-import.test.mjs
+      - docs/adr/0033-artist-ownership-is-human-verified.md
     limitations:
-      - Identity assurance remains a launch blocker.
+      - Identity approval is deliberately human-operated at launch.
+      - Instagram OAuth and consented media still require the Meta setup tracked in TAT-40.
+
+  artist_profile_management:
+    status: implemented
+    evidence:
+      - src/app/artist/profile/ArtistProfileEditor.tsx
+      - src/app/api/v1/artist/profile/route.ts
+      - src/app/api/v1/artist/profile/route.test.ts
+      - src/lib/artist-profile.test.ts
+    limitations:
+      - Instagram handle changes require manual review because the handle is the identity anchor.
+      - Portfolio media waits for the consented-media path in TAT-40.
 
   artist_calendar:
     status: implemented_unverified
