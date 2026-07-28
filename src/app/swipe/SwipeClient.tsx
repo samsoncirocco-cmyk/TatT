@@ -229,33 +229,36 @@ export default function SwipeClient() {
             ))}
           </div>
         ) : (
-          <div className="max-w-md w-full text-center border-2 hairline p-10">
-            <p className="text-pink text-[10px] uppercase tracking-[0.4em] mb-4 font-body">
-              Deck&nbsp;complete
+          /* The booking affordance speaks quiet (ADR-0032): the deck above is
+             loud, but the moment the sheet offers a commitment — booking a
+             pinned artist — the register flips. */
+          <div className="max-w-md w-full text-center border hairline-quiet p-10 md:p-12">
+            <p className="text-quiet-dim text-[12px] mb-4 font-body">
+              Deck complete
             </p>
-            <div className="font-display text-[28px] tracking-tighter mb-3 text-white">
+            <div className="font-display-quiet text-[24px] mb-4 text-quiet">
               {liked.length} pinned
             </div>
-            <p className="text-[12px] uppercase tracking-[0.2em] text-white/40 font-body mb-8">
+            <p className="text-[13px] text-quiet-dim font-body leading-[1.7] mb-10">
               {liked.length > 0
                 ? "Book a pinned artist below, or browse the full roster."
                 : "Nothing pinned this round — try different preferences."}
             </p>
             {liked.length > 0 && (
-              <ul className="mb-8 space-y-2 text-left">
+              <ul className="mb-10 space-y-3 text-left">
                 {liked.map((card) => (
                   <li
                     key={card.id}
-                    className="flex items-center justify-between gap-3 border hairline px-4 py-3"
+                    className="flex items-center justify-between gap-3 border hairline-quiet-soft px-4 py-3"
                   >
-                    <span className="font-body text-[11px] uppercase tracking-[0.2em] text-white/80 truncate">
+                    <span className="font-body text-[13px] text-quiet truncate">
                       {card.name}
                     </span>
                     <Link
                       href={bookHref(card.id)}
-                      className="shrink-0 text-[10px] uppercase tracking-[0.2em] bg-pink text-black px-4 py-2 press font-body"
+                      className="shrink-0 text-[12px] bg-quiet text-black hover:bg-white px-4 py-2.5 press font-body"
                     >
-                      Book&nbsp;▸
+                      Book
                     </Link>
                   </li>
                 ))}
@@ -264,9 +267,9 @@ export default function SwipeClient() {
             <button
               type="button"
               onClick={() => router.push(liked.length > 0 ? "/artists" : "/smart-match")}
-              className="w-full text-[10px] uppercase tracking-[0.25em] bg-pink text-black px-8 py-4 press font-body"
+              className="w-full text-[13px] border hairline-quiet text-quiet hover:border-quiet hover:text-white px-8 py-4 press font-body"
             >
-              {liked.length > 0 ? "Browse the Roster ▸" : "Try Again ▸"}
+              {liked.length > 0 ? "Browse the roster" : "Try again"}
             </button>
           </div>
         )}
