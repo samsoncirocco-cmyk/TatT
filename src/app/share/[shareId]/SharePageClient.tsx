@@ -5,6 +5,7 @@ import Link from 'next/link';
 import SlashHeadline from '@/components/punk/SlashHeadline';
 import StickerPricetag from '@/components/punk/StickerPricetag';
 import TapeCTA from '@/components/punk/TapeCTA';
+import TattTesterWordmark from '@/components/studio/TattTesterWordmark';
 
 /**
  * The page a share link opens — the first thing a stranger ever sees of TatT.
@@ -82,9 +83,7 @@ export function SharePageClient({ design }: { design: SharedDesign }) {
       <header className="relative z-20 border-b-2 hairline bg-black">
         <div className="max-w-5xl mx-auto px-6 md:px-12 py-4 flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center">
-            <span className="font-display text-white text-3xl leading-none tracking-[0.01em] glitch">
-              TATT<span className="text-pink">TESTER</span>
-            </span>
+            <TattTesterWordmark className="font-display text-white text-3xl leading-none tracking-[0.01em] glitch" />
           </Link>
           <Link
             href="/design"

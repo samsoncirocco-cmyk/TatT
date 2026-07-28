@@ -417,8 +417,8 @@ export function buildBookingEvent(input: {
 }): CalendarEvent {
   const { slot } = input;
   return {
-    summary: `TatT booking — ${input.clientName}`,
-    description: [input.summaryDetail, `TatT booking ${input.bookingId}`]
+    summary: `TattTester booking — ${input.clientName}`,
+    description: [input.summaryDetail, `TattTester booking ${input.bookingId}`]
       .filter(Boolean)
       .join("\n"),
     start: { dateTime: `${slot.date}T${slot.startTime}:00`, timeZone: slot.timezone },

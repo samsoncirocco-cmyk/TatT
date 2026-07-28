@@ -7,6 +7,7 @@ import SlashHeadline from "@/components/punk/SlashHeadline";
 import { useBookings, useDesigns, type TattBooking } from "@/lib/tattStorage";
 import { getApiAuthHeaders } from "@/lib/client-api-auth";
 import type { BookingStatus } from "@/lib/booking";
+import { bookingMoneyCopy } from "@/lib/money-copy";
 
 function formatBookingDate(iso: string): string {
   const [y, m, d] = iso.split("-");
@@ -239,10 +240,9 @@ export default function BookingsPage() {
             </Link>
           </div>
 
-          {/* The money sentence (ADR-0033): who pays what, who keeps what. */}
+          {/* The money sentence (ADR-0036): who pays what, who keeps what. */}
           <p className="mt-4 font-body text-[12px] text-white/50 leading-[1.6]">
-            Every deposit goes to your artist in full — the booking fee you pay at
-            checkout is the only part we keep.
+            {bookingMoneyCopy.bookingsList}
           </p>
 
           {showEmpty ? (

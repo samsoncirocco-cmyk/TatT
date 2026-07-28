@@ -19,6 +19,7 @@ import Link from 'next/link';
 import StudioShell from '@/components/studio/StudioShell';
 import { useAuth } from '@/hooks/useAuth';
 import type { BookingStatus, BookingStatusEvent, RequestedSlot } from '@/lib/booking';
+import { bookingMoneyCopy } from '@/lib/money-copy';
 
 type ConsoleArtist = {
   id: string;
@@ -349,10 +350,9 @@ export default function ConsolePage() {
                   {payoutError && (
                     <p className="mt-3 font-body text-[13px] text-pink">{payoutError}</p>
                   )}
-                  {/* The money sentence (ADR-0033): who pays what, who keeps what. */}
+                  {/* The money sentence (ADR-0036): who pays what, who keeps what. */}
                   <p className="mt-4 pt-4 border-t hairline font-body text-[12px] text-white/50 leading-[1.6]">
-                    Clients pay your deposit plus TattTester&apos;s booking fee — you keep
-                    100% of every deposit; the fee is the only part we take.
+                    {bookingMoneyCopy.artistConsole}
                   </p>
                 </section>
 

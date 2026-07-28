@@ -59,7 +59,7 @@ export function filterPortfolioForDisplay(
 
 /**
  * Has a real person proved they own this profile (`claimedByUid`)? Exported
- * because the provenance label (ADR-0033) renders on exactly the profiles
+ * because the provenance label (ADR-0036) renders on exactly the profiles
  * this returns false for — one definition of "claimed", not two.
  */
 export function isClaimed(artist: PortfolioDisplaySubject): boolean {

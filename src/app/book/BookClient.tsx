@@ -31,6 +31,7 @@ import SlashHeadline from "@/components/punk/SlashHeadline";
 import TapeCTA from "@/components/punk/TapeCTA";
 import { useBookings, useDesigns, type TattDesign } from "@/lib/tattStorage";
 import { getApiAuthHeaders } from "@/lib/client-api-auth";
+import { bookingReviewMoneyCopy } from "@/lib/money-copy";
 import {
   depositDollarsForSize,
   MAX_REQUESTED_SLOTS,
@@ -878,9 +879,8 @@ export default function BookClient({
                   </div>
                 </div>
                 <p className="text-[10px] uppercase tracking-[0.18em] text-white/40 font-body leading-[1.8]">
-                  {/* The money sentence (ADR-0033): who pays what, who keeps what. */}
-                  Your deposit goes to {artist.name}. All of it. Our {feePercent}%
-                  booking fee is added on top — you&apos;ll see both numbers at checkout.
+                  {/* The money sentence (ADR-0036): who pays what, who keeps what. */}
+                  {bookingReviewMoneyCopy(artist.name, feePercent)}
                   <br />
                   Deposit holds your request. Balance settles at the shop.
                   <br />

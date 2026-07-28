@@ -44,7 +44,7 @@ export async function requireAuth(req: NextRequest): Promise<VerifiedUser | Next
   if (!user) {
     return NextResponse.json(
       { error: 'Authentication required', code: 'AUTH_REQUIRED' },
-      { status: 401, headers: { 'WWW-Authenticate': 'Bearer realm="TatT API"' } }
+      { status: 401, headers: { 'WWW-Authenticate': 'Bearer realm="TattTester API"' } }
     );
   }
 

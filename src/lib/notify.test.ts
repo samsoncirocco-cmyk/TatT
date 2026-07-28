@@ -53,7 +53,17 @@ describe('notifyArtistOfBooking — email address resolution', () => {
 
     expect(getArtistStripeMock).toHaveBeenCalledWith('artist_1');
     expect(sendTransactionalEmailMock).toHaveBeenCalledTimes(1);
-    expect(sendTransactionalEmailMock.mock.calls[0][0]).toMatchObject({ to: 'nadia@example.com' });
+    const sent = sendTransactionalEmailMock.mock.calls[0][0];
+    expect(sent).toMatchObject({ to: 'nadia@example.com' });
+    expect(sent.subject).toContain('TattTester');
+    expect(sent.text).toContain(
+      'You keep the full $150.00 deposit; the fee is the only part TattTester keeps.',
+    );
+    expect(sent.html).toContain(
+      'You keep the full $150.00 deposit; the fee is the only part TattTester keeps.',
+    );
+    expect(sent.subject).not.toMatch(/\bTatT\b/);
+    expect(sent.text).not.toMatch(/\bTatT\b/);
   });
 
   it('falls back to the ops inbox when the artist has no email on file', async () => {
