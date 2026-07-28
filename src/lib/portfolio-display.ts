@@ -85,6 +85,15 @@ export function igEmbedsEnabled(
 const IG_PERMALINK = /^https?:\/\/(?:www\.)?instagram\.com\/(p|reel|tv)\/([A-Za-z0-9_-]+)\/?/i;
 
 /**
+ * The same permalink shape as a Cypher `=~` pattern (Java regex, full-match
+ * semantics — hence the trailing `.*`), for server queries that must ask
+ * "would filterPermalinksForDisplay keep anything?" inside the database —
+ * e.g. the roster's hasPortfolio filter (src/lib/artists-graph). Derived
+ * from IG_PERMALINK so the two notions of a valid permalink cannot drift.
+ */
+export const IG_PERMALINK_CYPHER = `(?i)${IG_PERMALINK.source}.*`;
+
+/**
  * The one gate between an artist's stored Instagram permalinks and any
  * render surface (TAT-40, parallel to filterPortfolioForDisplay above).
  *
