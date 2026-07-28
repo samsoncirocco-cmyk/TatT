@@ -3,6 +3,7 @@
 import { use, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import StudioShell from '@/components/studio/StudioShell';
+import QuietHeadline from '@/components/quiet/QuietHeadline';
 import { useAuth } from '@/hooks/useAuth';
 import {
   formatRequirements,
@@ -139,42 +140,35 @@ export default function ClaimArtistPage({ params }: { params: Promise<{ artistId
   const displayName = status?.artistName ?? result?.name ?? artistId;
 
   return (
-    <StudioShell>
-      <div className="px-6 md:px-12 pt-6 pb-4 border-b hairline">
-        <div className="max-w-3xl mx-auto flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/50 tabular-nums font-body">
-          <span>
-            <span className="text-pink">●</span>&nbsp;&nbsp;Claim Profile
-          </span>
-          <span>
-            Artist:&nbsp;<span className="text-pink">{displayName}</span>
-          </span>
+    <StudioShell quiet>
+      <div className="px-6 md:px-12 pt-8 pb-6 border-b hairline-quiet-soft">
+        <div className="max-w-3xl mx-auto flex items-center justify-between text-[12px] text-quiet-dim tabular-nums font-body">
+          <span>Claim profile</span>
+          <span>Artist: {displayName}</span>
         </div>
       </div>
 
-      <div className="px-6 md:px-12 py-16 md:py-24">
+      <div className="px-6 md:px-12 py-24 md:py-32">
         <div className="max-w-3xl mx-auto">
-          <h1 className="font-display text-white text-[40px] md:text-[72px] leading-[0.9] tracking-[0.005em]">
-            This is&nbsp;<span className="slash"><span>your</span></span> profile
-            <span className="text-pink">.</span>
-          </h1>
-          <p className="mt-6 text-[15px] text-white/70 font-body max-w-xl leading-[1.55]">
-            Claim <span className="text-white">{displayName}</span> to collect the deposits
+          <QuietHeadline>This is your profile</QuietHeadline>
+          <p className="mt-8 text-[15px] text-quiet-dim font-body max-w-xl leading-[1.7]">
+            Claim <span className="text-quiet">{displayName}</span> to collect the deposits
             clients have already paid and to get set up for payouts.
           </p>
 
           {heldCount > 0 && (
-            <div className="mt-10 border-2 border-pink bg-black p-6">
-              <div className="font-body text-[10px] uppercase tracking-[0.25em] text-white/50">
+            <div className="mt-14 border hairline-quiet bg-black p-8">
+              <div className="font-body text-[12px] text-quiet-dim">
                 Held deposit waiting
               </div>
-              <div className="mt-2 font-display text-white text-[48px] leading-none tabular-nums">
+              <div className="mt-3 font-display-quiet text-quiet text-[40px] leading-none tabular-nums">
                 {formatUsd(heldCents)}
               </div>
-              <div className="mt-1 font-body text-[12px] text-white/60">
+              <div className="mt-2 font-body text-[12px] text-quiet-dim">
                 {heldCount} booking{heldCount === 1 ? '' : 's'} — released once Stripe clears your account.
               </div>
               {/* The money sentence (ADR-0033): who pays what, who keeps what. */}
-              <p className="mt-3 font-body text-[12px] text-white/60 leading-[1.6]">
+              <p className="mt-4 font-body text-[13px] text-quiet leading-[1.7]">
                 Clients paid this deposit plus our booking fee — the full deposit is
                 yours; the fee is the only part TattTester keeps.
               </p>
@@ -182,41 +176,40 @@ export default function ClaimArtistPage({ params }: { params: Promise<{ artistId
           )}
 
           {status && status.released.count > 0 && (
-            <div className="mt-10 border-2 border-pink bg-black p-6">
-              <div className="font-body text-[10px] uppercase tracking-[0.25em] text-pink">
+            <div className="mt-14 border hairline-quiet bg-black p-8">
+              <div className="font-body text-[12px] text-quiet-dim">
                 Deposits released
               </div>
-              <div className="mt-2 font-display text-white text-[48px] leading-none tabular-nums">
+              <div className="mt-3 font-display-quiet text-quiet text-[40px] leading-none tabular-nums">
                 {formatUsd(status.released.amountCents)}
               </div>
-              <div className="mt-1 font-body text-[12px] text-white/60">
+              <div className="mt-2 font-body text-[12px] text-quiet-dim">
                 Sent to your Stripe account across {status.released.count} booking
                 {status.released.count === 1 ? '' : 's'}.
               </div>
             </div>
           )}
 
-          <div className="mt-12">
+          <div className="mt-14">
             {!isAuthenticated && (
               <button
                 type="button"
                 disabled={loading}
                 onClick={() => void loginWithGoogle()}
-                className="inline-flex items-center justify-center px-8 py-4 font-display text-[20px] leading-none tracking-[0.02em] press tape disabled:opacity-50"
+                className="inline-flex items-center justify-center px-8 py-4 font-body text-[14px] leading-none press bg-quiet text-black hover:bg-white disabled:opacity-50"
               >
                 Log in with Google to claim
-                <span className="ml-2 text-[14px]">▸</span>
               </button>
             )}
 
             {isAuthenticated && phase === 'working' && (
-              <div className="font-body text-[12px] uppercase tracking-[0.28em] text-white/60">
-                <span className="text-pink">●</span>&nbsp;&nbsp;Checking your payout status…
+              <div className="font-body text-[13px] text-quiet-dim">
+                Checking your payout status…
               </div>
             )}
 
             {phase === 'ready' && linkExpired && status?.state !== 'enabled' && (
-              <div className="mb-6 border-2 border-pink bg-black p-4 font-body text-[13px] text-white/70">
+              <div className="mb-8 border hairline-quiet bg-black p-5 font-body text-[13px] text-quiet-dim">
                 That Stripe setup link had already been used or expired — they&apos;re single-use.
                 Start a fresh one below.
               </div>
@@ -235,14 +228,14 @@ export default function ClaimArtistPage({ params }: { params: Promise<{ artistId
             )}
 
             {phase === 'ready' && error && (
-              <p className="mt-4 font-body text-[13px] text-pink">{error}</p>
+              <p className="mt-5 font-body text-[13px] text-pink">{error}</p>
             )}
             {/* The other ending to the same recognition moment: an artist who
                 recognises the profile may want it gone, not run. See ADR 0025. */}
-            <div className="mt-10 pt-8 border-t hairline">
-              <p className="font-body text-[13px] text-white/50 leading-[1.55]">
+            <div className="mt-14 pt-10 border-t hairline-quiet-soft">
+              <p className="font-body text-[13px] text-quiet-dim leading-[1.7]">
                 This is your work but you never asked to be listed?{' '}
-                <Link href={`/takedown/${encodeURIComponent(artistId)}`} className="text-pink press">
+                <Link href={`/takedown/${encodeURIComponent(artistId)}`} className="text-quiet underline underline-offset-4 hover:text-white press">
                   Have it removed instead
                 </Link>
                 .
@@ -250,16 +243,16 @@ export default function ClaimArtistPage({ params }: { params: Promise<{ artistId
             </div>
 
             {phase === 'error' && error && (
-              <div className="border-2 border-pink bg-black p-6">
-                <div className="font-body text-[12px] uppercase tracking-[0.25em] text-pink">Couldn&apos;t claim</div>
-                <p className="mt-2 font-body text-[13px] text-white/70">{error}</p>
+              <div className="border border-pink/60 bg-black p-6">
+                <div className="font-body text-[13px] text-pink">Couldn&apos;t claim</div>
+                <p className="mt-3 font-body text-[13px] text-quiet-dim">{error}</p>
                 {isAuthenticated && (
                   <button
                     type="button"
                     onClick={() => {
                       setPhase('idle');
                     }}
-                    className="mt-4 inline-flex items-center px-6 py-3 border-2 hairline text-white font-display text-[16px] hover:bg-pink hover:border-pink hover:text-black press"
+                    className="mt-5 inline-flex items-center px-6 py-3 border hairline-quiet text-quiet font-body text-[13px] hover:border-quiet hover:text-white press"
                   >
                     Try again
                   </button>
@@ -304,10 +297,9 @@ function OnboardingPanel({
       type="button"
       disabled={pending}
       onClick={onStart}
-      className="mt-6 inline-flex items-center justify-center px-8 py-4 font-display text-[20px] leading-none tracking-[0.02em] press tape disabled:opacity-50"
+      className="mt-8 inline-flex items-center justify-center px-8 py-4 font-body text-[14px] leading-none press bg-quiet text-black hover:bg-white disabled:opacity-50"
     >
       {pending ? 'Opening Stripe…' : label}
-      <span className="ml-2 text-[14px]">▸</span>
     </button>
   );
 
@@ -316,27 +308,27 @@ function OnboardingPanel({
       type="button"
       disabled={pending}
       onClick={onRecheck}
-      className="mt-4 inline-flex items-center px-6 py-3 border-2 hairline text-white font-display text-[16px] hover:bg-pink hover:border-pink hover:text-black press disabled:opacity-50"
+      className="mt-5 inline-flex items-center px-6 py-3 border hairline-quiet text-quiet font-body text-[13px] hover:border-quiet hover:text-white press disabled:opacity-50"
     >
       {pending ? 'Checking…' : 'Check again'}
     </button>
   );
 
   const footer = email ? (
-    <div className="mt-6 font-body text-[10px] uppercase tracking-[0.25em] text-white/40">
+    <div className="mt-8 font-body text-[12px] text-quiet-dim/80">
       Signed in as {email}
     </div>
   ) : null;
 
   if (status.state === 'enabled') {
     return (
-      <div className="border-2 hairline bg-black p-6">
-        <div className="font-display text-white text-[24px] leading-none">Payouts are live.</div>
-        <p className="mt-3 font-body text-[13px] text-white/70 leading-[1.55]">
+      <div className="border hairline-quiet bg-black p-8">
+        <div className="font-display-quiet text-quiet text-[20px] leading-none">Payouts are live.</div>
+        <p className="mt-4 font-body text-[13px] text-quiet-dim leading-[1.7]">
           Stripe has cleared your account — deposits route straight to you from here on.
         </p>
         {!status.payoutsEnabled && (
-          <p className="mt-3 font-body text-[13px] text-white/60 leading-[1.55]">
+          <p className="mt-4 font-body text-[13px] text-quiet-dim leading-[1.7]">
             Bank transfers are still switching on. You can take payments now; Stripe will pay them
             out as soon as your bank details clear.
           </p>
@@ -348,9 +340,9 @@ function OnboardingPanel({
 
   if (status.state === 'pending_verification') {
     return (
-      <div className="border-2 hairline bg-black p-6">
-        <div className="font-display text-white text-[24px] leading-none">Stripe is reviewing you.</div>
-        <p className="mt-3 font-body text-[13px] text-white/70 leading-[1.55]">
+      <div className="border hairline-quiet bg-black p-8">
+        <div className="font-display-quiet text-quiet text-[20px] leading-none">Stripe is reviewing you.</div>
+        <p className="mt-4 font-body text-[13px] text-quiet-dim leading-[1.7]">
           You&apos;ve sent Stripe everything they asked for. Nothing is needed from you — reviews
           usually finish within a day. Payouts stay off until they clear you
           {heldPhrase ? `, and ${heldPhrase} stays held until then` : ''}.
@@ -364,17 +356,17 @@ function OnboardingPanel({
   if (status.state === 'requirements_due') {
     const items = formatRequirements(status.requirementsDue);
     return (
-      <div className="border-2 border-pink bg-black p-6">
-        <div className="font-display text-white text-[24px] leading-none">Stripe still needs a few things.</div>
-        <p className="mt-3 font-body text-[13px] text-white/70 leading-[1.55]">
+      <div className="border hairline-quiet bg-black p-8">
+        <div className="font-display-quiet text-quiet text-[20px] leading-none">Stripe still needs a few things.</div>
+        <p className="mt-4 font-body text-[13px] text-quiet-dim leading-[1.7]">
           You&apos;re not set up yet. Until these are done you can&apos;t be paid
           {heldPhrase ? `, and we can’t release ${heldPhrase}` : ''}.
         </p>
         {items.length > 0 && (
-          <ul className="mt-4 space-y-1 font-body text-[13px] text-white/80">
+          <ul className="mt-5 space-y-2 font-body text-[13px] text-quiet">
             {items.map((item) => (
               <li key={item}>
-                <span className="text-pink">—</span>&nbsp;&nbsp;{item}
+                <span className="text-quiet-dim">—</span>&nbsp;&nbsp;{item}
               </li>
             ))}
           </ul>
@@ -388,9 +380,9 @@ function OnboardingPanel({
 
   if (status.state === 'no_account') {
     return (
-      <div className="border-2 border-pink bg-black p-6">
-        <div className="font-display text-white text-[24px] leading-none">No Stripe account yet.</div>
-        <p className="mt-3 font-body text-[13px] text-white/70 leading-[1.55]">
+      <div className="border hairline-quiet bg-black p-8">
+        <div className="font-display-quiet text-quiet text-[20px] leading-none">No Stripe account yet.</div>
+        <p className="mt-4 font-body text-[13px] text-quiet-dim leading-[1.7]">
           We couldn&apos;t set up your Stripe account, so payouts can&apos;t be turned on. Try again —
           if it keeps failing, tell us and we&apos;ll sort it before your hold window runs out.
         </p>
@@ -402,11 +394,11 @@ function OnboardingPanel({
 
   // not_started
   return (
-    <div className="border-2 hairline bg-black p-6">
-      <div className="font-display text-white text-[24px] leading-none">
+    <div className="border hairline-quiet bg-black p-8">
+      <div className="font-display-quiet text-quiet text-[20px] leading-none">
         You&apos;re claimed. Payouts aren&apos;t on yet.
       </div>
-      <p className="mt-3 font-body text-[13px] text-white/70 leading-[1.55]">
+      <p className="mt-4 font-body text-[13px] text-quiet-dim leading-[1.7]">
         Stripe needs to verify your identity and bank details before any money can reach you. It
         takes a few minutes on their site, and you&apos;ll land back here when you&apos;re done
         {heldPhrase ? `. Finishing it is what unlocks ${heldPhrase}` : ''}.
