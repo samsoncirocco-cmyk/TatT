@@ -48,6 +48,14 @@ describe("buildNotRemovedClause", () => {
     expect(siteLines.length).toBeGreaterThan(3);
     expect(unguarded).toEqual([]);
   });
+
+  it("uses the public predicate, so stale handles cannot reach match results", () => {
+    const source = readFileSync(
+      resolve(process.cwd(), "src/features/match-pulse/services/neo4jService.ts"),
+      "utf8",
+    );
+    expect(source).toContain("const NOT_REMOVED = PUBLIC_ARTIST_CLAUSE");
+  });
 });
 
 describe("buildHasPortfolioClause", () => {

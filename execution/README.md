@@ -140,7 +140,7 @@ Removal semantics and identity-proof decisions: `docs/adr/0025-artist-takedown-s
 | Execute a takedown (dry-run by default) | `scripts/execute-takedown.mjs` |
 | Planner / executor | `scripts/lib/takedown-plan.mjs` |
 | Ingest tombstone gate (fails closed) | `scripts/lib/takedown-tombstone.mjs` |
-| Gated ingest paths | `scripts/import-to-neo4j.js`, `scripts/data_acquisition/import_to_neo4j.js`, `scripts/host-artist-images.mjs` |
+| Gated ingest paths | `scripts/import-to-neo4j.js`, `scripts/host-artist-images.mjs` |
 
 ### `directives/artist-reinstatement.md`
 

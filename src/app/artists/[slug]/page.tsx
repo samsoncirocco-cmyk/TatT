@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
 import FavoriteButton from "@/components/punk/FavoriteButton";
+import InstagramEmbed from "@/components/punk/InstagramEmbed";
 import SlashHeadline from "@/components/punk/SlashHeadline";
 import TapeCTA from "@/components/punk/TapeCTA";
 import { artistIdFromSlug } from "@/lib/artist-slug";
@@ -9,6 +10,11 @@ import { getRosterArtistById, instagramUrl } from "@/lib/artists-graph";
 
 // 10k+ artists live in the graph — profiles render on demand, never at build.
 export const dynamic = "force-dynamic";
+
+// Surface budget for the embed tier (TAT-40): full Instagram embeds render
+// HERE and only here — a handful, lazily. Card grids (/artists roster) and
+// the swipe deck never mount iframes; they stay on hosted-image/stub tiles.
+const PROFILE_EMBED_LIMIT = 4;
 
 export default async function ArtistProfilePage({
   params,
@@ -206,6 +212,43 @@ export default async function ArtistProfilePage({
           </div>
         </div>
       </div>
+
+      {/* RECENT WORK — Instagram embed tier (TAT-40). portfolioPermalinks is
+          policy-filtered server-side (src/lib/portfolio-display): it is empty
+          unless ENABLE_IG_EMBEDS=true and this artist is unclaimed, so this
+          whole section is inert until that flag is deliberately flipped.
+          The media is served by Instagram inside Instagram's iframe — nothing
+          here is hosted or cached on TatT infrastructure. */}
+      {artist.portfolioPermalinks.length > 0 && (
+        <div className="px-6 md:px-12 pb-12 md:pb-16">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-[10px] uppercase tracking-[0.28em] text-pink mb-6 font-body border-t hairline pt-8">
+              ▸&nbsp;Recent&nbsp;work&nbsp;·&nbsp;via&nbsp;Instagram
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-8">
+              {artist.portfolioPermalinks.slice(0, PROFILE_EMBED_LIMIT).map((permalink) => (
+                <InstagramEmbed
+                  key={permalink}
+                  permalink={permalink}
+                  className="border-2 hairline bg-black/40"
+                  // A deleted/private post degrades to the same deliberate
+                  // monogram tile the hero uses — never a broken box.
+                  fallback={
+                    <div className="aspect-[3/4] bg-pink border-2 hairline relative overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 mix-blend-multiply" />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="font-display text-[88px] leading-none text-black/25 select-none">
+                          {monogram}
+                        </span>
+                      </div>
+                    </div>
+                  }
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* FLOATING CTA */}
       <div className="sticky bottom-6 z-30 px-6 md:px-12 pb-10 pointer-events-none">

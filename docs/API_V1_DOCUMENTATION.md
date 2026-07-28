@@ -1,3 +1,7 @@
+> **Status: legacy API reference.** Route shapes and capability claims may have
+> drifted. Verify against `src/app/api/` and use
+> `docs/status/features.yaml` for current feature status.
+
 # API v1 Documentation
 
 ## Overview

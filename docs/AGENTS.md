@@ -1,31 +1,41 @@
-# TatT Agent Notes
+# Documentation agent notes
 
-This repo is the TatT design studio. Focus on the Generate page (“The Forge”) and its supporting services/hooks/components.
+The canonical documentation entry is `docs/README.md`.
 
-## Where to start
-- Main UI: `src/pages/Generate.jsx`
-- Canvas + layers: `src/components/generate/ForgeCanvas.tsx`, `src/hooks/useLayerManagement.ts`, `src/services/canvasService.ts`
-- Generation: `src/hooks/useImageGeneration.js`, `src/services/replicateService.js`
-- Versions: `src/hooks/useVersionHistory.js`, `src/services/versionService.js`, `src/components/generate/VersionTimeline.jsx`, `src/components/generate/VersionComparison.jsx`
-- Match Pulse: `src/components/generate/MatchPulseSidebar.jsx`, `src/components/generate/ArtistMatchCard.jsx`, `src/hooks/useArtistMatching.js`, `src/services/matchService.js`, `src/services/neo4jService.js`
-- Inpainting: `src/components/InpaintingEditor.jsx`, `src/services/inpaintingService.js`
-- Stencil: `src/services/stencilService.js`, `src/components/StencilExport.jsx`
+## Evidence order
 
-## Local run
-- `npm run dev`
+1. Source, tests, configuration, and schemas establish built behavior.
+2. Accepted ADRs establish intended direction.
+3. `docs/status/features.yaml` reconciles the two.
+4. Current product and architecture documents explain that reconciliation.
+5. Handoffs, audits, research, plans, and pitch scripts are historical evidence.
 
-## Implementation conventions
-- Prefer URLs over base64 in storage. Keep localStorage payloads small.
-- Use `useLayerManagement` for any layer mutations.
-- Use `useImageGeneration` for high-res/refine flows; low-res previews use `useSmartPreview`.
-- Match Pulse updates should be debounced (2s) and recover with retry on failure.
-- Maintain accessibility: focus-visible outlines, ARIA labels, and live regions for dynamic updates.
+Do not promote an accepted-but-unimplemented ADR to “built.” Do not override an
+accepted decision merely because an old route still exists.
 
-## Recent changes to keep in mind
-- Blend modes now render in Konva with `globalCompositeOperation`.
-- Version history auto-saves on generation and example load; comparisons are modal-based.
-- Inpainting + restyle flows are wired into the Generate page.
+## Required updates
 
-## Testing notes
-- No formal test suite updates were run in this session.
-- Smoke test: open `/generate`, load a trending example, generate a new layer, check timeline + Match Pulse updates.
+When changing a public capability, journey, interface, dependency, or durable
+decision:
+
+- Update `docs/status/features.yaml`.
+- Update the relevant current document.
+- Add or supersede an ADR when the decision is durable.
+- Add source and test evidence for material claims.
+
+## Claim safety
+
+- TatT is pre-launch.
+- Scraped profiles are not onboarded artists.
+- Payment code is not revenue.
+- Generated output is not a finished tattoo.
+- Placement preview is not anatomical tracking.
+- Counts must be recomputed and dated.
+- Brand and fundraising remain recorded contradictions.
+
+## Graph-based navigation
+
+Use a current-code Graphify index to locate module interfaces, callers,
+adapters, and tests. Keep historical documents in a separate graph so stale
+plans do not rank alongside implementation. Verify important graph conclusions
+against source before editing current documentation.

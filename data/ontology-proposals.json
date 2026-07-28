@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "term": "Trash Polka",
+    "normalized": "trash-polka",
+    "source": "linear:TAT-6",
+    "count": 1,
+    "status": "pending"
+  },
+  {
+    "term": "Sketch",
+    "normalized": "sketch",
+    "source": "linear:TAT-6",
+    "count": 1,
+    "status": "pending"
+  }
+]

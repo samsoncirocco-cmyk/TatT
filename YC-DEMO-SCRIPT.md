@@ -1,3 +1,8 @@
+> **Status: historical and not approved for reuse.** The brand, product claims,
+> market claims, traction language, and $2.5M ask conflict with current
+> repository evidence. Use `docs/product/pitch-facts.md` before drafting a new
+> pitch.
+
 # TatT — YC Demo Day Pitch Script
 
 **Duration:** 2 minutes | **Target:** YC W2026 | **Ask:** $2.5M seed
