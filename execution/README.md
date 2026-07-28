@@ -8,10 +8,13 @@ The Instagram operator path is deliberately split into three auditable stages:
 
 1. `discover_ig.py` collects and profiles possible new handles, then writes
    every accepted and rejected candidate to `data/discovery/candidates.json`.
+   It requires an explicit valid `--queue`; paid collection and profiling also
+   require `--execute`.
 2. `apify_ig_enrich.py` refreshes known handles. The shared
    `ig_quality.py` gate is on by default; `--no-filter` is the explicit,
    audited override. The command is dry-run by default; paid actor work
-   requires `--execute`.
+   requires `--execute` and an explicit valid `--queue`. With no `--count`,
+   it processes the rest of that queue rather than a hidden default slice.
 3. `scripts/host-artist-images.mjs` hosts accepted images and
    `scripts/apply-artist-refresh-status.mjs` applies the separate freshness
    ledger. The status applier is dry-run by default.
@@ -21,7 +24,10 @@ transient actor or network failures. Three consecutive confirmed dead
 observations mark an artist stale. A confirmed active profile clears stale;
 transient failures never create or clear it. One sweep ID gets one observation
 per handle, so retries or overlapping workers cannot manufacture the three
-dead observations.
+dead observations. A later confirmed active/dead result in the same sweep can
+replace an earlier transient result. Ledger state is checkpointed only after
+the profile/quarantine/audit effects complete, and audit event IDs make crash
+retries idempotent.
 
 Rejected and confirmed-dead profile files move into the local
 `apify-profiles/quarantine/` directory instead of being deleted. Every
@@ -49,11 +55,14 @@ delete rejections or maintain a second classifier in another pipeline.
 
 There is intentionally no quarterly schedule yet. Each Apify run writes
 `apify-run-report.json`, including `usageTotalUsd` when Apify supplies it.
-Pass one `--sweep-id` across every batch; the report deduplicates actor run IDs
+Pass one `--sweep-id` across every batch; the report deduplicates paid attempts
 and accumulates cost rather than overwriting the prior slice. The total stays
-unknown when any actor run lacks pricing; the report exposes the known
-subtotal, missing-run count, and `incomplete` pricing status instead of
-presenting a partial sum as complete.
+unknown when any POST outcome is ambiguous or any identified actor run is
+non-terminal or lacks pricing. The report exposes the known subtotal,
+missing/non-terminal/ambiguous counts, and `incomplete` status instead of
+presenting a partial sum as complete. A durable ambiguous-spend checkpoint is
+written before POST and updated as soon as a run ID or terminal result exists,
+so a crash cannot erase paid-attempt evidence.
 After the host stage, capture GCS cost from the billing export and attach both
 amounts to the run record. Only schedule the sweep after one complete,
 measured run has an approved spend cap. The nightly crew runner is unrelated
@@ -61,10 +70,12 @@ and must not launch this paid job.
 
 `enrich_all.sh`, `parallel_enrich.sh`, and the compatibility
 `enrich_artists.py` entrypoint all route into the audited runner. The shell
-runners require both `--execute` and a stable `--sweep-id`. Parallel processes
-merge the ledger and cost report under file locks and audit-log appends are
-serialized. Supply `APIFY_TOKEN` only through the process environment; the
-runner sends it in an authorization header and never places it in a URL.
+runners require `--execute`, a stable `--sweep-id`, and an explicit queue.
+The parallel wrapper treats `--workers` as concurrency and schedules slices
+until the whole queue is covered. Parallel processes merge the ledger and cost
+report under file locks and audit-log appends are serialized. Supply
+`APIFY_TOKEN` only through the process environment; both discovery and refresh
+send it in an authorization header and never place it in a URL.
 
 Refresh/import writers may update portfolio, the audited `looksBookable`
 verdict/reason, and refresh-health properties only. Artist-owned profile

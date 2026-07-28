@@ -1,5 +1,5 @@
 schema_version: 1
-verified_against: 12d8312
+verified_against: 40012de
 verified_on: 2026-07-27
 
 statuses:
@@ -158,9 +158,12 @@ features:
       - src/lib/artist-visibility.ts
       - src/lib/artist-visibility.test.ts
       - execution/apify_ig_enrich.py
+      - execution/discover_ig.py
       - execution/ig_refresh_state.py
       - tests/execution/test_apify_ig_enrich.py
+      - tests/execution/test_discover_ig.py
       - tests/execution/test_ig_refresh_state.py
+      - tests/execution/test_refresh_runners.py
     limitations:
       - No production refresh-status apply has been verified.
       - Full-sweep Apify and GCS cost, spend approval, and quarterly scheduling remain open under TAT-7.

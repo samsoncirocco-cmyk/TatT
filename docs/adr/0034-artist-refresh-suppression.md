@@ -38,17 +38,23 @@ ownership, verification, payment, or portfolio fields.
    deliberate evidence-gathering run but does not silently relabel a negative
    classifier verdict as positive; publishing after a false positive requires a
    reviewed corrected verdict.
-6. A named sweep contributes at most one refresh observation per handle.
-   Ledger, audit, and cost-report mutations are process-safe so retries and
-   parallel slices cannot create false dead counts or overwrite evidence.
-7. Paid refresh is opt-in through `--execute`. Apify credentials come only from
-   the process environment and travel in an authorization header. A sweep cost
-   is complete only when every recorded actor run has reported pricing.
+6. A named sweep contributes at most one dead-threshold vote per handle, while
+   a confirmed result may replace an earlier transient result. Downstream
+   effects complete before the ledger checkpoint, and ledger, audit, and
+   cost-report mutations are process-safe and retry-idempotent.
+7. Paid discovery and refresh are opt-in through `--execute` and require an
+   explicit valid queue. Apify credentials come only from the process
+   environment and travel in an authorization header.
+8. Potential spend is durably checkpointed before actor POST. A sweep cost is
+   complete only when every attempt has an identified, terminal, priced run;
+   ambiguous POST outcomes remain visible and keep the total incomplete.
 
 ## Consequences
 
 - A single transient failure cannot hide an artist.
 - Retries within one sweep cannot advance the dead threshold.
+- A successful retry can repair a transient observation or unfinished
+  downstream effects without starting a new sweep.
 - A stale or rejected profile cannot leak through one public surface while
   disappearing from another.
 - Scrape-derived writes cannot replace `artistManagedFields`,

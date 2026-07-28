@@ -1,6 +1,6 @@
 ---
 status: current
-verified_against: 12d8312
+verified_against: 40012de
 verified_on: 2026-07-27
 ---
 
@@ -79,8 +79,11 @@ featured, and matching reads use the shared predicate in
 `src/lib/artist-visibility.ts`. The dry-run-first applier refuses ambiguous
 identity matches and does not write artist-managed profile, ownership,
 verification, payment, or portfolio fields. The upstream paid runner is
-dry-run by default, gives each sweep one observation vote per handle, and
-serializes shared ledger, audit, and cost-report updates across workers.
+dry-run by default, requires an explicit queue, gives each sweep one
+dead-threshold vote per handle, and lets confirmed retries replace transient
+results. It checkpoints downstream effects and paid-attempt evidence
+durably, while serializing shared ledger, audit, and cost-report updates
+across workers.
 
 ## Known architecture debt
 
