@@ -5,7 +5,8 @@ import { useState, type FormEvent } from 'react';
 /**
  * Free-text reply line for the conversation. Space Mono body text — the
  * design system has no form-input pattern yet, so this stays minimal:
- * hairline border, pink focus, hard edges.
+ * hairline border, pink focus, hard edges. 16px body: anything smaller
+ * makes iOS Safari zoom the viewport on focus.
  */
 export function ChatInput({
   placeholder,
@@ -37,7 +38,7 @@ export function ChatInput({
         placeholder={placeholder}
         aria-label={ariaLabel}
         disabled={disabled}
-        className="flex-1 min-w-0 bg-transparent border hairline-white px-4 py-3 font-body text-[15px] text-white placeholder:text-white/30 focus:outline-none focus:border-pink"
+        className="flex-1 min-w-0 bg-transparent border hairline-white px-4 py-3 font-body text-[16px] text-white placeholder:text-white/30 focus:outline-none focus:border-pink"
       />
       <button
         type="submit"
