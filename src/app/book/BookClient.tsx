@@ -495,7 +495,7 @@ export default function BookClient({
                   {active && <span className="absolute top-0 left-0 right-0 h-px bg-quiet" />}
                   <span
                     className={`font-display-quiet text-[22px] leading-none tabular-nums ${
-                      active ? "text-quiet" : "text-quiet-dim/60"
+                      active ? "text-quiet" : "text-quiet-dim/70"
                     }`}
                   >
                     {s.n}
@@ -510,7 +510,7 @@ export default function BookClient({
                     </span>
                     <span
                       className={`block text-[11px] font-body mt-1 truncate ${
-                        active ? "text-quiet-dim" : "text-quiet-dim/70"
+                        active ? "text-quiet-dim" : "text-quiet-dim/80"
                       }`}
                     >
                       {active ? "In progress" : done ? `✓ ${doneDetail}` : s.hint}

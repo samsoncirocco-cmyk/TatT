@@ -206,7 +206,7 @@ function SuccessContent() {
             </div>
 
             {sessionId && (
-              <p className="mt-8 text-[11px] text-white/30 font-body break-all">
+              <p className="mt-8 text-[11px] text-quiet-dim/80 font-body break-all">
                 Stripe session: {sessionId}
               </p>
             )}
