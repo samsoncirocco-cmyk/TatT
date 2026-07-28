@@ -163,6 +163,10 @@ function SuccessContent() {
             <p className="mt-8 text-[11px] uppercase tracking-[0.18em] text-white/50 font-body leading-[1.9] max-w-xl">
               {isPaid ? (
                 <>
+                  {/* The money sentence (ADR-0033): who pays what, who keeps what. */}
+                  Your whole deposit goes to your artist — the booking fee you paid
+                  is the only part we keep.
+                  <br />
                   Your requested time goes to the artist — they confirm the final slot.
                   <br />
                   Balance settles at the shop.

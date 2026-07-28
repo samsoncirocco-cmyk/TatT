@@ -142,6 +142,7 @@ export default function BookClient({
   artistLoadFailed,
   designSessionId = "",
   offer,
+  feePercent,
 }: {
   artist: BookArtist | null;
   requestedArtistId: string;
@@ -150,6 +151,8 @@ export default function BookClient({
   designSessionId?: string;
   /** Which booking model this artist is on, and the times we can hold. */
   offer: BookOffer;
+  /** Platform booking fee as a percentage (from PLATFORM_FEE_BPS, server-read). */
+  feePercent: number;
 }) {
   const { addBooking } = useBookings();
   const { designs } = useDesigns();
@@ -875,6 +878,10 @@ export default function BookClient({
                   </div>
                 </div>
                 <p className="text-[10px] uppercase tracking-[0.18em] text-white/40 font-body leading-[1.8]">
+                  {/* The money sentence (ADR-0033): who pays what, who keeps what. */}
+                  Your deposit goes to {artist.name}. All of it. Our {feePercent}%
+                  booking fee is added on top — you&apos;ll see both numbers at checkout.
+                  <br />
                   Deposit holds your request. Balance settles at the shop.
                   <br />
                   Dates are confirmed by the artist — not by paying.
