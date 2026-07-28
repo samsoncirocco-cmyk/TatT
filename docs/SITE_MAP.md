@@ -40,7 +40,8 @@ Every page below is judged by whether it moves someone along this line.
 | `/pricing` | **honest launch pricing** | Implemented in PR #210: free consumer design, booking fee, later artist subscription |
 | `/dashboard` | consumer compatibility redirect | Redirects to the consumer design library |
 | `/console` | **artist console** | Implemented in PR #213: bookings/history, availability, payout state |
-| `/claim`, `/claim/[artistId]` | keep — unblock | TAT-16 (onboarding never renders), TAT-25 (no identity check) |
+| `/claim`, `/claim/[artistId]` | verified request flow | Pending human review before ownership, Connect, or funds (ADR-0033) |
+| `/artist/profile` | artist profile manager | Verified owners edit artist-managed public fields; Instagram stays locked |
 | `/artist/[artistId]/availability` | keep | Hours + Google Calendar sync |
 | `/takedown/[artistId]` | keep | ADR-0025 |
 | `/settings`, `/login`, `/signup` | keep / core funnel | |
@@ -52,8 +53,8 @@ Every page below is judged by whether it moves someone along this line.
 
 ## Business side (ADR-0031: land free, expand later)
 
-1. **Claim + get paid** — free claim, artist keeps 100% of deposits (ADR-0007).
-   Blocked by TAT-16/TAT-25.
+1. **Verify + claim + get paid** — free request, human identity review, then
+   Connect; artist keeps 100% of deposits (ADR-0007, ADR-0033).
 2. **Run your business** — `/console`: bookings + history, availability,
    payout status (implemented in PR #213).
 3. **Paid pro tools** — Stripe Billing lane built, dormant (TAT-17). Sells

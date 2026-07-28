@@ -16,6 +16,8 @@ export interface ArtistStripeInfo {
   chargesEnabled: boolean;
   /** Firebase uid that claimed this profile (see /api/v1/connect/claim), or null if unclaimed. */
   claimedByUid: string | null;
+  /** True only after the human-reviewed claim approval path verified identity. */
+  claimVerified: boolean;
 }
 
 async function runRead(query: string, params: Record<string, unknown>) {
@@ -43,7 +45,8 @@ async function runWrite(query: string, params: Record<string, unknown>): Promise
 const ARTIST_STRIPE_FIELDS = `a.id AS id, a.name AS name, a.email AS email,
             a.stripeAccountId AS stripeAccountId,
             coalesce(a.stripeChargesEnabled, false) AS chargesEnabled,
-            a.claimedByUid AS claimedByUid`;
+            a.claimedByUid AS claimedByUid,
+            a.claimVerificationStatus = 'verified' AS claimVerified`;
 
 function toArtistStripeInfo(r: Record<string, unknown>): ArtistStripeInfo {
   return {
@@ -53,6 +56,7 @@ function toArtistStripeInfo(r: Record<string, unknown>): ArtistStripeInfo {
     stripeAccountId: (r.stripeAccountId as string) ?? null,
     chargesEnabled: Boolean(r.chargesEnabled),
     claimedByUid: (r.claimedByUid as string) ?? null,
+    claimVerified: Boolean(r.claimVerified),
   };
 }
 
@@ -77,7 +81,7 @@ export async function getArtistStripe(artistId: string): Promise<ArtistStripeInf
 export async function getArtistByClaimedUid(uid: string): Promise<ArtistStripeInfo | null> {
   if (!uid) return null;
   const rows = await runRead(
-    `MATCH (a:Artist {claimedByUid: $uid})
+    `MATCH (a:Artist {claimedByUid: $uid, claimVerificationStatus: 'verified'})
      RETURN ${ARTIST_STRIPE_FIELDS}
      LIMIT 1`,
     { uid }
@@ -97,7 +101,7 @@ export async function getArtistByClaimedUid(uid: string): Promise<ArtistStripeIn
  */
 export async function getArtistStripeCustomerId(uid: string): Promise<string | null> {
   const rows = await runRead(
-    `MATCH (a:Artist {claimedByUid: $uid})
+    `MATCH (a:Artist {claimedByUid: $uid, claimVerificationStatus: 'verified'})
      RETURN a.stripeCustomerId AS stripeCustomerId
      LIMIT 1`,
     { uid }

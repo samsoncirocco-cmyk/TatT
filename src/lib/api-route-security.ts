@@ -54,6 +54,7 @@ export const API_ROUTE_SECURITY: Record<string, RouteSecurityEntry> = {
   // via claimedByUid — client-supplied artistIds are never accepted.
   'v1/artist/me': { class: 'firebase-auth' },
   'v1/artist/bookings': { class: 'firebase-auth' },
+  'v1/artist/profile': { class: 'firebase-auth' },
   'v1/book': { class: 'firebase-auth' },
   'v1/book/hold': { class: 'firebase-auth' },
   'v1/bookings': { class: 'firebase-auth' },

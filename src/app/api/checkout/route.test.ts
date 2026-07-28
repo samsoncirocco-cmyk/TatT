@@ -93,6 +93,7 @@ describe('POST /api/checkout — claimed artist (destination charge)', () => {
       email: 'nadia@example.com',
       stripeAccountId: 'acct_artist_1',
       chargesEnabled: true,
+      claimVerified: true,
     });
   });
 
@@ -210,6 +211,23 @@ describe('POST /api/checkout — unclaimed artist (held deposit)', () => {
     const args = sessionArgs();
 
     // Routing to a not-yet-enabled account would fail the charge outright.
+    expect(args.payment_intent_data.transfer_data).toBeUndefined();
+    expect(args.metadata.depositState).toBe('held');
+  });
+
+  it('holds when Stripe is ready but the ownership claim was never verified', async () => {
+    getArtistStripeMock.mockResolvedValue({
+      id: 'artist_1',
+      name: 'Nadia Ink',
+      email: null,
+      stripeAccountId: 'acct_attacker',
+      chargesEnabled: true,
+      claimedByUid: 'uid_first_finder',
+      claimVerified: false,
+    });
+
+    await POST(makeRequest());
+    const args = sessionArgs();
     expect(args.payment_intent_data.transfer_data).toBeUndefined();
     expect(args.metadata.depositState).toBe('held');
   });

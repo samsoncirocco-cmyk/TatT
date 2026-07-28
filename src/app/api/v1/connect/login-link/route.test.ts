@@ -64,6 +64,7 @@ describe('POST /api/v1/connect/login-link — ownership guard', () => {
       stripeAccountId: 'acct_owned',
       chargesEnabled: true,
       claimedByUid: 'uid_caller',
+      claimVerified: true,
     });
     createLoginLinkMock.mockResolvedValue({ url: 'https://connect.stripe.com/express/link' });
 

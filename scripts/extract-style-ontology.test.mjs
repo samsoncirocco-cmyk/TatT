@@ -8,14 +8,12 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 // Repo-source harvest only — no Neo4j, no network.
 describe('harvestRepoSources', () => {
-  it('harvests style terms from both repo sources', () => {
+  it('harvests model-routing terms without treating a generator as vocabulary', () => {
     const sources = harvestRepoSources();
-    expect(sources).toHaveLength(2);
-    const [mapping, artistData] = sources;
+    expect(sources).toHaveLength(1);
+    const [mapping] = sources;
     expect(mapping.terms).toContain('neoTraditional');
     expect(mapping.terms).not.toContain('default');
-    expect(artistData.terms).toContain('Fine Line');
-    expect(artistData.terms.length).toBeGreaterThanOrEqual(15);
   });
 
   it('every harvested repo term is covered by the seed ontology', () => {

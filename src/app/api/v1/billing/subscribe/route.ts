@@ -65,6 +65,12 @@ export async function POST(req: NextRequest) {
         { status: 403 }
       );
     }
+    if (!artist.claimVerified) {
+      return NextResponse.json(
+        { error: 'Identity review must finish before managing this profile.', code: 'CLAIM_NOT_VERIFIED' },
+        { status: 403 },
+      );
+    }
   }
 
   const baseUrl = getBaseUrl(req);

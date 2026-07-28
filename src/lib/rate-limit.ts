@@ -6,7 +6,13 @@ import { Redis } from '@upstash/redis';
 // Types
 // ---------------------------------------------------------------------------
 
-export type LimitType = 'semantic-match' | 'council' | 'generation' | 'estimate' | 'default';
+export type LimitType =
+  | 'semantic-match'
+  | 'council'
+  | 'generation'
+  | 'estimate'
+  | 'artist-claim'
+  | 'default';
 
 interface RateLimitResult {
   allowed: boolean;
@@ -24,6 +30,7 @@ const LIMIT_CONFIG: Record<LimitType, { requests: number; window: string }> = {
   council:          { requests: 20,  window: '1 h' },
   generation:       { requests: 10,  window: '1 m' },
   estimate:         { requests: 30,  window: '1 m' },
+  'artist-claim':   { requests: 5,   window: '1 h' },
   default:          { requests: 60,  window: '1 m' },
 };
 

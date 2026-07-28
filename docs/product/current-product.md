@@ -1,6 +1,6 @@
 ---
 status: current
-verified_against: 2131a00
+verified_against: 8db5d3e
 verified_on: 2026-07-27
 ---
 
@@ -52,7 +52,8 @@ TatT currently supports or partially supports:
 
 - Public artist profiles backed by a scraped national dataset.
 - Artist discovery and design-aware matching.
-- Profile claim and Stripe Connect onboarding.
+- Human-reviewed profile claim and Stripe Connect onboarding.
+- Artist-managed profile copy, location, shop, and booking link.
 - Availability windows and Google Calendar conflict checking.
 - Booking requests, reservation holds, deposits, and payout state.
 - Public takedown and reinstatement paths.
@@ -61,6 +62,11 @@ TatT currently supports or partially supports:
 consolidates bookings and status history, availability, and payout state.
 Identity resolves from the signed-in user; paid business tools remain a later
 expansion.
+
+Public claim requests now stop in `pending_verification`. A signed-in first
+finder cannot edit a profile, open its Connect account, route a destination
+charge, or release held deposits. ADR-0033 records the Instagram-code/manual
+review approval path and the artist-managed-data precedence rule.
 
 ## Brand and accepted launch direction
 
@@ -91,3 +97,4 @@ verification gaps are tracked in `docs/status/features.yaml`.
 - `docs/adr/0029-match-step-is-the-deck-chain.md`
 - `docs/adr/0030-launch-monetization-honest-pricing.md`
 - `docs/adr/0031-business-offer-land-free-expand-later.md`
+- `docs/adr/0033-artist-ownership-is-human-verified.md`

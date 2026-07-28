@@ -75,17 +75,6 @@ export function buildLookup(ontology) {
 // ---------------------------------------------------------------------------
 
 /**
- * Extract the string literals of a top-level `const NAME = [ ... ]` array
- * from JS source text. Lets harvesting read data out of scripts that execute
- * side effects when imported (e.g. generate-tattoo-artists-data.js).
- */
-export function parseConstArray(sourceText, name) {
-  const block = sourceText.match(new RegExp(`const\\s+${name}\\s*=\\s*\\[([^\\]]*)\\]`));
-  if (!block) return [];
-  return [...block[1].matchAll(/'([^']+)'|"([^"]+)"/g)].map((m) => m[1] ?? m[2]);
-}
-
-/**
  * Dedupe raw terms from one or more sources by normalized form.
  * `sources` is [{ source, terms }]; returns [{ term, normalized, source, count }]
  * where `term`/`source` are first-seen and `count` totals occurrences.

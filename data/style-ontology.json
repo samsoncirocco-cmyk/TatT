@@ -1,6 +1,6 @@
 {
-  "version": 3,
-  "updated": "2026-07-25",
+  "version": 5,
+  "updated": "2026-07-28",
   "tags": [
     { "id": "abstract", "label": "Abstract", "aliases": [] },
     { "id": "americana", "label": "Americana", "aliases": [], "parent": "traditional" },
@@ -24,8 +24,10 @@
     { "id": "ornamental", "label": "Ornamental", "aliases": [] },
     { "id": "portrait", "label": "Portrait", "aliases": ["portraits"], "parent": "realism" },
     { "id": "realism", "label": "Realism", "aliases": ["photo realism", "photorealism", "photorealistic", "photo-realism"] },
+    { "id": "sketch", "label": "Sketch", "aliases": [] },
     { "id": "surrealism", "label": "Surrealism", "aliases": ["surreal"] },
     { "id": "traditional", "label": "Traditional", "aliases": ["old school", "oldschool", "old-school", "traditional american", "american traditional"] },
+    { "id": "trash-polka", "label": "Trash Polka", "aliases": [] },
     { "id": "tribal", "label": "Tribal", "aliases": [] },
     { "id": "watercolor", "label": "Watercolor", "aliases": ["watercolour", "water color"] }
   ]

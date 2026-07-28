@@ -73,6 +73,7 @@ describe('POST /api/v1/connect/claim-complete — ownership guard', () => {
       stripeAccountId: 'acct_owned',
       chargesEnabled: true,
       claimedByUid: 'uid_caller',
+      claimVerified: true,
     });
     transferHeldDepositsMock.mockResolvedValue({ count: 2, totalTransferredCents: 22_500 });
 

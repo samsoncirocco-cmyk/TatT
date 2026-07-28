@@ -52,6 +52,17 @@ export async function requireOwnedArtist(
       ),
     };
   }
+  if (!artist.claimVerified) {
+    return {
+      response: NextResponse.json(
+        {
+          error: 'This ownership claim is still awaiting identity review.',
+          code: 'CLAIM_NOT_VERIFIED',
+        },
+        { status: 403 },
+      ),
+    };
+  }
 
   return { artist };
 }

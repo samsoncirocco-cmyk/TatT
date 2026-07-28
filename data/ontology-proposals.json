@@ -4,13 +4,13 @@
     "normalized": "trash-polka",
     "source": "linear:TAT-6",
     "count": 1,
-    "status": "pending"
+    "status": "approved"
   },
   {
     "term": "Sketch",
     "normalized": "sketch",
     "source": "linear:TAT-6",
     "count": 1,
-    "status": "pending"
+    "status": "approved"
   }
 ]

@@ -12,6 +12,7 @@
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { normalizeOntologyStyleList } from './lib/artist-styles.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -51,7 +52,13 @@ CREATE INDEX IF NOT EXISTS idx_tattoo_artists_specializations ON tattoo_artists 
 export function loadBatchData() {
   const batchPath = join(__dirname, '../generated/tattoo-artists-batch-50.json');
   const data = JSON.parse(readFileSync(batchPath, 'utf-8'));
-  return data;
+  return data.map((artist) => ({
+    ...artist,
+    styles: normalizeOntologyStyleList(
+      artist.styles ?? [],
+      `artist ${artist.id ?? artist.name ?? 'unknown'}`,
+    ),
+  }));
 }
 
 /**
@@ -61,7 +68,11 @@ export function generateInsertSQL(artists) {
   if (artists.length === 0) return '';
   
   const values = artists.map(artist => {
-    const styles = artist.styles.map(s => `'${s.replace(/'/g, "''")}'`).join(',');
+    const normalizedStyles = normalizeOntologyStyleList(
+      artist.styles ?? [],
+      `artist ${artist.id ?? artist.name ?? 'unknown'}`,
+    );
+    const styles = normalizedStyles.map(s => `'${s.replace(/'/g, "''")}'`).join(',');
     const colors = artist.color_palettes.map(c => `'${c.replace(/'/g, "''")}'`).join(',');
     const specs = artist.specializations.map(s => `'${s.replace(/'/g, "''")}'`).join(',');
     
@@ -100,5 +111,4 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   console.log(generateInsertSQL(artists.slice(0, 5)));
   console.log(`\n✅ Total artists to insert: ${artists.length}`);
 }
-
 

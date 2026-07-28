@@ -323,3 +323,24 @@ describe("roster Instagram permalinks (TAT-40)", () => {
     );
   });
 });
+
+// The claim entry point (TAT-16): public surfaces decide whether to offer
+// "Claim this profile" off this boolean — the owning uid itself never leaves
+// the server.
+describe("toRosterArtist claimed flag (TAT-16)", () => {
+  it("unclaimed (claimedByUid null): claimed is false", () => {
+    const row = toRosterArtist({ id: "artist_1", name: "A", claimedByUid: null });
+    expect(row.claimed).toBe(false);
+  });
+
+  it("graph rows without the property (backfill not run) read as unclaimed", () => {
+    const row = toRosterArtist({ id: "artist_1", name: "A" });
+    expect(row.claimed).toBe(false);
+  });
+
+  it("claimed: the flag is true and the uid is NOT exposed on the row", () => {
+    const row = toRosterArtist({ id: "artist_1", name: "A", claimedByUid: "uid_9" });
+    expect(row.claimed).toBe(true);
+    expect("claimedByUid" in row).toBe(false);
+  });
+});
