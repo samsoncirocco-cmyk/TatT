@@ -50,6 +50,10 @@ export type RosterArtist = {
    *  (filterPermalinksForDisplay). Rendered as official Instagram embeds on
    *  the profile page ONLY — card grids never mount iframes. */
   portfolioPermalinks: string[];
+  /** True once an artist has claimed this profile (claimedByUid set). The
+   *  uid itself stays server-side — public surfaces only need the boolean,
+   *  e.g. to hide the "Claim this profile" entry point (TAT-16). */
+  claimed: boolean;
 };
 
 export type RosterPage = {
@@ -137,6 +141,7 @@ export function toRosterArtist(record: any): RosterArtist {
     // and only while ENABLE_IG_EMBEDS=true — [] otherwise, so this field is
     // inert until the flag is deliberately flipped.
     portfolioPermalinks: filterPermalinksForDisplay(record),
+    claimed: Boolean(record.claimedByUid),
   };
 }
 
