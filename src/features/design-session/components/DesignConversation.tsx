@@ -15,6 +15,8 @@ import {
 } from '../services/designSessionApi';
 import { ChatBubble } from './ChatBubble';
 import { ChatInput } from './ChatInput';
+import { ExampleStrip } from './ExampleStrip';
+import { StarterChips } from './StarterChips';
 import { ThinkingLine } from './ThinkingLine';
 import { DesignSessionFlow } from './DesignSessionFlow';
 
@@ -178,6 +180,12 @@ export function DesignConversation({ initialPrompt }: { initialPrompt?: string }
   const showProposal = stage === 'proposal' && !pending && !error;
   const showHandoff = stage === 'handoff' && !pending && !error;
 
+  // First-run empty state: the user hasn't spoken yet (neither typed nor
+  // deep-linked). Starter chips + example strip scaffold the blank box; the
+  // moment a user message exists — chip tap included — they're gone and the
+  // conversation owns the screen.
+  const firstRun = !messages.some((message) => message.role === 'user');
+
   return (
     <div className="space-y-5">
       {transcript}
@@ -221,6 +229,11 @@ export function DesignConversation({ initialPrompt }: { initialPrompt?: string }
         </div>
       )}
 
+      {/* First-run scaffolding: a chip is just a prefilled first message —
+          it goes through handleSend like typed text, and the engine's own
+          routing decides conversation vs fast lane (ADR-0028). */}
+      {firstRun && <StarterChips onPick={handleSend} disabled={pending} />}
+
       {/* The reply line — doubles as the proposal's correction box. Hidden
           at the handoff: the CTA is the way forward, not more chat. */}
       {stage !== 'handoff' && (
@@ -231,6 +244,8 @@ export function DesignConversation({ initialPrompt }: { initialPrompt?: string }
           disabled={pending}
         />
       )}
+
+      {firstRun && <ExampleStrip />}
     </div>
   );
 }
