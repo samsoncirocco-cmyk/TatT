@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * Stripe Checkout return page (success_url) — punk StudioShell look.
+ * Stripe Checkout return page (success_url) — quiet-dark StudioShell look
+ * (ADR-0032): this is a money surface, so the volume stays down.
  *
  * The Stripe redirect params tell us what the client *asked* for, but a
  * redirect alone doesn't prove the deposit cleared. So after mount we
@@ -14,8 +15,9 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
-import SlashHeadline from "@/components/punk/SlashHeadline";
-import TapeCTA from "@/components/punk/TapeCTA";
+import QuietHeadline from "@/components/quiet/QuietHeadline";
+import QuietCTA from "@/components/quiet/QuietCTA";
+import ReceiptCard from "@/components/quiet/ReceiptCard";
 import { getApiAuthHeaders } from "@/lib/client-api-auth";
 import type { BookingStatus } from "@/lib/booking";
 
@@ -119,76 +121,99 @@ function SuccessContent() {
   ];
 
   return (
-    <StudioShell>
-      <div className="px-6 md:px-12 pt-6 pb-4 border-b hairline">
-        <div className="max-w-5xl mx-auto flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/50 tabular-nums font-body">
-          <span><span className="text-pink">●</span>&nbsp;&nbsp;Booking</span>
-          <span>{isPaid ? "Deposit" : "Status"}&nbsp;<span className="text-pink">{isPaid ? "paid" : (statusText ?? "pending")}</span></span>
+    <StudioShell quiet>
+      <div className="px-6 md:px-12 pt-8 pb-6 border-b hairline-quiet-soft">
+        <div className="max-w-5xl mx-auto flex items-center justify-between text-[12px] text-quiet-dim tabular-nums font-body">
+          <span>Booking</span>
+          <span>{isPaid ? "Deposit paid" : `Status — ${statusText ?? "pending"}`}</span>
         </div>
       </div>
 
-      <div className="px-6 md:px-12 py-16 md:py-24">
+      <div className="px-6 md:px-12 py-24 md:py-32">
         <div className="max-w-5xl mx-auto">
-          <SlashHeadline before={isPaid ? "Deposit" : "Booking"} slashed={isPaid ? "down" : "in"} size="section" />
+          <QuietHeadline>{isPaid ? "Deposit paid" : "Booking received"}</QuietHeadline>
 
-          <div className="mt-12 border-2 hairline p-8 md:p-12">
-            {depositValue && (
-              <div className="sticker inline-block px-5 py-3 -rotate-2">
-                <div className="font-display text-[18px] tracking-widest leading-none tabular-nums">
-                  ${depositValue}
-                </div>
-                <div className="font-body text-[10px] uppercase tracking-widest leading-none mt-1">
-                  {isPaid ? "Deposit paid" : "Deposit due"}
-                </div>
-              </div>
-            )}
-
+          <div className="mt-16 border hairline-quiet p-8 md:p-14">
             {statusText && (
-              <p className="mt-6 text-[11px] uppercase tracking-[0.2em] text-pink font-body">
+              <p className="text-[13px] text-quiet font-body">
                 {statusText}
               </p>
             )}
 
-            <dl className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5 text-[13px] font-body max-w-2xl">
+            <dl className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-7 text-[13px] font-body max-w-2xl">
               {rows.map((r) => (
                 <div key={r.label}>
-                  <dt className="text-[10px] uppercase tracking-[0.22em] text-white/40">
+                  <dt className="text-[11px] text-quiet-dim">
                     {r.label}
                   </dt>
-                  <dd className="mt-1 text-white capitalize">{r.value}</dd>
+                  <dd className="mt-1.5 text-quiet capitalize">{r.value}</dd>
                 </div>
               ))}
             </dl>
 
-            <p className="mt-8 text-[11px] uppercase tracking-[0.18em] text-white/50 font-body leading-[1.9] max-w-xl">
-              {isPaid ? (
-                <>
-                  {/* The money sentence (ADR-0033): who pays what, who keeps what. */}
-                  Your whole deposit goes to your artist — the booking fee you paid
-                  is the only part we keep.
-                  <br />
-                  Your requested time goes to the artist — they confirm the final slot.
-                  <br />
-                  Balance settles at the shop.
-                </>
+            {/* The final money summary — the one light receipt card the quiet
+                register allows (ADR-0032). */}
+            <div className="mt-10">
+              {depositValue ? (
+                <ReceiptCard className="max-w-xl">
+                  <div className="flex items-baseline justify-between gap-6">
+                    <div className="font-display-quiet text-[28px] leading-none tabular-nums">
+                      ${depositValue}
+                    </div>
+                    <div className="font-body text-[12px] text-black/60">
+                      {isPaid ? "Deposit paid" : "Deposit due"}
+                    </div>
+                  </div>
+                  <p className="mt-5 pt-5 border-t border-black/15 text-[13px] font-body text-black/80 leading-[1.7]">
+                    {isPaid ? (
+                      <>
+                        {/* The money sentence (ADR-0033): who pays what, who keeps what. */}
+                        Your whole deposit goes to your artist — the booking fee
+                        you paid is the only part we keep.
+                        <br />
+                        Your requested time goes to the artist — they confirm the
+                        final slot. Balance settles at the shop.
+                      </>
+                    ) : (
+                      <>
+                        We&apos;re confirming your deposit with Stripe. This page
+                        updates once it clears — you can also check Your bookings.
+                      </>
+                    )}
+                  </p>
+                </ReceiptCard>
               ) : (
-                <>
-                  We&apos;re confirming your deposit with Stripe. This page updates
-                  once it clears — you can also check{" "}
-                  <span className="text-white">Your bookings</span>.
-                </>
+                <p className="text-[13px] text-quiet-dim font-body leading-[1.9] max-w-xl">
+                  {isPaid ? (
+                    <>
+                      {/* The money sentence (ADR-0033): who pays what, who keeps what. */}
+                      Your whole deposit goes to your artist — the booking fee you paid
+                      is the only part we keep.
+                      <br />
+                      Your requested time goes to the artist — they confirm the final slot.
+                      <br />
+                      Balance settles at the shop.
+                    </>
+                  ) : (
+                    <>
+                      We&apos;re confirming your deposit with Stripe. This page updates
+                      once it clears — you can also check{" "}
+                      <span className="text-quiet">Your bookings</span>.
+                    </>
+                  )}
+                </p>
               )}
-            </p>
+            </div>
 
             {sessionId && (
-              <p className="mt-6 text-[10px] uppercase tracking-[0.15em] text-white/30 font-body break-all">
+              <p className="mt-8 text-[11px] text-white/30 font-body break-all">
                 Stripe session: {sessionId}
               </p>
             )}
 
-            <div className="mt-10 flex flex-col sm:flex-row items-start gap-4">
-              <TapeCTA href="/bookings" size="md">Your bookings</TapeCTA>
-              <TapeCTA href="/artists" variant="ghost" size="sm">Back to the roster</TapeCTA>
+            <div className="mt-12 flex flex-col sm:flex-row items-start gap-5">
+              <QuietCTA href="/bookings" size="md">Your bookings</QuietCTA>
+              <QuietCTA href="/artists" variant="ghost" size="sm">Back to the roster</QuietCTA>
             </div>
           </div>
         </div>

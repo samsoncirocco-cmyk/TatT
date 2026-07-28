@@ -27,8 +27,9 @@
 
 import { useMemo, useState } from "react";
 import StudioShell from "@/components/studio/StudioShell";
-import SlashHeadline from "@/components/punk/SlashHeadline";
-import TapeCTA from "@/components/punk/TapeCTA";
+import QuietHeadline from "@/components/quiet/QuietHeadline";
+import QuietCTA from "@/components/quiet/QuietCTA";
+import ReceiptCard from "@/components/quiet/ReceiptCard";
 import { useBookings, useDesigns, type TattDesign } from "@/lib/tattStorage";
 import { getApiAuthHeaders } from "@/lib/client-api-auth";
 import {
@@ -70,9 +71,9 @@ export type BookArtist = {
 };
 
 const STEPS = [
-  { n: "01", label: "Request a Time", hint: "When" },
-  { n: "02", label: "Design + Details", hint: "What" },
-  { n: "03", label: "Review + Deposit", hint: "Send it" },
+  { n: "01", label: "Request a time", hint: "When" },
+  { n: "02", label: "Design + details", hint: "What" },
+  { n: "03", label: "Review + deposit", hint: "Send it" },
 ];
 
 const SIZES = [
@@ -347,18 +348,18 @@ export default function BookClient({
   // ─── No artist picked / not found ────────────────────────────────────
   if (!artist) {
     return (
-      <StudioShell>
-        <div className="px-6 md:px-12 pt-6 pb-4 border-b hairline">
-          <div className="max-w-5xl mx-auto flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/50 font-body">
-            <span><span className="text-pink">●</span>&nbsp;&nbsp;Booking</span>
-            <span>Step&nbsp;<span className="text-pink">0/3</span></span>
+      <StudioShell quiet>
+        <div className="px-6 md:px-12 pt-8 pb-6 border-b hairline-quiet-soft">
+          <div className="max-w-5xl mx-auto flex items-center justify-between text-[12px] text-quiet-dim font-body">
+            <span>Booking</span>
+            <span>Step 0/3</span>
           </div>
         </div>
-        <div className="px-6 md:px-12 py-16 md:py-24">
+        <div className="px-6 md:px-12 py-24 md:py-32">
           <div className="max-w-5xl mx-auto">
-            <SlashHeadline before="Pick your" slashed="artist" size="section" />
-            <div className="mt-12 border-2 hairline p-10 md:p-14 text-center">
-              <p className="font-display text-[24px] md:text-[32px] tracking-wide text-white/70">
+            <QuietHeadline>Pick your artist</QuietHeadline>
+            <div className="mt-16 border hairline-quiet p-12 md:p-20 text-center">
+              <p className="font-display-quiet text-[22px] md:text-[26px] text-quiet">
                 {artistLoadFailed ? (
                   <>Couldn&apos;t reach the artist graph.</>
                 ) : requestedArtistId ? (
@@ -367,14 +368,14 @@ export default function BookClient({
                   <>A booking starts with an artist.</>
                 )}
               </p>
-              <p className="mt-4 text-[11px] uppercase tracking-[0.2em] text-white/40 font-body leading-[1.9]">
+              <p className="mt-6 text-[13px] text-quiet-dim font-body leading-[1.9] max-w-md mx-auto">
                 {artistLoadFailed
                   ? "The live roster is unreachable right now — try again in a minute."
                   : "Browse the roster or get matched, then hit Book the Chair on their profile."}
               </p>
-              <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-                <TapeCTA href="/artists" size="md">Browse the roster</TapeCTA>
-                <TapeCTA href="/smart-match" variant="ghost" size="sm">Get matched</TapeCTA>
+              <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-5">
+                <QuietCTA href="/artists" size="md">Browse the roster</QuietCTA>
+                <QuietCTA href="/smart-match" variant="ghost" size="sm">Get matched</QuietCTA>
               </div>
             </div>
           </div>
@@ -386,45 +387,45 @@ export default function BookClient({
   // ─── Captured, payments unavailable ──────────────────────────────────
   if (phase === "captured") {
     return (
-      <StudioShell>
-        <div className="px-6 md:px-12 pt-6 pb-4 border-b hairline">
-          <div className="max-w-5xl mx-auto flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/50 tabular-nums font-body">
-            <span><span className="text-pink">●</span>&nbsp;&nbsp;Booking</span>
-            <span>Request&nbsp;<span className="text-pink">sent</span></span>
+      <StudioShell quiet>
+        <div className="px-6 md:px-12 pt-8 pb-6 border-b hairline-quiet-soft">
+          <div className="max-w-5xl mx-auto flex items-center justify-between text-[12px] text-quiet-dim tabular-nums font-body">
+            <span>Booking</span>
+            <span>Request sent</span>
           </div>
         </div>
-        <div className="px-6 md:px-12 py-16 md:py-24">
+        <div className="px-6 md:px-12 py-24 md:py-32">
           <div className="max-w-5xl mx-auto">
-            <SlashHeadline before="Request" slashed="sent" size="section" />
-            <div className="mt-12 border-2 hairline p-8 md:p-12">
-              <div className="sticker inline-block px-5 py-3">
-                <div className="font-display text-[18px] tracking-widest leading-none tabular-nums">
+            <QuietHeadline>Request sent</QuietHeadline>
+            <div className="mt-16 border hairline-quiet p-8 md:p-14">
+              <div className="inline-block border hairline-quiet px-5 py-3">
+                <div className="font-display-quiet text-quiet text-[18px] leading-none tabular-nums">
                   {bookingId}
                 </div>
-                <div className="font-body text-[10px] uppercase tracking-widest leading-none mt-1">
+                <div className="font-body text-[11px] text-quiet-dim leading-none mt-1.5">
                   Confirmation
                 </div>
               </div>
-              <p className="mt-8 font-display text-[22px] md:text-[28px] tracking-wide text-white leading-[1.2]">
+              <p className="mt-10 font-display-quiet text-[20px] md:text-[24px] text-quiet leading-[1.3]">
                 Your request is with {artist.name}.
               </p>
-              <p className="mt-4 text-[12px] uppercase tracking-[0.18em] text-white/50 font-body leading-[1.9] max-w-xl">
+              <p className="mt-5 text-[13px] text-quiet-dim font-body leading-[1.9] max-w-xl">
                 They&apos;ll confirm a time from your requested dates.
                 {paymentsUnavailable && (
                   <>
                     <br />
-                    <span className="text-pink">
+                    <span className="text-quiet">
                       Payments aren&apos;t configured yet — no deposit was charged.
                     </span>
                     &nbsp;You&apos;ll settle the deposit once the artist confirms.
                   </>
                 )}
               </p>
-              <div className="mt-10 flex flex-col sm:flex-row items-start gap-4">
-                <TapeCTA href="/bookings" size="md">Your bookings</TapeCTA>
-                <TapeCTA href={`/artists/${artist.slug}`} variant="ghost" size="sm">
+              <div className="mt-12 flex flex-col sm:flex-row items-start gap-5">
+                <QuietCTA href="/bookings" size="md">Your bookings</QuietCTA>
+                <QuietCTA href={`/artists/${artist.slug}`} variant="ghost" size="sm">
                   Back to {artist.name}
-                </TapeCTA>
+                </QuietCTA>
               </div>
             </div>
           </div>
@@ -435,37 +436,37 @@ export default function BookClient({
 
   // ─── The 3-step flow ─────────────────────────────────────────────────
   return (
-    <StudioShell>
-      <div className="px-6 md:px-12 pt-6 pb-4 border-b hairline">
-        <div className="max-w-5xl mx-auto flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/50 tabular-nums font-body">
-          <span><span className="text-pink">●</span>&nbsp;&nbsp;Booking</span>
+    <StudioShell quiet>
+      <div className="px-6 md:px-12 pt-8 pb-6 border-b hairline-quiet-soft">
+        <div className="max-w-5xl mx-auto flex items-center justify-between text-[12px] text-quiet-dim tabular-nums font-body">
+          <span>Booking</span>
           <span>{artist.name}</span>
         </div>
       </div>
 
-      <div className="px-6 md:px-12 py-12 md:py-16">
+      <div className="px-6 md:px-12 py-16 md:py-24">
         <div className="max-w-5xl mx-auto">
-          <SlashHeadline before="Book the" slashed="chair" size="section" />
+          <QuietHeadline>Book the chair</QuietHeadline>
 
           {/* ARTIST STRIP — who you're booking, with honest availability */}
-          <div className="mt-8 border-2 hairline p-5 flex flex-wrap items-center gap-x-6 gap-y-3">
+          <div className="mt-12 border hairline-quiet p-6 flex flex-wrap items-center gap-x-6 gap-y-3">
             <div>
-              <div className="font-display text-[22px] tracking-wide text-white leading-none">
+              <div className="font-display-quiet text-[20px] text-quiet leading-none">
                 {artist.name}
               </div>
-              <div className="mt-2 text-[10px] uppercase tracking-[0.2em] text-white/50 font-body">
+              <div className="mt-3 text-[12px] text-quiet-dim font-body">
                 {[artist.shopName, artist.location].filter(Boolean).join(" · ")}
               </div>
             </div>
-            <div className="ml-auto sticker px-3 py-1.5 -rotate-2">
-              <span className="font-body text-[10px] uppercase tracking-[0.18em]">
+            <div className="ml-auto border hairline-quiet px-3 py-1.5">
+              <span className="font-body text-[11px] text-quiet-dim">
                 {artist.availabilityLabel}
               </span>
             </div>
           </div>
 
           {/* STEP INDICATOR */}
-          <div className="mt-10 flex flex-col sm:flex-row sm:items-stretch gap-0 border-2 hairline">
+          <div className="mt-12 flex flex-col sm:flex-row sm:items-stretch gap-0 border hairline-quiet">
             {STEPS.map((s, i) => {
               const active = i === step;
               const done = i < step;
@@ -487,29 +488,29 @@ export default function BookClient({
                   type="button"
                   onClick={() => { if (i <= step) setStep(i as 0 | 1 | 2); }}
                   disabled={i > step}
-                  className={`relative flex-1 px-5 py-4 border-b sm:border-b-0 sm:border-r hairline last:border-r-0 last:border-b-0 flex items-center gap-4 press text-left ${
-                    active ? "bg-pink/[0.06]" : done ? "hover:bg-white/5" : ""
+                  className={`relative flex-1 px-6 py-5 border-b sm:border-b-0 sm:border-r hairline-quiet-soft last:border-r-0 last:border-b-0 flex items-center gap-4 press text-left ${
+                    active ? "bg-white/[0.04]" : done ? "hover:bg-white/5" : ""
                   }`}
                 >
-                  {active && <span className="absolute top-0 left-0 right-0 h-1 bg-pink" />}
+                  {active && <span className="absolute top-0 left-0 right-0 h-px bg-quiet" />}
                   <span
-                    className={`font-display text-[26px] leading-none tabular-nums ${
-                      active ? "text-pink" : "text-white/30"
+                    className={`font-display-quiet text-[22px] leading-none tabular-nums ${
+                      active ? "text-quiet" : "text-quiet-dim/60"
                     }`}
                   >
                     {s.n}
                   </span>
                   <span className="min-w-0">
                     <span
-                      className={`block text-[10px] uppercase tracking-[0.22em] font-body ${
-                        active ? "text-white" : done ? "text-white/70" : "text-white/50"
+                      className={`block text-[12px] font-body ${
+                        active ? "text-white" : done ? "text-quiet" : "text-quiet-dim"
                       }`}
                     >
                       {s.label}
                     </span>
                     <span
-                      className={`block text-[10px] uppercase tracking-[0.18em] font-body mt-0.5 truncate ${
-                        active ? "text-pink" : "text-white/35"
+                      className={`block text-[11px] font-body mt-1 truncate ${
+                        active ? "text-quiet-dim" : "text-quiet-dim/70"
                       }`}
                     >
                       {active ? "In progress" : done ? `✓ ${doneDetail}` : s.hint}
@@ -522,18 +523,18 @@ export default function BookClient({
 
           {/* STEP 01 — PICK A TIME (reservation) or REQUEST DATES (request) */}
           {step === 0 && (
-            <div className="mt-10 border-2 hairline p-6 md:p-8">
-              <div className="flex items-baseline justify-between gap-4 flex-wrap mb-2">
-                <h2 className="font-display text-[24px] tracking-wide text-white">
+            <div className="mt-12 border hairline-quiet p-8 md:p-12">
+              <div className="flex items-baseline justify-between gap-4 flex-wrap mb-4">
+                <h2 className="font-display-quiet text-[20px] text-quiet">
                   {reserving ? "Pick your time" : "Request your dates"}
                 </h2>
-                <span className="text-[10px] uppercase tracking-[0.25em] text-pink font-body tabular-nums">
+                <span className="text-[12px] text-quiet-dim font-body tabular-nums">
                   {reserving ? offer.label : `Up to ${MAX_REQUESTED_SLOTS}`}
                 </span>
               </div>
 
               {/* The client is told which product they are getting, always. */}
-              <p className="text-[11px] uppercase tracking-[0.18em] text-white/40 font-body leading-[1.8] max-w-xl">
+              <p className="text-[13px] text-quiet-dim font-body leading-[1.8] max-w-xl">
                 {reserving
                   ? offer.detail
                   : (artist.availabilityNote ??
@@ -542,19 +543,19 @@ export default function BookClient({
 
               {/* A reservation that stopped being available mid-flow says so. */}
               {reservationLost && (
-                <p className="mt-4 text-[11px] uppercase tracking-[0.18em] text-pink font-body leading-[1.8] max-w-xl">
+                <p className="mt-5 text-[13px] text-pink font-body leading-[1.8] max-w-xl">
                   {reservationLost}
                 </p>
               )}
 
               {reserving ? (
-                <div className="mt-6 space-y-6">
+                <div className="mt-8 space-y-8">
                   {slotsByDate.map(([date, daySlots]) => (
                     <div key={date}>
-                      <div className="text-[10px] uppercase tracking-[0.28em] text-pink mb-3 font-body">
-                        ▸ {formatSlotDate(date)}
+                      <div className="text-[12px] text-quiet-dim mb-4 font-body">
+                        {formatSlotDate(date)}
                       </div>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-3">
                         {daySlots.map((slot) => {
                           const sel =
                             selectedSlot?.date === slot.date &&
@@ -564,10 +565,10 @@ export default function BookClient({
                               key={`${slot.date}-${slot.startTime}`}
                               type="button"
                               onClick={() => setSelectedSlot(sel ? null : slot)}
-                              className={`text-[11px] uppercase tracking-[0.2em] border hairline px-4 py-3 press font-body tabular-nums ${
+                              className={`text-[13px] border hairline-quiet-soft px-5 py-3.5 press font-body tabular-nums ${
                                 sel
-                                  ? "bg-pink text-black border-pink"
-                                  : "text-white/70 hover:text-black hover:bg-pink"
+                                  ? "bg-quiet text-black border-quiet"
+                                  : "text-quiet hover:text-black hover:bg-quiet"
                               }`}
                             >
                               {slot.startTime}
@@ -580,7 +581,7 @@ export default function BookClient({
                 </div>
               ) : (
               <>
-              <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {days.map(({ iso, date }) => {
                   const sel = selectedDates.includes(iso);
                   const full = !sel && selectedDates.length >= MAX_REQUESTED_SLOTS;
@@ -590,18 +591,18 @@ export default function BookClient({
                       type="button"
                       onClick={() => toggleDate(iso)}
                       disabled={full}
-                      className={`border hairline-soft px-3 py-3 text-left press font-body ${
+                      className={`border hairline-quiet-soft px-4 py-4 text-left press font-body ${
                         sel
-                          ? "bg-pink text-black"
+                          ? "bg-quiet text-black"
                           : full
                             ? "text-white/25 cursor-not-allowed"
-                            : "text-white/70 hover:bg-white/5 hover:text-pink"
+                            : "text-quiet hover:bg-white/5 hover:text-white"
                       }`}
                     >
-                      <span className="block font-display text-[18px] leading-none tracking-wide">
+                      <span className="block font-display-quiet text-[16px] leading-none">
                         {shortDate(date)}
                       </span>
-                      <span className="block text-[10px] uppercase tracking-[0.2em] mt-1.5 opacity-70">
+                      <span className="block text-[11px] mt-2 opacity-70">
                         {sel ? "✓ Requested" : "Tap to request"}
                       </span>
                     </button>
@@ -609,20 +610,20 @@ export default function BookClient({
                 })}
               </div>
 
-              <div className="mt-8">
-                <div className="text-[10px] uppercase tracking-[0.28em] text-pink mb-3 font-body">
-                  ▸ Time of day
+              <div className="mt-10">
+                <div className="text-[12px] text-quiet-dim mb-4 font-body">
+                  Time of day
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-3">
                   {TIME_PREFS.map((t) => (
                     <button
                       key={t}
                       type="button"
                       onClick={() => setTimePref(t)}
-                      className={`text-[10px] uppercase tracking-[0.2em] border hairline px-4 py-2.5 press font-body ${
+                      className={`text-[12px] border hairline-quiet-soft px-5 py-3 press font-body ${
                         timePref === t
-                          ? "bg-pink text-black border-pink"
-                          : "text-white/70 hover:text-black hover:bg-pink"
+                          ? "bg-quiet text-black border-quiet"
+                          : "text-quiet hover:text-black hover:bg-quiet"
                       }`}
                     >
                       {t}
@@ -637,14 +638,14 @@ export default function BookClient({
 
           {/* STEP 02 — DESIGN + DETAILS */}
           {step === 1 && (
-            <div className="mt-10 border-2 hairline p-6 md:p-8 space-y-10">
+            <div className="mt-12 border hairline-quiet p-8 md:p-12 space-y-14">
               {/* Design */}
               <div>
-                <div className="flex items-baseline justify-between mb-4">
-                  <h2 className="font-display text-[24px] tracking-wide text-white">
+                <div className="flex items-baseline justify-between mb-6">
+                  <h2 className="font-display-quiet text-[20px] text-quiet">
                     Pick a design
                   </h2>
-                  <span className="text-[10px] uppercase tracking-[0.25em] text-pink font-body tabular-nums">
+                  <span className="text-[12px] text-quiet-dim font-body tabular-nums">
                     {designs.length}&nbsp;saved
                   </span>
                 </div>
@@ -652,12 +653,12 @@ export default function BookClient({
                   <button
                     type="button"
                     onClick={() => setDesignId(null)}
-                    className={`aspect-square border-2 ${
-                      designId === null ? "border-pink" : "hairline"
-                    } press flex flex-col items-center justify-center gap-2 text-white/70 hover:text-pink`}
+                    className={`aspect-square border ${
+                      designId === null ? "border-quiet" : "hairline-quiet-soft"
+                    } press flex flex-col items-center justify-center gap-2 text-quiet hover:text-white`}
                   >
-                    <span className="font-display text-[18px] tracking-wide">No design</span>
-                    <span className="text-[10px] uppercase tracking-[0.2em] font-body">
+                    <span className="font-display-quiet text-[16px]">No design</span>
+                    <span className="text-[11px] text-quiet-dim font-body">
                       Decide in chair
                     </span>
                   </button>
@@ -666,8 +667,8 @@ export default function BookClient({
                       key={d.id}
                       type="button"
                       onClick={() => setDesignId(d.id)}
-                      className={`group press text-left border-2 ${
-                        designId === d.id ? "border-pink" : "hairline"
+                      className={`group press text-left border ${
+                        designId === d.id ? "border-quiet" : "hairline-quiet-soft"
                       }`}
                     >
                       <div className={`aspect-square ${d.image ? "bg-bone" : d.color} relative overflow-hidden`}>
@@ -684,7 +685,7 @@ export default function BookClient({
                         )}
                       </div>
                       <div className="p-2.5">
-                        <div className="font-display text-[13px] tracking-wide text-white line-clamp-1">
+                        <div className="font-body text-[12px] text-quiet line-clamp-1">
                           {d.prompt.split(/[\s,]+/).slice(0, 3).join(" ") || "Untitled"}
                         </div>
                       </div>
@@ -695,23 +696,23 @@ export default function BookClient({
 
               {/* Size */}
               <div>
-                <div className="text-[10px] uppercase tracking-[0.28em] text-pink mb-3 font-body">
-                  ▸ Size
+                <div className="text-[12px] text-quiet-dim mb-4 font-body">
+                  Size
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {SIZES.map((s) => (
                     <button
                       key={s.id}
                       type="button"
                       onClick={() => setSize(s.id)}
-                      className={`border-2 px-4 py-3 text-left press ${
-                        size === s.id ? "border-pink bg-pink/[0.08]" : "hairline hover:bg-white/5"
+                      className={`border px-4 py-4 text-left press ${
+                        size === s.id ? "border-quiet bg-white/[0.04]" : "hairline-quiet-soft hover:bg-white/5"
                       }`}
                     >
-                      <span className="block font-display text-[18px] tracking-wide text-white">
+                      <span className="block font-display-quiet text-[16px] text-quiet">
                         {s.label}
                       </span>
-                      <span className="block text-[10px] uppercase tracking-[0.2em] text-white/50 font-body mt-1">
+                      <span className="block text-[11px] text-quiet-dim font-body mt-1.5">
                         {s.desc} · ${depositDollarsForSize(s.id)} deposit
                       </span>
                     </button>
@@ -721,19 +722,19 @@ export default function BookClient({
 
               {/* Placement */}
               <div>
-                <div className="text-[10px] uppercase tracking-[0.28em] text-pink mb-3 font-body">
-                  ▸ Placement
+                <div className="text-[12px] text-quiet-dim mb-4 font-body">
+                  Placement
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-3">
                   {PLACEMENTS.map((p) => (
                     <button
                       key={p}
                       type="button"
                       onClick={() => setPlacement(p)}
-                      className={`text-[10px] uppercase tracking-[0.2em] border hairline px-3 py-2 press font-body ${
+                      className={`text-[12px] border hairline-quiet-soft px-4 py-2.5 press font-body ${
                         placement === p
-                          ? "bg-pink text-black border-pink"
-                          : "text-white/70 hover:text-black hover:bg-pink"
+                          ? "bg-quiet text-black border-quiet"
+                          : "text-quiet hover:text-black hover:bg-quiet"
                       }`}
                     >
                       {p}
@@ -746,9 +747,9 @@ export default function BookClient({
               <div>
                 <label
                   htmlFor="vision"
-                  className="block text-[10px] uppercase tracking-[0.28em] text-pink mb-3 font-body"
+                  className="block text-[12px] text-quiet-dim mb-4 font-body"
                 >
-                  ▸ Describe your vision
+                  Describe your vision
                 </label>
                 <textarea
                   id="vision"
@@ -756,25 +757,25 @@ export default function BookClient({
                   onChange={(e) => setDescription(e.target.value.slice(0, 2000))}
                   rows={3}
                   placeholder="Style, mood, references — what matters to you…"
-                  className="w-full bg-black text-white placeholder-white/30 focus:outline-none text-[16px] leading-[1.5] border-2 hairline focus:border-pink p-4 transition-colors font-body resize-none"
+                  className="w-full bg-black text-quiet placeholder-white/30 focus:outline-none text-[16px] leading-[1.5] border hairline-quiet-soft focus:border-quiet p-4 transition-colors font-body resize-none"
                 />
               </div>
 
               {/* Budget */}
               <div>
-                <div className="text-[10px] uppercase tracking-[0.28em] text-pink mb-3 font-body">
-                  ▸ Budget
+                <div className="text-[12px] text-quiet-dim mb-4 font-body">
+                  Budget
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-3">
                   {BUDGETS.map((b) => (
                     <button
                       key={b.value}
                       type="button"
                       onClick={() => setBudget(b.value)}
-                      className={`text-[10px] uppercase tracking-[0.2em] border hairline px-3 py-2 press font-body ${
+                      className={`text-[12px] border hairline-quiet-soft px-4 py-2.5 press font-body ${
                         budget === b.value
-                          ? "bg-pink text-black border-pink"
-                          : "text-white/70 hover:text-black hover:bg-pink"
+                          ? "bg-quiet text-black border-quiet"
+                          : "text-quiet hover:text-black hover:bg-quiet"
                       }`}
                     >
                       {b.label}
@@ -785,16 +786,16 @@ export default function BookClient({
 
               {/* Contact */}
               <div>
-                <div className="text-[10px] uppercase tracking-[0.28em] text-pink mb-3 font-body">
-                  ▸ Your info
+                <div className="text-[12px] text-quiet-dim mb-4 font-body">
+                  Your info
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <input
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Name"
                     aria-label="Name"
-                    className="bg-black text-white placeholder-white/30 focus:outline-none text-[14px] border-2 hairline focus:border-pink px-4 py-3 font-body"
+                    className="bg-black text-quiet placeholder-white/30 focus:outline-none text-[14px] border hairline-quiet-soft focus:border-quiet px-4 py-3 font-body"
                   />
                   <input
                     value={email}
@@ -802,7 +803,7 @@ export default function BookClient({
                     placeholder="Email"
                     aria-label="Email"
                     type="email"
-                    className="bg-black text-white placeholder-white/30 focus:outline-none text-[14px] border-2 hairline focus:border-pink px-4 py-3 font-body"
+                    className="bg-black text-quiet placeholder-white/30 focus:outline-none text-[14px] border hairline-quiet-soft focus:border-quiet px-4 py-3 font-body"
                   />
                   <input
                     value={phone}
@@ -810,7 +811,7 @@ export default function BookClient({
                     placeholder="Phone (optional)"
                     aria-label="Phone"
                     type="tel"
-                    className="bg-black text-white placeholder-white/30 focus:outline-none text-[14px] border-2 hairline focus:border-pink px-4 py-3 font-body sm:col-span-2"
+                    className="bg-black text-quiet placeholder-white/30 focus:outline-none text-[14px] border hairline-quiet-soft focus:border-quiet px-4 py-3 font-body sm:col-span-2"
                   />
                 </div>
               </div>
@@ -819,118 +820,119 @@ export default function BookClient({
 
           {/* STEP 03 — REVIEW + DEPOSIT */}
           {step === 2 && (
-            <div className="mt-10 border-2 hairline p-6 md:p-8">
-              <h2 className="font-display text-[24px] tracking-wide text-white mb-6">
+            <div className="mt-12 border hairline-quiet p-8 md:p-12">
+              <h2 className="font-display-quiet text-[20px] text-quiet mb-8">
                 Review the request
               </h2>
-              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5 text-[13px] font-body">
+              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-7 text-[13px] font-body">
                 <div>
-                  <dt className="text-[10px] uppercase tracking-[0.22em] text-white/40">Artist</dt>
-                  <dd className="mt-1 text-white">{artist.name} · {artist.location}</dd>
+                  <dt className="text-[11px] text-quiet-dim">Artist</dt>
+                  <dd className="mt-1.5 text-quiet">{artist.name} · {artist.location}</dd>
                 </div>
                 <div>
-                  <dt className="text-[10px] uppercase tracking-[0.22em] text-white/40">
+                  <dt className="text-[11px] text-quiet-dim">
                     Requested dates ({timePref.toLowerCase()})
                   </dt>
-                  <dd className="mt-1 text-white">
+                  <dd className="mt-1.5 text-quiet">
                     {selectedDates
                       .map((iso) => shortDate(new Date(`${iso}T00:00:00`)))
                       .join(" · ")}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-[10px] uppercase tracking-[0.22em] text-white/40">Piece</dt>
-                  <dd className="mt-1 text-white capitalize">{size} · {placement}</dd>
+                  <dt className="text-[11px] text-quiet-dim">Piece</dt>
+                  <dd className="mt-1.5 text-quiet capitalize">{size} · {placement}</dd>
                 </div>
                 <div>
-                  <dt className="text-[10px] uppercase tracking-[0.22em] text-white/40">Design</dt>
-                  <dd className="mt-1 text-white">
+                  <dt className="text-[11px] text-quiet-dim">Design</dt>
+                  <dd className="mt-1.5 text-quiet">
                     {chosenDesign
                       ? chosenDesign.prompt.split(/[\s,]+/).slice(0, 4).join(" ")
                       : "No design — decide in chair"}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-[10px] uppercase tracking-[0.22em] text-white/40">Budget</dt>
-                  <dd className="mt-1 text-white">
+                  <dt className="text-[11px] text-quiet-dim">Budget</dt>
+                  <dd className="mt-1.5 text-quiet">
                     {BUDGETS.find((b) => b.value === budget)?.label ?? budget}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-[10px] uppercase tracking-[0.22em] text-white/40">Contact</dt>
-                  <dd className="mt-1 text-white">{name} · {email}</dd>
+                  <dt className="text-[11px] text-quiet-dim">Contact</dt>
+                  <dd className="mt-1.5 text-quiet">{name} · {email}</dd>
                 </div>
                 <div className="sm:col-span-2">
-                  <dt className="text-[10px] uppercase tracking-[0.22em] text-white/40">Vision</dt>
-                  <dd className="mt-1 text-white/80 leading-[1.6] normal-case">
+                  <dt className="text-[11px] text-quiet-dim">Vision</dt>
+                  <dd className="mt-1.5 text-quiet/80 leading-[1.6] normal-case">
                     &ldquo;{description.trim()}&rdquo;
                   </dd>
                 </div>
               </dl>
 
-              <div className="mt-8 border-t hairline pt-6 flex flex-wrap items-center gap-4">
-                <div className="sticker px-4 py-2">
-                  <div className="font-display text-[16px] tracking-widest leading-none tabular-nums">
-                    ${deposit}
+              <div className="mt-10 border-t hairline-quiet-soft pt-8">
+                <ReceiptCard className="max-w-xl">
+                  <div className="flex items-baseline justify-between gap-6">
+                    <div className="font-display-quiet text-[28px] leading-none tabular-nums">
+                      ${deposit}
+                    </div>
+                    <div className="font-body text-[12px] text-black/60">Deposit</div>
                   </div>
-                  <div className="font-body text-[10px] uppercase tracking-widest leading-none mt-1">
-                    Deposit
-                  </div>
-                </div>
-                <p className="text-[10px] uppercase tracking-[0.18em] text-white/40 font-body leading-[1.8]">
-                  {/* The money sentence (ADR-0033): who pays what, who keeps what. */}
-                  Your deposit goes to {artist.name}. All of it. Our {feePercent}%
-                  booking fee is added on top — you&apos;ll see both numbers at checkout.
-                  <br />
-                  Deposit holds your request. Balance settles at the shop.
-                  <br />
-                  Dates are confirmed by the artist — not by paying.
-                </p>
+                  <p className="mt-5 pt-5 border-t border-black/15 text-[13px] font-body text-black/80 leading-[1.7]">
+                    {/* The money sentence (ADR-0033): who pays what, who keeps what. */}
+                    Your deposit goes to {artist.name}. All of it. Our {feePercent}%
+                    booking fee is added on top — you&apos;ll see both numbers at checkout.
+                  </p>
+                  <p className="mt-3 text-[12px] font-body text-black/60 leading-[1.7]">
+                    Deposit holds your request. Balance settles at the shop.
+                    <br />
+                    Dates are confirmed by the artist — not by paying.
+                  </p>
+                </ReceiptCard>
               </div>
             </div>
           )}
 
           {error && (
-            <div className="mt-6 border-2 border-pink p-4">
-              <p className="text-[11px] uppercase tracking-[0.2em] text-pink font-body">
+            <div className="mt-8 border border-pink/60 p-5">
+              <p className="text-[13px] text-pink font-body">
                 {error}
               </p>
             </div>
           )}
 
           {/* ACTION ROW */}
-          <div className="mt-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+          <div className="mt-14 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
             {step === 0 && (reserving ? Boolean(selectedSlot) : selectedDates.length > 0) && (
-              <div className="sticker inline-block px-5 py-3 self-start">
-                <div className="font-display text-[14px] tracking-widest leading-none tabular-nums">
+              <div className="inline-block border hairline-quiet px-5 py-3 self-start">
+                <div className="font-display-quiet text-quiet text-[14px] leading-none tabular-nums">
                   {reserving && selectedSlot
                     ? selectedSlot.startTime
                     : `${selectedDates.length}/${MAX_REQUESTED_SLOTS}`}
                 </div>
-                <div className="font-body text-[10px] uppercase tracking-widest leading-none mt-1">
+                <div className="font-body text-[11px] text-quiet-dim leading-none mt-1.5">
                   {reserving ? "Time picked" : "Dates requested"}
                 </div>
               </div>
             )}
             <div className="sm:ml-auto">
               {step === 0 && (
-                <TapeCTA
+                <QuietCTA
                   size="md"
                   disabled={!timeChosen}
                   onClick={() => setStep(1)}
                 >
                   Next
-                </TapeCTA>
+                </QuietCTA>
               )}
               {step === 1 && (
-                <TapeCTA size="md" disabled={!detailsValid} onClick={() => setStep(2)}>
+                <QuietCTA size="md" disabled={!detailsValid} onClick={() => setStep(2)}>
                   Review
-                </TapeCTA>
+                </QuietCTA>
               )}
               {step === 2 && (
-                <TapeCTA size="md" disabled={phase === "submitting"} onClick={submit}>
+                <QuietCTA size="md" disabled={phase === "submitting"} onClick={submit}>
                   {phase === "submitting" ? "Sending…" : "Send request"}
-                </TapeCTA>
+                </QuietCTA>
               )}
             </div>
           </div>
