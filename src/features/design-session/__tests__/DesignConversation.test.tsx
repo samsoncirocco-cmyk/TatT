@@ -7,6 +7,11 @@ import type { DesignSession } from '@/services/designSession/types';
 import type { ConverseResponse } from '@/services/designConversation/types';
 import { DesignConversation } from '../components/DesignConversation';
 
+// The in-voice reveal narration derived from the fixture's axisSelection —
+// the raw audit rationale (ADR-0012) never renders in the chat.
+const REVEAL_NARRATION =
+  'I split these four on line weight and how much detail they carry — your picks tell me which way to lean.';
+
 // The fetch client attaches Firebase bearer auth (matching the API routes'
 // verifyApiAuth gate); stub it so tests need no signed-in user.
 vi.mock('@/lib/client-api-auth', () => ({
@@ -214,7 +219,7 @@ describe('DesignConversation', () => {
     fireEvent.click(screen.getByRole('button', { name: /show me/i }));
 
     // Confirm hits the frozen contract path.
-    await screen.findByText(revealedSession.axisSelection.rationale);
+    await screen.findByText(REVEAL_NARRATION);
     expect(fetchMock).toHaveBeenLastCalledWith(
       '/api/v1/design-session/sess-1/confirm',
       expect.objectContaining({ method: 'POST' })
@@ -250,7 +255,7 @@ describe('DesignConversation', () => {
     sendReply('fine-line blackwork on my inner forearm — strength after a rough year');
 
     // Straight to the reveal — the confirm fired without a consent tap.
-    await screen.findByText(revealedSession.axisSelection.rationale);
+    await screen.findByText(REVEAL_NARRATION);
     expect(fetchMock.mock.calls[2][0]).toBe('/api/v1/design-session/sess-1/confirm');
     expect(screen.getAllByAltText(/^Design \d$/)).toHaveLength(4);
     expect(screen.queryByRole('button', { name: /show me/i })).toBeNull();
@@ -279,7 +284,7 @@ describe('DesignConversation', () => {
 
     sendReply('yes, show me');
 
-    await screen.findByText(revealedSession.axisSelection.rationale);
+    await screen.findByText(REVEAL_NARRATION);
     const confirmCalls = fetchMock.mock.calls.filter(
       ([path]) => path === '/api/v1/design-session/sess-1/confirm'
     );
@@ -378,7 +383,7 @@ describe('DesignConversation', () => {
       .mockResolvedValueOnce(jsonResponse(completeSession));
 
     fireEvent.click(screen.getByRole('button', { name: /show me/i }));
-    await screen.findByText(revealedSession.axisSelection.rationale);
+    await screen.findByText(REVEAL_NARRATION);
 
     fireEvent.click(screen.getByRole('button', { name: 'Pick design 2' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Design 3 feels most not me' }));

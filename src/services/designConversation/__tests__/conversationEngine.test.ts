@@ -363,9 +363,11 @@ describe('confidence scoring', () => {
       'meaning',
       'styleTags',
     ]);
-    // Vague placement and trivial meaning are weak, not full credit.
+    // Vague placement and trivial meaning are weak, not full credit. One
+    // committed style tag is a RESOLVED style (ADR-0023: "style tags
+    // present +0.20") — never reported weak.
     const weak = scoreRecord({ placement: 'arm', meaning: 'for grandma', styleTags: ['fine-line'] });
-    expect(weak.missingFields).toEqual(['placement', 'meaning', 'styleTags']);
+    expect(weak.missingFields).toEqual(['placement', 'meaning']);
     const full = scoreRecord({
       placement: 'left forearm',
       meaning: 'a hummingbird for my grandmother who fed them',
@@ -872,8 +874,9 @@ describe('runTurn — proposal beat answers follow-up questions', () => {
     expect(result.stage).toBe('proposal');
     expect(result.reply).not.toBe(PLAYED_BACK);
     expect(result.reply).toContain('Hunter x Hunter');
-    // The reveal must stay one tap away.
-    expect(result.reply).toContain('Want to see four takes on this');
+    // The reveal must stay one tap away — restated as a STATEMENT, never
+    // the same affordance question verbatim a second time.
+    expect(result.reply).toContain('one tap away');
   });
 
   it('still announces the playback the FIRST time the beat fires', async () => {

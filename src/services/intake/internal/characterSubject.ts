@@ -48,7 +48,30 @@ const AMBIGUOUS_NAMES = new Set([
   'flash', 'greed', 'guile', 'hawks', 'hide', 'iron', 'joker', 'law', 'lust',
   'maul', 'mercy', 'pain', 'panda', 'power', 'raven', 'robin', 'scar', 'todo',
   'venom', 'wrath', 'brook', 'gon', 'ken', 'mai', 'uta', 'kira', 'dio',
+  // Shared across franchises (Naruto's Nine-Tails is also Kurama) — only
+  // counts when the series is named too.
+  'kurama',
 ]);
+
+/*
+ * How fans actually type series names. "hxh" is more common than
+ * "Hunter x Hunter" in a chat box, and an ambiguous name gated on the series
+ * being mentioned must accept the abbreviations or it silently drops
+ * characters the user clearly named (a real session lost Gon to exactly
+ * this: "characters from hxh").
+ */
+const SERIES_ALIASES: Record<string, string[]> = {
+  'hunter x hunter': ['hxh', 'hunterxhunter'],
+  'yu yu hakusho': ['yyh', 'yuyu hakusho', 'yuyu'],
+  'my hero academia': ['mha', 'bnha', 'boku no hero'],
+  'jujutsu kaisen': ['jjk'],
+  'dragon ball': ['dbz', 'dragon ball z', 'dragonball'],
+  'attack on titan': ['aot', 'snk', 'shingeki no kyojin'],
+  'demon slayer': ['kny', 'kimetsu no yaiba'],
+  'one piece': ['op'],
+  'fullmetal alchemist': ['fma', 'fmab'],
+  'chainsaw man': ['csm'],
+};
 
 const MIN_NAME_LENGTH = 3;
 
@@ -57,12 +80,18 @@ function mentions(haystack: string, needle: string): boolean {
   return new RegExp(`\\b${escaped}\\b`, 'i').test(haystack);
 }
 
+function mentionsSeries(text: string, series: string): boolean {
+  if (mentions(text, series)) return true;
+  const aliases = SERIES_ALIASES[series.toLowerCase()] ?? [];
+  return aliases.some((alias) => mentions(text, alias));
+}
+
 /** A name counts when it is unambiguous, or when its series is named too. */
 function nameMatches(text: string, name: string, series: string): boolean {
   if (name.length < MIN_NAME_LENGTH) return false;
   if (!mentions(text, name)) return false;
   if (!AMBIGUOUS_NAMES.has(name.toLowerCase())) return true;
-  return mentions(text, series);
+  return mentionsSeries(text, series);
 }
 
 /**
@@ -81,10 +110,19 @@ export interface CharacterMatch {
   description: string;
 }
 
+/*
+ * A sleeve or back piece legitimately carries a whole cast — a real session
+ * asked for five Togashi characters and the old cap of two silently dropped
+ * three of them from the brief AND the renders. Six bounds the prompt while
+ * covering every plausible group request.
+ */
+const MAX_CHARACTERS = 6;
+
 /**
- * Every character the text names, or an empty array when it names none.
- * Multiple characters are preserved as a scene — the whole point of the
- * two-character briefs the IP rule exists to support.
+ * Every character the text names (up to MAX_CHARACTERS), or an empty array
+ * when it names none. Multiple characters are preserved as a scene or cast —
+ * never collapsed; dropping named characters from a brief is a hard failure
+ * of the IP rule (ADR-0023).
  */
 export function charactersIn(text: string): CharacterMatch[] {
   const source = (text || '').toLowerCase();
@@ -97,9 +135,7 @@ export function charactersIn(text: string): CharacterMatch[] {
     if (names.some((name) => nameMatches(source, name, entry.series))) {
       matched.push({ name: entry.name, series: entry.series, description: entry.description });
     }
-    // Two characters is already a scene; more than that stops being a
-    // tattoo brief and starts being a poster.
-    if (matched.length === 2) break;
+    if (matched.length === MAX_CHARACTERS) break;
   }
 
   return matched;
@@ -117,30 +153,41 @@ export function subjectPhraseFor(matches: CharacterMatch[]): string | undefined 
     return `${only.description} (${only.series})`;
   }
 
-  const [first, second] = matches;
-  const seriesNote = first.series === second.series ? ` (${first.series})` : '';
-  return `${first.description}; and ${second.description}${seriesNote}`;
+  // Every match rides along — never drop a named character (ADR-0023). The
+  // anchors join as a cast list, with the series named once at the end.
+  const anchors = matches.map((m) => m.description).join('; ');
+  const series = [...new Set(matches.map((m) => m.series))].join(', ');
+  return `${anchors} (${series})`;
 }
 
 function titleCase(name: string): string {
   return name.replace(/\b[a-z]/g, (c) => c.toUpperCase());
 }
 
+function joinNames(names: string[]): string {
+  if (names.length === 1) return names[0];
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
 /**
  * The playback-facing label: short enough to read aloud in the "Here's what
- * I'm hearing" sentence — "Goku (Dragon Ball Z)".
+ * I'm hearing" sentence — "Goku (Dragon Ball Z)". Multiple characters group
+ * by series in first-mention order ("Gon and Killua (Hunter x Hunter),
+ * Hiei and Kurama (Yu Yu Hakusho)") — the playback must enumerate every
+ * named character, never a truncated pair.
  */
 export function characterLabelFor(matches: CharacterMatch[]): string | undefined {
   if (matches.length === 0) return undefined;
 
-  if (matches.length === 1) {
-    const [only] = matches;
-    return `${titleCase(only.name)} (${only.series})`;
+  const groups: { series: string; names: string[] }[] = [];
+  for (const match of matches) {
+    const group = groups.find((g) => g.series === match.series);
+    if (group) group.names.push(titleCase(match.name));
+    else groups.push({ series: match.series, names: [titleCase(match.name)] });
   }
-
-  const [first, second] = matches;
-  const names = `${titleCase(first.name)} and ${titleCase(second.name)}`;
-  return first.series === second.series ? `${names} (${first.series})` : names;
+  return groups
+    .map((group) => `${joinNames(group.names)} (${group.series})`)
+    .join(', ');
 }
 
 /*
@@ -151,7 +198,7 @@ export function characterLabelFor(matches: CharacterMatch[]): string | undefined
  * along with the anchors instead of being replaced by them.
  */
 const MOMENT_PATTERN =
-  /\b(?:charging|firing|launching|throwing|punching|kicking|slashing|swinging|drawing|blocking|dodging|leaping|jumping|flying|falling|running|standing|kneeling|sitting|crying|screaming|shouting|smiling|smirking|glaring|staring|mid-[a-z]+|about to [a-z]+)\b[^.,;!?]*/gi;
+  /\b(?:charging|firing|launching|throwing|punching|kicking|slashing|swinging|drawing|blocking|dodging|leaping|jumping|flying|falling|running|standing|kneeling|sitting|crying|screaming|shouting|smiling|smirking|glaring|staring|using|unleashing|casting|summoning|clashing|battling|fighting|facing off|mid-[a-z]+|about to [a-z]+)\b[^.,;!?]*/gi;
 
 /** The user's own action phrasing, bounded so prose cannot flood the prompt. */
 export function momentFrom(text: string): string | undefined {
