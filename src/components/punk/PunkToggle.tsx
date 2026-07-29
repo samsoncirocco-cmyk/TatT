@@ -11,17 +11,29 @@ type Props = {
   description?: string;
   checked: boolean;
   onChange: (v: boolean) => void;
+  /** Quiet dark (ADR-0032): ON reads warm gray instead of pink. */
+  quiet?: boolean;
 };
 
-export default function PunkToggle({ id, label, description, checked, onChange }: Props) {
+export default function PunkToggle({ id, label, description, checked, onChange, quiet = false }: Props) {
   return (
-    <div className="flex items-center justify-between gap-6 py-4 border-b hairline-soft last:border-b-0">
+    <div
+      className={`flex items-center justify-between gap-6 py-4 border-b ${quiet ? "hairline-quiet-soft" : "hairline-soft"} last:border-b-0`}
+    >
       <label htmlFor={id} className="cursor-pointer">
-        <div className="text-[11px] uppercase tracking-[0.22em] text-white font-body">
+        <div
+          className={
+            quiet
+              ? "text-[13px] text-quiet font-body"
+              : "text-[11px] uppercase tracking-[0.22em] text-white font-body"
+          }
+        >
           {label}
         </div>
         {description && (
-          <p className="mt-1 text-[11px] leading-[1.5] text-white/50 font-body">
+          <p
+            className={`mt-1 text-[11px] leading-[1.5] ${quiet ? "text-quiet-dim" : "text-white/50"} font-body`}
+          >
             {description}
           </p>
         )}
@@ -34,7 +46,7 @@ export default function PunkToggle({ id, label, description, checked, onChange }
         aria-label={label}
         onClick={() => onChange(!checked)}
         className={`relative w-[52px] h-[26px] shrink-0 press ${
-          checked ? "bg-pink" : "bg-white/15"
+          checked ? (quiet ? "bg-quiet" : "bg-pink") : "bg-white/15"
         }`}
       >
         <span

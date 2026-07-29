@@ -28,13 +28,23 @@ const COLS = [
   },
 ];
 
-export default function PunkFooter() {
+/**
+ * `quiet` (ADR-0032): the calm register keeps the same footer with the
+ * volume down — warm-gray hairlines, no glitch, no pink except the
+ * wordmark (the screen's single small pink accent, shared with the header).
+ */
+export default function PunkFooter({ quiet = false }: { quiet?: boolean }) {
+  const hl = quiet ? "hairline-quiet" : "hairline";
+  const hov = quiet ? "hover:text-white" : "hover:text-pink";
+
   return (
-    <footer className="border-t-2 hairline bg-black relative z-10">
+    <footer className={`border-t-2 ${hl} bg-black relative z-10`}>
       <div className="px-6 md:px-12 py-12 md:py-16 max-w-6xl mx-auto">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-10">
           <div>
-            <TattTesterWordmark className="font-display text-white text-3xl leading-none tracking-[0.01em] glitch" />
+            <TattTesterWordmark
+              className={`font-display text-white text-3xl leading-none tracking-[0.01em] ${quiet ? "" : "glitch"}`}
+            />
             <p className="mt-4 text-[12px] text-white/50 font-body leading-[1.55] max-w-[200px]">
               Think it. Ink it. AI-powered tattoo design, on your terms.
             </p>
@@ -49,7 +59,7 @@ export default function PunkFooter() {
                   <li key={l.href}>
                     <Link
                       href={l.href}
-                      className="text-[10px] uppercase tracking-[0.25em] text-white/60 hover:text-pink font-body"
+                      className={`text-[10px] uppercase tracking-[0.25em] text-white/60 ${hov} font-body`}
                     >
                       {l.label}
                     </Link>
@@ -60,10 +70,11 @@ export default function PunkFooter() {
           ))}
         </div>
       </div>
-      <div className="border-t hairline px-6 md:px-12 py-4">
+      <div className={`border-t ${hl} px-6 md:px-12 py-4`}>
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-[10px] uppercase tracking-[0.25em] text-white/40 tabular-nums font-body">
           <span>
-            <span className="text-pink">●</span>&nbsp;&nbsp;TattTester&nbsp;/&nbsp;Side&nbsp;B&nbsp;/&nbsp;2026
+            <span className={quiet ? "text-quiet-dim" : "text-pink"}>●</span>
+            &nbsp;&nbsp;TattTester&nbsp;/&nbsp;Side&nbsp;B&nbsp;/&nbsp;2026
           </span>
           <span>All rights reserved.</span>
         </div>

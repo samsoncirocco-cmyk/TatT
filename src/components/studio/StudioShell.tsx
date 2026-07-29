@@ -17,6 +17,13 @@ type StudioShellProps = {
    * pass `footer={false}` since it has its own sticky bottom chrome.
    */
   footer?: boolean;
+  /**
+   * Quiet dark (ADR-0032): commitment screens keep the same shell but with
+   * the volume down — no halftone/grain, warm-gray hairlines, and no pink
+   * in the chrome except the wordmark, which stays the screen's single
+   * small pink accent.
+   */
+  quiet?: boolean;
 };
 
 const NAV = [
@@ -46,6 +53,7 @@ export default function StudioShell({
   leftSidebar,
   rightSidebar,
   footer = true,
+  quiet = false,
 }: StudioShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -55,13 +63,23 @@ export default function StudioShell({
   const { designs, hydrated: designsHydrated } = useDesigns();
   const { bookings, hydrated: bookingsHydrated } = useBookings();
 
+  // Register-dependent chrome classes (ADR-0032).
+  const hl = quiet ? "hairline-quiet" : "hairline";
+  const hlSoft = quiet ? "hairline-quiet-soft" : "hairline-soft";
+  const hov = quiet ? "hover:text-white" : "hover:text-pink";
+  const accent = quiet ? "text-quiet" : "text-pink";
+
   return (
-    <div className="halftone grain min-h-screen text-white font-body flex flex-col relative bg-black">
-      <header className="relative z-20 border-b-2 hairline bg-black">
+    <div
+      className={`${quiet ? "" : "halftone grain "}min-h-screen text-white font-body flex flex-col relative bg-black`}
+    >
+      <header className={`relative z-20 border-b-2 ${hl} bg-black`}>
         <div className="flex items-stretch justify-between">
           <div className="flex items-center px-5 sm:px-8 py-4 gap-6">
             <Link href="/" className="flex items-center">
-              <TattTesterWordmark className="font-display text-white text-3xl leading-none tracking-[0.01em] glitch" />
+              <TattTesterWordmark
+                className={`font-display text-white text-3xl leading-none tracking-[0.01em] ${quiet ? "" : "glitch"}`}
+              />
             </Link>
             <nav className="hidden md:flex items-center gap-5">
               {NAV.map((n) => {
@@ -71,7 +89,11 @@ export default function StudioShell({
                     key={n.href}
                     href={n.href}
                     className={`text-[10px] uppercase tracking-[0.25em] font-body press ${
-                      active ? "text-pink" : "text-white/70 hover:text-pink"
+                      active
+                        ? quiet
+                          ? "text-white"
+                          : "text-pink"
+                        : `text-white/70 ${hov}`
                     }`}
                   >
                     {n.label}
@@ -86,7 +108,7 @@ export default function StudioShell({
               <Link
                 href="/designs"
                 aria-label={`${designs.length} saved designs`}
-                className="hidden md:flex items-center px-3 border-l hairline-white text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink press tabular-nums font-body"
+                className={`hidden md:flex items-center px-3 border-l hairline-white text-[10px] uppercase tracking-[0.25em] text-white/70 ${hov} press tabular-nums font-body`}
               >
                 ◆&nbsp;{designs.length}
               </Link>
@@ -95,7 +117,7 @@ export default function StudioShell({
               <Link
                 href="/bookings"
                 aria-label={`${bookings.length} bookings`}
-                className="hidden md:flex items-center px-3 border-l hairline-white text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink press tabular-nums font-body"
+                className={`hidden md:flex items-center px-3 border-l hairline-white text-[10px] uppercase tracking-[0.25em] text-white/70 ${hov} press tabular-nums font-body`}
               >
                 ▣&nbsp;{bookings.length}
               </Link>
@@ -104,7 +126,7 @@ export default function StudioShell({
               <Link
                 href="/artists"
                 aria-label={`${favorites.length} favorited artists`}
-                className="hidden md:flex items-center px-4 border-l hairline-white text-[10px] uppercase tracking-[0.25em] text-pink hover:text-white press tabular-nums font-body"
+                className={`hidden md:flex items-center px-4 border-l hairline-white text-[10px] uppercase tracking-[0.25em] ${accent} hover:text-white press tabular-nums font-body`}
               >
                 ♥&nbsp;{favorites.length}
               </Link>
@@ -114,7 +136,7 @@ export default function StudioShell({
                 onClick={() => setAccountOpen((v) => !v)}
                 aria-label="Account"
                 aria-expanded={accountOpen}
-                className="px-4 flex items-center justify-center border-l hairline-white text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink press max-w-[220px]"
+                className={`px-4 flex items-center justify-center border-l hairline-white text-[10px] uppercase tracking-[0.25em] text-white/70 ${hov} press max-w-[220px]`}
               >
                 <span className="truncate">
                   {userHydrated && user
@@ -123,24 +145,24 @@ export default function StudioShell({
                     ? "Sign In"
                     : "Account"}
                 </span>
-                <span className="text-pink ml-2">▾</span>
+                <span className={`${accent} ml-2`}>▾</span>
               </button>
               {accountOpen && (
-                <div className="absolute right-0 top-full mt-0 w-64 bg-black border-2 hairline z-30">
+                <div className={`absolute right-0 top-full mt-0 w-64 bg-black border-2 ${hl} z-30`}>
                   {userHydrated && user ? (
                     <>
-                      <div className="px-5 py-3 border-b hairline-soft">
+                      <div className={`px-5 py-3 border-b ${hlSoft}`}>
                         <div className="text-[10px] uppercase tracking-[0.25em] text-white/40 font-body">
                           Signed in as
                         </div>
-                        <div className="mt-1 text-[12px] text-pink font-body truncate">
+                        <div className={`mt-1 text-[12px] ${accent} font-body truncate`}>
                           {user.name || user.email}
                         </div>
                       </div>
                       <Link
                         href="/designs"
                         onClick={() => setAccountOpen(false)}
-                        className="block px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink hover:bg-white/5 border-b hairline-soft font-body"
+                        className={`block px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/70 ${hov} hover:bg-white/5 border-b ${hlSoft} font-body`}
                       >
                         My Designs
                       </Link>
@@ -157,14 +179,14 @@ export default function StudioShell({
                       <Link
                         href="/bookings"
                         onClick={() => setAccountOpen(false)}
-                        className="block px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink hover:bg-white/5 border-b hairline-soft font-body"
+                        className={`block px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/70 ${hov} hover:bg-white/5 border-b ${hlSoft} font-body`}
                       >
                         My Bookings
                       </Link>
                       <Link
                         href="/settings"
                         onClick={() => setAccountOpen(false)}
-                        className="block px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink hover:bg-white/5 border-b hairline-soft font-body"
+                        className={`block px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/70 ${hov} hover:bg-white/5 border-b ${hlSoft} font-body`}
                       >
                         Settings
                       </Link>
@@ -173,7 +195,7 @@ export default function StudioShell({
                           signOut();
                           setAccountOpen(false);
                         }}
-                        className="block w-full text-left px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-pink hover:bg-pink hover:text-black font-body"
+                        className={`block w-full text-left px-5 py-3 text-[10px] uppercase tracking-[0.25em] ${accent} ${quiet ? "hover:bg-quiet" : "hover:bg-pink"} hover:text-black font-body`}
                       >
                         Log Out
                       </button>
@@ -183,21 +205,21 @@ export default function StudioShell({
                       <Link
                         href="/login"
                         onClick={() => setAccountOpen(false)}
-                        className="block px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink hover:bg-white/5 border-b hairline-soft font-body"
+                        className={`block px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/70 ${hov} hover:bg-white/5 border-b ${hlSoft} font-body`}
                       >
                         Log In
                       </Link>
                       <Link
                         href="/signup"
                         onClick={() => setAccountOpen(false)}
-                        className="block px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink hover:bg-white/5 border-b hairline-soft font-body"
+                        className={`block px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/70 ${hov} hover:bg-white/5 border-b ${hlSoft} font-body`}
                       >
                         Sign Up
                       </Link>
                       <Link
                         href="/settings"
                         onClick={() => setAccountOpen(false)}
-                        className="block px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink hover:bg-white/5 font-body"
+                        className={`block px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/70 ${hov} hover:bg-white/5 font-body`}
                       >
                         Settings
                       </Link>
@@ -211,7 +233,7 @@ export default function StudioShell({
               onClick={() => setMobileOpen((v) => !v)}
               aria-label="Menu"
               aria-expanded={mobileOpen}
-              className="md:hidden w-12 flex items-center justify-center border-l hairline-white text-white/70 hover:text-pink press"
+              className={`md:hidden w-12 flex items-center justify-center border-l hairline-white text-white/70 ${hov} press`}
             >
               <span className="material-symbols-outlined">
                 {mobileOpen ? "close" : "menu"}
@@ -221,7 +243,7 @@ export default function StudioShell({
         </div>
 
         {mobileOpen && (
-          <div className="md:hidden border-t hairline bg-black">
+          <div className={`md:hidden border-t ${hl} bg-black`}>
             {NAV.map((n) => {
               const count =
                 n.href === "/designs" && designsHydrated
@@ -234,11 +256,11 @@ export default function StudioShell({
                   key={n.href}
                   href={n.href}
                   onClick={() => setMobileOpen(false)}
-                  className="flex items-center justify-between px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-white/80 hover:text-pink border-b hairline-soft font-body"
+                  className={`flex items-center justify-between px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-white/80 ${hov} border-b ${hlSoft} font-body`}
                 >
                   <span>{n.label}</span>
                   {count > 0 && (
-                    <span className="text-pink tabular-nums">{count}</span>
+                    <span className={`${accent} tabular-nums`}>{count}</span>
                   )}
                 </Link>
               );
@@ -247,26 +269,26 @@ export default function StudioShell({
               <Link
                 href="/bookings"
                 onClick={() => setMobileOpen(false)}
-                className="flex items-center justify-between px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-white/80 hover:text-pink border-b hairline-soft font-body"
+                className={`flex items-center justify-between px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-white/80 ${hov} border-b ${hlSoft} font-body`}
               >
                 <span>My Bookings</span>
-                <span className="text-pink tabular-nums">{bookings.length}</span>
+                <span className={`${accent} tabular-nums`}>{bookings.length}</span>
               </Link>
             )}
             {userHydrated && user ? (
               <>
-                <div className="px-6 py-3 border-b hairline-soft">
+                <div className={`px-6 py-3 border-b ${hlSoft}`}>
                   <div className="text-[10px] uppercase tracking-[0.25em] text-white/40 font-body">
                     Signed in as
                   </div>
-                  <div className="mt-1 text-[12px] text-pink font-body truncate">
+                  <div className={`mt-1 text-[12px] ${accent} font-body truncate`}>
                     {user.name || user.email}
                   </div>
                 </div>
                 <Link
                   href="/designs"
                   onClick={() => setMobileOpen(false)}
-                  className="block px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-white/80 hover:text-pink border-b hairline-soft font-body"
+                  className={`block px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-white/80 ${hov} border-b ${hlSoft} font-body`}
                 >
                   My Designs
                 </Link>
@@ -282,14 +304,14 @@ export default function StudioShell({
                 <Link
                   href="/bookings"
                   onClick={() => setMobileOpen(false)}
-                  className="block px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-white/80 hover:text-pink border-b hairline-soft font-body"
+                  className={`block px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-white/80 ${hov} border-b ${hlSoft} font-body`}
                 >
                   My Bookings
                 </Link>
                 <Link
                   href="/settings"
                   onClick={() => setMobileOpen(false)}
-                  className="block px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-white/80 hover:text-pink border-b hairline-soft font-body"
+                  className={`block px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-white/80 ${hov} border-b ${hlSoft} font-body`}
                 >
                   Settings
                 </Link>
@@ -298,7 +320,7 @@ export default function StudioShell({
                     signOut();
                     setMobileOpen(false);
                   }}
-                  className="block w-full text-left px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-pink font-body"
+                  className={`block w-full text-left px-6 py-4 text-[12px] uppercase tracking-[0.25em] ${accent} font-body`}
                 >
                   Log Out
                 </button>
@@ -308,14 +330,14 @@ export default function StudioShell({
                 <Link
                   href="/login"
                   onClick={() => setMobileOpen(false)}
-                  className="block px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-pink border-b hairline-soft font-body"
+                  className={`block px-6 py-4 text-[12px] uppercase tracking-[0.25em] ${accent} border-b ${hlSoft} font-body`}
                 >
                   Log In
                 </Link>
                 <Link
                   href="/signup"
                   onClick={() => setMobileOpen(false)}
-                  className="block px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-pink font-body"
+                  className={`block px-6 py-4 text-[12px] uppercase tracking-[0.25em] ${accent} font-body`}
                 >
                   Sign Up
                 </Link>
@@ -334,7 +356,7 @@ export default function StudioShell({
 
         <div className="flex-1 min-w-0 overflow-y-auto bg-black flex flex-col">
           <main className="flex-1 min-w-0">{children}</main>
-          {footer && <PunkFooter />}
+          {footer && <PunkFooter quiet={quiet} />}
         </div>
 
         {rightSidebar && (

@@ -1,27 +1,25 @@
 import StudioShell from "@/components/studio/StudioShell";
+import QuietHeadline from "@/components/quiet/QuietHeadline";
 
 export default function TermsPage() {
   return (
-    <StudioShell>
-      <div className="px-6 md:px-12 pt-6 pb-4 border-b hairline">
-        <div className="max-w-3xl mx-auto flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/50 tabular-nums font-body">
-          <span><span className="text-pink">●</span>&nbsp;&nbsp;Legal&nbsp;/&nbsp;Terms</span>
-          <span>v0.1&nbsp;<span className="text-pink">draft</span></span>
+    <StudioShell quiet>
+      <div className="px-6 md:px-12 pt-8 pb-6 border-b hairline-quiet-soft">
+        <div className="max-w-3xl mx-auto flex items-center justify-between text-[12px] text-quiet-dim tabular-nums font-body">
+          <span>Legal / Terms</span>
+          <span>v0.1 draft</span>
         </div>
       </div>
 
-      <div className="px-6 md:px-12 py-16 md:py-24">
+      <div className="px-6 md:px-12 py-24 md:py-32">
         <div className="max-w-3xl mx-auto">
-          <h1 className="font-display text-white text-[48px] sm:text-[80px] leading-[0.88] tracking-[0.005em]">
-            Terms of&nbsp;<span className="slash"><span>use</span></span>
-            <span className="text-pink">.</span>
-          </h1>
-          <p className="mt-6 text-[10px] uppercase tracking-[0.25em] text-white/40 font-body tabular-nums">
-            Last updated:&nbsp;<span className="text-pink">Pending counsel review</span>
+          <QuietHeadline>Terms of use</QuietHeadline>
+          <p className="mt-6 text-[12px] text-quiet-dim font-body tabular-nums">
+            Last updated: Pending counsel review
           </p>
 
-          <div className="mt-12 space-y-6 text-[14px] text-white/70 font-body leading-[1.7] border-t-2 hairline pt-10">
-            <p className="text-[15px] text-white">
+          <div className="mt-16 space-y-8 text-[14px] text-quiet-dim font-body leading-[1.8] border-t hairline-quiet-soft pt-12">
+            <p className="text-[15px] text-quiet">
               This document will be drafted by counsel before public launch. The text
               below is placeholder content to ensure routes resolve correctly.
             </p>
@@ -31,7 +29,7 @@ export default function TermsPage() {
               veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea
               commodo consequat.
             </p>
-            <h2 className="font-display text-white text-[20px] tracking-wide pt-4">
+            <h2 className="font-display-quiet text-quiet text-[18px] pt-6">
               1.&nbsp;Acceptance
             </h2>
             <p>
@@ -39,19 +37,28 @@ export default function TermsPage() {
               disagree with any part of the terms, you do not have permission to access
               the service.
             </p>
-            <h2 className="font-display text-white text-[20px] tracking-wide pt-4">
+            <h2 className="font-display-quiet text-quiet text-[18px] pt-6">
               2.&nbsp;Generated Content
             </h2>
             <p>
               Designs generated through the platform are licensed to you for personal
               use. Commercial reproduction without permission is prohibited.
             </p>
-            <h2 className="font-display text-white text-[20px] tracking-wide pt-4">
+            <h2 className="font-display-quiet text-quiet text-[18px] pt-6">
               3.&nbsp;Artist Bookings
             </h2>
             <p>
               TattTester facilitates introductions between users and tattoo artists. The
               tattoo procedure itself is a contract between the user and the artist.
+            </p>
+            {/* SMS terms note (TAT-49) — mirrors the carrier disclosure. */}
+            <h2 className="font-display-quiet text-quiet text-[18px] pt-6">
+              4.&nbsp;Messaging
+            </h2>
+            <p>
+              By texting SketchBot at the number published on this site you agree to receive
+              conversational replies. Message and data rates may apply, message frequency
+              varies, and you can reply STOP to opt out or HELP for help.
             </p>
           </div>
         </div>

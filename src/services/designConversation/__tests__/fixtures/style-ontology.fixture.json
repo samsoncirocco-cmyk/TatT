@@ -26,6 +26,16 @@
       "id": "japanese",
       "label": "Japanese",
       "aliases": ["irezumi", "oriental"]
+    },
+    {
+      "id": "color",
+      "label": "Color",
+      "aliases": ["colour"]
+    },
+    {
+      "id": "anime",
+      "label": "Anime",
+      "aliases": []
     }
   ]
 }

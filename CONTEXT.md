@@ -119,6 +119,15 @@ finished design. Bot, reveal, and canvas exist to move a first-timer from
 "vague idea" to "I know what I want and who should do it."
 _Avoid_: design tool, AI art generator
 
+**SketchBot**:
+The named design consultant on `/design` (TAT-48): the user-facing identity
+the intake bot speaks as — header, opener, and persona all say SketchBot, in
+the pop-punk confidant voice (ADR-0035/0036) while ADR-0023's rules govern
+how it talks. Keeps a live notepad of the brief beside the chat (only
+user-meaningful fields — never rationale or telemetry); "talk with
+SketchBot" is the marketing hook.
+_Avoid_: the bot / the assistant (in user-facing copy), Forge bot
+
 **Intake**:
 The conversation that starts a design session (ADR-0019): the bot opens on
 placement and meaning, then genuinely converses — follow-ups, threads —

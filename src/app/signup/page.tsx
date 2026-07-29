@@ -4,7 +4,7 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
-import SlashHeadline from "@/components/punk/SlashHeadline";
+import QuietHeadline from "@/components/quiet/QuietHeadline";
 import FormField from "@/components/punk/FormField";
 import AuthBrandPanel from "@/components/punk/AuthBrandPanel";
 import { useUser } from "@/lib/tattStorage";
@@ -38,9 +38,10 @@ function SignupPageInner() {
   };
 
   return (
-    <StudioShell footer={false}>
+    <StudioShell quiet footer={false}>
       <div className="grid grid-cols-1 lg:grid-cols-2 min-h-[calc(100vh-140px)]">
         <AuthBrandPanel
+          quiet
           quote="Described my sleeve in one sentence, had four cuts before my coffee went cold. My artist worked straight off the stencil."
           attribution="River M. — Pro member"
         />
@@ -48,21 +49,15 @@ function SignupPageInner() {
         {/* FORM */}
         <div className="px-6 md:px-12 py-14 md:py-20 flex flex-col justify-center">
           <div className="max-w-md w-full mx-auto">
-            <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/50 font-body mb-8">
-              <span>
-                <span className="text-pink">●</span>&nbsp;&nbsp;Sign Up
-              </span>
-              <Link href={destination !== "/designs" ? `/login?redirect=${encodeURIComponent(destination)}` : "/login"} className="hover:text-pink">
-                Have account?&nbsp;Log In
+            <div className="flex items-center justify-between text-[12px] text-quiet-dim font-body mb-10">
+              <span>Sign up</span>
+              <Link href={destination !== "/designs" ? `/login?redirect=${encodeURIComponent(destination)}` : "/login"} className="hover:text-white">
+                Have account?&nbsp;Log in
               </Link>
             </div>
 
-            <SlashHeadline
-              before="Join the"
-              slashed="cult"
-              sizeClassName="text-[48px] sm:text-[64px] leading-[0.88]"
-            />
-            <p className="mt-4 text-[14px] text-white/60 font-body leading-[1.55]">
+            <QuietHeadline>Join the cult</QuietHeadline>
+            <p className="mt-5 text-[14px] text-quiet-dim font-body leading-[1.7]">
               Free forever. Upgrade when you outgrow it.
             </p>
 
@@ -78,6 +73,7 @@ function SignupPageInner() {
               className="mt-10 space-y-6"
             >
               <FormField
+                quiet
                 id="email"
                 label="Email"
                 type="email"
@@ -87,6 +83,7 @@ function SignupPageInner() {
                 autoComplete="email"
               />
               <FormField
+                quiet
                 id="password"
                 label="Password"
                 type="password"
@@ -97,33 +94,32 @@ function SignupPageInner() {
               />
 
               {(authError || oauthError) && (
-                <div className="border-2 border-pink p-4 text-[11px] uppercase tracking-[0.2em] text-pink font-body leading-[1.5]">
-                  ▸ {authError || oauthError}
+                <div className="border border-pink/60 p-5 text-[13px] text-pink font-body leading-[1.6]">
+                  {authError || oauthError}
                 </div>
               )}
 
               <button
                 type="submit"
                 disabled={submitting}
-                className="tape press inline-flex items-center justify-center w-full px-8 py-4 font-display text-[24px] leading-none tracking-[0.02em] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="press inline-flex items-center justify-center w-full px-8 py-4 font-body text-[15px] leading-none bg-quiet text-black hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {submitting ? "Creating…" : "Create Account"}
-                <span className="ml-3 text-[18px]">▸</span>
+                {submitting ? "Creating…" : "Create account"}
               </button>
             </form>
 
-            <div className="mt-10 flex items-center gap-4">
-              <div className="flex-1 border-t hairline" />
-              <span className="text-[10px] uppercase tracking-[0.25em] text-white/50 font-body">
+            <div className="mt-12 flex items-center gap-4">
+              <div className="flex-1 border-t hairline-quiet-soft" />
+              <span className="text-[12px] text-quiet-dim font-body">
                 Or continue with
               </span>
-              <div className="flex-1 border-t hairline" />
+              <div className="flex-1 border-t hairline-quiet-soft" />
             </div>
 
-            <div className="mt-8 grid grid-cols-3 gap-3">
+            <div className="mt-10 grid grid-cols-3 gap-3">
               <button
                 onClick={handleGoogle}
-                className="text-[10px] uppercase tracking-[0.2em] text-white/70 hover:text-black hover:bg-pink border-2 hairline px-3 py-3 press font-body"
+                className="text-[12px] text-quiet hover:text-black hover:bg-quiet border hairline-quiet px-3 py-3 press font-body"
               >
                 Google
               </button>
@@ -132,20 +128,20 @@ function SignupPageInner() {
                   key={p}
                   disabled
                   title="Coming soon"
-                  className="text-[10px] uppercase tracking-[0.2em] text-white/30 border-2 hairline-soft px-3 py-3 font-body cursor-not-allowed"
+                  className="text-[12px] text-white/30 border hairline-quiet-soft px-3 py-3 font-body cursor-not-allowed"
                 >
                   {p}&nbsp;·&nbsp;Soon
                 </button>
               ))}
             </div>
 
-            <p className="mt-12 text-[10px] uppercase tracking-[0.25em] text-white/40 font-body text-center">
+            <p className="mt-14 text-[12px] text-quiet-dim font-body text-center">
               By signing up you agree to our&nbsp;
-              <Link href="/legal/terms" className="text-pink hover:underline">
+              <Link href="/legal/terms" className="text-quiet underline underline-offset-4 hover:text-white">
                 Terms
               </Link>
               &nbsp;and&nbsp;
-              <Link href="/legal/privacy" className="text-pink hover:underline">
+              <Link href="/legal/privacy" className="text-quiet underline underline-offset-4 hover:text-white">
                 Privacy
               </Link>
               .

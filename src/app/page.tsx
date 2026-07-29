@@ -3,6 +3,8 @@ import StudioShell from "@/components/studio/StudioShell";
 import SlashHeadline from "@/components/punk/SlashHeadline";
 import TapeCTA from "@/components/punk/TapeCTA";
 import ArtistCard from "@/components/punk/ArtistCard";
+import SmsDisclosure from "@/components/sketchbot/SmsDisclosure";
+import { getSketchBotSmsContact } from "@/lib/sketchbot-sms";
 import { getFeaturedArtists } from "@/lib/featured-artists";
 import { artistSlug } from "@/lib/artist-slug";
 import { EXAMPLE_DESIGNS } from "@/lib/example-designs";
@@ -38,6 +40,8 @@ export default async function Home() {
   // suppression-checked on render. May be short, or empty, and is rendered
   // honestly either way — backfilling would defeat the point.
   const featured = await getFeaturedArtists();
+  // TAT-49: the published SMS door. Env-gated — no number, no mention.
+  const sms = getSketchBotSmsContact();
 
   return (
     <StudioShell>
@@ -192,6 +196,24 @@ export default async function Home() {
                 Make your own&nbsp;&nbsp;→
               </Link>
             </div>
+
+            {sms && (
+              /* Text SketchBot (TAT-49) — the SMS door next to the showcase.
+                 Loud line, quiet compliance small print (ADR-0035/0036). */
+              <div className="mt-10">
+                <p className="text-[14px] text-white/70 font-body leading-[1.55] max-w-[52ch]">
+                  text your idea to{" "}
+                  <a
+                    href={sms.href}
+                    className="text-pink hover:underline whitespace-nowrap tabular-nums"
+                  >
+                    {sms.display}
+                  </a>{" "}
+                  — SketchBot texts back four designs.
+                </p>
+                <SmsDisclosure className="mt-2 max-w-[62ch]" />
+              </div>
+            )}
           </div>
         </section>
 
