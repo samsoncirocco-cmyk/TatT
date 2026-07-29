@@ -2051,6 +2051,40 @@ const CHARACTER_DATABASE = {
         popularity: 6
       }
     ]
+  },
+
+  // ========================================
+  // YU YU HAKUSHO (Togashi's other flagship — sessions that name Hunter x
+  // Hunter routinely name these characters in the same breath)
+  // ========================================
+  'yu-yu-hakusho': {
+    series: 'Yu Yu Hakusho',
+    characters: [
+      {
+        name: 'yusuke',
+        aliases: ['yusuke urameshi'],
+        description: 'Yusuke Urameshi with slicked-back black hair, brown eyes, green school uniform jacket, finger pointed like a gun firing the blue Spirit Gun blast, cocky confident smirk, spirit detective energy aura',
+        popularity: 8
+      },
+      {
+        name: 'hiei',
+        aliases: [],
+        description: 'Hiei with gravity-defying black hair with white starburst streak, crimson red eyes, glowing purple Jagan third eye on forehead, black cloak, white headband, katana drawn, Dragon of the Darkness Flame coiling around his arm, short stature and fierce glare',
+        popularity: 8
+      },
+      {
+        name: 'kurama',
+        aliases: ['yoko kurama', 'shuichi minamino'],
+        description: 'Kurama with long flowing red hair, green eyes, magenta school uniform, thorned Rose Whip weapon extended mid-strike, calm calculating expression, rose petals swirling, silver-haired fox demon Yoko form with fox ears and tail',
+        popularity: 8
+      },
+      {
+        name: 'kuwabara',
+        aliases: ['kazuma kuwabara'],
+        description: 'Kazuma Kuwabara with orange pompadour hair, tall muscular build, blue school uniform, glowing orange Spirit Sword blade of energy, tough loyal streetfighter stance',
+        popularity: 6
+      }
+    ]
   }
 };
 
