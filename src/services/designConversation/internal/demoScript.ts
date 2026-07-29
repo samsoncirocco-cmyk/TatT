@@ -11,6 +11,7 @@ import type { IntakeRecord } from '@/services/intake';
 import type { ConversationTurnResult, TurnLog } from '../types';
 import { proposalReply } from './persona';
 import { scoreRecord } from './confidence';
+import { buildSessionNotes } from './notes';
 
 export const DEMO_MODEL = 'demo-script';
 
@@ -90,5 +91,8 @@ export function runDemoTurn(userTurn: number): ConversationTurnResult {
     ...(beat.playback ? { playback: beat.playback } : {}),
     record: { ...beat.record },
     turnLog,
+    // The demo record names no characters, so the cast scan is empty — the
+    // notepad still tracks the scripted beats honestly (TAT-48).
+    notes: buildSessionNotes(beat.record, []),
   };
 }

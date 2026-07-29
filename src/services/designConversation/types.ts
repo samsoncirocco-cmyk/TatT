@@ -41,6 +41,16 @@ export interface TurnLog {
     | 'turn12-force-proposal'
     | 'turn12-ask-placement'
     | 'turn20-handoff'
+    /** The user asked to SEE both poles of a variation axis — that request
+     *  IS the proposal trigger (ADR-0012/0020); the reveal spreads the axis. */
+    | 'axis-request-proposal'
+    /** The user delegated an open style call ("which do you suggest") or
+     *  dodged it twice — the bot made the call in-voice and advanced. */
+    | 'style-recommendation'
+    /** The user asked to skip the questions and just draw while the record
+     *  was already generation-sufficient — the visible fast lane (TAT-48,
+     *  ADR-0028 readiness); the announce beat still runs (ADR-0020). */
+    | 'draw-request-proposal'
     | 'none';
   /** Model that served the turn (per-session pinned; fallback noted). */
   model: string;
@@ -63,6 +73,42 @@ export interface ConverseResponse {
   /** Present when stage is 'handoff': URL for the warm handoff CTA. */
   handoffUrl?: string;
   turn: number;
+  /** SketchBot's live notepad — the user-meaningful brief so far (TAT-48). */
+  notes?: SessionNotes;
+}
+
+/**
+ * SketchBot's live notepad: the user-meaningful projection of the intake
+ * record, rendered beside the chat so a silently-wrong brief is visible
+ * immediately (TAT-48).
+ *
+ * HARD RULE (TAT-47 defect 8, revealNarration precedent): this carries ONLY
+ * fields the user would recognize as their own brief. Internal rationale,
+ * confidence scores, TurnLogs, and axis telemetry never cross this boundary
+ * — they stay on the session record, whitelisted out at the service edge.
+ */
+export interface SessionNotes {
+  /** Body placement as heard (lowercase phrase). Absent until known. */
+  placement?: string;
+  /**
+   * Every named cast member, enumerated one entry each ("Gon (Hunter x
+   * Hunter)") — never a truncated pair (TAT-47 defect 6). Falls back to the
+   * brief's subject phrase when nothing matched the character database.
+   */
+  cast: string[];
+  /** Human-formatted style read ("fine line + blackwork"). Absent until resolved. */
+  style?: string;
+  /** The scene/moment in the user's own action words. */
+  scene?: string;
+  /** What the piece is about, in the user's words. */
+  vibe?: string;
+  /** True once the IP rule fired — the inspired-by heads-up line renders. */
+  ipHeadsUp: boolean;
+  /**
+   * The record could already generate (ADR-0028 readiness: placement plus
+   * something to draw). Drives the visible fast-lane affordance.
+   */
+  sufficient: boolean;
 }
 
 /**
@@ -84,4 +130,6 @@ export interface ConversationTurnResult {
   /** Best-so-far structured record; complete enough to generate once stage is 'proposal'. */
   record: Partial<IntakeRecord>;
   turnLog: TurnLog;
+  /** The notepad projection of `record` — the ONLY record view the UI gets. */
+  notes: SessionNotes;
 }

@@ -1,0 +1,69 @@
+// Shared contract for the SketchBot SMS channel (TAT-49). The webhook route
+// and the channel adapter build against these types.
+
+/** One inbound SMS/MMS, already signature-verified by the webhook route. */
+export interface InboundSms {
+  /** Sender in E.164 (Twilio's `From`). */
+  phone: string;
+  /** Message text (Twilio's `Body`), may be empty on media-only MMS. */
+  body: string;
+}
+
+/**
+ * What the adapter decided to do with an inbound message. The route renders
+ * this as TwiML (and, for a reveal, schedules the async MMS delivery).
+ *
+ * 'silent'  — say nothing (opted-out sender, empty body). Silence is only
+ *             ever used where a reply would itself be the harm; every
+ *             guardrail refusal is an in-voice 'reply', never silence.
+ * 'reply'   — one SMS-shaped bot turn.
+ * 'reveal'  — the user said yes to the proposal and every spend guardrail
+ *             passed: reply with `text` (the ack) now, then run
+ *             executeReveal() after the response — generation takes minutes,
+ *             far beyond Twilio's webhook timeout.
+ */
+export type InboundOutcome =
+  | { kind: 'silent' }
+  | { kind: 'reply'; text: string }
+  | { kind: 'reveal'; text: string; sessionId: string; phone: string };
+
+/** What executeReveal() hands back for MMS delivery. */
+export interface RevealDelivery {
+  /** One entry per cut, sent as sequential MMS (see route docs for why). */
+  cuts: Array<{ caption: string; mediaUrl: string }>;
+  /** Final text turn: the web link into the session (AR/booking). */
+  closingText: string;
+}
+
+/**
+ * Per-phone profile — the identity + taste anchor of the SMS channel
+ * (ADR-0022 lane). Keyed by E.164 number; `uid` is set when the number
+ * matches a verified-phone Firebase account (existing-user linking) and the
+ * guest profile upgrades in place — sessions and reveal history carry over.
+ */
+export interface SmsProfile {
+  phone: string;
+  /** Linked Firebase account, when the phone matches a verified user. */
+  uid?: string | null;
+  /** Twilio STOP honored — never send this number anything. */
+  optedOut: boolean;
+  /** The design session the conversation is currently threaded onto. */
+  activeSessionId?: string | null;
+  /**
+   * Conversation stage after the last turn. Engine stages ('chatting',
+   * 'proposal', 'handoff') plus two channel-owned ones: 'reveal-pending'
+   * (renders in flight — a second "yes" must not double-fire) and
+   * 'revealed' (delivered; the next text starts a new design).
+   */
+  lastStage?: string | null;
+  /** When the in-flight reveal was armed — stale-recovery for 'reveal-pending'. */
+  revealArmedAt?: string | null;
+  /** Lifetime reveals — drives the account-link gate. */
+  totalReveals: number;
+  /** Rolling per-day reveal counter (UTC date), reset on date change. */
+  dailyReveals: { date: string; count: number };
+  /** Every design session this phone has driven — the taste-signal trail. */
+  sessionIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}

@@ -183,6 +183,9 @@ export async function converse(request: ConverseRequest): Promise<ConverseRespon
     reply: result.reply,
     stage: result.stage,
     turn: userTurn,
+    // SketchBot's notepad (TAT-48): the engine's whitelisted projection of
+    // the record — never the record itself, never TurnLogs or rationale.
+    notes: result.notes,
   };
   if (result.stage === 'proposal' && result.playback !== undefined) {
     response.playback = result.playback;

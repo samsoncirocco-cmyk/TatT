@@ -109,6 +109,9 @@ export const API_ROUTE_SECURITY: Record<string, RouteSecurityEntry> = {
   'v1/billing/portal': { class: 'firebase-auth' },
   'v1/invoices': { class: 'firebase-auth' },
   'webhooks/stripe': { class: 'webhook-signature' },
+  // SketchBot SMS inbound (TAT-49): X-Twilio-Signature verified against
+  // TWILIO_AUTH_TOKEN; also flag-gated (404) and fail-closed (503).
+  'webhooks/twilio': { class: 'webhook-signature' },
   // Maintenance cron: refunds held deposits past their hold window.
   'cron/expire-deposits': {
     class: 'public',

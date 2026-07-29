@@ -25,7 +25,7 @@ function routeKey(file: string): string {
 const ENFORCEMENT: Record<string, RegExp | null> = {
   'firebase-auth': /verifyApiAuth\s*\(/,
   'cloud-tasks-oidc': /verifyCloudTaskRequest\s*\(/,
-  'webhook-signature': /verifyStripeSignature\s*\(|constructEvent\s*\(/,
+  'webhook-signature': /verifyStripeSignature\s*\(|constructEvent\s*\(|validateTwilioSignature\s*\(/,
   public: null,
 };
 

@@ -363,9 +363,11 @@ describe('confidence scoring', () => {
       'meaning',
       'styleTags',
     ]);
-    // Vague placement and trivial meaning are weak, not full credit.
+    // Vague placement and trivial meaning are weak, not full credit. One
+    // committed style tag is a RESOLVED style (ADR-0023: "style tags
+    // present +0.20") — never reported weak.
     const weak = scoreRecord({ placement: 'arm', meaning: 'for grandma', styleTags: ['fine-line'] });
-    expect(weak.missingFields).toEqual(['placement', 'meaning', 'styleTags']);
+    expect(weak.missingFields).toEqual(['placement', 'meaning']);
     const full = scoreRecord({
       placement: 'left forearm',
       meaning: 'a hummingbird for my grandmother who fed them',
@@ -872,8 +874,9 @@ describe('runTurn — proposal beat answers follow-up questions', () => {
     expect(result.stage).toBe('proposal');
     expect(result.reply).not.toBe(PLAYED_BACK);
     expect(result.reply).toContain('Hunter x Hunter');
-    // The reveal must stay one tap away.
-    expect(result.reply).toContain('Want to see four takes on this');
+    // The reveal must stay one tap away — restated as a STATEMENT, never
+    // the same affordance question verbatim a second time.
+    expect(result.reply).toContain('one tap away');
   });
 
   it('still announces the playback the FIRST time the beat fires', async () => {
@@ -1000,5 +1003,138 @@ describe('runTurn — repeat guard catches a non-identical repeat', () => {
     expect(logger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ event_type: 'design_conversation.repeated_reply' })
     );
+  });
+});
+
+/* ── SketchBot's notepad projection (TAT-48) ─────────────────────────────── */
+
+describe('runTurn — session notes (TAT-48)', () => {
+  const NOTE_KEYS = ['placement', 'cast', 'style', 'scene', 'vibe', 'ipHeadsUp', 'sufficient'];
+
+  it('enumerates every named cast member and carries no internal fields', async () => {
+    configureVertex();
+    // Five characters across two Togashi series, typed the way fans type
+    // them — the regression shape from TAT-47 defect 6.
+    const messages: ConversationMessage[] = [
+      { role: 'bot', text: opener() },
+      {
+        role: 'user',
+        text:
+          'arm sleeve with gon and killua from hxh, plus hiei, kurama and yusuke from yu yu hakusho, all of them mid-fight',
+      },
+    ];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        vertexResponse({
+          reply: 'That is a full Togashi lineup — which moment anchors it?',
+          record: {
+            placement: 'arm sleeve',
+            styleTags: [],
+            meaning: 'the shows that raised me',
+            references: [],
+            ambiguousAxes: ['bold-fine', 'color-blackwork', 'minimal-ornate'],
+          },
+        })
+      )
+    );
+
+    const result = await runTurn({ messages, userTurn: 2 });
+
+    // All five enumerated, one entry each — never a truncated pair.
+    expect(result.notes.cast).toHaveLength(5);
+    expect(result.notes.cast).toEqual(
+      expect.arrayContaining([
+        'Gon (Hunter x Hunter)',
+        'Killua (Hunter x Hunter)',
+        'Hiei (Yu Yu Hakusho)',
+        'Kurama (Yu Yu Hakusho)',
+        'Yusuke (Yu Yu Hakusho)',
+      ])
+    );
+    expect(result.notes.placement).toBe('arm sleeve');
+    expect(result.notes.vibe).toBe('the shows that raised me');
+    expect(result.notes.scene).toContain('mid-fight');
+    // Named characters fired the IP rule — the heads-up flag is on.
+    expect(result.notes.ipHeadsUp).toBe(true);
+
+    // HARD RULE (TAT-47 defect 8): only the whitelisted user-meaningful
+    // fields — no rationale, confidence, axes, or turn telemetry, ever.
+    expect(Object.keys(result.notes).every((key) => NOTE_KEYS.includes(key))).toBe(true);
+    const serialized = JSON.stringify(result.notes);
+    expect(serialized).not.toMatch(/rationale|confidence|ambiguousAxes|missingFields|firedRule|turnLog/i);
+  });
+
+  it('reports sufficiency from the same gate confirm enforces (ADR-0028 readiness)', async () => {
+    configureVertex();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(vertexResponse(SPARSE_PAYLOAD)));
+    const sparse = await runTurn({ messages: MESSAGES, userTurn: 2 });
+    expect(sparse.notes.sufficient).toBe(false);
+    expect(sparse.notes.cast).toEqual([]);
+    expect(sparse.notes.ipHeadsUp).toBe(false);
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(vertexResponse(RICH_PAYLOAD)));
+    const rich = await runTurn({ messages: MESSAGES, userTurn: 2 });
+    expect(rich.notes.sufficient).toBe(true);
+    expect(rich.notes.style).toBe('fine line');
+  });
+});
+
+/* ── the visible fast lane: "skip the questions — just draw" (TAT-48) ────── */
+
+describe('runTurn — draw request (TAT-48 visible fast lane)', () => {
+  const DRAW_MESSAGE = 'skip the questions — just draw';
+
+  it('fires the proposal when the record is already generation-sufficient', async () => {
+    configureVertex();
+    const messages: ConversationMessage[] = [
+      { role: 'bot', text: opener() },
+      { role: 'user', text: 'left forearm, a hummingbird for my grandmother' },
+      { role: 'bot', text: 'What feel are you after — delicate or bold?' },
+      { role: 'user', text: DRAW_MESSAGE },
+    ];
+    // Placement + meaning present but style unresolved: confidence sits
+    // below the judgment threshold, so ONLY the draw request advances it.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        vertexResponse({
+          reply: 'Happy to keep riffing — bold or fine?',
+          record: {
+            placement: 'left forearm',
+            styleTags: [],
+            meaning: 'a hummingbird for my grandmother',
+            references: [],
+            ambiguousAxes: ['bold-fine', 'color-blackwork', 'literal-abstract', 'minimal-ornate'],
+          },
+        })
+      )
+    );
+
+    const result = await runTurn({ messages, userTurn: 2 });
+
+    expect(result.stage).toBe('proposal');
+    expect(result.turnLog.firedRule).toBe('draw-request-proposal');
+    // The announce beat still runs — consent is never skipped (ADR-0020).
+    expect(result.playback).toBeTruthy();
+    expect(result.reply).toContain("Here's what I'm hearing:");
+  });
+
+  it('asks for the one real gap instead of refusing when there is nothing to draw yet', async () => {
+    configureVertex();
+    const messages: ConversationMessage[] = [
+      { role: 'bot', text: opener() },
+      { role: 'user', text: DRAW_MESSAGE },
+    ];
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(vertexResponse(SPARSE_PAYLOAD)));
+
+    const result = await runTurn({ messages, userTurn: 1 });
+
+    expect(result.stage).toBe('chatting');
+    // Never a refusal, never a limit — the gap question is the reply. (The
+    // placement gate's "I can't decide for you" is a judgment call, not a
+    // capability refusal — only capability language is forbidden.)
+    expect(result.reply.toLowerCase()).toContain('where on your body');
+    expect(result.reply).not.toMatch(/can'?t (show|draw|generate)|cannot (show|draw|generate)|limit/i);
   });
 });

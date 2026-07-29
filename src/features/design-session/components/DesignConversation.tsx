@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import type { DesignSession } from '@/services/designSession/types';
 import type {
   ConversationMessage,
   ConversationStage,
+  SessionNotes,
 } from '@/services/designConversation/types';
 import { isConfirmationIntent } from '../services/confirmationIntent';
 import {
@@ -19,11 +20,23 @@ import { ExampleStrip } from './ExampleStrip';
 import { StarterChips } from './StarterChips';
 import { ThinkingLine } from './ThinkingLine';
 import { DesignSessionFlow } from './DesignSessionFlow';
+import { SketchbotNotesCard, MobileNotesSheet } from './SketchbotNotes';
 
 // The one-liner shown when every conversation provider is down and we
 // degrade to the scripted two-question intake (ADR-0019). Soft — never an
 // error screen, never an apology essay.
 const FALLBACK_LINE = 'Keeping it simple today — two quick questions and we’re off.';
+
+/**
+ * The visible fast lane's canonical message (TAT-48): the chip sends it
+ * through the normal converse path, and the engine's deterministic
+ * draw-request detection fires the proposal (never a separate API).
+ */
+export const FAST_LANE_MESSAGE = 'skip the questions — just draw';
+export const FAST_LANE_CHIP_LABEL = 'skip the questions — just draw ▸';
+
+/** The one-door input line (TAT-48): a sentence or a whole vision. */
+export const INPUT_PLACEHOLDER = 'describe your tattoo — a sentence or a whole vision';
 
 /**
  * How the surface is rendered right now.
@@ -66,6 +79,13 @@ export function DesignConversation({ initialPrompt }: { initialPrompt?: string }
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastAction, setLastAction] = useState<ConversationAction | null>(null);
+  // SketchBot's notepad (TAT-48): the latest whitelisted projection of the
+  // brief — the ONLY record view the server sends, never raw telemetry.
+  const [notes, setNotes] = useState<SessionNotes | undefined>();
+  // Tap-to-fix prefill for the chat input; the nonce re-triggers the same
+  // prefix on a second tap.
+  const [prefill, setPrefill] = useState<{ text: string; nonce: number } | undefined>();
+  const prefillCount = useRef(0);
   const openerRequested = useRef(false);
 
   const runAction = (action: ConversationAction) => {
@@ -94,6 +114,7 @@ export function DesignConversation({ initialPrompt }: { initialPrompt?: string }
         setStage(response.stage);
         setPlayback(response.playback);
         setHandoffUrl(response.handoffUrl);
+        if (response.notes) setNotes(response.notes);
         setMessages((prev) => [...prev, { role: 'bot', text: response.reply }]);
         // Fast lane (ADR-0028): a proposal on turn 1 means the first input
         // was already a complete prompt — the reply above is the announce
@@ -145,7 +166,16 @@ export function DesignConversation({ initialPrompt }: { initialPrompt?: string }
     );
   };
 
-  // Every provider down → the scripted intake carries the session (ADR-0019).
+  // Tap-to-fix (TAT-48): a notepad entry prefills a correction opener into
+  // the reply line — the correction is just another converse message.
+  const handleFix = (text: string) => {
+    prefillCount.current += 1;
+    setPrefill({ text, nonce: prefillCount.current });
+  };
+
+  // Every provider down → the scripted intake carries the session
+  // (ADR-0019). Degraded mode gets degraded chrome: the scripted flow owns
+  // its own answers, so no notepad rather than one that lies "nothing yet".
   if (mode === 'fallback') {
     return (
       <div className="space-y-5">
@@ -166,19 +196,49 @@ export function DesignConversation({ initialPrompt }: { initialPrompt?: string }
     </ChatBubble>
   ));
 
+  // Desktop: persistent panel beside the chat. Mobile: pull-up sheet,
+  // default peeking. Locked once the reveal fires — the notepad becomes the
+  // static brief (no chat input left to fix into).
+  const withNotepad = (column: ReactNode, opts: { locked: boolean; drawReady: boolean }) => (
+    <div className="md:grid md:grid-cols-[minmax(0,1fr)_300px] md:items-start md:gap-10">
+      <div className="space-y-5 pb-16 md:pb-0">{column}</div>
+      <aside className="hidden md:block md:sticky md:top-24">
+        <SketchbotNotesCard
+          notes={notes}
+          locked={opts.locked}
+          onFix={handleFix}
+          drawReady={opts.drawReady}
+          onDraw={() => runAction({ kind: 'confirm' })}
+        />
+      </aside>
+      <MobileNotesSheet
+        notes={notes}
+        locked={opts.locked}
+        onFix={handleFix}
+        drawReady={opts.drawReady}
+        onDraw={() => runAction({ kind: 'confirm' })}
+      />
+    </div>
+  );
+
   // Confirmed — the existing reveal → pick → refine → handoff flow takes
   // over, with the conversation transcript kept above it.
   if (mode === 'reveal' && revealSession) {
-    return (
-      <div className="space-y-5">
+    return withNotepad(
+      <>
         {transcript}
         <DesignSessionFlow initialSession={revealSession} />
-      </div>
+      </>,
+      { locked: true, drawReady: false }
     );
   }
 
   const showProposal = stage === 'proposal' && !pending && !error;
   const showHandoff = stage === 'handoff' && !pending && !error;
+  // The visible fast lane (TAT-48): the record could already generate
+  // (ADR-0028 readiness, judged by the engine) but SketchBot still has
+  // questions — surface the skip.
+  const showFastLane = stage === 'chatting' && !pending && !error && notes?.sufficient === true;
 
   // First-run empty state: the user hasn't spoken yet (neither typed nor
   // deep-linked). Starter chips + example strip scaffold the blank box; the
@@ -186,8 +246,8 @@ export function DesignConversation({ initialPrompt }: { initialPrompt?: string }
   // conversation owns the screen.
   const firstRun = !messages.some((message) => message.role === 'user');
 
-  return (
-    <div className="space-y-5">
+  return withNotepad(
+    <>
       {transcript}
 
       {/* Proposal beat (ADR-0020): the bot's reply bubble above already
@@ -234,18 +294,33 @@ export function DesignConversation({ initialPrompt }: { initialPrompt?: string }
           routing decides conversation vs fast lane (ADR-0028). */}
       {firstRun && <StarterChips onPick={handleSend} disabled={pending} />}
 
+      {/* The visible fast lane (TAT-48): one tap sends the canonical skip
+          message through the SAME converse path — the engine's draw-request
+          detection fires the proposal, so consent still happens (ADR-0020). */}
+      {showFastLane && (
+        <button
+          type="button"
+          onClick={() => handleSend(FAST_LANE_MESSAGE)}
+          className="press bg-pink text-black font-body text-[13px] px-4 py-2.5 min-h-[44px]"
+        >
+          {FAST_LANE_CHIP_LABEL}
+        </button>
+      )}
+
       {/* The reply line — doubles as the proposal's correction box. Hidden
           at the handoff: the CTA is the way forward, not more chat. */}
       {stage !== 'handoff' && (
         <ChatInput
-          placeholder="Say it however it comes out…"
+          placeholder={INPUT_PLACEHOLDER}
           ariaLabel="Your reply"
           onSubmit={handleSend}
           disabled={pending}
+          prefill={prefill}
         />
       )}
 
       {firstRun && <ExampleStrip />}
-    </div>
+    </>,
+    { locked: false, drawReady: showProposal }
   );
 }

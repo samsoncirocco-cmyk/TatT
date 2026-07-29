@@ -297,6 +297,17 @@ is a separate, identity-checked self-signup.
 | Rate limiting | `src/lib/rate-limit.ts` |
 | Observability | `src/lib/observability.ts` |
 
+### SketchBot SMS channel (TAT-49, `docs/sketchbot-sms-setup.md`)
+
+| Step | Implementation |
+|------|---------------|
+| Inbound webhook (signature-verified, flag-gated) | `src/app/api/webhooks/twilio/route.ts` |
+| Channel adapter (conversation ↔ SMS, spend guardrails) | `src/services/sketchbotSms/` |
+| Phone profiles + atomic reveal cap | `src/services/sketchbotSms/internal/profileStore.ts` |
+| SMS rendering + channel voice | `src/services/sketchbotSms/internal/render.ts` |
+| Twilio config, signature validation, sender | `src/lib/twilio.ts` |
+| Per-phone rate limit (`sms-inbound`) | `src/lib/rate-limit.ts` |
+
 ---
 
 ## Shared Infrastructure
