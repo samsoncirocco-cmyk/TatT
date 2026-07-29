@@ -4,7 +4,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { createElement } from 'react';
 import type { DesignSession } from '@/services/designSession/types';
-import type { ConverseResponse } from '@/services/designConversation/types';
+import type { ConverseResponse, SessionNotes } from '@/services/designConversation/types';
 import { DesignConversation } from '../components/DesignConversation';
 
 // The in-voice reveal narration derived from the fixture's axisSelection —
@@ -459,5 +459,218 @@ describe('DesignConversation', () => {
     // like "fine-line florals" would collide with "Where does it go?".
     expect(screen.queryByRole('button', { name: 'surprise me' })).toBeNull();
     expect(screen.queryByTestId('example-strip')).toBeNull();
+  });
+});
+
+/* ── SketchBot's live notepad + visible fast lane (TAT-48) ───────────────── */
+
+const emptyNotes: SessionNotes = { cast: [], ipHeadsUp: false, sufficient: false };
+
+// Five cast members across two series — the TAT-47 defect-6 regression
+// shape: the notepad must enumerate every one, never a truncated pair.
+const FULL_CAST = [
+  'Gon (Hunter x Hunter)',
+  'Killua (Hunter x Hunter)',
+  'Hiei (Yu Yu Hakusho)',
+  'Kurama (Yu Yu Hakusho)',
+  'Yusuke (Yu Yu Hakusho)',
+];
+
+const populatedNotes: SessionNotes = {
+  placement: 'arm sleeve',
+  cast: FULL_CAST,
+  style: 'anime + color',
+  scene: 'mid-fight',
+  vibe: 'the shows that raised me',
+  ipHeadsUp: true,
+  sufficient: true,
+};
+
+describe('DesignConversation — SketchBot notepad (TAT-48)', () => {
+  async function openWithNotes(notes: SessionNotes) {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(converseResponse()))
+      .mockResolvedValueOnce(
+        jsonResponse(
+          converseResponse({
+            reply: 'That is a full Togashi lineup — which moment anchors it?',
+            stage: 'chatting',
+            turn: 1,
+            notes,
+          })
+        )
+      );
+    render(<DesignConversation />);
+    await screen.findByText(OPENER);
+    sendReply('arm sleeve, gon killua hiei kurama yusuke');
+    await screen.findByText('That is a full Togashi lineup — which moment anchors it?');
+  }
+
+  it('starts empty, in voice — nothing internal, nothing invented', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(converseResponse()));
+    render(<DesignConversation />);
+    await screen.findByText(OPENER);
+
+    expect(screen.getByText(/nothing yet — talk to me/i)).toBeTruthy();
+    expect(screen.getAllByText(/sketchbot's notes/i).length).toBeGreaterThan(0);
+  });
+
+  it('renders every brief field with the full cast enumerated, and never internal strings', async () => {
+    await openWithNotes(populatedNotes);
+
+    // Every cast member, one row each (TAT-47 defect 6 regression guard).
+    for (const member of FULL_CAST) {
+      expect(screen.getByText(member)).toBeTruthy();
+    }
+    expect(screen.getByText('arm sleeve')).toBeTruthy();
+    expect(screen.getByText('anime + color')).toBeTruthy();
+    expect(screen.getByText('mid-fight')).toBeTruthy();
+    expect(screen.getByText('the shows that raised me')).toBeTruthy();
+    // The IP heads-up line, in voice.
+    expect(
+      screen.getByText(/inspired-by take — your artist dials in the exact likeness/i)
+    ).toBeTruthy();
+
+    // HARD RULE (TAT-47 defect 8): internal machinery never renders —
+    // no rationale, no confidence, no axis/questionnaire telemetry.
+    expect(
+      screen.queryByText(/rationale|confidence|questionnaire mode|ambiguous|axis/i)
+    ).toBeNull();
+  });
+
+  it('tap-to-fix prefills a correction opener into the reply line', async () => {
+    await openWithNotes(populatedNotes);
+
+    fireEvent.click(screen.getByRole('button', { name: /fix placement/i }));
+    expect((screen.getByLabelText('Your reply') as HTMLInputElement).value).toBe(
+      'actually, the placement is '
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /fix vibe/i }));
+    expect((screen.getByLabelText('Your reply') as HTMLInputElement).value).toBe(
+      'actually, what it means is '
+    );
+  });
+
+  it('shows the fast-lane chip only when the record is generation-sufficient, and the chip rides the normal converse path', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(converseResponse()))
+      .mockResolvedValueOnce(
+        jsonResponse(
+          converseResponse({
+            reply: 'Where on your body is it going?',
+            stage: 'chatting',
+            turn: 1,
+            notes: emptyNotes,
+          })
+        )
+      );
+    render(<DesignConversation />);
+    await screen.findByText(OPENER);
+
+    sendReply('a hummingbird for my grandmother');
+    await screen.findByText('Where on your body is it going?');
+    // Not sufficient yet — no chip.
+    expect(screen.queryByRole('button', { name: /skip the questions/i })).toBeNull();
+
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        converseResponse({
+          reply: 'Left forearm it is. Delicate or bold?',
+          stage: 'chatting',
+          turn: 2,
+          notes: { ...emptyNotes, placement: 'left forearm', sufficient: true },
+        })
+      )
+    );
+    sendReply('left forearm');
+    await screen.findByText('Left forearm it is. Delicate or bold?');
+
+    // Sufficient + still chatting → the chip surfaces.
+    const chip = screen.getByRole('button', { name: /skip the questions — just draw/i });
+
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        converseResponse({
+          reply:
+            "Here's what I'm hearing: a piece on your left forearm — a hummingbird for my grandmother. Want to see four takes on this, or did I miss something?",
+          stage: 'proposal',
+          playback: 'a piece on your left forearm — a hummingbird for my grandmother',
+          turn: 3,
+          notes: { ...emptyNotes, placement: 'left forearm', sufficient: true },
+        })
+      )
+    );
+    fireEvent.click(chip);
+
+    // The chip is a prefilled message through the SAME converse path.
+    await screen.findByRole('button', { name: /show me/i });
+    const converseCalls = fetchMock.mock.calls.filter(
+      ([path]) => path === '/api/v1/design-session/converse'
+    );
+    expect(JSON.parse(converseCalls[converseCalls.length - 1][1].body)).toEqual({
+      sessionId: 'sess-1',
+      message: 'skip the questions — just draw',
+    });
+    // At the proposal the chip is gone — the draw CTA anchors the notepad.
+    expect(screen.queryByRole('button', { name: /skip the questions/i })).toBeNull();
+
+    // The anchored CTA fires the confirm path into the reveal.
+    fetchMock.mockResolvedValueOnce(jsonResponse(revealedSession));
+    fireEvent.click(screen.getByRole('button', { name: /draw 4 takes/i }));
+    await screen.findByText(REVEAL_NARRATION);
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      '/api/v1/design-session/sess-1/confirm',
+      expect.objectContaining({ method: 'POST' })
+    );
+  });
+
+  it('locks the notepad once the reveal fires — a static brief, no fix taps, no draw CTA', async () => {
+    await openWithNotes(populatedNotes);
+
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        converseResponse({
+          reply:
+            "Here's what I'm hearing: the full lineup. Want to see four takes on this, or did I miss something?",
+          stage: 'proposal',
+          playback: 'the full lineup',
+          turn: 2,
+          notes: populatedNotes,
+        })
+      )
+    );
+    sendReply('that is everything');
+    await screen.findByRole('button', { name: /show me/i });
+
+    fetchMock.mockResolvedValueOnce(jsonResponse(revealedSession));
+    fireEvent.click(screen.getByRole('button', { name: /show me/i }));
+    await screen.findByText(REVEAL_NARRATION);
+
+    // The brief still reads back — but nothing is tappable and the CTA is done.
+    expect(screen.getByText('Gon (Hunter x Hunter)')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /fix / })).toBeNull();
+    expect(screen.queryByRole('button', { name: /draw 4 takes/i })).toBeNull();
+  });
+
+  it('pull-up sheet: peeking by default, expands and collapses on tap', async () => {
+    await openWithNotes(populatedNotes);
+
+    const toggle = screen.getByRole('button', { name: /sketchbot's notes — expand/i });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    // Collapsed: values render once (the desktop card only).
+    expect(screen.getAllByText('Gon (Hunter x Hunter)')).toHaveLength(1);
+
+    fireEvent.click(toggle);
+    expect(
+      screen
+        .getByRole('button', { name: /sketchbot's notes — collapse/i })
+        .getAttribute('aria-expanded')
+    ).toBe('true');
+    // Expanded: the sheet renders the same brief — twice in the DOM now.
+    expect(screen.getAllByText('Gon (Hunter x Hunter)')).toHaveLength(2);
+
+    fireEvent.click(screen.getByRole('button', { name: /sketchbot's notes — collapse/i }));
+    expect(screen.getAllByText('Gon (Hunter x Hunter)')).toHaveLength(1);
   });
 });
