@@ -1,0 +1,205 @@
+/**
+ * Twilio inbound SMS/MMS webhook — the SketchBot SMS channel's front door
+ * (TAT-49).
+ *
+ * Security posture mirrors /api/webhooks/stripe exactly:
+ *  - the whole channel ships dark: SKETCHBOT_SMS_ENABLED !== 'true' → 404
+ *  - unconfigured credentials FAIL CLOSED → 503 (never accept a payload we
+ *    cannot verify), with the same explicit non-production bypass flag
+ *    discipline (SKETCHBOT_SMS_ALLOW_UNSIGNED) as the Stripe route
+ *  - X-Twilio-Signature verified via the official SDK against the exact
+ *    public URL and POST params → 403 on missing/invalid
+ *
+ * Twilio gives webhooks ~15 seconds; four renders take minutes. So the
+ * route answers conversational turns synchronously (one TwiML message) and
+ * defers reveal generation to after() — the ack goes back immediately, the
+ * four cuts arrive as MMS via the REST sender once they exist.
+ *
+ * MMS delivery is SEQUENTIAL (one cut per message + a closing link text),
+ * not a server-side collage: Twilio caps a message's media at 5MB total and
+ * carriers transcode aggressively, so four ~1–2MB renders in one message
+ * would routinely fail or arrive mangled, and a collage would add image
+ * compositing just to lose per-cut zoom. Four captioned messages survive
+ * every carrier and read like a reveal.
+ *
+ * STOP/HELP: Twilio's advanced opt-out answers compliance keywords before
+ * we ever see them and suppresses sends to opted-out numbers (error 21610).
+ * This route additionally records opt-out state (so the async reveal path
+ * never messages a stopped number) and NEVER replies to any opt-out
+ * traffic, even when Twilio still forwards it with OptOutType set.
+ *
+ * Rate limiting ('sms-inbound', per PHONE, env-tunable) answers with empty
+ * TwiML — silence, deliberately: every reply to a flooder is a message we
+ * pay for. Spend-guardrail refusals (caps, budget) are in-voice replies
+ * decided by the service, which owns that policy.
+ */
+import { NextRequest, NextResponse } from 'next/server';
+import { after } from 'next/server';
+import {
+  sketchbotSmsEnabled,
+  twilioConfigured,
+  validateTwilioSignature,
+  sendSms,
+  sendMms,
+  TWILIO_NOT_CONFIGURED,
+} from '@/lib/twilio';
+import { rateLimit } from '@/lib/rate-limit';
+import {
+  handleInbound,
+  executeReveal,
+  recordOptOut,
+  isOptedOut,
+} from '@/services/sketchbotSms';
+import { createRequestLogger } from '@/lib/logger';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+// The after() reveal work needs the same headroom as the web confirm route:
+// four renders through Replicate's low-credit throttle can take minutes.
+export const maxDuration = 300;
+
+/** Twilio's compliance keywords (default + advanced opt-out vocabulary). */
+const STOP_WORDS = new Set(['stop', 'stopall', 'unsubscribe', 'cancel', 'end', 'quit']);
+const START_WORDS = new Set(['start', 'yes', 'unstop']);
+const HELP_WORDS = new Set(['help', 'info']);
+
+function escapeXml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function twiml(message?: string): NextResponse {
+  const body = message
+    ? `<?xml version="1.0" encoding="UTF-8"?><Response><Message>${escapeXml(message)}</Message></Response>`
+    : `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`;
+  return new NextResponse(body, {
+    status: 200,
+    headers: { 'Content-Type': 'text/xml' },
+  });
+}
+
+/**
+ * The exact public URL Twilio signed. Behind Vercel's proxy req.url carries
+ * the internal host, so the forwarded headers win — the Twilio console URL
+ * must match this reconstruction (documented in docs/sketchbot-sms-setup.md).
+ */
+function publicUrl(req: NextRequest): string {
+  const url = new URL(req.url);
+  const proto = req.headers.get('x-forwarded-proto') ?? url.protocol.replace(':', '');
+  const host =
+    req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? url.host;
+  return `${proto}://${host}${url.pathname}${url.search}`;
+}
+
+export async function POST(req: NextRequest) {
+  const reqLogger = createRequestLogger('twilio-webhook');
+
+  try {
+    // Dark by default: while the flag is off this endpoint does not exist.
+    if (!sketchbotSmsEnabled()) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+
+    // Fail closed: without real credentials the signature cannot be
+    // verified and replies cannot be sent — same 503 posture as Stripe.
+    if (!twilioConfigured()) {
+      const allowUnsigned =
+        process.env.SKETCHBOT_SMS_ALLOW_UNSIGNED === 'true' &&
+        process.env.NODE_ENV !== 'production';
+      if (!allowUnsigned) {
+        return NextResponse.json(TWILIO_NOT_CONFIGURED, { status: 503 });
+      }
+    }
+
+    const rawBody = await req.text();
+    const params = Object.fromEntries(new URLSearchParams(rawBody));
+
+    const allowUnsigned =
+      process.env.SKETCHBOT_SMS_ALLOW_UNSIGNED === 'true' &&
+      process.env.NODE_ENV !== 'production';
+    if (!allowUnsigned) {
+      const signature = req.headers.get('x-twilio-signature');
+      if (!validateTwilioSignature(signature, publicUrl(req), params)) {
+        reqLogger.complete('twilio_webhook.rejected', { reason: 'bad_signature' });
+        return NextResponse.json(
+          { error: 'Invalid Twilio signature.' },
+          { status: 403 }
+        );
+      }
+    }
+
+    const phone = (params.From ?? '').trim();
+    const body = (params.Body ?? '').trim();
+    if (!phone) {
+      return NextResponse.json({ error: 'Missing From.' }, { status: 400 });
+    }
+
+    // ── Opt-out traffic: record state, never reply ─────────────────────
+    // Twilio's advanced opt-out already sent the compliance response; a
+    // second reply from us would be noise at best and a violation at worst.
+    const keyword = body.toLowerCase();
+    const optOutType = (params.OptOutType ?? '').toUpperCase();
+    if (optOutType || STOP_WORDS.has(keyword) || HELP_WORDS.has(keyword)) {
+      const effective =
+        optOutType ||
+        (STOP_WORDS.has(keyword) ? 'STOP' : 'HELP');
+      await recordOptOut(phone, effective);
+      reqLogger.complete('twilio_webhook.opt_out', { type: effective });
+      return twiml();
+    }
+    // START/UNSTOP re-opens the door; Twilio auto-confirms, we stay quiet.
+    if (START_WORDS.has(keyword) && (await isOptedOut(phone))) {
+      await recordOptOut(phone, 'START');
+      reqLogger.complete('twilio_webhook.opt_out', { type: 'START' });
+      return twiml();
+    }
+
+    // ── Per-phone inbound rate limit (REQUIRED guardrail) ──────────────
+    // Keyed on the sender's number — every request here comes from
+    // Twilio's IPs, so IP-keying would rate-limit Twilio, not the texter.
+    const rateResult = await rateLimit(req, 'sms-inbound', `sms:${phone}`);
+    if (!rateResult.allowed) {
+      reqLogger.complete('twilio_webhook.rate_limited', {
+        phone_last4: phone.slice(-4),
+      });
+      return twiml(); // silence — replying to a flood costs money per segment
+    }
+
+    const outcome = await handleInbound({ phone, body });
+
+    if (outcome.kind === 'silent') {
+      reqLogger.complete('twilio_webhook.silent', {});
+      return twiml();
+    }
+
+    if (outcome.kind === 'reveal') {
+      // Generation outlives the webhook window: ack now, deliver via the
+      // REST sender once the renders exist. after() keeps the function
+      // alive post-response (Fluid compute, maxDuration above).
+      after(async () => {
+        const delivery = await executeReveal(outcome.sessionId, outcome.phone);
+        // Re-check STOP between ack and delivery — never message an
+        // opted-out number (Twilio would refuse too; we don't even try).
+        if (await isOptedOut(outcome.phone)) return;
+        for (const cut of delivery.cuts) {
+          await sendMms(outcome.phone, cut.caption, [cut.mediaUrl]);
+        }
+        await sendSms(outcome.phone, delivery.closingText);
+      });
+      reqLogger.complete('twilio_webhook.reveal_armed', {
+        session_id: outcome.sessionId,
+      });
+      return twiml(outcome.text);
+    }
+
+    reqLogger.complete('twilio_webhook.reply', {});
+    return twiml(outcome.text);
+  } catch (error) {
+    reqLogger.error('twilio_webhook.failed', error as Error, {});
+    return NextResponse.json({ error: 'Webhook processing failed.' }, { status: 500 });
+  }
+}
