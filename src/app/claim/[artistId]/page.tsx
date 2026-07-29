@@ -238,22 +238,22 @@ export default function ClaimArtistPage({ params }: { params: Promise<{ artistId
             )}
 
             {phase === 'pending_verification' && result && (
-              <div className="border-2 border-pink bg-black p-6">
-                <div className="font-body text-[10px] uppercase tracking-[0.25em] text-pink">
+              <div className="border hairline-quiet bg-black p-8">
+                <div className="font-body text-[12px] text-quiet-dim">
                   Identity review required
                 </div>
-                <div className="mt-2 font-display text-white text-[24px] leading-none">
+                <div className="mt-3 font-display-quiet text-quiet text-[20px] leading-none">
                   Request received. The profile is not claimed yet.
                 </div>
-                <p className="mt-3 font-body text-[13px] text-white/70 leading-[1.6]">
+                <p className="mt-4 font-body text-[13px] text-quiet-dim leading-[1.7]">
                   {result.nextStep}
                 </p>
                 {result.verificationCode && (
-                  <div className="mt-5 border hairline px-4 py-3 font-display text-[24px] tracking-[0.08em] text-white">
+                  <div className="mt-6 border hairline-quiet px-4 py-3 font-display-quiet text-[24px] tracking-[0.08em] text-quiet">
                     {result.verificationCode}
                   </div>
                 )}
-                <p className="mt-4 font-body text-[12px] text-white/50 leading-[1.6]">
+                <p className="mt-5 font-body text-[12px] text-quiet-dim leading-[1.7]">
                   Reference {result.requestId}. Until a person approves it, you cannot edit this
                   profile, open its Stripe account, or receive its deposits.
                 </p>
