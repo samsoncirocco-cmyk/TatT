@@ -5,7 +5,6 @@ import {
   collectCandidates,
   mergeTerm,
   normalizeTerm,
-  parseConstArray,
   rejectTerm,
   titleCase,
   updateProposals,
@@ -75,23 +74,6 @@ describe('buildLookup', () => {
   it('throws on a non-canonical tag id', () => {
     const broken = { tags: [{ id: 'Fine Line', label: 'Fine Line', aliases: [] }] };
     expect(() => buildLookup(broken)).toThrow(/not canonical/);
-  });
-});
-
-describe('parseConstArray', () => {
-  it('extracts string literals from a const array in JS source text', () => {
-    const src = `
-      const OTHER = ['nope'];
-      const STYLES = [
-        'Fine Line', 'Traditional',
-        "Neo-Traditional"
-      ];
-    `;
-    expect(parseConstArray(src, 'STYLES')).toEqual(['Fine Line', 'Traditional', 'Neo-Traditional']);
-  });
-
-  it('returns [] when the array is absent', () => {
-    expect(parseConstArray('const X = 1;', 'STYLES')).toEqual([]);
   });
 });
 

@@ -25,6 +25,11 @@ import { randomUUID } from 'crypto';
 import { writeFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import {
+  ONTOLOGY_STYLE_LABELS,
+  normalizeGraphStyleList,
+  normalizeOntologyStyleList,
+} from './lib/artist-styles.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -59,13 +64,9 @@ const LOCATIONS = [
   { city: 'Melbourne', region: 'Victoria', country: 'Australia', hasMultiple: false },
 ];
 
-// Tattoo styles
-const STYLES = [
-  'Fine Line', 'Traditional', 'Realism', 'Watercolor', 'Minimalist',
-  'Japanese', 'Tribal', 'Geometric', 'Blackwork', 'Neo-Traditional',
-  'Portrait', 'Lettering', 'Dotwork', 'Illustrative', 'Biomechanical',
-  'New School', 'Old School', 'Photo Realism', 'Abstract', 'Surrealism'
-];
+// The generator samples the approved ontology directly. New styles enter this
+// pool only through scripts/propose-ontology-candidates.mjs (ADR-0011).
+export const GENERATED_STYLE_LABELS = ONTOLOGY_STYLE_LABELS;
 
 // Color palettes
 const COLOR_PALETTES = [
@@ -123,7 +124,7 @@ function generateArtistName() {
  */
 function generateStyles() {
   const count = Math.floor(Math.random() * 4) + 1;
-  const shuffled = [...STYLES].sort(() => 0.5 - Math.random());
+  const shuffled = [...GENERATED_STYLE_LABELS].sort(() => 0.5 - Math.random());
   return shuffled.slice(0, count);
 }
 
@@ -199,7 +200,7 @@ function formatForSupabase(artists) {
     profile_url: artist.profile_url,
     is_curated: artist.is_curated,
     created_at: artist.created_at,
-    styles: artist.styles,
+    styles: normalizeOntologyStyleList(artist.styles, `artist ${artist.id}`),
     color_palettes: artist.color_palettes,
     specializations: artist.specializations
   }));
@@ -218,8 +219,12 @@ function formatForSupabase(artists) {
  * Cypher generator can rebuild them.
  */
 function formatForNeo4j(artists) {
+  const normalizedArtists = artists.map((artist) => ({
+    ...artist,
+    styles: normalizeGraphStyleList(artist.styles, `artist ${artist.id}`),
+  }));
   const nodes = {
-    artists: artists.map(artist => ({
+    artists: normalizedArtists.map(artist => ({
       id: artist.id,
       name: artist.name,
       has_multiple_locations: artist.has_multiple_locations,
@@ -250,7 +255,7 @@ function formatForNeo4j(artists) {
   const styleSet = new Set();
   const websiteSet = new Set();
 
-  artists.forEach(artist => {
+  normalizedArtists.forEach(artist => {
     const state = artist.location_region;
     const city = artist.location_city;
     const shop = artist.shop_name;
@@ -273,7 +278,7 @@ function formatForNeo4j(artists) {
   const seenHasShop = new Set();
   const seenFeaturesStyle = new Set();
 
-  artists.forEach(artist => {
+  normalizedArtists.forEach(artist => {
     const state = artist.location_region;
     const city = artist.location_city;
     const shop = artist.shop_name;
@@ -376,4 +381,3 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 }
 
 export { generateAllArtists, formatForSupabase, formatForNeo4j };
-

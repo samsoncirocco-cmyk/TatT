@@ -110,7 +110,7 @@ export default function SwipeClient() {
             </p>
             <Link
               href="/smart-match"
-              className="mt-6 inline-flex text-[10px] uppercase tracking-[0.2em] text-white/80 hover:text-black hover:bg-pink border-2 hairline px-4 py-3 press font-body"
+              className="mt-6 inline-flex items-center min-h-[44px] text-[10px] uppercase tracking-[0.2em] text-white/80 hover:text-black hover:bg-pink border-2 hairline px-4 py-3 press font-body"
             >
               Set preferences&nbsp;<span className="ml-2">▸</span>
             </Link>
@@ -211,14 +211,14 @@ export default function SwipeClient() {
                         <button
                           type="button"
                           onClick={() => swiped("left", card)}
-                          className="flex-1 border hairline text-white/60 hover:bg-white/10 py-3 text-[10px] uppercase tracking-widest font-body press"
+                          className="flex-1 min-h-[44px] border hairline text-white/60 hover:bg-white/10 py-3 text-[10px] uppercase tracking-widest font-body press"
                         >
                           Pass
                         </button>
                         <button
                           type="button"
                           onClick={() => swiped("right", card)}
-                          className="flex-1 bg-pink text-black py-3 text-[10px] uppercase tracking-widest font-body press"
+                          className="flex-1 min-h-[44px] bg-pink text-black py-3 text-[10px] uppercase tracking-widest font-body press"
                         >
                           Pin
                         </button>
@@ -256,7 +256,7 @@ export default function SwipeClient() {
                     </span>
                     <Link
                       href={bookHref(card.id)}
-                      className="shrink-0 text-[12px] bg-quiet text-black hover:bg-white px-4 py-2.5 press font-body"
+                      className="shrink-0 inline-flex items-center min-h-[44px] text-[12px] bg-quiet text-black hover:bg-white px-4 py-2.5 press font-body"
                     >
                       Book
                     </Link>

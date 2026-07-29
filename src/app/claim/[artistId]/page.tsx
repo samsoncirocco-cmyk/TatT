@@ -9,14 +9,21 @@ import {
   formatRequirements,
   type ConnectOnboardingState,
 } from '@/lib/connect-status';
+import { bookingMoneyCopy } from '@/lib/money-copy';
 
 type ClaimResult = {
   claimed: boolean;
+  verificationStatus: 'verified' | 'pending_verification';
+  requestId?: string;
+  instagram?: string | null;
+  verificationCode?: string | null;
+  expiresAt?: string;
+  nextStep?: string;
   artistId: string;
   name: string | null;
   hasConnectedAccount: boolean;
   chargesEnabled: boolean;
-  pendingDeposit: { count: number; amountCents: number };
+  pendingDeposit?: { count: number; amountCents: number };
 };
 
 type OnboardingStatus = {
@@ -33,7 +40,7 @@ type OnboardingStatus = {
 };
 
 /** 'working' covers claim + account + status; the rest are terminal renders. */
-type Phase = 'idle' | 'working' | 'ready' | 'error';
+type Phase = 'idle' | 'working' | 'pending_verification' | 'ready' | 'error';
 
 function formatUsd(cents: number): string {
   return (cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
@@ -88,6 +95,10 @@ export default function ClaimArtistPage({ params }: { params: Promise<{ artistId
     try {
       const claim = (await authedFetch('/api/v1/connect/claim', { artistId })) as unknown as ClaimResult;
       setResult(claim);
+      if (!claim.claimed || claim.verificationStatus !== 'verified') {
+        setPhase('pending_verification');
+        return;
+      }
 
       // Make sure a connected account exists, then read its REAL state from
       // Stripe. Both calls are idempotent server-side.
@@ -135,8 +146,8 @@ export default function ClaimArtistPage({ params }: { params: Promise<{ artistId
     }
   }, [refreshStatus]);
 
-  const heldCount = status?.heldDeposit.count ?? result?.pendingDeposit.count ?? 0;
-  const heldCents = status?.heldDeposit.amountCents ?? result?.pendingDeposit.amountCents ?? 0;
+  const heldCount = status?.heldDeposit.count ?? result?.pendingDeposit?.count ?? 0;
+  const heldCents = status?.heldDeposit.amountCents ?? result?.pendingDeposit?.amountCents ?? 0;
   const displayName = status?.artistName ?? result?.name ?? artistId;
 
   return (
@@ -167,10 +178,9 @@ export default function ClaimArtistPage({ params }: { params: Promise<{ artistId
               <div className="mt-2 font-body text-[12px] text-quiet-dim">
                 {heldCount} booking{heldCount === 1 ? '' : 's'} — released once Stripe clears your account.
               </div>
-              {/* The money sentence (ADR-0033): who pays what, who keeps what. */}
+              {/* The money sentence (ADR-0036): who pays what, who keeps what. */}
               <p className="mt-4 font-body text-[13px] text-quiet leading-[1.7]">
-                Clients paid this deposit plus our booking fee — the full deposit is
-                yours; the fee is the only part TattTester keeps.
+                {bookingMoneyCopy.claimHeldDeposit}
               </p>
             </div>
           )}
@@ -225,6 +235,29 @@ export default function ClaimArtistPage({ params }: { params: Promise<{ artistId
                 onStart={() => void startOnboarding()}
                 onRecheck={() => void recheck()}
               />
+            )}
+
+            {phase === 'pending_verification' && result && (
+              <div className="border-2 border-pink bg-black p-6">
+                <div className="font-body text-[10px] uppercase tracking-[0.25em] text-pink">
+                  Identity review required
+                </div>
+                <div className="mt-2 font-display text-white text-[24px] leading-none">
+                  Request received. The profile is not claimed yet.
+                </div>
+                <p className="mt-3 font-body text-[13px] text-white/70 leading-[1.6]">
+                  {result.nextStep}
+                </p>
+                {result.verificationCode && (
+                  <div className="mt-5 border hairline px-4 py-3 font-display text-[24px] tracking-[0.08em] text-white">
+                    {result.verificationCode}
+                  </div>
+                )}
+                <p className="mt-4 font-body text-[12px] text-white/50 leading-[1.6]">
+                  Reference {result.requestId}. Until a person approves it, you cannot edit this
+                  profile, open its Stripe account, or receive its deposits.
+                </p>
+              </div>
             )}
 
             {phase === 'ready' && error && (

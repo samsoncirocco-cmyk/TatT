@@ -1,4 +1,5 @@
 import Link from "next/link";
+import TattTesterWordmark from "@/components/studio/TattTesterWordmark";
 
 const COLS = [
   {
@@ -41,11 +42,9 @@ export default function PunkFooter({ quiet = false }: { quiet?: boolean }) {
       <div className="px-6 md:px-12 py-12 md:py-16 max-w-6xl mx-auto">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-10">
           <div>
-            <span
+            <TattTesterWordmark
               className={`font-display text-white text-3xl leading-none tracking-[0.01em] ${quiet ? "" : "glitch"}`}
-            >
-              TATT<span className="text-pink">TESTER</span>
-            </span>
+            />
             <p className="mt-4 text-[12px] text-white/50 font-body leading-[1.55] max-w-[200px]">
               Think it. Ink it. AI-powered tattoo design, on your terms.
             </p>

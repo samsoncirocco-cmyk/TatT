@@ -6,6 +6,15 @@ import SignInPromptGate from "@/components/auth/SignInPromptGate";
 import { ToastProvider } from "@/contexts/ToastContext";
 
 export const metadata: Metadata = {
+  // tatttester.com is the one canonical host (docs/brand/two-door-brand-guide.md,
+  // TAT-46): every page's canonical tag points there, regardless of which
+  // domain served it. The './' canonical resolves to each page's own path
+  // against metadataBase; the Image2Ink landing overrides it with its own
+  // absolute canonical (src/app/image2ink/page.tsx).
+  metadataBase: new URL(
+    `https://${process.env.CANONICAL_HOST ?? "tatttester.com"}`
+  ),
+  alternates: { canonical: "./" },
   title: "TattTester — Think it. Ink it.",
   description: "AI-powered tattoo design and artist discovery — AR visualization coming soon.",
 };

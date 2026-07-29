@@ -1,5 +1,5 @@
 schema_version: 1
-verified_against: c97392f
+verified_against: 018bbaa
 verified_on: 2026-07-27
 
 statuses:
@@ -99,6 +99,21 @@ features:
       - src/app/artists/page.tsx
       - src/app/artists/[slug]/page.tsx
 
+  controlled_style_vocabulary:
+    status: implemented
+    evidence:
+      - data/style-ontology.json
+      - data/graph-style-vocabulary.json
+      - src/lib/style-vocabulary.ts
+      - src/lib/style-vocabulary.test.ts
+      - scripts/lib/artist-styles.mjs
+      - scripts/lib/artist-styles.test.mjs
+      - scripts/generate-tattoo-artists-data.test.js
+      - docs/adr/0010-two-tier-tag-vocabulary.md
+      - docs/adr/0011-ontology-growth-scrape-proposed-human-approved.md
+    limitations:
+      - Match pills expose only approved styles carried by at least one artist in the current graph snapshot.
+
   booking_reservation:
     status: implemented
     evidence:
@@ -118,13 +133,29 @@ features:
       - src/app/api/webhooks/stripe/route.ts
 
   artist_claim_and_connect:
-    status: partial
+    status: implemented_unverified
     evidence:
       - src/app/claim/[artistId]/page.tsx
       - src/app/api/v1/connect/claim/route.ts
+      - src/app/api/v1/connect/claim/route.test.ts
       - src/app/api/v1/connect/accounts/route.ts
+      - scripts/lib/claim-approval-plan.test.mjs
+      - scripts/lib/artist-managed-import.test.mjs
+      - docs/adr/0033-artist-ownership-is-human-verified.md
     limitations:
-      - Identity assurance remains a launch blocker.
+      - Identity approval is deliberately human-operated at launch.
+      - Instagram OAuth and consented media still require the Meta setup tracked in TAT-40.
+
+  artist_profile_management:
+    status: implemented
+    evidence:
+      - src/app/artist/profile/ArtistProfileEditor.tsx
+      - src/app/api/v1/artist/profile/route.ts
+      - src/app/api/v1/artist/profile/route.test.ts
+      - src/lib/artist-profile.test.ts
+    limitations:
+      - Instagram handle changes require manual review because the handle is the identity anchor.
+      - Portfolio media waits for the consented-media path in TAT-40.
 
   artist_calendar:
     status: implemented_unverified
@@ -157,6 +188,13 @@ features:
       - scripts/lib/artist-refresh-status.test.mjs
       - src/lib/artist-visibility.ts
       - src/lib/artist-visibility.test.ts
+      - execution/apify_ig_enrich.py
+      - execution/discover_ig.py
+      - execution/ig_refresh_state.py
+      - tests/execution/test_apify_ig_enrich.py
+      - tests/execution/test_discover_ig.py
+      - tests/execution/test_ig_refresh_state.py
+      - tests/execution/test_refresh_runners.py
     limitations:
       - No production refresh-status apply has been verified.
       - Full-sweep Apify and GCS cost, spend approval, and quarterly scheduling remain open under TAT-7.

@@ -25,6 +25,11 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import { normalizeGraphStyleList } from './lib/artist-styles.mjs';
+import {
+  preserveArtistManagedField,
+  preserveVerifiedIdentityField,
+} from './lib/artist-managed-import.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -156,6 +161,10 @@ async function importArtists() {
     for (let i = 0; i < artists.length; i++) {
       const artist = artists[i];
 
+      const styles = normalizeGraphStyleList(
+        artist.styles ?? [],
+        `artist ${artist.id ?? artist.name ?? 'unknown'}`,
+      );
       const params = {
         id: artist.id,
         name: artist.name,
@@ -174,12 +183,12 @@ async function importArtists() {
         bookingAvailable: artist.bookingAvailable,
         embedding_id: artist.embedding_id || null,
         mentor_id: artist.mentor_id || null,
-        styles: artist.styles || [],
+        styles,
         tattoos: (artist.portfolioImages || []).map((imageUrl, idx) => ({
           id: `${artist.id}-t${idx}`,
           imageUrl,
           tags: artist.tags || [],
-          styles: artist.styles || []
+          styles
         }))
       };
 
@@ -193,21 +202,21 @@ async function importArtists() {
         MERGE (city)-[:HAS_SHOP]->(shop)
 
         MERGE (a:Artist {id: $id})
-        SET a.name = $name,
-            a.shopName = $shopName,
-            a.city = $city,
-            a.state = $state,
+        SET a.name = ${preserveArtistManagedField('name', '$name')},
+            a.shopName = ${preserveArtistManagedField('shopName', '$shopName')},
+            a.city = ${preserveArtistManagedField('city', '$city')},
+            a.state = ${preserveArtistManagedField('state', '$state')},
             a.lat = $lat,
             a.lng = $lng,
             a.location = CASE
               WHEN $lat IS NOT NULL AND $lng IS NOT NULL
               THEN point({latitude: $lat, longitude: $lng})
               ELSE null END,
-            a.instagram = $instagram,
+            a.instagram = ${preserveVerifiedIdentityField('instagram', '$instagram')},
             a.hourlyRate = $hourlyRate,
             a.rating = $rating,
             a.reviewCount = $reviewCount,
-            a.bio = $bio,
+            a.bio = ${preserveArtistManagedField('bio', '$bio')},
             a.yearsExperience = $yearsExperience,
             a.bookingAvailable = $bookingAvailable,
             a.embedding_id = $embedding_id,

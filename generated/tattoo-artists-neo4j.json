@@ -2494,7 +2494,7 @@
         "name": "Fine Line"
       },
       {
-        "name": "Japanese"
+        "name": "Japanese (Irezumi)"
       },
       {
         "name": "Realism"
@@ -2503,7 +2503,7 @@
         "name": "Watercolor"
       },
       {
-        "name": "Old School"
+        "name": "Traditional"
       },
       {
         "name": "Illustrative"
@@ -2516,9 +2516,6 @@
       },
       {
         "name": "Dotwork"
-      },
-      {
-        "name": "Traditional"
       },
       {
         "name": "Lettering"
@@ -2543,9 +2540,6 @@
       },
       {
         "name": "Neo-Traditional"
-      },
-      {
-        "name": "Photo Realism"
       },
       {
         "name": "Biomechanical"
@@ -5525,7 +5519,7 @@
       },
       {
         "from": "5835eaa6-f203-43b9-af47-485c58a2e52c",
-        "to": "Japanese",
+        "to": "Japanese (Irezumi)",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -5540,7 +5534,7 @@
       },
       {
         "from": "8e8045d7-4f3f-4e4e-8bd8-a93d8b478ca6",
-        "to": "Old School",
+        "to": "Traditional",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -5605,7 +5599,7 @@
       },
       {
         "from": "3557a401-d44d-430d-a755-cccdef2af361",
-        "to": "Old School",
+        "to": "Traditional",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -5615,7 +5609,7 @@
       },
       {
         "from": "c665b9b3-f4d8-4449-a57d-c188e8aa3e61",
-        "to": "Old School",
+        "to": "Traditional",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -5690,7 +5684,7 @@
       },
       {
         "from": "9c7ac04d-02d0-4f02-aa3d-da135da588bd",
-        "to": "Old School",
+        "to": "Traditional",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -5710,7 +5704,7 @@
       },
       {
         "from": "6303c217-5dba-42d3-a9bc-ee609565cae9",
-        "to": "Japanese",
+        "to": "Japanese (Irezumi)",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -5820,7 +5814,7 @@
       },
       {
         "from": "19b09e4e-efcd-4863-bc43-a0cb266de01a",
-        "to": "Japanese",
+        "to": "Japanese (Irezumi)",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -5860,12 +5854,12 @@
       },
       {
         "from": "fe4eb917-6028-4878-b390-65ed795619b3",
-        "to": "Old School",
+        "to": "Traditional",
         "type": "SPECIALIZES_IN"
       },
       {
         "from": "77e6476e-db9a-4fce-bae7-123645e89d81",
-        "to": "Japanese",
+        "to": "Japanese (Irezumi)",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -5900,7 +5894,7 @@
       },
       {
         "from": "6bedcf48-0868-45f6-b021-329047a42b10",
-        "to": "Old School",
+        "to": "Traditional",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -5955,7 +5949,7 @@
       },
       {
         "from": "9801da5b-9906-4073-8df4-8bd1b58d327f",
-        "to": "Photo Realism",
+        "to": "Realism",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -5965,7 +5959,7 @@
       },
       {
         "from": "2a605cce-a668-4c76-8f31-839076c4db46",
-        "to": "Old School",
+        "to": "Traditional",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -5990,7 +5984,7 @@
       },
       {
         "from": "6e763c3a-25fb-46ef-af92-355bfa7a48e3",
-        "to": "Japanese",
+        "to": "Japanese (Irezumi)",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -6005,7 +5999,7 @@
       },
       {
         "from": "985e2349-3b59-4cc8-a9ef-d33507d0f4bb",
-        "to": "Japanese",
+        "to": "Japanese (Irezumi)",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -6040,7 +6034,7 @@
       },
       {
         "from": "a1e331ce-411c-4f15-bd74-72fe0610957b",
-        "to": "Japanese",
+        "to": "Japanese (Irezumi)",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -6050,7 +6044,7 @@
       },
       {
         "from": "9dd88c6f-e2e3-4530-af79-24a047e0146f",
-        "to": "Japanese",
+        "to": "Japanese (Irezumi)",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -6090,7 +6084,7 @@
       },
       {
         "from": "129fa57a-898f-460e-8352-88131f701f0e",
-        "to": "Photo Realism",
+        "to": "Realism",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -6140,7 +6134,7 @@
       },
       {
         "from": "29be8331-46b2-441e-88ba-1bed9a611435",
-        "to": "Japanese",
+        "to": "Japanese (Irezumi)",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -6245,7 +6239,7 @@
       },
       {
         "from": "32354ba5-13ac-4a0d-b624-3d081a49e65a",
-        "to": "Japanese",
+        "to": "Japanese (Irezumi)",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -6265,7 +6259,7 @@
       },
       {
         "from": "82f14b6c-2aa8-4d66-ae6e-057131e9f322",
-        "to": "Photo Realism",
+        "to": "Realism",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -6350,7 +6344,7 @@
       },
       {
         "from": "f1121635-0622-4078-9195-36eb0e4b02d3",
-        "to": "Old School",
+        "to": "Traditional",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -6435,7 +6429,7 @@
       },
       {
         "from": "be689759-e106-4667-9d5a-ceebd5ed4aee",
-        "to": "Old School",
+        "to": "Traditional",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -6525,7 +6519,7 @@
       },
       {
         "from": "5b691f1b-5ff9-4c39-a199-32b7b4613bbc",
-        "to": "Japanese",
+        "to": "Japanese (Irezumi)",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -6565,7 +6559,7 @@
       },
       {
         "from": "dd4b1bd3-ff34-4f30-8154-a3fd9b60e98e",
-        "to": "Photo Realism",
+        "to": "Realism",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -6580,7 +6574,7 @@
       },
       {
         "from": "a3ff3e81-7682-4e54-833c-bce10f645131",
-        "to": "Japanese",
+        "to": "Japanese (Irezumi)",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -6640,7 +6634,7 @@
       },
       {
         "from": "d05b8c77-0686-42ee-b93d-0090d0f9ba9c",
-        "to": "Japanese",
+        "to": "Japanese (Irezumi)",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -6674,18 +6668,13 @@
         "type": "SPECIALIZES_IN"
       },
       {
-        "from": "fc8cbd08-a294-40df-b95f-478801416b2c",
-        "to": "Photo Realism",
-        "type": "SPECIALIZES_IN"
-      },
-      {
         "from": "bd7cf9f6-cfc2-4f5f-a91c-3c23ada0b2e0",
         "to": "Watercolor",
         "type": "SPECIALIZES_IN"
       },
       {
         "from": "bd7cf9f6-cfc2-4f5f-a91c-3c23ada0b2e0",
-        "to": "Old School",
+        "to": "Traditional",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -6835,7 +6824,7 @@
       },
       {
         "from": "92ec73d4-b380-46e9-8af2-065ae9055257",
-        "to": "Japanese",
+        "to": "Japanese (Irezumi)",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -6925,11 +6914,6 @@
       },
       {
         "from": "19f5edd4-2c58-4165-9504-58bc6e0565f7",
-        "to": "Old School",
-        "type": "SPECIALIZES_IN"
-      },
-      {
-        "from": "19f5edd4-2c58-4165-9504-58bc6e0565f7",
         "to": "Dotwork",
         "type": "SPECIALIZES_IN"
       },
@@ -6975,7 +6959,7 @@
       },
       {
         "from": "2df99554-ea53-4d18-8639-c5e3f800ea1f",
-        "to": "Japanese",
+        "to": "Japanese (Irezumi)",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -7070,7 +7054,7 @@
       },
       {
         "from": "39ac7737-d6ec-43c4-ba53-8eab2f4b02c0",
-        "to": "Photo Realism",
+        "to": "Realism",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -7100,7 +7084,7 @@
       },
       {
         "from": "82e31eb2-3d75-4877-a80c-7e86396c2738",
-        "to": "Old School",
+        "to": "Traditional",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -7160,7 +7144,7 @@
       },
       {
         "from": "f885ac74-713c-43eb-9dbf-2f6096889fd3",
-        "to": "Photo Realism",
+        "to": "Realism",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -7175,17 +7159,12 @@
       },
       {
         "from": "20aa526f-b01b-45fb-afd1-a6d510e06e35",
-        "to": "Old School",
+        "to": "Traditional",
         "type": "SPECIALIZES_IN"
       },
       {
         "from": "20aa526f-b01b-45fb-afd1-a6d510e06e35",
         "to": "Fine Line",
-        "type": "SPECIALIZES_IN"
-      },
-      {
-        "from": "20aa526f-b01b-45fb-afd1-a6d510e06e35",
-        "to": "Traditional",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -7220,7 +7199,7 @@
       },
       {
         "from": "8ff5f808-23e7-45b3-8cee-12c224568702",
-        "to": "Japanese",
+        "to": "Japanese (Irezumi)",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -7235,7 +7214,7 @@
       },
       {
         "from": "24cac96d-848a-46b3-bf52-796ee3f35c94",
-        "to": "Old School",
+        "to": "Traditional",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -7305,7 +7284,7 @@
       },
       {
         "from": "edc8a80b-1215-4ae1-a6da-e7869fa1ea70",
-        "to": "Photo Realism",
+        "to": "Realism",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -7385,7 +7364,7 @@
       },
       {
         "from": "7c9c2ee6-6e3e-4bb7-857b-3df12bc96cc2",
-        "to": "Japanese",
+        "to": "Japanese (Irezumi)",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -7395,7 +7374,7 @@
       },
       {
         "from": "7b4512c1-82c5-444e-9718-6989ead08acc",
-        "to": "Japanese",
+        "to": "Japanese (Irezumi)",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -7445,7 +7424,7 @@
       },
       {
         "from": "76ffe280-c21b-4096-aa17-e6608b81641c",
-        "to": "Photo Realism",
+        "to": "Realism",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -7505,7 +7484,7 @@
       },
       {
         "from": "11dc59a3-6dd7-4f81-b719-a1f98447ca2e",
-        "to": "Old School",
+        "to": "Traditional",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -7525,7 +7504,7 @@
       },
       {
         "from": "39da1ffe-73dc-4ac0-a22e-a9eda5ebdf31",
-        "to": "Japanese",
+        "to": "Japanese (Irezumi)",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -7545,7 +7524,7 @@
       },
       {
         "from": "bd2cfcbb-faea-4215-92c8-c132bf8da238",
-        "to": "Old School",
+        "to": "Traditional",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -7645,7 +7624,7 @@
       },
       {
         "from": "1b9da0c9-ca52-43fb-8d45-446a80f3cf23",
-        "to": "Old School",
+        "to": "Traditional",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -7670,7 +7649,7 @@
       },
       {
         "from": "a872ddeb-b14b-4205-88a7-2afd5774fff0",
-        "to": "Japanese",
+        "to": "Japanese (Irezumi)",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -7705,7 +7684,7 @@
       },
       {
         "from": "26aae468-b0d2-41f7-b6f6-7380dd67a60c",
-        "to": "Japanese",
+        "to": "Japanese (Irezumi)",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -7725,7 +7704,7 @@
       },
       {
         "from": "1e61ba1e-046d-4044-9784-704d8cd4a725",
-        "to": "Old School",
+        "to": "Traditional",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -7735,7 +7714,7 @@
       },
       {
         "from": "a83936a8-f6fe-4615-9030-b0fdebfc81a0",
-        "to": "Photo Realism",
+        "to": "Realism",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -7750,7 +7729,7 @@
       },
       {
         "from": "0b5aae9e-7115-4be6-a571-c8328a1117e7",
-        "to": "Japanese",
+        "to": "Japanese (Irezumi)",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -7795,7 +7774,7 @@
       },
       {
         "from": "85c8b8c3-91e1-4577-a4d6-36ba2338af44",
-        "to": "Japanese",
+        "to": "Japanese (Irezumi)",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -7885,7 +7864,7 @@
       },
       {
         "from": "52cfc283-3d3f-478f-8e69-5497c0a21240",
-        "to": "Japanese",
+        "to": "Japanese (Irezumi)",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -7905,7 +7884,7 @@
       },
       {
         "from": "7d1920ae-0df9-4727-b459-352346efd0bd",
-        "to": "Japanese",
+        "to": "Japanese (Irezumi)",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -7920,7 +7899,7 @@
       },
       {
         "from": "97db48a6-0c51-4c89-88f7-4b941569e0a9",
-        "to": "Japanese",
+        "to": "Japanese (Irezumi)",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -7960,7 +7939,7 @@
       },
       {
         "from": "386bf3d6-f358-4738-9ddb-5079ebca7909",
-        "to": "Photo Realism",
+        "to": "Realism",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -8060,7 +8039,7 @@
       },
       {
         "from": "8cf15fea-bb4f-42ba-9e13-aac5ad7df738",
-        "to": "Photo Realism",
+        "to": "Realism",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -8100,7 +8079,7 @@
       },
       {
         "from": "d294198f-f290-4db6-904d-ee2ff4cf30a1",
-        "to": "Japanese",
+        "to": "Japanese (Irezumi)",
         "type": "SPECIALIZES_IN"
       },
       {
@@ -8135,7 +8114,7 @@
         "shop": "Old Soul Tattoo Co.",
         "shopCity": "Austin",
         "shopState": "Texas",
-        "style": "Japanese"
+        "style": "Japanese (Irezumi)"
       },
       {
         "shop": "Crimson Lotus Studio",
@@ -8153,7 +8132,7 @@
         "shop": "Crimson Lotus Studio",
         "shopCity": "Denver",
         "shopState": "Colorado",
-        "style": "Old School"
+        "style": "Traditional"
       },
       {
         "shop": "Steel & Bone Tattoo",
@@ -8231,7 +8210,7 @@
         "shop": "Midnight Owl Tattoo",
         "shopCity": "Portland",
         "shopState": "Oregon",
-        "style": "Old School"
+        "style": "Traditional"
       },
       {
         "shop": "Midnight Owl Tattoo",
@@ -8243,7 +8222,7 @@
         "shop": "Midnight Owl Tattoo",
         "shopCity": "Austin",
         "shopState": "Texas",
-        "style": "Old School"
+        "style": "Traditional"
       },
       {
         "shop": "Midnight Owl Tattoo",
@@ -8327,7 +8306,7 @@
         "shop": "Wildflower Ink",
         "shopCity": "Tucson",
         "shopState": "Arizona",
-        "style": "Old School"
+        "style": "Traditional"
       },
       {
         "shop": "Wildflower Ink",
@@ -8351,7 +8330,7 @@
         "shop": "Black Anchor Collective",
         "shopCity": "Manhattan",
         "shopState": "New York",
-        "style": "Japanese"
+        "style": "Japanese (Irezumi)"
       },
       {
         "shop": "Black Anchor Collective",
@@ -8471,7 +8450,7 @@
         "shop": "Sacred Art Collective",
         "shopCity": "Dallas",
         "shopState": "Texas",
-        "style": "Japanese"
+        "style": "Japanese (Irezumi)"
       },
       {
         "shop": "Sacred Art Collective",
@@ -8519,13 +8498,13 @@
         "shop": "Steel & Bone Tattoo",
         "shopCity": "Jersey City",
         "shopState": "New Jersey",
-        "style": "Old School"
+        "style": "Traditional"
       },
       {
         "shop": "Crimson Lotus Studio",
         "shopCity": "Melbourne",
         "shopState": "Victoria",
-        "style": "Japanese"
+        "style": "Japanese (Irezumi)"
       },
       {
         "shop": "Crimson Lotus Studio",
@@ -8567,7 +8546,7 @@
         "shop": "Sacred Art Collective",
         "shopCity": "Tampa",
         "shopState": "Florida",
-        "style": "Old School"
+        "style": "Traditional"
       },
       {
         "shop": "Crimson Lotus Studio",
@@ -8633,7 +8612,7 @@
         "shop": "Midnight Owl Tattoo",
         "shopCity": "Newark",
         "shopState": "New Jersey",
-        "style": "Photo Realism"
+        "style": "Realism"
       },
       {
         "shop": "Midnight Owl Tattoo",
@@ -8645,7 +8624,7 @@
         "shop": "Midnight Owl Tattoo",
         "shopCity": "Denver",
         "shopState": "Colorado",
-        "style": "Old School"
+        "style": "Traditional"
       },
       {
         "shop": "Midnight Owl Tattoo",
@@ -8675,7 +8654,7 @@
         "shop": "Golden Needle Tattoo",
         "shopCity": "Tucson",
         "shopState": "Arizona",
-        "style": "Japanese"
+        "style": "Japanese (Irezumi)"
       },
       {
         "shop": "Golden Needle Tattoo",
@@ -8693,7 +8672,7 @@
         "shop": "Old Soul Tattoo Co.",
         "shopCity": "Tucson",
         "shopState": "Arizona",
-        "style": "Japanese"
+        "style": "Japanese (Irezumi)"
       },
       {
         "shop": "Old Soul Tattoo Co.",
@@ -8735,7 +8714,7 @@
         "shop": "Wildflower Ink",
         "shopCity": "Manhattan",
         "shopState": "New York",
-        "style": "Japanese"
+        "style": "Japanese (Irezumi)"
       },
       {
         "shop": "Midnight Owl Tattoo",
@@ -8747,7 +8726,7 @@
         "shop": "Midnight Owl Tattoo",
         "shopCity": "Jersey City",
         "shopState": "New Jersey",
-        "style": "Japanese"
+        "style": "Japanese (Irezumi)"
       },
       {
         "shop": "Midnight Owl Tattoo",
@@ -8795,7 +8774,7 @@
         "shop": "Electric Rose Parlor",
         "shopCity": "Toronto",
         "shopState": "Ontario",
-        "style": "Photo Realism"
+        "style": "Realism"
       },
       {
         "shop": "Electric Rose Parlor",
@@ -8855,7 +8834,7 @@
         "shop": "Raven & Rose Ink",
         "shopCity": "Newark",
         "shopState": "New Jersey",
-        "style": "Japanese"
+        "style": "Japanese (Irezumi)"
       },
       {
         "shop": "Raven & Rose Ink",
@@ -8981,7 +8960,7 @@
         "shop": "Sacred Art Collective",
         "shopCity": "Sydney",
         "shopState": "New South Wales",
-        "style": "Japanese"
+        "style": "Japanese (Irezumi)"
       },
       {
         "shop": "Sacred Art Collective",
@@ -9005,7 +8984,7 @@
         "shop": "Ink & Iron Studio",
         "shopCity": "Denver",
         "shopState": "Colorado",
-        "style": "Photo Realism"
+        "style": "Realism"
       },
       {
         "shop": "Crimson Lotus Studio",
@@ -9107,7 +9086,7 @@
         "shop": "Midnight Owl Tattoo",
         "shopCity": "Houston",
         "shopState": "Texas",
-        "style": "Old School"
+        "style": "Traditional"
       },
       {
         "shop": "Midnight Owl Tattoo",
@@ -9203,7 +9182,7 @@
         "shop": "Steel & Bone Tattoo",
         "shopCity": "Portland",
         "shopState": "Oregon",
-        "style": "Old School"
+        "style": "Traditional"
       },
       {
         "shop": "Midnight Owl Tattoo",
@@ -9305,7 +9284,7 @@
         "shop": "Raven & Rose Ink",
         "shopCity": "Burlington",
         "shopState": "Vermont",
-        "style": "Japanese"
+        "style": "Japanese (Irezumi)"
       },
       {
         "shop": "Steel & Bone Tattoo",
@@ -9353,7 +9332,7 @@
         "shop": "Old Soul Tattoo Co.",
         "shopCity": "Burlington",
         "shopState": "Vermont",
-        "style": "Photo Realism"
+        "style": "Realism"
       },
       {
         "shop": "Old Soul Tattoo Co.",
@@ -9371,7 +9350,7 @@
         "shop": "Old Soul Tattoo Co.",
         "shopCity": "Denver",
         "shopState": "Colorado",
-        "style": "Japanese"
+        "style": "Japanese (Irezumi)"
       },
       {
         "shop": "Raven & Rose Ink",
@@ -9437,7 +9416,7 @@
         "shop": "Midnight Owl Tattoo",
         "shopCity": "Toronto",
         "shopState": "Ontario",
-        "style": "Japanese"
+        "style": "Japanese (Irezumi)"
       },
       {
         "shop": "Midnight Owl Tattoo",
@@ -9476,12 +9455,6 @@
         "style": "Tribal"
       },
       {
-        "shop": "Ink & Iron Studio",
-        "shopCity": "San Francisco",
-        "shopState": "California",
-        "style": "Photo Realism"
-      },
-      {
         "shop": "Midnight Owl Tattoo",
         "shopCity": "Tampa",
         "shopState": "Florida",
@@ -9491,7 +9464,7 @@
         "shop": "Midnight Owl Tattoo",
         "shopCity": "Tampa",
         "shopState": "Florida",
-        "style": "Old School"
+        "style": "Traditional"
       },
       {
         "shop": "Sacred Art Collective",
@@ -9665,7 +9638,7 @@
         "shop": "Electric Rose Parlor",
         "shopCity": "Jersey City",
         "shopState": "New Jersey",
-        "style": "Japanese"
+        "style": "Japanese (Irezumi)"
       },
       {
         "shop": "Electric Rose Parlor",
@@ -9767,12 +9740,6 @@
         "shop": "Sacred Art Collective",
         "shopCity": "Phoenix",
         "shopState": "Arizona",
-        "style": "Old School"
-      },
-      {
-        "shop": "Sacred Art Collective",
-        "shopCity": "Phoenix",
-        "shopState": "Arizona",
         "style": "Dotwork"
       },
       {
@@ -9929,7 +9896,7 @@
         "shop": "Black Anchor Collective",
         "shopCity": "San Francisco",
         "shopState": "California",
-        "style": "Photo Realism"
+        "style": "Realism"
       },
       {
         "shop": "Crimson Lotus Studio",
@@ -9954,12 +9921,6 @@
         "shopCity": "Los Angeles",
         "shopState": "California",
         "style": "Abstract"
-      },
-      {
-        "shop": "Golden Needle Tattoo",
-        "shopCity": "Los Angeles",
-        "shopState": "California",
-        "style": "Old School"
       },
       {
         "shop": "Crimson Lotus Studio",
@@ -10025,7 +9986,7 @@
         "shop": "Midnight Owl Tattoo",
         "shopCity": "San Francisco",
         "shopState": "California",
-        "style": "Photo Realism"
+        "style": "Realism"
       },
       {
         "shop": "Midnight Owl Tattoo",
@@ -10043,19 +10004,13 @@
         "shop": "Electric Rose Parlor",
         "shopCity": "Burlington",
         "shopState": "Vermont",
-        "style": "Old School"
+        "style": "Traditional"
       },
       {
         "shop": "Electric Rose Parlor",
         "shopCity": "Burlington",
         "shopState": "Vermont",
         "style": "Fine Line"
-      },
-      {
-        "shop": "Electric Rose Parlor",
-        "shopCity": "Burlington",
-        "shopState": "Vermont",
-        "style": "Traditional"
       },
       {
         "shop": "Old Soul Tattoo Co.",
@@ -10097,7 +10052,7 @@
         "shop": "Northern Lights Tattoo",
         "shopCity": "Brooklyn",
         "shopState": "New York",
-        "style": "Japanese"
+        "style": "Japanese (Irezumi)"
       },
       {
         "shop": "Northern Lights Tattoo",
@@ -10115,7 +10070,7 @@
         "shop": "Northern Lights Tattoo",
         "shopCity": "Newark",
         "shopState": "New Jersey",
-        "style": "Old School"
+        "style": "Traditional"
       },
       {
         "shop": "Northern Lights Tattoo",
@@ -10193,7 +10148,7 @@
         "shop": "Sacred Art Collective",
         "shopCity": "Jersey City",
         "shopState": "New Jersey",
-        "style": "Photo Realism"
+        "style": "Realism"
       },
       {
         "shop": "Sacred Art Collective",
@@ -10289,7 +10244,7 @@
         "shop": "Old Soul Tattoo Co.",
         "shopCity": "San Francisco",
         "shopState": "California",
-        "style": "Japanese"
+        "style": "Japanese (Irezumi)"
       },
       {
         "shop": "Old Soul Tattoo Co.",
@@ -10301,7 +10256,7 @@
         "shop": "Ink & Iron Studio",
         "shopCity": "Phoenix",
         "shopState": "Arizona",
-        "style": "Japanese"
+        "style": "Japanese (Irezumi)"
       },
       {
         "shop": "Ink & Iron Studio",
@@ -10349,7 +10304,7 @@
         "shop": "Old Soul Tattoo Co.",
         "shopCity": "Austin",
         "shopState": "Texas",
-        "style": "Photo Realism"
+        "style": "Realism"
       },
       {
         "shop": "Midnight Owl Tattoo",
@@ -10409,7 +10364,7 @@
         "shop": "Electric Rose Parlor",
         "shopCity": "Los Angeles",
         "shopState": "California",
-        "style": "Old School"
+        "style": "Traditional"
       },
       {
         "shop": "Electric Rose Parlor",
@@ -10433,7 +10388,7 @@
         "shop": "Northern Lights Tattoo",
         "shopCity": "Newark",
         "shopState": "New Jersey",
-        "style": "Japanese"
+        "style": "Japanese (Irezumi)"
       },
       {
         "shop": "Northern Lights Tattoo",
@@ -10448,16 +10403,10 @@
         "style": "Blackwork"
       },
       {
-        "shop": "Northern Lights Tattoo",
-        "shopCity": "Newark",
-        "shopState": "New Jersey",
-        "style": "Traditional"
-      },
-      {
         "shop": "Ink & Iron Studio",
         "shopCity": "Manhattan",
         "shopState": "New York",
-        "style": "Old School"
+        "style": "Traditional"
       },
       {
         "shop": "Ink & Iron Studio",
@@ -10559,7 +10508,7 @@
         "shop": "Wildflower Ink",
         "shopCity": "Melbourne",
         "shopState": "Victoria",
-        "style": "Old School"
+        "style": "Traditional"
       },
       {
         "shop": "Ink & Iron Studio",
@@ -10589,7 +10538,7 @@
         "shop": "Sacred Art Collective",
         "shopCity": "Toronto",
         "shopState": "Ontario",
-        "style": "Japanese"
+        "style": "Japanese (Irezumi)"
       },
       {
         "shop": "Sacred Art Collective",
@@ -10631,7 +10580,7 @@
         "shop": "Black Anchor Collective",
         "shopCity": "Miami",
         "shopState": "Florida",
-        "style": "Japanese"
+        "style": "Japanese (Irezumi)"
       },
       {
         "shop": "Ink & Iron Studio",
@@ -10649,7 +10598,7 @@
         "shop": "Midnight Owl Tattoo",
         "shopCity": "Jersey City",
         "shopState": "New Jersey",
-        "style": "Old School"
+        "style": "Traditional"
       },
       {
         "shop": "Wildflower Ink",
@@ -10661,7 +10610,7 @@
         "shop": "Wildflower Ink",
         "shopCity": "Manhattan",
         "shopState": "New York",
-        "style": "Photo Realism"
+        "style": "Realism"
       },
       {
         "shop": "Crimson Lotus Studio",
@@ -10679,7 +10628,7 @@
         "shop": "Crimson Lotus Studio",
         "shopCity": "Montreal",
         "shopState": "Quebec",
-        "style": "Japanese"
+        "style": "Japanese (Irezumi)"
       },
       {
         "shop": "Wildflower Ink",
@@ -10727,7 +10676,7 @@
         "shop": "Wildflower Ink",
         "shopCity": "Ewing Township",
         "shopState": "New Jersey",
-        "style": "Japanese"
+        "style": "Japanese (Irezumi)"
       },
       {
         "shop": "Old Soul Tattoo Co.",
@@ -10841,7 +10790,7 @@
         "shop": "Golden Needle Tattoo",
         "shopCity": "Miami",
         "shopState": "Florida",
-        "style": "Japanese"
+        "style": "Japanese (Irezumi)"
       },
       {
         "shop": "Golden Needle Tattoo",
@@ -10859,7 +10808,7 @@
         "shop": "Old Soul Tattoo Co.",
         "shopCity": "Burlington",
         "shopState": "Vermont",
-        "style": "Japanese"
+        "style": "Japanese (Irezumi)"
       },
       {
         "shop": "Old Soul Tattoo Co.",
@@ -10907,7 +10856,7 @@
         "shop": "Ink & Iron Studio",
         "shopCity": "San Diego",
         "shopState": "California",
-        "style": "Photo Realism"
+        "style": "Realism"
       },
       {
         "shop": "Ink & Iron Studio",
@@ -11021,7 +10970,7 @@
         "shop": "Golden Needle Tattoo",
         "shopCity": "Ewing Township",
         "shopState": "New Jersey",
-        "style": "Photo Realism"
+        "style": "Realism"
       },
       {
         "shop": "Golden Needle Tattoo",
@@ -11069,7 +11018,7 @@
         "shop": "Midnight Owl Tattoo",
         "shopCity": "Burlington",
         "shopState": "Vermont",
-        "style": "Japanese"
+        "style": "Japanese (Irezumi)"
       },
       {
         "shop": "Midnight Owl Tattoo",

@@ -99,7 +99,7 @@ export function parseStylesParam(param: string | null | undefined): CanonicalSty
 // Design bot → match flow
 // ---------------------------------------------------------------------------
 // The hand-written ONTOLOGY_TO_CANONICAL_STYLE bridge that used to live here
-// is gone (TODO.md "retire the CANONICAL_STYLES bridge"). Both sides now read
+// is gone. Both sides now read
 // data/style-ontology.json: the design bot emits tag ids, and
 // canonicalStyleForTag resolves each one — following the ontology's own
 // `parent` roll-up for sub-styles — to a style the graph can actually answer
@@ -148,4 +148,23 @@ export function artistsUrlForDesign(prompt: string): string {
   const styles = stylesFromDescriptors([prompt]);
   const style: CanonicalStyle = styles[0] ?? "Blackwork";
   return `/artists?${new URLSearchParams({ style }).toString()}`;
+}
+
+/**
+ * Build the /smart-match URL carrying whatever design context exists —
+ * the funnel's "Find your artist" handoff (ADR-0028/0029).
+ *
+ * A design-session id wins outright: the session brief carries richer
+ * signal (placement, meaning, ontology tags) than anything derivable from
+ * the prompt, and /smart-match?ds=… loads it and auto-runs. Without a
+ * session, the prompt's extracted styles ride as ?styles=… to pre-select
+ * the match pills; a prompt that names no style hands off clean.
+ */
+export function smartMatchUrlForDesign(prompt: string, designSessionId?: string): string {
+  if (designSessionId) {
+    return `/smart-match?ds=${encodeURIComponent(designSessionId)}`;
+  }
+  const styles = stylesFromDescriptors([prompt]);
+  if (styles.length === 0) return "/smart-match";
+  return `/smart-match?${new URLSearchParams({ styles: styles.join(",") }).toString()}`;
 }

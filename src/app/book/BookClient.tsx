@@ -32,6 +32,7 @@ import QuietCTA from "@/components/quiet/QuietCTA";
 import ReceiptCard from "@/components/quiet/ReceiptCard";
 import { useBookings, useDesigns, type TattDesign } from "@/lib/tattStorage";
 import { getApiAuthHeaders } from "@/lib/client-api-auth";
+import { bookingReviewMoneyCopy } from "@/lib/money-copy";
 import {
   depositDollarsForSize,
   MAX_REQUESTED_SLOTS,
@@ -878,9 +879,8 @@ export default function BookClient({
                     <div className="font-body text-[12px] text-black/60">Deposit</div>
                   </div>
                   <p className="mt-5 pt-5 border-t border-black/15 text-[13px] font-body text-black/80 leading-[1.7]">
-                    {/* The money sentence (ADR-0033): who pays what, who keeps what. */}
-                    Your deposit goes to {artist.name}. All of it. Our {feePercent}%
-                    booking fee is added on top — you&apos;ll see both numbers at checkout.
+                    {/* The money sentence (ADR-0036): who pays what, who keeps what. */}
+                    {bookingReviewMoneyCopy(artist.name, feePercent)}
                   </p>
                   <p className="mt-3 text-[12px] font-body text-black/60 leading-[1.7]">
                     Deposit holds your request. Balance settles at the shop.

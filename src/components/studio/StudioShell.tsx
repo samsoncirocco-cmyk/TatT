@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useFavorites, useDemoUser, useDesigns, useBookings } from "@/lib/tattStorage";
 import PunkFooter from "@/components/studio/PunkFooter";
+import TattTesterWordmark from "@/components/studio/TattTesterWordmark";
 
 type StudioShellProps = {
   children: ReactNode;
@@ -76,11 +77,9 @@ export default function StudioShell({
         <div className="flex items-stretch justify-between">
           <div className="flex items-center px-5 sm:px-8 py-4 gap-6">
             <Link href="/" className="flex items-center">
-              <span
+              <TattTesterWordmark
                 className={`font-display text-white text-3xl leading-none tracking-[0.01em] ${quiet ? "" : "glitch"}`}
-              >
-                TATT<span className="text-pink">TESTER</span>
-              </span>
+              />
             </Link>
             <nav className="hidden md:flex items-center gap-5">
               {NAV.map((n) => {
@@ -166,6 +165,16 @@ export default function StudioShell({
                         className={`block px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/70 ${hov} hover:bg-white/5 border-b ${hlSoft} font-body`}
                       >
                         My Designs
+                      </Link>
+                      {/* Signed-in only, but NOT gated on artist status:
+                          /console renders the claim pointer for non-artists,
+                          which doubles as the artist-acquisition surface. */}
+                      <Link
+                        href="/console"
+                        onClick={() => setAccountOpen(false)}
+                        className="block px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink hover:bg-white/5 border-b hairline-soft font-body"
+                      >
+                        Artist console
                       </Link>
                       <Link
                         href="/bookings"
@@ -282,6 +291,15 @@ export default function StudioShell({
                   className={`block px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-white/80 ${hov} border-b ${hlSoft} font-body`}
                 >
                   My Designs
+                </Link>
+                {/* Signed-in only, but NOT gated on artist status — see the
+                    account dropdown above. */}
+                <Link
+                  href="/console"
+                  onClick={() => setMobileOpen(false)}
+                  className="block px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-white/80 hover:text-pink border-b hairline-soft font-body"
+                >
+                  Artist console
                 </Link>
                 <Link
                   href="/bookings"

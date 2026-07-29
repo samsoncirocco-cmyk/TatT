@@ -92,7 +92,7 @@ export const getQueueStatus = (queueId) => {
  * @returns {Promise<{sent: boolean, id?: string, reason?: string}>}
  */
 export async function sendTransactionalEmail({ to, subject, text, html, replyTo }) {
-    const from = process.env.EMAIL_FROM || 'TatT <bookings@tatttester.com>';
+    const from = process.env.EMAIL_FROM || 'TattTester <bookings@tatttester.com>';
 
     // 1. Resend (primary provider)
     if (process.env.RESEND_API_KEY) {

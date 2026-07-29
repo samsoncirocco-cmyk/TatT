@@ -54,6 +54,7 @@ export const API_ROUTE_SECURITY: Record<string, RouteSecurityEntry> = {
   // via claimedByUid — client-supplied artistIds are never accepted.
   'v1/artist/me': { class: 'firebase-auth' },
   'v1/artist/bookings': { class: 'firebase-auth' },
+  'v1/artist/profile': { class: 'firebase-auth' },
   'v1/book': { class: 'firebase-auth' },
   'v1/book/hold': { class: 'firebase-auth' },
   'v1/bookings': { class: 'firebase-auth' },
@@ -75,7 +76,7 @@ export const API_ROUTE_SECURITY: Record<string, RouteSecurityEntry> = {
   'v1/artists/takedown': {
     class: 'public',
     reason:
-      'A scraped artist has no TatT account — requiring one before they may ask us to ' +
+      'A scraped artist has no TattTester account — requiring one before they may ask us to ' +
       'stop using their photographs would be backwards. The route removes nothing: it ' +
       'records a :TakedownRequest and emails ops, with no write path to GCS, Supabase, ' +
       'or the :Artist node. Removal is a human-run CLI (docs/adr/0025). IP rate-limited.',

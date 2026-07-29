@@ -14,9 +14,12 @@
 import { artistSlug } from "@/lib/artist-slug";
 import { PUBLIC_ARTIST_CLAUSE } from "@/lib/artist-visibility";
 import {
+  IG_PERMALINK_CYPHER,
   filterPermalinksForDisplay,
   filterPortfolioForDisplay,
+  igEmbedsEnabled,
   isClaimed,
+  unclaimedPortfolioDisplayEnabled,
 } from "@/lib/portfolio-display";
 import { CANONICAL_STYLES, styleMatchVariants } from "@/lib/style-vocabulary";
 
@@ -39,6 +42,8 @@ export type RosterArtist = {
   location: string;
   styles: string[];
   instagram: string | null;
+  bio: string | null;
+  bookingUrl: string | null;
   rating: number | null;
   reviewCount: number | null;
   /** Self-hosted portfolio image URLs (public GCS), written by
@@ -51,8 +56,9 @@ export type RosterArtist = {
    *  (filterPermalinksForDisplay). Rendered as official Instagram embeds on
    *  the profile page ONLY — card grids never mount iframes. */
   portfolioPermalinks: string[];
-  /** Whether the artist has claimed this profile (`claimedByUid`). The
-   *  provenance label (ADR-0033) renders on profile pages when false. */
+  /** True once an artist has claimed this profile (`claimedByUid` is set).
+   *  The uid itself stays server-side; public surfaces use this boolean to
+   *  hide both the claim door and the unclaimed-profile provenance label. */
   claimed: boolean;
 };
 
@@ -68,7 +74,9 @@ export type RosterFilter = {
   q?: string;
   /** Exact style name (case-insensitive) from ROSTER_STYLES. */
   style?: string;
-  /** Only artists with real self-hosted portfolio images (not the stale count). */
+  /** Only artists whose profile would actually display portfolio work under
+   *  the current display policy (src/lib/portfolio-display) — never raw
+   *  scraped rows the kill switch withholds. */
   hasPortfolio?: boolean;
 };
 
@@ -76,9 +84,17 @@ export type RosterFilter = {
  * Build the shared WHERE clause + params for roster queries.
  * `styles` must already be collected into scope when the clause runs.
  */
-export function buildRosterFilter(filter: RosterFilter): {
+export function buildRosterFilter(
+  filter: RosterFilter,
+  env: Record<string, string | undefined> = process.env,
+): {
   where: string;
-  params: { q: string | null; styleVariants: string[]; hasPortfolio: boolean };
+  params: {
+    q: string | null;
+    styleVariants: string[];
+    hasPortfolio: boolean;
+    igPermalinkPattern: string;
+  };
 } {
   const q = filter.q?.trim() || null;
   const style = filter.style?.trim() || null;
@@ -87,6 +103,23 @@ export function buildRosterFilter(filter: RosterFilter): {
   // style yields an empty list, and `size(...) > 0 AND ...` then matches
   // nothing — a filter nobody can satisfy must return nothing, not everyone.
   const styleVariants = style ? styleMatchVariants(style) : [];
+  // What hasPortfolio means must track what the display policy will actually
+  // render (src/lib/portfolio-display), or a filtered roster fills with
+  // image-less cards. Same env-driven policy, expressed in Cypher:
+  //   - kill switch on (default): stored images count, claimed or not;
+  //   - kill switch off: unclaimed artists' scraped images are withheld, so
+  //     only claimed artists' images count — plus, once the embed tier is on,
+  //     an unclaimed artist with at least one canonical IG permalink (the
+  //     shape filterPermalinksForDisplay would keep).
+  const hasImages = "(a.portfolioImages IS NOT NULL AND size(a.portfolioImages) > 0)";
+  const isClaimed = "(a.claimedByUid IS NOT NULL AND a.claimedByUid <> '')";
+  const hasEmbeddablePermalink =
+    "any(p IN coalesce(a.portfolioPermalinks, []) WHERE trim(toString(p)) =~ $igPermalinkPattern)";
+  const displaysPortfolio = unclaimedPortfolioDisplayEnabled(env)
+    ? hasImages
+    : igEmbedsEnabled(env)
+      ? `((${isClaimed} AND ${hasImages}) OR (NOT ${isClaimed} AND ${hasEmbeddablePermalink}))`
+      : `(${isClaimed} AND ${hasImages})`;
   // Leads the clause and is not conditional on any filter: an artist who asked
   // to be removed must be absent from every roster read, not merely from the
   // unfiltered one. See docs/adr/0025.
@@ -97,8 +130,11 @@ export function buildRosterFilter(filter: RosterFilter): {
       OR toLower(coalesce(a.city, '')) CONTAINS toLower($q)
       OR toLower(coalesce(a.shopName, '')) CONTAINS toLower($q))
     AND (${style === null ? "true" : "size($styleVariants) > 0 AND any(s IN styles WHERE toLower(s) IN $styleVariants)"})
-    AND (NOT $hasPortfolio OR (a.portfolioImages IS NOT NULL AND size(a.portfolioImages) > 0))`;
-  return { where, params: { q, styleVariants, hasPortfolio } };
+    AND (NOT $hasPortfolio OR ${displaysPortfolio})`;
+  return {
+    where,
+    params: { q, styleVariants, hasPortfolio, igPermalinkPattern: IG_PERMALINK_CYPHER },
+  };
 }
 
 /** Clamp a raw page value to [1, ∞) and derive the Cypher skip window. */
@@ -117,22 +153,26 @@ export function rosterPageWindow(
  * kill switch is applied, and mocking the driver around Promise.all is
  * flakier than testing the mapper directly.
  */
-export function toRosterArtist(record: any): RosterArtist {
+export function toRosterArtist(record: Record<string, unknown>): RosterArtist {
   const id = String(record.id);
-  const name = record.name ?? "";
+  const name = typeof record.name === "string" ? record.name : "";
+  const shopName = typeof record.shopName === "string" ? record.shopName : null;
+  const city = typeof record.city === "string" ? record.city : null;
+  const state = typeof record.state === "string" ? record.state : null;
   return {
     id,
     slug: artistSlug(name, id),
     name,
-    shopName: record.shopName ?? null,
-    city: record.city ?? null,
-    state: record.state ?? null,
-    location:
-      [record.city, record.state].filter(Boolean).join(", ") || "Location unknown",
-    styles: record.styles ?? [],
-    instagram: record.instagram ?? null,
-    rating: record.rating ?? null,
-    reviewCount: record.reviewCount ?? null,
+    shopName,
+    city,
+    state,
+    location: [city, state].filter(Boolean).join(", ") || "Location unknown",
+    styles: Array.isArray(record.styles) ? record.styles.map(String) : [],
+    instagram: typeof record.instagram === "string" ? record.instagram : null,
+    bio: typeof record.bio === "string" ? record.bio : null,
+    bookingUrl: typeof record.bookingUrl === "string" ? record.bookingUrl : null,
+    rating: typeof record.rating === "number" ? record.rating : null,
+    reviewCount: typeof record.reviewCount === "number" ? record.reviewCount : null,
     // The kill-switch gate (TAT-31): scraped images are withheld here, at the
     // one seam every roster surface reads through, when the switch is off and
     // the artist has not claimed the profile.
@@ -145,7 +185,7 @@ export function toRosterArtist(record: any): RosterArtist {
   };
 }
 
-async function runServerQuery(query: string, params: Record<string, any>) {
+async function runServerQuery(query: string, params: Record<string, unknown>) {
   const { executeServerCypherQuery } = await import(
     "@/features/match-pulse/services/neo4jService"
   );
@@ -184,6 +224,8 @@ export async function browseArtists(
       a.state AS state,
       styles AS styles,
       a.instagram AS instagram,
+      a.bio AS bio,
+      a.bookingUrl AS bookingUrl,
       a.rating AS rating,
       a.reviewCount AS reviewCount,
       a.portfolioImages AS portfolioImages,
@@ -227,6 +269,8 @@ export async function getRosterArtistById(id: string): Promise<RosterArtist | nu
       a.state AS state,
       styles AS styles,
       a.instagram AS instagram,
+      a.bio AS bio,
+      a.bookingUrl AS bookingUrl,
       a.rating AS rating,
       a.reviewCount AS reviewCount,
       a.portfolioImages AS portfolioImages,

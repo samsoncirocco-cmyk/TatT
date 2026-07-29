@@ -65,6 +65,8 @@ describe("artist profile — Instagram embed tier (TAT-40)", () => {
     const { container } = await renderProfile(graphRow());
     expect(container.querySelector('[data-testid="instagram-embed"]')).toBeNull();
     expect(container.querySelector("blockquote.instagram-media")).toBeNull();
+    expect(container.textContent).toContain("No portfolio work is shown here yet.");
+    expect(container.textContent).not.toContain("The work shown here");
   });
 
   it("flag on, unclaimed artist: renders official embeds, capped at a handful", async () => {
@@ -74,6 +76,9 @@ describe("artist profile — Instagram embed tier (TAT-40)", () => {
     // 6 permalinks in the graph, but the profile mounts at most 4.
     expect(blockquotes).toHaveLength(4);
     expect(blockquotes[0].getAttribute("data-instgrm-permalink")).toBe(PERMALINKS[0]);
+    expect(container.textContent).toContain(
+      "The work shown here is credited to Sam Ink",
+    );
     // Embed markup only — no scraped media: every <img> on the page would be
     // a hosted copy, and this artist has none to show.
     expect(container.querySelector("img")).toBeNull();

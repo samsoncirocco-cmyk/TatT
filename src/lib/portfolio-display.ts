@@ -59,7 +59,7 @@ export function filterPortfolioForDisplay(
 
 /**
  * Has a real person proved they own this profile (`claimedByUid`)? Exported
- * because the provenance label (ADR-0033) renders on exactly the profiles
+ * because the provenance label (ADR-0036) renders on exactly the profiles
  * this returns false for — one definition of "claimed", not two.
  */
 export function isClaimed(artist: PortfolioDisplaySubject): boolean {
@@ -88,6 +88,15 @@ export function igEmbedsEnabled(
 
 /** Canonical Instagram post/reel/tv permalink, or null for anything else. */
 const IG_PERMALINK = /^https?:\/\/(?:www\.)?instagram\.com\/(p|reel|tv)\/([A-Za-z0-9_-]+)\/?/i;
+
+/**
+ * The same permalink shape as a Cypher `=~` pattern (Java regex, full-match
+ * semantics — hence the trailing `.*`), for server queries that must ask
+ * "would filterPermalinksForDisplay keep anything?" inside the database —
+ * e.g. the roster's hasPortfolio filter (src/lib/artists-graph). Derived
+ * from IG_PERMALINK so the two notions of a valid permalink cannot drift.
+ */
+export const IG_PERMALINK_CYPHER = `(?i)${IG_PERMALINK.source}.*`;
 
 /**
  * The one gate between an artist's stored Instagram permalinks and any

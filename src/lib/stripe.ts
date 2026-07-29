@@ -32,7 +32,7 @@ export const stripeConfigured =
  * keeps the TypeScript types and runtime behavior in lockstep on upgrade.
  */
 export const stripe = new Stripe(secretKey || 'sk_test_PLACEHOLDER_unconfigured', {
-  appInfo: { name: 'TatT', url: 'https://tatttester.com' },
+  appInfo: { name: 'TattTester', url: 'https://tatttester.com' },
   maxNetworkRetries: 2,
 });
 

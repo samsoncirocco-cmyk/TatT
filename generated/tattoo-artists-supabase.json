@@ -36,7 +36,7 @@
     "styles": [
       "Realism",
       "Watercolor",
-      "Old School"
+      "Traditional"
     ],
     "color_palettes": [
       "Muted"
@@ -163,7 +163,7 @@
       "Fine Line",
       "Lettering",
       "Watercolor",
-      "Old School"
+      "Traditional"
     ],
     "color_palettes": [
       "Vibrant",
@@ -186,7 +186,7 @@
     "created_at": "2026-01-09T00:36:59.919Z",
     "styles": [
       "Fine Line",
-      "Old School",
+      "Traditional",
       "Surrealism",
       "Geometric"
     ],
@@ -334,7 +334,7 @@
     "is_curated": false,
     "created_at": "2026-06-22T20:33:33.688Z",
     "styles": [
-      "Old School",
+      "Traditional",
       "Realism",
       "Illustrative",
       "Watercolor"
@@ -586,7 +586,7 @@
     "styles": [
       "Illustrative",
       "New School",
-      "Old School"
+      "Traditional"
     ],
     "color_palettes": [
       "Black & Grey",
@@ -657,7 +657,7 @@
     "styles": [
       "Realism",
       "Watercolor",
-      "Old School"
+      "Traditional"
     ],
     "color_palettes": [
       "Black & Grey",
@@ -758,7 +758,7 @@
     "created_at": "2026-05-04T10:07:05.317Z",
     "styles": [
       "Tribal",
-      "Photo Realism",
+      "Realism",
       "Portrait"
     ],
     "color_palettes": [
@@ -783,7 +783,7 @@
     "is_curated": false,
     "created_at": "2025-11-13T23:55:29.798Z",
     "styles": [
-      "Old School",
+      "Traditional",
       "Realism",
       "Illustrative",
       "Tribal"
@@ -1080,7 +1080,7 @@
     "is_curated": true,
     "created_at": "2026-05-01T21:31:56.706Z",
     "styles": [
-      "Photo Realism",
+      "Realism",
       "Minimalist"
     ],
     "color_palettes": [
@@ -1399,7 +1399,7 @@
     "is_curated": true,
     "created_at": "2025-08-14T23:27:25.807Z",
     "styles": [
-      "Photo Realism"
+      "Realism"
     ],
     "color_palettes": [
       "Black & Grey"
@@ -1564,7 +1564,7 @@
     "created_at": "2026-03-28T05:50:04.317Z",
     "styles": [
       "Neo-Traditional",
-      "Old School",
+      "Traditional",
       "Tribal",
       "Lettering"
     ],
@@ -1735,7 +1735,7 @@
     "created_at": "2026-01-30T01:49:44.177Z",
     "styles": [
       "Fine Line",
-      "Old School"
+      "Traditional"
     ],
     "color_palettes": [
       "Neon"
@@ -2003,7 +2003,7 @@
     "styles": [
       "Blackwork",
       "Fine Line",
-      "Photo Realism",
+      "Realism",
       "Portrait"
     ],
     "color_palettes": [
@@ -2222,8 +2222,7 @@
     "styles": [
       "Realism",
       "Surrealism",
-      "Tribal",
-      "Photo Realism"
+      "Tribal"
     ],
     "color_palettes": [
       "Monochrome"
@@ -2248,7 +2247,7 @@
     "created_at": "2026-02-05T02:48:26.160Z",
     "styles": [
       "Watercolor",
-      "Old School"
+      "Traditional"
     ],
     "color_palettes": [
       "Black & Grey",
@@ -2691,7 +2690,6 @@
     "styles": [
       "Fine Line",
       "Traditional",
-      "Old School",
       "Dotwork"
     ],
     "color_palettes": [
@@ -2936,7 +2934,7 @@
       "Watercolor",
       "Fine Line",
       "Tribal",
-      "Photo Realism"
+      "Realism"
     ],
     "color_palettes": [
       "Black Only"
@@ -2985,7 +2983,7 @@
       "Realism",
       "Portrait",
       "Abstract",
-      "Old School"
+      "Traditional"
     ],
     "color_palettes": [
       "Black Only",
@@ -3125,7 +3123,7 @@
     "is_curated": true,
     "created_at": "2025-10-02T08:13:46.655Z",
     "styles": [
-      "Photo Realism",
+      "Realism",
       "Watercolor"
     ],
     "color_palettes": [
@@ -3151,9 +3149,8 @@
     "created_at": "2026-03-05T09:48:36.342Z",
     "styles": [
       "Geometric",
-      "Old School",
-      "Fine Line",
-      "Traditional"
+      "Traditional",
+      "Fine Line"
     ],
     "color_palettes": [
       "Monochrome",
@@ -3233,7 +3230,7 @@
     "created_at": "2026-05-29T20:35:12.405Z",
     "styles": [
       "Minimalist",
-      "Old School",
+      "Traditional",
       "Fine Line",
       "Watercolor"
     ],
@@ -3332,7 +3329,7 @@
     "styles": [
       "Geometric",
       "Illustrative",
-      "Photo Realism",
+      "Realism",
       "New School"
     ],
     "color_palettes": [
@@ -3601,7 +3598,7 @@
     "styles": [
       "Minimalist",
       "Watercolor",
-      "Photo Realism"
+      "Realism"
     ],
     "color_palettes": [
       "Neon",
@@ -3720,7 +3717,7 @@
     "is_curated": false,
     "created_at": "2025-09-28T02:25:56.351Z",
     "styles": [
-      "Old School",
+      "Traditional",
       "Fine Line",
       "Surrealism",
       "Geometric"
@@ -3768,7 +3765,7 @@
     "is_curated": false,
     "created_at": "2026-02-05T12:57:31.622Z",
     "styles": [
-      "Old School",
+      "Traditional",
       "Dotwork",
       "Illustrative"
     ],
@@ -3942,7 +3939,7 @@
     "styles": [
       "Fine Line",
       "Blackwork",
-      "Old School"
+      "Traditional"
     ],
     "color_palettes": [
       "Pastel",
@@ -4092,7 +4089,7 @@
     "is_curated": false,
     "created_at": "2026-02-05T18:42:03.428Z",
     "styles": [
-      "Old School"
+      "Traditional"
     ],
     "color_palettes": [
       "Neon",
@@ -4117,7 +4114,7 @@
     "created_at": "2026-03-19T12:52:31.543Z",
     "styles": [
       "Minimalist",
-      "Photo Realism"
+      "Realism"
     ],
     "color_palettes": [
       "Earth Tones",
@@ -4626,7 +4623,7 @@
     "is_curated": true,
     "created_at": "2025-09-02T08:17:53.295Z",
     "styles": [
-      "Photo Realism",
+      "Realism",
       "Geometric"
     ],
     "color_palettes": [
@@ -4821,7 +4818,7 @@
     "is_curated": false,
     "created_at": "2026-06-26T00:22:27.955Z",
     "styles": [
-      "Photo Realism",
+      "Realism",
       "Biomechanical",
       "Minimalist",
       "Watercolor"

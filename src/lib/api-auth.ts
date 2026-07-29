@@ -15,7 +15,7 @@ export async function verifyApiAuth(req: NextRequest): Promise<NextResponse | nu
     if (!authHeader?.startsWith('Bearer ')) {
         return NextResponse.json(
             { error: 'Authorization header required', code: 'AUTH_REQUIRED' },
-            { status: 401, headers: { 'WWW-Authenticate': 'Bearer realm="TatT API"' } }
+            { status: 401, headers: { 'WWW-Authenticate': 'Bearer realm="TattTester API"' } }
         );
     }
 
@@ -23,7 +23,7 @@ export async function verifyApiAuth(req: NextRequest): Promise<NextResponse | nu
     if (!user) {
         return NextResponse.json(
             { error: 'Invalid authorization token', code: 'AUTH_INVALID' },
-            { status: 401, headers: { 'WWW-Authenticate': 'Bearer realm="TatT API"' } }
+            { status: 401, headers: { 'WWW-Authenticate': 'Bearer realm="TattTester API"' } }
         );
     }
 

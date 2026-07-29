@@ -20,6 +20,7 @@ import QuietCTA from "@/components/quiet/QuietCTA";
 import ReceiptCard from "@/components/quiet/ReceiptCard";
 import { getApiAuthHeaders } from "@/lib/client-api-auth";
 import type { BookingStatus } from "@/lib/booking";
+import { bookingMoneyCopy } from "@/lib/money-copy";
 
 /** Statuses at or past a paid deposit — safe to say "Deposit paid". */
 const PAID_STATUSES: ReadonlySet<BookingStatus> = new Set<BookingStatus>([
@@ -167,9 +168,8 @@ function SuccessContent() {
                   <p className="mt-5 pt-5 border-t border-black/15 text-[13px] font-body text-black/80 leading-[1.7]">
                     {isPaid ? (
                       <>
-                        {/* The money sentence (ADR-0033): who pays what, who keeps what. */}
-                        Your whole deposit goes to your artist — the booking fee
-                        you paid is the only part we keep.
+                        {/* The money sentence (ADR-0036): who pays what, who keeps what. */}
+                        {bookingMoneyCopy.bookingSuccess}
                         <br />
                         Your requested time goes to the artist — they confirm the
                         final slot. Balance settles at the shop.
@@ -186,9 +186,8 @@ function SuccessContent() {
                 <p className="text-[13px] text-quiet-dim font-body leading-[1.9] max-w-xl">
                   {isPaid ? (
                     <>
-                      {/* The money sentence (ADR-0033): who pays what, who keeps what. */}
-                      Your whole deposit goes to your artist — the booking fee you paid
-                      is the only part we keep.
+                      {/* The money sentence (ADR-0036): who pays what, who keeps what. */}
+                      {bookingMoneyCopy.bookingSuccess}
                       <br />
                       Your requested time goes to the artist — they confirm the final slot.
                       <br />
@@ -214,6 +213,7 @@ function SuccessContent() {
             <div className="mt-12 flex flex-col sm:flex-row items-start gap-5">
               <QuietCTA href="/bookings" size="md">Your bookings</QuietCTA>
               <QuietCTA href="/artists" variant="ghost" size="sm">Back to the roster</QuietCTA>
+              <QuietCTA href="/design" variant="ghost" size="sm">Start another design</QuietCTA>
             </div>
           </div>
         </div>

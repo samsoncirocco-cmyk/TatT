@@ -20,6 +20,7 @@ import StudioShell from '@/components/studio/StudioShell';
 import QuietHeadline from '@/components/quiet/QuietHeadline';
 import { useAuth } from '@/hooks/useAuth';
 import type { BookingStatus, BookingStatusEvent, RequestedSlot } from '@/lib/booking';
+import { bookingMoneyCopy } from '@/lib/money-copy';
 
 type ConsoleArtist = {
   id: string;
@@ -266,6 +267,26 @@ export default function ConsolePage() {
               <QuietHeadline>{displayName}</QuietHeadline>
 
               <div className="mt-16 grid md:grid-cols-2 gap-8">
+                {/* Profile */}
+                <section aria-label="Profile" className="border hairline-quiet bg-black p-8">
+                  <div className="font-body text-[12px] text-quiet-dim">
+                    Profile
+                  </div>
+                  <div className="mt-3 font-display-quiet text-quiet text-[20px] leading-none">
+                    Your listing, in your words.
+                  </div>
+                  <p className="mt-4 font-body text-[13px] text-quiet-dim leading-[1.7]">
+                    Update your bio, shop, location, and booking link. Your edits outrank scraped data.
+                  </p>
+                  <Link
+                    href="/artist/profile"
+                    className="mt-6 inline-flex items-center px-6 py-3 border hairline-quiet text-quiet font-body text-[13px] hover:border-quiet hover:text-white press"
+                  >
+                    Edit profile
+                  </Link>
+                </section>
+
+
                 {/* Payouts */}
                 <section
                   aria-label="Payouts"
@@ -318,10 +339,9 @@ export default function ConsolePage() {
                   {payoutError && (
                     <p className="mt-4 font-body text-[13px] text-pink">{payoutError}</p>
                   )}
-                  {/* The money sentence (ADR-0033): who pays what, who keeps what. */}
+                  {/* The money sentence (ADR-0036): who pays what, who keeps what. */}
                   <p className="mt-6 pt-6 border-t hairline-quiet-soft font-body text-[13px] text-quiet leading-[1.7]">
-                    Clients pay your deposit plus TattTester&apos;s booking fee — you keep
-                    100% of every deposit; the fee is the only part we take.
+                    {bookingMoneyCopy.artistConsole}
                   </p>
                 </section>
 

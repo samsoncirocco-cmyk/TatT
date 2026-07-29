@@ -1,6 +1,6 @@
 # Facelift spec — the working bible
 
-Decisions: ADR-0032 (two-register system), ADR-0033 (copy laws). Locked
+Decisions: ADR-0035 (two-register system), ADR-0036 (copy laws). Locked
 2026-07-27. This file is the implementer-facing expansion; if it ever
 contradicts the ADRs, the ADRs win.
 
@@ -47,7 +47,7 @@ surfaces; plain, warm, exact on quiet ones. Same person, different rooms.
   moments, fake urgency, fake counts (pre-launch honesty bar: no invented
   metrics, ever — see TAT-14's "no fake screens").
 
-## Copy laws (ADR-0033, enforced in review)
+## Copy laws (ADR-0036, enforced in review)
 
 1. TattTester everywhere user-facing; TatT is internal-only. Image2Ink only as
    the generator feature name / the image2ink.com door.

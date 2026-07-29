@@ -3,7 +3,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthContext } from '@/components/AuthProvider';
-import { isKnownUser } from '@/lib/knownUser';
+import { authDoorHref } from '@/lib/knownUser';
 
 /**
  * Client-side auth gate for app surfaces (Forge/generate, Matches,
@@ -23,8 +23,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
     if (loading || isAuthenticated) return;
     const search = typeof window !== 'undefined' ? window.location.search : '';
     const destination = `${pathname ?? '/'}${search}`;
-    const door = isKnownUser() ? '/login' : '/signup';
-    router.replace(`${door}?redirect=${encodeURIComponent(destination)}`);
+    router.replace(authDoorHref(destination));
   }, [loading, isAuthenticated, pathname, router]);
 
   if (loading || !isAuthenticated) {

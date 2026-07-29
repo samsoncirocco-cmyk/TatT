@@ -30,6 +30,8 @@ export default async function ArtistProfilePage({
   const firstNames = nameParts.join(" ");
   const igUrl = instagramUrl(artist.instagram);
   const heroImage = artist.portfolioImages[0];
+  const hasDisplayedWork =
+    Boolean(heroImage) || artist.portfolioPermalinks.length > 0;
   const monogram = artist.name
     .split(/\s+/)
     .map((w) => w[0])
@@ -144,6 +146,12 @@ export default async function ArtistProfilePage({
               <span>{artist.location}</span>
             </div>
 
+            {artist.bio && (
+              <p className="mt-7 max-w-2xl font-body text-[14px] leading-[1.7] text-white/70">
+                {artist.bio}
+              </p>
+            )}
+
             {/* STAT ROW — shop-level signals, labeled as such */}
             {(artist.rating != null || artist.reviewCount != null) && (
               <div className="mt-10 grid grid-cols-2 max-w-md border-t hairline pt-6 gap-6">
@@ -193,45 +201,79 @@ export default async function ArtistProfilePage({
                     {artist.instagram}&nbsp;→
                   </a>
                 )}
+                {artist.bookingUrl && (
+                  <a
+                    href={artist.bookingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[12px] text-quiet-dim hover:text-white font-body press"
+                  >
+                    Artist&apos;s booking site&nbsp;→
+                  </a>
+                )}
               </div>
               <p className="mt-5 text-[12px] text-quiet-dim font-body leading-[1.7]">
                 A deposit holds your request — the artist confirms the time.
               </p>
             </div>
 
-            {/* Provenance label (ADR-0033 law 3): an unclaimed profile says
+            {/* Provenance label (ADR-0036 law 3): an unclaimed profile says
                 plainly that it is unclaimed and where the work comes from,
                 with credit — and keeps both endings one click away: run it,
                 or have it removed (docs/adr/0025). Profile page only; roster
                 cards stay unlabeled. Claimed artists run their own profile,
-                so none of this renders for them. */}
-            {!artist.claimed && (
-              <div className="mt-10 pt-6 border-t hairline font-body text-[11px] text-white/40 leading-[1.6]">
-                {/* wording pending counsel review (TAT-31) */}
+                so they do not get the provenance label or claim door. The
+                removal door remains available in both states. */}
+            <div className="mt-10 pt-6 border-t hairline-quiet-soft font-body text-[11px] text-white/40 leading-[1.6]">
+              {/* wording pending counsel review (TAT-31) */}
+              {!artist.claimed && (
                 <p>
                   This profile is unclaimed — {artist.name} hasn&apos;t taken it
-                  over yet. The work shown here is {artist.name}&apos;s, from
-                  their public Instagram
-                  {artist.instagram ? <> ({artist.instagram})</> : null}.
+                  over yet.{" "}
+                  {hasDisplayedWork ? (
+                    <>
+                      The work shown here is credited to {artist.name} and comes
+                      from their public Instagram
+                      {artist.instagram ? <> ({artist.instagram})</> : null}.
+                    </>
+                  ) : igUrl ? (
+                    <>
+                      No portfolio work is shown here yet.{" "}
+                      <a
+                        href={igUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-white/60 hover:text-white press"
+                      >
+                        See their work on Instagram.
+                      </a>
+                    </>
+                  ) : (
+                    <>No portfolio work is shown here yet.</>
+                  )}
                 </p>
-                <p className="mt-2">
-                  Are you {artist.name}?{" "}
-                  <Link
-                    href={`/claim/${encodeURIComponent(artist.id)}`}
-                    className="text-white/60 hover:text-pink press"
-                  >
-                    Claim your profile
-                  </Link>
-                  {" · "}
-                  <Link
-                    href={`/takedown/${encodeURIComponent(artist.id)}`}
-                    className="text-white/60 hover:text-pink press"
-                  >
-                    Have it removed
-                  </Link>
-                </p>
-              </div>
-            )}
+              )}
+              <p className={artist.claimed ? undefined : "mt-2"}>
+                Are you {artist.name}?{" "}
+                {!artist.claimed && (
+                  <>
+                    <Link
+                      href={`/claim/${encodeURIComponent(artist.id)}`}
+                      className="text-white/60 hover:text-white press"
+                    >
+                      Claim your profile
+                    </Link>
+                    {" · "}
+                  </>
+                )}
+                <Link
+                  href={`/takedown/${encodeURIComponent(artist.id)}`}
+                  className="text-white/60 hover:text-white press"
+                >
+                  Have it removed
+                </Link>
+              </p>
+            </div>
           </div>
         </div>
       </div>

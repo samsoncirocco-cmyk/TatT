@@ -11,7 +11,9 @@
 import type { BookingRelay } from '@/lib/booking-relay';
 import type { TakedownRequest } from '@/lib/takedown';
 import type { ReinstatementRequest } from '@/lib/reinstatement';
+import type { PendingArtistClaim } from '@/lib/artist-claim';
 import { getArtistStripe } from '@/lib/artist-stripe';
+import { artistDepositNotificationMoneyCopy } from '@/lib/money-copy';
 import { sendTransactionalEmail } from '@/services/emailQueueService';
 
 /** Notify an artist that a deposit is being held for them, with a claim link. */
@@ -42,13 +44,16 @@ export async function notifyArtistOfBooking(relay: BookingRelay): Promise<void> 
     currency: (process.env.STRIPE_CURRENCY || 'usd').toUpperCase(),
   });
 
-  const subject = 'A client left a deposit for you on TatT';
+  const subject = 'A client left a deposit for you on TattTester';
+  const moneySentence = artistDepositNotificationMoneyCopy(amount);
   const text =
-    `Good news — a client just left a ${amount} deposit for you on TatT.\n\n` +
+    `Good news — a client just left a ${amount} deposit for you on TattTester.\n\n` +
+    `${moneySentence}\n\n` +
     `Claim your profile and finish setup to release the funds:\n${claimLink}\n\n` +
     `The deposit is held securely until you claim it.`;
   const html =
-    `<p>Good news — a client just left a <strong>${amount}</strong> deposit for you on TatT.</p>` +
+    `<p>Good news — a client just left a <strong>${amount}</strong> deposit for you on TattTester.</p>` +
+    `<p>${moneySentence}</p>` +
     `<p>Claim your profile and finish setup to release the funds:</p>` +
     `<p><a href="${claimLink}">${claimLink}</a></p>` +
     `<p>The deposit is held securely until you claim it.</p>`;
@@ -65,6 +70,71 @@ export async function notifyArtistOfBooking(relay: BookingRelay): Promise<void> 
 
 /** Outcome of a notification that the caller is expected to act on. */
 export type NotifyResult = { delivered: true } | { delivered: false; reason: string };
+
+/**
+ * Tell ops that a signed-in account asked to own a scraped artist profile.
+ *
+ * The request route has no ownership powers. This notification describes the
+ * human check and the dry-run-first approval command; an undelivered request is
+ * reported to the artist instead of pretending somebody will review it.
+ */
+export async function notifyOpsOfArtistClaim(
+  request: PendingArtistClaim,
+  artistName: string | null,
+): Promise<NotifyResult> {
+  const to = process.env.OPS_NOTIFY_EMAIL;
+  if (!to) {
+    return {
+      delivered: false,
+      reason: 'OPS_NOTIFY_EMAIL is not configured — a claim request would reach nobody.',
+    };
+  }
+
+  const handle = request.instagram?.replace(/^@/, '') || null;
+  const proof =
+    handle && request.verificationCode
+      ? `Open https://instagram.com/${handle} and confirm this code is visible in the bio, a post, or a story:\n\n` +
+        `    ${request.verificationCode}\n\n` +
+        `Then use --method instagram --approved-by "<your operator id>" --handle-verified.`
+      : `This profile has no usable Instagram handle. Verify identity out of band, record exactly what you checked, ` +
+        `and use --method manual --approved-by "<your operator id>" --review-note "<specific evidence>".`;
+  const subject = `[Artist claim] ${artistName || request.artistId} — identity review required`;
+  const text =
+    `A signed-in account requested ownership of an artist profile.\n\n` +
+    `Request id:   ${request.id}\n` +
+    `Artist id:    ${request.artistId}\n` +
+    `Artist:       ${artistName || '(unnamed)'}\n` +
+    `Instagram:    ${handle ? `@${handle}` : '(none)'}\n` +
+    `Firebase uid: ${request.uid}\n` +
+    `Contact:      ${request.contactEmail || '(none)'}\n\n` +
+    `--- NOTHING HAS CHANGED ---\n` +
+    `The requester does not own the profile, cannot edit it, cannot create or access its Stripe account, ` +
+    `and cannot receive its held deposits. The public route only recorded this pending request.\n\n` +
+    `--- REQUIRED IDENTITY CHECK ---\n${proof}\n\n` +
+    `Dry run:\n` +
+    `node scripts/approve-artist-claim.mjs --request-id ${request.id}\n\n` +
+    `Approval after Instagram proof:\n` +
+    `node scripts/approve-artist-claim.mjs --request-id ${request.id} --method instagram ` +
+    `--approved-by "<your operator id>" --handle-verified --execute --confirm ${request.id}\n`;
+
+  try {
+    const result = await sendTransactionalEmail({
+      to,
+      subject,
+      text,
+      ...(request.contactEmail ? { replyTo: request.contactEmail } : {}),
+    });
+    if (!result?.sent) {
+      return {
+        delivered: false,
+        reason: result?.reason || 'email provider reported the send as unsent',
+      };
+    }
+    return { delivered: true };
+  } catch (err) {
+    return { delivered: false, reason: err instanceof Error ? err.message : String(err) };
+  }
+}
 
 /**
  * Tell a human that an artist has asked to be removed. See docs/adr/0025.

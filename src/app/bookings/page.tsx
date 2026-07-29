@@ -7,6 +7,7 @@ import QuietCTA from "@/components/quiet/QuietCTA";
 import { useBookings, useDesigns, type TattBooking } from "@/lib/tattStorage";
 import { getApiAuthHeaders } from "@/lib/client-api-auth";
 import type { BookingStatus } from "@/lib/booking";
+import { bookingMoneyCopy } from "@/lib/money-copy";
 
 function formatBookingDate(iso: string): string {
   const [y, m, d] = iso.split("-");
@@ -222,10 +223,9 @@ export default function BookingsPage() {
             <QuietCTA href="/book" size="md">New booking</QuietCTA>
           </div>
 
-          {/* The money sentence (ADR-0033): who pays what, who keeps what. */}
+          {/* The money sentence (ADR-0036): who pays what, who keeps what. */}
           <p className="mt-6 font-body text-[14px] text-quiet leading-[1.7] max-w-xl">
-            Every deposit goes to your artist in full — the booking fee you pay at
-            checkout is the only part we keep.
+            {bookingMoneyCopy.bookingsList}
           </p>
 
           {showEmpty ? (

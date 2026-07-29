@@ -6,6 +6,7 @@ import StudioShell from "@/components/studio/StudioShell";
 import QuietHeadline from "@/components/quiet/QuietHeadline";
 import PunkToggle from "@/components/punk/PunkToggle";
 import { useUser } from "@/lib/tattStorage";
+import { authDoorHref } from "@/lib/knownUser";
 import { CANONICAL_STYLES } from "@/lib/style-vocabulary";
 
 const NAV = ["Profile", "Notifications", "Billing", "Delete account"];
@@ -229,7 +230,7 @@ export default function SettingsPage() {
                   {hydrated && !user && (
                     <p className="text-[12px] text-quiet-dim font-body">
                       Not signed in. Demo sign-in:&nbsp;
-                      <a href="/login" className="text-quiet underline underline-offset-4 hover:text-white">log in</a>.
+                      <a href={authDoorHref()} className="text-quiet underline underline-offset-4 hover:text-white">sign in</a>.
                     </p>
                   )}
                 </div>

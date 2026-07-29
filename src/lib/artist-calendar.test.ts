@@ -378,6 +378,10 @@ describe("write-back", () => {
   it("builds an event carrying the booking id and no client contact details", () => {
     const ev = buildBookingEvent(booking);
     expect(ev.summary).toContain("Sam");
+    expect(ev.summary).toContain("TattTester");
+    expect(ev.summary).not.toMatch(/\bTatT\b/);
+    expect(ev.description).toContain("TattTester booking BK-AAA");
+    expect(ev.description).not.toMatch(/\bTatT\b/);
     expect(ev.start).toEqual({
       dateTime: "2026-08-06T14:00:00",
       timeZone: "America/Phoenix",

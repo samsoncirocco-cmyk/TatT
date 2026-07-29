@@ -12,6 +12,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import { loadBatchData } from './setup-supabase-tattoo-artists.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -74,12 +75,7 @@ async function createTable() {
 async function insertArtists() {
   console.log('\n👥 Loading artist data...');
 
-  const artistsData = JSON.parse(
-    fs.readFileSync(
-      path.join(__dirname, '../generated/tattoo-artists-batch-50.json'),
-      'utf8'
-    )
-  );
+  const artistsData = loadBatchData();
 
   console.log(`   Found ${artistsData.length} artists to insert`);
 
