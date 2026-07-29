@@ -50,6 +50,16 @@ export const API_ROUTE_SECURITY: Record<string, RouteSecurityEntry> = {
       'stored state, never from the query string, and the authorization code is exchanged server-side.',
   },
   'v1/artist/calendar/disconnect': { class: 'firebase-auth' },
+  'v1/artist/instagram/connect': { class: 'firebase-auth' },
+  'v1/artist/instagram/media': { class: 'firebase-auth' },
+  'v1/artist/instagram/callback': {
+    class: 'public',
+    reason:
+      "Instagram redirects the artist's browser without a Firebase bearer token. " +
+      'The callback consumes a random, single-use, server-stored state bound to a verified uid, ' +
+      'artist id, and expected Instagram username; it expires in ten minutes. The returned ' +
+      'Instagram account must match that locked identity before any encrypted token is stored.',
+  },
   // Artist console (TAT-38): both resolve the artist from the VERIFIED uid
   // via claimedByUid — client-supplied artistIds are never accepted.
   'v1/artist/me': { class: 'firebase-auth' },

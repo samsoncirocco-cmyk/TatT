@@ -56,6 +56,9 @@ export type RosterArtist = {
    *  (filterPermalinksForDisplay). Rendered as official Instagram embeds on
    *  the profile page ONLY — card grids never mount iframes. */
   portfolioPermalinks: string[];
+  /** Posts the verified artist explicitly selected after connecting their own
+   *  Instagram account. Independent of legacy image-aligned recovery arrays. */
+  authorizedPortfolioPermalinks: string[];
   /** True once an artist has claimed this profile (`claimedByUid` is set).
    *  The uid itself stays server-side; public surfaces use this boolean to
    *  hide both the claim door and the unclaimed-profile provenance label. */
@@ -159,6 +162,25 @@ export function toRosterArtist(record: Record<string, unknown>): RosterArtist {
   const shopName = typeof record.shopName === "string" ? record.shopName : null;
   const city = typeof record.city === "string" ? record.city : null;
   const state = typeof record.state === "string" ? record.state : null;
+  const authorizedPortfolioPermalinks = Array.isArray(
+    record.authorizedPortfolioPosts,
+  )
+    ? record.authorizedPortfolioPosts
+        .filter(
+          (post): post is { permalink: string; displayOrder?: number } =>
+            Boolean(
+              post &&
+                typeof post === "object" &&
+                typeof (post as Record<string, unknown>).permalink === "string",
+            ),
+        )
+        .sort(
+          (a, b) =>
+            Number(a.displayOrder ?? Number.MAX_SAFE_INTEGER) -
+            Number(b.displayOrder ?? Number.MAX_SAFE_INTEGER),
+        )
+        .map((post) => post.permalink)
+    : [];
   return {
     id,
     slug: artistSlug(name, id),
@@ -181,6 +203,7 @@ export function toRosterArtist(record: Record<string, unknown>): RosterArtist {
     // and only while ENABLE_IG_EMBEDS=true — [] otherwise, so this field is
     // inert until the flag is deliberately flipped.
     portfolioPermalinks: filterPermalinksForDisplay(record),
+    authorizedPortfolioPermalinks,
     claimed: isClaimed(record),
   };
 }
@@ -230,6 +253,11 @@ export async function browseArtists(
       a.reviewCount AS reviewCount,
       a.portfolioImages AS portfolioImages,
       a.portfolioPermalinks AS portfolioPermalinks,
+      [(a)-[show:SHOWCASES]->(post:PortfolioPost)
+        WHERE coalesce(show.active, false) = true
+          AND coalesce(post.active, false) = true
+        | {permalink: post.permalink, displayOrder: show.displayOrder}
+      ] AS authorizedPortfolioPosts,
       a.claimedByUid AS claimedByUid
     ORDER BY coalesce(a.reviewCount, 0) DESC, a.name ASC, a.id ASC
     SKIP toInteger($skip) LIMIT toInteger($limit)
@@ -275,6 +303,11 @@ export async function getRosterArtistById(id: string): Promise<RosterArtist | nu
       a.reviewCount AS reviewCount,
       a.portfolioImages AS portfolioImages,
       a.portfolioPermalinks AS portfolioPermalinks,
+      [(a)-[show:SHOWCASES]->(post:PortfolioPost)
+        WHERE coalesce(show.active, false) = true
+          AND coalesce(post.active, false) = true
+        | {permalink: post.permalink, displayOrder: show.displayOrder}
+      ] AS authorizedPortfolioPosts,
       a.claimedByUid AS claimedByUid
     LIMIT 1
   `;
