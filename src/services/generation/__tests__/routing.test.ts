@@ -77,6 +77,16 @@ describe('generation routing', () => {
     expect(routeGeneration({ prompt: 'x', bodyPart: 'both forearms' }).aspectRatio).toBe('9:16');
   });
 
+  // A live session briefed "arm sleeve" and the reveal must render portrait
+  // — a sleeve study is the length of the limb, never square busts. The
+  // 'arm' rule catches "arm sleeve"; a bare "sleeve"/"full sleeve" falls to
+  // the portrait default, which is the same correct answer.
+  it('routes sleeve placements portrait', () => {
+    expect(routeGeneration({ prompt: 'x', bodyPart: 'arm sleeve' }).aspectRatio).toBe('9:16');
+    expect(routeGeneration({ prompt: 'x', bodyPart: 'full sleeve' }).aspectRatio).toBe('9:16');
+    expect(routeGeneration({ prompt: 'x', bodyPart: 'leg sleeve' }).aspectRatio).toBe('9:16');
+  });
+
   // Style tags are ontology ids ("new-school"); STYLE_MODEL_MAPPING is keyed
   // camelCase ("newSchool"). Lowercasing alone never bridged that, so these
   // fell through to flux-dev against ADR-0023's routing table.
