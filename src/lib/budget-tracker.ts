@@ -27,6 +27,14 @@ export const VERTEX_IMAGEN_COST_CENTS =
 export const CONVERSATION_TURNS_PER_CENT =
   Number(process.env.CONVERSATION_TURNS_PER_CENT) || 10;
 
+// One reference-image vision analysis (TAT-50): a single Gemini Flash
+// multimodal call — one image in, a small JSON brief out. Real cost is a
+// fraction of a cent; charged flat at 1¢ as a deliberate over-estimate,
+// same philosophy as the conversation-turn line item. Override via
+// VISION_ANALYSIS_COST_CENTS.
+export const VISION_ANALYSIS_COST_CENTS =
+  Number(process.env.VISION_ANALYSIS_COST_CENTS) || 1;
+
 export type BudgetResult = {
   allowed: boolean;
   spentCents: number;
