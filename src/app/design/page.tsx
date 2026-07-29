@@ -4,6 +4,8 @@ import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import StudioShell from '@/components/studio/StudioShell';
 import SlashHeadline from '@/components/punk/SlashHeadline';
+import SmsDisclosure from '@/components/sketchbot/SmsDisclosure';
+import { getSketchBotSmsContact } from '@/lib/sketchbot-sms';
 import { DesignConversation } from '@/features/design-session';
 
 /**
@@ -31,6 +33,9 @@ function DesignConversationEntry() {
  * rendered beside it by DesignConversation.
  */
 export default function DesignPage() {
+  // TAT-49: the published SMS door. Env-gated — no number, no section.
+  const sms = getSketchBotSmsContact();
+
   return (
     <StudioShell>
       <div className="px-6 md:px-12 pt-6 pb-5 border-b hairline">
@@ -49,6 +54,24 @@ export default function DesignPage() {
           </p>
         </div>
       </div>
+      {sms && (
+        /* Text SketchBot (TAT-49) — same consultant, different door. Loud
+           line, quiet compliance small print (ADR-0035/0036). */
+        <div className="px-6 md:px-12 py-4 border-b hairline">
+          <div className="max-w-5xl mx-auto">
+            <p className="font-body text-[13px] leading-[1.55] text-white/70">
+              can&rsquo;t sit still? text your idea to SketchBot:{' '}
+              <a
+                href={sms.href}
+                className="text-pink hover:underline whitespace-nowrap tabular-nums"
+              >
+                {sms.display}
+              </a>
+            </p>
+            <SmsDisclosure className="mt-1.5 max-w-[62ch]" />
+          </div>
+        </div>
+      )}
       <div className="px-6 md:px-12 py-10 md:py-14">
         <div className="max-w-5xl mx-auto">
           <Suspense fallback={null}>
