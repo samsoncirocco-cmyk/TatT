@@ -116,12 +116,43 @@ describe('gating', () => {
     expect(handleInbound).not.toHaveBeenCalled();
   });
 
-  it('validates against the public URL and the exact POST params', async () => {
-    await POST(webhookRequest({ From: PHONE, Body: 'hello there' }));
+  it('validates against TWILIO_WEBHOOK_URL verbatim, ignoring request headers', async () => {
+    vi.stubEnv('TWILIO_WEBHOOK_URL', 'https://tatttester.com/api/webhooks/twilio');
+    // Vercel-style: internal deployment host on the request, junk forwards.
+    const req = new NextRequest('https://tatt-app-abc123.vercel.app/api/webhooks/twilio', {
+      method: 'POST',
+      body: new URLSearchParams({ From: PHONE, Body: 'hello there' }).toString(),
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        'x-twilio-signature': 'sig',
+        'x-forwarded-proto': 'https,https',
+        'x-forwarded-host': 'internal.proxy.example',
+      },
+    });
+    await POST(req);
     expect(validateTwilioSignature).toHaveBeenCalledWith(
       'sig',
       'https://tatttester.com/api/webhooks/twilio',
       { From: PHONE, Body: 'hello there' }
+    );
+  });
+
+  it('derives the validation URL from the public base when the env is unset', async () => {
+    vi.stubEnv('TWILIO_WEBHOOK_URL', '');
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://tatttester.com/');
+    const req = new NextRequest('https://tatt-app-abc123.vercel.app/api/webhooks/twilio', {
+      method: 'POST',
+      body: new URLSearchParams({ From: PHONE, Body: 'hi' }).toString(),
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        'x-twilio-signature': 'sig',
+      },
+    });
+    await POST(req);
+    expect(validateTwilioSignature).toHaveBeenCalledWith(
+      'sig',
+      'https://tatttester.com/api/webhooks/twilio',
+      { From: PHONE, Body: 'hi' }
     );
   });
 

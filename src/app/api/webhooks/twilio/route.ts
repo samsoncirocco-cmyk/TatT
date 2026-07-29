@@ -50,7 +50,7 @@ import {
   recordOptOut,
   isOptedOut,
 } from '@/services/sketchbotSms';
-import { createRequestLogger } from '@/lib/logger';
+import { createRequestLogger, logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -83,16 +83,40 @@ function twiml(message?: string): NextResponse {
 }
 
 /**
- * The exact public URL Twilio signed. Behind Vercel's proxy req.url carries
- * the internal host, so the forwarded headers win — the Twilio console URL
- * must match this reconstruction (documented in docs/sketchbot-sms-setup.md).
+ * The exact URL Twilio signed — resolved DETERMINISTICALLY, never from
+ * request headers.
+ *
+ * The first deploy reconstructed this from x-forwarded-proto/host, and
+ * genuine Twilio traffic 403'd in production (Twilio error 11200): behind
+ * Vercel's proxy chain the reconstructed string is not guaranteed to be
+ * byte-identical to the SmsUrl configured on the number (multi-hop
+ * x-forwarded-* values are comma-joined, and internal deployment hosts leak
+ * through), and HMAC validation is byte-exact by design. Headers are also
+ * attacker-controlled input; the URL the signature was computed over is
+ * static config, so it must come from config:
+ *
+ *   1. TWILIO_WEBHOOK_URL — byte-identical to the number's configured
+ *      webhook URL (authoritative; documented in .env.example + setup doc)
+ *   2. derived from the public base URL (NEXT_PUBLIC_APP_URL /
+ *      NEXT_PUBLIC_BASE_URL) + this route's path
+ *   3. header reconstruction — last resort for tunnel-based local dev only
  */
-function publicUrl(req: NextRequest): string {
+const WEBHOOK_PATH = '/api/webhooks/twilio';
+
+function webhookValidationUrl(req: NextRequest): { url: string; source: string } {
+  const configured = (process.env.TWILIO_WEBHOOK_URL || '').trim();
+  if (configured) return { url: configured, source: 'env' };
+
+  const base = (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || '')
+    .trim()
+    .replace(/\/$/, '');
+  if (base) return { url: `${base}${WEBHOOK_PATH}`, source: 'derived' };
+
   const url = new URL(req.url);
   const proto = req.headers.get('x-forwarded-proto') ?? url.protocol.replace(':', '');
   const host =
     req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? url.host;
-  return `${proto}://${host}${url.pathname}${url.search}`;
+  return { url: `${proto}://${host}${url.pathname}${url.search}`, source: 'headers' };
 }
 
 export async function POST(req: NextRequest) {
@@ -115,6 +139,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Twilio posts application/x-www-form-urlencoded; the raw body decodes
+    // straight into the field map validateRequest expects (the SDK sorts
+    // keys itself — order here is irrelevant). Never JSON, never reshaped.
     const rawBody = await req.text();
     const params = Object.fromEntries(new URLSearchParams(rawBody));
 
@@ -123,7 +150,19 @@ export async function POST(req: NextRequest) {
       process.env.NODE_ENV !== 'production';
     if (!allowUnsigned) {
       const signature = req.headers.get('x-twilio-signature');
-      if (!validateTwilioSignature(signature, publicUrl(req), params)) {
+      const validation = webhookValidationUrl(req);
+      if (!validateTwilioSignature(signature, validation.url, params)) {
+        // A rejected signature is either an attack or a config mismatch —
+        // both deserve a loud, diagnosable log line (the prod 403s on
+        // genuine traffic were invisible without it). Values stay redacted.
+        logger.warn({
+          event_type: 'twilio_webhook.signature_rejected',
+          validation_url: validation.url,
+          validation_url_source: validation.source,
+          has_signature: !!signature,
+          param_count: Object.keys(params).length,
+          from_last4: (params.From ?? '').slice(-4),
+        });
         reqLogger.complete('twilio_webhook.rejected', { reason: 'bad_signature' });
         return NextResponse.json(
           { error: 'Invalid Twilio signature.' },
