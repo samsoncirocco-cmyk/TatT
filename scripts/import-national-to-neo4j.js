@@ -23,71 +23,77 @@
  *
  * SAFETY: dry run by default — always prints what it *would* do and changes
  * nothing until you pass --apply. Artists that have been claimed
- * (claimedByUid), taken down (removedAt), tombstoned (:TakedownTombstone —
- * see docs/adr/0025), or have a pending takedown request
- * (:TakedownRequest {status:'pending'}) are always excluded from the write,
- * regardless of --apply. A re-import must never resurrect or overwrite a
- * profile someone has claimed, asked to have removed, or is already removed —
- * see src/lib/takedown.ts, which is the source of truth this mirrors.
+ * (claimedByUid), created by the artist (selfRegistered), taken down
+ * (removedAt), tombstoned (:TakedownTombstone — see docs/adr/0025), or have a
+ * pending takedown request (:TakedownRequest {status:'pending'}) are always
+ * excluded from the write, regardless of --apply. The write query repeats
+ * those guards so a profile protected during a long import is not overwritten.
  *
  * Usage:
  *   node scripts/import-national-to-neo4j.js --limit 50        # dry run, small slice
  *   node scripts/import-national-to-neo4j.js                   # dry run, full dataset
  *   node scripts/import-national-to-neo4j.js --apply            # actually write
- *   node scripts/import-national-to-neo4j.js --apply --wipe     # wipe then write (careful)
+ *   node scripts/import-national-to-neo4j.js --input data/final.json
+ *
+ * There is deliberately no wipe option. The graph also contains claims,
+ * takedowns, and payment state that a dataset refresh must never delete.
  *
  * Requires NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD in .env (Aura: neo4j+s://...).
  */
 
 import neo4j from 'neo4j-driver';
 import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { resolve } from 'path';
 import dotenv from 'dotenv';
+import {
+  loadTombstoneGate,
+  TOMBSTONE_KEYS_CYPHER,
+} from './lib/takedown-tombstone.mjs';
+import {
+  NATIONAL_ARTIST_IMPORT_CYPHER,
+  NATIONAL_SHOP_IMPORT_CYPHER,
+  parseNationalImportArgs,
+  partitionProtectedNationalArtists,
+  prepareNationalArtist,
+} from './lib/national-artist-import.mjs';
 
 dotenv.config();
+dotenv.config({ path: '.env.local', override: true });
 
-const { NEO4J_URI, NEO4J_USER = 'neo4j', NEO4J_PASSWORD } = process.env;
+const {
+  NEO4J_URI,
+  NEO4J_USERNAME,
+  NEO4J_USER = 'neo4j',
+  NEO4J_PASSWORD,
+  NEO4J_DATABASE,
+} = process.env;
 if (!NEO4J_URI || !NEO4J_PASSWORD) {
   console.error('❌ NEO4J_URI and NEO4J_PASSWORD must be set in .env');
   process.exit(1);
 }
 
-const args = process.argv.slice(2);
-const limitIdx = args.indexOf('--limit');
-const LIMIT = limitIdx >= 0 ? parseInt(args[limitIdx + 1], 10) : Infinity;
-const WIPE = args.includes('--wipe');
-const APPLY = args.includes('--apply');
+const options = parseNationalImportArgs(process.argv.slice(2));
 const BATCH = 500;
 
-// Mirrors src/lib/takedown.ts normalizeInstagramHandle — must stay in sync so
-// tombstone keys computed here match the ones the app writes.
-function normalizeInstagramHandle(raw) {
-  if (!raw) return null;
-  const clean = raw
-    .trim()
-    .replace(/^https?:\/\/(www\.)?instagram\.com\//i, '')
-    .replace(/^@/, '')
-    .replace(/\/.*$/, '')
-    .trim()
-    .toLowerCase();
-  return clean || null;
+const inputPath = resolve(process.cwd(), options.input);
+const data = JSON.parse(readFileSync(inputPath, 'utf8'));
+if (!Array.isArray(data.artists) || !Array.isArray(data.shops)) {
+  throw new Error(`${inputPath} must contain artists and shops arrays`);
 }
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const data = JSON.parse(
-  readFileSync(join(__dirname, '../data/national-artists-2026-07-15.json'), 'utf8')
+const rawArtists = data.artists
+  .slice(0, options.limit)
+  .map(prepareNationalArtist);
+
+const driver = neo4j.driver(
+  NEO4J_URI,
+  neo4j.auth.basic(NEO4J_USERNAME || NEO4J_USER, NEO4J_PASSWORD),
 );
 
-const rawArtists = data.artists.slice(0, LIMIT).map((a) => ({
-  ...a,
-  instagramUrl: a.instagram ? `https://instagram.com/${a.instagram.replace(/^@/, '')}` : null,
-}));
-
-const driver = neo4j.driver(NEO4J_URI, neo4j.auth.basic(NEO4J_USER, NEO4J_PASSWORD));
-
 async function run(cypher, params) {
-  const session = driver.session();
+  const session = driver.session(
+    NEO4J_DATABASE ? { database: NEO4J_DATABASE } : undefined,
+  );
   try {
     return await session.run(cypher, params);
   } finally {
@@ -95,101 +101,91 @@ async function run(cypher, params) {
   }
 }
 
-async function inBatches(items, label, cypher) {
+async function inBatches(items, label, cypher, countKey = null) {
+  let written = 0;
   for (let i = 0; i < items.length; i += BATCH) {
-    await run(cypher, { rows: items.slice(i, i + BATCH) });
+    const result = await run(cypher, { rows: items.slice(i, i + BATCH) });
+    if (countKey && result.records[0]) {
+      written += result.records[0].get(countKey).toNumber();
+    }
     process.stdout.write(`\r  ${label}: ${Math.min(i + BATCH, items.length)}/${items.length}`);
   }
   console.log();
+  return written;
 }
 
 /**
- * Everything a re-import must never touch. Four independent checks, one per
+ * Everything a re-import must never touch. Five independent checks, one per
  * way an artist can have left "plain scraped data" behind them.
  */
 async function findProtectedArtists() {
-  const [flags, pendingRequest, tombstones] = await Promise.all([
+  const [flags, pendingRequest, tombstoneGate] = await Promise.all([
     run(
-      `MATCH (a:Artist) WHERE a.removedAt IS NOT NULL OR a.claimedByUid IS NOT NULL
-       RETURN a.id AS id, a.removedAt IS NOT NULL AS removed, a.claimedByUid IS NOT NULL AS claimed`,
-      {}
+      `MATCH (a:Artist)
+       WHERE a.removedAt IS NOT NULL
+          OR a.claimedByUid IS NOT NULL
+          OR coalesce(a.selfRegistered, false) = true
+       RETURN a.id AS id,
+              a.removedAt IS NOT NULL AS removed,
+              a.claimedByUid IS NOT NULL AS claimed,
+              coalesce(a.selfRegistered, false) AS selfRegistered`,
+      {},
     ),
     run(
-      `MATCH (:TakedownRequest {status: 'pending'})-[:REQUESTS_REMOVAL_OF]->(a:Artist)
-       RETURN collect(DISTINCT a.id) AS ids`,
-      {}
+      `MATCH (r:TakedownRequest {status: 'pending'})
+       WHERE r.artistId IS NOT NULL
+       RETURN collect(DISTINCT r.artistId) AS ids`,
+      {},
     ),
-    run(`MATCH (t:TakedownTombstone) RETURN collect(DISTINCT t.key) AS keys`, {}),
+    loadTombstoneGate(async () => {
+      const result = await run(TOMBSTONE_KEYS_CYPHER, {});
+      return result.records.map((record) => record.get('key')).filter(Boolean);
+    }),
   ]);
 
   const removedIds = new Set();
   const claimedIds = new Set();
+  const selfRegisteredIds = new Set();
   for (const rec of flags.records) {
     if (rec.get('removed')) removedIds.add(rec.get('id'));
     if (rec.get('claimed')) claimedIds.add(rec.get('id'));
+    if (rec.get('selfRegistered')) selfRegisteredIds.add(rec.get('id'));
   }
   const pendingRequestIds = new Set(pendingRequest.records[0].get('ids'));
-  const tombstoneKeys = new Set(tombstones.records[0].get('keys'));
-  return { removedIds, claimedIds, pendingRequestIds, tombstoneKeys };
-}
-
-function isTombstoned(artist, tombstoneKeys) {
-  if (tombstoneKeys.has(`artist:${artist.id}`)) return true;
-  const handle = normalizeInstagramHandle(artist.instagram);
-  return Boolean(handle && tombstoneKeys.has(`instagram:${handle}`));
+  return {
+    removedIds,
+    claimedIds,
+    selfRegisteredIds,
+    pendingRequestIds,
+    tombstoneGate,
+  };
 }
 
 const t0 = Date.now();
 console.log(`Checking Neo4j for protected artists → ${NEO4J_URI}`);
 const protectedArtists = await findProtectedArtists();
 
-const skipCounts = { removed: 0, claimed: 0, pendingRequest: 0, tombstoned: 0 };
-const artists = rawArtists.filter((a) => {
-  if (protectedArtists.removedIds.has(a.id)) {
-    skipCounts.removed++;
-    return false;
-  }
-  if (protectedArtists.claimedIds.has(a.id)) {
-    skipCounts.claimed++;
-    return false;
-  }
-  if (protectedArtists.pendingRequestIds.has(a.id)) {
-    skipCounts.pendingRequest++;
-    return false;
-  }
-  if (isTombstoned(a, protectedArtists.tombstoneKeys)) {
-    skipCounts.tombstoned++;
-    return false;
-  }
-  return true;
-});
+const { allowed: artists, counts: skipCounts } =
+  partitionProtectedNationalArtists(rawArtists, protectedArtists);
 
 const shopKeys = new Set(artists.map((a) => `${a.shopName}|${a.city}|${a.state}`));
 // Import shops referenced by the artist slice, plus (on full runs) the rest.
-const shops = Number.isFinite(LIMIT)
+const shops = Number.isFinite(options.limit)
   ? data.shops.filter((s) => shopKeys.has(`${s.shopName}|${s.city}|${s.state}`))
   : data.shops;
 
+console.log(`Input: ${inputPath}`);
 console.log(`\nImport candidates: ${artists.length} artists, ${shops.length} shops`);
 console.log(
   `Protected — never written: ${skipCounts.removed} removed, ${skipCounts.claimed} claimed, ` +
-    `${skipCounts.pendingRequest} pending takedown request, ${skipCounts.tombstoned} tombstoned`
+    `${skipCounts.selfRegistered} self-registered, ${skipCounts.pendingRequest} pending takedown request, ` +
+    `${skipCounts.tombstoned} tombstoned`,
 );
 
-if (!APPLY) {
+if (!options.apply) {
   console.log('\nDRY RUN — nothing was written. Pass --apply to write to Neo4j.');
   await driver.close();
   process.exit(0);
-}
-
-if (WIPE) {
-  console.log('  wiping existing graph…');
-  // Batched delete so large graphs don't blow the transaction memory limit
-  let deleted;
-  do {
-    const res = await run('MATCH (n) WITH n LIMIT 10000 DETACH DELETE n RETURN count(n) AS c');
-    deleted = res.records[0].get('c').toNumber();
-  } while (deleted > 0);
 }
 
 // Constraints (idempotent) — also give us index-backed MERGEs
@@ -202,54 +198,23 @@ for (const c of [
 ])
   await run(c);
 
-await inBatches(
+const shopsWritten = await inBatches(
   shops,
   'shops',
-  `
-  UNWIND $rows AS row
-  MERGE (s:Shop {placeId: row.place_id})
-  SET s.name = row.shopName, s.address = row.address, s.city = row.city,
-      s.state = row.state, s.lat = row.lat, s.lng = row.lng,
-      s.rating = row.rating, s.reviewCount = row.reviewCount, s.website = row.website
-  MERGE (c:City {name: row.city, state: row.state})
-  MERGE (s)-[:LOCATED_IN]->(c)
-`
+  NATIONAL_SHOP_IMPORT_CYPHER,
+  'written',
 );
 
-await inBatches(
+const artistsWritten = await inBatches(
   artists,
   'artists',
-  `
-  UNWIND $rows AS row
-  MERGE (a:Artist {id: row.id})
-  SET a.name = row.name, a.shopName = row.shopName, a.city = row.city,
-      a.state = row.state, a.instagram = row.instagram, a.instagramUrl = row.instagramUrl,
-      a.rating = row.rating, a.reviewCount = row.reviewCount, a.bio = row.bio,
-      a.lat = row.coordinates.lat, a.lng = row.coordinates.lng,
-      a.portfolioImages = coalesce(row.portfolioImages, []),
-      a.portfolioImageCount = size(coalesce(row.portfolioImages, [])),
-      a.portfolioSource = 'website'
-  MERGE (c:City {name: row.city, state: row.state})
-  MERGE (a)-[:LOCATED_IN]->(c)
-  WITH a, row
-  CALL (a, row) {
-    WITH a, row
-    UNWIND row.styles AS styleName
-    MERGE (st:Style {name: styleName})
-    MERGE (a)-[:SPECIALIZES_IN]->(st)
-  }
-  CALL (a, row) {
-    WITH a, row
-    UNWIND row.tags AS tagName
-    MERGE (t:Tag {name: tagName})
-    MERGE (a)-[:TAGGED_WITH]->(t)
-  }
-  CALL (a, row) {
-    WITH a, row
-    MATCH (s:Shop {name: row.shopName, city: row.city, state: row.state})
-    MERGE (a)-[:WORKS_AT]->(s)
-  }
-`
+  NATIONAL_ARTIST_IMPORT_CYPHER,
+  'written',
+);
+
+console.log(
+  `Applied: ${artistsWritten}/${artists.length} artists and ${shopsWritten}/${shops.length} shops. ` +
+    `${artists.length - artistsWritten} artist candidates were protected at write time.`,
 );
 
 // Verify: report what actually landed
