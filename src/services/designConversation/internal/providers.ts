@@ -42,6 +42,12 @@ export interface RawTurnPayload {
     placement?: unknown;
     styleTags?: unknown;
     meaning?: unknown;
+    /**
+     * The model's own subject extraction. The persona has always asked for
+     * it; dropping it here silently discarded five named characters in a
+     * real session, leaving only the deterministic backfill's matches.
+     */
+    subject?: unknown;
     references?: unknown;
     ambiguousAxes?: unknown;
   };

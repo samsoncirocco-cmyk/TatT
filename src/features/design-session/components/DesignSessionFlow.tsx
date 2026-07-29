@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { DesignSession } from '@/services/designSession/types';
 import { startSession, submitPick, submitRefinement } from '../services/designSessionApi';
+import { revealNarration } from '../services/revealNarration';
 import { ChatBubble } from './ChatBubble';
 import { ChatInput } from './ChatInput';
 import { ThinkingLine } from './ThinkingLine';
@@ -136,11 +137,14 @@ export function DesignSessionFlow({ initialSession }: { initialSession?: DesignS
         </>
       )}
 
-      {/* Working state → the bot narrates with the logged axis rationale once it lands */}
+      {/* Working state → the bot narrates the reveal once it lands. The
+          narration is in-voice, DERIVED from the axis selection — the raw
+          axisSelection.rationale is an internal audit log (ADR-0012) and
+          must never render as a chat message. */}
       {step === 'starting' && !error && <ThinkingLine label="Sketching four directions" />}
       {showGrid && session && (
         <>
-          <ChatBubble role="bot">{session.axisSelection.rationale}</ChatBubble>
+          <ChatBubble role="bot">{revealNarration(session.axisSelection)}</ChatBubble>
           <ChatBubble role="bot">
             {step === 'most-not-you' ? (
               <>

@@ -10,11 +10,16 @@
  * framed as a judgment call made on the user's behalf.
  */
 
-/** The bot's fixed opening message — leads with placement and meaning (ADR-0019). */
+/**
+ * The bot's fixed opening message — SketchBot introduces itself (TAT-48)
+ * and still leads with placement and meaning, the two hard constraints
+ * (ADR-0019's substance survives the identity). Loud register, pop-punk
+ * confidant (ADR-0035): lowercase-comfortable, stakes lowered up front.
+ */
 export const OPENER =
-  'Hey — excited to help you land on the right tattoo. Two things first, ' +
-  'because they shape everything else: where on your body are you thinking, ' +
-  'and what do you want this piece to mean?';
+  "hey — i'm sketchbot. tell me the tattoo — where on your body it's " +
+  "going, and what it should mean — or dump the whole vision and i'll " +
+  "draw. nothing's permanent in here — that's the point.";
 
 /**
  * Turn-20 warm handoff (ADR-0021, exact phrasing). Framed as the bot's
@@ -43,6 +48,14 @@ export const PROPOSAL_LEAD = "Here's what I'm hearing:";
 export const PROPOSAL_AFFORDANCE =
   'Want to see four takes on this, or did I miss something?';
 
+/**
+ * The affordance restated on follow-up turns. A STATEMENT, deliberately —
+ * repeating the affordance question verbatim on every proposal-beat turn is
+ * exactly the question-repetition failure the engine now guards against.
+ */
+export const PROPOSAL_REMINDER =
+  "The four takes are one tap away whenever you're ready.";
+
 /** The announce-and-confirm proposal beat (ADR-0020, exact phrasing style). */
 export function proposalReply(playback: string): string {
   return `${PROPOSAL_LEAD} ${playback}. ${PROPOSAL_AFFORDANCE}`;
@@ -52,15 +65,85 @@ export function proposalReply(playback: string): string {
  * A follow-up turn once the proposal has already been played back: the user
  * asked something real ("do you know which characters im referring to?") and
  * deserves an answer, not the same templated sentence again. The affordance
- * is repeated so the reveal stays one tap away.
+ * is restated (as a statement, never the same question twice) so the reveal
+ * stays one tap away.
  */
 export function proposalFollowUp(reply: string): string {
-  return `${reply} ${PROPOSAL_AFFORDANCE}`;
+  return `${reply} ${PROPOSAL_REMINDER}`;
 }
 
-/** Persona block — near-verbatim ADR-0021. */
+/**
+ * The fixed palette question (ADR-0023 turns 5–6: resolve style with a
+ * contrast). Exported because the engine tracks how many times it has been
+ * asked — it is allowed out of the bot's mouth exactly once.
+ */
+export const COLOR_QUESTION =
+  'Are you thinking blackwork and clean lines, or do you want this in full color?';
+
+/**
+ * The one permitted re-ask, in different words. If the palette is still
+ * unresolved after this, the bot makes the call itself — a third ask never
+ * happens (live-transcript rule: the same slot is never chased more than
+ * twice).
+ */
+export const COLOR_RETRY_QUESTION =
+  'Quick palette call before I sketch anything — full color, or black ink only?';
+
+/**
+ * The bot making the palette call in-voice (ADR-0023: a direct ask gets a
+ * direct recommendation; two dodges and the bot decides). 'recommendation'
+ * answers "which do you suggest"; 'decision' is the bot advancing after the
+ * question was dodged twice.
+ */
+export function colorCallReply(
+  kind: 'recommendation' | 'decision',
+  hasNamedCharacters: boolean
+): string {
+  if (kind === 'recommendation') {
+    return hasNamedCharacters
+      ? 'Full color — that\'s my call. Characters like these are half-defined ' +
+          'by their palettes, and black ink flattens what makes each one read ' +
+          'as themselves.'
+      : 'Full color — that\'s my call. It gives the piece more range, and we ' +
+          'can always pull it back to black ink later.';
+  }
+  return 'Going full color — the reveal can flip it to blackwork if that reads better.';
+}
+
+/**
+ * The axis-spread proposal (ADR-0012 + ADR-0020): the user asked to SEE both
+ * poles of a variation axis, which IS the proposal trigger — the playback
+ * runs and the reveal spreads that axis deliberately. Starts with
+ * PROPOSAL_LEAD so the engine's already-proposed detection covers it.
+ */
+export function axisSpreadProposalReply(
+  playback: string,
+  poles: [string, string]
+): string {
+  return (
+    `${PROPOSAL_LEAD} ${playback}. I'll split the four takes across ` +
+    `${poles[0]} and ${poles[1]} so you can compare them side by side — ` +
+    'want to see them?'
+  );
+}
+
+/**
+ * The one in-voice line the IP/character rule owes the user (ADR-0023):
+ * inspired-by framing, artist handles likeness. Said once per session, on
+ * the first proposal that carries a named subject.
+ */
+export const IP_NOTE =
+  'One note since we\'re working with named characters: I design ' +
+  'inspired-by takes, and your artist dials in the exact likeness.';
+
+/** Asked when a proposal trigger fires before the brief has a subject. */
+export const SUBJECT_GATE_QUESTION =
+  'What should the piece actually show? Give me the image in your head, however rough.';
+
+/** Persona block — near-verbatim ADR-0021; named SketchBot per TAT-48. */
 const PERSONA = [
-  "You are TattTester's tattoo design consultant. You are a consultant, not a",
+  "You are SketchBot, TattTester's tattoo design consultant. When asked who",
+  'or what you are, you are SketchBot. You are a consultant, not a',
   'companion: your job is to get this person to four designs they can react',
   'to, not to have a long conversation.',
   '',
@@ -94,15 +177,41 @@ const PERSONA = [
   'what moment or action. "Just Deku, or a scene — like him and Todoroki',
   'mid-fight?" beats another question about feelings. Scenes with two or more',
   'characters interacting are great tattoo briefs; never collapse them to one',
-  'character. Use your knowledge of the fandom only when you are sure of it —',
-  'if you are not certain of a detail, ask instead of asserting.',
-'',
+  'character, and never drop characters they named — a five-character sleeve',
+  'brief carries all five. Use your knowledge of the fandom only when you are',
+  'sure of it — if you are not certain of a detail, ask instead of asserting.',
+  '',
+  'Never ask a question you have already asked, in the same words or nearly',
+  'the same. If they answered something else instead (more characters, a',
+  'question back at you), work with what they gave you first. You get at most',
+  'one differently-worded retry per open question; after that, make the call',
+  'yourself, say so plainly ("Going full color — the reveal can flip it"),',
+  'and move forward.',
+  '',
+  'When they ask what you would suggest, recommend, or pick: give a direct',
+  'recommendation — one choice, with one concrete reason drawn from what they',
+  'have told you. Never deflect, never say suggesting is not your job, never',
+  'bounce the question back unanswered.',
+  '',
+  'The app you speak for GENERATES REAL DESIGNS — four takes, moments after',
+  'the brief is ready. Never say you cannot show mock-ups, designs, or',
+  'versions. When they ask to SEE something ("can I see both", "show me color',
+  'and blackwork"), that is a green light: play the brief back in one line',
+  'and offer the reveal — and if they asked for both sides of a choice, tell',
+  'them the four takes will be split across it.',
+  '',
+  'When you pitch a concept and they accept it ("i like it", "yes, that'
+    + ' one"), the accepted pitch IS the brief now: fold it into record.subject',
+  'and record.meaning on that same turn, exactly as if they had described it',
+  'themselves.',
+  '',
   'Color is never left to chance. The moment anything in the conversation hints',
   'at color — they say it, they name a color-bearing style, or they reference',
   'color artwork such as an anime — settle it in your next message, in these exact',
   'words: "Are you thinking blackwork and clean lines, or do you want this in',
-  'full color?" Their answer resolves the color axis, and you do not treat the',
-  'record as ready to propose until it is resolved.',
+  'full color?" Ask it ONCE. Their answer resolves the color axis; if they dodge',
+  'it, the retry-then-decide rule above applies — an unresolved palette is a',
+  'reason to split the reveal across both, never a reason to stall.',
 ].join('\n');
 
 /**
