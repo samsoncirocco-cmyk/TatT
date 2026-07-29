@@ -30,6 +30,11 @@ export default async function ArtistProfilePage({
   const firstNames = nameParts.join(" ");
   const igUrl = instagramUrl(artist.instagram);
   const heroImage = artist.portfolioImages[0];
+  const featuredPermalink = artist.portfolioPermalinks[0];
+  const remainingPermalinks = artist.portfolioPermalinks.slice(
+    1,
+    PROFILE_EMBED_LIMIT,
+  );
   const hasDisplayedWork =
     Boolean(heroImage) || artist.portfolioPermalinks.length > 0;
   const monogram = artist.name
@@ -53,52 +58,109 @@ export default async function ArtistProfilePage({
         </div>
       </div>
 
-      {/* HERO — portfolio image (self-hosted) or monogram tile | info panel.
-          Instagram remains the see-their-work affordance either way. */}
-      <div className="px-6 md:px-12 py-12 md:py-16">
+      {/* HERO — licensed portfolio image, official Instagram post, or a compact
+          no-work state | info panel. A monogram is identity, not portfolio. */}
+      <div className="px-6 md:px-12 py-10 md:py-12">
         <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12 items-start">
           <div className="md:col-span-5">
-            <div
-              className={`aspect-[3/4] ${heroImage ? "bg-bone" : "bg-pink"} border-2 hairline relative overflow-hidden`}
-            >
-              {heroImage ? (
-                // eslint-disable-next-line @next/next/no-img-element
+            {heroImage ? (
+              <div className="aspect-[3/4] bg-bone border-2 hairline relative overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={heroImage}
                   alt={`${artist.name} portfolio work`}
                   className="absolute inset-0 w-full h-full object-cover"
                 />
-              ) : (
-                <>
-                  <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 mix-blend-multiply" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="font-display text-[120px] md:text-[160px] leading-none text-black/25 select-none">
-                      {monogram}
+                {artist.instagram && (
+                  <div className="absolute top-4 left-4 sticker px-2.5 py-1.5 -rotate-3">
+                    <span className="font-body text-[10px] uppercase tracking-[0.18em]">
+                      {artist.instagram}&nbsp;→
                     </span>
                   </div>
-                </>
-              )}
-              {artist.instagram && (
-                <div className="absolute top-4 left-4 sticker px-2.5 py-1.5 -rotate-3">
-                  <span className="font-body text-[10px] uppercase tracking-[0.18em]">
-                    {artist.instagram}&nbsp;→
-                  </span>
+                )}
+                {igUrl && (
+                  <a
+                    href={igUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="absolute bottom-4 left-4 right-4 text-center text-[10px] uppercase tracking-[0.22em] font-body bg-cream text-black px-3 py-3 press hover:bg-white"
+                  >
+                    See their work on Instagram&nbsp;▸
+                  </a>
+                )}
+              </div>
+            ) : featuredPermalink ? (
+              <div data-testid="instagram-embed-featured">
+                <div className="text-[10px] uppercase tracking-[0.28em] text-pink mb-4 font-body">
+                  ▸&nbsp;Featured&nbsp;work&nbsp;·&nbsp;via&nbsp;Instagram
                 </div>
-              )}
-              {igUrl && (
-                <a
-                  href={igUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="absolute bottom-4 left-4 right-4 text-center text-[10px] uppercase tracking-[0.22em] font-body bg-cream text-black px-3 py-3 press hover:bg-white"
-                >
-                  See their work on Instagram&nbsp;▸
-                </a>
-              )}
-            </div>
+                <InstagramEmbed
+                  permalink={featuredPermalink}
+                  className="border-2 hairline bg-black/40 overflow-hidden"
+                  fallback={
+                    <div className="min-h-[260px] border-2 hairline bg-pink/10 flex flex-col items-center justify-center gap-4 p-8 text-center">
+                      <span className="font-display text-[64px] leading-none text-pink">
+                        {monogram}
+                      </span>
+                      <span className="font-body text-[10px] uppercase tracking-[0.22em] text-white/50">
+                        Instagram post unavailable
+                      </span>
+                    </div>
+                  }
+                />
+              </div>
+            ) : (
+              <div
+                data-testid="artist-no-work"
+                className="min-h-[260px] border-2 hairline bg-white/[0.02] flex flex-col justify-between p-8"
+              >
+                <span className="font-body text-[10px] uppercase tracking-[0.25em] text-pink">
+                  Portfolio pending
+                </span>
+                <div>
+                  <p className="font-display text-[38px] leading-[0.95] text-white/80">
+                    Work belongs here.
+                  </p>
+                  <p className="mt-4 max-w-xs font-body text-[12px] leading-[1.7] text-white/45">
+                    No portfolio media is available for this profile yet.
+                  </p>
+                  {igUrl && (
+                    <a
+                      href={igUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-6 inline-block text-[10px] uppercase tracking-[0.22em] font-body text-white/70 hover:text-pink press"
+                    >
+                      See their Instagram&nbsp;▸
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="md:col-span-7 relative">
+            {!heroImage && (
+              <div className="mb-5 flex items-center gap-3">
+                <div
+                  data-testid="artist-monogram"
+                  className="h-12 w-12 shrink-0 bg-pink border hairline flex items-center justify-center"
+                >
+                  <span className="font-display text-[24px] leading-none text-black/45 select-none">
+                    {monogram}
+                  </span>
+                </div>
+                <div className="font-body text-[10px] uppercase tracking-[0.22em] text-white/45">
+                  Artist profile
+                  {artist.instagram && (
+                    <span className="block mt-1 text-white/65">
+                      {artist.instagram}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
             {artist.rating != null && (
               <div className="hidden sm:block absolute top-0 right-0 sticker px-3 py-1.5 z-10">
                 <div className="font-display text-[14px] tracking-widest leading-none tabular-nums">
@@ -107,7 +169,10 @@ export default async function ArtistProfilePage({
                 <div className="font-body text-[10px] uppercase tracking-widest leading-none mt-0.5 tabular-nums">
                   Shop&nbsp;rating
                   {artist.reviewCount != null && (
-                    <>&nbsp;·&nbsp;{artist.reviewCount.toLocaleString()}&nbsp;reviews</>
+                    <>
+                      &nbsp;·&nbsp;{artist.reviewCount.toLocaleString()}
+                      &nbsp;reviews
+                    </>
                   )}
                 </div>
               </div>
@@ -117,7 +182,9 @@ export default async function ArtistProfilePage({
               {artist.styles.length > 0 ? (
                 <>▸&nbsp;{artist.styles.join(" · ")}</>
               ) : (
-                <span className="text-white/40">▸&nbsp;Styles not cataloged yet</span>
+                <span className="text-white/40">
+                  ▸&nbsp;Styles not cataloged yet
+                </span>
               )}
             </div>
 
@@ -278,34 +345,36 @@ export default async function ArtistProfilePage({
         </div>
       </div>
 
-      {/* RECENT WORK — Instagram embed tier (TAT-40). portfolioPermalinks is
+      {/* MORE RECENT WORK — Instagram embed tier (TAT-40). The first recovered
+          post is featured above the fold; only the remaining surface budget
+          lands here. portfolioPermalinks is
           policy-filtered server-side (src/lib/portfolio-display): it is empty
           unless ENABLE_IG_EMBEDS=true and this artist is unclaimed, so this
           whole section is inert until that flag is deliberately flipped.
           The media is served by Instagram inside Instagram's iframe — nothing
           here is hosted or cached on TatT infrastructure. */}
-      {artist.portfolioPermalinks.length > 0 && (
+      {remainingPermalinks.length > 0 && (
         <div className="px-6 md:px-12 pb-12 md:pb-16">
           <div className="max-w-6xl mx-auto">
             <div className="text-[10px] uppercase tracking-[0.28em] text-pink mb-6 font-body border-t hairline pt-8">
-              ▸&nbsp;Recent&nbsp;work&nbsp;·&nbsp;via&nbsp;Instagram
+              ▸&nbsp;More&nbsp;recent&nbsp;work&nbsp;·&nbsp;via&nbsp;Instagram
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-8">
-              {artist.portfolioPermalinks.slice(0, PROFILE_EMBED_LIMIT).map((permalink) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+              {remainingPermalinks.map((permalink) => (
                 <InstagramEmbed
                   key={permalink}
                   permalink={permalink}
                   className="border-2 hairline bg-black/40"
-                  // A deleted/private post degrades to the same deliberate
-                  // monogram tile the hero uses — never a broken box.
+                  // A deleted/private post degrades to a compact identity
+                  // state — never a broken box or a false portfolio image.
                   fallback={
-                    <div className="aspect-[3/4] bg-pink border-2 hairline relative overflow-hidden">
-                      <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 mix-blend-multiply" />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="font-display text-[88px] leading-none text-black/25 select-none">
-                          {monogram}
-                        </span>
-                      </div>
+                    <div className="min-h-[240px] bg-pink/10 border-2 hairline flex flex-col items-center justify-center gap-4 p-8 text-center">
+                      <span className="font-display text-[52px] leading-none text-pink select-none">
+                        {monogram}
+                      </span>
+                      <span className="font-body text-[10px] uppercase tracking-[0.22em] text-white/50">
+                        Instagram post unavailable
+                      </span>
                     </div>
                   }
                 />
