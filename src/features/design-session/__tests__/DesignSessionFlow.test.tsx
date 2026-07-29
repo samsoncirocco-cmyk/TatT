@@ -7,6 +7,12 @@ import type { DesignSession } from '@/services/designSession/types';
 import { DesignSessionFlow } from '../components/DesignSessionFlow';
 import { parseBinaryChoices } from '../components/RefinementPrompt';
 
+// What the user HEARS at the reveal — derived, in-voice. The raw
+// axisSelection.rationale is an internal audit log (ADR-0012) and must
+// never render in the chat.
+const REVEAL_NARRATION =
+  'I split these four on line weight and how much detail they carry — your picks tell me which way to lean.';
+
 // The fetch client attaches Firebase bearer auth (matching the API routes'
 // verifyApiAuth gate); stub it so tests need no signed-in user.
 vi.mock('@/lib/client-api-auth', () => ({
@@ -139,8 +145,12 @@ describe('DesignSessionFlow', () => {
       meaningAnswer: 'strength after a rough year',
     });
 
-    // Reveal: axis rationale narrated + 4 designs.
-    await screen.findByText(baseSession.axisSelection.rationale);
+    // Reveal: in-voice narration + 4 designs. The raw audit rationale must
+    // never reach the transcript (a live session leaked "Questionnaire
+    // mode: intake left …" as a chat bubble).
+    await screen.findByText(REVEAL_NARRATION);
+    expect(screen.queryByText(baseSession.axisSelection.rationale)).toBeNull();
+    expect(screen.queryByText(/questionnaire mode/i)).toBeNull();
     expect(screen.getAllByAltText(/^Design \d$/)).toHaveLength(4);
 
     // Pick one → most-not-you prompt over the remaining three.
@@ -192,7 +202,7 @@ describe('DesignSessionFlow', () => {
 
     render(<DesignSessionFlow />);
     await answerIntake();
-    await screen.findByText(baseSession.axisSelection.rationale);
+    await screen.findByText(REVEAL_NARRATION);
     fireEvent.click(screen.getByRole('button', { name: 'Pick design 2' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Design 3 feels most not me' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Bolder lines' }));
@@ -218,7 +228,7 @@ describe('DesignSessionFlow', () => {
 
     expect(screen.getByRole('status', { name: 'Working' })).toBeTruthy();
     resolveStart!(jsonResponse(baseSession));
-    await screen.findByText(baseSession.axisSelection.rationale);
+    await screen.findByText(REVEAL_NARRATION);
     expect(screen.queryByRole('status', { name: 'Working' })).toBeNull();
   });
 });

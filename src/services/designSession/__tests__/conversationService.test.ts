@@ -101,6 +101,8 @@ function turnResult(overrides: Partial<ConversationTurnResult> = {}): Conversati
     stage: 'chatting',
     record: {},
     turnLog: turnLog(),
+    // The engine's notepad projection (TAT-48) — empty record, empty notes.
+    notes: { cast: [], ipHeadsUp: false, sufficient: false },
     ...overrides,
   };
 }

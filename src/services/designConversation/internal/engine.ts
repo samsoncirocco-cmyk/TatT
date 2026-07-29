@@ -31,6 +31,7 @@ import {
   charactersIn,
   characterLabelFor,
   subjectPhraseFor,
+  momentFrom,
 } from '@/services/intake/internal/characterSubject';
 import type {
   ConversationMessage,
@@ -42,12 +43,21 @@ import {
   buildSystemPrompt,
   HANDOFF_MESSAGE,
   PLACEMENT_GATE_QUESTION,
+  SUBJECT_GATE_QUESTION,
   proposalReply,
   proposalFollowUp,
+  axisSpreadProposalReply,
+  colorCallReply,
   PROPOSAL_LEAD,
+  PROPOSAL_REMINDER,
+  COLOR_QUESTION,
+  COLOR_RETRY_QUESTION,
+  IP_NOTE,
 } from './persona';
+import { detectAxisRequest, isSuggestionRequest, isAffirmation, isDrawRequest } from './intent';
 import { loadStyleTagIndex, resolveStyleTags, type StyleTagIndex } from './ontology';
 import { scoreRecord, CONFIDENCE_THRESHOLD } from './confidence';
+import { buildSessionNotes } from './notes';
 import { converseWithProviders, type RawTurnPayload } from './providers';
 import { isDemoMode, runDemoTurn } from './demoScript';
 
@@ -108,6 +118,14 @@ function sanitizeRecord(
   const meaning = asTrimmedString(raw.meaning);
   if (meaning) record.meaning = meaning;
 
+  // The model's own subject extraction. The persona has asked for this from
+  // day one, but sanitization silently dropped it — which is how a session
+  // naming five characters shipped a two-character brief (the deterministic
+  // backfill was the only source left, and it was capped). Bounded so a
+  // rambling model cannot flood the prompt path.
+  const subject = asTrimmedString(raw.subject);
+  if (subject) record.subject = subject.slice(0, 500);
+
   const rawAxes = asStringArray(raw.ambiguousAxes);
   record.ambiguousAxes = Array.isArray(raw.ambiguousAxes)
     ? VARIATION_AXIS_POOL.filter((axis): axis is VariationAxis => rawAxes.includes(axis))
@@ -121,6 +139,8 @@ function sanitizeRecord(
  * ────────────────────────────────────────────────────────────────────────── */
 
 const PLAYBACK_MEANING_MAX = 140;
+/** The scene/moment clause rides after the character list, never truncating it. */
+const PLAYBACK_MOMENT_MAX = 120;
 
 function truncateAtWord(text: string, max: number): string {
   if (text.length <= max) return text;
@@ -131,12 +151,14 @@ function truncateAtWord(text: string, max: number): string {
 
 export function buildPlayback(
   record: Partial<IntakeRecord>,
-  characterLabel?: string
+  characterLabel?: string,
+  moment?: string
 ): string {
   const tags = record.styleTags ?? [];
   const style = tags.length
     ? `${tags.map((t) => t.replace(/-/g, ' ')).join(' and ')} `
     : '';
+  const article = /^[aeiou]/i.test(style) ? 'an' : 'a';
   const placement = record.placement
     ? `on your ${record.placement}`
     : 'with the placement still open';
@@ -145,13 +167,21 @@ export function buildPlayback(
   // Deliberately the short LABEL, never `record.subject` — subject carries
   // the costume anchors the prompts need ("Goku with wild spiky black hair,
   // orange gi, ...") and dropping that here produces an unreadable sentence.
+  // The label enumerates EVERY named character (the brief owes the user the
+  // full cast, never a truncated pair), and the scene they settled on rides
+  // along after it.
   const subject = (characterLabel ?? '').trim();
   const meaning = (record.meaning ?? '').trim();
-  const tailSource = subject || meaning;
-  const tailPart = tailSource
-    ? ` — ${truncateAtWord(tailSource, PLAYBACK_MEANING_MAX)}`
-    : '';
-  return `a ${style}piece ${placement}${tailPart}`;
+  let tailPart = '';
+  if (subject) {
+    const momentPart = (moment ?? '').trim()
+      ? `, ${truncateAtWord((moment ?? '').trim(), PLAYBACK_MOMENT_MAX)}`
+      : '';
+    tailPart = ` — ${subject}${momentPart}`;
+  } else if (meaning) {
+    tailPart = ` — ${truncateAtWord(meaning, PLAYBACK_MEANING_MAX)}`;
+  }
+  return `${article} ${style}piece ${placement}${tailPart}`;
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -202,6 +232,163 @@ function lastBotMessage(messages: ConversationMessage[]): string {
   return '';
 }
 
+function botTexts(messages: ConversationMessage[]): string[] {
+  return messages.filter((m) => m.role === 'bot').map((m) => m.text);
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Question-level repeat guard. The whole-message guard above misses the
+ * live-transcript failure mode: the SAME question re-asked verbatim inside a
+ * different acknowledgment ("Killua and Hiei are both iconic. <question>" →
+ * "That's the full lineup. <same question>"), and re-asked two turns later
+ * so the last-message comparison never sees it. Questions are tracked as
+ * sentences across EVERY prior bot message; a question the bot already asked
+ * never leaves its mouth a second time.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+/** Below this, question sentences are stock phrases, not trackable asks. */
+const QUESTION_MIN_WORDS = 5;
+
+function sentencesOf(text: string): string[] {
+  return (text.match(/[^.?!]+[.?!]+|[^.?!]+$/g) ?? []).map((s) => s.trim()).filter(Boolean);
+}
+
+function isTrackableQuestion(sentence: string): boolean {
+  return sentence.endsWith('?') && wordCount(normalizeForCompare(sentence)) >= QUESTION_MIN_WORDS;
+}
+
+function askedQuestionKeys(priorBotTexts: string[]): Set<string> {
+  const keys = new Set<string>();
+  for (const text of priorBotTexts) {
+    for (const sentence of sentencesOf(text)) {
+      if (isTrackableQuestion(sentence)) keys.add(normalizeForCompare(sentence));
+    }
+  }
+  return keys;
+}
+
+/**
+ * Strip every question sentence the bot has already asked in this session.
+ * Returns the surviving text and how many questions were dropped, so the
+ * caller can log and substitute when nothing survives.
+ */
+function dropRepeatedQuestions(
+  candidate: string,
+  priorBotTexts: string[]
+): { text: string; dropped: number } {
+  const asked = askedQuestionKeys(priorBotTexts);
+  if (asked.size === 0) return { text: candidate, dropped: 0 };
+
+  let dropped = 0;
+  const kept = sentencesOf(candidate).filter((sentence) => {
+    if (isTrackableQuestion(sentence) && asked.has(normalizeForCompare(sentence))) {
+      dropped += 1;
+      return false;
+    }
+    return true;
+  });
+  return { text: kept.join(' ').trim(), dropped };
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * The color slot (ADR-0023's fixed palette question). The persona mandates
+ * exact wording, which is precisely why the engine must own the ask count:
+ * a live session heard the identical question three times because nothing
+ * deterministic tracked it. One ask, one reworded retry, then the bot makes
+ * the call and advances.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+const COLOR_ASK_KEYS = [normalizeForCompare(COLOR_QUESTION), normalizeForCompare(COLOR_RETRY_QUESTION)];
+
+function countColorAsks(messages: ConversationMessage[]): number {
+  return botTexts(messages).filter((text) => {
+    const normalized = normalizeForCompare(text);
+    return COLOR_ASK_KEYS.some((key) => normalized.includes(key));
+  }).length;
+}
+
+function asksColorQuestion(candidate: string): boolean {
+  const normalized = normalizeForCompare(candidate);
+  return COLOR_ASK_KEYS.some((key) => normalized.includes(key));
+}
+
+/** Replace a re-asked color question with the single permitted reworded retry. */
+function withColorRetry(candidate: string): string {
+  const kept = sentencesOf(candidate).filter(
+    (sentence) => !asksColorQuestion(sentence)
+  );
+  return [...kept, COLOR_RETRY_QUESTION].join(' ').trim();
+}
+
+/** Palette tags that resolve the color axis on their own (ADR-0023). */
+const PALETTE_TAGS = new Set(['color', 'blackwork', 'black-and-grey']);
+
+function isColorSlotOpen(record: Partial<IntakeRecord>): boolean {
+  const axes = record.ambiguousAxes ?? [...VARIATION_AXIS_POOL];
+  if (!axes.includes('color-blackwork')) return false;
+  return !(record.styleTags ?? []).some((tag) => PALETTE_TAGS.has(tag));
+}
+
+/** The bot's palette call: resolve the axis to color on the record. */
+function resolveColorToColor(record: Partial<IntakeRecord>, ontology: StyleTagIndex): void {
+  const colorTag = resolveStyleTags(ontology, ['color']);
+  record.styleTags = [...new Set([...(record.styleTags ?? []), ...colorTag])];
+  record.ambiguousAxes = (record.ambiguousAxes ?? []).filter(
+    (axis) => axis !== 'color-blackwork'
+  );
+}
+
+/**
+ * The user asked to SEE both poles of an axis (ADR-0012): reopen it
+ * deliberately — first in line so downstream axis selection targets it —
+ * and, for the palette axis, clear the tags that would re-resolve it.
+ */
+function applyAxisSpread(record: Partial<IntakeRecord>, axis: VariationAxis): void {
+  if (axis === 'color-blackwork') {
+    record.styleTags = (record.styleTags ?? []).filter((tag) => !PALETTE_TAGS.has(tag));
+  }
+  const rest = (record.ambiguousAxes ?? []).filter((candidate) => candidate !== axis);
+  record.ambiguousAxes = [axis, ...rest];
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Subject scan (IP rule, ADR-0023). The user's own words plus any bot pitch
+ * the user accepted with a bare affirmation — "i like it!" adopts the
+ * preceding bot message as brief material, otherwise a bot-proposed concept
+ * the user said yes to never reaches the record.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+function subjectScanText(messages: ConversationMessage[]): string {
+  const parts: string[] = [];
+  let lastBot = '';
+  for (const message of messages) {
+    if (message.role === 'bot') {
+      lastBot = message.text;
+      continue;
+    }
+    if (isAffirmation(message.text) && lastBot) parts.push(lastBot);
+    parts.push(message.text);
+  }
+  return parts.join(' ');
+}
+
+/**
+ * The one in-voice IP line (ADR-0023): said once per session, on the first
+ * proposal that carries a named subject.
+ */
+function withIpNote(
+  reply: string,
+  record: Partial<IntakeRecord>,
+  messages: ConversationMessage[]
+): string {
+  if (!(record.subject ?? '').trim()) return reply;
+  const alreadySaid = messages.some(
+    (message) => message.role === 'bot' && message.text.includes(IP_NOTE)
+  );
+  if (alreadySaid || reply.includes(IP_NOTE)) return reply;
+  return `${reply} ${IP_NOTE}`;
+}
+
 /**
  * Has the playback already been said? The proposal beat announces once; on
  * every later turn the user's message deserves a real answer rather than the
@@ -209,8 +396,11 @@ function lastBotMessage(messages: ConversationMessage[]): string {
  * model judgment, so the ADR-0021 cadence caps stay in code.
  */
 function hasAlreadyProposed(messages: ConversationMessage[]): boolean {
+  // includes(), not startsWith(): a proposal can carry a lead-in sentence
+  // (the palette recommendation, the axis-spread framing) ahead of the
+  // playback and it still counts as the announce beat having fired.
   return messages.some(
-    (message) => message.role === 'bot' && message.text.startsWith(PROPOSAL_LEAD)
+    (message) => message.role === 'bot' && message.text.includes(PROPOSAL_LEAD)
   );
 }
 
@@ -236,7 +426,12 @@ function proposalBeatReply(
   // A model that just parroted the playback adds nothing — fall back to the
   // canonical phrasing rather than echoing a near-duplicate.
   if (isRepeatOf(modelReply, lastBotMessage(messages))) return proposalReply(playback);
-  return proposalFollowUp(modelReply);
+  // A follow-up must not smuggle back a question the bot already asked —
+  // the live transcript re-asked its "what specific moments" question
+  // verbatim from the proposal beat, two turns after the first ask.
+  const { text } = dropRepeatedQuestions(modelReply, botTexts(messages));
+  if (!text) return PROPOSAL_REMINDER;
+  return proposalFollowUp(text);
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -276,25 +471,62 @@ export async function runConversationTurn(
 
   const record = sanitizeRecord(payload, ontology);
 
-  // Deterministic character detection over the user's own words. The
-  // conversation model is never asked for `subject` (it is not in the turn
-  // payload), so without this a named character reaches neither the record
-  // nor the playback. Two projections of the same matches: the full costume
-  // anchors onto `record.subject` for the prompt path (identical to what
-  // confirm would back-fill), and the short label for the spoken sentence.
-  // This runs BEFORE scoring — the readiness gate accepts a named subject in
-  // place of a meaning, so the subject has to be on the record first.
-  const characters = charactersIn(
-    request.messages
-      .filter((message) => message.role === 'user')
-      .map((message) => message.text)
-      .join(' ')
-  );
-  const subject = subjectPhraseFor(characters);
-  if (subject) record.subject = subject;
+  // Deterministic character detection over the user's own words PLUS any
+  // bot pitch the user accepted ("i like it!" adopts the preceding bot
+  // message as brief material). Two projections of the same matches: the
+  // full costume anchors onto `record.subject` for the prompt path
+  // (identical to what confirm would back-fill), and the short label for
+  // the spoken sentence. The model's own extraction (raw.subject) is kept
+  // as the fallback when the database recognizes nothing. This runs BEFORE
+  // scoring — the readiness gate accepts a named subject in place of a
+  // meaning, so the subject has to be on the record first.
+  const scanText = subjectScanText(request.messages);
+  const characters = charactersIn(scanText);
+  const moment = momentFrom(scanText);
+  const subjectBase = subjectPhraseFor(characters) ?? asTrimmedString(record.subject);
+  if (subjectBase) {
+    record.subject =
+      moment && !subjectBase.includes(moment) ? `${subjectBase}, ${moment}` : subjectBase;
+  }
+  // IP rule, enforced at extraction (ADR-0023, deliberately in addition to
+  // the confirm-time enforcement): a named subject locks literal-abstract —
+  // a recognizable depiction is the point, so the axis is never offered.
+  if ((record.subject ?? '').trim()) {
+    record.ambiguousAxes = (record.ambiguousAxes ?? []).filter(
+      (axis) => axis !== 'literal-abstract'
+    );
+  }
   const characterLabel = characterLabelFor(characters);
 
-  const { confidence, missingFields, hasRequiredFields } = scoreRecord(record);
+  // Deterministic intent detection on the message being answered — the
+  // three shapes a live session showed the model mishandling outright.
+  const lastUserMessage =
+    [...request.messages].reverse().find((message) => message.role === 'user')?.text ?? '';
+  const axisRequest = detectAxisRequest(lastUserMessage);
+  if (axisRequest) applyAxisSpread(record, axisRequest.axis);
+  // The visible fast lane (TAT-48): "skip the questions — just draw". An
+  // axis request wins when both fire — it carries more information (which
+  // axis to spread), and both end at the same proposal beat.
+  const drawRequest = !axisRequest && isDrawRequest(lastUserMessage);
+
+  const colorAsks = countColorAsks(request.messages);
+  let colorCall: 'recommendation' | 'decision' | undefined;
+  if (
+    !axisRequest &&
+    isColorSlotOpen(record) &&
+    colorAsks >= 1 &&
+    isSuggestionRequest(lastUserMessage)
+  ) {
+    // "which do you suggest" on the open palette slot: the consultant
+    // recommends (ADR-0023) — a direct ask gets a direct answer, never
+    // "I'm not here to suggest styles".
+    colorCall = 'recommendation';
+    resolveColorToColor(record, ontology);
+  }
+
+  let { confidence, missingFields, hasRequiredFields } = scoreRecord(record);
+  const hasPlacement = Boolean((record.placement ?? '').trim());
+  const hasNamedCharacters = Boolean((record.subject ?? '').trim());
 
   // Cadence — deterministic code, not model judgment (ADR-0021).
   let stage: ConversationStage;
@@ -307,11 +539,15 @@ export async function runConversationTurn(
     firedRule = 'turn20-handoff';
     reply = HANDOFF_MESSAGE;
   } else if (request.userTurn >= FORCE_PROPOSAL_TURN) {
-    if ((record.placement ?? '').trim()) {
+    if (hasPlacement) {
       stage = 'proposal';
       firedRule = 'turn12-force-proposal';
-      playback = buildPlayback(record, characterLabel);
-      reply = proposalBeatReply(playback, payload, request.messages);
+      playback = buildPlayback(record, characterLabel, moment);
+      reply = withIpNote(
+        proposalBeatReply(playback, payload, request.messages),
+        record,
+        request.messages
+      );
     } else {
       // The placement gate (ADR-0021 amendment, owner decision 2026-07-27):
       // the forced proposal may guess past every open question EXCEPT
@@ -323,29 +559,127 @@ export async function runConversationTurn(
       firedRule = 'turn12-ask-placement';
       reply = PLACEMENT_GATE_QUESTION;
     }
+  } else if (axisRequest && hasPlacement && hasRequiredFields) {
+    // "Can I see both X and Y" IS the proposal trigger (ADR-0012/0020): the
+    // brief plays back in one line and the reveal spreads that axis. The
+    // bot NEVER denies generation capability.
+    stage = 'proposal';
+    firedRule = 'axis-request-proposal';
+    playback = buildPlayback(record, characterLabel, moment);
+    reply = withIpNote(
+      axisSpreadProposalReply(playback, axisRequest.labels),
+      record,
+      request.messages
+    );
+  } else if (axisRequest) {
+    // Spread requested but the brief cannot render yet — placement is a hard
+    // constraint and there must be something to draw. Say yes, then close
+    // the one real gap.
+    stage = 'chatting';
+    firedRule = 'none';
+    reply = `Both — good instinct, the four takes can carry ${axisRequest.labels[0]} and ${axisRequest.labels[1]} side by side. ${
+      hasPlacement ? SUBJECT_GATE_QUESTION : PLACEMENT_GATE_QUESTION
+    }`;
+  } else if (drawRequest && hasRequiredFields) {
+    // Skip-the-questions honored (TAT-48): the record can already generate
+    // — placement plus something to draw, the same gate confirm enforces —
+    // so the request IS the proposal trigger. The playback still runs, so
+    // ADR-0020's announce + consent beat is never skipped.
+    stage = 'proposal';
+    firedRule = 'draw-request-proposal';
+    playback = buildPlayback(record, characterLabel, moment);
+    reply = withIpNote(
+      proposalBeatReply(playback, payload, request.messages),
+      record,
+      request.messages
+    );
+  } else if (drawRequest) {
+    // They asked to skip ahead but there is not yet anything to draw — say
+    // yes, then close the one real gap (mirrors the axis-request path;
+    // never a refusal, never a limit).
+    stage = 'chatting';
+    firedRule = 'none';
+    reply = `Deal — no more questions than I actually need. ${
+      hasPlacement ? SUBJECT_GATE_QUESTION : PLACEMENT_GATE_QUESTION
+    }`;
+  } else if (colorCall) {
+    reply = colorCallReply(colorCall, hasNamedCharacters);
+    if (hasRequiredFields) {
+      stage = 'proposal';
+      firedRule = 'style-recommendation';
+      playback = buildPlayback(record, characterLabel, moment);
+      reply = withIpNote(`${reply} ${proposalReply(playback)}`, record, request.messages);
+    } else {
+      stage = 'chatting';
+      firedRule = 'none';
+      reply = `${reply} ${hasPlacement ? SUBJECT_GATE_QUESTION : PLACEMENT_GATE_QUESTION}`;
+    }
   } else if (confidence >= CONFIDENCE_THRESHOLD && hasRequiredFields) {
     stage = 'proposal';
     firedRule = 'judgment';
-    playback = buildPlayback(record, characterLabel);
-    reply = proposalBeatReply(playback, payload, request.messages);
+    playback = buildPlayback(record, characterLabel, moment);
+    reply = withIpNote(
+      proposalBeatReply(playback, payload, request.messages),
+      record,
+      request.messages
+    );
   } else {
     stage = 'chatting';
     firedRule = 'none';
-    const candidate =
+    let candidate =
       asTrimmedString(payload.reply) ||
       "Tell me more — what's drawing you to this piece?";
-    const previousBotMessage = lastBotMessage(request.messages);
-    if (isRepeatOf(candidate, previousBotMessage)) {
-      logger.warn({
-        event_type: 'design_conversation.repeated_reply',
-        turn: request.userTurn,
-        model,
-        repeated: candidate,
-      });
-      reply = REPEAT_FALLBACK;
-    } else {
-      reply = candidate;
+
+    // The color slot is chased at most twice (ask + one reworded retry) —
+    // on a third attempt the bot makes the call itself and advances, in
+    // voice, never surfacing a limit.
+    if (isColorSlotOpen(record) && asksColorQuestion(candidate) && colorAsks >= 1) {
+      if (colorAsks >= 2) {
+        resolveColorToColor(record, ontology);
+        ({ confidence, missingFields, hasRequiredFields } = scoreRecord(record));
+        const decision = colorCallReply('decision', hasNamedCharacters);
+        if (hasRequiredFields) {
+          stage = 'proposal';
+          firedRule = 'style-recommendation';
+          playback = buildPlayback(record, characterLabel, moment);
+          candidate = withIpNote(
+            `${decision} ${proposalReply(playback)}`,
+            record,
+            request.messages
+          );
+        } else {
+          candidate = `${decision} ${hasPlacement ? SUBJECT_GATE_QUESTION : PLACEMENT_GATE_QUESTION}`;
+        }
+      } else {
+        candidate = withColorRetry(candidate);
+      }
     }
+
+    if (stage === 'chatting') {
+      // Never re-ask ANY question verbatim — checked against every prior
+      // bot message, not just the last one.
+      const deduped = dropRepeatedQuestions(candidate, botTexts(request.messages));
+      if (deduped.dropped > 0) {
+        logger.warn({
+          event_type: 'design_conversation.repeated_reply',
+          turn: request.userTurn,
+          model,
+          repeated: candidate,
+        });
+        candidate = deduped.text || REPEAT_FALLBACK;
+      }
+      const previousBotMessage = lastBotMessage(request.messages);
+      if (isRepeatOf(candidate, previousBotMessage)) {
+        logger.warn({
+          event_type: 'design_conversation.repeated_reply',
+          turn: request.userTurn,
+          model,
+          repeated: candidate,
+        });
+        candidate = REPEAT_FALLBACK;
+      }
+    }
+    reply = candidate;
   }
 
   const turnLog: TurnLog = {
@@ -363,5 +697,9 @@ export async function runConversationTurn(
     ...(playback !== undefined ? { playback } : {}),
     record,
     turnLog,
+    // The notepad projection (TAT-48) — built AFTER every branch above, so
+    // it reflects the record the branches may have resolved (palette calls,
+    // axis spreads). The only record view that ever reaches the browser.
+    notes: buildSessionNotes(record, characters, moment),
   };
 }
