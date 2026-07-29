@@ -13,6 +13,7 @@ experience. The whole channel ships **dark** behind `SKETCHBOT_SMS_ENABLED`.
 | `TWILIO_ACCOUNT_SID` | — | Twilio account SID (`AC…`). Server-side only. |
 | `TWILIO_AUTH_TOKEN` | — | Verifies `X-Twilio-Signature` (HMAC-SHA1 is keyed on the auth token specifically — an API key secret cannot substitute). Unset/placeholder ⇒ webhook fails closed with 503. |
 | `TWILIO_PHONE_NUMBER` | — | The purchased number, E.164 (`+1…`). Outbound sender when no Messaging Service is set. |
+| `TWILIO_WEBHOOK_URL` | derived | The **exact** webhook URL configured on the number/Messaging Service. The signature is HMAC'd over this string byte-for-byte — set it verbatim (`https://tatttester.com/api/webhooks/twilio`, no trailing slash). Unset ⇒ derived from `NEXT_PUBLIC_APP_URL` + the route path. Never reconstructed from request headers (proxy hops broke that in prod — genuine Twilio traffic 403'd). |
 | `TWILIO_MESSAGING_SERVICE_SID` | unset | Optional (`MG…`). When set, outbound sends go through the Messaging Service instead of `from` — the cleaner A2P 10DLC integration point (campaign, sender pool, and Advanced Opt-Out live on it). |
 | `TWILIO_API_KEY_SID` / `TWILIO_API_KEY_SECRET` | unset | Optional standard API key pair for outbound sends (revocable, least-privilege). When both are set the client authenticates with them (`apiKeySid, apiKeySecret, { accountSid }`); otherwise it falls back to the auth token. |
 | `SKETCHBOT_SMS_REVEALS_PER_DAY` | `2` | Per-phone reveal cap per UTC day. Reserved atomically **before** generation. |
@@ -69,8 +70,10 @@ inside the global `BUDGET_MAX_SPEND_CENTS` cap like all other spend.
 6. **Point the webhook**: on the Messaging Service (Integration →
    "Send a webhook") — or on the bare number if skipping the service —
    `POST` to `https://tatttester.com/api/webhooks/twilio`.
-   The URL in the console must match this **exactly** (scheme, host, path —
-   no trailing slash): the signature is computed over it.
+   Set `TWILIO_WEBHOOK_URL` to the **identical** string (scheme, host,
+   path — no trailing slash): the signature is computed over it, and the
+   server validates against this configured value, never against request
+   headers.
 7. **(Optional) mint an API key** (Account → API keys): standard key,
    copy the SID + secret into `TWILIO_API_KEY_SID`/`TWILIO_API_KEY_SECRET`.
    The auth token is still required either way — inbound signature
