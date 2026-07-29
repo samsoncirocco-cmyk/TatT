@@ -40,3 +40,73 @@ describe('PrivacyPage — SMS section (TAT-49)', () => {
     );
   });
 });
+
+describe('PrivacyPage — v1.0 published policy', () => {
+  it('shows standard versioning instead of the draft banner', () => {
+    render(<PrivacyPage />);
+    const text = document.body.textContent ?? '';
+    expect(text).toContain('v1.0');
+    expect(text).not.toContain('draft');
+    expect(text).not.toContain('Draft — not yet reviewed by a lawyer');
+    expect(text).toMatch(/announce material changes on this page/i);
+  });
+
+  it('keeps the section 4 continuity promise', () => {
+    render(<PrivacyPage />);
+    const text = document.body.textContent ?? '';
+    // The removal-right substance must not change silently (TAT-31).
+    expect(text).toMatch(
+      /substance of section 4 — the removal right for artists, and what removal actually does/
+    );
+    expect(
+      screen.getByRole('heading', { name: /artists we listed without asking/i })
+    ).toBeTruthy();
+  });
+
+  it('states prominently that the AR mirror never uploads camera frames', () => {
+    render(<PrivacyPage />);
+    const text = document.body.textContent ?? '';
+    // Verified against src/services/ar/arService.js and src/features/ar/ —
+    // the camera stream feeds a local <video>, capture composites on a local
+    // canvas and downloads via a blob URL. No network path exists.
+    expect(text).toContain('The AR mirror runs entirely on your device.');
+    expect(text).toMatch(/camera frames are not uploaded, stored, or sent to us/);
+    expect(text).toMatch(/saves the\s+picture to your device, not to TattTester/);
+  });
+
+  it('enumerates the real service providers', () => {
+    render(<PrivacyPage />);
+    const text = document.body.textContent ?? '';
+    for (const provider of [
+      'Stripe',
+      'Google Cloud, Firebase and Vertex AI',
+      'Replicate',
+      'OpenRouter',
+      'Twilio',
+      'Vercel',
+      'Resend',
+      'Supabase and Neo4j',
+      'Instagram (Meta)',
+    ]) {
+      expect(text).toContain(provider);
+    }
+  });
+
+  it('says card numbers never touch our servers (Stripe-hosted checkout)', () => {
+    render(<PrivacyPage />);
+    expect(document.body.textContent).toMatch(
+      /card number goes to Stripe directly and never touches our servers/
+    );
+  });
+
+  it('carries the retention, adults-only, and contact sections', () => {
+    render(<PrivacyPage />);
+    const text = document.body.textContent ?? '';
+    expect(
+      screen.getByRole('heading', { name: /how long we keep things/i })
+    ).toBeTruthy();
+    expect(text).toMatch(/until you delete it or ask us to/);
+    expect(text).toMatch(/TattTester is for adults/);
+    expect(text).toContain('support@tatttester.com');
+  });
+});
