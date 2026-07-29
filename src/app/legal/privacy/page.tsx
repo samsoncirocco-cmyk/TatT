@@ -29,10 +29,11 @@
  */
 import Link from "next/link";
 import StudioShell from "@/components/studio/StudioShell";
+import QuietHeadline from "@/components/quiet/QuietHeadline";
 
 function H2({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="font-display text-white text-[22px] md:text-[26px] tracking-wide pt-10 pb-1">
+    <h2 className="font-display-quiet text-quiet text-[20px] md:text-[22px] pt-12 pb-1">
       {children}
     </h2>
   );
@@ -40,7 +41,7 @@ function H2({ children }: { children: React.ReactNode }) {
 
 function H3({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="font-display text-white/90 text-[16px] md:text-[18px] tracking-wide pt-6 pb-1">
+    <h3 className="font-display-quiet text-quiet/90 text-[15px] md:text-[16px] pt-8 pb-1">
       {children}
     </h3>
   );
@@ -48,36 +49,29 @@ function H3({ children }: { children: React.ReactNode }) {
 
 export default function PrivacyPage() {
   return (
-    <StudioShell>
-      <div className="px-6 md:px-12 pt-6 pb-4 border-b hairline">
-        <div className="max-w-3xl mx-auto flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/50 tabular-nums font-body">
-          <span>
-            <span className="text-pink">●</span>&nbsp;&nbsp;Legal&nbsp;/&nbsp;Privacy
-          </span>
-          <span>
-            v0.2&nbsp;<span className="text-pink">draft</span>
-          </span>
+    <StudioShell quiet>
+      <div className="px-6 md:px-12 pt-8 pb-6 border-b hairline-quiet-soft">
+        <div className="max-w-3xl mx-auto flex items-center justify-between text-[12px] text-quiet-dim tabular-nums font-body">
+          <span>Legal / Privacy</span>
+          <span>v0.2 draft</span>
         </div>
       </div>
 
-      <div className="px-6 md:px-12 py-16 md:py-24">
+      <div className="px-6 md:px-12 py-24 md:py-32">
         <div className="max-w-3xl mx-auto">
-          <h1 className="font-display text-white text-[48px] sm:text-[80px] leading-[0.88] tracking-[0.005em]">
-            Privacy&nbsp;<span className="slash"><span>policy</span></span>
-            <span className="text-pink">.</span>
-          </h1>
-          <p className="mt-6 text-[10px] uppercase tracking-[0.25em] text-white/40 font-body tabular-nums">
-            Last updated:&nbsp;<span className="text-pink">26 July 2026</span>
+          <QuietHeadline>Privacy policy</QuietHeadline>
+          <p className="mt-6 text-[12px] text-quiet-dim font-body tabular-nums">
+            Last updated: 26 July 2026
           </p>
 
           {/* Not boilerplate. This text has not been through counsel, and
               section 4 makes commitments about other people's data — readers
               are entitled to know its status. */}
-          <div className="mt-10 border-2 hairline p-5 md:p-6 bg-white/[0.03]">
-            <div className="font-display text-pink text-[14px] tracking-widest uppercase">
+          <div className="mt-14 border hairline-quiet p-6 md:p-8 bg-white/[0.03]">
+            <div className="font-display-quiet text-quiet text-[15px]">
               Draft — not yet reviewed by a lawyer
             </div>
-            <p className="mt-3 text-[13px] text-white/70 font-body leading-[1.6]">
+            <p className="mt-4 text-[13px] text-quiet-dim font-body leading-[1.7]">
               This document is published in draft so that it is available to the people it
               concerns, particularly the artists described in section 4. It has not been
               reviewed by counsel and its wording may change. What will not change without
@@ -86,14 +80,14 @@ export default function PrivacyPage() {
             </p>
           </div>
 
-          <div className="mt-12 space-y-4 text-[14px] text-white/70 font-body leading-[1.7] border-t-2 hairline pt-10">
-            <p className="text-[15px] text-white">
+          <div className="mt-16 space-y-5 text-[14px] text-quiet-dim font-body leading-[1.8] border-t hairline-quiet-soft pt-12">
+            <p className="text-[15px] text-quiet">
               TattTester holds personal data about two groups of people who are in very different
               positions. Sections 1 to 3 cover people who signed up. Section 4 covers tattoo
               artists whose details we collected from the public internet without asking them
               first. If you are an artist who found your name or your work on this site and
               did not put it there,{" "}
-              <a href="#artists" className="text-pink hover:underline">
+              <a href="#artists" className="text-quiet underline underline-offset-4 hover:text-white">
                 section 4 is the one you want
               </a>
               .
@@ -127,8 +121,8 @@ export default function PrivacyPage() {
             <div id="artists" className="scroll-mt-24" />
             <H2>4.&nbsp;Artists we listed without asking</H2>
 
-            <div className="border-l-2 border-pink pl-5 py-1 my-5">
-              <p className="text-white text-[15px]">
+            <div className="border-l-2 border-quiet/50 pl-5 py-1 my-6">
+              <p className="text-quiet text-[15px]">
                 We built TattTester&rsquo;s artist directory by collecting public information about
                 tattoo artists from the internet, and we did not ask permission first. If you
                 are one of those artists, you did not agree to any of this, and you can have it
@@ -139,7 +133,7 @@ export default function PrivacyPage() {
             <H3>4.1&nbsp;&mdash;&nbsp;What we collected, and from where</H3>
             <p>
               We gathered information about roughly{" "}
-              <strong className="text-white">7,800 tattoo artists</strong> from publicly
+              <strong className="text-quiet">7,800 tattoo artists</strong> from publicly
               accessible sources: studio and shop websites, public artist directories, and
               public Instagram profiles. For each artist this typically included some
               combination of name, Instagram handle, studio or shop name, city and state,
@@ -148,7 +142,7 @@ export default function PrivacyPage() {
             </p>
             <p>
               We also{" "}
-              <strong className="text-white">
+              <strong className="text-quiet">
                 downloaded portfolio photographs and re-hosted approximately 62,000 of them on
                 TattTester&rsquo;s own storage
               </strong>
@@ -168,18 +162,18 @@ export default function PrivacyPage() {
               You can ask us to remove you. You do not need a TattTester account, a lawyer, or a
               reason.
             </p>
-            <ul className="list-disc pl-6 space-y-2 marker:text-pink">
+            <ul className="list-disc pl-6 space-y-2 marker:text-quiet-dim">
               <li>
                 Use the removal link on your profile page, which goes to a form at{" "}
-                <span className="text-white">/takedown</span>.
+                <span className="text-quiet">/takedown</span>.
               </li>
               <li>
                 Or email us. Either way, tell us which profile is yours and how to reach you.
               </li>
               <li>
                 You can ask us to remove{" "}
-                <strong className="text-white">your photographs only</strong> and leave the
-                basic listing, or to remove <strong className="text-white">everything</strong>.
+                <strong className="text-quiet">your photographs only</strong> and leave the
+                basic listing, or to remove <strong className="text-quiet">everything</strong>.
                 If you do not say, we remove everything.
               </li>
             </ul>
@@ -193,8 +187,8 @@ export default function PrivacyPage() {
             <H3>4.3&nbsp;&mdash;&nbsp;What removal deletes, and what it does not</H3>
             <p>You are entitled to the exact answer rather than a reassuring one.</p>
 
-            <p className="text-white pt-2">Permanently deleted:</p>
-            <ul className="list-disc pl-6 space-y-2 marker:text-pink">
+            <p className="text-quiet pt-2">Permanently deleted:</p>
+            <ul className="list-disc pl-6 space-y-2 marker:text-quiet-dim">
               <li>
                 Every portfolio photograph of yours that we re-hosted. Deleted from our
                 storage, not hidden.
@@ -213,29 +207,29 @@ export default function PrivacyPage() {
               </li>
             </ul>
 
-            <p className="text-white pt-4">Retained, and why:</p>
-            <ul className="list-disc pl-6 space-y-2 marker:text-pink">
+            <p className="text-quiet pt-4">Retained, and why:</p>
+            <ul className="list-disc pl-6 space-y-2 marker:text-quiet-dim">
               <li>
-                <strong className="text-white">An emptied database record.</strong> We keep a
+                <strong className="text-quiet">An emptied database record.</strong> We keep a
                 stripped record identified only by an internal ID, with the date of your
                 removal. It holds no personal details. It exists because deleting the record
                 outright would break links to any payment held in your name, and would destroy
                 our own proof that we honoured your request.
               </li>
               <li>
-                <strong className="text-white">Any payment record</strong> created by a client
+                <strong className="text-quiet">Any payment record</strong> created by a client
                 leaving a deposit for you. Where a client&rsquo;s money is involved we cannot
                 simply delete the record; we resolve the payment first, and our removal tool
                 refuses to run while one is outstanding.
               </li>
               <li>
-                <strong className="text-white">A record of the removal itself.</strong> See 4.4
+                <strong className="text-quiet">A record of the removal itself.</strong> See 4.4
                 — this one deserves its own explanation.
               </li>
             </ul>
 
-            <p className="text-white pt-4">What we cannot promise:</p>
-            <ul className="list-disc pl-6 space-y-2 marker:text-pink">
+            <p className="text-quiet pt-4">What we cannot promise:</p>
+            <ul className="list-disc pl-6 space-y-2 marker:text-quiet-dim">
               <li>
                 Copies held elsewhere. Search engines, caches and content delivery networks may
                 serve old copies of images for a period after we delete them. We cannot reach
@@ -256,15 +250,15 @@ export default function PrivacyPage() {
             </p>
             <p>
               So when we remove you, we permanently record{" "}
-              <strong className="text-white">your Instagram handle</strong> (and internal
+              <strong className="text-quiet">your Instagram handle</strong> (and internal
               identifiers) on a suppression list that every collection process checks before
               adding anyone. Your handle is the only identifier that stays stable between runs,
               which is why we keep that specifically.
             </p>
-            <div className="border-l-2 border-white/25 pl-5 py-1 my-4">
+            <div className="border-l-2 border-quiet/30 pl-5 py-1 my-5">
               <p>
                 Being straightforward about the trade-off:{" "}
-                <strong className="text-white">
+                <strong className="text-quiet">
                   this suppression list is itself retained personal data
                 </strong>
                 . We keep one piece of information about you indefinitely, for the specific and
@@ -283,20 +277,20 @@ export default function PrivacyPage() {
             <H3>4.5&nbsp;&mdash;&nbsp;Coming back, if you ever want to</H3>
             <p>
               Removal is not a ban. The suppression list stops{" "}
-              <em className="text-white/90">us</em> adding you; it does not stop{" "}
-              <em className="text-white/90">you</em> joining. If you later decide you want a
+              <em className="text-quiet/90">us</em> adding you; it does not stop{" "}
+              <em className="text-quiet/90">you</em> joining. If you later decide you want a
               TattTester profile, you can create an account and claim one deliberately.
             </p>
             <p>Two things are worth knowing before you do:</p>
-            <ul className="list-disc pl-6 space-y-2 marker:text-pink">
+            <ul className="list-disc pl-6 space-y-2 marker:text-quiet-dim">
               <li>
-                <strong className="text-white">Nothing comes back.</strong> Your photographs and
+                <strong className="text-quiet">Nothing comes back.</strong> Your photographs and
                 details were genuinely destroyed. You would start from an empty profile and fill
                 it in yourself. We cannot undo the deletion, and we would not want to be able
                 to.
               </li>
               <li>
-                <strong className="text-white">
+                <strong className="text-quiet">
                   Our automated collection stays blocked permanently
                 </strong>
                 , even after you join. Your profile is yours; a later collection run must never
@@ -311,7 +305,7 @@ export default function PrivacyPage() {
               take someone else&rsquo;s.
             </p>
             <p className="pt-1">
-              <strong className="text-white">To have yourself removed</strong>, we normally ask
+              <strong className="text-quiet">To have yourself removed</strong>, we normally ask
               you to show control of the Instagram account shown on the profile — usually by
               posting a short code we send you, or messaging us from that account. If you no
               longer have that account, or never had one, tell us and we will find another way.
@@ -319,7 +313,7 @@ export default function PrivacyPage() {
               listed against their wishes.
             </p>
             <p className="pt-1">
-              <strong className="text-white">To claim or reinstate a profile</strong>, the bar
+              <strong className="text-quiet">To claim or reinstate a profile</strong>, the bar
               is higher, because a claimed profile can receive client deposits. We require an
               account, proof of control of the Instagram handle, and review by a person before
               any profile is bound to you.
@@ -349,7 +343,7 @@ export default function PrivacyPage() {
             <p>
               For anything in this policy, including removal requests and questions about what
               we hold, contact us via the{" "}
-              <Link href="/about" className="text-pink hover:underline">
+              <Link href="/about" className="text-quiet underline underline-offset-4 hover:text-white">
                 about page
               </Link>
               . If you are an artist asking to be removed, you do not need an account and you do

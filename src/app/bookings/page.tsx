@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import StudioShell from "@/components/studio/StudioShell";
-import SlashHeadline from "@/components/punk/SlashHeadline";
+import QuietHeadline from "@/components/quiet/QuietHeadline";
+import QuietCTA from "@/components/quiet/QuietCTA";
 import { useBookings, useDesigns, type TattBooking } from "@/lib/tattStorage";
 import { getApiAuthHeaders } from "@/lib/client-api-auth";
 import type { BookingStatus } from "@/lib/booking";
@@ -64,37 +64,36 @@ function serverDisplayDate(b: ServerBooking): string {
 function ServerBookingCard({ b }: { b: ServerBooking }) {
   const active = ACTIVE_STATUSES.has(b.status ?? "pending");
   return (
-    <div className="border-2 hairline p-6 md:p-8 relative">
+    <div className="border hairline-quiet p-8 md:p-10 relative">
       <div className="flex items-baseline justify-between gap-6 flex-wrap">
         <div>
-          <div className="font-display text-white text-[32px] sm:text-[40px] leading-none tracking-tight">
+          <div className="font-display-quiet text-quiet text-[24px] sm:text-[28px] leading-none">
             {serverDisplayDate(b)}
-            <span className="text-pink">.</span>
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-3 text-[10px] uppercase tracking-[0.25em] text-white/60 font-body">
+          <div className="mt-4 flex flex-wrap items-center gap-3 text-[12px] text-quiet-dim font-body">
             <span>
-              Artist:&nbsp;<span className="text-white">{b.artistName ?? "TBC"}</span>
+              Artist:&nbsp;<span className="text-quiet">{b.artistName ?? "TBC"}</span>
             </span>
-            <span className="text-pink">●</span>
+            <span>·</span>
             <span>
-              Ref:&nbsp;<span className="text-white">{b.bookingId ?? b.id}</span>
+              Ref:&nbsp;<span className="text-quiet">{b.bookingId ?? b.id}</span>
             </span>
             {b.depositAmount != null && (
               <>
-                <span className="text-pink">●</span>
+                <span>·</span>
                 <span>
-                  Deposit:&nbsp;<span className="text-pink">${String(b.depositAmount)}</span>
+                  Deposit:&nbsp;<span className="text-quiet">${String(b.depositAmount)}</span>
                 </span>
               </>
             )}
           </div>
         </div>
-        <div className="sticker inline-block px-3 py-1">
-          <div className="font-display text-[14px] tracking-widest leading-none">
+        <div className="inline-block border hairline-quiet px-3 py-2">
+          <div className="font-display-quiet text-quiet text-[13px] leading-none">
             {statusLabel(b.status)}
           </div>
-          <div className="font-body text-[10px] uppercase tracking-widest leading-none mt-0.5">
-            {active ? "Studio Hold" : "Request"}
+          <div className="font-body text-[10px] text-quiet-dim leading-none mt-1">
+            {active ? "Studio hold" : "Request"}
           </div>
         </div>
       </div>
@@ -114,30 +113,29 @@ function BookingCard({
   onRemove: () => void;
 }) {
   return (
-    <div className="border-2 hairline p-6 md:p-8 relative group">
+    <div className="border hairline-quiet p-8 md:p-10 relative group">
       <div className="flex items-baseline justify-between gap-6 flex-wrap">
         <div>
-          <div className="font-display text-white text-[32px] sm:text-[40px] leading-none tracking-tight">
+          <div className="font-display-quiet text-quiet text-[24px] sm:text-[28px] leading-none">
             {formatBookingDate(b.date)}
-            <span className="text-pink">.</span>
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-3 text-[10px] uppercase tracking-[0.25em] text-white/60 font-body">
-            <span>Design:&nbsp;<span className="text-white">{designLabel}</span></span>
-            <span className="text-pink">●</span>
+          <div className="mt-4 flex flex-wrap items-center gap-3 text-[12px] text-quiet-dim font-body">
+            <span>Design:&nbsp;<span className="text-quiet">{designLabel}</span></span>
+            <span>·</span>
             <span>
               Deposit:&nbsp;
-              <span className="text-pink">
+              <span className="text-quiet">
                 {b.depositPaid ? "Paid" : "Pending"}
               </span>
             </span>
           </div>
         </div>
-        <div className="sticker inline-block px-3 py-1">
-          <div className="font-display text-[14px] tracking-widest leading-none">
+        <div className="inline-block border hairline-quiet px-3 py-2">
+          <div className="font-display-quiet text-quiet text-[13px] leading-none">
             Confirmed
           </div>
-          <div className="font-body text-[10px] uppercase tracking-widest leading-none mt-0.5">
-            Studio&nbsp;Hold
+          <div className="font-body text-[10px] text-quiet-dim leading-none mt-1">
+            Studio hold
           </div>
         </div>
       </div>
@@ -146,7 +144,7 @@ function BookingCard({
           if (confirm("Cancel this booking?")) onRemove();
         }}
         aria-label="Cancel booking"
-        className="absolute top-3 right-3 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-pink border hairline opacity-0 group-hover:opacity-100 transition-opacity press font-body"
+        className="absolute top-3 right-3 px-3 py-1.5 text-[11px] text-quiet-dim hover:text-white border hairline-quiet-soft opacity-0 group-hover:opacity-100 transition-opacity press font-body"
       >
         Cancel
       </button>
@@ -210,65 +208,46 @@ export default function BookingsPage() {
   const showEmpty = ready && count === 0;
 
   return (
-    <StudioShell>
-      <div className="px-6 md:px-12 pt-6 pb-4 border-b hairline">
-        <div className="max-w-5xl mx-auto flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/50 tabular-nums font-body">
-          <span>
-            <span className="text-pink">●</span>&nbsp;&nbsp;Bookings
-          </span>
-          <span>
-            Holds:&nbsp;
-            <span className="text-pink">{ready ? count : "—"}</span>
-          </span>
+    <StudioShell quiet>
+      <div className="px-6 md:px-12 pt-8 pb-6 border-b hairline-quiet-soft">
+        <div className="max-w-5xl mx-auto flex items-center justify-between text-[12px] text-quiet-dim tabular-nums font-body">
+          <span>Bookings</span>
+          <span>Holds: {ready ? count : "—"}</span>
         </div>
       </div>
 
-      <div className="px-6 md:px-12 py-16 md:py-20">
+      <div className="px-6 md:px-12 py-24 md:py-32">
         <div className="max-w-5xl mx-auto">
           <div className="flex items-end justify-between gap-6 flex-wrap">
-            <SlashHeadline
-              before="Chair"
-              slashed="time"
-              size="section"
-            />
-            <Link
-              href="/book"
-              className="tape press inline-flex items-center justify-center px-6 py-3 font-display text-[20px] leading-none tracking-[0.02em]"
-            >
-              New Booking
-              <span className="ml-2 text-[14px]">▸</span>
-            </Link>
+            <QuietHeadline>Chair time</QuietHeadline>
+            <QuietCTA href="/book" size="md">New booking</QuietCTA>
           </div>
 
           {/* The money sentence (ADR-0036): who pays what, who keeps what. */}
-          <p className="mt-4 font-body text-[12px] text-white/50 leading-[1.6]">
+          <p className="mt-6 font-body text-[14px] text-quiet leading-[1.7] max-w-xl">
             {bookingMoneyCopy.bookingsList}
           </p>
 
           {showEmpty ? (
-            <div className="mt-20 border-2 hairline py-24 px-6 text-center">
-              <div className="font-display text-[40px] sm:text-[56px] leading-[0.95] text-white">
-                <span className="scribble text-pink">No bookings yet.</span>
+            <div className="mt-24 border hairline-quiet py-28 px-6 text-center">
+              <div className="font-display-quiet text-[26px] sm:text-[32px] leading-[1.1] text-quiet">
+                No bookings yet.
               </div>
-              <p className="mt-4 text-[12px] uppercase tracking-[0.2em] text-white/50 font-body">
+              <p className="mt-5 text-[13px] text-quiet-dim font-body">
                 The chair&apos;s open.
               </p>
-              <Link
-                href="/book"
-                className="mt-10 tape press inline-flex items-center justify-center px-8 py-4 font-display text-[24px] leading-none tracking-[0.02em]"
-              >
-                Book the Chair
-                <span className="ml-3 text-[18px]">▸</span>
-              </Link>
+              <div className="mt-12">
+                <QuietCTA href="/book" size="lg">Book the chair</QuietCTA>
+              </div>
             </div>
           ) : useServer ? (
-            <div className="mt-12 space-y-4">
+            <div className="mt-16 space-y-6">
               {server.map((b) => (
                 <ServerBookingCard key={b.id} b={b} />
               ))}
             </div>
           ) : (
-            <div className="mt-12 space-y-4">
+            <div className="mt-16 space-y-6">
               {bookings.map((b) => (
                 <BookingCard
                   key={b.id}

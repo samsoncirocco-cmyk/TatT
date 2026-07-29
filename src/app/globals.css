@@ -43,6 +43,15 @@ body {
   font-family: 'Space Mono', 'Menlo', monospace;
 }
 
+/* QUIET DARK (ADR-0032) — same display family, volume down: sentence case,
+   smaller sizes, no forced uppercase. For the calm register only. */
+.font-display-quiet {
+  font-family: 'Anton', 'Impact', 'Arial Narrow', sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.015em;
+  text-transform: none;
+}
+
 /* HALFTONE PINK DOT PATTERN — fixed background, low-density, like a screenprint */
 .halftone {
   position: relative;
@@ -79,6 +88,10 @@ body {
   .hairline      { border-color: rgba(255, 31, 107, 0.35); }
   .hairline-soft { border-color: rgba(245, 245, 240, 0.10); }
   .hairline-white { border-color: rgba(245, 245, 240, 0.20); }
+
+  /* Quiet dark hairlines (ADR-0032) — warm gray at low alpha, never pink */
+  .hairline-quiet      { border-color: rgba(201, 197, 190, 0.28); }
+  .hairline-quiet-soft { border-color: rgba(201, 197, 190, 0.14); }
 
   /* Diagonal slash on a word — the headline cut */
   .slash {

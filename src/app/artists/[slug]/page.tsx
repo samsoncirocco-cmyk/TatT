@@ -4,7 +4,7 @@ import StudioShell from "@/components/studio/StudioShell";
 import FavoriteButton from "@/components/punk/FavoriteButton";
 import InstagramEmbed from "@/components/punk/InstagramEmbed";
 import SlashHeadline from "@/components/punk/SlashHeadline";
-import TapeCTA from "@/components/punk/TapeCTA";
+import QuietCTA from "@/components/quiet/QuietCTA";
 import { artistIdFromSlug } from "@/lib/artist-slug";
 import { getRosterArtistById, instagramUrl } from "@/lib/artists-graph";
 
@@ -178,34 +178,43 @@ export default async function ArtistProfilePage({
               </div>
             )}
 
-            <div className="mt-10 flex flex-col sm:flex-row sm:items-stretch gap-5">
-              <TapeCTA
-                href={`/book?artistId=${encodeURIComponent(artist.id)}`}
-                size="md"
-                className="self-start"
-              >
-                Book the chair
-              </TapeCTA>
-              {igUrl && (
-                <a
-                  href={igUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[10px] uppercase tracking-[0.2em] text-white/50 hover:text-pink font-body self-start sm:self-center press"
+            {/* BOOKING MODULE — the register flips here (ADR-0032): the
+                showcase above stays loud, the commitment affordance is quiet. */}
+            <div className="mt-12 border hairline-quiet p-6 md:p-8 max-w-md">
+              <div className="text-[12px] text-quiet-dim font-body">
+                Booking
+              </div>
+              <div className="mt-5 flex flex-col sm:flex-row sm:items-center gap-5">
+                <QuietCTA
+                  href={`/book?artistId=${encodeURIComponent(artist.id)}`}
+                  size="md"
                 >
-                  {artist.instagram}&nbsp;→
-                </a>
-              )}
-              {artist.bookingUrl && (
-                <a
-                  href={artist.bookingUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[10px] uppercase tracking-[0.2em] text-white/50 hover:text-pink font-body self-start sm:self-center press"
-                >
-                  Artist&apos;s booking site&nbsp;→
-                </a>
-              )}
+                  Book the chair
+                </QuietCTA>
+                {igUrl && (
+                  <a
+                    href={igUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[12px] text-quiet-dim hover:text-white font-body press"
+                  >
+                    {artist.instagram}&nbsp;→
+                  </a>
+                )}
+                {artist.bookingUrl && (
+                  <a
+                    href={artist.bookingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[12px] text-quiet-dim hover:text-white font-body press"
+                  >
+                    Artist&apos;s booking site&nbsp;→
+                  </a>
+                )}
+              </div>
+              <p className="mt-5 text-[12px] text-quiet-dim font-body leading-[1.7]">
+                A deposit holds your request — the artist confirms the time.
+              </p>
             </div>
 
             {/* Provenance label (ADR-0036 law 3): an unclaimed profile says
@@ -215,7 +224,7 @@ export default async function ArtistProfilePage({
                 cards stay unlabeled. Claimed artists run their own profile,
                 so they do not get the provenance label or claim door. The
                 removal door remains available in both states. */}
-            <div className="mt-10 pt-6 border-t hairline font-body text-[11px] text-white/40 leading-[1.6]">
+            <div className="mt-10 pt-6 border-t hairline-quiet-soft font-body text-[11px] text-white/40 leading-[1.6]">
               {/* wording pending counsel review (TAT-31) */}
               {!artist.claimed && (
                 <p>
@@ -234,7 +243,7 @@ export default async function ArtistProfilePage({
                         href={igUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-white/60 hover:text-pink press"
+                        className="text-white/60 hover:text-white press"
                       >
                         See their work on Instagram.
                       </a>
@@ -250,7 +259,7 @@ export default async function ArtistProfilePage({
                   <>
                     <Link
                       href={`/claim/${encodeURIComponent(artist.id)}`}
-                      className="text-white/60 hover:text-pink press"
+                      className="text-white/60 hover:text-white press"
                     >
                       Claim your profile
                     </Link>
@@ -259,7 +268,7 @@ export default async function ArtistProfilePage({
                 )}
                 <Link
                   href={`/takedown/${encodeURIComponent(artist.id)}`}
-                  className="text-white/60 hover:text-pink press"
+                  className="text-white/60 hover:text-white press"
                 >
                   Have it removed
                 </Link>
@@ -306,15 +315,14 @@ export default async function ArtistProfilePage({
         </div>
       )}
 
-      {/* FLOATING CTA */}
+      {/* FLOATING CTA — a booking affordance, so it speaks quiet (ADR-0032). */}
       <div className="sticky bottom-6 z-30 px-6 md:px-12 pb-10 pointer-events-none">
         <div className="max-w-6xl mx-auto flex justify-end">
           <Link
             href={`/book?artistId=${encodeURIComponent(artist.id)}`}
-            className="tape press inline-flex items-center justify-center px-8 py-4 font-display text-[24px] sm:text-[32px] leading-none tracking-[0.02em] pointer-events-auto"
+            className="press inline-flex items-center justify-center px-8 py-4 font-body text-[14px] leading-none bg-quiet text-black hover:bg-white pointer-events-auto"
           >
-            Book Consultation
-            <span className="ml-3 text-[18px]">▸</span>
+            Book consultation
           </Link>
         </div>
       </div>
