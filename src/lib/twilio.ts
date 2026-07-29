@@ -18,15 +18,21 @@ import { logger } from './logger';
  * Usable credentials only: present and not the repo's placeholder sentinels.
  * Routes gate on this so a misconfigured deploy fails closed (503) instead
  * of accepting unverifiable webhooks or throwing at import time.
+ *
+ * TWILIO_AUTH_TOKEN is required unconditionally — inbound signature
+ * validation is HMAC-SHA1 keyed on the AUTH TOKEN specifically (per
+ * twilio.com/docs/usage/security), an API key secret cannot substitute.
+ * The sender is either a phone number or a Messaging Service.
  */
 export function twilioConfigured(): boolean {
   const sid = process.env.TWILIO_ACCOUNT_SID || '';
   const token = process.env.TWILIO_AUTH_TOKEN || '';
-  const from = process.env.TWILIO_PHONE_NUMBER || '';
+  const sender =
+    process.env.TWILIO_MESSAGING_SERVICE_SID || process.env.TWILIO_PHONE_NUMBER || '';
   return (
     !!sid &&
     !!token &&
-    !!from &&
+    !!sender &&
     !sid.includes('PLACEHOLDER') &&
     !token.includes('PLACEHOLDER')
   );
@@ -72,8 +78,20 @@ export interface SendMessageResult {
  * Lazily-created SDK client — constructed per send, only after the
  * configured gate passed, so module-load never throws on a creds-less dev
  * machine (same reason stripe.ts constructs with a placeholder key).
+ *
+ * Outbound auth prefers a standard API key pair
+ * (TWILIO_API_KEY_SID/TWILIO_API_KEY_SECRET — revocable, least-privilege)
+ * when both are set, falling back to the account auth token. Inbound
+ * signature validation always uses the auth token regardless (see above).
  */
 function twilioClient() {
+  const apiKeySid = process.env.TWILIO_API_KEY_SID || '';
+  const apiKeySecret = process.env.TWILIO_API_KEY_SECRET || '';
+  if (apiKeySid && apiKeySecret) {
+    return twilio(apiKeySid, apiKeySecret, {
+      accountSid: process.env.TWILIO_ACCOUNT_SID,
+    });
+  }
   return twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 }
 
@@ -98,9 +116,15 @@ export async function sendSms(
   }
   try {
     const client = twilioClient();
+    // A Messaging Service is the cleaner A2P 10DLC integration point (the
+    // campaign, sender pool, and Advanced Opt-Out all live on it) — when
+    // its SID is configured it replaces `from` and Twilio picks the sender.
+    const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID || '';
     const message = await client.messages.create({
       to,
-      from: process.env.TWILIO_PHONE_NUMBER,
+      ...(messagingServiceSid
+        ? { messagingServiceSid }
+        : { from: process.env.TWILIO_PHONE_NUMBER }),
       body,
       ...(mediaUrls && mediaUrls.length > 0 ? { mediaUrl: mediaUrls } : {}),
     });

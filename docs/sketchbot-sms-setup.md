@@ -11,8 +11,10 @@ experience. The whole channel ships **dark** behind `SKETCHBOT_SMS_ENABLED`.
 |---|---|---|
 | `SKETCHBOT_SMS_ENABLED` | `false` | Master flag. Anything but `true` makes `/api/webhooks/twilio` answer 404 — the channel does not exist. |
 | `TWILIO_ACCOUNT_SID` | — | Twilio account SID (`AC…`). Server-side only. |
-| `TWILIO_AUTH_TOKEN` | — | Signs/verifies `X-Twilio-Signature`. Server-side only. Unset/placeholder ⇒ webhook fails closed with 503. |
-| `TWILIO_PHONE_NUMBER` | — | The purchased number, E.164 (`+1…`). Outbound sender. |
+| `TWILIO_AUTH_TOKEN` | — | Verifies `X-Twilio-Signature` (HMAC-SHA1 is keyed on the auth token specifically — an API key secret cannot substitute). Unset/placeholder ⇒ webhook fails closed with 503. |
+| `TWILIO_PHONE_NUMBER` | — | The purchased number, E.164 (`+1…`). Outbound sender when no Messaging Service is set. |
+| `TWILIO_MESSAGING_SERVICE_SID` | unset | Optional (`MG…`). When set, outbound sends go through the Messaging Service instead of `from` — the cleaner A2P 10DLC integration point (campaign, sender pool, and Advanced Opt-Out live on it). |
+| `TWILIO_API_KEY_SID` / `TWILIO_API_KEY_SECRET` | unset | Optional standard API key pair for outbound sends (revocable, least-privilege). When both are set the client authenticates with them (`apiKeySid, apiKeySecret, { accountSid }`); otherwise it falls back to the auth token. |
 | `SKETCHBOT_SMS_REVEALS_PER_DAY` | `2` | Per-phone reveal cap per UTC day. Reserved atomically **before** generation. |
 | `SKETCHBOT_SMS_FREE_REVEALS` | `2` | Lifetime reveals before an unlinked number is invited to create an account (the link gate). |
 | `SKETCHBOT_SMS_MSGS_PER_HOUR` | `30` | Per-phone inbound message rate limit (silent drop beyond it). |
@@ -49,31 +51,43 @@ inside the global `BUDGET_MAX_SPEND_CENTS` cap like all other spend.
    Account SID and Auth Token from the console dashboard.
 2. **Buy a number**: Phone Numbers → Buy a Number → check *SMS* and *MMS*
    capabilities (US local number, ~$1.15/mo).
-3. **A2P 10DLC registration** (required for US traffic): Messaging →
+3. **Create a Messaging Service** (Messaging → Services → Create): add the
+   purchased number to its sender pool. This is the recommended shape — the
+   A2P campaign, sender pool, and Advanced Opt-Out all attach to the
+   service — and the code uses it automatically once
+   `TWILIO_MESSAGING_SERVICE_SID` is set.
+4. **A2P 10DLC registration** (required for US traffic): Messaging →
    Regulatory Compliance → register the TatT **brand**, then a **campaign**
    (use case: "Conversational messaging"; sample messages: the design
-   conversation + the reveal). Attach the purchased number to the campaign.
-   This is the ~1-hour step; carriers may take a day to approve.
-4. **Keep Advanced Opt-Out ON** (Messaging Service → Opt-Out Management —
-   on by default): Twilio auto-answers STOP/HELP/START and suppresses sends
-   to opted-out numbers. The webhook additionally records opt-out state and
-   never replies to compliance traffic.
-5. **Point the webhook**: Phone Numbers → your number → Messaging →
-   "A message comes in" → Webhook, `POST` to
-   `https://tatttester.com/api/webhooks/twilio`.
+   conversation + the reveal). Attach the campaign to the Messaging
+   Service. This is the ~1-hour step; carriers may take a day to approve.
+5. **Keep Advanced Opt-Out ON** (Messaging Service → Opt-Out Management):
+   Twilio auto-answers STOP/HELP/START, suppresses sends to opted-out
+   numbers (API error 21610), and still forwards the inbound compliance
+   message to the webhook with an `OptOutType` parameter. The webhook
+   records that state and never replies to compliance traffic.
+6. **Point the webhook**: on the Messaging Service (Integration →
+   "Send a webhook") — or on the bare number if skipping the service —
+   `POST` to `https://tatttester.com/api/webhooks/twilio`.
    The URL in the console must match this **exactly** (scheme, host, path —
    no trailing slash): the signature is computed over it.
-6. **Env vars**: drop `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`,
-   `TWILIO_PHONE_NUMBER` into `.env.local` and the Vercel project (same
+7. **(Optional) mint an API key** (Account → API keys): standard key,
+   copy the SID + secret into `TWILIO_API_KEY_SID`/`TWILIO_API_KEY_SECRET`.
+   The auth token is still required either way — inbound signature
+   validation is keyed on it.
+8. **Env vars**: drop `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and
+   `TWILIO_PHONE_NUMBER` (plus the optional `TWILIO_MESSAGING_SERVICE_SID`
+   and API key pair) into `.env.local` and the Vercel project (same
    discipline as the Instagram keys). Leave `SKETCHBOT_SMS_ENABLED` unset.
-7. **Turn on**: set `SKETCHBOT_SMS_ENABLED=true` in Vercel and redeploy.
+9. **Turn on**: set `SKETCHBOT_SMS_ENABLED=true` in Vercel and redeploy.
    Turn-off is the same flag — the webhook 404s again immediately.
 
 ## Delivery design notes
 
-- **Sequential MMS, not a collage**: Twilio caps a message's media at 5MB
-  total and carriers transcode aggressively; four ~1–2MB renders in one
-  message would routinely fail or arrive mangled. Each cut goes as its own
+- **Sequential MMS, not a collage**: Twilio allows up to 10 `MediaUrl`s per
+  message but caps the combined message + media size at 5MB, and carriers
+  transcode aggressively; four ~1–2MB renders in one message would
+  routinely blow the cap or arrive mangled. Each cut goes as its own
   captioned MMS ("Cut 1 of 4"), followed by a closing text with the share
   link. A collage would add image compositing only to lose per-cut zoom.
 - **Media URLs**: variation images are hosted URLs (Replicate) or GCS
@@ -82,6 +96,17 @@ inside the global `BUDGET_MAX_SPEND_CENTS` cap like all other spend.
 - **The web bridge**: the reveal mints a durable share
   (`/share/<id>`, same store as the web share flow) — AR try-on and booking
   continue there.
-- **Timing**: the webhook answers conversational turns synchronously
-  (TwiML); reveals are acked instantly and generated in `after()` (renders
-  take minutes; Twilio gives webhooks ~15s).
+- **Timing**: Twilio expects TwiML in the webhook response and enforces a
+  15s read timeout (5s connect), retrying by default only on connection
+  failures — so conversational turns answer synchronously as TwiML, while
+  reveals are acked instantly and generated in `after()` (renders take
+  minutes) and delivered via the REST sender.
+
+Verified against Twilio's docs 2026-07-29: signature algorithm
+(twilio.com/docs/usage/security — HMAC-SHA1 keyed on the auth token over
+the full URL + alphabetically sorted POST params), media limits
+(docs/messaging/api/message-resource — 10 media per message;
+docs/messaging/guides/accepted-mime-types — 5MB combined), opt-out
+behavior (`OptOutType` forwarded to the webhook with Advanced Opt-Out;
+error 21610 on sends to opted-out numbers), and webhook timeouts/retries
+(docs/usage/webhooks/webhooks-connection-overrides).
