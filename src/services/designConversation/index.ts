@@ -25,6 +25,7 @@ export type {
   ConverseRequest,
   ConverseResponse,
   ConfirmRequest,
+  SessionNotes,
 } from './types';
 export type { RunTurnRequest };
 

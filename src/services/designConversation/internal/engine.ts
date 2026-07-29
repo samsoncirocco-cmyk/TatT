@@ -54,9 +54,10 @@ import {
   COLOR_RETRY_QUESTION,
   IP_NOTE,
 } from './persona';
-import { detectAxisRequest, isSuggestionRequest, isAffirmation } from './intent';
+import { detectAxisRequest, isSuggestionRequest, isAffirmation, isDrawRequest } from './intent';
 import { loadStyleTagIndex, resolveStyleTags, type StyleTagIndex } from './ontology';
 import { scoreRecord, CONFIDENCE_THRESHOLD } from './confidence';
+import { buildSessionNotes } from './notes';
 import { converseWithProviders, type RawTurnPayload } from './providers';
 import { isDemoMode, runDemoTurn } from './demoScript';
 
@@ -503,6 +504,10 @@ export async function runConversationTurn(
     [...request.messages].reverse().find((message) => message.role === 'user')?.text ?? '';
   const axisRequest = detectAxisRequest(lastUserMessage);
   if (axisRequest) applyAxisSpread(record, axisRequest.axis);
+  // The visible fast lane (TAT-48): "skip the questions — just draw". An
+  // axis request wins when both fire — it carries more information (which
+  // axis to spread), and both end at the same proposal beat.
+  const drawRequest = !axisRequest && isDrawRequest(lastUserMessage);
 
   const colorAsks = countColorAsks(request.messages);
   let colorCall: 'recommendation' | 'decision' | undefined;
@@ -573,6 +578,28 @@ export async function runConversationTurn(
     stage = 'chatting';
     firedRule = 'none';
     reply = `Both — good instinct, the four takes can carry ${axisRequest.labels[0]} and ${axisRequest.labels[1]} side by side. ${
+      hasPlacement ? SUBJECT_GATE_QUESTION : PLACEMENT_GATE_QUESTION
+    }`;
+  } else if (drawRequest && hasRequiredFields) {
+    // Skip-the-questions honored (TAT-48): the record can already generate
+    // — placement plus something to draw, the same gate confirm enforces —
+    // so the request IS the proposal trigger. The playback still runs, so
+    // ADR-0020's announce + consent beat is never skipped.
+    stage = 'proposal';
+    firedRule = 'draw-request-proposal';
+    playback = buildPlayback(record, characterLabel, moment);
+    reply = withIpNote(
+      proposalBeatReply(playback, payload, request.messages),
+      record,
+      request.messages
+    );
+  } else if (drawRequest) {
+    // They asked to skip ahead but there is not yet anything to draw — say
+    // yes, then close the one real gap (mirrors the axis-request path;
+    // never a refusal, never a limit).
+    stage = 'chatting';
+    firedRule = 'none';
+    reply = `Deal — no more questions than I actually need. ${
       hasPlacement ? SUBJECT_GATE_QUESTION : PLACEMENT_GATE_QUESTION
     }`;
   } else if (colorCall) {
@@ -670,5 +697,9 @@ export async function runConversationTurn(
     ...(playback !== undefined ? { playback } : {}),
     record,
     turnLog,
+    // The notepad projection (TAT-48) — built AFTER every branch above, so
+    // it reflects the record the branches may have resolved (palette calls,
+    // axis spreads). The only record view that ever reaches the browser.
+    notes: buildSessionNotes(record, characters, moment),
   };
 }

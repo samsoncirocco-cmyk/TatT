@@ -106,6 +106,24 @@ export function isSuggestionRequest(message: string): boolean {
   return words <= 6 || STYLE_TOPIC_CUE.test(text);
 }
 
+/**
+ * The visible fast lane's canonical phrase ("skip the questions — just
+ * draw", the TAT-48 chip) plus the close natural variants of the same ask.
+ * Deliberately tight: "draw" alone is tattoo vocabulary, not an intent.
+ */
+const DRAW_REQUEST_PATTERN =
+  /\b(just draw( it| them)?|draw it already|skip the questions?|stop asking( questions)?|just (generate|make|render)( it| them| the designs?)?)\b/i;
+
+/**
+ * Does this user message ask to skip the remaining questions and generate
+ * now? When the record is already generation-sufficient this IS a proposal
+ * trigger (TAT-48 visible fast lane, ADR-0028 readiness) — the announce
+ * beat still runs so ADR-0020's consent is never skipped.
+ */
+export function isDrawRequest(message: string): boolean {
+  return DRAW_REQUEST_PATTERN.test((message || '').trim());
+}
+
 const AFFIRMATION_PATTERN =
   /^\s*(i (really |kinda |actually )?(like|love) (it|that|this|them|both|those)|love (it|that|this)|yes+|yeah+|yep|yup|sure|perfect|exactly|absolutely|that works|sounds (good|great|perfect|amazing)|do (it|that)|let'?s (do|go with) (it|that|those)|(i'?m|im) (in|down|sold)|go (for|with) (it|that))\b[\s!.…]*$/i;
 

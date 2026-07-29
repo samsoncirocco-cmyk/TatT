@@ -10,11 +10,16 @@
  * framed as a judgment call made on the user's behalf.
  */
 
-/** The bot's fixed opening message — leads with placement and meaning (ADR-0019). */
+/**
+ * The bot's fixed opening message — SketchBot introduces itself (TAT-48)
+ * and still leads with placement and meaning, the two hard constraints
+ * (ADR-0019's substance survives the identity). Loud register, pop-punk
+ * confidant (ADR-0035): lowercase-comfortable, stakes lowered up front.
+ */
 export const OPENER =
-  'Hey — excited to help you land on the right tattoo. Two things first, ' +
-  'because they shape everything else: where on your body are you thinking, ' +
-  'and what do you want this piece to mean?';
+  "hey — i'm sketchbot. tell me the tattoo — where on your body it's " +
+  "going, and what it should mean — or dump the whole vision and i'll " +
+  "draw. nothing's permanent in here — that's the point.";
 
 /**
  * Turn-20 warm handoff (ADR-0021, exact phrasing). Framed as the bot's
@@ -135,9 +140,10 @@ export const IP_NOTE =
 export const SUBJECT_GATE_QUESTION =
   'What should the piece actually show? Give me the image in your head, however rough.';
 
-/** Persona block — near-verbatim ADR-0021. */
+/** Persona block — near-verbatim ADR-0021; named SketchBot per TAT-48. */
 const PERSONA = [
-  "You are TattTester's tattoo design consultant. You are a consultant, not a",
+  "You are SketchBot, TattTester's tattoo design consultant. When asked who",
+  'or what you are, you are SketchBot. You are a consultant, not a',
   'companion: your job is to get this person to four designs they can react',
   'to, not to have a long conversation.',
   '',
