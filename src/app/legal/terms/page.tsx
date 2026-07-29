@@ -51,6 +51,15 @@ export default function TermsPage() {
               TattTester facilitates introductions between users and tattoo artists. The
               tattoo procedure itself is a contract between the user and the artist.
             </p>
+            {/* SMS terms note (TAT-49) — mirrors the carrier disclosure. */}
+            <h2 className="font-display-quiet text-quiet text-[18px] pt-6">
+              4.&nbsp;Messaging
+            </h2>
+            <p>
+              By texting SketchBot at the number published on this site you agree to receive
+              conversational replies. Message and data rates may apply, message frequency
+              varies, and you can reply STOP to opt out or HELP for help.
+            </p>
           </div>
         </div>
       </div>

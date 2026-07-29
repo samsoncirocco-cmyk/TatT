@@ -53,7 +53,7 @@ export default function PrivacyPage() {
       <div className="px-6 md:px-12 pt-8 pb-6 border-b hairline-quiet-soft">
         <div className="max-w-3xl mx-auto flex items-center justify-between text-[12px] text-quiet-dim tabular-nums font-body">
           <span>Legal / Privacy</span>
-          <span>v0.2 draft</span>
+          <span>v0.3 draft</span>
         </div>
       </div>
 
@@ -61,7 +61,7 @@ export default function PrivacyPage() {
         <div className="max-w-3xl mx-auto">
           <QuietHeadline>Privacy policy</QuietHeadline>
           <p className="mt-6 text-[12px] text-quiet-dim font-body tabular-nums">
-            Last updated: 26 July 2026
+            Last updated: 29 July 2026
           </p>
 
           {/* Not boilerplate. This text has not been through counsel, and
@@ -83,7 +83,8 @@ export default function PrivacyPage() {
           <div className="mt-16 space-y-5 text-[14px] text-quiet-dim font-body leading-[1.8] border-t hairline-quiet-soft pt-12">
             <p className="text-[15px] text-quiet">
               TattTester holds personal data about two groups of people who are in very different
-              positions. Sections 1 to 3 cover people who signed up. Section 4 covers tattoo
+              positions. Sections 1 to 3 cover people who signed up, and section 5 covers
+              texting with SketchBot. Section 4 covers tattoo
               artists whose details we collected from the public internet without asking them
               first. If you are an artist who found your name or your work on this site and
               did not put it there,{" "}
@@ -331,7 +332,30 @@ export default function PrivacyPage() {
               right, say so and we will treat the applicable statutory deadline as binding.
             </p>
 
-            <H2>5.&nbsp;Who else sees this data</H2>
+            {/* ─────────── SMS (TAT-49) ─────────── */}
+            <H2>5.&nbsp;Texting with SketchBot (SMS)</H2>
+            <p>
+              You can run a design conversation over text message by texting SketchBot at
+              the number published on this site. If you do, we collect your{" "}
+              <strong className="text-quiet">phone number</strong>, the{" "}
+              <strong className="text-quiet">content of your messages</strong>, and the{" "}
+              <strong className="text-quiet">design requests</strong> you make in them. We
+              use that information to provide the design conversation service: understanding
+              your idea, replying, generating the designs you asked for, and delivering them
+              to you. We do not use your number for anything else.
+            </p>
+            <p>
+              Message and data rates may apply, and message frequency varies with the
+              conversation. Text <strong className="text-quiet">STOP</strong> at any time to
+              opt out of further messages, or <strong className="text-quiet">HELP</strong>{" "}
+              for help.
+            </p>
+            <p className="text-quiet">
+              No mobile information will be shared with third parties or affiliates for
+              marketing or promotional purposes.
+            </p>
+
+            <H2>6.&nbsp;Who else sees this data</H2>
             <p>
               We use third-party providers to run the service, including cloud hosting and
               storage, database providers, AI model providers for design generation, email
@@ -339,7 +363,7 @@ export default function PrivacyPage() {
               not sell personal data to anyone.
             </p>
 
-            <H2>6.&nbsp;Contact</H2>
+            <H2>7.&nbsp;Contact</H2>
             <p>
               For anything in this policy, including removal requests and questions about what
               we hold, contact us via the{" "}
