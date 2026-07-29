@@ -12,6 +12,7 @@ export type LimitType =
   | 'generation'
   | 'estimate'
   | 'artist-claim'
+  | 'sms-inbound'
   | 'default';
 
 interface RateLimitResult {
@@ -31,6 +32,14 @@ const LIMIT_CONFIG: Record<LimitType, { requests: number; window: string }> = {
   generation:       { requests: 10,  window: '1 m' },
   estimate:         { requests: 30,  window: '1 m' },
   'artist-claim':   { requests: 5,   window: '1 h' },
+  // SketchBot SMS inbound (TAT-49): per-phone, keyed on the sender's number,
+  // not the request IP (every Twilio webhook arrives from Twilio's IPs).
+  // Env-tunable because it is a REQUIRED spend guardrail — conversation
+  // turns cost real model money.
+  'sms-inbound':    {
+    requests: Number(process.env.SKETCHBOT_SMS_MSGS_PER_HOUR) || 30,
+    window: '1 h',
+  },
   default:          { requests: 60,  window: '1 m' },
 };
 
