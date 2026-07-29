@@ -28,7 +28,7 @@ export default function DesignPage() {
   return (
     <StudioShell>
       <div className="px-6 md:px-12 pt-6 pb-4 border-b hairline">
-        <div className="max-w-2xl mx-auto flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/50 tabular-nums font-body">
+        <div className="max-w-2xl mx-auto flex flex-wrap items-center justify-between gap-x-6 gap-y-1 text-[10px] uppercase tracking-[0.25em] text-white/50 tabular-nums font-body">
           <span>
             <span className="text-pink">●</span>&nbsp;&nbsp;Design&nbsp;Session
           </span>

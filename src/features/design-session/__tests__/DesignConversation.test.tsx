@@ -391,4 +391,68 @@ describe('DesignConversation', () => {
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(screen.queryByRole('button', { name: /pick design/i })).toBeNull();
   });
+
+  it('scaffolds the empty state with starter chips + example strip, and a chip tap is just a normal first message', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(converseResponse()));
+    render(<DesignConversation />);
+    await screen.findByText(OPENER);
+
+    // First-run scaffolding present: the stakes-lowering line, tappable
+    // chips, and the honest example strip (real pipeline outputs, labeled).
+    expect(screen.getByText(/no idea yet\? that’s the point/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'surprise me' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'a memorial piece for someone' })).toBeTruthy();
+    expect(screen.getByTestId('example-strip')).toBeTruthy();
+    expect(screen.getByText('AI-generated examples')).toBeTruthy();
+    expect(screen.getAllByAltText(/AI-generated/)).toHaveLength(4);
+
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        converseResponse({ reply: 'Florals — where on your body?', stage: 'chatting', turn: 1 })
+      )
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'fine-line florals' }));
+
+    // The chip text is the user's message, sent through the SAME converse
+    // path as typing — no separate route, the engine's routing decides.
+    await screen.findByText('Florals — where on your body?');
+    expect(screen.getByText('fine-line florals')).toBeTruthy();
+    expect(fetchMock.mock.calls[1][0]).toBe('/api/v1/design-session/converse');
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({
+      sessionId: 'sess-1',
+      message: 'fine-line florals',
+    });
+
+    // Once the user has spoken, the scaffolding is gone for good.
+    expect(screen.queryByRole('button', { name: 'surprise me' })).toBeNull();
+    expect(screen.queryByText(/no idea yet\? that’s the point/i)).toBeNull();
+    expect(screen.queryByTestId('example-strip')).toBeNull();
+  });
+
+  it('shows no first-run scaffolding when a deep-linked prompt opens the session (ADR-0028)', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        converseResponse({ reply: 'Where on your body is it going?', stage: 'chatting', turn: 1 })
+      )
+    );
+
+    render(<DesignConversation initialPrompt="a dragon" />);
+    await screen.findByText('Where on your body is it going?');
+
+    // The deep link already spoke for the user — no chips, no strip.
+    expect(screen.queryByRole('button', { name: 'surprise me' })).toBeNull();
+    expect(screen.queryByTestId('example-strip')).toBeNull();
+  });
+
+  it('shows no first-run scaffolding in the scripted fallback', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'Conversation unavailable' }, 503));
+
+    render(<DesignConversation />);
+    await screen.findByText(/two quick questions/i);
+
+    // The scripted intake asks its own questions in order — a chip answer
+    // like "fine-line florals" would collide with "Where does it go?".
+    expect(screen.queryByRole('button', { name: 'surprise me' })).toBeNull();
+    expect(screen.queryByTestId('example-strip')).toBeNull();
+  });
 });

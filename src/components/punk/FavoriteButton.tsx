@@ -14,6 +14,11 @@ type Props = {
   className?: string;
 };
 
+/** Icon + padding, but never below the 44px mobile tap-target minimum. */
+export function hitBoxSize(size: number): number {
+  return Math.max(size + 12, 44);
+}
+
 export default function FavoriteButton({
   slug,
   label,
@@ -38,7 +43,7 @@ export default function FavoriteButton({
         toggleFavorite(slug);
       }}
       className={`press inline-flex items-center justify-center bg-black/80 border hairline hover:border-pink ${className}`}
-      style={{ width: size + 12, height: size + 12 }}
+      style={{ width: hitBoxSize(size), height: hitBoxSize(size) }}
     >
       <svg
         width={size}

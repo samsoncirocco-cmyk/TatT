@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import StudioShell from '@/components/studio/StudioShell';
 import SlashHeadline from '@/components/punk/SlashHeadline';
 import TapeCTA from '@/components/punk/TapeCTA';
 import { ARMirror, type ARMirrorDesign } from '@/features/ar';
 import { checkArSupport } from '@/services/ar/arService';
 import { useDesigns } from '@/lib/tattStorage';
+import { smartMatchUrlForDesign } from '@/lib/design-style-signal';
 
 const FEATURES = [
   { label: 'Live camera', desc: 'Your design composited onto the real feed.' },
@@ -20,8 +22,17 @@ const FEATURES = [
  * Only offers the camera when the browser can actually open one — an
  * unsupported device is told so here rather than after tapping into a dead
  * viewport.
+ *
+ * Funnel seams (ADR-0028): ?design=<id> preselects that saved design in the
+ * mirror's tray, ?ds=<designSessionId> keeps the design-session thread so the
+ * "Find your artist" exit lands on /smart-match with the brief intact. Neither
+ * param is required — walk-ins still get the full mirror.
  */
-export default function VisualizePage() {
+function VisualizeContent() {
+  const searchParams = useSearchParams();
+  const designParam = searchParams.get('design');
+  const designSessionId = searchParams.get('ds') ?? undefined;
+
   const [live, setLive] = useState(false);
   const [support, setSupport] = useState<{ supported: boolean; message: string } | null>(null);
   const { designs, hydrated } = useDesigns();
@@ -36,8 +47,23 @@ export default function VisualizePage() {
     .filter((d) => Boolean(d.image))
     .map((d) => ({ id: d.id, image: d.image as string, title: d.title ?? d.prompt }));
 
+  // The design carried in from /design or /designs — used for tray
+  // preselection and, absent a session id, the style signal forward.
+  const carriedDesign = designParam ? designs.find((d) => d.id === designParam) : undefined;
+  const findArtistHref = smartMatchUrlForDesign(
+    carriedDesign?.prompt ?? '',
+    designSessionId ?? carriedDesign?.sessionId,
+  );
+
   if (live) {
-    return <ARMirror designs={arDesigns} onExit={() => setLive(false)} />;
+    return (
+      <ARMirror
+        designs={arDesigns}
+        initialSelectedId={carriedDesign?.id}
+        findArtistHref={findArtistHref}
+        onExit={() => setLive(false)}
+      />
+    );
   }
 
   return (
@@ -104,6 +130,11 @@ export default function VisualizePage() {
                 Open the mirror
               </TapeCTA>
             )}
+            {/* The funnel's next step — seen it on your skin, now find the hands
+                that can put it there. Carries the ds/style thread when present. */}
+            <TapeCTA href={findArtistHref} variant="ghost" size="sm">
+              Find your artist
+            </TapeCTA>
             <TapeCTA href="/design" variant="ghost" size="sm">
               Start a design
             </TapeCTA>
@@ -111,5 +142,13 @@ export default function VisualizePage() {
         </div>
       </div>
     </StudioShell>
+  );
+}
+
+export default function VisualizePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black" />}>
+      <VisualizeContent />
+    </Suspense>
   );
 }

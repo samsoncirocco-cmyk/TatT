@@ -144,6 +144,16 @@ export default function StudioShell({
                       >
                         My Designs
                       </Link>
+                      {/* Signed-in only, but NOT gated on artist status:
+                          /console renders the claim pointer for non-artists,
+                          which doubles as the artist-acquisition surface. */}
+                      <Link
+                        href="/console"
+                        onClick={() => setAccountOpen(false)}
+                        className="block px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-pink hover:bg-white/5 border-b hairline-soft font-body"
+                      >
+                        Artist console
+                      </Link>
                       <Link
                         href="/bookings"
                         onClick={() => setAccountOpen(false)}
@@ -259,6 +269,15 @@ export default function StudioShell({
                   className="block px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-white/80 hover:text-pink border-b hairline-soft font-body"
                 >
                   My Designs
+                </Link>
+                {/* Signed-in only, but NOT gated on artist status — see the
+                    account dropdown above. */}
+                <Link
+                  href="/console"
+                  onClick={() => setMobileOpen(false)}
+                  className="block px-6 py-4 text-[12px] uppercase tracking-[0.25em] text-white/80 hover:text-pink border-b hairline-soft font-body"
+                >
+                  Artist console
                 </Link>
                 <Link
                   href="/bookings"
