@@ -41,6 +41,12 @@ export interface TurnLog {
     | 'turn12-force-proposal'
     | 'turn12-ask-placement'
     | 'turn20-handoff'
+    /** The user asked to SEE both poles of a variation axis — that request
+     *  IS the proposal trigger (ADR-0012/0020); the reveal spreads the axis. */
+    | 'axis-request-proposal'
+    /** The user delegated an open style call ("which do you suggest") or
+     *  dodged it twice — the bot made the call in-voice and advanced. */
+    | 'style-recommendation'
     | 'none';
   /** Model that served the turn (per-session pinned; fallback noted). */
   model: string;
