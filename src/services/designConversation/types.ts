@@ -105,6 +105,12 @@ export interface SessionNotes {
   /** True once the IP rule fired — the inspired-by heads-up line renders. */
   ipHeadsUp: boolean;
   /**
+   * One designed summary line per analyzed reference image (TAT-50) —
+   * "five chibi anime characters, bold outlines, red smoke background".
+   * Only ever the vision summary, never the raw analysis structure.
+   */
+  references?: string[];
+  /**
    * The record could already generate (ADR-0028 readiness: placement plus
    * something to draw). Drives the visible fast-lane affordance.
    */
