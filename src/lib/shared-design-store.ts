@@ -22,6 +22,11 @@
  * as a Firestore TTL without touching this code or the URL shape.
  */
 import { ensureAdminApp } from '@/lib/firebase-admin';
+import {
+  normalizeVoteTally,
+  type ShareVote,
+  type ShareVoteTally,
+} from '@/lib/share-votes';
 
 const COLLECTION = 'shared_designs';
 
@@ -49,10 +54,19 @@ export interface SharedDesign {
   sharedAt: string;
   shareUrl: string;
   views: number;
+  /**
+   * Friend votes (TAT-52), keyed by vote option. Partial on purpose: shares
+   * minted before voting existed have no field at all, and Firestore only
+   * grows a key the first time that option is picked. Readers normalise via
+   * `normalizeVoteTally`, never reach in directly.
+   */
+  votes?: Partial<ShareVoteTally>;
 }
 
 /** The subset of a share a public visitor may see. */
-export type PublicSharedDesign = Omit<SharedDesign, 'uid'>;
+export type PublicSharedDesign = Omit<SharedDesign, 'uid' | 'votes'> & {
+  votes: ShareVoteTally;
+};
 
 export interface SharedDesignStore {
   save(design: SharedDesign): Promise<void>;
@@ -62,6 +76,19 @@ export interface SharedDesignStore {
    * stop a visitor from seeing the design.
    */
   getAndCountView(shareId: string): Promise<SharedDesign | null>;
+  /**
+   * Fetch a share WITHOUT counting a view — the owner peeking at their own
+   * tally from /designs/[id] is not a visitor, and letting that peek inflate
+   * "Views" would quietly turn the stat into a lie.
+   */
+  get(shareId: string): Promise<SharedDesign | null>;
+  /**
+   * Count one friend vote, atomically (concurrent voters must not clobber
+   * each other). Returns the updated tally, or null when the share id is
+   * unknown. Unlike the view counter this is NOT best-effort: a vote that
+   * was not recorded must not be shown as counted, so failures throw.
+   */
+  recordVote(shareId: string, vote: ShareVote): Promise<ShareVoteTally | null>;
 }
 
 /**
@@ -83,6 +110,8 @@ export function toPublicShare(design: SharedDesign): PublicSharedDesign {
     sharedAt,
     shareUrl,
     views,
+    // Always a complete tally — pre-voting shares read as all zeros.
+    votes: normalizeVoteTally(design.votes),
   };
 }
 
@@ -102,6 +131,17 @@ export const SHARE_STORE_UNAVAILABLE = {
   success: false,
   error: 'Sharing is temporarily unavailable.',
   code: 'SHARE_STORE_UNAVAILABLE',
+} as const;
+
+/**
+ * Body returned by the vote route when no durable store is available. Same
+ * honest-degradation posture as SHARE_STORE_UNAVAILABLE: a vote counted only
+ * in one instance's memory was never counted, so we say so instead.
+ */
+export const SHARE_VOTES_UNAVAILABLE = {
+  success: false,
+  error: 'Voting is temporarily unavailable.',
+  code: 'SHARE_VOTES_UNAVAILABLE',
 } as const;
 
 // ─── In-memory store ───────────────────────────────────────────────────
@@ -128,6 +168,18 @@ export const memorySharedDesignStore: SharedDesignStore = {
     if (!design) return null;
     design.views = (design.views ?? 0) + 1;
     return structuredClone(design);
+  },
+  async get(shareId) {
+    const design = shares.get(shareId);
+    return design ? structuredClone(design) : null;
+  },
+  async recordVote(shareId, vote) {
+    const design = shares.get(shareId);
+    if (!design) return null;
+    const tally = normalizeVoteTally(design.votes);
+    tally[vote] += 1;
+    design.votes = tally;
+    return { ...tally };
   },
 };
 
@@ -166,6 +218,29 @@ export const firestoreSharedDesignStore: SharedDesignStore = {
     }
 
     return { ...design, views: (design.views ?? 0) + 1 };
+  },
+  async get(shareId) {
+    const { getFirestore } = await import('firebase-admin/firestore');
+    const snap = await getFirestore().collection(COLLECTION).doc(shareId).get();
+    return snap.exists ? (snap.data() as SharedDesign) : null;
+  },
+  async recordVote(shareId, vote) {
+    const { getFirestore, FieldValue } = await import('firebase-admin/firestore');
+    const ref = getFirestore().collection(COLLECTION).doc(shareId);
+    const snap = await ref.get();
+    if (!snap.exists) return null;
+
+    // Atomic increment on the one field this vote touches — concurrent
+    // friends in the same group chat must not lose each other's ballots.
+    // No catch here (unlike the view counter): if the write fails, the
+    // caller must not present the vote as counted.
+    await ref.update({ [`votes.${vote}`]: FieldValue.increment(1) });
+
+    // The tally returned is the snapshot plus this ballot — cheap, and
+    // "live-ish" is the contract; the next page load reads the true count.
+    const tally = normalizeVoteTally((snap.data() as SharedDesign).votes);
+    tally[vote] += 1;
+    return tally;
   },
 };
 
