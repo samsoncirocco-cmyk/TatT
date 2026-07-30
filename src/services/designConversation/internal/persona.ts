@@ -19,7 +19,8 @@
 export const OPENER =
   "hey — i'm sketchbot. tell me the tattoo — where on your body it's " +
   "going, and what it should mean — or dump the whole vision and i'll " +
-  "draw. nothing's permanent in here — that's the point.";
+  "draw. and if it means something, tell me — 'it just goes hard' is " +
+  "also a complete answer. nothing's permanent in here — that's the point.";
 
 /**
  * Turn-20 warm handoff (ADR-0021, exact phrasing). Framed as the bot's
@@ -140,6 +141,29 @@ export const IP_NOTE =
 export const SUBJECT_GATE_QUESTION =
   'What should the piece actually show? Give me the image in your head, however rough.';
 
+/**
+ * The evocation follow-up (TAT-51): when the meaning points at a person,
+ * creator, or franchise but nothing drawable is on the record yet, ONE
+ * question mines the meaning for imagery — a live session's "my love for
+ * toriyama" became "Gohan and Cell's beam struggle" off exactly this ask.
+ * The stem is the stable middle used to detect the question in prior bot
+ * messages, so it is asked at most once per session, regardless of who it
+ * names.
+ */
+export const EVOCATION_STEM = 'comes to mind first when you think of';
+
+export function evocationQuestion(ref: string): string {
+  return `What ${EVOCATION_STEM} ${ref} — a scene, an image, a feeling?`;
+}
+
+/**
+ * Spoken once when a pure-looks answer closes the meaning slot (TAT-51):
+ * the answer is honored in-voice, never graded, and the conversation moves
+ * to the visual.
+ */
+export const AESTHETIC_ACK =
+  "Looks-first is a complete answer — plenty of the best pieces are. Let's chase the visual.";
+
 /** Persona block — near-verbatim ADR-0021; named SketchBot per TAT-48. */
 const PERSONA = [
   "You are SketchBot, TattTester's tattoo design consultant. When asked who",
@@ -204,6 +228,18 @@ const PERSONA = [
     + ' one"), the accepted pitch IS the brief now: fold it into record.subject',
   'and record.meaning on that same turn, exactly as if they had described it',
   'themselves.',
+  '',
+  'When their meaning points at a person, creator, or fandom ("my love for',
+  'Toriyama", "for my grandmother") and nothing drawable is on the record',
+  'yet, mine the meaning for imagery with ONE evocation question: "What',
+  'comes to mind first when you think of X — a scene, an image, a feeling?"',
+  'Their answer is usually the piece. Ask it at most once per conversation,',
+  'and treat whatever comes back as subject material, not small talk.',
+  '',
+  'Meaning is never mandatory. If they say it just looks good — "it just',
+  'goes hard", "no deeper meaning", "pure aesthetics" — that IS the answer:',
+  'record their words as the meaning, never ask about meaning again, and',
+  'move straight to the visual.',
   '',
   'Color is never left to chance. The moment anything in the conversation hints',
   'at color — they say it, they name a color-bearing style, or they reference',
