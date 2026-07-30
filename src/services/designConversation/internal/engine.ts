@@ -401,9 +401,30 @@ function evocationAskedIn(messages: ConversationMessage[]): boolean {
 /** Bounded so a rambling answer cannot flood the subject/prompt path. */
 const EVOCATION_ANSWER_MAX = 140;
 
-/** "idk", "not sure" — a dodge, not a drawable. Never merged as a scene. */
+/** Leading hedge — stripped so trailing imagery can still be mined. */
 const EVOCATION_DODGE_PATTERN =
   /^\s*(idk|i ?d(on'?)?t know|not sure|no idea|dunno|nothing( really)?|hmm+|no clue|good question)\b/i;
+
+/** Filler left after a hedge ("idk man") — still a pure dodge, not a scene. */
+const EVOCATION_DODGE_FILLER =
+  /^(man|lol|lmao|though|tbh|haha|yeah|nah|bro|dude)?[\s,.!]*$/i;
+
+/**
+ * Drawable body of an evocation answer. A leading hedge alone is a dodge;
+ * hedge + trailing imagery ("not sure, the ocean at night") keeps the image.
+ */
+function evocationAnswerBody(answer: string): string | undefined {
+  const trimmed = answer.trim();
+  if (!trimmed || trimmed.endsWith('?') || isAffirmation(trimmed)) return undefined;
+  let body = trimmed;
+  if (EVOCATION_DODGE_PATTERN.test(body)) {
+    body = body.replace(EVOCATION_DODGE_PATTERN, '').replace(/^[\s,.\-:;!]+/, '').trim();
+  }
+  if (!body || EVOCATION_DODGE_FILLER.test(body) || body.endsWith('?') || isAffirmation(body)) {
+    return undefined;
+  }
+  return body.slice(0, EVOCATION_ANSWER_MAX);
+}
 
 /**
  * The user's answer to the evocation question, when one was given. That
@@ -423,10 +444,8 @@ function evocationAnswerIn(messages: ConversationMessage[]): string | undefined 
     for (let j = i + 1; j < messages.length; j += 1) {
       const candidate = messages[j];
       if (candidate.role !== 'user') continue;
-      const answer = candidate.text.trim();
-      if (!answer || answer.endsWith('?') || isAffirmation(answer)) continue;
-      if (EVOCATION_DODGE_PATTERN.test(answer)) continue;
-      return answer.slice(0, EVOCATION_ANSWER_MAX);
+      const body = evocationAnswerBody(candidate.text);
+      if (body) return body;
     }
     return undefined;
   }

@@ -75,9 +75,30 @@ const SERIES_ALIASES: Record<string, string[]> = {
 
 const MIN_NAME_LENGTH = 3;
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function mentions(haystack: string, needle: string): boolean {
-  const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`\\b${escaped}\\b`, 'i').test(haystack);
+  return new RegExp(`\\b${escapeRegExp(needle)}\\b`, 'i').test(haystack);
+}
+
+/**
+ * Co-mention needs more than a bare token — "gohan in a prison cell" is not
+ * Cell. Promote an ambiguous name only when it is cast-listed with a matched
+ * castmate (and / vs / with / …) or used possessively ("cell's").
+ */
+function coMentionedWith(text: string, name: string, castmateNames: string[]): boolean {
+  const escaped = escapeRegExp(name);
+  if (new RegExp(`\\b${escaped}'s\\b`, 'i').test(text)) return true;
+  const link = '(?:and|&|or|vs\\.?|versus|with|against|fighting|facing|battling)';
+  return castmateNames.some((mate) => {
+    const other = escapeRegExp(mate);
+    return (
+      new RegExp(`\\b${other}\\b\\s*,?\\s*${link}\\s+\\b${escaped}\\b`, 'i').test(text) ||
+      new RegExp(`\\b${escaped}\\b\\s*,?\\s*${link}\\s+\\b${other}\\b`, 'i').test(text)
+    );
+  });
 }
 
 function mentionsSeries(text: string, series: string): boolean {
@@ -144,14 +165,31 @@ export function charactersIn(text: string): CharacterMatch[] {
   }
 
   // Co-mention pass: an ambiguous name counts when an unambiguous
-  // castmate from the SAME series already matched. "gohan and cell's beam
-  // struggle" names no series, but Gohan pins Dragon Ball, and dropping
-  // Cell from that brief is the truncated-cast failure all over again.
+  // castmate from the SAME series already matched AND the name looks
+  // cast-listed with that mate (not a homonym like "prison cell").
+  // "gohan and cell's beam struggle" names no series, but Gohan pins
+  // Dragon Ball; dropping Cell truncates the cast.
   const matchedSeries = new Set(matched.map((m) => m.series));
   for (const candidate of skippedAmbiguous) {
     if (matched.length === MAX_CHARACTERS) break;
     if (!matchedSeries.has(candidate.series)) continue;
     if (matched.some((m) => m.description === candidate.description)) continue;
+    const castmateNames = matched
+      .filter((m) => m.series === candidate.series)
+      .flatMap((m) => {
+        const entry = ENTRIES.find((e) => e.description === m.description);
+        return entry ? [entry.name, ...entry.aliases] : [m.name];
+      })
+      .filter((name) => name.length >= MIN_NAME_LENGTH);
+    const candidateNames = (() => {
+      const entry = ENTRIES.find((e) => e.description === candidate.description);
+      return (entry ? [entry.name, ...entry.aliases] : [candidate.name]).filter(
+        (name) => name.length >= MIN_NAME_LENGTH && mentions(source, name)
+      );
+    })();
+    if (!candidateNames.some((name) => coMentionedWith(source, name, castmateNames))) {
+      continue;
+    }
     matched.push(candidate);
   }
 

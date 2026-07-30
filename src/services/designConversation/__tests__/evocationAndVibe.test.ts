@@ -222,6 +222,26 @@ describe('TAT-51 — evocation discipline', () => {
     expect(results[1].reply).not.toContain(EVOCATION_STEM);
     expect(results[1].turnLog.firedRule).toBe('none');
   });
+
+  it('keeps trailing imagery after a leading hedge', async () => {
+    const users = ['ribs — my love for toriyama', 'not sure, the ocean at night'];
+    const payloads = [
+      {
+        reply: 'Which era of his work pulls you most?',
+        record: { placement: 'ribs', styleTags: [], meaning: 'my love for toriyama', subject: null, references: [], ambiguousAxes: ALL_AXES },
+      },
+      {
+        reply: 'Ocean at night — strong image.',
+        record: { placement: 'ribs', styleTags: [], meaning: 'my love for toriyama', subject: null, references: [], ambiguousAxes: ALL_AXES },
+      },
+    ];
+    const { results } = await replay(users, payloads);
+
+    expect(results[0].turnLog.firedRule).toBe('evocation-question');
+    expect(results[1].record.subject?.toLowerCase()).toContain('ocean at night');
+    expect(results[1].record.subject ?? '').not.toMatch(/not sure/i);
+    expect(results[1].notes.scene?.toLowerCase()).toContain('ocean at night');
+  });
 });
 
 /* ── the de-shamed meaning opener ────────────────────────────────────────── */

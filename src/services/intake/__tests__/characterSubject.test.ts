@@ -61,6 +61,14 @@ describe('characterSubjectFrom — false-positive guards', () => {
     expect(matches.every((m) => m.series === 'Dragon Ball')).toBe(true);
   });
 
+  it('does not treat a homonym as cast just because a castmate matched', () => {
+    // Gohan pins Dragon Ball, but "prison cell" is the common noun — not Cell.
+    const matches = charactersIn('gohan in a prison cell');
+
+    expect(matches.map((m) => m.name)).toEqual(['gohan']);
+    expect(matches.some((m) => m.name === 'cell')).toBe(false);
+  });
+
   it('still rejects ambiguous names with no castmate and no series', () => {
     expect(charactersIn('a healthy cell under a microscope')).toEqual([]);
   });
