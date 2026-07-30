@@ -108,6 +108,16 @@ describe('POST /api/checkout — claimed artist (destination charge)', () => {
     // The fee is ADDITIVE — the client pays more than the deposit, and the
     // deposit line item itself is never reduced.
     expect(chargedCents(args)).toBe(DEPOSIT_CENTS + FEE_CENTS);
+
+    // The claimed-artist money sentence (ADR-0036 amendment): full strength,
+    // both clauses. And no held-deposit flag on the success URL.
+    expect(args.line_items[1].price_data.product_data.description).toMatch(
+      /keeps 100% of the deposit/i,
+    );
+    expect(args.line_items[1].price_data.product_data.description).toMatch(
+      /only part we keep/i,
+    );
+    expect(args.success_url).not.toContain('artistClaimed=0');
   });
 
   it('ADR-0007: application_fee_amount is the fee, so the artist nets 100% of the deposit', async () => {
@@ -176,6 +186,13 @@ describe('POST /api/checkout — unclaimed artist (held deposit)', () => {
     expect(args.payment_intent_data.transfer_data).toBeUndefined();
     expect(args.payment_intent_data.application_fee_amount).toBeUndefined();
     expect(args.metadata.depositState).toBe('held');
+
+    // The unclaimed-artist money sentence (ADR-0036 amendment): held-deposit
+    // truth on the Stripe summary, and the success URL carries the variant.
+    expect(args.line_items[1].price_data.product_data.description).toMatch(
+      /held during verification/i,
+    );
+    expect(args.success_url).toContain('artistClaimed=0');
   });
 
   it("records the artist's share as the DEPOSIT ONLY, never the booking fee", async () => {
