@@ -308,6 +308,18 @@ is a separate, identity-checked self-signup.
 | Twilio config, signature validation, sender | `src/lib/twilio.ts` |
 | Per-phone rate limit (`sms-inbound`) | `src/lib/rate-limit.ts` |
 
+### Reference-image vision (TAT-50)
+
+| Step | Implementation |
+|------|---------------|
+| Shared vision analyzer (Vertex Gemini multimodal, budget-gated) | `src/services/vision/` |
+| MMS media parse + fetch + analyze batch | `src/services/sketchbotSms/internal/media.ts` |
+| Session reference entries + record merge (IP rule parity) | `src/services/designSession/internal/references.ts` |
+| Attach seam both channels land on | `attachReference` in `src/services/designSession/` |
+| Web reference upload route | `src/app/api/v1/design-session/[id]/reference/route.ts` |
+| Notepad reference row | `SessionNotes.references` → `src/features/design-session/components/SketchbotNotes.tsx` |
+| Budget line item | `VISION_ANALYSIS_COST_CENTS` in `src/lib/budget-tracker.ts` |
+
 ---
 
 ## Shared Infrastructure

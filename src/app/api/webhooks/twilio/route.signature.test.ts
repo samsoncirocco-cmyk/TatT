@@ -22,6 +22,7 @@ vi.mock('@/services/sketchbotSms', () => ({
   executeReveal: vi.fn(),
   recordOptOut: vi.fn(async () => {}),
   isOptedOut: vi.fn(async () => false),
+  parseInboundMedia: vi.fn(() => []),
 }));
 
 vi.mock('@/lib/rate-limit', () => ({

@@ -13,9 +13,11 @@ export {
   revealsPerDay,
   freeReveals,
 } from './internal/adapter';
+export { parseInboundMedia } from './internal/media';
 export type {
   InboundSms,
   InboundOutcome,
+  InboundMediaItem,
   RevealDelivery,
   SmsProfile,
 } from './types';

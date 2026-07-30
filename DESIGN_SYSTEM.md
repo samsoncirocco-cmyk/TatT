@@ -35,6 +35,8 @@ Two faces. Never a third.
 | Role | Font | Tailwind | Size | Weight | Tracking | Case |
 |---|---|---|---|---|---|---|
 | Hero display | Anton | `font-display` | `text-[72px] sm:text-[112px] md:text-[148px]` | 400 | `tracking-[0.005em]` | UPPERCASE (auto via `.font-display`) |
+| Display headline | Anton | `font-display` | `text-[56px] sm:text-[88px] md:text-[120px]` | 400 | `tracking-[0.005em]` | UPPERCASE |
+| Section slash headline | Anton | `font-display` | `text-[48px] md:text-[80px]` | 400 | `tracking-[0.005em]` | UPPERCASE |
 | Section heading | Anton | `font-display` | `text-[20px]` | 400 | `tracking-wide` | UPPERCASE |
 | Button (tape CTA) | Anton | `font-display` | `text-[32px] sm:text-[38px]` | 400 | `tracking-[0.02em]` | UPPERCASE |
 | Iteration title | Anton | `font-display` | `text-[16px]` | 400 | `tracking-wide` | UPPERCASE |
@@ -44,6 +46,11 @@ Two faces. Never a third.
 | Chip | Space Mono | `font-body` | `text-[10px]` | 400 | `tracking-[0.2em]` | UPPERCASE |
 | Timestamp | Space Mono | `font-body` + `tabular-nums` | `text-[10px]` | 400 | `tracking-[0.18em]` | UPPERCASE |
 | Sticker callout | Anton + Space Mono | mixed | `text-[14px]` / `text-[10px]` | 400 | `tracking-widest` | UPPERCASE |
+
+Display sizes come from `SlashHeadline`'s named presets (`hero` /
+`display` / `section` / `form`) — use those, not ad-hoc `text-[..px]`
+stacks. The loud pages converged on the presets in the TAT-45 pass;
+`sizeClassName` remains only as a deliberate escape hatch.
 
 **Minimum type size: 10px.** Nothing user-facing renders below `text-[10px]`
 — 7–9px labels failed readability review (2026-07-20). The wide tracking is
@@ -72,6 +79,8 @@ Tailwind defaults. Notable rhythms in the stencil page:
 ### Motion
 
 One animation: `snap` — a hard 6-step cut-in (`steps(6, end)`). Use `.rise .rise-1` through `.rise-5` for staggered entrances. No fades. No spring curves. Press feedback is `.press` (1px Y translate on `:active`).
+
+One sanctioned exception to the `.rise` timings: the four-cut reveal (TAT-52) uses `.reveal-cut .reveal-cut-1..4` — the same `snap` cut-in spaced a full 260ms beat apart so the cuts land one at a time. Reveal grid only; don't reach for it elsewhere. `prefers-reduced-motion: reduce` disables both `.rise` and `.reveal-cut` (content renders in place, all at once).
 
 ---
 
@@ -223,7 +232,7 @@ Always Space Mono, always uppercase, always `tabular-nums`, always wrapped in a 
 - Leave aggressive negative space. Punk uses silence too.
 - Keep exactly one tape CTA, one sticker, one slashed word per screen.
 - Use `tabular-nums` on every numeric label.
-- Animate with `.rise rise-1..5` for staggered entrances, nothing else.
+- Animate with `.rise rise-1..5` for staggered entrances (`.reveal-cut 1..4` on the reveal grid only), nothing else.
 - Reach for `hairline` (pink at 35%) before `hairline-white`.
 
 **DON'T**
@@ -245,7 +254,10 @@ These are gaps. Tomorrow's work will surface more.
 - **Form inputs beyond textarea.** No text input, select, checkbox, radio, or toggle exists in the punk style. Only the `textarea` on the stencil page.
 - **Error / validation states.** No "invalid input", no inline error message styling.
 - **Loading state for the tape CTA.** The button has no in-flight / disabled / spinner treatment.
-- **Modal / dialog.** No overlay, no confirm/cancel pattern.
+- ~~**Modal / dialog.**~~ Established in the TAT-45 pass: `bg-black/80 halftone`
+  backdrop, `bg-black border-2 border-pink` panel, `border-b-2 hairline` header
+  with a mono "Close ✕" text button. Reference: the Element/Restyle dialogs in
+  `src/features/Generate.jsx` and `src/components/KeyboardShortcutsModal.jsx`.
 - **Toast / notification.** No transient feedback pattern.
 - **Mobile navigation drawer.** `StudioShell` has a left+right sidebar layout; mobile collapse behavior isn't designed.
 - **Empty states.** History sidebar assumes content exists; no "no cuts yet" pattern.

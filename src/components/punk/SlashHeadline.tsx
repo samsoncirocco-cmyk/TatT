@@ -10,7 +10,7 @@ import type { ReactNode } from "react";
  * stencil page's hero scale but accept any Tailwind text-[...] classes
  * via sizeClassName.
  */
-type Size = "hero" | "section" | "form";
+type Size = "hero" | "display" | "section" | "form";
 
 type Props = {
   before?: ReactNode;
@@ -19,10 +19,10 @@ type Props = {
   period?: boolean;
   size?: Size;
   /**
-   * Override the size preset entirely. Pass the exact Tailwind text-[..]
-   * + leading-[..] classes you want. When set, `size` is ignored. Use
-   * this when adopting on a page whose original h1 didn't exactly match
-   * hero/section/form — preserves zero visual diff.
+   * Escape hatch: override the size preset entirely with exact Tailwind
+   * text-[..] + leading-[..] classes. When set, `size` is ignored.
+   * Prefer the named presets — every loud page converged on them in the
+   * TAT-45 systematization pass; a new sizeClassName is a new one-off.
    */
   sizeClassName?: string;
   className?: string;
@@ -31,6 +31,7 @@ type Props = {
 
 const SIZES: Record<Size, string> = {
   hero: "text-[72px] sm:text-[112px] md:text-[148px] leading-[0.88]",
+  display: "text-[56px] sm:text-[88px] md:text-[120px] leading-[0.88]",
   section: "text-[48px] md:text-[80px] leading-[0.88]",
   form: "text-[40px] sm:text-[56px] leading-[0.92]",
 };
