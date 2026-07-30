@@ -2,7 +2,7 @@
 
 **Status:** Engineering's notes on the draft privacy language. **Not legal advice.**
 **Accompanies:** section 4 of `src/app/legal/privacy/page.tsx` (published as a draft)
-**Date:** 2026-07-26
+**Date:** 2026-07-26 (numbers updated 2026-07-30, after the scrape reached its 50,000-record target)
 
 This is a handover document. It records what the system actually does, which
 claims in the published draft depend on that, and the questions engineering
@@ -12,17 +12,38 @@ cannot answer. Someone qualified needs to go through it.
 
 | | |
 |---|---|
-| Artists collected without consent | ~7,828 |
-| Portfolio photographs downloaded and **re-hosted on TatT's own storage** | ~62,313 |
+| Artists discovered (raw scrape output, before cleanup) | 21,832 |
+| Artists after dedup/cleanup — the actual usable dataset | 17,847 |
+| Artists imported into Neo4j (the live app's data source) | 17,847 (all of them — 0 were skipped as claimed, removed, tombstoned, or under a pending takedown request, since none of those exist yet) |
+| Artists with at least one portfolio image URL attached | 7,444 (42% of 17,847) |
+| Total portfolio image URLs across those artists | 67,969 |
 | Artists who opted in | 0 |
-| Currently publicly reachable | Yes — the photographs are served from TatT infrastructure now |
 | Customers / onboarded artists | None. Pre-launch. |
+
+**Correction to the prior version of this table:** it described the photo count
+as "downloaded and re-hosted on TatT's own storage." That is not what the
+current scraper does. Read directly from the crawl code
+(`tatt-scraper/execution/scrape_artists.py`, `extract_images()`): portfolio
+image URLs are **hotlinks to each artist's or shop's own website** —
+`urljoin(base_url, src)` against whatever `<img>` tags the crawler finds on
+that site. Nothing is downloaded or copied to TatT infrastructure by this
+pipeline. That's a materially different exposure than re-hosting (unauthorized
+display without consent, not unauthorized copying), though not a risk-free
+one. The prior "~62,313 re-hosted photos" figure predates this pipeline
+entirely and its actual source hasn't been tracked down — treat it as
+unverified, not superseded, until someone finds where it came from.
+
+What's unambiguous regardless of the photo question: the **artist/shop
+directory data itself** — names, bios, shop affiliations, ratings, Instagram
+handles/permalinks, contact info — for 17,847 people who never opted in is
+scraped and live in the production Neo4j graph today.
 
 Sources were public: shop and studio websites, public artist directories, public
 Instagram profiles. "Public" is doing no work in that sentence — it describes
-where we found it, not whether we were entitled to copy and re-host it.
+where we found it, not whether we were entitled to copy it into our own
+database and display it.
 
-Pre-launch status does **not** reduce this one. The images are live today.
+Pre-launch status does **not** reduce this one. The data is live today.
 
 ## 2. The suggested template does not fit, and this is worth stating
 
