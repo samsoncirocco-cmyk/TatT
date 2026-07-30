@@ -27,6 +27,41 @@ vi.mock('@/lib/featured-artists', () => ({
   getFeaturedArtists: vi.fn().mockResolvedValue([]),
 }));
 
+describe('Home — hero: the two doors to SketchBot (TAT-52)', () => {
+  it('renders both doors when the SMS number is published', async () => {
+    vi.stubEnv('NEXT_PUBLIC_SKETCHBOT_SMS_NUMBER', '+16029051867');
+    render(await Home());
+
+    // Door one: talking on the site.
+    const talk = screen.getByRole('link', { name: /start talking/i });
+    expect(talk.getAttribute('href')).toBe('/design');
+
+    // Door two: the SMS number, a first-class equal.
+    const text = screen.getByRole('link', { name: '(602) 905-1867' });
+    expect(text.getAttribute('href')).toBe('sms:+16029051867');
+    expect(document.body.textContent).toContain('or text your idea to');
+  });
+
+  it('keeps the talk door and drops the SMS door when the number is unset', async () => {
+    vi.stubEnv('NEXT_PUBLIC_SKETCHBOT_SMS_NUMBER', '');
+    render(await Home());
+
+    expect(
+      screen.getByRole('link', { name: /start talking/i }).getAttribute('href')
+    ).toBe('/design');
+    expect(document.querySelector('a[href^="sms:"]')).toBeNull();
+  });
+
+  it('shows the mock conversation beat', async () => {
+    vi.stubEnv('NEXT_PUBLIC_SKETCHBOT_SMS_NUMBER', '');
+    render(await Home());
+
+    const text = document.body.textContent ?? '';
+    expect(text).toContain('an arm sleeve of my favorite anime');
+    expect(text).toContain('say less. four takes coming.');
+  });
+});
+
 describe('Home — text SketchBot mention (TAT-49)', () => {
   it('publishes the number with the sms: link and carrier disclosure when the env var is set', async () => {
     vi.stubEnv('NEXT_PUBLIC_SKETCHBOT_SMS_NUMBER', '+16029051867');

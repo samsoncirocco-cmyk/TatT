@@ -57,47 +57,68 @@ export default async function Home() {
           <div className="absolute inset-0 bg-[linear-gradient(0deg,#0a0a0a_4%,transparent_40%)]" />
           <div className="halftone absolute inset-0" />
 
-          <div className="relative z-[2] px-6 md:px-14 py-16 md:py-[70px] max-w-[820px] flex flex-col justify-center">
-            <div className="sticker self-start px-3.5 py-1.5 mb-6 rise rise-1">
-              <div className="font-display text-[14px] tracking-widest leading-none">
-                NEW
-              </div>
-              <div className="font-body text-[10px] uppercase tracking-widest leading-none mt-0.5">
-                Side&nbsp;B&nbsp;Out&nbsp;Now
-              </div>
-            </div>
-
-            <div className="text-[11px] uppercase tracking-[0.28em] text-pink mb-5 font-body rise rise-1">
-              ▸&nbsp;Think it. Ink it.
+          {/* TAT-52: the hero states the superpower in five seconds — you
+              design by talking, on the site or from your texts — and offers
+              both doors to SketchBot as equals. Kept deliberately short on
+              mobile so the next section still peeks above the fold. */}
+          <div className="relative z-[2] px-6 md:px-14 py-10 md:py-[70px] max-w-[820px] flex flex-col justify-center">
+            <div className="text-[11px] uppercase tracking-[0.28em] text-pink mb-4 md:mb-5 font-body rise rise-1">
+              ▸&nbsp;Think it. Text it. Test it.
             </div>
 
             <SlashHeadline
-              before={<>Tattoo<br />your</>}
-              slashed="way"
+              before={<>Talk it<br />into</>}
+              slashed="ink"
               size="hero"
               className="rise rise-2 text-balance"
             />
 
-            <p className="rise rise-3 mt-7 max-w-[40ch] text-[15px] leading-[1.55] text-white/70 font-body">
-              The AI tattoo studio that doesn&rsquo;t flinch. Describe the ink you
-              want, get four cuts back, then{" "}
-              <span className="scribble text-pink">find the artist</span> who can land it.
+            <p className="rise rise-3 mt-5 md:mt-7 max-w-[40ch] text-[15px] leading-[1.55] text-white/70 font-body">
+              Forever is a big ask —{" "}
+              <span className="scribble text-pink">test it first</span>. Tell
+              SketchBot your idea and get four cuts back before a needle gets
+              anywhere near you.
             </p>
 
-            <div className="rise rise-4 mt-10 flex flex-col sm:flex-row sm:items-stretch gap-5">
+            {/* The conversation, in one beat. Mock copy in styled bubbles —
+                not a screenshot, not a real person (ADR-0036 honesty bar). */}
+            <div className="rise rise-4 mt-5 md:mt-7 flex flex-col gap-2 max-w-[320px] font-body text-[13px] leading-snug">
+              <p className="self-start border-2 hairline-white bg-white/[0.07] px-3.5 py-2 text-white/85">
+                &ldquo;an arm sleeve of my favorite anime&rdquo;
+              </p>
+              <p className="self-end bg-pink text-black px-3.5 py-2">
+                say less. four takes coming.
+              </p>
+            </div>
+
+            {/* Two doors to the same SketchBot: talk on the site, or text
+                the published number (TAT-49, env-gated — no number, no
+                mention). The carrier disclosure travels with the number
+                wherever it renders (ADR-0035/0036). */}
+            <div className="rise rise-5 mt-7 md:mt-9 flex flex-col gap-4">
               <Link
                 href="/design"
                 className="tape press inline-flex items-center justify-center px-9 py-[18px] font-display text-[28px] sm:text-[34px] leading-none tracking-[0.02em] self-start"
               >
-                Start your design
+                Start talking
                 <span className="ml-3 text-[20px]">▸</span>
               </Link>
-              <Link
-                href="/artists"
-                className="text-[10px] uppercase tracking-[0.2em] text-white/70 hover:text-black hover:bg-pink border-2 hairline px-6 py-5 press font-body self-start inline-flex items-center"
-              >
-                Browse artists&nbsp;&nbsp;→
-              </Link>
+
+              {sms && (
+                <div>
+                  <p className="text-[15px] text-white/80 font-body leading-[1.55] max-w-[40ch]">
+                    or text your idea to{" "}
+                    <a
+                      href={sms.href}
+                      className="inline-block py-3 -my-3 text-pink hover:underline whitespace-nowrap tabular-nums"
+                    >
+                      {sms.display}
+                    </a>{" "}
+                    — SketchBot texts back four designs.
+                  </p>
+                  <SmsDisclosure className="mt-2 max-w-[62ch]" />
+                </div>
+              )}
             </div>
           </div>
         </section>
@@ -200,23 +221,8 @@ export default async function Home() {
               </Link>
             </div>
 
-            {sms && (
-              /* Text SketchBot (TAT-49) — the SMS door next to the showcase.
-                 Loud line, quiet compliance small print (ADR-0035/0036). */
-              <div className="mt-10">
-                <p className="text-[14px] text-white/70 font-body leading-[1.55] max-w-[52ch]">
-                  text your idea to{" "}
-                  <a
-                    href={sms.href}
-                    className="text-pink hover:underline whitespace-nowrap tabular-nums"
-                  >
-                    {sms.display}
-                  </a>{" "}
-                  — SketchBot texts back four designs.
-                </p>
-                <SmsDisclosure className="mt-2 max-w-[62ch]" />
-              </div>
-            )}
+            {/* The SMS door (TAT-49) moved up into the hero (TAT-52) — one
+                published number, disclosure adjacent, above the fold. */}
           </div>
         </section>
 
