@@ -129,13 +129,30 @@ export function charactersIn(text: string): CharacterMatch[] {
   if (!source.trim()) return [];
 
   const matched: CharacterMatch[] = [];
+  const skippedAmbiguous: CharacterMatch[] = [];
   for (const entry of ENTRIES) {
     if (matched.some((m) => m.description === entry.description)) continue;
     const names = [entry.name, ...entry.aliases];
     if (names.some((name) => nameMatches(source, name, entry.series))) {
       matched.push({ name: entry.name, series: entry.series, description: entry.description });
+    } else if (names.some((name) => name.length >= MIN_NAME_LENGTH && mentions(source, name))) {
+      // Name present but gated on the series being named — remember it for
+      // the co-mention pass below.
+      skippedAmbiguous.push({ name: entry.name, series: entry.series, description: entry.description });
     }
     if (matched.length === MAX_CHARACTERS) break;
+  }
+
+  // Co-mention pass: an ambiguous name counts when an unambiguous
+  // castmate from the SAME series already matched. "gohan and cell's beam
+  // struggle" names no series, but Gohan pins Dragon Ball, and dropping
+  // Cell from that brief is the truncated-cast failure all over again.
+  const matchedSeries = new Set(matched.map((m) => m.series));
+  for (const candidate of skippedAmbiguous) {
+    if (matched.length === MAX_CHARACTERS) break;
+    if (!matchedSeries.has(candidate.series)) continue;
+    if (matched.some((m) => m.description === candidate.description)) continue;
+    matched.push(candidate);
   }
 
   return matched;
