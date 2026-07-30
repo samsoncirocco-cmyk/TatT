@@ -30,6 +30,8 @@ type SwipeCard = {
   slug: string;
   matchPercent: number;
   styles: string[];
+  /** Honest, payload-backed "why" chips derived at search time. */
+  reasonChips: string[];
   location?: string;
   instagram?: string;
 };
@@ -54,6 +56,7 @@ export default function SwipeClient() {
         slug: artistSlug(m.artistName, m.artistId),
         matchPercent: Math.min(99, Math.max(1, Math.round(m.matchScore || 0))),
         styles: (m.styles || m.tags || []).slice(0, 3),
+        reasonChips: (m.reasonChips || []).slice(0, 3),
         location: m.location,
         instagram: m.instagramUrl,
       })),
@@ -175,25 +178,40 @@ export default function SwipeClient() {
                           .join("")
                           .toUpperCase()}
                       </span>
-                      <div className="absolute top-4 right-4 sticker px-2 py-1">
-                        <div className="font-display text-[14px] tracking-widest leading-none">
-                          {card.matchPercent}%
-                        </div>
-                        <div className="font-body text-[10px] uppercase tracking-widest leading-none mt-0.5">
-                          Match
-                        </div>
-                      </div>
                     </div>
 
                     <div className="flex-1 p-6 flex flex-col justify-between bg-black">
                       <div>
-                        <div className="font-display text-[24px] tracking-wide text-white">
-                          {card.name}
+                        {/* The chips lead: honest, payload-backed reasons in
+                            words. The raw match % stays but rides shotgun as
+                            a small tabular figure — a first-timer wants WHY,
+                            not a machine score. */}
+                        {card.reasonChips.length > 0 && (
+                          <div className="mb-3 flex flex-wrap gap-1.5">
+                            {card.reasonChips.map((chip) => (
+                              <span
+                                key={chip}
+                                className="text-[10px] uppercase tracking-[0.18em] bg-pink text-black px-2 py-1 font-body font-bold"
+                              >
+                                {chip}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex items-baseline justify-between gap-3">
+                          <div className="font-display text-[24px] tracking-wide text-white">
+                            {card.name}
+                          </div>
+                          <div className="shrink-0 text-[10px] uppercase tracking-[0.18em] text-white/40 tabular-nums font-body">
+                            {card.matchPercent}% match
+                          </div>
                         </div>
                         <div className="text-[10px] uppercase tracking-[0.2em] text-white/50 font-body mt-1">
                           {card.location || "—"}
                         </div>
-                        {card.styles.length > 0 && (
+                        {/* Older persisted decks predate reasonChips — fall
+                            back to the plain style tags rather than nothing. */}
+                        {card.reasonChips.length === 0 && card.styles.length > 0 && (
                           <div className="mt-3 flex flex-wrap gap-1.5">
                             {card.styles.map((s) => (
                               <span

@@ -15,6 +15,9 @@ export interface ArtistMatch {
     availability?: string;
     distance?: number;
     reasoning?: string;
+    /** Honest "why this artist" chips derived from the match payload at
+     *  search time (src/features/match-pulse/services/matchReasonChips). */
+    reasonChips?: string[];
     breakdown?: Record<string, number>;
 }
 

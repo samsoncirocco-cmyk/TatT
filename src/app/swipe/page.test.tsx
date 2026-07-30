@@ -97,6 +97,42 @@ describe("SwipePage persist hydration", () => {
   });
 });
 
+describe("SwipePage reason chips", () => {
+  beforeEach(() => {
+    push.mockClear();
+    searchParams = new URLSearchParams();
+  });
+
+  it("leads with the payload-backed reason chips and demotes the raw %", () => {
+    storeState = {
+      matches: [
+        {
+          ...sampleMatch,
+          reasonChips: ["Blackwork — your pick", "LA — near you"],
+        },
+      ],
+      hasHydrated: true,
+    };
+    render(<SwipePage />);
+
+    expect(screen.getByText("Blackwork — your pick")).toBeTruthy();
+    expect(screen.getByText("LA — near you")).toBeTruthy();
+    // The % survives, but as a quiet inline figure, not a leading stat.
+    expect(screen.getByText("88% match")).toBeTruthy();
+    // Chips replace the plain style-tag row when they exist.
+    expect(screen.queryByText("blackwork")).toBeNull();
+  });
+
+  it("falls back to plain style tags for decks persisted before chips existed", () => {
+    storeState = { matches: [sampleMatch], hasHydrated: true };
+    render(<SwipePage />);
+
+    expect(screen.getByText("blackwork")).toBeTruthy();
+    expect(screen.getByText("88% match")).toBeTruthy();
+    expect(screen.queryByText(/your pick|near you/i)).toBeNull();
+  });
+});
+
 describe("SwipePage design-session threading", () => {
   beforeEach(() => {
     push.mockClear();
