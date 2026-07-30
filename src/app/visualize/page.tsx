@@ -96,7 +96,10 @@ function VisualizeContent() {
           {[
             { label: 'Live camera', desc: 'Your design composited onto the real feed' },
             { label: 'You place it', desc: 'Drag, scale and rotate — no guessing' },
-            { label: 'Save the view', desc: 'Export exactly what you see on screen' },
+            {
+              label: 'Snap it, send it',
+              desc: 'Still or 3-sec clip, straight to the group chat — let them argue',
+            },
           ].map((f) => (
             <div key={f.label} className="rounded-2xl border border-white/10 bg-white/5 p-4">
               <p className="mb-1 font-mono text-xs uppercase tracking-widest text-ducks-yellow">
