@@ -70,6 +70,8 @@ export default async function ArtistProfilePage({
                   src={heroImage}
                   alt={`${artist.name} portfolio work`}
                   className="absolute inset-0 w-full h-full object-cover"
+                  fetchPriority="high"
+                  decoding="async"
                 />
                 {artist.instagram && (
                   <div className="absolute top-4 left-4 sticker px-2.5 py-1.5 -rotate-3">

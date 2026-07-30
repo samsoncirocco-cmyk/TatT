@@ -91,6 +91,7 @@ export default function ArtistCard(props: Props) {
               alt={`${name} portfolio work`}
               className="absolute inset-0 w-full h-full object-cover"
               loading="lazy"
+              decoding="async"
             />
           ) : (
             <>
