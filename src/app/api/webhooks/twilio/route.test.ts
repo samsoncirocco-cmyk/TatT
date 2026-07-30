@@ -315,6 +315,19 @@ describe('unexpected failures answer instead of going silent', () => {
     expect(body).toContain('Something went sideways on my end.');
   });
 
+  it('stays silent when recording opt-out state throws — never replies to a STOP', async () => {
+    // The apology is still a reply, and replying to compliance traffic is
+    // the one thing this route must never do.
+    vi.mocked(recordOptOut).mockRejectedValue(new Error('firestore unavailable'));
+
+    const res = await POST(webhookRequest({ From: PHONE, Body: 'STOP' }));
+
+    expect(res.status).toBe(200);
+    const body = await res.text();
+    expect(body).not.toContain('<Message>');
+    expect(body).not.toContain('Something went sideways');
+  });
+
   it('still gives an UNVERIFIED caller a bare 500, never the in-voice copy', async () => {
     // Failure before the signature gate must not hand an unauthenticated
     // caller a TwiML body or any channel voice.

@@ -127,6 +127,10 @@ export async function POST(req: NextRequest) {
   // unexpected failure returns: an in-voice text to a real texter, or a bare
   // 500 to an unauthenticated caller (see the catch below).
   let verified = false;
+  // Compliance traffic (STOP/HELP/START) is answered by Twilio, never by us.
+  // Tracked separately so a failure while RECORDING that state still can't
+  // turn the catch-all into a reply to an opt-out message.
+  let complianceTraffic = false;
 
   try {
     // Dark by default: while the flag is off this endpoint does not exist.
@@ -191,6 +195,7 @@ export async function POST(req: NextRequest) {
     const keyword = body.toLowerCase();
     const optOutType = (params.OptOutType ?? '').toUpperCase();
     if (optOutType || STOP_WORDS.has(keyword) || HELP_WORDS.has(keyword)) {
+      complianceTraffic = true;
       const effective =
         optOutType ||
         (STOP_WORDS.has(keyword) ? 'STOP' : 'HELP');
@@ -200,6 +205,7 @@ export async function POST(req: NextRequest) {
     }
     // START/UNSTOP re-opens the door; Twilio auto-confirms, we stay quiet.
     if (START_WORDS.has(keyword) && (await isOptedOut(phone))) {
+      complianceTraffic = true;
       await recordOptOut(phone, 'START');
       reqLogger.complete('twilio_webhook.opt_out', { type: 'START' });
       return twiml();
@@ -259,7 +265,9 @@ export async function POST(req: NextRequest) {
     // connection failures, so the 500 was pure silence — the one outcome this
     // channel never allows, and indistinguishable from the number being dead.
     // Unverified callers still get the bare 500: no voice, no information.
-    if (verified) return twiml(INTERNAL_ERROR_TEXT);
+    // Compliance traffic stays silent even here — Twilio already answered it,
+    // and an apology text is still a reply to a STOP.
+    if (verified) return complianceTraffic ? twiml() : twiml(INTERNAL_ERROR_TEXT);
     return NextResponse.json({ error: 'Webhook processing failed.' }, { status: 500 });
   }
 }
