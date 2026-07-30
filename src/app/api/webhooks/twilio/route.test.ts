@@ -62,6 +62,7 @@ vi.mock('@/services/sketchbotSms', async () => ({
   })),
   recordOptOut: vi.fn(async () => {}),
   isOptedOut: vi.fn(async () => false),
+  INTERNAL_ERROR_TEXT: 'Something went sideways on my end.',
 }));
 
 vi.mock('@/lib/rate-limit', () => ({
@@ -296,5 +297,34 @@ describe('reveal delivery', () => {
 
     expect(sendMms).not.toHaveBeenCalled();
     expect(sendSms).not.toHaveBeenCalled();
+  });
+});
+
+describe('unexpected failures answer instead of going silent', () => {
+  it('replies in voice with TwiML when a verified inbound throws downstream', async () => {
+    // The store/engine dying is the realistic case: before this, it returned
+    // a 500 and Twilio sent the texter NOTHING — the number looked dead.
+    vi.mocked(handleInbound).mockRejectedValue(new Error('firestore unavailable'));
+
+    const res = await POST(webhookRequest({ From: PHONE, Body: 'hi' }));
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toBe('text/xml');
+    const body = await res.text();
+    expect(body).toContain('<Message>');
+    expect(body).toContain('Something went sideways on my end.');
+  });
+
+  it('still gives an UNVERIFIED caller a bare 500, never the in-voice copy', async () => {
+    // Failure before the signature gate must not hand an unauthenticated
+    // caller a TwiML body or any channel voice.
+    vi.mocked(validateTwilioSignature).mockImplementation(() => {
+      throw new Error('boom');
+    });
+
+    const res = await POST(webhookRequest({ From: PHONE, Body: 'hi' }));
+
+    expect(res.status).toBe(500);
+    expect(await res.text()).not.toContain('<Message>');
   });
 });

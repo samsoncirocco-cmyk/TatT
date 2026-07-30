@@ -113,6 +113,15 @@ export function unavailableText(webUrl: string): string {
   return `I'm having trouble thinking straight right now. Try me again shortly — or design on the site: ${webUrl}`;
 }
 
+/**
+ * An unexpected failure on a VERIFIED inbound — the catch-all's in-voice
+ * answer. The channel's rule is that a refusal is always a reply the texter
+ * can read (see internal/adapter.ts); an HTTP 500 is not, because Twilio
+ * sends nothing on it and the texter just watches their message go nowhere.
+ */
+export const INTERNAL_ERROR_TEXT =
+  "Something went sideways on my end — that's mine to fix, not yours. Text me again in a minute and I'll pick this straight back up.";
+
 /** Closing text of a reveal MMS sequence — the bridge into the web session. */
 export function revealClosingText(shareUrl: string): string {
   return `Four takes, four directions. See them big, try them on your skin in AR, and book the artist who can ink it: ${shareUrl}`;

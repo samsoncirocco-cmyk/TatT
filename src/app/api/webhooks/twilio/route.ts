@@ -50,6 +50,7 @@ import {
   recordOptOut,
   isOptedOut,
   parseInboundMedia,
+  INTERNAL_ERROR_TEXT,
 } from '@/services/sketchbotSms';
 import { createRequestLogger, logger } from '@/lib/logger';
 
@@ -122,6 +123,10 @@ function webhookValidationUrl(req: NextRequest): { url: string; source: string }
 
 export async function POST(req: NextRequest) {
   const reqLogger = createRequestLogger('twilio-webhook');
+  // Flips once the request is proven to be Twilio's. It decides what an
+  // unexpected failure returns: an in-voice text to a real texter, or a bare
+  // 500 to an unauthenticated caller (see the catch below).
+  let verified = false;
 
   try {
     // Dark by default: while the flag is off this endpoint does not exist.
@@ -171,6 +176,8 @@ export async function POST(req: NextRequest) {
         );
       }
     }
+    // Past the gate: signature-verified, or the explicit non-prod bypass.
+    verified = true;
 
     const phone = (params.From ?? '').trim();
     const body = (params.Body ?? '').trim();
@@ -247,6 +254,12 @@ export async function POST(req: NextRequest) {
     return twiml(outcome.text);
   } catch (error) {
     reqLogger.error('twilio_webhook.failed', error as Error, {});
+    // A verified inbound that dies downstream (store, engine, provider) must
+    // still ANSWER. Twilio sends the texter nothing on a 500 and only retries
+    // connection failures, so the 500 was pure silence — the one outcome this
+    // channel never allows, and indistinguishable from the number being dead.
+    // Unverified callers still get the bare 500: no voice, no information.
+    if (verified) return twiml(INTERNAL_ERROR_TEXT);
     return NextResponse.json({ error: 'Webhook processing failed.' }, { status: 500 });
   }
 }
