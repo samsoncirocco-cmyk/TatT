@@ -33,7 +33,12 @@ vi.mock('@/services/designSession', () => {
       this.status = 500;
     }
   }
-  return { converse: vi.fn(), confirmProposal: vi.fn(), DesignSessionError };
+  return {
+    converse: vi.fn(),
+    confirmProposal: vi.fn(),
+    attachReference: vi.fn(),
+    DesignSessionError,
+  };
 });
 
 vi.mock('@/lib/budget-tracker', () => ({

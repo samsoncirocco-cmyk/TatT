@@ -62,6 +62,19 @@ function rowsFrom(notes: SessionNotes): NoteRow[] {
   if (notes.vibe) {
     rows.push({ key: 'vibe', label: 'vibe', value: notes.vibe, fix: 'actually, what it means is ' });
   }
+  (notes.references ?? []).forEach((summary, index) => {
+    // Reference images (TAT-50): one designed summary line per photo —
+    // never the raw analysis structure (same whitelist as everything here).
+    rows.push({
+      key: `reference-${index}`,
+      label:
+        index === 0
+          ? (notes.references!.length > 1 ? `references (${notes.references!.length})` : 'reference')
+          : '',
+      value: summary,
+      fix: 'about that reference photo — ',
+    });
+  });
   return rows;
 }
 
