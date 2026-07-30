@@ -105,7 +105,10 @@ function twiml(message?: string): NextResponse {
  */
 const WEBHOOK_PATH = '/api/webhooks/twilio';
 
-function webhookValidationUrl(req: NextRequest): { url: string; source: string } {
+function webhookValidationUrl(req: NextRequest): {
+  url: string;
+  source: string;
+} {
   const configured = (process.env.TWILIO_WEBHOOK_URL || '').trim();
   if (configured) return { url: configured, source: 'env' };
 
@@ -116,9 +119,11 @@ function webhookValidationUrl(req: NextRequest): { url: string; source: string }
 
   const url = new URL(req.url);
   const proto = req.headers.get('x-forwarded-proto') ?? url.protocol.replace(':', '');
-  const host =
-    req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? url.host;
-  return { url: `${proto}://${host}${url.pathname}${url.search}`, source: 'headers' };
+  const host = req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? url.host;
+  return {
+    url: `${proto}://${host}${url.pathname}${url.search}`,
+    source: 'headers',
+  };
 }
 
 export async function POST(req: NextRequest) {
@@ -156,8 +161,7 @@ export async function POST(req: NextRequest) {
     const params = Object.fromEntries(new URLSearchParams(rawBody));
 
     const allowUnsigned =
-      process.env.SKETCHBOT_SMS_ALLOW_UNSIGNED === 'true' &&
-      process.env.NODE_ENV !== 'production';
+      process.env.SKETCHBOT_SMS_ALLOW_UNSIGNED === 'true' && process.env.NODE_ENV !== 'production';
     if (!allowUnsigned) {
       const signature = req.headers.get('x-twilio-signature');
       const validation = webhookValidationUrl(req);
@@ -173,11 +177,10 @@ export async function POST(req: NextRequest) {
           param_count: Object.keys(params).length,
           from_last4: (params.From ?? '').slice(-4),
         });
-        reqLogger.complete('twilio_webhook.rejected', { reason: 'bad_signature' });
-        return NextResponse.json(
-          { error: 'Invalid Twilio signature.' },
-          { status: 403 }
-        );
+        reqLogger.complete('twilio_webhook.rejected', {
+          reason: 'bad_signature',
+        });
+        return NextResponse.json({ error: 'Invalid Twilio signature.' }, { status: 403 });
       }
     }
     // Past the gate: signature-verified, or the explicit non-prod bypass.
@@ -196,19 +199,25 @@ export async function POST(req: NextRequest) {
     const optOutType = (params.OptOutType ?? '').toUpperCase();
     if (optOutType || STOP_WORDS.has(keyword) || HELP_WORDS.has(keyword)) {
       complianceTraffic = true;
-      const effective =
-        optOutType ||
-        (STOP_WORDS.has(keyword) ? 'STOP' : 'HELP');
+      const effective = optOutType || (STOP_WORDS.has(keyword) ? 'STOP' : 'HELP');
       await recordOptOut(phone, effective);
       reqLogger.complete('twilio_webhook.opt_out', { type: effective });
       return twiml();
     }
     // START/UNSTOP re-opens the door; Twilio auto-confirms, we stay quiet.
-    if (START_WORDS.has(keyword) && (await isOptedOut(phone))) {
+    // Mark this as compliance traffic BEFORE the store lookup. If that lookup
+    // fails, the catch below must not turn START (or an opted-out YES) into an
+    // application apology. When the sender is not opted out, clear the marker
+    // so an ordinary conversational "yes" still gets the normal fail-soft
+    // reply if later application work fails.
+    if (START_WORDS.has(keyword)) {
       complianceTraffic = true;
-      await recordOptOut(phone, 'START');
-      reqLogger.complete('twilio_webhook.opt_out', { type: 'START' });
-      return twiml();
+      if (await isOptedOut(phone)) {
+        await recordOptOut(phone, 'START');
+        reqLogger.complete('twilio_webhook.opt_out', { type: 'START' });
+        return twiml();
+      }
+      complianceTraffic = false;
     }
 
     // ── Per-phone inbound rate limit (REQUIRED guardrail) ──────────────

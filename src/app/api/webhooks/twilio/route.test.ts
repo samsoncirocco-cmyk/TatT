@@ -14,12 +14,7 @@ import {
   sendSms,
   sendMms,
 } from '@/lib/twilio';
-import {
-  handleInbound,
-  executeReveal,
-  recordOptOut,
-  isOptedOut,
-} from '@/services/sketchbotSms';
+import { handleInbound, executeReveal, recordOptOut, isOptedOut } from '@/services/sketchbotSms';
 import { rateLimit } from '@/lib/rate-limit';
 
 // Capture after() callbacks so the deferred reveal delivery can be driven
@@ -41,7 +36,10 @@ vi.mock('@/lib/twilio', () => ({
   validateTwilioSignature: vi.fn(() => true),
   sendSms: vi.fn(async () => ({ ok: true, sid: 'SM1' })),
   sendMms: vi.fn(async () => ({ ok: true, sid: 'MM1' })),
-  TWILIO_NOT_CONFIGURED: { error: 'SMS is not configured.', code: 'TWILIO_NOT_CONFIGURED' },
+  TWILIO_NOT_CONFIGURED: {
+    error: 'SMS is not configured.',
+    code: 'TWILIO_NOT_CONFIGURED',
+  },
 }));
 
 vi.mock('@/services/sketchbotSms', async () => ({
@@ -52,7 +50,10 @@ vi.mock('@/services/sketchbotSms', async () => ({
       '@/services/sketchbotSms/internal/media'
     )
   ).parseInboundMedia,
-  handleInbound: vi.fn(async () => ({ kind: 'reply', text: 'Where would it go?' })),
+  handleInbound: vi.fn(async () => ({
+    kind: 'reply',
+    text: 'Where would it go?',
+  })),
   executeReveal: vi.fn(async () => ({
     cuts: [
       { caption: 'Cut 1 of 2', mediaUrl: 'https://img/1.png' },
@@ -66,7 +67,12 @@ vi.mock('@/services/sketchbotSms', async () => ({
 }));
 
 vi.mock('@/lib/rate-limit', () => ({
-  rateLimit: vi.fn(async () => ({ allowed: true, limit: 30, remaining: 29, reset: 0 })),
+  rateLimit: vi.fn(async () => ({
+    allowed: true,
+    limit: 30,
+    remaining: 29,
+    reset: 0,
+  })),
 }));
 
 const PHONE = '+15551234567';
@@ -94,7 +100,12 @@ beforeEach(() => {
   vi.mocked(twilioConfigured).mockReturnValue(true);
   vi.mocked(validateTwilioSignature).mockReturnValue(true);
   vi.mocked(isOptedOut).mockResolvedValue(false);
-  vi.mocked(rateLimit).mockResolvedValue({ allowed: true, limit: 30, remaining: 29, reset: 0 });
+  vi.mocked(rateLimit).mockResolvedValue({
+    allowed: true,
+    limit: 30,
+    remaining: 29,
+    reset: 0,
+  });
   vi.stubEnv('SKETCHBOT_SMS_ALLOW_UNSIGNED', '');
 });
 
@@ -129,7 +140,10 @@ describe('gating', () => {
     // Vercel-style: internal deployment host on the request, junk forwards.
     const req = new NextRequest('https://tatt-app-abc123.vercel.app/api/webhooks/twilio', {
       method: 'POST',
-      body: new URLSearchParams({ From: PHONE, Body: 'hello there' }).toString(),
+      body: new URLSearchParams({
+        From: PHONE,
+        Body: 'hello there',
+      }).toString(),
       headers: {
         'content-type': 'application/x-www-form-urlencoded',
         'x-twilio-signature': 'sig',
@@ -172,9 +186,7 @@ describe('gating', () => {
 
 describe('opt-out compliance', () => {
   it('records STOP and never replies', async () => {
-    const res = await POST(
-      webhookRequest({ From: PHONE, Body: 'STOP', OptOutType: 'STOP' })
-    );
+    const res = await POST(webhookRequest({ From: PHONE, Body: 'STOP', OptOutType: 'STOP' }));
     expect(res.status).toBe(200);
     expect(await res.text()).not.toContain('<Message>');
     expect(recordOptOut).toHaveBeenCalledWith(PHONE, 'STOP');
@@ -208,7 +220,12 @@ describe('rate limiting', () => {
   });
 
   it('answers a flood with silence — replies cost money', async () => {
-    vi.mocked(rateLimit).mockResolvedValue({ allowed: false, limit: 30, remaining: 0, reset: 0 });
+    vi.mocked(rateLimit).mockResolvedValue({
+      allowed: false,
+      limit: 30,
+      remaining: 0,
+      reset: 0,
+    });
     const res = await POST(webhookRequest({ From: PHONE, Body: 'hi' }));
     expect(res.status).toBe(200);
     expect(await res.text()).not.toContain('<Message>');
@@ -222,7 +239,10 @@ describe('conversation round trip', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toContain('text/xml');
     expect(await res.text()).toContain('<Message>Where would it go?</Message>');
-    expect(handleInbound).toHaveBeenCalledWith({ phone: PHONE, body: 'a snake tattoo' });
+    expect(handleInbound).toHaveBeenCalledWith({
+      phone: PHONE,
+      body: 'a snake tattoo',
+    });
   });
 
   it('XML-escapes the reply', async () => {
@@ -284,10 +304,7 @@ describe('reveal delivery', () => {
     expect(sendMms).toHaveBeenCalledTimes(2);
     expect(sendMms).toHaveBeenNthCalledWith(1, PHONE, 'Cut 1 of 2', ['https://img/1.png']);
     expect(sendMms).toHaveBeenNthCalledWith(2, PHONE, 'Cut 2 of 2', ['https://img/2.png']);
-    expect(sendSms).toHaveBeenCalledWith(
-      PHONE,
-      'See them big: https://tatttester.com/share/abc'
-    );
+    expect(sendSms).toHaveBeenCalledWith(PHONE, 'See them big: https://tatttester.com/share/abc');
   });
 
   it('never messages a number that opted out between ack and delivery', async () => {
@@ -326,6 +343,28 @@ describe('unexpected failures answer instead of going silent', () => {
     const body = await res.text();
     expect(body).not.toContain('<Message>');
     expect(body).not.toContain('Something went sideways');
+  });
+
+  it('stays silent when START opt-out lookup fails — never guesses on compliance traffic', async () => {
+    vi.mocked(isOptedOut).mockRejectedValue(new Error('firestore unavailable'));
+
+    const res = await POST(webhookRequest({ From: PHONE, Body: 'START' }));
+
+    expect(res.status).toBe(200);
+    const body = await res.text();
+    expect(body).not.toContain('<Message>');
+    expect(body).not.toContain('Something went sideways');
+    expect(handleInbound).not.toHaveBeenCalled();
+  });
+
+  it('still fail-soft replies to a normal YES when the sender is not opted out', async () => {
+    vi.mocked(isOptedOut).mockResolvedValue(false);
+    vi.mocked(handleInbound).mockRejectedValue(new Error('engine unavailable'));
+
+    const res = await POST(webhookRequest({ From: PHONE, Body: 'yes' }));
+
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain('Something went sideways');
   });
 
   it('still gives an UNVERIFIED caller a bare 500, never the in-voice copy', async () => {

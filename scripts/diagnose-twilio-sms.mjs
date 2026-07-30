@@ -30,6 +30,8 @@ const info = (m) => console.log(`    ${m}`);
 
 /** Findings worth acting on, printed as the verdict. */
 const problems = [];
+/** Critical checks that could not be completed. Never report healthy with these. */
+const incompleteChecks = [];
 
 /**
  * The URL the SERVER will validate signatures against — identical precedence
@@ -42,13 +44,22 @@ function expectedWebhookUrl() {
   const base = (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || '')
     .trim()
     .replace(/\/$/, '');
-  if (base) return { url: `${base}${WEBHOOK_PATH}`, source: 'derived from NEXT_PUBLIC_APP_URL' };
+  if (base)
+    return {
+      url: `${base}${WEBHOOK_PATH}`,
+      source: 'derived from NEXT_PUBLIC_APP_URL',
+    };
   return { url: '', source: 'unresolvable' };
 }
 
 function mask(value) {
   if (!value) return '(unset)';
   return value.length <= 8 ? '****' : `${value.slice(0, 4)}…${value.slice(-4)}`;
+}
+
+function maskPhone(value) {
+  if (!value) return '(unset)';
+  return `•••${String(value).slice(-4)}`;
 }
 
 async function main() {
@@ -64,13 +75,15 @@ async function main() {
   if (process.env.SKETCHBOT_SMS_ENABLED === 'true') {
     ok('SKETCHBOT_SMS_ENABLED=true');
   } else {
-    bad(`SKETCHBOT_SMS_ENABLED is "${process.env.SKETCHBOT_SMS_ENABLED ?? '(unset)'}" — the webhook 404s`);
+    bad(
+      `SKETCHBOT_SMS_ENABLED is "${process.env.SKETCHBOT_SMS_ENABLED ?? '(unset)'}" — the webhook 404s`
+    );
     problems.push('Set SKETCHBOT_SMS_ENABLED=true in the deployment and redeploy.');
   }
   console.log(`    TWILIO_ACCOUNT_SID           ${mask(accountSid)}`);
   console.log(`    TWILIO_AUTH_TOKEN            ${authToken ? 'set' : '(unset)'}`);
-  console.log(`    TWILIO_PHONE_NUMBER          ${number || '(unset)'}`);
-  console.log(`    TWILIO_MESSAGING_SERVICE_SID ${serviceSid || '(unset)'}`);
+  console.log(`    TWILIO_PHONE_NUMBER          ${maskPhone(number)}`);
+  console.log(`    TWILIO_MESSAGING_SERVICE_SID ${mask(serviceSid)}`);
 
   const expected = expectedWebhookUrl();
   console.log(`    Server validates against     ${expected.url || '(unresolvable)'}`);
@@ -92,7 +105,9 @@ async function main() {
     const account = await client.api.v2010.accounts(accountSid).fetch();
     ok(`${account.friendlyName} — status "${account.status}"`);
     if (account.status !== 'active') {
-      problems.push(`The Twilio account is "${account.status}", not active — messaging is suspended.`);
+      problems.push(
+        `The Twilio account is "${account.status}", not active — messaging is suspended.`
+      );
     }
   } catch (error) {
     bad(`Credentials rejected: ${error.message}`);
@@ -107,65 +122,93 @@ async function main() {
   // 403s and Twilio delivers nothing.
   console.log('\n3. Inbound webhook wiring');
   let effectiveUrl = '';
+  let effectiveMethod = '';
+  let numberUrl = '';
+  let numberMethod = '';
 
   if (number) {
     try {
-      const [found] = await client.incomingPhoneNumbers.list({ phoneNumber: number, limit: 1 });
+      const [found] = await client.incomingPhoneNumbers.list({
+        phoneNumber: number,
+        limit: 1,
+      });
       if (!found) {
-        bad(`${number} is not an incoming number on this account`);
-        problems.push(`${number} does not belong to this Twilio account — check the number or the credentials.`);
+        bad(`${maskPhone(number)} is not an incoming number on this account`);
+        problems.push(
+          `${maskPhone(number)} does not belong to this Twilio account — check the number or the credentials.`
+        );
       } else {
-        ok(`${found.phoneNumber} found`);
-        info(`SMS capable: ${found.capabilities?.sms ? 'yes' : 'NO'} · MMS capable: ${found.capabilities?.mms ? 'yes' : 'no'}`);
+        ok(`${maskPhone(found.phoneNumber)} found`);
+        info(
+          `SMS capable: ${found.capabilities?.sms ? 'yes' : 'NO'} · MMS capable: ${found.capabilities?.mms ? 'yes' : 'no'}`
+        );
         info(`Number smsUrl: ${found.smsUrl || '(none)'} [${found.smsMethod || '-'}]`);
         if (!found.capabilities?.sms) {
-          problems.push(`${number} has no SMS capability — it can never receive texts.`);
+          problems.push(`${maskPhone(number)} has no SMS capability — it can never receive texts.`);
         }
-        effectiveUrl = found.smsUrl || '';
+        numberUrl = found.smsUrl || '';
+        numberMethod = found.smsMethod || '';
+        effectiveUrl = numberUrl;
+        effectiveMethod = numberMethod;
       }
     } catch (error) {
       warn(`Could not read the number: ${error.message}`);
+      incompleteChecks.push('incoming-number configuration');
     }
   } else {
     warn('No number given — pass one as an argument or set TWILIO_PHONE_NUMBER');
+    incompleteChecks.push('incoming-number configuration');
   }
 
   if (serviceSid) {
     try {
       const service = await client.messaging.v1.services(serviceSid).fetch();
       ok(`Messaging Service "${service.friendlyName}"`);
-      info(`Service inboundRequestUrl: ${service.inboundRequestUrl || '(none)'} [${service.inboundMethod || '-'}]`);
+      info(
+        `Service inboundRequestUrl: ${service.inboundRequestUrl || '(none)'} [${service.inboundMethod || '-'}]`
+      );
       info(`useInboundWebhookOnNumber: ${service.useInboundWebhookOnNumber}`);
 
-      // This flag decides which webhook Twilio calls when a number belongs
-      // to a Messaging Service — the number's, or the service's.
-      if (service.useInboundWebhookOnNumber) {
-        info('→ Twilio will call the NUMBER webhook (above), not the service one.');
-      } else {
-        effectiveUrl = service.inboundRequestUrl || '';
-        info('→ Twilio will call the SERVICE webhook.');
-      }
-
       // A number must be in the sender pool for the service to govern it.
+      let inPool = false;
       if (number) {
         try {
-          const pool = await client.messaging.v1.services(serviceSid).phoneNumbers.list({ limit: 100 });
-          const inPool = pool.some((p) => p.phoneNumber === number);
+          const pool = await client.messaging.v1
+            .services(serviceSid)
+            .phoneNumbers.list({ limit: 100 });
+          inPool = pool.some((p) => p.phoneNumber === number);
           if (inPool) {
-            ok(`${number} is in the service's sender pool`);
+            ok(`${maskPhone(number)} is in the service's sender pool`);
           } else {
-            bad(`${number} is NOT in the service's sender pool`);
+            bad(`${maskPhone(number)} is NOT in the service's sender pool`);
             problems.push(
-              `${number} is not attached to Messaging Service ${serviceSid} — its A2P campaign and opt-out settings do not apply to it.`
+              `${maskPhone(number)} is not attached to Messaging Service ${mask(serviceSid)} — its A2P campaign and opt-out settings do not apply to it.`
             );
           }
         } catch (error) {
           warn(`Could not read the sender pool: ${error.message}`);
+          incompleteChecks.push('Messaging Service sender-pool membership');
         }
       }
+
+      // A service can govern this number only when the number is actually in
+      // its sender pool. Otherwise Twilio keeps using the number-level URL.
+      if (inPool && service.useInboundWebhookOnNumber) {
+        effectiveUrl = numberUrl;
+        effectiveMethod = numberMethod;
+        info('→ Twilio will call the NUMBER webhook (above), not the service one.');
+      } else if (inPool) {
+        effectiveUrl = service.inboundRequestUrl || '';
+        effectiveMethod = service.inboundMethod || '';
+        info('→ Twilio will call the SERVICE webhook.');
+      } else if (number) {
+        info('→ This service does not govern the number; using the NUMBER webhook.');
+      }
     } catch (error) {
-      bad(`Could not read Messaging Service ${serviceSid}: ${error.message}`);
-      problems.push(`TWILIO_MESSAGING_SERVICE_SID (${serviceSid}) is unreadable — wrong SID, or it belongs to another account.`);
+      bad(`Could not read Messaging Service ${mask(serviceSid)}: ${error.message}`);
+      problems.push(
+        `TWILIO_MESSAGING_SERVICE_SID (${mask(serviceSid)}) is unreadable — wrong SID, or it belongs to another account.`
+      );
     }
   }
 
@@ -177,7 +220,9 @@ async function main() {
     );
   } else if (!expected.url) {
     warn('Cannot compare: the server-side validation URL is unresolvable');
-    problems.push('Set TWILIO_WEBHOOK_URL (or NEXT_PUBLIC_APP_URL) so the server knows what URL to validate against.');
+    problems.push(
+      'Set TWILIO_WEBHOOK_URL (or NEXT_PUBLIC_APP_URL) so the server knows what URL to validate against.'
+    );
   } else if (effectiveUrl === expected.url) {
     ok('Console webhook matches the URL the server validates against, byte for byte');
   } else {
@@ -188,12 +233,24 @@ async function main() {
       `Make these identical: set TWILIO_WEBHOOK_URL="${effectiveUrl}" in the deployment, or change the console webhook to "${expected.url}".`
     );
   }
+  if (effectiveUrl && String(effectiveMethod).toUpperCase() !== 'POST') {
+    bad(
+      `Inbound webhook method is "${effectiveMethod || '(unset)'}", but this route accepts POST only`
+    );
+    problems.push(
+      'Set the active Twilio inbound webhook method to POST. GET requests receive 405 and no reply.'
+    );
+  } else if (effectiveUrl) {
+    ok('Active inbound webhook method is POST');
+  }
 
   // ── 4. A2P 10DLC — the classic "inbound works, replies vanish" ───────
   console.log('\n4. A2P 10DLC registration');
   if (serviceSid) {
     try {
-      const campaigns = await client.messaging.v1.services(serviceSid).usAppToPerson.list({ limit: 5 });
+      const campaigns = await client.messaging.v1
+        .services(serviceSid)
+        .usAppToPerson.list({ limit: 5 });
       if (campaigns.length === 0) {
         bad('No A2P campaign on this Messaging Service');
         problems.push(
@@ -203,20 +260,24 @@ async function main() {
       for (const campaign of campaigns) {
         const status = campaign.campaignStatus || 'unknown';
         if (String(status).toUpperCase() === 'VERIFIED') {
-          ok(`Campaign ${campaign.sid} — ${status}`);
+          ok(`Campaign ${mask(campaign.sid)} — ${status}`);
         } else {
-          bad(`Campaign ${campaign.sid} — ${status}`);
+          bad(`Campaign ${mask(campaign.sid)} — ${status}`);
           problems.push(
-            `A2P campaign ${campaign.sid} is "${status}", not VERIFIED — carriers will block outbound replies (error 30034) until it is approved.`
+            `A2P campaign ${mask(campaign.sid)} is "${status}", not VERIFIED — carriers will block outbound replies (error 30034) until it is approved.`
           );
         }
       }
     } catch (error) {
       warn(`Could not read A2P campaigns: ${error.message}`);
+      incompleteChecks.push('A2P campaign status');
     }
   } else {
     warn('No Messaging Service configured — A2P campaign status cannot be checked here');
-    info('A bare 10DLC number without a registered campaign has its outbound SMS blocked by US carriers.');
+    info(
+      'A bare 10DLC number without a registered campaign has its outbound SMS blocked by US carriers.'
+    );
+    incompleteChecks.push('A2P campaign status');
   }
 
   // ── 5. What actually happened to recent traffic ──────────────────────
@@ -232,7 +293,9 @@ async function main() {
       } else {
         ok(`${inbound.length} inbound message(s) received — Twilio IS getting your texts`);
         for (const m of inbound.slice(0, 5)) {
-          info(`← ${m.dateSent?.toISOString?.() ?? m.dateSent} from ${m.from}: "${(m.body || '').slice(0, 40)}" [${m.status}]`);
+          info(
+            `← ${m.dateSent?.toISOString?.() ?? m.dateSent} from ${maskPhone(m.from)} [${m.status}] (content hidden)`
+          );
         }
       }
 
@@ -246,7 +309,7 @@ async function main() {
         ok(`${outbound.length} outbound message(s) attempted`);
         for (const m of outbound.slice(0, 5)) {
           const failed = ['failed', 'undelivered'].includes(String(m.status));
-          const line = `→ to ${m.to}: [${m.status}]${m.errorCode ? ` error ${m.errorCode}: ${m.errorMessage || ''}` : ''}`;
+          const line = `→ to ${maskPhone(m.to)}: [${m.status}]${m.errorCode ? ` error ${m.errorCode}: ${m.errorMessage || ''}` : ''}`;
           if (failed) bad(line.trim());
           else info(line.trim());
           if (m.errorCode === 30034) {
@@ -254,15 +317,22 @@ async function main() {
               'Error 30034: outbound blocked because the number is not registered for A2P 10DLC. Complete brand + campaign registration.'
             );
           } else if (m.errorCode === 21610) {
-            problems.push(`Error 21610: ${m.to} has opted out (STOP). They must text START to receive replies again.`);
+            problems.push(
+              `Error 21610: ${maskPhone(m.to)} has opted out (STOP). They must text START to receive replies again.`
+            );
           } else if (m.errorCode === 30007) {
-            problems.push('Error 30007: carrier filtered the reply as spam — usually unregistered or mis-scoped A2P traffic.');
+            problems.push(
+              'Error 30007: carrier filtered the reply as spam — usually unregistered or mis-scoped A2P traffic.'
+            );
           }
         }
       }
     } catch (error) {
       warn(`Could not read message logs: ${error.message}`);
+      incompleteChecks.push('recent inbound/outbound message logs');
     }
+  } else {
+    incompleteChecks.push('recent inbound/outbound message logs');
   }
 
   printVerdict();
@@ -270,15 +340,21 @@ async function main() {
 
 function printVerdict() {
   console.log('\n─────────────────────────────────────────────');
-  if (problems.length === 0) {
+  if (problems.length === 0 && incompleteChecks.length === 0) {
     console.log('No problems found. The channel looks correctly wired.');
     console.log('If texting still fails, check the Vercel runtime logs for');
     console.log('twilio_webhook.* events at the moment you send a text.');
   } else {
-    console.log(`${problems.length} problem(s) to fix:\n`);
+    if (problems.length > 0) console.log(`${problems.length} problem(s) to fix:\n`);
     // Dedupe — one root cause often shows up on several messages.
     for (const [i, problem] of [...new Set(problems)].entries()) {
       console.log(`  ${i + 1}. ${problem}`);
+    }
+    if (incompleteChecks.length > 0) {
+      console.log(
+        `\nInconclusive — could not complete: ${[...new Set(incompleteChecks)].join(', ')}.`
+      );
+      process.exitCode = 2;
     }
   }
   console.log('');
