@@ -69,6 +69,9 @@ export const API_ROUTE_SECURITY: Record<string, RouteSecurityEntry> = {
   'v1/book/hold': { class: 'firebase-auth' },
   'v1/bookings': { class: 'firebase-auth' },
   'v1/bookings/[id]': { class: 'firebase-auth' },
+  // Owner-scoped .ics download of a reservation's slot; same uid discipline
+  // and existence-hiding 404s as v1/bookings/[id].
+  'v1/bookings/[id]/calendar.ics': { class: 'firebase-auth' },
   'v1/council/enhance': { class: 'firebase-auth' },
   'v1/council/generate': { class: 'firebase-auth' },
   'v1/design-session': { class: 'firebase-auth' },
