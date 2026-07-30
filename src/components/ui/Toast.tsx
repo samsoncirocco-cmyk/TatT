@@ -45,7 +45,7 @@ export function Toast({ message, type = 'info', onClose }: ToastProps) {
     <div
       className={`
         fixed bottom-4 right-4 z-50
-        px-4 py-3 rounded-lg shadow-hard
+        px-4 py-3 shadow-hard
         flex items-center gap-3
         transition-all duration-300
         ${typeStyles[type]}

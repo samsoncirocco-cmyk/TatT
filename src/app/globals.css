@@ -191,6 +191,22 @@ body {
 .rise-4 { animation-delay: 320ms; }
 .rise-5 { animation-delay: 440ms; }
 
+/* The four-cut reveal (TAT-52) — same snap cut-in, a full beat apart so the
+   cuts land one at a time. Reveal grid only; everything else uses .rise. */
+.reveal-cut { animation: snap 280ms steps(6, end) both; }
+.reveal-cut-1 { animation-delay: 0ms; }
+.reveal-cut-2 { animation-delay: 260ms; }
+.reveal-cut-3 { animation-delay: 520ms; }
+.reveal-cut-4 { animation-delay: 780ms; }
+
+/* Reduced motion: no cut-ins anywhere — content renders in place, at once. */
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .reveal-cut {
+    animation: none;
+  }
+}
+
 .press {
   transition: transform 120ms ease;
 }

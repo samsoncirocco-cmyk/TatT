@@ -1,6 +1,6 @@
-import Link from "next/link";
 import StudioShell from "@/components/studio/StudioShell";
 import SlashHeadline from "@/components/punk/SlashHeadline";
+import TapeCTA from "@/components/punk/TapeCTA";
 
 const SECTIONS = [
   {
@@ -52,7 +52,7 @@ export default function AboutPage() {
           <SlashHeadline
             before={<>From idea<br />to</>}
             slashed="ink"
-            sizeClassName="text-[56px] sm:text-[88px] md:text-[120px] leading-[0.88]"
+            size="display"
           />
           <p className="mt-8 text-[15px] text-white/70 font-body max-w-xl leading-[1.55]">
             Four steps. No bullshit. Here&rsquo;s how TattTester works.
@@ -79,7 +79,7 @@ export default function AboutPage() {
                 before={<span className="text-pink">{s.n}.</span>}
                 slashed={s.word}
                 period={false}
-                sizeClassName="text-[64px] sm:text-[96px] md:text-[120px] leading-[0.88]"
+                size="display"
               />
               <div className="mt-8 space-y-4 max-w-xl">
                 {s.body.map((p, i) => (
@@ -95,17 +95,13 @@ export default function AboutPage() {
 
       <section className="px-6 md:px-12 py-24 border-t-2 hairline">
         <div className="max-w-5xl mx-auto text-center">
-          <h2 className="font-display text-white text-[40px] sm:text-[64px] leading-[0.95]">
+          <h2 className="font-display text-white text-[48px] md:text-[80px] leading-[0.88]">
             Ready?
             <span className="text-pink">.</span>
           </h2>
-          <Link
-            href="/design"
-            className="mt-10 tape press inline-flex items-center justify-center px-10 py-5 font-display text-[28px] sm:text-[38px] leading-none tracking-[0.02em]"
-          >
+          <TapeCTA href="/design" size="lg" className="mt-10">
             Start Designing
-            <span className="ml-3 text-[20px]">▸</span>
-          </Link>
+          </TapeCTA>
         </div>
       </section>
     </StudioShell>
