@@ -7,6 +7,7 @@ import { revealNarration } from '../services/revealNarration';
 import { ChatBubble } from './ChatBubble';
 import { ChatInput } from './ChatInput';
 import { ThinkingLine } from './ThinkingLine';
+import { GeneratingBeat, REVEAL_BEAT_LINES, REFINE_BEAT_LINES } from './GeneratingBeat';
 import { RevealGrid, type RevealMode } from './RevealGrid';
 import { RefinementPrompt } from './RefinementPrompt';
 import { HandoffCard } from './HandoffCard';
@@ -141,14 +142,15 @@ export function DesignSessionFlow({ initialSession }: { initialSession?: DesignS
           narration is in-voice, DERIVED from the axis selection — the raw
           axisSelection.rationale is an internal audit log (ADR-0012) and
           must never render as a chat message. */}
-      {step === 'starting' && !error && <ThinkingLine label="Sketching four directions" />}
+      {step === 'starting' && !error && <GeneratingBeat lines={REVEAL_BEAT_LINES} />}
       {showGrid && session && (
         <>
           <ChatBubble role="bot">{revealNarration(session.axisSelection)}</ChatBubble>
           <ChatBubble role="bot">
             {step === 'most-not-you' ? (
               <>
-                And which one feels most <em>not</em> you?
+                And which one feels most <em>not</em> you? Ruling one out teaches me as much as
+                your pick.
               </>
             ) : (
               'Four directions. Tap the one that hits.'
@@ -174,7 +176,7 @@ export function DesignSessionFlow({ initialSession }: { initialSession?: DesignS
           />
         </>
       )}
-      {step === 'refining' && !error && <ThinkingLine label="Reworking your pick" />}
+      {step === 'refining' && !error && <GeneratingBeat lines={REFINE_BEAT_LINES} />}
 
       {step === 'complete' && session && (
         <>

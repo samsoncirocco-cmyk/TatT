@@ -18,7 +18,10 @@ import {
 import {
   converse as runConverse,
   confirmProposal as runConfirm,
+  attachReference as runAttachReference,
+  type AttachReferenceResult,
 } from './internal/conversation';
+import type { ReferenceAnalysis } from '../vision';
 // The public boundary strips internal session state (pinned generation
 // route, conversation transcript/TurnLogs) — every function returning a
 // session projects it through toDesignSession before it leaves the module,
@@ -122,4 +125,23 @@ export async function converse(request: ConverseRequest): Promise<ConverseRespon
  */
 export async function confirmProposal(sessionId: string): Promise<DesignSession> {
   return toDesignSession(await runConfirm(sessionId));
+}
+
+export type { AttachReferenceResult };
+
+/**
+ * Attach an analyzed reference image to a session in conversational intake
+ * (TAT-50). Stores the analysis as a reference entry and merges its signals
+ * into the working record — style tags toward Council enhancement, a
+ * reference line toward the artist Brief, recognized characters through the
+ * same inspired-by machinery as text mentions. Returns the notepad
+ * projection including the new reference row. Throws DesignSessionError
+ * INVALID_PHASE outside conversational intake.
+ */
+export async function attachReference(
+  sessionId: string,
+  analysis: ReferenceAnalysis,
+  source: 'sms' | 'web'
+): Promise<AttachReferenceResult> {
+  return runAttachReference(sessionId, analysis, source);
 }

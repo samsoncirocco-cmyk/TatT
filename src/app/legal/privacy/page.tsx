@@ -377,7 +377,10 @@ export default function PrivacyPage() {
               <strong className="text-quiet">design requests</strong> you make in them. We
               use that information to provide the design conversation service: understanding
               your idea, replying, generating the designs you asked for, and delivering them
-              to you. We do not use your number for anything else.
+              to you. Photos you text to SketchBot are part of that message content: we keep
+              them with the conversation and use them only as design references — to
+              understand the style and subjects you are pointing at. We do not use your
+              number for anything else.
             </p>
             <p>
               Message and data rates may apply, and message frequency varies with the

@@ -217,10 +217,10 @@ export default function StencilExport({ imageUrl, designName = 'tattoo', designI
   };
 
   const formatButtonClass = (format) => (
-    `flex-1 px-4 py-2 rounded-lg font-medium text-sm transition-all border ${
+    `press flex-1 px-4 py-2 text-[11px] uppercase tracking-[0.18em] transition-colors border-2 ${
       exportFormat === format
-        ? 'bg-primary-600 text-white border-primary-600'
-        : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
+        ? 'bg-pink text-black border-pink'
+        : 'bg-black text-white/70 hairline-white hover:border-pink'
     }`
   );
 
@@ -229,10 +229,10 @@ export default function StencilExport({ imageUrl, designName = 'tattoo', designI
     : PAPER_SIZES[recommendedPaper]?.name || 'Letter';
 
   return (
-    <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+    <div className="bg-black p-6 text-white font-body">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Stencil Export</h3>
-        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+        <h3 className="text-[14px] font-display tracking-wide uppercase text-white">Stencil Export</h3>
+        <span className="text-[10px] bg-pink text-black px-2 py-1 uppercase tracking-[0.18em]">
           300 DPI Calibrated
         </span>
       </div>
@@ -242,14 +242,14 @@ export default function StencilExport({ imageUrl, designName = 'tattoo', designI
         <div className="space-y-4">
           {/* Size Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-[10px] uppercase tracking-[0.25em] text-pink mb-2">
               Stencil Size
             </label>
             <div className="space-y-2">
               {Object.entries(STENCIL_SIZES).map(([key, size]) => (
                 <label
                   key={key}
-                  className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
+                  className="flex items-center space-x-3 p-3 border hairline-white cursor-pointer hover:bg-white/5"
                 >
                   <input
                     type="radio"
@@ -257,11 +257,11 @@ export default function StencilExport({ imageUrl, designName = 'tattoo', designI
                     value={key}
                     checked={selectedSize === key}
                     onChange={(e) => setSelectedSize(e.target.value)}
-                    className="text-blue-600"
+                    className="accent-[#ff1f6b]"
                   />
                   <div className="flex-1">
                     <div className="font-medium">{size.name}</div>
-                    <div className="text-xs text-gray-500">{size.description}</div>
+                    <div className="text-[11px] text-white/50">{size.description}</div>
                   </div>
                 </label>
               ))}
@@ -270,14 +270,14 @@ export default function StencilExport({ imageUrl, designName = 'tattoo', designI
 
           {/* Paper Size */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-[10px] uppercase tracking-[0.25em] text-pink mb-2">
               Paper Size (thermal printer)
             </label>
             <div className="space-y-2">
               {Object.values(PAPER_SIZES).map((paper) => (
                 <label
                   key={paper.key}
-                  className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
+                  className="flex items-center space-x-3 p-3 border hairline-white cursor-pointer hover:bg-white/5"
                 >
                   <input
                     type="radio"
@@ -285,29 +285,29 @@ export default function StencilExport({ imageUrl, designName = 'tattoo', designI
                     value={paper.key}
                     checked={paperSize === paper.key}
                     onChange={(e) => setPaperSize(e.target.value)}
-                    className="text-blue-600"
+                    className="accent-[#ff1f6b]"
                   />
                   <div className="flex-1">
                     <div className="font-medium">{paper.name}</div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-[11px] text-white/50">
                       {paper.widthInches.toFixed(2)}" × {paper.heightInches.toFixed(2)}"
                     </div>
                   </div>
                 </label>
               ))}
 
-              <label className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+              <label className="flex items-center space-x-3 p-3 border hairline-white cursor-pointer hover:bg-white/5">
                 <input
                   type="radio"
                   name="paperSize"
                   value="custom"
                   checked={paperSize === 'custom'}
                   onChange={(e) => setPaperSize(e.target.value)}
-                  className="text-blue-600"
+                  className="accent-[#ff1f6b]"
                 />
                 <div className="flex-1">
                   <div className="font-medium">Custom</div>
-                  <div className="text-xs text-gray-500">Specify width & height</div>
+                  <div className="text-[11px] text-white/50">Specify width & height</div>
                 </div>
               </label>
             </div>
@@ -315,33 +315,33 @@ export default function StencilExport({ imageUrl, designName = 'tattoo', designI
             {paperSize === 'custom' && (
               <div className="grid grid-cols-2 gap-3 mt-3">
                 <div>
-                  <label className="block text-xs text-gray-600 mb-1">Width</label>
+                  <label className="block text-[11px] text-white/60 mb-1">Width</label>
                   <input
                     type="number"
                     min="1"
                     step="0.1"
                     value={customPaper.width}
                     onChange={(e) => handleCustomPaperChange('width', e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    className="w-full bg-black border-2 hairline focus:border-pink px-3 py-2 text-white focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-600 mb-1">Height</label>
+                  <label className="block text-[11px] text-white/60 mb-1">Height</label>
                   <input
                     type="number"
                     min="1"
                     step="0.1"
                     value={customPaper.height}
                     onChange={(e) => handleCustomPaperChange('height', e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    className="w-full bg-black border-2 hairline focus:border-pink px-3 py-2 text-white focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-600 mb-1">Units</label>
+                  <label className="block text-[11px] text-white/60 mb-1">Units</label>
                   <select
                     value={customPaper.unit}
                     onChange={(e) => handleCustomPaperChange('unit', e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    className="w-full bg-black border-2 hairline focus:border-pink px-3 py-2 text-white focus:outline-none"
                   >
                     <option value="inches">Inches</option>
                     <option value="cm">Centimeters</option>
@@ -351,16 +351,16 @@ export default function StencilExport({ imageUrl, designName = 'tattoo', designI
             )}
 
             {dimensionError && (
-              <p className="text-xs text-red-600 mt-2">{dimensionError}</p>
+              <p className="text-[11px] text-pink mt-2">{dimensionError}</p>
             )}
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-[11px] text-white/50 mt-2">
               Recommended: {formattedRecommendedPaper}
             </p>
           </div>
 
           {/* Format Selector */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-[10px] uppercase tracking-[0.25em] text-pink mb-2">
               Export Format
             </label>
             <div className="flex gap-2">
@@ -383,32 +383,32 @@ export default function StencilExport({ imageUrl, designName = 'tattoo', designI
 
           {/* Processing Mode */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-[10px] uppercase tracking-[0.25em] text-pink mb-2">
               Processing Mode
             </label>
             <div className="flex gap-2">
               <button
                 onClick={() => setProcessingMode('threshold')}
-                className={`flex-1 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                className={`press flex-1 px-4 py-2 text-[11px] uppercase tracking-[0.18em] transition-colors ${
                   processingMode === 'threshold'
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-pink text-black'
+                    : 'bg-white/10 text-white/70 hover:bg-white/20'
                 }`}
               >
                 Threshold
               </button>
               <button
                 onClick={() => setProcessingMode('edge')}
-                className={`flex-1 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                className={`press flex-1 px-4 py-2 text-[11px] uppercase tracking-[0.18em] transition-colors ${
                   processingMode === 'edge'
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-pink text-black'
+                    : 'bg-white/10 text-white/70 hover:bg-white/20'
                 }`}
               >
                 Edge Detection
               </button>
             </div>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-[11px] text-white/50 mt-1">
               {processingMode === 'threshold'
                 ? 'Classic threshold-based conversion (fast)'
                 : 'Canny edge detection for crisp linework (slower)'}
@@ -417,13 +417,13 @@ export default function StencilExport({ imageUrl, designName = 'tattoo', designI
 
           {/* Style Preset */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-[10px] uppercase tracking-[0.25em] text-pink mb-2">
               Style Preset
             </label>
             <select
               value={selectedPreset}
               onChange={(e) => setSelectedPreset(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 bg-black border-2 hairline focus:border-pink text-white focus:outline-none"
             >
               {Object.entries(STYLE_PRESETS).map(([key, preset]) => (
                 <option key={key} value={key}>
@@ -434,13 +434,13 @@ export default function StencilExport({ imageUrl, designName = 'tattoo', designI
           </div>
 
           {/* Advanced Controls */}
-          <div className="bg-gray-50 p-4 rounded-lg space-y-3">
-            <p className="text-xs font-medium text-gray-700 uppercase tracking-wide">
+          <div className="border hairline-white p-4 space-y-3">
+            <p className="text-[10px] text-pink uppercase tracking-[0.25em]">
               Advanced Controls
             </p>
 
             <div>
-              <label className="block text-sm text-gray-600 mb-1">
+              <label className="block text-[11px] text-white/60 mb-1">
                 Threshold: {customSettings.threshold}
               </label>
               <input
@@ -452,16 +452,16 @@ export default function StencilExport({ imageUrl, designName = 'tattoo', designI
                   ...customSettings,
                   threshold: parseInt(e.target.value, 10)
                 })}
-                className="w-full"
+                className="w-full accent-[#ff1f6b]"
               />
-              <div className="flex justify-between text-xs text-gray-500 mt-1">
+              <div className="flex justify-between text-[11px] text-white/50 mt-1">
                 <span>More Black</span>
                 <span>More White</span>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm text-gray-600 mb-1">
+              <label className="block text-[11px] text-white/60 mb-1">
                 Contrast: {customSettings.contrast.toFixed(1)}x
               </label>
               <input
@@ -474,12 +474,12 @@ export default function StencilExport({ imageUrl, designName = 'tattoo', designI
                   ...customSettings,
                   contrast: parseFloat(e.target.value)
                 })}
-                className="w-full"
+                className="w-full accent-[#ff1f6b]"
               />
             </div>
 
             <div>
-              <label className="block text-sm text-gray-600 mb-1">
+              <label className="block text-[11px] text-white/60 mb-1">
                 Brightness: {customSettings.brightness > 0 ? '+' : ''}{customSettings.brightness}
               </label>
               <input
@@ -491,40 +491,40 @@ export default function StencilExport({ imageUrl, designName = 'tattoo', designI
                   ...customSettings,
                   brightness: parseInt(e.target.value, 10)
                 })}
-                className="w-full"
+                className="w-full accent-[#ff1f6b]"
               />
             </div>
           </div>
 
           {/* Metadata */}
-          <div className="bg-gray-50 p-4 rounded-lg space-y-3">
-            <p className="text-xs font-medium text-gray-700 uppercase tracking-wide">
+          <div className="border hairline-white p-4 space-y-3">
+            <p className="text-[10px] text-pink uppercase tracking-[0.25em]">
               Metadata (embedded in PDF/PNG)
             </p>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">
+              <label className="block text-[11px] text-white/60 mb-1">
                 Design Name
               </label>
               <input
                 type="text"
                 value={designTitle}
                 onChange={(e) => setDesignTitle(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                className="w-full bg-black border-2 hairline focus:border-pink px-3 py-2 text-white focus:outline-none"
                 placeholder="Dragon Sleeve"
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">
+              <label className="block text-[11px] text-white/60 mb-1">
                 Artist Notes (optional)
               </label>
               <textarea
                 value={artistNotes}
                 onChange={(e) => setArtistNotes(e.target.value.slice(0, 280))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                className="w-full bg-black border-2 hairline focus:border-pink px-3 py-2 text-white focus:outline-none"
                 rows={3}
                 placeholder="Placement, transfer tape, needle callouts..."
               />
-              <div className="text-xs text-gray-500 mt-1">
+              <div className="text-[11px] text-white/50 mt-1">
                 {artistNotes.length}/280 characters
               </div>
             </div>
@@ -534,7 +534,7 @@ export default function StencilExport({ imageUrl, designName = 'tattoo', designI
           <button
             onClick={handleGeneratePreview}
             disabled={isProcessing}
-            className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium transition-colors"
+            className="press w-full bg-pink text-black py-3 font-display uppercase text-[14px] tracking-[0.2em] hover:bg-pink-deep disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             {isProcessing ? 'Processing...' : 'Generate Stencil Preview'}
           </button>
@@ -542,16 +542,16 @@ export default function StencilExport({ imageUrl, designName = 'tattoo', designI
 
         {/* Preview Panel */}
         <div className="space-y-4">
-          <div className="bg-gray-100 rounded-lg p-4 min-h-[400px] flex items-center justify-center">
+          <div className="bg-white p-4 min-h-[400px] flex items-center justify-center">
             {stencilPreview ? (
               <img
                 src={stencilPreview}
                 alt="Stencil Preview"
-                className="w-full rounded shadow-lg"
+                className="w-full"
                 style={{ imageRendering: 'crisp-edges' }}
               />
             ) : (
-              <div className="text-center text-gray-500">
+              <div className="text-center text-black/50">
                 <svg className="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
@@ -560,14 +560,14 @@ export default function StencilExport({ imageUrl, designName = 'tattoo', designI
             )}
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-lg p-4 text-sm text-gray-700 space-y-2">
+          <div className="border hairline-white p-4 text-[12px] text-white/70 space-y-2">
             <div className="flex items-center justify-between">
               <span className="font-medium">Dimension Preview</span>
-              <span className="text-xs text-blue-600">
+              <span className="text-[11px] text-pink">
                 Scale: {scalePercent}% {scalePercent === 100 ? '(True size)' : ''}
               </span>
             </div>
-            <div className="text-xs text-gray-600 space-y-1">
+            <div className="text-[11px] text-white/60 space-y-1">
               <p>
                 Design: {designDimensions.widthInches.toFixed(2)}" × {designDimensions.heightInches.toFixed(2)}" @300 DPI
               </p>
@@ -582,27 +582,27 @@ export default function StencilExport({ imageUrl, designName = 'tattoo', designI
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-lg p-4 text-sm text-gray-700">
+          <div className="border hairline-white p-4 text-[12px] text-white/70">
             <div className="flex items-center justify-between">
               <span className="font-medium">Estimated File Size</span>
-              <span className="text-xs text-gray-600">
+              <span className="text-[11px] text-white/60">
                 {estimatedFileSize ? formatFileSize(estimatedFileSize) : 'Generate preview to estimate'}
               </span>
             </div>
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-[11px] text-white/50 mt-2">
               PDF exports embed metadata, crop marks, and registration guides for thermal printers.
             </p>
           </div>
 
           {(exportProgress > 0 || isExportingPDF) && (
             <div>
-              <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+              <div className="flex items-center justify-between text-[11px] text-white/50 mb-1">
                 <span>Export Progress</span>
                 <span>{exportProgress}%</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-white/10 h-2">
                 <div
-                  className="h-2 rounded-full bg-primary-600 transition-all"
+                  className="h-2 bg-pink transition-all"
                   style={{ width: `${exportProgress}%` }}
                 />
               </div>
@@ -610,17 +610,17 @@ export default function StencilExport({ imageUrl, designName = 'tattoo', designI
           )}
 
           {statusMessage && (
-            <p className="text-xs text-gray-500">{statusMessage}</p>
+            <p className="text-[11px] text-white/50">{statusMessage}</p>
           )}
 
           {stencilPreview && (
             <div className="grid sm:grid-cols-2 gap-3">
               <button
                 onClick={handleDownloadPNG}
-                className={`w-full py-3 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2 ${
+                className={`press w-full py-3 text-[12px] uppercase tracking-[0.18em] transition-colors flex items-center justify-center space-x-2 ${
                   exportFormat === 'png'
-                    ? 'bg-green-600 text-white hover:bg-green-700'
-                    : 'bg-gray-900 text-white hover:bg-gray-800'
+                    ? 'bg-pink text-black hover:bg-pink-deep'
+                    : 'bg-white/10 text-white hover:bg-white/20'
                 }`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -632,10 +632,10 @@ export default function StencilExport({ imageUrl, designName = 'tattoo', designI
               <button
                 onClick={handleDownloadPDF}
                 disabled={isExportingPDF}
-                className={`w-full py-3 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2 ${
+                className={`press w-full py-3 text-[12px] uppercase tracking-[0.18em] transition-colors flex items-center justify-center space-x-2 ${
                   exportFormat === 'pdf'
-                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                    : 'bg-white text-blue-600 border border-blue-600 hover:bg-blue-50'
+                    ? 'bg-pink text-black hover:bg-pink-deep'
+                    : 'bg-black text-pink border-2 border-pink hover:bg-pink hover:text-black'
                 } ${isExportingPDF ? 'opacity-60 cursor-not-allowed' : ''}`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -649,14 +649,14 @@ export default function StencilExport({ imageUrl, designName = 'tattoo', designI
       </div>
 
       {/* Info Box */}
-      <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h4 className="font-medium text-blue-900 mb-2 flex items-center">
+      <div className="mt-6 border hairline p-4">
+        <h4 className="text-[10px] text-pink uppercase tracking-[0.25em] mb-2 flex items-center">
           <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
           </svg>
           Pro Export Tips
         </h4>
-        <ul className="text-sm text-blue-900 space-y-1">
+        <ul className="text-[12px] text-white/70 space-y-1">
           <li>• Print at 100% scale for accurate sizing</li>
           <li>• Use thermal printer or copier transfer method</li>
           <li>• Adjust threshold if lines are too thick/thin</li>
