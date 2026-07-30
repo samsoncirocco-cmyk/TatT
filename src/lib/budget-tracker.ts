@@ -46,6 +46,13 @@ export type BudgetReservationResult = BudgetResult & {
   acquired: boolean;
   status: 'reserved' | 'billed' | 'denied';
   reservedCents: number;
+  leaseExpiresAtMs: number | null;
+  takeover: boolean;
+};
+
+export type BudgetReservationOptions = {
+  ownerId: string;
+  leaseMs: number;
 };
 
 function isPeriodExpired(periodStartMs: number, config: BudgetConfig): boolean {
@@ -67,6 +74,7 @@ function reservationDocumentId(reservationKey: string): string {
 export async function reserveSpend(
   reservationKey: string,
   amountCents: number,
+  options: BudgetReservationOptions,
   config: BudgetConfig = DEFAULT_BUDGET
 ): Promise<BudgetReservationResult> {
   if (!ensureAdminApp()) throw new Error('Firebase Admin not configured');
@@ -84,7 +92,8 @@ export async function reserveSpend(
       tx.get(reservationRef),
     ]);
     const reservation = reservationSnap.data() || {};
-    if (reservation.status === 'reserved' || reservation.status === 'billed') {
+    const now = Date.now();
+    if (reservation.status === 'billed') {
       const reservedCents =
         typeof reservation.reservedCents === 'number' ? reservation.reservedCents : 0;
       const budget = budgetSnap.data() || {};
@@ -92,14 +101,59 @@ export async function reserveSpend(
       return {
         allowed: true,
         acquired: false,
-        status: reservation.status as 'reserved' | 'billed',
+        status: 'billed' as const,
         reservedCents,
+        leaseExpiresAtMs: null,
+        takeover: false,
         spentCents,
         remainingCents: Math.max(0, config.maxSpendCents - spentCents),
       };
     }
 
-    const now = Date.now();
+    if (reservation.status === 'reserved') {
+      const reservedCents =
+        typeof reservation.reservedCents === 'number' ? reservation.reservedCents : 0;
+      const leaseExpiresAtMs =
+        typeof reservation.leaseExpiresAtMs === 'number' ? reservation.leaseExpiresAtMs : 0;
+      const budget = budgetSnap.data() || {};
+      const spentCents = typeof budget.spentCents === 'number' ? budget.spentCents : 0;
+
+      if (leaseExpiresAtMs > now) {
+        return {
+          allowed: true,
+          acquired: false,
+          status: 'reserved' as const,
+          reservedCents,
+          leaseExpiresAtMs,
+          takeover: false,
+          spentCents,
+          remainingCents: Math.max(0, config.maxSpendCents - spentCents),
+        };
+      }
+
+      const renewedLeaseExpiresAtMs = now + Math.max(1, Math.floor(options.leaseMs));
+      tx.set(
+        reservationRef,
+        {
+          ownerId: options.ownerId,
+          leaseExpiresAtMs: renewedLeaseExpiresAtMs,
+          takeoverCount: FieldValue.increment(1),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+      return {
+        allowed: true,
+        acquired: true,
+        status: 'reserved' as const,
+        reservedCents,
+        leaseExpiresAtMs: renewedLeaseExpiresAtMs,
+        takeover: true,
+        spentCents,
+        remainingCents: Math.max(0, config.maxSpendCents - spentCents),
+      };
+    }
+
     const budget = budgetSnap.data() || {};
     const storedPeriodStart =
       typeof budget.periodStartMs === 'number' ? budget.periodStartMs : now;
@@ -114,12 +168,15 @@ export async function reserveSpend(
         acquired: false,
         status: 'denied' as const,
         reservedCents: 0,
+        leaseExpiresAtMs: null,
+        takeover: false,
         spentCents,
         remainingCents: Math.max(0, config.maxSpendCents - spentCents),
       };
     }
 
     const newTotalCents = spentCents + requestedCents;
+    const leaseExpiresAtMs = now + Math.max(1, Math.floor(options.leaseMs));
     tx.set(
       budgetRef,
       {
@@ -136,6 +193,9 @@ export async function reserveSpend(
         status: 'reserved',
         reservedCents: requestedCents,
         periodStartMs,
+        ownerId: options.ownerId,
+        leaseExpiresAtMs,
+        takeoverCount: 0,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       },
@@ -147,6 +207,8 @@ export async function reserveSpend(
       acquired: true,
       status: 'reserved' as const,
       reservedCents: requestedCents,
+      leaseExpiresAtMs,
+      takeover: false,
       spentCents: newTotalCents,
       remainingCents: config.maxSpendCents - newTotalCents,
     };

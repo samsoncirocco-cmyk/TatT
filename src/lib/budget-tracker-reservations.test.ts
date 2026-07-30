@@ -42,6 +42,10 @@ const config: BudgetConfig = {
   maxSpendCents: 100,
   periodMs: 30 * 24 * 60 * 60 * 1000,
 };
+const reservationOptions = {
+  ownerId: 'task-1:retry-0',
+  leaseMs: 900_000,
+};
 
 function snapshot(data: Record<string, unknown> | null) {
   return {
@@ -73,7 +77,7 @@ describe('budget spend reservations', () => {
   it('fails closed when Firebase Admin is unavailable', async () => {
     ensureAdminAppMock.mockReturnValue(false);
 
-    await expect(reserveSpend('generation-1', 8, config)).rejects.toThrow(
+    await expect(reserveSpend('generation-1', 8, reservationOptions, config)).rejects.toThrow(
       'Firebase Admin not configured'
     );
     expect(runTransactionMock).not.toHaveBeenCalled();
@@ -83,13 +87,14 @@ describe('budget spend reservations', () => {
     const periodStartMs = Date.now();
     givenTransaction({ periodStartMs, spentCents: 92 }, null);
 
-    const result = await reserveSpend('generation-1', 8, config);
+    const result = await reserveSpend('generation-1', 8, reservationOptions, config);
 
     expect(result).toMatchObject({
       allowed: true,
       acquired: true,
       status: 'reserved',
       reservedCents: 8,
+      takeover: false,
       spentCents: 100,
       remainingCents: 0,
     });
@@ -100,13 +105,15 @@ describe('budget spend reservations', () => {
       status: 'reserved',
       reservedCents: 8,
       periodStartMs,
+      ownerId: 'task-1:retry-0',
+      takeoverCount: 0,
     });
   });
 
   it('denies atomically when the reservation would cross the cap', async () => {
     givenTransaction({ periodStartMs: Date.now(), spentCents: 95 }, null);
 
-    const result = await reserveSpend('generation-1', 8, config);
+    const result = await reserveSpend('generation-1', 8, reservationOptions, config);
 
     expect(result).toMatchObject({
       allowed: false,
@@ -121,18 +128,55 @@ describe('budget spend reservations', () => {
   it('does not grant a second acquisition for the same active reservation', async () => {
     givenTransaction(
       { periodStartMs: Date.now(), spentCents: 50 },
-      { status: 'reserved', reservedCents: 8 }
+      {
+        status: 'reserved',
+        reservedCents: 8,
+        leaseExpiresAtMs: Date.now() + 900_000,
+      }
     );
 
-    const result = await reserveSpend('generation-1', 8, config);
+    const result = await reserveSpend('generation-1', 8, reservationOptions, config);
 
     expect(result).toMatchObject({
       allowed: true,
       acquired: false,
       status: 'reserved',
       reservedCents: 8,
+      takeover: false,
     });
     expect(txSetMock).not.toHaveBeenCalled();
+  });
+
+  it('transactionally takes over an expired reservation without charging twice', async () => {
+    givenTransaction(
+      { periodStartMs: Date.now(), spentCents: 50 },
+      {
+        status: 'reserved',
+        reservedCents: 8,
+        leaseExpiresAtMs: Date.now() - 1,
+      }
+    );
+
+    const result = await reserveSpend(
+      'generation-1',
+      8,
+      { ownerId: 'task-1:retry-1', leaseMs: 900_000 },
+      config
+    );
+
+    expect(result).toMatchObject({
+      allowed: true,
+      acquired: true,
+      status: 'reserved',
+      reservedCents: 8,
+      takeover: true,
+      spentCents: 50,
+    });
+    expect(txSetMock).toHaveBeenCalledTimes(1);
+    expect(txSetMock.mock.calls[0][1]).toMatchObject({
+      ownerId: 'task-1:retry-1',
+      takeoverCount: { __increment: 1 },
+    });
   });
 
   it('reconciles the estimate to actual spend and marks it billed atomically', async () => {

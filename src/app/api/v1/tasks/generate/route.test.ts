@@ -3,7 +3,7 @@ import { NextRequest } from 'next/server';
 
 const {
   generateMock,
-  getImageUrlMock,
+  recoverGeneratedImageMock,
   reconcileReservedSpendMock,
   releaseReservedSpendMock,
   reserveSpendMock,
@@ -13,7 +13,7 @@ const {
   versionSetMock,
 } = vi.hoisted(() => ({
   generateMock: vi.fn(),
-  getImageUrlMock: vi.fn(),
+  recoverGeneratedImageMock: vi.fn(),
   reconcileReservedSpendMock: vi.fn(),
   releaseReservedSpendMock: vi.fn(),
   reserveSpendMock: vi.fn(),
@@ -40,7 +40,7 @@ vi.mock('firebase-admin/firestore', () => ({
 
 vi.mock('@/services/generation', () => ({ generate: generateMock }));
 vi.mock('../../../../../services/storage/imageStorageService', () => ({
-  getImageUrl: getImageUrlMock,
+  recoverGeneratedImage: recoverGeneratedImageMock,
   uploadGeneratedImage: uploadGeneratedImageMock,
 }));
 vi.mock('../../../../../lib/cloud-tasks-auth', () => ({
@@ -94,13 +94,15 @@ describe('/api/v1/tasks/generate', () => {
       acquired: true,
       status: 'reserved',
       reservedCents: 8,
+      leaseExpiresAtMs: Date.now() + 900_000,
+      takeover: false,
       spentCents: 108,
       remainingCents: 49_892,
     });
     generateMock.mockResolvedValue(vertexResult());
     reconcileReservedSpendMock.mockResolvedValue(undefined);
     releaseReservedSpendMock.mockResolvedValue(undefined);
-    getImageUrlMock.mockResolvedValue(null);
+    recoverGeneratedImageMock.mockResolvedValue(null);
     uploadGeneratedImageMock.mockResolvedValue('https://storage.example/design.png');
     versionSetMock.mockResolvedValue(undefined);
   });
@@ -121,6 +123,8 @@ describe('/api/v1/tasks/generate', () => {
       acquired: false,
       status: 'denied',
       reservedCents: 0,
+      leaseExpiresAtMs: null,
+      takeover: false,
       spentCents: 49_996,
       remainingCents: 4,
     });
@@ -128,7 +132,14 @@ describe('/api/v1/tasks/generate', () => {
     const response = await POST(makeRequest(taskBody));
 
     expect(response.status).toBe(402);
-    expect(reserveSpendMock).toHaveBeenCalledWith(reservationKey, 8);
+    expect(reserveSpendMock).toHaveBeenCalledWith(
+      reservationKey,
+      8,
+      expect.objectContaining({
+        ownerId: expect.stringContaining('task-1'),
+        leaseMs: 900_000,
+      })
+    );
     expect(generateMock).not.toHaveBeenCalled();
     expect(reconcileReservedSpendMock).not.toHaveBeenCalled();
   });
@@ -149,6 +160,8 @@ describe('/api/v1/tasks/generate', () => {
       acquired: false,
       status: 'reserved',
       reservedCents: 8,
+      leaseExpiresAtMs: Date.now() + 900_000,
+      takeover: false,
       spentCents: 108,
       remainingCents: 49_892,
     });
@@ -166,7 +179,11 @@ describe('/api/v1/tasks/generate', () => {
     const response = await POST(makeRequest(taskBody));
 
     expect(response.status).toBe(200);
-    expect(reserveSpendMock).toHaveBeenCalledWith(reservationKey, 8);
+    expect(reserveSpendMock).toHaveBeenCalledWith(
+      reservationKey,
+      8,
+      expect.objectContaining({ leaseMs: 900_000 })
+    );
     expect(generateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: 'blackwork dragon tattoo',
@@ -181,6 +198,13 @@ describe('/api/v1/tasks/generate', () => {
     );
     expect(reconcileReservedSpendMock.mock.invocationCallOrder[0]).toBeGreaterThan(
       generateMock.mock.invocationCallOrder[0]
+    );
+    expect(uploadGeneratedImageMock).toHaveBeenCalledWith(
+      'user-1',
+      'design-1',
+      'version-1',
+      expect.any(Uint8Array),
+      { actualImageCount: 3 }
     );
     expect(versionSetMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -216,16 +240,95 @@ describe('/api/v1/tasks/generate', () => {
     expect(reconcileReservedSpendMock).not.toHaveBeenCalled();
   });
 
+  it('takes over an expired pre-provider lease and completes generation', async () => {
+    reserveSpendMock.mockResolvedValue({
+      allowed: true,
+      acquired: true,
+      status: 'reserved',
+      reservedCents: 8,
+      leaseExpiresAtMs: Date.now() + 900_000,
+      takeover: true,
+      spentCents: 108,
+      remainingCents: 49_892,
+    });
+
+    const response = await POST(makeRequest(taskBody));
+
+    expect(response.status).toBe(200);
+    expect(recoverGeneratedImageMock.mock.invocationCallOrder[0]).toBeLessThan(
+      generateMock.mock.invocationCallOrder[0]
+    );
+    expect(generateMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('recovers staged output during lease takeover instead of calling Vertex again', async () => {
+    reserveSpendMock.mockResolvedValue({
+      allowed: true,
+      acquired: true,
+      status: 'reserved',
+      reservedCents: 8,
+      leaseExpiresAtMs: Date.now() + 900_000,
+      takeover: true,
+      spentCents: 108,
+      remainingCents: 49_892,
+    });
+    recoverGeneratedImageMock.mockResolvedValue({
+      imageUrl: 'https://storage.example/staged.png',
+      actualImageCount: 2,
+    });
+
+    const response = await POST(makeRequest(taskBody));
+
+    expect(response.status).toBe(200);
+    expect(generateMock).not.toHaveBeenCalled();
+    expect(reconcileReservedSpendMock).toHaveBeenCalledWith(reservationKey, 8);
+    expect(versionSetMock).toHaveBeenCalledWith(
+      expect.objectContaining({ imageUrl: 'https://storage.example/staged.png' }),
+      { merge: true }
+    );
+  });
+
+  it('recovers from a failed release after lease expiry', async () => {
+    generateMock.mockRejectedValueOnce(new Error('Vertex unavailable'));
+    releaseReservedSpendMock.mockRejectedValueOnce(new Error('Firestore unavailable'));
+
+    const failedResponse = await POST(makeRequest(taskBody));
+
+    expect(failedResponse.status).toBe(500);
+    expect(releaseReservedSpendMock).toHaveBeenCalledWith(reservationKey);
+
+    reserveSpendMock.mockResolvedValue({
+      allowed: true,
+      acquired: true,
+      status: 'reserved',
+      reservedCents: 8,
+      leaseExpiresAtMs: Date.now() + 900_000,
+      takeover: true,
+      spentCents: 108,
+      remainingCents: 49_892,
+    });
+    const retryResponse = await POST(makeRequest(taskBody));
+
+    expect(retryResponse.status).toBe(200);
+    expect(generateMock).toHaveBeenCalledTimes(2);
+    expect(reconcileReservedSpendMock).toHaveBeenCalledWith(reservationKey, 8);
+  });
+
   it('recovers a billed deterministic upload without purchasing another render', async () => {
     reserveSpendMock.mockResolvedValue({
       allowed: true,
       acquired: false,
       status: 'billed',
       reservedCents: 8,
+      leaseExpiresAtMs: null,
+      takeover: false,
       spentCents: 108,
       remainingCents: 49_892,
     });
-    getImageUrlMock.mockResolvedValue('https://storage.example/recovered.png');
+    recoverGeneratedImageMock.mockResolvedValue({
+      imageUrl: 'https://storage.example/recovered.png',
+      actualImageCount: 2,
+    });
 
     const response = await POST(makeRequest(taskBody));
 
@@ -257,6 +360,8 @@ describe('/api/v1/tasks/generate', () => {
       acquired: false,
       status: 'billed',
       reservedCents: 8,
+      leaseExpiresAtMs: null,
+      takeover: false,
       spentCents: 108,
       remainingCents: 49_892,
     });
