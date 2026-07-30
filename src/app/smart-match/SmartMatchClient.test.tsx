@@ -278,7 +278,7 @@ describe("SmartMatchClient design-session prefill", () => {
         reasonChips: [
           "Blackwork — your pick",
           "Austin — near you",
-          "4.8★, 120 reviews",
+          "Shop 4.8★, 120 reviews",
         ],
       }),
     ]);

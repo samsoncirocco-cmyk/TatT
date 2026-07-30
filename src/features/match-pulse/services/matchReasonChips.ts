@@ -1,3 +1,5 @@
+import { resolveCanonicalStyle } from "@/lib/style-vocabulary";
+
 /**
  * Human-readable "why this artist" chips, derived ONLY from fields the
  * semantic match payload actually carries (see neo4jService.findMatchingArtists
@@ -46,16 +48,41 @@ function styleMatches(prefStyle: string, artistStyle: string): boolean {
     const pref = prefStyle.trim().toLowerCase();
     const artist = artistStyle.trim().toLowerCase();
     if (!pref || !artist) return false;
-    return pref === artist || artist.includes(pref) || pref.includes(artist);
+    const canonicalPref = resolveCanonicalStyle(prefStyle);
+    const canonicalArtist = resolveCanonicalStyle(artistStyle);
+    return canonicalPref !== null && canonicalArtist !== null
+        ? canonicalPref === canonicalArtist
+        : pref === artist;
+}
+
+function normalizeLocation(value: string): string {
+    return value
+        .trim()
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, " ")
+        .replace(/\s+/g, " ")
+        .trim();
 }
 
 function locationMatches(prefLocation: string, artist: ReasonChipArtist): boolean {
-    const pref = prefLocation.trim().toLowerCase();
+    const pref = normalizeLocation(prefLocation);
     if (!pref) return false;
-    const haystacks = [artist.city, artist.location]
+    const artistLocations = [artist.city, artist.location]
         .filter((v): v is string => typeof v === "string" && v.length > 0)
-        .map((v) => v.toLowerCase());
-    return haystacks.some((h) => h.includes(pref) || pref.includes(h));
+        .map(normalizeLocation);
+    // Exact city/full-location equality avoids dangerous substring claims
+    // such as a user typing "LA" and matching an artist in Philadelphia.
+    return artistLocations.some((location) => location === pref);
+}
+
+function isPortfolioUrl(value: unknown): value is string {
+    if (typeof value !== "string") return false;
+    try {
+        const url = new URL(value);
+        return url.protocol === "https:" || url.protocol === "http:";
+    } catch {
+        return false;
+    }
 }
 
 /** "Austin, TX" → "Austin"; already-bare city strings pass through. */
@@ -85,7 +112,7 @@ export function deriveReasonChips(
     );
     if (matchedPref) {
         chips.push(`${matchedPref} — your pick`);
-    } else if (artistStyles.length > 0) {
+    } else if (prefStyles.length === 0 && artistStyles.length > 0) {
         chips.push(`${artistStyles[0]} specialist`);
     }
 
@@ -96,20 +123,22 @@ export function deriveReasonChips(
         if (city) chips.push(`${city} — near you`);
     }
 
-    // 3. Rating — published shop/artist rating, only when it's genuinely
-    //    strong. Review count rides along when it's meaningful.
+    // 3. Rating — national scrape ratings are shop-level Google ratings, not
+    //    verified individual-artist reviews. Label that provenance explicitly.
     const rating = artist.rating;
-    if (typeof rating === "number" && !Number.isNaN(rating) && rating >= MIN_RATING_FOR_CHIP) {
+    if (typeof rating === "number" && Number.isFinite(rating) && rating >= MIN_RATING_FOR_CHIP) {
         const reviews = artist.reviewCount;
         chips.push(
-            typeof reviews === "number" && reviews >= MIN_REVIEWS_FOR_COUNT
-                ? `${rating.toFixed(1)}★, ${reviews} reviews`
-                : `Rated ${rating.toFixed(1)}★`
+            typeof reviews === "number" && Number.isFinite(reviews) && reviews >= MIN_REVIEWS_FOR_COUNT
+                ? `Shop ${rating.toFixed(1)}★, ${Math.floor(reviews)} reviews`
+                : `Shop rated ${rating.toFixed(1)}★`
         );
     }
 
     // 4. Portfolio depth — count of real portfolio image URLs in the payload.
-    const pieces = Array.isArray(artist.portfolio) ? artist.portfolio.length : 0;
+    const pieces = Array.isArray(artist.portfolio)
+        ? artist.portfolio.filter(isPortfolioUrl).length
+        : 0;
     if (pieces >= MIN_PORTFOLIO_FOR_CHIP) {
         chips.push(`${pieces} pieces shown`);
     }

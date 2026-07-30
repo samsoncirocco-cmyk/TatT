@@ -22,6 +22,22 @@ describe("deriveReasonChips — style", () => {
         const chips = deriveReasonChips({ styles: ["Neo-Traditional"] }, {});
         expect(chips).toEqual(["Neo-Traditional specialist"]);
     });
+
+    it("does not confuse Traditional with Neo-Traditional", () => {
+        const chips = deriveReasonChips(
+            { styles: ["Neo-Traditional"] },
+            { styles: ["Traditional"] }
+        );
+        expect(chips).toEqual([]);
+    });
+
+    it("does not sell an unrelated specialty when the user's pick did not match", () => {
+        const chips = deriveReasonChips(
+            { styles: ["Blackwork"] },
+            { styles: ["Fine Line"] }
+        );
+        expect(chips).toEqual([]);
+    });
 });
 
 describe("deriveReasonChips — location", () => {
@@ -48,17 +64,33 @@ describe("deriveReasonChips — location", () => {
         );
         expect(chips.some((c) => c.includes("near you"))).toBe(false);
     });
+
+    it("does not treat a short substring as a location match", () => {
+        const chips = deriveReasonChips(
+            { city: "Philadelphia", location: "Philadelphia, PA" },
+            { location: "LA" }
+        );
+        expect(chips).toEqual([]);
+    });
+
+    it("matches a normalized full city and state", () => {
+        const chips = deriveReasonChips(
+            { city: "Austin", location: "Austin, TX" },
+            { location: "Austin TX" }
+        );
+        expect(chips).toContain("Austin — near you");
+    });
 });
 
 describe("deriveReasonChips — rating", () => {
-    it("shows a strong rating with its review count", () => {
+    it("labels a strong rating and review count as shop-level", () => {
         const chips = deriveReasonChips({ rating: 4.8, reviewCount: 210 }, {});
-        expect(chips).toEqual(["4.8★, 210 reviews"]);
+        expect(chips).toEqual(["Shop 4.8★, 210 reviews"]);
     });
 
     it("drops the review count when it is too thin to mean anything", () => {
         const chips = deriveReasonChips({ rating: 4.9, reviewCount: 3 }, {});
-        expect(chips).toEqual(["Rated 4.9★"]);
+        expect(chips).toEqual(["Shop rated 4.9★"]);
     });
 
     it("does not dress up a middling rating as a reason", () => {
@@ -75,6 +107,11 @@ describe("deriveReasonChips — portfolio depth", () => {
 
     it("skips the chip below the depth threshold rather than inflating", () => {
         const portfolio = ["https://img/1.jpg", "https://img/2.jpg"];
+        expect(deriveReasonChips({ portfolio }, {})).toEqual([]);
+    });
+
+    it("does not count non-URL placeholders as portfolio pieces", () => {
+        const portfolio = Array.from({ length: 37 }, (_, i) => `piece-${i}`);
         expect(deriveReasonChips({ portfolio }, {})).toEqual([]);
     });
 });
@@ -101,7 +138,7 @@ describe("deriveReasonChips — honesty guarantees", () => {
                 location: "Austin, TX",
                 rating: 4.8,
                 reviewCount: 120,
-                portfolio: Array.from({ length: 40 }, (_, i) => `p${i}`),
+                portfolio: Array.from({ length: 40 }, (_, i) => `https://img/${i}.jpg`),
             },
             { styles: ["Blackwork"], location: "Austin" }
         );
@@ -109,7 +146,7 @@ describe("deriveReasonChips — honesty guarantees", () => {
         expect(chips).toEqual([
             "Blackwork — your pick",
             "Austin — near you",
-            "4.8★, 120 reviews",
+            "Shop 4.8★, 120 reviews",
         ]);
     });
 
@@ -121,7 +158,7 @@ describe("deriveReasonChips — honesty guarantees", () => {
                 location: "San Francisco, CA",
                 rating: 4.9,
                 reviewCount: 87,
-                portfolio: Array.from({ length: 12 }, (_, i) => `p${i}`),
+                portfolio: Array.from({ length: 12 }, (_, i) => `https://img/${i}.jpg`),
             },
             { styles: ["Neo-Traditional"], location: "San Francisco" }
         );
