@@ -39,8 +39,15 @@ import { resolveSharedDesignStore, type SharedDesign } from '@/lib/shared-design
 import {
   converse,
   confirmProposal,
+  attachReference,
   DesignSessionError,
 } from '@/services/designSession';
+import {
+  referenceFollowUpText,
+  REFERENCE_UNREADABLE_TEXT,
+  REFERENCE_BUDGET_TEXT,
+  type ReferenceAnalysis,
+} from '@/services/vision';
 // One yes-vocabulary for every channel: the same deterministic gate the web
 // chat uses to decide "advance to confirm vs. keep talking". A drifted SMS
 // copy of this list is a real bug class — a phrase that reveals on the web
@@ -48,6 +55,7 @@ import {
 import { isConfirmationIntent } from '@/features/design-session/services/confirmationIntent';
 import type { InboundSms, InboundOutcome, RevealDelivery, SmsProfile } from '../types';
 import { resolveProfileStore, newProfile } from './profileStore';
+import { analyzeInboundMedia, type MediaIngest } from './media';
 import {
   renderSmsReply,
   REVEAL_ACK,
@@ -58,6 +66,7 @@ import {
   unavailableText,
   revealClosingText,
   cutCaption,
+  referenceAckText,
 } from './render';
 
 /** After this long, an unreported in-flight reveal is presumed dead. */
@@ -163,6 +172,7 @@ export async function isOptedOut(phone: string): Promise<boolean> {
 export async function handleInbound(inbound: InboundSms): Promise<InboundOutcome> {
   const phone = inbound.phone.trim();
   const body = inbound.body.trim();
+  const media = inbound.media ?? [];
   const store = resolveProfileStore();
   const profile = await loadOrCreateProfile(phone);
 
@@ -170,8 +180,8 @@ export async function handleInbound(inbound: InboundSms): Promise<InboundOutcome
   // gets nothing, ever. Twilio suppresses our sends too (error 21610).
   if (profile.optedOut) return { kind: 'silent' };
 
-  if (!body) {
-    // Media-only MMS or an empty ping — the engine needs words.
+  if (!body && media.length === 0) {
+    // An empty ping with nothing attached — the engine needs words.
     return {
       kind: 'reply',
       text: 'Tell me in words first — what are you thinking, and where on your body would it go?',
@@ -179,6 +189,8 @@ export async function handleInbound(inbound: InboundSms): Promise<InboundOutcome
   }
 
   // ── Renders in flight: never double-fire on an impatient second yes ──
+  // Media sent mid-render is deliberately NOT analyzed: no vision spend on
+  // a message that cannot attach to anything yet.
   if (profile.lastStage === 'reveal-pending') {
     const armedAtMs = Date.parse(profile.revealArmedAt ?? '') || 0;
     if (Date.now() - armedAtMs < REVEAL_PENDING_STALE_MS) {
@@ -195,17 +207,137 @@ export async function handleInbound(inbound: InboundSms): Promise<InboundOutcome
     await store.save(profile);
   }
 
+  // ── Reference photos (TAT-50): fetch → vision → attach, before routing ──
+  // Vision spends from the global budget inside the analyzer; nothing here
+  // touches the reveal caps. The ack names what was seen — SketchBot never
+  // silently ingests an image.
+  let ingest: MediaIngest | null = null;
+  let ackText = '';
+  if (media.length > 0) {
+    ingest = await analyzeInboundMedia(media);
+    ackText = await attachAnalyses(profile, store, ingest);
+  }
+
+  if (!body) {
+    // Media-only MMS: the ack (or the honest failure line) IS the turn,
+    // plus the one most useful follow-up when something was read.
+    const followUp =
+      ingest && ingest.analyses.length > 0
+        ? referenceFollowUpText(ingest.analyses[0])
+        : '';
+    return {
+      kind: 'reply',
+      text: renderSmsReply([ackText, followUp].filter(Boolean).join(' ')),
+    };
+  }
+
   // ── The yes to a proposal: arm the reveal, guardrails first ──────────
+  // Any references were attached above, so the confirm-time merge already
+  // carries them into Council enhancement and the Brief.
   if (
     profile.activeSessionId &&
     profile.lastStage === 'proposal' &&
     isConfirmationIntent(body)
   ) {
-    return armReveal(profile, store);
+    return withReferenceAck(await armReveal(profile, store), ackText);
   }
 
   // ── A regular conversation turn on the shared engine ─────────────────
-  return conversationTurn(profile, store, body);
+  return withReferenceAck(
+    await conversationTurn(profile, store, withMediaAnnotation(body, ingest)),
+    ackText
+  );
+}
+
+/**
+ * Attach a message's analyzed references to a session (creating one via
+ * the free deterministic opener when the phone has no continuable
+ * conversation) and return the in-voice acknowledgment. Attachment is
+ * best-effort — a stale session must never eat the user's message.
+ */
+async function attachAnalyses(
+  profile: SmsProfile,
+  store: ProfileStoreT,
+  ingest: MediaIngest
+): Promise<string> {
+  if (ingest.analyses.length === 0) {
+    // Nothing readable: honest capacity when the budget gate refused,
+    // honest failure otherwise — never silence, never a fake reading.
+    return ingest.budgetExhausted ? REFERENCE_BUDGET_TEXT : REFERENCE_UNREADABLE_TEXT;
+  }
+
+  const sessionId = await ensureAttachableSession(profile, store);
+  if (sessionId) {
+    for (const analysis of ingest.analyses) {
+      try {
+        await attachReference(sessionId, analysis, 'sms');
+      } catch (error) {
+        logger.warn({
+          event_type: 'sketchbot_sms.reference_attach_failed',
+          phone_last4: phoneLast4(profile.phone),
+          session_id: sessionId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+  }
+
+  return referenceAckText(ingest.analyses, ingest.ignored, ingest.unreadable);
+}
+
+/**
+ * The session a reference can attach to: the active conversational-intake
+ * session, or a fresh one opened via the deterministic (free) opener call.
+ */
+async function ensureAttachableSession(
+  profile: SmsProfile,
+  store: ProfileStoreT
+): Promise<string | null> {
+  const continuable =
+    profile.activeSessionId &&
+    (profile.lastStage === 'chatting' || profile.lastStage === 'proposal');
+  if (continuable) return profile.activeSessionId!;
+
+  try {
+    const opened = await converse({});
+    profile.activeSessionId = opened.sessionId;
+    profile.lastStage = opened.stage;
+    if (!profile.sessionIds.includes(opened.sessionId)) {
+      profile.sessionIds = [...profile.sessionIds, opened.sessionId];
+    }
+    profile.updatedAt = new Date().toISOString();
+    await store.save(profile);
+    return opened.sessionId;
+  } catch (error) {
+    logger.warn({
+      event_type: 'sketchbot_sms.reference_session_failed',
+      phone_last4: phoneLast4(profile.phone),
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+}
+
+/**
+ * Represent analyzed photos inside the engine turn as a bracketed textual
+ * annotation on the user's message. Deliberate double coverage with the
+ * structured merge: the annotation gives the MODEL the context (so its
+ * reply and extraction can react to the photo, and the subject scan sees
+ * character names through the exact TAT-47 text machinery), while the
+ * stored reference entry guarantees the signals deterministically.
+ */
+function withMediaAnnotation(body: string, ingest: MediaIngest | null): string {
+  if (!ingest || ingest.analyses.length === 0) return body;
+  const annotations = ingest.analyses
+    .map((analysis: ReferenceAnalysis) => `[photo attached — ${analysis.summary}]`)
+    .join(' ');
+  return `${body} ${annotations}`;
+}
+
+/** Prepend the reference ack to whatever the routed outcome replied. */
+function withReferenceAck(outcome: InboundOutcome, ackText: string): InboundOutcome {
+  if (!ackText || outcome.kind === 'silent') return outcome;
+  return { ...outcome, text: renderSmsReply(`${ackText} ${outcome.text}`) };
 }
 
 type ProfileStoreT = ReturnType<typeof resolveProfileStore>;

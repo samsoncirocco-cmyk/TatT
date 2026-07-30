@@ -12,6 +12,11 @@
  * never a wall — refusals are judgment calls or honest capacity, not
  * "limit reached").
  */
+import {
+  referenceAckText as sharedReferenceAck,
+  referenceOverflowText,
+  type ReferenceAnalysis,
+} from '@/services/vision';
 
 /** ~3 GSM-7 segments. Beyond this a turn stops being a text message. */
 export const SMS_MAX_CHARS = 450;
@@ -116,4 +121,33 @@ export function revealClosingText(shareUrl: string): string {
 /** Caption for cut n of 4 in the sequential MMS delivery. */
 export function cutCaption(index: number, total: number): string {
   return `Cut ${index + 1} of ${total}`;
+}
+
+// ─── Reference images (TAT-50) ──────────────────────────────────────────
+
+/**
+ * The acknowledgment sentence(s) for a message's analyzed reference photos
+ * — SketchBot NEVER silently ingests an image; every reading is named back.
+ * Voice pieces are shared with the web channel via '@/services/vision'.
+ */
+export function referenceAckText(
+  analyses: ReferenceAnalysis[],
+  ignored: number,
+  unreadable = 0
+): string {
+  const parts: string[] = [];
+  if (analyses.length === 1) {
+    parts.push(sharedReferenceAck(analyses[0]));
+  } else if (analyses.length > 1) {
+    parts.push(
+      `Got your photos — I'm seeing ${analyses.map((a) => a.summary).join('; and ')}.`
+    );
+  }
+  if (unreadable > 0 && analyses.length > 0) {
+    parts.push(
+      unreadable === 1 ? "One of them I couldn't make out." : `${unreadable} of them I couldn't make out.`
+    );
+  }
+  if (ignored > 0) parts.push(referenceOverflowText(analyses.length));
+  return parts.join(' ');
 }
