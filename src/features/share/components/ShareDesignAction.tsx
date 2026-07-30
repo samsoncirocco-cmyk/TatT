@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useUser } from "@/lib/tattStorage";
 import { authDoorHref } from "@/lib/knownUser";
 import { createShare, isNoLinkCode, ShareRequestError } from "../services/shareApi";
+import { rememberShare } from "../services/shareLinkMemory";
 
 /**
  * "Share" — the only way a user creates a share link.
@@ -90,8 +91,11 @@ export default function ShareDesignAction({
     setCopied(false);
     setCopyFailed(false);
     try {
-      const { shareUrl } = await createShare({ imageUrls, prompt });
-      setState({ key, outcome: { phase: "shared", url: shareUrl } });
+      const created = await createShare({ imageUrls, prompt });
+      // Remembered per browser so /designs/[id] can find the poll this link
+      // is running and show the owner its verdict (TAT-52).
+      rememberShare(imageUrls, created);
+      setState({ key, outcome: { phase: "shared", url: created.shareUrl } });
     } catch (e) {
       const message =
         e instanceof Error ? e.message : "Sharing is temporarily unavailable.";

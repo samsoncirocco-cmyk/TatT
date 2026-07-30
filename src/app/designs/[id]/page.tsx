@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
 import TapeCTA from "@/components/punk/TapeCTA";
 import ShareDesignAction from "@/features/share/components/ShareDesignAction";
+import GroupChatVerdict from "@/features/share/components/GroupChatVerdict";
 import { useDesigns, type TattDesign } from "@/lib/tattStorage";
 import { smartMatchUrlForDesign } from "@/lib/design-style-signal";
 
@@ -203,6 +204,13 @@ export default function DesignDetailPage({
               imageUrls={design.image ? [design.image] : []}
               prompt={design.prompt}
               redirectTo={`/designs/${design.id}`}
+            />
+
+            {/* What the group chat said (TAT-52). Renders nothing until this
+                browser has actually minted a share link for this design. */}
+            <GroupChatVerdict
+              className="mt-6"
+              imageUrls={design.image ? [design.image] : []}
             />
           </div>
         </div>
