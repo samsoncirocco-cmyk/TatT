@@ -11,6 +11,7 @@ import {
   parseStylesParam,
 } from "@/lib/design-style-signal";
 import { useMatchStore } from "@/store/useMatchStore";
+import { deriveReasonChips } from "@/features/match-pulse/services/matchReasonChips";
 import type { DesignSession } from "@/services/designSession/types";
 
 /**
@@ -118,7 +119,9 @@ export default function SmartMatchClient() {
 
         const matches = (data.matches || []).map((m: {
           id: string; name: string; score: number; styles?: string[];
-          location?: string; instagram?: string; bio?: string; reasoning?: string;
+          location?: string; city?: string; instagram?: string;
+          bio?: string; reasoning?: string;
+          rating?: number; reviewCount?: number; portfolio?: string[];
         }) => ({
           artistId: String(m.id),
           artistName: m.name,
@@ -129,6 +132,19 @@ export default function SmartMatchClient() {
           instagramUrl: m.instagram,
           bio: m.bio,
           reasoning: m.reasoning,
+          // Derived here — the only place that still knows what the user
+          // actually asked for — so /swipe can say WHY, not just how much.
+          reasonChips: deriveReasonChips(
+            {
+              styles: m.styles,
+              city: m.city,
+              location: m.location,
+              rating: m.rating,
+              reviewCount: m.reviewCount,
+              portfolio: m.portfolio,
+            },
+            { styles: opts.styles, location }
+          ),
         }));
 
         if (matches.length === 0) {

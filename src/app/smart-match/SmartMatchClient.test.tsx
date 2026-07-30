@@ -235,6 +235,77 @@ describe("SmartMatchClient design-session prefill", () => {
     expect(body.style_preferences).toEqual(["Traditional", "Blackwork"]);
   });
 
+  it("derives reason chips from the payload against what the user asked for", async () => {
+    fetchMock.mockImplementation(async () =>
+      jsonResponse({
+        success: true,
+        query_info: { graphSource: "live" },
+        matches: [
+          {
+            id: "a2",
+            name: "Iron Quill",
+            score: 91,
+            styles: ["Blackwork", "Minimalist"],
+            city: "Austin",
+            location: "Austin, TX",
+            rating: 4.8,
+            reviewCount: 120,
+          },
+        ],
+      })
+    );
+
+    render(<SmartMatchClient />);
+    fireEvent.click(screen.getByRole("button", { name: "Blackwork" }));
+    fireEvent.change(screen.getByLabelText(/location/i), {
+      target: { value: "Austin" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /find artists/i }));
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/swipe"));
+    expect(setMatches).toHaveBeenCalledWith([
+      expect.objectContaining({
+        artistId: "a2",
+        reasonChips: [
+          "Blackwork — your pick",
+          "Austin — near you",
+          "4.8★, 120 reviews",
+        ],
+      }),
+    ]);
+  });
+
+  it("fabricates no chips from a sparse payload", async () => {
+    fetchMock.mockImplementation(async () =>
+      jsonResponse({
+        success: true,
+        query_info: { graphSource: "live" },
+        matches: [
+          // Style only — one honest chip, nothing padded.
+          { id: "a3", name: "Bare Data", score: 70, styles: ["Blackwork"] },
+          // Nothing derivable at all — zero chips, never invented ones.
+          { id: "a4", name: "No Data", score: 65 },
+        ],
+      })
+    );
+
+    render(<SmartMatchClient />);
+    fireEvent.click(screen.getByRole("button", { name: "Blackwork" }));
+    fireEvent.change(screen.getByLabelText(/location/i), {
+      target: { value: "Austin" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /find artists/i }));
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/swipe"));
+    expect(setMatches).toHaveBeenCalledWith([
+      expect.objectContaining({
+        artistId: "a3",
+        reasonChips: ["Blackwork — your pick"],
+      }),
+      expect.objectContaining({ artistId: "a4", reasonChips: [] }),
+    ]);
+  });
+
   it("does not touch the design-session API without a ds param", async () => {
     fetchMock.mockImplementation(async () => jsonResponse(liveMatchResponse));
 
