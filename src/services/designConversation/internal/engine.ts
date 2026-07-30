@@ -53,8 +53,18 @@ import {
   COLOR_QUESTION,
   COLOR_RETRY_QUESTION,
   IP_NOTE,
+  EVOCATION_STEM,
+  evocationQuestion,
+  AESTHETIC_ACK,
 } from './persona';
-import { detectAxisRequest, isSuggestionRequest, isAffirmation, isDrawRequest } from './intent';
+import {
+  detectAxisRequest,
+  isSuggestionRequest,
+  isAffirmation,
+  isDrawRequest,
+  evocationRefOf,
+  isAestheticAnswer,
+} from './intent';
 import { loadStyleTagIndex, resolveStyleTags, type StyleTagIndex } from './ontology';
 import { scoreRecord, CONFIDENCE_THRESHOLD } from './confidence';
 import { buildSessionNotes } from './notes';
@@ -372,6 +382,66 @@ function subjectScanText(messages: ConversationMessage[]): string {
   return parts.join(' ');
 }
 
+/* ──────────────────────────────────────────────────────────────────────────
+ * The evocation slot (TAT-51). When the meaning points at a person, creator,
+ * or franchise ("my love for toriyama") and nothing drawable is on the
+ * record, ONE follow-up mines the meaning for imagery. Stateless like the
+ * color slot: asked-ness is read off the transcript via the question's
+ * stable stem, so it can never be asked twice.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+const EVOCATION_KEY = normalizeForCompare(EVOCATION_STEM);
+
+function evocationAskedIn(messages: ConversationMessage[]): boolean {
+  return botTexts(messages).some((text) =>
+    normalizeForCompare(text).includes(EVOCATION_KEY)
+  );
+}
+
+/** Bounded so a rambling answer cannot flood the subject/prompt path. */
+const EVOCATION_ANSWER_MAX = 140;
+
+/** "idk", "not sure" — a dodge, not a drawable. Never merged as a scene. */
+const EVOCATION_DODGE_PATTERN =
+  /^\s*(idk|i ?d(on'?)?t know|not sure|no idea|dunno|nothing( really)?|hmm+|no clue|good question)\b/i;
+
+/**
+ * The user's answer to the evocation question, when one was given. That
+ * answer is the drawable anchor the question exists to mine ("gohan and
+ * cell's beam struggle") — it merges into the subject rather than
+ * overwriting it (TAT-47 merge rules). Dodges (a question back, a bare
+ * affirmation) yield nothing; the question is still never re-asked.
+ */
+function evocationAnswerIn(messages: ConversationMessage[]): string | undefined {
+  for (let i = 0; i < messages.length; i += 1) {
+    const message = messages[i];
+    if (message.role !== 'bot') continue;
+    if (!normalizeForCompare(message.text).includes(EVOCATION_KEY)) continue;
+    const next = messages[i + 1];
+    if (!next || next.role !== 'user') return undefined;
+    const answer = next.text.trim();
+    if (!answer || answer.endsWith('?') || isAffirmation(answer)) return undefined;
+    if (EVOCATION_DODGE_PATTERN.test(answer)) return undefined;
+    return answer.slice(0, EVOCATION_ANSWER_MAX);
+  }
+  return undefined;
+}
+
+/**
+ * Meaning questions, for the aesthetic-vibe guard (TAT-51): once the user
+ * has said the piece just looks good, the meaning slot is closed and no
+ * meaning question ever reaches them again.
+ */
+const MEANING_QUESTION_PATTERN =
+  /\b(mean(s|ing)? (to|for) you|meaning behind|what (does|do|would|should) (it|this|that|the piece) mean|story behind|significance|deeper meaning|why (do you want|this piece))\b/i;
+
+function stripMeaningQuestions(candidate: string): string {
+  return sentencesOf(candidate)
+    .filter((sentence) => !(sentence.endsWith('?') && MEANING_QUESTION_PATTERN.test(sentence)))
+    .join(' ')
+    .trim();
+}
+
 /**
  * The one in-voice IP line (ADR-0023): said once per session, on the first
  * proposal that carries a named subject.
@@ -483,11 +553,27 @@ export async function runConversationTurn(
   const scanText = subjectScanText(request.messages);
   const characters = charactersIn(scanText);
   const moment = momentFrom(scanText);
+  // The evocation slot (TAT-51): read asked-ness and any answer off the
+  // transcript. The answer is a scene anchor — it merges into the subject
+  // (never overwrites, TAT-47 rules) and may stand alone as the drawable
+  // when nothing else matched ("the ocean at night" is a complete subject).
+  const evocationAsked = evocationAskedIn(request.messages);
+  const scene = evocationAnswerIn(request.messages);
   const subjectBase = subjectPhraseFor(characters) ?? asTrimmedString(record.subject);
-  if (subjectBase) {
-    record.subject =
-      moment && !subjectBase.includes(moment) ? `${subjectBase}, ${moment}` : subjectBase;
+  let subjectValue = subjectBase;
+  if (subjectValue && moment && !subjectValue.toLowerCase().includes(moment.toLowerCase())) {
+    subjectValue = `${subjectValue}, ${moment}`;
   }
+  if (scene) {
+    if (!subjectValue) subjectValue = scene;
+    else if (!subjectValue.toLowerCase().includes(scene.toLowerCase())) {
+      subjectValue = `${subjectValue}, ${scene}`;
+    }
+  }
+  if (subjectValue) record.subject = subjectValue;
+  // What the playback/notes speak as the scene: the evocation answer is the
+  // user's own image and outranks the harvested action phrasing.
+  const sceneAnchor = scene ?? moment;
   // IP rule, enforced at extraction (ADR-0023, deliberately in addition to
   // the confirm-time enforcement): a named subject locks literal-abstract —
   // a recognizable depiction is the point, so the axis is never offered.
@@ -497,6 +583,19 @@ export async function runConversationTurn(
     );
   }
   const characterLabel = characterLabelFor(characters);
+
+  // Meaning is optional (TAT-51): a pure-looks answer anywhere in the
+  // session records vibe=aesthetic and closes the meaning slot — the user's
+  // own phrasing becomes the meaning (ADR-0010: their words, verbatim), so
+  // the slot reads as answered everywhere downstream.
+  const aestheticAnswer = request.messages
+    .filter((message) => message.role === 'user')
+    .map((message) => message.text)
+    .find((text) => isAestheticAnswer(text));
+  if (aestheticAnswer) {
+    record.vibe = 'aesthetic';
+    if (!(record.meaning ?? '').trim()) record.meaning = aestheticAnswer.trim();
+  }
 
   // Deterministic intent detection on the message being answered — the
   // three shapes a live session showed the model mishandling outright.
@@ -542,7 +641,7 @@ export async function runConversationTurn(
     if (hasPlacement) {
       stage = 'proposal';
       firedRule = 'turn12-force-proposal';
-      playback = buildPlayback(record, characterLabel, moment);
+      playback = buildPlayback(record, characterLabel, sceneAnchor);
       reply = withIpNote(
         proposalBeatReply(playback, payload, request.messages),
         record,
@@ -565,7 +664,7 @@ export async function runConversationTurn(
     // bot NEVER denies generation capability.
     stage = 'proposal';
     firedRule = 'axis-request-proposal';
-    playback = buildPlayback(record, characterLabel, moment);
+    playback = buildPlayback(record, characterLabel, sceneAnchor);
     reply = withIpNote(
       axisSpreadProposalReply(playback, axisRequest.labels),
       record,
@@ -587,7 +686,7 @@ export async function runConversationTurn(
     // ADR-0020's announce + consent beat is never skipped.
     stage = 'proposal';
     firedRule = 'draw-request-proposal';
-    playback = buildPlayback(record, characterLabel, moment);
+    playback = buildPlayback(record, characterLabel, sceneAnchor);
     reply = withIpNote(
       proposalBeatReply(playback, payload, request.messages),
       record,
@@ -607,7 +706,7 @@ export async function runConversationTurn(
     if (hasRequiredFields) {
       stage = 'proposal';
       firedRule = 'style-recommendation';
-      playback = buildPlayback(record, characterLabel, moment);
+      playback = buildPlayback(record, characterLabel, sceneAnchor);
       reply = withIpNote(`${reply} ${proposalReply(playback)}`, record, request.messages);
     } else {
       stage = 'chatting';
@@ -617,18 +716,50 @@ export async function runConversationTurn(
   } else if (confidence >= CONFIDENCE_THRESHOLD && hasRequiredFields) {
     stage = 'proposal';
     firedRule = 'judgment';
-    playback = buildPlayback(record, characterLabel, moment);
+    playback = buildPlayback(record, characterLabel, sceneAnchor);
     reply = withIpNote(
       proposalBeatReply(playback, payload, request.messages),
       record,
       request.messages
     );
+  } else if (
+    // The evocation follow-up (TAT-51): the meaning points at a person,
+    // creator, or franchise, nothing drawable is on the record, and the
+    // question has never been asked. Fires at most once per session — a
+    // dodge is a dodge, never a re-ask — and only below the proposal
+    // threshold: a record that can already propose doesn't need mining.
+    !evocationAsked &&
+    record.vibe !== 'aesthetic' &&
+    !(record.subject ?? '').trim() &&
+    !moment &&
+    evocationRefOf(record.meaning ?? '')
+  ) {
+    stage = 'chatting';
+    firedRule = 'evocation-question';
+    reply = evocationQuestion(evocationRefOf(record.meaning ?? '')!);
   } else {
     stage = 'chatting';
     firedRule = 'none';
     let candidate =
       asTrimmedString(payload.reply) ||
       "Tell me more — what's drawing you to this piece?";
+
+    // The meaning slot is closed (TAT-51): a pure-looks answer was given,
+    // so any meaning question the model still tries gets stripped — the
+    // release valve is only honest if the question truly never returns.
+    if (record.vibe === 'aesthetic') {
+      const stripped = stripMeaningQuestions(candidate);
+      if (stripped !== candidate.trim()) {
+        logger.warn({
+          event_type: 'design_conversation.meaning_reask_suppressed',
+          turn: request.userTurn,
+          model,
+        });
+        candidate =
+          stripped ||
+          `${AESTHETIC_ACK}${(record.subject ?? '').trim() ? '' : ` ${SUBJECT_GATE_QUESTION}`}`;
+      }
+    }
 
     // The color slot is chased at most twice (ask + one reworded retry) —
     // on a third attempt the bot makes the call itself and advances, in
@@ -641,7 +772,7 @@ export async function runConversationTurn(
         if (hasRequiredFields) {
           stage = 'proposal';
           firedRule = 'style-recommendation';
-          playback = buildPlayback(record, characterLabel, moment);
+          playback = buildPlayback(record, characterLabel, sceneAnchor);
           candidate = withIpNote(
             `${decision} ${proposalReply(playback)}`,
             record,
@@ -700,6 +831,6 @@ export async function runConversationTurn(
     // The notepad projection (TAT-48) — built AFTER every branch above, so
     // it reflects the record the branches may have resolved (palette calls,
     // axis spreads). The only record view that ever reaches the browser.
-    notes: buildSessionNotes(record, characters, moment),
+    notes: buildSessionNotes(record, characters, sceneAnchor),
   };
 }
