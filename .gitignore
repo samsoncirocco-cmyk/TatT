@@ -85,6 +85,7 @@ __pycache__/
 
 # Expo
 .expo/
+mobile/expo-env.d.ts
 Neo4j-*.txt
 .vercel
 .env*
