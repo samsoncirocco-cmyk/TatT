@@ -86,10 +86,12 @@ export default function TrueSizeModal({
   const heightMm = imageRatio === null ? null : widthMm * imageRatio;
   // During calibration the preview isn't mounted, so height is unknown —
   // exportTrueSizePdf loads dimensions itself. After calibration, wait for
-  // the preview onLoad so we can show the same disabled state / refusal
-  // message as once height is known (instead of enabling then failing later).
+  // the preview onLoad before enabling (instead of enabling then failing
+  // later) — but a still-loading image is NOT "too big", so the refusal
+  // message shows only once the height is known and actually over the sheet.
+  const tooBig = heightMm !== null && !fitsOnOneSheet(widthMm, heightMm);
   const printable =
-    heightMm === null ? showCalibrator : fitsOnOneSheet(widthMm, heightMm);
+    heightMm === null ? showCalibrator : !tooBig;
 
   const switchUnit = (next: SizeUnit) => {
     if (next === unit) return;
@@ -129,14 +131,14 @@ export default function TrueSizeModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/85 overflow-y-auto"
+      className="fixed inset-0 z-50 bg-black/80 halftone flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-label="True size"
       onClick={onClose}
     >
       <div
-        className="max-w-3xl mx-auto my-8 md:my-16 bg-black border-2 hairline"
+        className="bg-black border-2 border-pink w-full max-w-3xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* header */}
@@ -310,7 +312,7 @@ export default function TrueSizeModal({
               >
                 {printing ? "Building PDF…" : "▸ Download print-ready PDF"}
               </button>
-              {!printable ? (
+              {tooBig ? (
                 <span className="text-[12px] text-pink font-body">
                   {PRINT_TOO_BIG_MESSAGE}
                 </span>
