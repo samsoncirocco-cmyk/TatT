@@ -13,7 +13,7 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Eraser, Paintbrush, Undo2, Redo2, Trash2, Download, X } from 'lucide-react';
+import { Eraser, Paintbrush, Undo2, Redo2, Trash2, Download } from 'lucide-react';
 import Button from '../ui/Button';
 
 const UNDO_LIMIT = 10;
@@ -337,23 +337,23 @@ export default function CleanupTool({ imageUrl, onClose, onSave }) {
     return (
         <div className="fixed inset-0 bg-black/90 z-[60] overflow-y-auto">
             <div className="min-h-screen flex items-center justify-center p-4">
-                <div className="glass-panel border border-white/10 rounded-3xl shadow-2xl max-w-7xl w-full text-white">
+                <div className="bg-black border-2 border-pink max-w-7xl w-full text-white">
                     {/* Header */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+                    <div className="flex items-center justify-between px-6 py-4 border-b-2 hairline">
                         <div>
-                            <h2 className="text-2xl font-display font-bold text-white">
-                                Cleanup Tool
+                            <h2 className="text-[20px] font-display tracking-wide uppercase text-white leading-none">
+                                <span className="text-pink">●</span>&nbsp;&nbsp;Cleanup Tool
                             </h2>
-                            <p className="text-xs font-mono text-white/60 mt-1 uppercase tracking-wider">
+                            <p className="text-[10px] font-body text-white/50 mt-2 uppercase tracking-[0.25em]">
                                 Prepare your stencil for printing
                             </p>
                         </div>
                         <button
                             onClick={onClose}
-                            className="text-white/60 hover:text-white transition-colors p-2 rounded-lg hover:bg-white/10"
+                            className="text-[10px] font-body uppercase tracking-[0.22em] text-white/60 hover:text-pink"
                             aria-label="Close cleanup tool"
                         >
-                            <X size={24} />
+                            Close ✕
                         </button>
                     </div>
 
@@ -363,7 +363,7 @@ export default function CleanupTool({ imageUrl, onClose, onSave }) {
                             {/* Canvas Area */}
                             <div className="lg:col-span-2 space-y-4">
                                 {/* Canvas Container */}
-                                <div className="bg-black/30 rounded-2xl p-6 border border-white/10">
+                                <div className="bg-black p-6 border-2 hairline-white">
                                     <div className="relative mx-auto" style={{
                                         maxWidth: '100%',
                                         aspectRatio: `${canvasSize.width}/${canvasSize.height}`
@@ -383,7 +383,7 @@ export default function CleanupTool({ imageUrl, onClose, onSave }) {
                                         {/* Preview Canvas (visible composite) */}
                                         <canvas
                                             ref={previewCanvasRef}
-                                            className="absolute inset-0 w-full h-full rounded-xl border border-white/10 cursor-crosshair touch-none"
+                                            className="absolute inset-0 w-full h-full border hairline-white cursor-crosshair touch-none"
                                             style={{
                                                 imageRendering: 'crisp-edges',
                                                 background: 'repeating-conic-gradient(#808080 0% 25%, #ffffff 0% 50%) 50% / 20px 20px'
@@ -399,14 +399,16 @@ export default function CleanupTool({ imageUrl, onClose, onSave }) {
 
                                         {/* Loading overlay */}
                                         {!imageLoaded && (
-                                            <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl">
-                                                <div className="text-white/60 font-mono text-sm">Loading image...</div>
+                                            <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                                                <div className="text-[10px] text-white/60 font-body uppercase tracking-[0.25em]">
+                                                    <span className="text-pink">●</span>&nbsp;&nbsp;Loading image...
+                                                </div>
                                             </div>
                                         )}
 
                                         {/* Mode indicator */}
-                                        <div className="absolute top-4 left-4 px-3 py-1 rounded-full bg-black/60 border border-white/10 backdrop-blur-sm">
-                                            <p className="text-xs font-mono uppercase tracking-widest text-white/90 flex items-center gap-2">
+                                        <div className="absolute top-4 left-4 px-3 py-1 bg-black/80 border hairline">
+                                            <p className="text-[10px] font-body uppercase tracking-[0.2em] text-white/90 flex items-center gap-2">
                                                 {mode === 'erase' ? (
                                                     <>
                                                         <Eraser size={14} />
@@ -422,8 +424,8 @@ export default function CleanupTool({ imageUrl, onClose, onSave }) {
                                         </div>
 
                                         {/* Brush size indicator */}
-                                        <div className="absolute top-4 right-4 px-3 py-1 rounded-full bg-black/60 border border-white/10 backdrop-blur-sm">
-                                            <p className="text-xs font-mono text-white/90">
+                                        <div className="absolute top-4 right-4 px-3 py-1 bg-black/80 border hairline">
+                                            <p className="text-[10px] font-body text-white/90 tabular-nums">
                                                 {brushSize}px
                                             </p>
                                         </div>
@@ -431,39 +433,43 @@ export default function CleanupTool({ imageUrl, onClose, onSave }) {
                                 </div>
 
                                 {/* Toolbar */}
-                                <div className="glass-panel rounded-2xl p-4 border border-white/10">
+                                <div className="border-2 hairline p-4">
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                         <Button
                                             onClick={handleUndo}
                                             disabled={undoStack.length <= 1}
-                                            className="h-12 text-xs font-black tracking-wider bg-white/10 text-white hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                                            variant="outline"
+                                            size="md"
                                             icon={Undo2}
                                         >
-                                            UNDO
+                                            Undo
                                         </Button>
                                         <Button
                                             onClick={handleRedo}
                                             disabled={redoStack.length === 0}
-                                            className="h-12 text-xs font-black tracking-wider bg-white/10 text-white hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                                            variant="outline"
+                                            size="md"
                                             icon={Redo2}
                                         >
-                                            REDO
+                                            Redo
                                         </Button>
                                         <Button
                                             onClick={handleClearAll}
                                             disabled={!hasChanges}
-                                            className="h-12 text-xs font-black tracking-wider bg-red-500/20 text-red-300 hover:bg-red-500/30 disabled:opacity-40 disabled:cursor-not-allowed"
+                                            variant="danger"
+                                            size="md"
                                             icon={Trash2}
                                         >
-                                            CLEAR
+                                            Clear
                                         </Button>
                                         <Button
                                             onClick={handleExport}
                                             disabled={!imageLoaded}
-                                            className="h-12 text-xs font-black tracking-wider bg-studio-accent text-white hover:bg-[rgba(255,62,0,0.9)] disabled:opacity-40 disabled:cursor-not-allowed"
+                                            variant="primary"
+                                            size="md"
                                             icon={Download}
                                         >
-                                            SAVE
+                                            Save
                                         </Button>
                                     </div>
                                 </div>
@@ -472,40 +478,40 @@ export default function CleanupTool({ imageUrl, onClose, onSave }) {
                             {/* Controls Panel */}
                             <div className="space-y-4">
                                 {/* Mode Selection */}
-                                <div className="studio-glass rounded-2xl p-4 border border-white/10">
-                                    <p className="text-xs font-mono uppercase tracking-[0.3em] text-studio-neon mb-3">
-                                        Tool Mode
+                                <div className="border-2 hairline p-4">
+                                    <p className="text-[10px] font-body uppercase tracking-[0.28em] text-pink mb-3">
+                                        <span className="text-pink">●</span>&nbsp;&nbsp;Tool Mode
                                     </p>
                                     <div className="grid grid-cols-2 gap-2">
                                         <button
                                             onClick={() => setMode('erase')}
                                             className={`
-                                                h-20 rounded-xl flex flex-col items-center justify-center gap-2
-                                                transition-all border-2
+                                                press h-20 flex flex-col items-center justify-center gap-2
+                                                transition-colors border-2
                                                 ${mode === 'erase'
-                                                    ? 'bg-[rgba(0,255,65,0.2)] border-studio-neon text-studio-neon'
-                                                    : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
+                                                    ? 'bg-pink border-pink text-black'
+                                                    : 'bg-black hairline-white text-white/60 hover:border-pink hover:text-pink'
                                                 }
                                             `}
                                         >
                                             <Eraser size={24} />
-                                            <span className="text-xs font-bold uppercase tracking-wider">
+                                            <span className="text-[10px] font-body uppercase tracking-[0.2em]">
                                                 Erase
                                             </span>
                                         </button>
                                         <button
                                             onClick={() => setMode('paint')}
                                             className={`
-                                                h-20 rounded-xl flex flex-col items-center justify-center gap-2
-                                                transition-all border-2
+                                                press h-20 flex flex-col items-center justify-center gap-2
+                                                transition-colors border-2
                                                 ${mode === 'paint'
-                                                    ? 'bg-[rgba(0,255,65,0.2)] border-studio-neon text-studio-neon'
-                                                    : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
+                                                    ? 'bg-pink border-pink text-black'
+                                                    : 'bg-black hairline-white text-white/60 hover:border-pink hover:text-pink'
                                                 }
                                             `}
                                         >
                                             <Paintbrush size={24} />
-                                            <span className="text-xs font-bold uppercase tracking-wider">
+                                            <span className="text-[10px] font-body uppercase tracking-[0.2em]">
                                                 Paint
                                             </span>
                                         </button>
@@ -513,12 +519,12 @@ export default function CleanupTool({ imageUrl, onClose, onSave }) {
                                 </div>
 
                                 {/* Brush Size */}
-                                <div className="studio-glass rounded-2xl p-4 border border-white/10">
+                                <div className="border-2 hairline p-4">
                                     <div className="flex items-center justify-between mb-3">
-                                        <p className="text-xs font-mono uppercase tracking-[0.3em] text-studio-neon">
-                                            Brush Size
+                                        <p className="text-[10px] font-body uppercase tracking-[0.28em] text-pink">
+                                            <span className="text-pink">●</span>&nbsp;&nbsp;Brush Size
                                         </p>
-                                        <span className="text-sm font-bold text-white">
+                                        <span className="text-[13px] text-white font-body tabular-nums">
                                             {brushSize}px
                                         </span>
                                     </div>
@@ -529,60 +535,60 @@ export default function CleanupTool({ imageUrl, onClose, onSave }) {
                                         step="5"
                                         value={brushSize}
                                         onChange={(e) => setBrushSize(Number(e.target.value))}
-                                        className="w-full accent-[rgb(0_255_65)] cursor-pointer"
+                                        className="w-full accent-[#ff1f6b] cursor-pointer"
                                     />
-                                    <div className="flex justify-between mt-2 text-[10px] text-white/40 font-mono">
+                                    <div className="flex justify-between mt-2 text-[10px] text-white/40 font-body tabular-nums">
                                         <span>10px</span>
                                         <span>100px</span>
                                     </div>
                                 </div>
 
                                 {/* Keyboard Shortcuts */}
-                                <div className="studio-glass rounded-2xl p-4 border border-white/10">
-                                    <p className="text-xs font-mono uppercase tracking-[0.3em] text-studio-neon mb-3">
-                                        Keyboard Shortcuts
+                                <div className="border-2 hairline p-4">
+                                    <p className="text-[10px] font-body uppercase tracking-[0.28em] text-pink mb-3">
+                                        <span className="text-pink">●</span>&nbsp;&nbsp;Keyboard Shortcuts
                                     </p>
-                                    <div className="space-y-2 text-xs text-white/70">
+                                    <div className="space-y-2 text-[11px] text-white/70 font-body">
                                         <div className="flex justify-between items-center">
                                             <span>Erase Mode</span>
-                                            <kbd className="px-2 py-1 rounded bg-black/40 border border-white/10 text-white/60 font-mono">E</kbd>
+                                            <kbd className="px-2 py-1 bg-white/10 border hairline-white text-white/60 font-body">E</kbd>
                                         </div>
                                         <div className="flex justify-between items-center">
                                             <span>Paint Mode</span>
-                                            <kbd className="px-2 py-1 rounded bg-black/40 border border-white/10 text-white/60 font-mono">B</kbd>
+                                            <kbd className="px-2 py-1 bg-white/10 border hairline-white text-white/60 font-body">B</kbd>
                                         </div>
                                         <div className="flex justify-between items-center">
                                             <span>Smaller Brush</span>
-                                            <kbd className="px-2 py-1 rounded bg-black/40 border border-white/10 text-white/60 font-mono">[</kbd>
+                                            <kbd className="px-2 py-1 bg-white/10 border hairline-white text-white/60 font-body">[</kbd>
                                         </div>
                                         <div className="flex justify-between items-center">
                                             <span>Larger Brush</span>
-                                            <kbd className="px-2 py-1 rounded bg-black/40 border border-white/10 text-white/60 font-mono">]</kbd>
+                                            <kbd className="px-2 py-1 bg-white/10 border hairline-white text-white/60 font-body">]</kbd>
                                         </div>
                                         <div className="flex justify-between items-center">
                                             <span>Undo</span>
-                                            <kbd className="px-2 py-1 rounded bg-black/40 border border-white/10 text-white/60 font-mono">Ctrl+Z</kbd>
+                                            <kbd className="px-2 py-1 bg-white/10 border hairline-white text-white/60 font-body">Ctrl+Z</kbd>
                                         </div>
                                         <div className="flex justify-between items-center">
                                             <span>Redo</span>
-                                            <kbd className="px-2 py-1 rounded bg-black/40 border border-white/10 text-white/60 font-mono">Ctrl+Y</kbd>
+                                            <kbd className="px-2 py-1 bg-white/10 border hairline-white text-white/60 font-body">Ctrl+Y</kbd>
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Instructions */}
-                                <div className="studio-glass rounded-2xl p-4 border border-white/10 bg-[rgba(0,255,65,0.05)]">
-                                    <p className="text-xs font-mono uppercase tracking-[0.3em] text-studio-neon mb-3">
-                                        How to Use
+                                <div className="border hairline p-4">
+                                    <p className="text-[10px] font-body uppercase tracking-[0.28em] text-pink mb-3">
+                                        <span className="text-pink">●</span>&nbsp;&nbsp;How to Use
                                     </p>
-                                    <ol className="text-xs text-white/70 space-y-2 list-decimal list-inside">
+                                    <ol className="text-[11px] text-white/70 font-body space-y-2 list-decimal list-inside leading-[1.55]">
                                         <li>Choose Erase or Paint mode</li>
                                         <li>Adjust brush size with slider or [ ] keys</li>
                                         <li>Click/drag to clean up your design</li>
                                         <li>Use Undo/Redo to fix mistakes</li>
                                         <li>Click Save to update your layer</li>
                                     </ol>
-                                    <p className="text-[10px] text-white/50 mt-3 italic">
+                                    <p className="text-[10px] text-white/50 mt-3 font-body">
                                         Tip: Use a larger brush for quick cleanup, then switch to a smaller brush for detail work.
                                     </p>
                                 </div>

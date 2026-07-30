@@ -1,6 +1,5 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import type { Variation } from '@/services/designSession/types';
 
 export type RevealMode = 'pick' | 'not-you' | 'locked';
@@ -9,6 +8,10 @@ export type RevealMode = 'pick' | 'not-you' | 'locked';
  * The four-design reveal (ADR-0012). Staggered entrance, tap to pick, then
  * the same grid hosts the most-not-you tap over the remaining three — one
  * clean negative signal instead of three noisy non-picks.
+ *
+ * Entrance uses the design system's `.rise` hard-cut stagger (the one
+ * sanctioned motion) rather than a framer fade — the reveal is the loudest
+ * moment in the session and should snap in like the rest of the punk face.
  */
 export function RevealGrid({
   variations,
@@ -31,12 +34,7 @@ export function RevealGrid({
             ? `Design ${i + 1} feels most not me`
             : `Pick design ${i + 1}`;
         return (
-          <motion.div
-            key={variation.id}
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.22, delay: i * 0.09, ease: 'easeOut' }}
-          >
+          <div key={variation.id} className={`rise rise-${i + 1}`}>
             <button
               type="button"
               disabled={disabled}
@@ -64,7 +62,7 @@ export function RevealGrid({
                 </span>
               )}
             </button>
-          </motion.div>
+          </div>
         );
       })}
     </div>
