@@ -12,6 +12,7 @@
 // `code` and status, not just a sentence.
 
 import { getApiAuthHeaders } from '@/lib/client-api-auth';
+import { normalizeVoteTally, type ShareVote, type ShareVoteTally } from '@/lib/share-votes';
 
 export class ShareRequestError extends Error {
   readonly code: string;
@@ -118,4 +119,61 @@ export async function createShare(request: CreateShareRequest): Promise<CreatedS
 /** Codes where the honest thing to add is "no link was created". */
 export function isNoLinkCode(code: string): boolean {
   return code === 'SHARE_STORE_UNAVAILABLE' || code === 'SHARE_INCOMPLETE';
+}
+
+// ─── Friend votes (TAT-52) ─────────────────────────────────────────────
+
+/**
+ * Cast one friend's vote on a share. Anonymous on purpose — no auth headers,
+ * no identity; the vote route is public and rate-limited per IP, and the
+ * one-vote-per-browser rule lives in shareVoteMemory, not here.
+ *
+ * Resolves with the updated tally the server counted. Throws
+ * ShareRequestError on every path where the vote was NOT counted, so the UI
+ * can never show a ballot as cast when it wasn't.
+ */
+export async function submitVote(shareId: string, vote: ShareVote): Promise<ShareVoteTally> {
+  const res = await fetch(`${ENDPOINT}/${encodeURIComponent(shareId)}/vote`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ vote }),
+  });
+
+  let data: unknown = null;
+  try {
+    data = await res.json();
+  } catch {
+    // Non-JSON body — fall through to the status error.
+  }
+  const payload = (data ?? {}) as {
+    votes?: Partial<ShareVoteTally>;
+    error?: string;
+    code?: string;
+  };
+
+  if (!res.ok || !payload.votes) {
+    throw new ShareRequestError(payload.error ?? `Vote failed (${res.status})`, {
+      code: payload.code ?? 'VOTE_FAILED',
+      status: res.status,
+    });
+  }
+
+  return normalizeVoteTally(payload.votes);
+}
+
+/**
+ * The owner's read of their tally, from /designs/[id]. `peek=1` keeps the
+ * owner's glance out of the share's "Views" count. Returns null on ANY
+ * failure — the verdict module renders a quiet "unavailable", never a fake
+ * zero tally, and never blocks the page it sits on.
+ */
+export async function peekShareVotes(shareId: string): Promise<ShareVoteTally | null> {
+  try {
+    const res = await fetch(`${ENDPOINT}/${encodeURIComponent(shareId)}?peek=1`);
+    if (!res.ok) return null;
+    const payload = (await res.json()) as { votes?: Partial<ShareVoteTally> };
+    return normalizeVoteTally(payload.votes);
+  } catch {
+    return null;
+  }
 }
