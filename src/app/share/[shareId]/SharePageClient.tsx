@@ -6,6 +6,8 @@ import SlashHeadline from '@/components/punk/SlashHeadline';
 import StickerPricetag from '@/components/punk/StickerPricetag';
 import TapeCTA from '@/components/punk/TapeCTA';
 import TattTesterWordmark from '@/components/studio/TattTesterWordmark';
+import VotePanel from '@/features/share/components/VotePanel';
+import type { ShareVoteTally } from '@/lib/share-votes';
 
 /**
  * The page a share link opens — the first thing a stranger ever sees of TatT.
@@ -36,6 +38,8 @@ interface SharedDesign {
   bodyPart?: string;
   sharedAt: string;
   views: number;
+  /** Friend-vote tally (TAT-52). Absent from responses of older deploys. */
+  votes?: Partial<ShareVoteTally>;
 }
 
 export function SharePageClient({ design }: { design: SharedDesign }) {
@@ -191,10 +195,17 @@ export function SharePageClient({ design }: { design: SharedDesign }) {
               </p>
             </div>
 
+            {/* The decision engine (TAT-52): this page is where "should I
+                get this?" lands, so the answer gets collected right here. */}
+            <VotePanel shareId={design.shareId} initialVotes={design.votes} />
+
             <div className="mt-8">
               <div className="text-[10px] uppercase tracking-[0.28em] text-pink mb-3 font-body">
                 ▸ Pass it on
               </div>
+              <p className="mb-3 text-[10px] uppercase tracking-[0.2em] text-white/40 font-body">
+                Borrow this link — poll your people.
+              </p>
               <div className="flex items-stretch border hairline-white">
                 <input
                   readOnly
