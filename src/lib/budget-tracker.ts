@@ -301,7 +301,8 @@ export async function reconcileReservedSpend(
  * A billed reservation is never refundable through this path.
  */
 export async function releaseReservedSpend(
-  reservationKey: string
+  reservationKey: string,
+  ownerId: string
 ): Promise<void> {
   if (!ensureAdminApp()) throw new Error('Firebase Admin not configured');
 
@@ -318,7 +319,7 @@ export async function releaseReservedSpend(
       tx.get(reservationRef),
     ]);
     const reservation = reservationSnap.data() || {};
-    if (reservation.status !== 'reserved') return;
+    if (reservation.status !== 'reserved' || reservation.ownerId !== ownerId) return;
 
     const reservedCents =
       typeof reservation.reservedCents === 'number' ? reservation.reservedCents : 0;

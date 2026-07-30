@@ -225,7 +225,10 @@ describe('/api/v1/tasks/generate', () => {
     const response = await POST(makeRequest(taskBody));
 
     expect(response.status).toBe(500);
-    expect(releaseReservedSpendMock).toHaveBeenCalledWith(reservationKey);
+    expect(releaseReservedSpendMock).toHaveBeenCalledWith(
+      reservationKey,
+      expect.stringContaining('task-1')
+    );
     expect(reconcileReservedSpendMock).not.toHaveBeenCalled();
     expect(uploadGeneratedImageMock).not.toHaveBeenCalled();
   });
@@ -236,7 +239,10 @@ describe('/api/v1/tasks/generate', () => {
     const response = await POST(makeRequest(taskBody));
 
     expect(response.status).toBe(500);
-    expect(releaseReservedSpendMock).toHaveBeenCalledWith(reservationKey);
+    expect(releaseReservedSpendMock).toHaveBeenCalledWith(
+      reservationKey,
+      expect.stringContaining('task-1')
+    );
     expect(reconcileReservedSpendMock).not.toHaveBeenCalled();
   });
 
@@ -295,7 +301,10 @@ describe('/api/v1/tasks/generate', () => {
     const failedResponse = await POST(makeRequest(taskBody));
 
     expect(failedResponse.status).toBe(500);
-    expect(releaseReservedSpendMock).toHaveBeenCalledWith(reservationKey);
+    expect(releaseReservedSpendMock).toHaveBeenCalledWith(
+      reservationKey,
+      expect.stringContaining('task-1')
+    );
 
     reserveSpendMock.mockResolvedValue({
       allowed: true,

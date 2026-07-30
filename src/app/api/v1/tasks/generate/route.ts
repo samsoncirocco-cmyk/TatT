@@ -244,7 +244,7 @@ export async function POST(req: NextRequest) {
       (!takeover || recoveryProbeCompleted)
     ) {
       try {
-        await releaseReservedSpend(reservationKey);
+        await releaseReservedSpend(reservationKey, reservationOwner);
       } catch (releaseError) {
         // Keeping a reservation is safer than accidentally allowing a second
         // paid attempt when Firestore is unavailable.

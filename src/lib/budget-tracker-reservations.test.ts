@@ -34,6 +34,7 @@ vi.mock('firebase-admin/firestore', () => ({
 
 import {
   reconcileReservedSpend,
+  releaseReservedSpend,
   reserveSpend,
   type BudgetConfig,
 } from './budget-tracker';
@@ -177,6 +178,24 @@ describe('budget spend reservations', () => {
       ownerId: 'task-1:retry-1',
       takeoverCount: { __increment: 1 },
     });
+  });
+
+  it('does not let a stale lease owner release a taken-over reservation', async () => {
+    const periodStartMs = Date.now();
+    givenTransaction(
+      { periodStartMs, spentCents: 50 },
+      {
+        status: 'reserved',
+        reservedCents: 8,
+        periodStartMs,
+        ownerId: 'task-1:retry-1',
+      }
+    );
+
+    await releaseReservedSpend('generation-1', 'task-1:retry-0');
+
+    expect(txSetMock).not.toHaveBeenCalled();
+    expect(writeBudgetMetricMock).not.toHaveBeenCalled();
   });
 
   it('reconciles the estimate to actual spend and marks it billed atomically', async () => {
