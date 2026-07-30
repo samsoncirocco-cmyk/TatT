@@ -1,14 +1,23 @@
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Smartphone, ArrowLeft, Sparkles, AlertTriangle, Users } from 'lucide-react';
-import { motion } from 'framer-motion';
+import StudioShell from '@/components/studio/StudioShell';
+import SlashHeadline from '@/components/punk/SlashHeadline';
+import TapeCTA from '@/components/punk/TapeCTA';
 import { ARMirror, type ARMirrorDesign } from '@/features/ar';
 import { checkArSupport } from '@/services/ar/arService';
 import { useDesigns } from '@/lib/tattStorage';
 import { smartMatchUrlForDesign } from '@/lib/design-style-signal';
+
+const FEATURES = [
+  { label: 'Live camera', desc: 'Your design composited onto the real feed.' },
+  { label: 'You place it', desc: 'Drag, scale and rotate — no guessing.' },
+  {
+    label: 'Snap it, send it',
+    desc: 'Still or 3-sec clip, straight to the group chat — let them argue.',
+  },
+];
 
 /**
  * Live AR preview entry point.
@@ -61,111 +70,87 @@ function VisualizeContent() {
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background p-6">
-      <div className="absolute inset-0 -z-10">
-        <div className="absolute left-[-10%] top-[-20%] h-[60%] w-[60%] animate-pulse-glow rounded-full bg-ducks-yellow/10 mix-blend-screen blur-[120px]" />
-        <div
-          className="absolute bottom-[-10%] right-[-10%] h-[50%] w-[50%] animate-pulse-glow rounded-full bg-ducks-green/15 mix-blend-screen blur-[100px]"
-          style={{ animationDelay: '1s' }}
-        />
+    <StudioShell>
+      <div className="px-6 md:px-12 pt-6 pb-4 border-b hairline">
+        <div className="max-w-5xl mx-auto flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/50 tabular-nums font-body">
+          <span>
+            <span className="text-pink">●</span>&nbsp;&nbsp;AR&nbsp;Mirror
+          </span>
+          <span>
+            Designs&nbsp;ready:&nbsp;
+            <span className="text-pink">{hydrated ? arDesigns.length : '—'}</span>
+          </span>
+        </div>
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="z-10 w-full max-w-2xl space-y-8 text-center"
-      >
-        <div className="flex justify-center">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full border border-ducks-yellow/20 bg-ducks-yellow/10">
-            <Smartphone size={36} className="text-ducks-yellow" />
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <h1 className="font-display text-5xl font-black tracking-tighter text-white md:text-6xl">
-            AR Mirror
-          </h1>
-          <p className="mx-auto max-w-xl text-xl font-light text-gray-400">
-            Point your camera at your skin and place a design on it. You position it
-            yourself — nothing is auto-detected, and what you see is what gets saved.
+      <div className="px-6 md:px-12 py-16 md:py-24">
+        <div className="max-w-5xl mx-auto">
+          <SlashHeadline
+            before={<>See it on<br />your</>}
+            slashed="skin"
+            size="display"
+            className="rise rise-1 text-balance"
+          />
+          <p className="rise rise-2 mt-8 max-w-xl text-[15px] leading-[1.55] text-white/70 font-body">
+            Point your camera at your skin and place a design on it. You
+            position it yourself —{' '}
+            <span className="scribble text-pink">nothing is auto-detected</span>, and
+            what you see is what gets saved.
           </p>
-        </div>
 
-        <div className="grid grid-cols-1 gap-4 text-left sm:grid-cols-3">
-          {[
-            { label: 'Live camera', desc: 'Your design composited onto the real feed' },
-            { label: 'You place it', desc: 'Drag, scale and rotate — no guessing' },
-            {
-              label: 'Snap it, send it',
-              desc: 'Still or 3-sec clip, straight to the group chat — let them argue',
-            },
-          ].map((f) => (
-            <div key={f.label} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <p className="mb-1 font-mono text-xs uppercase tracking-widest text-ducks-yellow">
-                {f.label}
-              </p>
-              <p className="text-sm text-gray-400">{f.desc}</p>
+          <div className="rise rise-3 mt-12 grid grid-cols-1 sm:grid-cols-3 gap-6">
+            {FEATURES.map((f) => (
+              <div key={f.label} className="border-2 hairline bg-white/[0.03] p-5">
+                <p className="text-[10px] uppercase tracking-[0.25em] text-pink font-body">
+                  <span className="text-pink">▸</span>&nbsp;{f.label}
+                </p>
+                <p className="mt-3 text-[13px] text-white/70 font-body leading-[1.55]">
+                  {f.desc}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {support && !support.supported && (
+            <div className="mt-10 border-2 border-pink p-4 text-[11px] text-pink font-body uppercase tracking-[0.18em]">
+              {support.message}
             </div>
-          ))}
-        </div>
-
-        {support && !support.supported && (
-          <div className="flex items-start gap-3 rounded-xl border border-yellow-500/40 bg-yellow-500/10 p-4 text-left">
-            <AlertTriangle size={18} className="mt-0.5 shrink-0 text-yellow-400" />
-            <p className="text-sm text-gray-300">{support.message}</p>
-          </div>
-        )}
-
-        {support?.supported && hydrated && arDesigns.length === 0 && (
-          <p className="text-sm text-gray-500">
-            You have no generated designs yet — the mirror needs one to place.
-          </p>
-        )}
-
-        <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-          {support?.supported && (
-            <button
-              onClick={() => setLive(true)}
-              disabled={!hydrated || arDesigns.length === 0}
-              className="flex items-center gap-2 rounded-xl bg-ducks-green px-6 py-3 font-medium text-white transition-all hover:bg-ducks-green/90 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <Smartphone size={18} />
-              Open AR Mirror
-            </button>
           )}
-          {/* The funnel's next step — seen it on your skin, now find the hands
-              that can put it there. Carries the ds/style thread when present. */}
-          <Link
-            href={findArtistHref}
-            className="flex items-center gap-2 rounded-xl border border-ducks-yellow/40 bg-ducks-yellow/10 px-6 py-3 font-medium text-ducks-yellow transition-all hover:bg-ducks-yellow/20"
-          >
-            <Users size={18} />
-            Find your artist
-          </Link>
-          <Link
-            href="/generate"
-            className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-6 py-3 font-medium text-white backdrop-blur-md transition-all hover:bg-white/20"
-          >
-            <Sparkles size={18} />
-            Design Studio
-          </Link>
-          <Link
-            href="/"
-            className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-6 py-3 font-medium text-white backdrop-blur-md transition-all hover:bg-white/20"
-          >
-            <ArrowLeft size={18} />
-            Home
-          </Link>
+
+          {support?.supported && hydrated && arDesigns.length === 0 && (
+            <p className="mt-10 text-[12px] uppercase tracking-[0.2em] text-white/50 font-body">
+              No generated designs yet — the mirror needs one to place.
+            </p>
+          )}
+
+          <div className="mt-12 flex flex-wrap items-center gap-5">
+            {support?.supported && (
+              <TapeCTA
+                onClick={() => setLive(true)}
+                disabled={!hydrated || arDesigns.length === 0}
+                size="lg"
+              >
+                Open the mirror
+              </TapeCTA>
+            )}
+            {/* The funnel's next step — seen it on your skin, now find the hands
+                that can put it there. Carries the ds/style thread when present. */}
+            <TapeCTA href={findArtistHref} variant="ghost" size="sm">
+              Find your artist
+            </TapeCTA>
+            <TapeCTA href="/design" variant="ghost" size="sm">
+              Start a design
+            </TapeCTA>
+          </div>
         </div>
-      </motion.div>
-    </div>
+      </div>
+    </StudioShell>
   );
 }
 
 export default function VisualizePage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-background" />}>
+    <Suspense fallback={<div className="min-h-screen bg-black" />}>
       <VisualizeContent />
     </Suspense>
   );
