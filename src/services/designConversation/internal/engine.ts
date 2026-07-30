@@ -410,19 +410,25 @@ const EVOCATION_DODGE_PATTERN =
  * answer is the drawable anchor the question exists to mine ("gohan and
  * cell's beam struggle") — it merges into the subject rather than
  * overwriting it (TAT-47 merge rules). Dodges (a question back, a bare
- * affirmation) yield nothing; the question is still never re-asked.
+ * affirmation) are skipped so a later mined image still lands; the
+ * question is still never re-asked.
  */
 function evocationAnswerIn(messages: ConversationMessage[]): string | undefined {
   for (let i = 0; i < messages.length; i += 1) {
     const message = messages[i];
     if (message.role !== 'bot') continue;
     if (!normalizeForCompare(message.text).includes(EVOCATION_KEY)) continue;
-    const next = messages[i + 1];
-    if (!next || next.role !== 'user') return undefined;
-    const answer = next.text.trim();
-    if (!answer || answer.endsWith('?') || isAffirmation(answer)) return undefined;
-    if (EVOCATION_DODGE_PATTERN.test(answer)) return undefined;
-    return answer.slice(0, EVOCATION_ANSWER_MAX);
+    // Walk every user turn after the question — an immediate dodge must
+    // not block a drawable answer given on a later turn.
+    for (let j = i + 1; j < messages.length; j += 1) {
+      const candidate = messages[j];
+      if (candidate.role !== 'user') continue;
+      const answer = candidate.text.trim();
+      if (!answer || answer.endsWith('?') || isAffirmation(answer)) continue;
+      if (EVOCATION_DODGE_PATTERN.test(answer)) continue;
+      return answer.slice(0, EVOCATION_ANSWER_MAX);
+    }
+    return undefined;
   }
   return undefined;
 }
@@ -594,7 +600,9 @@ export async function runConversationTurn(
     .find((text) => isAestheticAnswer(text));
   if (aestheticAnswer) {
     record.vibe = 'aesthetic';
-    if (!(record.meaning ?? '').trim()) record.meaning = aestheticAnswer.trim();
+    // Always force their verbatim phrase — a model paraphrase on the same
+    // turn must not replace the closed meaning slot (ADR-0010).
+    record.meaning = aestheticAnswer.trim();
   }
 
   // Deterministic intent detection on the message being answered — the
