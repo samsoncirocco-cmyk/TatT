@@ -322,14 +322,22 @@ async function ensureAttachableSession(
  * Represent analyzed photos inside the engine turn as a bracketed textual
  * annotation on the user's message. Deliberate double coverage with the
  * structured merge: the annotation gives the MODEL the context (so its
- * reply and extraction can react to the photo, and the subject scan sees
- * character names through the exact TAT-47 text machinery), while the
- * stored reference entry guarantees the signals deterministically.
+ * reply and extraction can react to the photo), and naming the recognized
+ * characters in text runs them through the exact TAT-47 subject-scan
+ * machinery a typed mention would hit — while the stored reference entry
+ * guarantees the signals deterministically either way.
  */
 function withMediaAnnotation(body: string, ingest: MediaIngest | null): string {
   if (!ingest || ingest.analyses.length === 0) return body;
   const annotations = ingest.analyses
-    .map((analysis: ReferenceAnalysis) => `[photo attached — ${analysis.summary}]`)
+    .map((analysis: ReferenceAnalysis) => {
+      const characters = analysis.characters
+        .map((c) => (c.series ? `${c.name} (${c.series})` : c.name))
+        .join(', ');
+      return characters
+        ? `[photo attached — ${analysis.summary}; recognizable characters: ${characters}]`
+        : `[photo attached — ${analysis.summary}]`;
+    })
     .join(' ');
   return `${body} ${annotations}`;
 }
