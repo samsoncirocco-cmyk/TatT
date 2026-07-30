@@ -85,3 +85,48 @@ describe("DesignsPage — easy delete", () => {
     expect(stored).toHaveLength(1);
   });
 });
+
+describe("DesignsPage — taste card (your ink identity so far)", () => {
+  const CARD_LABEL = "Your ink identity so far";
+
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("is absent on an empty library (no cold-start fakery)", async () => {
+    render(<DesignsPage />);
+    expect(await screen.findByText(/No cuts yet/)).toBeTruthy();
+    expect(screen.queryByLabelText(CARD_LABEL)).toBeNull();
+  });
+
+  it("is absent below two data points even when the one save has a style", async () => {
+    addDesignToStorage("blackwork raven");
+    render(<DesignsPage />);
+    expect((await screen.findAllByText("blackwork raven")).length).toBeGreaterThan(0);
+    expect(screen.queryByLabelText(CARD_LABEL)).toBeNull();
+  });
+
+  it("shows the read, the small-n honesty note, and the smart-match handoff", async () => {
+    // addDesignToStorage prepends, so seed in reverse of display order —
+    // order doesn't matter to the derivation anyway.
+    addDesignToStorage("fine line fern");
+    addDesignToStorage("blackwork moth");
+    addDesignToStorage("blackwork raven");
+    render(<DesignsPage />);
+
+    const card = await screen.findByLabelText(CARD_LABEL);
+    expect(card.textContent).toContain(
+      "you keep coming back to blackwork — 2 of 3 saves",
+    );
+    // Honest about small n.
+    expect(card.textContent).toContain("early read — 3 saves in");
+
+    const cta = screen.getByRole("link", {
+      name: /Find artists who match your taste/,
+    });
+    const href = cta.getAttribute("href")!;
+    expect(href.startsWith("/smart-match?")).toBe(true);
+    const params = new URLSearchParams(href.split("?")[1]);
+    expect(params.get("styles")!.split(",")).toEqual(["Blackwork", "Fine Line"]);
+  });
+});
