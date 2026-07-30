@@ -19,6 +19,7 @@ import type {
   TurnLog,
 } from '../../designConversation/types';
 import type { IntakeRecord } from '../../intake/types';
+import type { StoredReference } from './references';
 
 /**
  * INTERNAL state of a conversational intake (ADR-0019–0022), stored on the
@@ -44,6 +45,13 @@ export interface ConversationState {
   model?: string;
   /** The one-line playback, present once the stage reached 'proposal'. */
   playback?: string;
+  /**
+   * Analyzed reference images attached to this session (TAT-50). Kept
+   * separately from `record` because the engine overwrites the record
+   * wholesale every turn — the integration layer re-merges these signals
+   * after each turn and at confirm.
+   */
+  references?: StoredReference[];
 }
 
 /**
