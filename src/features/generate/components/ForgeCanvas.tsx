@@ -303,7 +303,7 @@ export function ForgeCanvas({
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                    className="relative bg-black/20 backdrop-blur-sm border border-white/10 rounded-2xl overflow-hidden shadow-glass-lg"
+                    className="relative bg-black border-2 hairline-white overflow-hidden"
                     style={{
                         width: `${width}px`,
                         height: `${height}px`,
