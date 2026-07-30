@@ -1079,31 +1079,34 @@ export default function Generate() {
     };
 
     return (
-        <div className="halftone grain min-h-screen pt-10 px-4 pb-32 bg-black text-white font-body">
-            {/* Background — solid pitch black, halftone+grain applied above */}
-            <div className="fixed inset-0 bg-black -z-20" />
-
-            {/* Header — slashed Anton headline, pink dot meta */}
-            <div className="text-center mb-12 pt-4" role="banner">
-                <h1 className="rise rise-1 font-display text-white leading-[0.88] tracking-[0.005em] text-[72px] sm:text-[104px] md:text-[128px]">
-                    THE&nbsp;<span className="slash"><span>STUDIO</span></span><span className="text-pink">.</span>
-                </h1>
-                <p className="rise rise-2 mt-6 text-[10px] font-body text-pink uppercase tracking-[0.3em]" aria-label="Version 4.2 Neural Ink Generation Engine">
-                    <span className="text-pink">●</span>&nbsp;&nbsp;Neural Ink Generation Engine&nbsp;—&nbsp;v4.2
-                </p>
-                <div className="mt-8 flex items-center justify-center gap-3">
-                    <button
-                        onClick={() => {
-                            setGuideStepIndex(0);
-                            setShowGuide(true);
-                        }}
-                        className="press border hairline-white px-4 py-2 text-[10px] font-body uppercase tracking-[0.25em] text-white/70 hover:text-black hover:bg-pink hover:border-pink"
-                    >
-                        Guided Tour
-                    </button>
-                    <span className="text-[10px] font-body uppercase tracking-[0.28em] text-white/30">
-                        Learn the flow in 60 seconds
-                    </span>
+        // Texture (halftone + grain) and the black base come from StudioShell —
+        // painting them again here doubled the overlays.
+        <div className="min-h-screen pt-8 px-6 md:px-12 pb-24 text-white font-body">
+            {/* Header — compact power-room banner; the tools stay above the fold */}
+            <div className="max-w-[1560px] mx-auto mb-10" role="banner">
+                <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+                    <div>
+                        <h1 className="rise rise-1 font-display text-white leading-[0.88] tracking-[0.005em] text-[48px] md:text-[80px]">
+                            THE&nbsp;<span className="slash"><span>STUDIO</span></span><span className="text-pink">.</span>
+                        </h1>
+                        <p className="rise rise-2 mt-4 text-[10px] font-body text-pink uppercase tracking-[0.3em]">
+                            <span className="text-pink">●</span>&nbsp;&nbsp;Multi-layer editor&nbsp;—&nbsp;placement, layers, stencils
+                        </p>
+                    </div>
+                    <div className="rise rise-3 flex items-center gap-3 pb-1">
+                        <button
+                            onClick={() => {
+                                setGuideStepIndex(0);
+                                setShowGuide(true);
+                            }}
+                            className="press border hairline-white px-4 py-2 text-[10px] font-body uppercase tracking-[0.25em] text-white/70 hover:text-black hover:bg-pink hover:border-pink"
+                        >
+                            Guided Tour
+                        </button>
+                        <span className="text-[10px] font-body uppercase tracking-[0.28em] text-white/30">
+                            Learn the flow in 60 seconds
+                        </span>
+                    </div>
                 </div>
             </div>
 
