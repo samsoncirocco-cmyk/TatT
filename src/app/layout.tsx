@@ -1,5 +1,28 @@
 import type { Metadata } from "next";
+import { Anton, Space_Mono } from "next/font/google";
 import "./globals.css";
+
+// Self-hosted via next/font (TAT-52): the old globals.css @import chained
+// stylesheet → fonts.googleapis.com CSS → fonts.gstatic.com woff2, three
+// serial round-trips before the brand type could paint. next/font inlines
+// the @font-face rules at build time and preloads the woff2 from our own
+// origin with display:swap, so first paint never waits on Google.
+// Material Symbols (icon font) stays on the Google CSS @import — next/font
+// cannot express its variable axes — and icons are not first-paint text.
+const anton = Anton({
+  weight: "400",
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-anton",
+});
+
+const spaceMono = Space_Mono({
+  weight: ["400", "700"],
+  style: ["normal", "italic"],
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-space-mono",
+});
 import DemoModeBanner from "@/components/DemoModeBanner";
 import { AuthProvider } from "@/components/AuthProvider";
 import SignInPromptGate from "@/components/auth/SignInPromptGate";
@@ -25,7 +48,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${anton.variable} ${spaceMono.variable}`}>
       <body className="antialiased">
         <AuthProvider>
           <ToastProvider>

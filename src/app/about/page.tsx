@@ -1,6 +1,6 @@
-import Link from "next/link";
 import StudioShell from "@/components/studio/StudioShell";
 import SlashHeadline from "@/components/punk/SlashHeadline";
+import TapeCTA from "@/components/punk/TapeCTA";
 
 const SECTIONS = [
   {
@@ -15,8 +15,8 @@ const SECTIONS = [
     n: "02",
     word: "Generate",
     body: [
-      "Four passes back in under thirty seconds. Each one a different cut at the same idea — different angle, different weight, different attitude.",
-      "Pick the one that hits. Or scrap them all and try again. Credits don't tick on garbage.",
+      "Four passes, each a different cut at the same idea — different angle, different weight, different attitude. Render time varies with the design and studio traffic.",
+      "Pick the one that hits or try again. If a render breaks, your prompt and settings stay put so you can retry the exact idea without rebuilding it.",
     ],
   },
   {
@@ -31,8 +31,8 @@ const SECTIONS = [
     n: "04",
     word: "Connect",
     body: [
-      "Match with vetted artists who actually do this style. We rank by portfolio fit, location, and availability — not by who paid for placement.",
-      "Book the chair through the platform. Pay the deposit. Show up. Get inked.",
+      "Search real artist records by portfolio fit, location, and availability — not by who paid for placement. Claimed and unclaimed profiles are labeled so you know who controls the page.",
+      "Some artists offer live times; everyone else receives a date request. You see the deposit and TattTester's separate booking fee before checkout, and the artist confirms what happens next.",
     ],
   },
 ];
@@ -52,7 +52,7 @@ export default function AboutPage() {
           <SlashHeadline
             before={<>From idea<br />to</>}
             slashed="ink"
-            sizeClassName="text-[56px] sm:text-[88px] md:text-[120px] leading-[0.88]"
+            size="display"
           />
           <p className="mt-8 text-[15px] text-white/70 font-body max-w-xl leading-[1.55]">
             Four steps. No bullshit. Here&rsquo;s how TattTester works.
@@ -79,7 +79,7 @@ export default function AboutPage() {
                 before={<span className="text-pink">{s.n}.</span>}
                 slashed={s.word}
                 period={false}
-                sizeClassName="text-[64px] sm:text-[96px] md:text-[120px] leading-[0.88]"
+                size="display"
               />
               <div className="mt-8 space-y-4 max-w-xl">
                 {s.body.map((p, i) => (
@@ -95,17 +95,13 @@ export default function AboutPage() {
 
       <section className="px-6 md:px-12 py-24 border-t-2 hairline">
         <div className="max-w-5xl mx-auto text-center">
-          <h2 className="font-display text-white text-[40px] sm:text-[64px] leading-[0.95]">
+          <h2 className="font-display text-white text-[48px] md:text-[80px] leading-[0.88]">
             Ready?
             <span className="text-pink">.</span>
           </h2>
-          <Link
-            href="/design"
-            className="mt-10 tape press inline-flex items-center justify-center px-10 py-5 font-display text-[28px] sm:text-[38px] leading-none tracking-[0.02em]"
-          >
+          <TapeCTA href="/design" size="lg" className="mt-10">
             Start Designing
-            <span className="ml-3 text-[20px]">▸</span>
-          </Link>
+          </TapeCTA>
         </div>
       </section>
     </StudioShell>

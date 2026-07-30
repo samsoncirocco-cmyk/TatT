@@ -2,9 +2,35 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Camera, X, Download, AlertTriangle, Loader2 } from 'lucide-react';
+import {
+  Camera,
+  X,
+  Download,
+  AlertTriangle,
+  Loader2,
+  Video,
+  Share2,
+  Ruler,
+} from 'lucide-react';
 import { useArSession } from '../useArSession';
 import { prepareDesignForOverlay, type DesignSourceVerdict } from '@/services/ar/designSource';
+import {
+  checkClipSupport,
+  compositeFrame,
+  canvasToPngBlob,
+  recordCanvasClip,
+  downloadBlob,
+  captureFilename,
+  type ClipSupport,
+  type OverlayTransform,
+} from '@/services/ar/captureService';
+import { shareCapture, buildShareText } from '@/services/ar/shareCapture';
+import { resolveShareLink } from '../shareLink';
+import PlacementGuides, {
+  guideById,
+  nextGuide,
+  type PlacementGuideId,
+} from './PlacementGuides';
 
 /**
  * Live camera preview: point the phone at your skin, see the design on it.
@@ -15,7 +41,12 @@ import { prepareDesignForOverlay, type DesignSourceVerdict } from '@/services/ar
  * library in this stack can do it today; see docs/adr/0021).
  *
  * Placement comes from the caller, which got it from intake. This component
- * never guesses which body part it is looking at.
+ * never guesses which body part it is looking at. The opt-in placement guides
+ * are rulers drawn on the glass, not claims about where the user's arm is.
+ *
+ * PRIVACY: camera frames never leave the device. Captures (still or clip) are
+ * composited on a local canvas and exit only through the OS share sheet or a
+ * download — both explicit user taps. See src/services/ar/captureService.ts.
  */
 
 export interface ARMirrorDesign {
@@ -44,8 +75,26 @@ const BLEND_MODE = 'multiply';
 type OverlayState =
   | { kind: 'none' }
   | { kind: 'checking' }
-  | { kind: 'ready'; src: string; verdict: DesignSourceVerdict }
+  | {
+      kind: 'ready';
+      src: string;
+      /** The stripped design pixels — the same canvas both captures composite. */
+      canvas: HTMLCanvasElement;
+      verdict: DesignSourceVerdict;
+    }
   | { kind: 'blocked'; verdict: DesignSourceVerdict };
+
+/** A capture that exists locally and is waiting for the user to send or save it. */
+interface CapturedView {
+  file: File;
+  kind: 'still' | 'clip';
+}
+
+/** What happened after the send tap — each variant renders one honest line. */
+type ShareNote =
+  | { kind: 'shared' }
+  | { kind: 'fallback'; linkCopied: boolean; hadLink: boolean }
+  | { kind: 'error'; message: string };
 
 export default function ARMirror({
   designs,
@@ -72,16 +121,38 @@ export default function ARMirror({
   const [opacity, setOpacity] = useState(0.85);
   const dragRef = useRef<{ x: number; y: number } | null>(null);
 
+  // Capture & share state.
+  const [clipSupport, setClipSupport] = useState<ClipSupport | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [captured, setCaptured] = useState<CapturedView | null>(null);
+  const [captureError, setCaptureError] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
+  const [shareNote, setShareNote] = useState<ShareNote | null>(null);
+
+  // Placement guide — opt-in, off by default.
+  const [guide, setGuide] = useState<PlacementGuideId | null>(null);
+
   const selected = useMemo(
     () => designs.find((d) => d.id === selectedId) ?? null,
     [designs, selectedId],
   );
+
+  // Clip recording is a browser fact, so it can only be checked after mount.
+  useEffect(() => {
+    setClipSupport(checkClipSupport());
+  }, []);
 
   /**
    * Load the chosen design and run the on-skin guard before anything is drawn.
    * A design that fails the guard never produces a renderable source.
    */
   useEffect(() => {
+    // A capture belongs to the design it was taken with; switching designs
+    // (or deselecting) makes it stale, so it stops being offered.
+    setCaptured(null);
+    setShareNote(null);
+    setCaptureError(null);
+
     if (!selected) {
       setOverlay({ kind: 'none' });
       return;
@@ -102,7 +173,7 @@ export default function ARMirror({
         setOverlay({ kind: 'blocked', verdict });
         return;
       }
-      setOverlay({ kind: 'ready', src: canvas.toDataURL('image/png'), verdict });
+      setOverlay({ kind: 'ready', src: canvas.toDataURL('image/png'), canvas, verdict });
     };
 
     img.onerror = () => {
@@ -148,59 +219,145 @@ export default function ARMirror({
     dragRef.current = null;
   }, []);
 
-  /** Flatten the current frame plus the overlay, exactly as shown. */
-  const capture = useCallback(() => {
+  const currentTransform = useCallback(
+    (): OverlayTransform => ({
+      x: position.x,
+      y: position.y,
+      size,
+      rotation,
+      opacity,
+      blendMode: BLEND_MODE,
+    }),
+    [position, size, rotation, opacity],
+  );
+
+  /**
+   * Prepare the hidden canvas at the video's native resolution and return
+   * everything a capture needs, or null when the frame isn't ready.
+   */
+  const prepareCaptureCanvas = useCallback(() => {
     const video = videoRef.current;
     const canvas = captureCanvasRef.current;
-    if (!video || !canvas || overlay.kind !== 'ready') return;
-
+    if (!video || !canvas || overlay.kind !== 'ready') return null;
     const w = video.videoWidth;
     const h = video.videoHeight;
-    if (!w || !h) return;
-
+    if (!w || !h) return null;
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) return null;
+    return { video, canvas, ctx, w, h, design: overlay.canvas };
+  }, [overlay]);
 
-    ctx.drawImage(video, 0, 0, w, h);
+  /** Flatten the current frame plus the overlay, exactly as shown. */
+  const captureStill = useCallback(async () => {
+    const prep = prepareCaptureCanvas();
+    if (!prep) return;
+    setCaptureError(null);
+    setShareNote(null);
+    try {
+      compositeFrame(prep.ctx, prep.video, prep.w, prep.h, prep.design, currentTransform());
+      const blob = await canvasToPngBlob(prep.canvas);
+      const file = new File([blob], captureFilename('still', 'png'), { type: 'image/png' });
+      setCaptured({ file, kind: 'still' });
+    } catch {
+      setCaptureError("that one didn't take. try the shot again.");
+    }
+  }, [prepareCaptureCanvas, currentTransform]);
 
-    const design = new Image();
-    design.onload = () => {
-      const drawW = (w * size) / 100;
-      const drawH = drawW * (design.height / design.width || 1);
-      const cx = (w * position.x) / 100;
-      const cy = (h * position.y) / 100;
+  /** Three seconds of exactly what the mirror is showing. */
+  const captureClip = useCallback(async () => {
+    if (recording) return;
+    const mime = clipSupport?.mime;
+    const prep = prepareCaptureCanvas();
+    if (!mime || !prep) return;
 
-      ctx.save();
-      ctx.globalAlpha = opacity;
-      ctx.globalCompositeOperation = BLEND_MODE;
-      ctx.translate(cx, cy);
-      ctx.rotate((rotation * Math.PI) / 180);
-      ctx.drawImage(design, -drawW / 2, -drawH / 2, drawW, drawH);
-      ctx.restore();
+    setCaptureError(null);
+    setShareNote(null);
+    setRecording(true);
 
-      canvas.toBlob((blob) => {
-        if (!blob) return;
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `tatt-ar-${Date.now()}.png`;
-        link.click();
-        URL.revokeObjectURL(url);
-      }, 'image/png');
-    };
-    design.src = overlay.src;
-  }, [overlay, size, position, rotation, opacity]);
+    // The transform is frozen at record start: the clip shows the placement
+    // the user chose, not a hand that slipped mid-recording.
+    const transform = currentTransform();
+    const draw = () =>
+      compositeFrame(prep.ctx, prep.video, prep.w, prep.h, prep.design, transform);
+    draw();
+
+    try {
+      const blob = await recordCanvasClip(prep.canvas, mime, { onFrame: draw });
+      const file = new File([blob], captureFilename('clip', mime.extension), {
+        type: blob.type,
+      });
+      setCaptured({ file, kind: 'clip' });
+    } catch (error) {
+      setCaptureError(
+        error instanceof Error ? error.message : 'Recording failed partway through. Try again.',
+      );
+    } finally {
+      setRecording(false);
+    }
+  }, [recording, clipSupport, prepareCaptureCanvas, currentTransform]);
+
+  /**
+   * One tap: OS share sheet with the capture and the design's link (when a
+   * signed-in user has one). Falls back to download + copy-link where the
+   * browser can't hand files to the sheet. Camera pixels leave the device
+   * only through these two explicit exits.
+   */
+  const sendToGroupChat = useCallback(async () => {
+    if (!captured || !selected || sharing) return;
+    setSharing(true);
+    setShareNote(null);
+    try {
+      const url = (await resolveShareLink(selected)) ?? undefined;
+      const outcome = await shareCapture({
+        file: captured.file,
+        text: buildShareText(selected.title),
+        url,
+      });
+      if (outcome.kind === 'shared') {
+        setShareNote({ kind: 'shared' });
+      } else if (outcome.kind === 'fallback') {
+        // No share sheet — the capture downloads and the link (if any) goes
+        // to the clipboard, so the user can still paste both into the chat.
+        downloadBlob(captured.file, captured.file.name);
+        let linkCopied = false;
+        if (url) {
+          const { copyLinkToClipboard } = await import('@/services/ar/shareCapture');
+          linkCopied = await copyLinkToClipboard(url);
+        }
+        setShareNote({ kind: 'fallback', linkCopied, hadLink: Boolean(url) });
+      }
+      // 'cancelled' — the user closed the sheet. Say nothing; they know.
+    } catch {
+      setShareNote({
+        kind: 'error',
+        message: "the hand-off didn't take — save it below and send it yourself.",
+      });
+    } finally {
+      setSharing(false);
+    }
+  }, [captured, selected, sharing]);
+
+  /** Plain local save — the other sanctioned exit. */
+  const saveCapture = useCallback(() => {
+    if (!captured) return;
+    downloadBlob(captured.file, captured.file.name);
+  }, [captured]);
 
   const handleExit = useCallback(() => {
     session.stop();
     onExit?.();
   }, [session, onExit]);
 
+  const cycleGuide = useCallback(() => {
+    setGuide((g) => nextGuide(g));
+  }, []);
+
   const isLive = session.status === 'active';
   const isBusy = session.status === 'requesting' || session.status === 'starting';
   const hasFailed = session.status === 'error' || session.status === 'unsupported';
+  const clipReady = clipSupport?.supported ?? false;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black">
@@ -293,6 +450,9 @@ export default function ARMirror({
           </div>
         )}
 
+        {/* Placement guide — a ruler on the glass, under the design. */}
+        {isLive && <PlacementGuides guide={guide} />}
+
         {/* The on-skin guard firing */}
         {isLive && overlay.kind === 'blocked' && (
           <div className="absolute inset-x-4 top-4 z-10 rounded-lg border border-yellow-500/50 bg-yellow-500/90 px-4 py-3 backdrop-blur">
@@ -325,6 +485,16 @@ export default function ARMirror({
             }}
           />
         )}
+
+        {/* Recording pill — the only time the mirror talks over the stage. */}
+        {isLive && recording && (
+          <div className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-full bg-black/70 px-4 py-2 backdrop-blur">
+            <p className="flex items-center gap-2 text-xs font-medium text-white">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
+              rolling — hold it steady
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Controls */}
@@ -341,13 +511,100 @@ export default function ARMirror({
                 value={Math.round(opacity * 100)}
                 onChange={(v) => setOpacity(v / 100)}
               />
-              <button
-                onClick={capture}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-ducks-green px-4 py-3 text-sm font-medium text-white transition-all hover:bg-ducks-green/90"
-              >
-                <Download size={16} />
-                Save this view
-              </button>
+
+              {/* Guides: opt-in scale reference. Off by default, always. */}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={cycleGuide}
+                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-all ${
+                    guide
+                      ? 'border-ducks-green/60 bg-ducks-green/10 text-ducks-green'
+                      : 'border-white/10 bg-white/5 text-gray-400 hover:border-white/30 hover:text-white'
+                  }`}
+                >
+                  <Ruler size={14} />
+                  guides: {guide ? guideById(guide).label : 'off'}
+                </button>
+                {guide && (
+                  <p className="text-xs text-gray-400">{guideById(guide).hint}</p>
+                )}
+              </div>
+
+              {/* Capture row — still always, clip where the browser can. */}
+              <div className="flex gap-3">
+                <button
+                  onClick={captureStill}
+                  disabled={recording}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-ducks-green px-4 py-3 text-sm font-medium text-white transition-all hover:bg-ducks-green/90 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Camera size={16} />
+                  snap it
+                </button>
+                {clipReady && (
+                  <button
+                    onClick={captureClip}
+                    disabled={recording}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-ducks-green/50 bg-ducks-green/10 px-4 py-3 text-sm font-medium text-ducks-green transition-all hover:bg-ducks-green/20 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <Video size={16} />
+                    {recording ? 'rolling…' : '3-sec clip'}
+                  </button>
+                )}
+              </div>
+
+              {captureError && (
+                <p className="text-xs text-yellow-400" role="alert">
+                  {captureError}
+                </p>
+              )}
+
+              {/* The capture, waiting for its exit. Both doors are user taps. */}
+              {captured && (
+                <div className="rounded-xl border border-white/15 bg-white/5 p-3" role="status">
+                  <p className="mb-3 text-xs text-gray-300">
+                    {captured.kind === 'clip' ? 'got the clip.' : 'got the shot.'} send it to
+                    the group chat — let them argue.
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={sendToGroupChat}
+                      disabled={sharing}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-ducks-yellow px-4 py-3 text-sm font-medium text-black transition-all hover:bg-ducks-yellow/90 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <Share2 size={16} />
+                      {sharing ? 'handing it off…' : 'send it to the group chat'}
+                    </button>
+                    <button
+                      onClick={saveCapture}
+                      className="flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-medium text-white transition-all hover:bg-white/20"
+                    >
+                      <Download size={16} />
+                      save it
+                    </button>
+                  </div>
+                  {shareNote?.kind === 'shared' && (
+                    <p className="mt-3 text-xs text-ducks-green">
+                      sent. now let them argue.
+                    </p>
+                  )}
+                  {shareNote?.kind === 'fallback' && (
+                    <p className="mt-3 text-xs text-gray-400">
+                      no share sheet on this browser, so it downloaded instead —
+                      {shareNote.hadLink
+                        ? shareNote.linkCopied
+                          ? ' and the design link is on your clipboard. paste both wherever the debate happens.'
+                          : ' paste it wherever the debate happens.'
+                        : ' paste it wherever the debate happens.'}
+                    </p>
+                  )}
+                  {shareNote?.kind === 'error' && (
+                    <p className="mt-3 text-xs text-yellow-400" role="alert">
+                      {shareNote.message}
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* The next room in the funnel, right where conviction lands. */}
               {findArtistHref && (
                 <Link

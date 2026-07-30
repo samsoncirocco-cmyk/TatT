@@ -56,6 +56,9 @@ export type RosterArtist = {
    *  (filterPermalinksForDisplay). Rendered as official Instagram embeds on
    *  the profile page ONLY — card grids never mount iframes. */
   portfolioPermalinks: string[];
+  /** Posts the verified artist explicitly selected after connecting their own
+   *  Instagram account. Independent of legacy image-aligned recovery arrays. */
+  authorizedPortfolioPermalinks: string[];
   /** True once an artist has claimed this profile (`claimedByUid` is set).
    *  The uid itself stays server-side; public surfaces use this boolean to
    *  hide both the claim door and the unclaimed-profile provenance label. */
@@ -111,15 +114,21 @@ export function buildRosterFilter(
   //     only claimed artists' images count — plus, once the embed tier is on,
   //     an unclaimed artist with at least one canonical IG permalink (the
   //     shape filterPermalinksForDisplay would keep).
-  const hasImages = "(a.portfolioImages IS NOT NULL AND size(a.portfolioImages) > 0)";
+  // Artist-authorized Instagram selections (SHOWCASES → PortfolioPost) also
+  // display on the public profile, so they must satisfy hasPortfolio too.
+  const hasImages =
+    "(a.portfolioImages IS NOT NULL AND size(a.portfolioImages) > 0)";
+  const hasAuthorizedPortfolio =
+    "size([(a)-[show:SHOWCASES]->(post:PortfolioPost) WHERE coalesce(show.active, false) = true AND coalesce(post.active, false) = true | 1]) > 0";
+  const hasDisplayableWork = `(${hasImages} OR ${hasAuthorizedPortfolio})`;
   const isClaimed = "(a.claimedByUid IS NOT NULL AND a.claimedByUid <> '')";
   const hasEmbeddablePermalink =
     "any(p IN coalesce(a.portfolioPermalinks, []) WHERE trim(toString(p)) =~ $igPermalinkPattern)";
   const displaysPortfolio = unclaimedPortfolioDisplayEnabled(env)
-    ? hasImages
+    ? hasDisplayableWork
     : igEmbedsEnabled(env)
-      ? `((${isClaimed} AND ${hasImages}) OR (NOT ${isClaimed} AND ${hasEmbeddablePermalink}))`
-      : `(${isClaimed} AND ${hasImages})`;
+      ? `((${isClaimed} AND ${hasDisplayableWork}) OR (NOT ${isClaimed} AND ${hasEmbeddablePermalink}))`
+      : `(${isClaimed} AND ${hasDisplayableWork})`;
   // Leads the clause and is not conditional on any filter: an artist who asked
   // to be removed must be absent from every roster read, not merely from the
   // unfiltered one. See docs/adr/0025.
@@ -133,7 +142,12 @@ export function buildRosterFilter(
     AND (NOT $hasPortfolio OR ${displaysPortfolio})`;
   return {
     where,
-    params: { q, styleVariants, hasPortfolio, igPermalinkPattern: IG_PERMALINK_CYPHER },
+    params: {
+      q,
+      styleVariants,
+      hasPortfolio,
+      igPermalinkPattern: IG_PERMALINK_CYPHER,
+    },
   };
 }
 
@@ -159,6 +173,24 @@ export function toRosterArtist(record: Record<string, unknown>): RosterArtist {
   const shopName = typeof record.shopName === "string" ? record.shopName : null;
   const city = typeof record.city === "string" ? record.city : null;
   const state = typeof record.state === "string" ? record.state : null;
+  const authorizedPortfolioPermalinks = Array.isArray(
+    record.authorizedPortfolioPosts,
+  )
+    ? record.authorizedPortfolioPosts
+        .filter((post): post is { permalink: string; displayOrder?: number } =>
+          Boolean(
+            post &&
+            typeof post === "object" &&
+            typeof (post as Record<string, unknown>).permalink === "string",
+          ),
+        )
+        .sort(
+          (a, b) =>
+            Number(a.displayOrder ?? Number.MAX_SAFE_INTEGER) -
+            Number(b.displayOrder ?? Number.MAX_SAFE_INTEGER),
+        )
+        .map((post) => post.permalink)
+    : [];
   return {
     id,
     slug: artistSlug(name, id),
@@ -170,9 +202,11 @@ export function toRosterArtist(record: Record<string, unknown>): RosterArtist {
     styles: Array.isArray(record.styles) ? record.styles.map(String) : [],
     instagram: typeof record.instagram === "string" ? record.instagram : null,
     bio: typeof record.bio === "string" ? record.bio : null,
-    bookingUrl: typeof record.bookingUrl === "string" ? record.bookingUrl : null,
+    bookingUrl:
+      typeof record.bookingUrl === "string" ? record.bookingUrl : null,
     rating: typeof record.rating === "number" ? record.rating : null,
-    reviewCount: typeof record.reviewCount === "number" ? record.reviewCount : null,
+    reviewCount:
+      typeof record.reviewCount === "number" ? record.reviewCount : null,
     // The kill-switch gate (TAT-31): scraped images are withheld here, at the
     // one seam every roster surface reads through, when the switch is off and
     // the artist has not claimed the profile.
@@ -181,14 +215,14 @@ export function toRosterArtist(record: Record<string, unknown>): RosterArtist {
     // and only while ENABLE_IG_EMBEDS=true — [] otherwise, so this field is
     // inert until the flag is deliberately flipped.
     portfolioPermalinks: filterPermalinksForDisplay(record),
+    authorizedPortfolioPermalinks,
     claimed: isClaimed(record),
   };
 }
 
 async function runServerQuery(query: string, params: Record<string, unknown>) {
-  const { executeServerCypherQuery } = await import(
-    "@/features/match-pulse/services/neo4jService"
-  );
+  const { executeServerCypherQuery } =
+    await import("@/features/match-pulse/services/neo4jService");
   return executeServerCypherQuery(query, params);
 }
 
@@ -230,6 +264,11 @@ export async function browseArtists(
       a.reviewCount AS reviewCount,
       a.portfolioImages AS portfolioImages,
       a.portfolioPermalinks AS portfolioPermalinks,
+      [(a)-[show:SHOWCASES]->(post:PortfolioPost)
+        WHERE coalesce(show.active, false) = true
+          AND coalesce(post.active, false) = true
+        | {permalink: post.permalink, displayOrder: show.displayOrder}
+      ] AS authorizedPortfolioPosts,
       a.claimedByUid AS claimedByUid
     ORDER BY coalesce(a.reviewCount, 0) DESC, a.name ASC, a.id ASC
     SKIP toInteger($skip) LIMIT toInteger($limit)
@@ -255,7 +294,9 @@ export async function browseArtists(
  * A taken-down artist reads as absent — this backs the public profile page and
  * /book, so it must not resolve for someone who asked to be removed.
  */
-export async function getRosterArtistById(id: string): Promise<RosterArtist | null> {
+export async function getRosterArtistById(
+  id: string,
+): Promise<RosterArtist | null> {
   const query = `
     MATCH (a:Artist {id: $id})
     WHERE ${PUBLIC_ARTIST_CLAUSE}
@@ -275,6 +316,11 @@ export async function getRosterArtistById(id: string): Promise<RosterArtist | nu
       a.reviewCount AS reviewCount,
       a.portfolioImages AS portfolioImages,
       a.portfolioPermalinks AS portfolioPermalinks,
+      [(a)-[show:SHOWCASES]->(post:PortfolioPost)
+        WHERE coalesce(show.active, false) = true
+          AND coalesce(post.active, false) = true
+        | {permalink: post.permalink, displayOrder: show.displayOrder}
+      ] AS authorizedPortfolioPosts,
       a.claimedByUid AS claimedByUid
     LIMIT 1
   `;

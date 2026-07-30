@@ -115,6 +115,31 @@ describe('memorySharedDesignStore', () => {
     );
   });
 
+  it('reads without counting a view via get() — the owner peek path', async () => {
+    await memorySharedDesignStore.save(makeShare({ views: 4 }));
+
+    expect((await memorySharedDesignStore.get('abc1234567'))?.views).toBe(4);
+    expect((await memorySharedDesignStore.get('abc1234567'))?.views).toBe(4);
+    expect(await memorySharedDesignStore.get('nope')).toBeNull();
+  });
+
+  it('counts votes per option and returns a complete tally', async () => {
+    await memorySharedDesignStore.save(makeShare());
+
+    expect(await memorySharedDesignStore.recordVote('abc1234567', 'get_it')).toEqual({
+      get_it: 1,
+      sleep_on_it: 0,
+      absolutely_not: 0,
+    });
+    await memorySharedDesignStore.recordVote('abc1234567', 'get_it');
+    expect(await memorySharedDesignStore.recordVote('abc1234567', 'absolutely_not')).toEqual({
+      get_it: 2,
+      sleep_on_it: 0,
+      absolutely_not: 1,
+    });
+    expect(await memorySharedDesignStore.recordVote('nope', 'get_it')).toBeNull();
+  });
+
   // Next bundles each route handler separately and re-evaluates modules on
   // hot reload, so the POST that writes a share and the GET that reads it do
   // not necessarily share a module instance. A module-scoped Map made every
@@ -168,6 +193,45 @@ describe('firestoreSharedDesignStore', () => {
 
     const fetched = await firestoreSharedDesignStore.getAndCountView('abc1234567');
     expect(fetched?.shareId).toBe('abc1234567');
+  });
+
+  it('get() reads without touching the view counter', async () => {
+    firestoreMocks.get.mockResolvedValueOnce({ exists: true, data: () => makeShare({ views: 9 }) });
+
+    const fetched = await firestoreSharedDesignStore.get('abc1234567');
+
+    expect(fetched?.views).toBe(9);
+    expect(firestoreMocks.update).not.toHaveBeenCalled();
+  });
+
+  it('records a vote as an atomic increment on that option alone', async () => {
+    firestoreMocks.get.mockResolvedValueOnce({
+      exists: true,
+      data: () => makeShare({ votes: { get_it: 6, sleep_on_it: 2 } }),
+    });
+
+    const tally = await firestoreSharedDesignStore.recordVote('abc1234567', 'get_it');
+
+    // Concurrent friends must not clobber each other: the write is a
+    // FieldValue.increment on the one voted field, never a full-map set.
+    expect(firestoreMocks.update).toHaveBeenCalledWith({ 'votes.get_it': { __increment: 1 } });
+    expect(tally).toEqual({ get_it: 7, sleep_on_it: 2, absolutely_not: 0 });
+  });
+
+  it('returns null instead of voting on a share that does not exist', async () => {
+    firestoreMocks.get.mockResolvedValueOnce({ exists: false, data: () => undefined });
+
+    expect(await firestoreSharedDesignStore.recordVote('gone', 'get_it')).toBeNull();
+    expect(firestoreMocks.update).not.toHaveBeenCalled();
+  });
+
+  it('propagates a failed vote write — a lost ballot must not read as counted', async () => {
+    firestoreMocks.get.mockResolvedValueOnce({ exists: true, data: () => makeShare() });
+    firestoreMocks.update.mockRejectedValueOnce(new Error('quota exceeded'));
+
+    await expect(
+      firestoreSharedDesignStore.recordVote('abc1234567', 'get_it')
+    ).rejects.toThrow('quota exceeded');
   });
 });
 

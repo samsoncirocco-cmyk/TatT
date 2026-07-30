@@ -290,8 +290,12 @@ export default function Generate() {
     // Generation hook
     const {
         generateHighRes,
+        retryLastFailed,
+        canRetry,
+        cancelCurrent,
         isGenerating,
         error: generationError,
+        errorDetails: generationErrorDetails,
         progress,
         queueLength,
         arAsset
@@ -443,6 +447,12 @@ export default function Generate() {
                 if (state.selectedChips) setSelectedChips(state.selectedChips);
                 if (state.enhancementLevel) setEnhancementLevel(state.enhancementLevel);
                 if (state.enhancedPrompt) setEnhancedPrompt(state.enhancedPrompt);
+                if (state.bodyPart) setBodyPart(state.bodyPart);
+                if (state.size) setSize(state.size);
+                if (state.aiModel) setAiModel(state.aiModel);
+                if (state.negativePrompt !== undefined) setNegativePrompt(state.negativePrompt);
+                if (state.separateRGBA !== undefined) setSeparateRGBA(state.separateRGBA);
+                if (state.councilEnabled !== undefined) setCouncilEnabled(state.councilEnabled);
             } catch (e) {
                 console.error('Failed to load saved state:', e);
             }
@@ -455,9 +465,26 @@ export default function Generate() {
             promptText,
             selectedChips,
             enhancementLevel,
-            enhancedPrompt
+            enhancedPrompt,
+            bodyPart,
+            size,
+            aiModel,
+            negativePrompt,
+            separateRGBA,
+            councilEnabled
         }));
-    }, [promptText, selectedChips, enhancementLevel, enhancedPrompt]);
+    }, [
+        promptText,
+        selectedChips,
+        enhancementLevel,
+        enhancedPrompt,
+        bodyPart,
+        size,
+        aiModel,
+        negativePrompt,
+        separateRGBA,
+        councilEnabled
+    ]);
 
     useTransformShortcuts({
         selectedLayerId,
@@ -1079,31 +1106,34 @@ export default function Generate() {
     };
 
     return (
-        <div className="halftone grain min-h-screen pt-10 px-4 pb-32 bg-black text-white font-body">
-            {/* Background — solid pitch black, halftone+grain applied above */}
-            <div className="fixed inset-0 bg-black -z-20" />
-
-            {/* Header — slashed Anton headline, pink dot meta */}
-            <div className="text-center mb-12 pt-4" role="banner">
-                <h1 className="rise rise-1 font-display text-white leading-[0.88] tracking-[0.005em] text-[72px] sm:text-[104px] md:text-[128px]">
-                    THE&nbsp;<span className="slash"><span>STUDIO</span></span><span className="text-pink">.</span>
-                </h1>
-                <p className="rise rise-2 mt-6 text-[10px] font-body text-pink uppercase tracking-[0.3em]" aria-label="Version 4.2 Neural Ink Generation Engine">
-                    <span className="text-pink">●</span>&nbsp;&nbsp;Neural Ink Generation Engine&nbsp;—&nbsp;v4.2
-                </p>
-                <div className="mt-8 flex items-center justify-center gap-3">
-                    <button
-                        onClick={() => {
-                            setGuideStepIndex(0);
-                            setShowGuide(true);
-                        }}
-                        className="press border hairline-white px-4 py-2 text-[10px] font-body uppercase tracking-[0.25em] text-white/70 hover:text-black hover:bg-pink hover:border-pink"
-                    >
-                        Guided Tour
-                    </button>
-                    <span className="text-[10px] font-body uppercase tracking-[0.28em] text-white/30">
-                        Learn the flow in 60 seconds
-                    </span>
+        // Texture (halftone + grain) and the black base come from StudioShell —
+        // painting them again here doubled the overlays.
+        <div className="min-h-screen pt-8 px-6 md:px-12 pb-24 text-white font-body">
+            {/* Header — compact power-room banner; the tools stay above the fold */}
+            <div className="max-w-[1560px] mx-auto mb-10" role="banner">
+                <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+                    <div>
+                        <h1 className="rise rise-1 font-display text-white leading-[0.88] tracking-[0.005em] text-[48px] md:text-[80px]">
+                            THE&nbsp;<span className="slash"><span>STUDIO</span></span><span className="text-pink">.</span>
+                        </h1>
+                        <p className="rise rise-2 mt-4 text-[10px] font-body text-pink uppercase tracking-[0.3em]">
+                            <span className="text-pink">●</span>&nbsp;&nbsp;Multi-layer editor&nbsp;—&nbsp;placement, layers, stencils
+                        </p>
+                    </div>
+                    <div className="rise rise-3 flex items-center gap-3 pb-1">
+                        <button
+                            onClick={() => {
+                                setGuideStepIndex(0);
+                                setShowGuide(true);
+                            }}
+                            className="press border hairline-white px-4 py-2 text-[10px] font-body uppercase tracking-[0.25em] text-white/70 hover:text-black hover:bg-pink hover:border-pink"
+                        >
+                            Guided Tour
+                        </button>
+                        <span className="text-[10px] font-body uppercase tracking-[0.28em] text-white/30">
+                            Learn the flow in 60 seconds
+                        </span>
+                    </div>
                 </div>
             </div>
 
@@ -1486,14 +1516,32 @@ export default function Generate() {
                                             Refine: Quick iteration (50 steps) <span className="text-pink">●</span> Finalize: Max quality (60+ steps, 300 DPI)
                                         </p>
                                         {isGenerating && (
-                                            <div className="mt-4 space-y-2">
+                                            <div
+                                                className="mt-4 space-y-3 border hairline-white p-4"
+                                            >
                                                 <div className="flex items-center justify-between text-[10px] text-white/70 font-body uppercase tracking-[0.22em] tabular-nums">
-                                                    <span><span className="text-pink">●</span>&nbsp;&nbsp;Rendering high-res...</span>
-                                                    <span>
-                                                        {progress?.etaSeconds !== null ? `~${progress.etaSeconds}s` : 'estimating...'}
+                                                    <span role="status" aria-live="polite" aria-atomic="true">
+                                                        <span className="text-pink">●</span>&nbsp;&nbsp;
+                                                        {progress?.phase === 'preparing'
+                                                            ? 'Preparing your design'
+                                                            : progress?.phase === 'finishing'
+                                                                ? 'Finishing the details'
+                                                                : 'Drawing your design'}
+                                                    </span>
+                                                    <span aria-hidden="true">
+                                                        {progress?.etaSeconds !== null
+                                                            ? `About ${progress.etaSeconds}s`
+                                                            : 'Almost there'}
                                                     </span>
                                                 </div>
-                                                <div className="h-1.5 bg-white/10 overflow-hidden">
+                                                <div
+                                                    className="h-1.5 bg-white/10 overflow-hidden"
+                                                    role="progressbar"
+                                                    aria-label="Tattoo generation progress"
+                                                    aria-valuemin={0}
+                                                    aria-valuemax={100}
+                                                    aria-valuenow={Math.round((progress?.percent || 0) * 100)}
+                                                >
                                                     <div
                                                         className="h-full bg-pink transition-all"
                                                         style={{ width: `${Math.round((progress?.percent || 0) * 100)}%` }}
@@ -1504,17 +1552,46 @@ export default function Generate() {
                                                         Queue: {queueLength} request{queueLength > 1 ? 's' : ''} waiting
                                                     </div>
                                                 )}
+                                                <div className="flex items-center justify-between gap-4">
+                                                    <p className="text-[10px] normal-case text-white/50 font-body leading-relaxed">
+                                                        You can stay on this page—your prompt and fine-tuning choices are saved.
+                                                        Complex designs can take a little longer than the estimate. Stopping
+                                                        here only stops waiting; it cannot recall a render already sent.
+                                                    </p>
+                                                    <button
+                                                        type="button"
+                                                        onClick={cancelCurrent}
+                                                        className="shrink-0 text-[10px] font-body uppercase tracking-[0.2em] text-white/60 underline underline-offset-4 hover:text-pink"
+                                                    >
+                                                        Stop waiting
+                                                    </button>
+                                                </div>
                                             </div>
                                         )}
-                                        {generationError && (
-                                            <div className="mt-4 p-3 border-2 border-pink bg-black text-[11px] text-pink font-body flex items-center justify-between gap-3">
-                                                <span className="uppercase tracking-[0.18em]">{generationError}</span>
-                                                <button
-                                                    onClick={() => handleGenerate(false)}
-                                                    className="press px-3 py-1 bg-pink text-black text-[10px] font-body uppercase tracking-[0.22em]"
-                                                >
-                                                    Retry
-                                                </button>
+                                        {generationError && generationErrorDetails && (
+                                            <div
+                                                className="mt-4 p-4 border-2 border-pink bg-black font-body"
+                                                role="alert"
+                                            >
+                                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                                    <div>
+                                                        <p className="text-[12px] text-pink uppercase tracking-[0.18em]">
+                                                            {generationErrorDetails.title}
+                                                        </p>
+                                                        <p className="mt-2 text-[11px] text-white/70 leading-relaxed">
+                                                            {generationErrorDetails.message} {generationErrorDetails.guidance}
+                                                        </p>
+                                                    </div>
+                                                    {canRetry && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={retryLastFailed}
+                                                            className="press shrink-0 px-4 py-2 bg-pink text-black text-[10px] font-body uppercase tracking-[0.22em]"
+                                                        >
+                                                            Retry same design
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
                                         )}
                                         {previewError && (

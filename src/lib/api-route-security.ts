@@ -50,6 +50,16 @@ export const API_ROUTE_SECURITY: Record<string, RouteSecurityEntry> = {
       'stored state, never from the query string, and the authorization code is exchanged server-side.',
   },
   'v1/artist/calendar/disconnect': { class: 'firebase-auth' },
+  'v1/artist/instagram/connect': { class: 'firebase-auth' },
+  'v1/artist/instagram/media': { class: 'firebase-auth' },
+  'v1/artist/instagram/callback': {
+    class: 'public',
+    reason:
+      "Instagram redirects the artist's browser without a Firebase bearer token. " +
+      'The callback consumes a random, single-use, server-stored state bound to a verified uid, ' +
+      'artist id, and expected Instagram username; it expires in ten minutes. The returned ' +
+      'Instagram account must match that locked identity before any encrypted token is stored.',
+  },
   // Artist console (TAT-38): both resolve the artist from the VERIFIED uid
   // via claimedByUid — client-supplied artistIds are never accepted.
   'v1/artist/me': { class: 'firebase-auth' },
@@ -59,6 +69,9 @@ export const API_ROUTE_SECURITY: Record<string, RouteSecurityEntry> = {
   'v1/book/hold': { class: 'firebase-auth' },
   'v1/bookings': { class: 'firebase-auth' },
   'v1/bookings/[id]': { class: 'firebase-auth' },
+  // Owner-scoped .ics download of a reservation's slot; same uid discipline
+  // and existence-hiding 404s as v1/bookings/[id].
+  'v1/bookings/[id]/calendar.ics': { class: 'firebase-auth' },
   'v1/council/enhance': { class: 'firebase-auth' },
   'v1/council/generate': { class: 'firebase-auth' },
   'v1/design-session': { class: 'firebase-auth' },
@@ -67,11 +80,21 @@ export const API_ROUTE_SECURITY: Record<string, RouteSecurityEntry> = {
   'v1/design-session/[id]/pick': { class: 'firebase-auth' },
   'v1/design-session/[id]/placement-preview': { class: 'firebase-auth' },
   'v1/design-session/[id]/refine': { class: 'firebase-auth' },
+  'v1/design-session/[id]/reference': { class: 'firebase-auth' },
   'v1/design-session/converse': { class: 'firebase-auth' },
   'v1/designs/share': { class: 'firebase-auth' },
   'v1/designs/share/[shareId]': {
     class: 'public',
     reason: 'Public share links are the product feature: read-only fetch of a design by unguessable shareId.',
+  },
+  'v1/designs/share/[shareId]/vote': {
+    class: 'public',
+    reason:
+      'Friend voting on a shared design (TAT-52) is anonymous BY DESIGN — the friend in the ' +
+      'group chat has no account and must not need one. Scope is one atomic counter increment ' +
+      'on a share reached only by its unguessable shareId; the tally feeds nothing downstream ' +
+      '(no spend, no matching). Abuse posture: per-IP rate limit via the shared rate-limit lib, ' +
+      'one-vote-per-browser dedupe client-side; fails closed 503 when no durable store is wired.',
   },
   'v1/artists/takedown': {
     class: 'public',

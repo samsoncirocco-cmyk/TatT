@@ -6,8 +6,12 @@ import { useRouter } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
 import TapeCTA from "@/components/punk/TapeCTA";
 import ShareDesignAction from "@/features/share/components/ShareDesignAction";
-import { useDesigns, type TattDesign } from "@/lib/tattStorage";
+import GroupChatVerdict from "@/features/share/components/GroupChatVerdict";
+import TrueSizeActions from "@/features/true-size/components/TrueSizeActions";
+import { useBookings, useDesigns } from "@/lib/tattStorage";
 import { smartMatchUrlForDesign } from "@/lib/design-style-signal";
+import DesignJourneyRail from "../DesignJourneyRail";
+import { deriveDesignTitle, getDesignJourney } from "../designJourney";
 
 function formatCreated(ts: number): string {
   const d = new Date(ts);
@@ -20,12 +24,6 @@ function formatCreated(ts: number): string {
   });
 }
 
-function deriveTitle(d: TattDesign): string {
-  if (d.title) return d.title;
-  const words = d.prompt.split(/[\s,]+/).filter(Boolean).slice(0, 3);
-  return words.length ? words.join(" ") : "Untitled cut";
-}
-
 export default function DesignDetailPage({
   params,
 }: {
@@ -34,6 +32,7 @@ export default function DesignDetailPage({
   const { id } = use(params);
   const router = useRouter();
   const { designs, hydrated, removeDesign } = useDesigns();
+  const { bookings } = useBookings();
 
   const design = designs.find((d) => d.id === id);
 
@@ -96,7 +95,12 @@ export default function DesignDetailPage({
     }
   };
 
-  const title = deriveTitle(design);
+  const title = deriveDesignTitle(design);
+  const journey = getDesignJourney(design, bookings);
+  const visualizeHref = `/visualize?${new URLSearchParams({
+    design: design.id,
+    ...(design.sessionId ? { ds: design.sessionId } : {}),
+  }).toString()}`;
 
   return (
     <StudioShell>
@@ -153,46 +157,85 @@ export default function DesignDetailPage({
               Saved&nbsp;<span className="text-pink">{formatCreated(design.createdAt)}</span>
             </div>
 
+            <section
+              aria-labelledby="next-move-heading"
+              className="mt-8 border-2 border-pink p-5 bg-pink/[0.06]"
+            >
+              <div className="text-[10px] uppercase tracking-[0.28em] text-pink font-body">
+                Recommended next move
+              </div>
+              <h2
+                id="next-move-heading"
+                className="mt-2 font-display text-[28px] leading-none text-white"
+              >
+                {journey.status}
+                <span className="text-pink">.</span>
+              </h2>
+              <p className="mt-3 text-[12px] leading-[1.5] text-white/60 font-body">
+                {journey.note}
+              </p>
+              <div className="mt-5">
+                <DesignJourneyRail journey={journey} />
+              </div>
+              <Link
+                href={journey.nextHref}
+                className="mt-6 tape press flex w-full items-center justify-center px-6 py-4 font-display text-[22px] leading-none tracking-[0.02em]"
+              >
+                {journey.nextLabel}
+                <span className="ml-3 text-[16px]">▸</span>
+              </Link>
+            </section>
+
             <div className="mt-10">
               <div className="text-[10px] uppercase tracking-[0.28em] text-pink mb-3 font-body">
-                ▸ Prompt
+                ▸ What you asked for
               </div>
               <p className="text-[15px] text-white/80 font-body leading-[1.55] border-2 hairline p-5 whitespace-pre-wrap">
                 {design.prompt}
               </p>
             </div>
 
-            <div className="mt-10 flex flex-col sm:flex-row flex-wrap gap-3">
-              {/* Funnel forward (ADR-0028): AR conviction step first, match
-                  second — both carry this design's context along. */}
-              <Link
-                href={`/visualize?${new URLSearchParams({
-                  design: design.id,
-                  ...(design.sessionId ? { ds: design.sessionId } : {}),
-                }).toString()}`}
-                className="tape press inline-flex items-center justify-center px-6 py-4 font-display text-[20px] sm:text-[24px] leading-none tracking-[0.02em]"
-              >
-                See it on your skin
-                <span className="ml-3 text-[16px]">▸</span>
-              </Link>
-              <Link
-                href={smartMatchUrlForDesign(design.prompt, design.sessionId)}
-                className="text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-black hover:bg-pink border-2 hairline px-4 py-4 press font-body inline-flex items-center justify-center"
-              >
-                ▸ Find your artist
-              </Link>
-              <Link
-                href={`/design?prompt=${encodeURIComponent(design.prompt)}`}
-                className="text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-black hover:bg-pink border-2 hairline px-4 py-4 press font-body inline-flex items-center justify-center"
-              >
-                ▸ Iterate
-              </Link>
-              <button
-                onClick={handleDelete}
-                className="text-[10px] uppercase tracking-[0.25em] text-pink hover:bg-pink hover:text-black border-2 hairline border-pink px-4 py-4 press font-body inline-flex items-center justify-center"
-              >
-                ✕ Delete
-              </button>
+            <div className="mt-10">
+              <div className="text-[10px] uppercase tracking-[0.25em] text-white/40 font-body">
+                Other ways forward
+              </div>
+              <div className="mt-3 flex flex-col sm:flex-row flex-wrap gap-3">
+                {design.image && journey.nextHref !== visualizeHref && (
+                  <Link
+                    href={visualizeHref}
+                    className="text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-black hover:bg-pink border-2 hairline px-4 py-4 press font-body inline-flex items-center justify-center"
+                  >
+                    ▸ Try placement
+                  </Link>
+                )}
+                {design.image && (
+                  <Link
+                    href={smartMatchUrlForDesign(design.prompt, design.sessionId)}
+                    className="text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-black hover:bg-pink border-2 hairline px-4 py-4 press font-body inline-flex items-center justify-center"
+                  >
+                    ▸ Find your artist
+                  </Link>
+                )}
+                <Link
+                  href={`/design?prompt=${encodeURIComponent(design.prompt)}`}
+                  className="text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-black hover:bg-pink border-2 hairline px-4 py-4 press font-body inline-flex items-center justify-center"
+                >
+                  ▸ Refine the idea
+                </Link>
+                {/* Preserve Claude's true-size lane as a distinct alternate
+                    action while the journey card owns the recommended move. */}
+                <TrueSizeActions
+                  imageUrl={design.image}
+                  designName={title}
+                  designId={design.id}
+                />
+                <button
+                  onClick={handleDelete}
+                  className="text-[10px] uppercase tracking-[0.25em] text-pink hover:bg-pink hover:text-black border-2 hairline border-pink px-4 py-4 press font-body inline-flex items-center justify-center"
+                >
+                  ✕ Delete
+                </button>
+              </div>
             </div>
 
             {/* Sharing lives here, on its own line, because the link panel it
@@ -203,6 +246,13 @@ export default function DesignDetailPage({
               imageUrls={design.image ? [design.image] : []}
               prompt={design.prompt}
               redirectTo={`/designs/${design.id}`}
+            />
+
+            {/* What the group chat said (TAT-52). Renders nothing until this
+                browser has actually minted a share link for this design. */}
+            <GroupChatVerdict
+              className="mt-6"
+              imageUrls={design.image ? [design.image] : []}
             />
           </div>
         </div>

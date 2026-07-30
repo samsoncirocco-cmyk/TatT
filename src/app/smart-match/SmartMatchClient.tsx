@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
 import SlashHeadline from "@/components/punk/SlashHeadline";
@@ -12,6 +12,7 @@ import {
 } from "@/lib/design-style-signal";
 import { useMatchStore } from "@/store/useMatchStore";
 import type { DesignSession } from "@/services/designSession/types";
+import { useStylePreferences } from "@/lib/tattStorage";
 
 /**
  * Preference form → live semantic match → hands off to /swipe.
@@ -64,10 +65,23 @@ export default function SmartMatchClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const designSessionId = searchParams.get("ds");
+  const explicitStyles = searchParams.get("styles");
+  const hasExplicitStyles = searchParams.has("styles");
   const setMatches = useMatchStore((s) => s.setMatches);
+  const {
+    stylePreferences,
+    hydrated: preferencesHydrated,
+  } = useStylePreferences();
+  const validStylePreferences = useMemo(
+    () =>
+      stylePreferences.filter((style) =>
+        (CANONICAL_STYLES as readonly string[]).includes(style),
+      ),
+    [stylePreferences],
+  );
 
   const [styles, setStyles] = useState<string[]>(() =>
-    parseStylesParam(searchParams.get("styles"))
+    parseStylesParam(explicitStyles)
   );
   const [locationInput, setLocationInput] = useState("");
   // Placement + meaning lifted from the design brief; folded into the
@@ -192,6 +206,27 @@ export default function SmartMatchClient() {
     };
   }, [designSessionId, runSearch]);
 
+  // A saved taste profile is a gentle default, never an override. Explicit
+  // design-session context and ?styles= handoffs always win.
+  const tastePrefillRan = useRef(false);
+  useEffect(() => {
+    if (
+      tastePrefillRan.current ||
+      !preferencesHydrated ||
+      designSessionId ||
+      hasExplicitStyles
+    ) {
+      return;
+    }
+    tastePrefillRan.current = true;
+    setStyles(validStylePreferences);
+  }, [
+    designSessionId,
+    hasExplicitStyles,
+    preferencesHydrated,
+    validStylePreferences,
+  ]);
+
   return (
     <StudioShell>
       <div className="px-6 md:px-12 pt-6 pb-4 border-b hairline">
@@ -210,6 +245,11 @@ export default function SmartMatchClient() {
           <p className="mt-3 text-[14px] text-white/60 font-body max-w-xl leading-[1.55]">
             Pick a few styles and a location. Real artists, ranked live from the graph — swipe through the top matches next.
           </p>
+          {!designSessionId && !hasExplicitStyles && preferencesHydrated && validStylePreferences.length > 0 && (
+            <p className="mt-4 text-[11px] uppercase tracking-[0.18em] text-pink/80 font-body">
+              Your saved taste is already dialed in. Change anything you want.
+            </p>
+          )}
 
           <div className="mt-10 space-y-6 border-y-2 hairline py-6">
             <div>

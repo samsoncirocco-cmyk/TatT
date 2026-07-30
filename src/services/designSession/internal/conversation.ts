@@ -25,12 +25,28 @@ import type {
   ConversationTurnResult,
   ConverseRequest,
   ConverseResponse,
+  SessionNotes,
 } from '../../designConversation/types';
+import {
+  buildSessionNotes,
+  withReferenceNotes,
+} from '../../designConversation/internal/notes';
 import type { IntakeRecord } from '../../intake/types';
-import { characterSubjectFrom } from '../../intake/internal/characterSubject';
+import {
+  characterSubjectFrom,
+  charactersIn,
+} from '../../intake/internal/characterSubject';
+import type { ReferenceAnalysis } from '@/services/vision';
 import { resolveSessionStore } from './store';
 import type { StoredSession } from './store';
 import { DesignSessionError, loadSession, startFromRecord } from './orchestrator';
+import {
+  applyReferenceSignals,
+  buildStoredReference,
+  referenceCastLabels,
+  MAX_SESSION_REFERENCES,
+  type StoredReference,
+} from './references';
 
 /**
  * Placeholder DesignSession fields for a session still in conversational
@@ -81,6 +97,8 @@ function completeIntakeRecord(
     styleTags: record.styleTags ?? [],
     meaning: record.meaning ?? '',
     subject,
+    // A looks-first session stays looks-first through the reveal (TAT-51).
+    ...(record.vibe ? { vibe: record.vibe } : {}),
     references: record.references ?? [],
     ambiguousAxes,
   };
@@ -165,10 +183,22 @@ export async function converse(request: ConverseRequest): Promise<ConverseRespon
     throw error;
   }
 
+  // Re-merge reference signals EVERY turn (TAT-50): the engine rebuilds the
+  // record wholesale from this turn's extraction, which would silently drop
+  // an attached reference image's style tags/subject/Brief line otherwise.
+  const references = conversation.references ?? [];
+  const mergedRecord = applyReferenceSignals(result.record, references);
+  const notes = withReferenceNotes(
+    result.notes,
+    mergedRecord,
+    references.map((ref) => ref.summary),
+    referenceCastLabels(references)
+  );
+
   // Persist everything: transcript + TurnLogs are the ADR-0022 day-one logs.
   conversation.transcript = [...messages, { role: 'bot', text: result.reply }];
   conversation.turnCount = userTurn;
-  conversation.record = result.record;
+  conversation.record = mergedRecord;
   conversation.turnLogs = [...conversation.turnLogs, result.turnLog];
   conversation.stage = result.stage;
   if (result.playback !== undefined) conversation.playback = result.playback;
@@ -185,7 +215,8 @@ export async function converse(request: ConverseRequest): Promise<ConverseRespon
     turn: userTurn,
     // SketchBot's notepad (TAT-48): the engine's whitelisted projection of
     // the record — never the record itself, never TurnLogs or rationale.
-    notes: result.notes,
+    // Reference rows (TAT-50) are overlaid through the same whitelist file.
+    notes,
   };
   if (result.stage === 'proposal' && result.playback !== undefined) {
     response.playback = result.playback;
@@ -227,8 +258,83 @@ export async function confirmProposal(sessionId: string): Promise<StoredSession>
     .map((entry) => entry.text)
     .join(' ');
 
-  return startFromRecord(
-    completeIntakeRecord(session.conversation.record, userText),
-    session
+  // Belt and braces with the per-turn merge in converse(): the record that
+  // reaches Council enhancement and generation carries every attached
+  // reference image's signals (TAT-50), whatever order attach/turns ran in.
+  const record = applyReferenceSignals(
+    session.conversation.record,
+    session.conversation.references ?? []
   );
+
+  return startFromRecord(completeIntakeRecord(record, userText), session);
+}
+
+/** What attachReference hands back — enough for a channel to speak and render. */
+export interface AttachReferenceResult {
+  sessionId: string;
+  /** The stored entry's user-visible line. */
+  summary: string;
+  /** The notepad projection including the new reference row. */
+  notes: SessionNotes;
+}
+
+/**
+ * Attach an analyzed reference image to a session in conversational intake
+ * (TAT-50). The analysis is stored as a reference entry, and its signals
+ * merge into the working record immediately — style tags toward Council
+ * enhancement, a reference line toward the artist Brief, and recognized
+ * characters through the same inspired-by machinery as text mentions.
+ * Both channels land here: SMS media and the web reference upload.
+ */
+export async function attachReference(
+  sessionId: string,
+  analysis: ReferenceAnalysis,
+  source: StoredReference['source']
+): Promise<AttachReferenceResult> {
+  const store = resolveSessionStore();
+  const session = await loadSession(store, sessionId);
+
+  if (session.phase !== 'intake' || !session.conversation) {
+    throw new DesignSessionError(
+      'INVALID_PHASE',
+      `Cannot attach a reference while the session is '${session.phase}' — references inform the brief before the reveal.`
+    );
+  }
+  if (session.conversation.stage === 'handoff') {
+    throw new DesignSessionError(
+      'INVALID_PHASE',
+      'This conversation closed with a warm handoff to artists — start a new session to design again.'
+    );
+  }
+
+  const reference = await buildStoredReference(analysis, source);
+  // Newest-first eviction bound: a brief, not a photo album.
+  const references = [...(session.conversation.references ?? []), reference].slice(
+    -MAX_SESSION_REFERENCES
+  );
+  session.conversation.references = references;
+  session.conversation.record = applyReferenceSignals(
+    session.conversation.record,
+    references
+  );
+  session.updatedAt = new Date().toISOString();
+  await store.save(session);
+
+  logger.info({
+    event_type: 'design_session.reference_attached',
+    session_id: session.id,
+    source,
+    characters: reference.characters.length,
+    style_tags: reference.styleTags,
+    reference_count: references.length,
+  });
+
+  const record = session.conversation.record;
+  const notes = withReferenceNotes(
+    buildSessionNotes(record, charactersIn(record.subject ?? '')),
+    record,
+    references.map((ref) => ref.summary),
+    referenceCastLabels(references)
+  );
+  return { sessionId: session.id, summary: reference.summary, notes };
 }

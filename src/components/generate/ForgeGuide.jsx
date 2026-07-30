@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import Button from '../ui/Button';
-import { ArrowRight, ArrowLeft, X } from 'lucide-react';
+import { ArrowRight, ArrowLeft } from 'lucide-react';
 
 export default function ForgeGuide({
   steps = [],
@@ -24,81 +24,83 @@ export default function ForgeGuide({
   if (!step) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 halftone px-4">
       <div
-        className="w-full max-w-xl rounded-3xl border border-white/10 bg-gradient-to-br from-black/90 via-black/80 to-black/90 p-6 shadow-[0_30px_80px_rgba(0,0,0,0.65)]"
+        className="w-full max-w-xl bg-black border-2 border-pink"
         role="dialog"
         aria-modal="true"
         aria-labelledby="forge-guide-title"
         aria-describedby="forge-guide-description"
       >
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start justify-between gap-4 px-6 py-4 border-b-2 hairline">
           <div>
-            <p className="text-xs font-mono uppercase tracking-[0.3em] text-studio-neon">
-              Studio Guide
+            <p className="text-[10px] font-body uppercase tracking-[0.28em] text-pink">
+              <span className="text-pink">●</span>&nbsp;&nbsp;Studio Guide
             </p>
             <h2
               id="forge-guide-title"
-              className="mt-2 text-2xl font-display font-bold text-white"
+              className="mt-2 text-[24px] font-display tracking-wide uppercase text-white leading-none"
             >
               {step.title}
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="rounded-full border border-white/10 bg-white/5 p-2 text-white/70 hover:text-white"
+            className="text-[10px] font-body uppercase tracking-[0.22em] text-white/60 hover:text-pink"
             aria-label="Close guide"
           >
-            <X size={16} />
+            Close ✕
           </button>
         </div>
 
-        <p
-          id="forge-guide-description"
-          className="mt-3 text-sm text-white/70 leading-relaxed"
-        >
-          {step.description}
-        </p>
-
-        <div className="mt-5 flex flex-wrap items-center gap-3 text-xs text-white/50 font-mono uppercase tracking-wider">
-          <span className="rounded-full border border-white/10 px-3 py-1">
-            Step {stepIndex + 1} of {steps.length}
-          </span>
-            {step.targetLabel && (
-            <button
-              onClick={() => onJump?.(step.targetId)}
-              className="rounded-full border border-[rgba(0,255,65,0.4)] px-3 py-1 text-studio-neon hover:text-white hover:border-white/40 transition-colors"
-            >
-              Jump to {step.targetLabel}
-            </button>
-          )}
-        </div>
-
-        <div className="mt-6 flex items-center justify-between gap-3">
-          <Button
-            onClick={onPrev}
-            disabled={stepIndex === 0}
-            variant="outline"
-            className="h-11 px-4 text-xs tracking-wider disabled:opacity-40"
-            icon={ArrowLeft}
+        <div className="p-6">
+          <p
+            id="forge-guide-description"
+            className="text-[13px] text-white/70 font-body leading-[1.55]"
           >
-            Back
-          </Button>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onClose}
-              className="text-xs font-mono uppercase tracking-wider text-white/50 hover:text-white"
-            >
-              Skip tour
-            </button>
+            {step.description}
+          </p>
+
+          <div className="mt-5 flex flex-wrap items-center gap-3 text-[10px] text-white/50 font-body uppercase tracking-[0.2em]">
+            <span className="border hairline-white px-3 py-1 tabular-nums">
+              Step {stepIndex + 1} of {steps.length}
+            </span>
+            {step.targetLabel && (
+              <button
+                onClick={() => onJump?.(step.targetId)}
+                className="press border hairline px-3 py-1 text-pink hover:bg-pink hover:text-black"
+              >
+                Jump to {step.targetLabel}
+              </button>
+            )}
+          </div>
+
+          <div className="mt-6 flex items-center justify-between gap-3">
             <Button
-              onClick={onNext}
-              variant="primary"
-              className="h-11 px-4 text-xs tracking-wider"
-              icon={ArrowRight}
+              onClick={onPrev}
+              disabled={stepIndex === 0}
+              variant="outline"
+              size="md"
+              icon={ArrowLeft}
             >
-              {stepIndex === steps.length - 1 ? 'Finish' : 'Next'}
+              Back
             </Button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={onClose}
+                className="text-[10px] font-body uppercase tracking-[0.22em] text-white/50 hover:text-pink"
+              >
+                Skip tour
+              </button>
+              <Button
+                onClick={onNext}
+                variant="primary"
+                size="md"
+                icon={ArrowRight}
+              >
+                {stepIndex === steps.length - 1 ? 'Finish' : 'Next'}
+              </Button>
+            </div>
           </div>
         </div>
       </div>

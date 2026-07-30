@@ -51,6 +51,10 @@ export interface TurnLog {
      *  was already generation-sufficient — the visible fast lane (TAT-48,
      *  ADR-0028 readiness); the announce beat still runs (ADR-0020). */
     | 'draw-request-proposal'
+    /** The meaning pointed at a person/creator/franchise with nothing
+     *  drawable on the record — the single evocation follow-up mined it
+     *  for imagery (TAT-51). Asked at most once per session. */
+    | 'evocation-question'
     | 'none';
   /** Model that served the turn (per-session pinned; fallback noted). */
   model: string;
@@ -104,6 +108,12 @@ export interface SessionNotes {
   vibe?: string;
   /** True once the IP rule fired — the inspired-by heads-up line renders. */
   ipHeadsUp: boolean;
+  /**
+   * One designed summary line per analyzed reference image (TAT-50) —
+   * "five chibi anime characters, bold outlines, red smoke background".
+   * Only ever the vision summary, never the raw analysis structure.
+   */
+  references?: string[];
   /**
    * The record could already generate (ADR-0028 readiness: placement plus
    * something to draw). Drives the visible fast-lane affordance.
