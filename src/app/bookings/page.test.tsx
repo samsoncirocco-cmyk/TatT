@@ -78,7 +78,7 @@ describe("BookingsPage customer status center", () => {
 
     expect(await screen.findByText("Request saved on this device")).toBeTruthy();
     expect(screen.getByText("Deposit not recorded")).toBeTruthy();
-    expect(screen.getByText(/requested date is not booked yet/i)).toBeTruthy();
+    expect(screen.getByText(/requested date is not booked/i)).toBeTruthy();
     expect(screen.queryByText(/^Confirmed$/)).toBeNull();
     expect(screen.queryByText("Studio hold")).toBeNull();
     expect(
@@ -133,9 +133,9 @@ describe("BookingsPage customer status center", () => {
 
     expect(await screen.findByText("Request received")).toBeTruthy();
     expect(screen.getByText("Date not confirmed")).toBeTruthy();
-    expect(screen.getByText(/complete the deposit/i)).toBeTruthy();
+    expect(screen.getByText(/no resumable checkout link/i)).toBeTruthy();
     expect(
-      screen.getByRole("link", { name: "Restart booking if needed" }).getAttribute("href"),
+      screen.getByRole("link", { name: "Start a fresh request" }).getAttribute("href"),
     ).toBe("/book");
   });
 

@@ -111,14 +111,14 @@ describe("BookingSuccessPage — no dead ends", () => {
     ).toBe("/design");
   });
 
-  it("turns the receipt into an actionable appointment plan", async () => {
+  it("keeps an unconfirmed payment return in a booking-request plan", async () => {
     render(<BookingSuccessPage />);
     await flushInitialRead();
     expect(
-      screen.getByRole("heading", { name: /your appointment game plan/i })
+      screen.getByRole("heading", { name: /your booking-request plan/i })
     ).toBeTruthy();
     expect(screen.getByText(/shop address, remaining quote/i)).toBeTruthy();
-    expect(screen.getByText(/bring required ID and payment/i)).toBeTruthy();
+    expect(screen.getByText(/do not make appointment plans yet/i)).toBeTruthy();
   });
 
   it("does not call an unreconciled return URL paid", async () => {
@@ -204,6 +204,29 @@ describe("BookingSuccessPage — no dead ends", () => {
     expect(screen.queryByText(/^deposit paid$/i)).toBeNull();
   });
 
+  it("never chooses the first owner booking when a legacy URL has no exact identifier", async () => {
+    searchParams = new URLSearchParams("artist=Nadia&deposit=100");
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        success: true,
+        bookings: [
+          {
+            status: "deposit_paid",
+            stripeSessionId: "cs_some_other_booking",
+            depositAmount: 100,
+          },
+        ],
+      }),
+    });
+
+    render(<BookingSuccessPage />);
+    await flushInitialRead();
+
+    expect(screen.queryByText(/^deposit paid$/i)).toBeNull();
+    expect(screen.getByText(/deposit has not been confirmed/i)).toBeTruthy();
+  });
+
   it("stops polling on a non-paid terminal status and does not imply a secured slot", async () => {
     bookingFetchMock
       .mockResolvedValueOnce(bookingResponse("pending"))
@@ -220,6 +243,7 @@ describe("BookingSuccessPage — no dead ends", () => {
     expect(screen.getAllByText(/^cancelled$/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/no paid deposit is being claimed here/i)).toBeTruthy();
     expect(screen.queryByText(/secured|final slot/i)).toBeNull();
+    expect(screen.queryByRole("heading", { name: /game plan|booking-request plan/i })).toBeNull();
   });
 
   it("only calls the appointment confirmed when server status proves it", async () => {
@@ -230,6 +254,7 @@ describe("BookingSuccessPage — no dead ends", () => {
 
     expect(screen.getByRole("heading", { name: /^booking confirmed$/i })).toBeTruthy();
     expect(screen.getByText(/your appointment is confirmed/i)).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /your appointment game plan/i })).toBeTruthy();
     expect(bookingFetchMock).toHaveBeenCalledTimes(1);
   });
 });

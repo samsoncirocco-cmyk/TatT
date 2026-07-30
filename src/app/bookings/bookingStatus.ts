@@ -14,16 +14,16 @@ const STATUS_COPY: Record<BookingStatus, BookingStatusCopy> = {
     label: "Request received",
     qualifier: "Date not confirmed",
     nextStep:
-      "Next: complete the deposit from your booking checkout. The artist still needs to confirm a date.",
-    actionLabel: "Restart booking if needed",
+      "Next: this record has no resumable checkout link. If you did not pay, start a fresh request; the artist still needs to confirm a date.",
+    actionLabel: "Start a fresh request",
     actionHref: "/book",
   },
   held: {
     label: "Time held for payment",
     qualifier: "Not booked yet",
     nextStep:
-      "Next: finish checkout before the hold ends. Payment and artist confirmation are still required.",
-    actionLabel: "Choose another time if needed",
+      "Next: this record has no resumable checkout link. Check the original Stripe tab; otherwise start a fresh request after the hold ends.",
+    actionLabel: "Start a fresh request",
     actionHref: "/book",
   },
   deposit_paid: {

@@ -2,6 +2,18 @@ import QuietCTA from "@/components/quiet/QuietCTA";
 
 export type BookingPath = "reservation" | "request";
 
+export function bookingReviewLabels(mode: BookingPath) {
+  return mode === "reservation"
+    ? {
+        heading: "Review the selected time",
+        timing: "Time to hold at checkout",
+      }
+    : {
+        heading: "Review the request",
+        timing: "Requested dates",
+      };
+}
+
 export function checkoutEstimate(deposit: number, feePercent: number) {
   const bookingFee = Math.round(deposit * feePercent) / 100;
   return {
@@ -99,16 +111,20 @@ export function BookingPathExplainer({
 export function CheckoutEstimate({
   deposit,
   feePercent,
+  artistClaimed,
 }: {
   deposit: number;
   feePercent: number;
+  artistClaimed: boolean;
 }) {
   const estimate = checkoutEstimate(deposit, feePercent);
 
   return (
     <dl className="mt-5 pt-5 border-t border-black/15 text-[12px] font-body">
       <div className="flex items-center justify-between gap-6">
-        <dt className="text-black/60">Deposit to artist</dt>
+        <dt className="text-black/60">
+          {artistClaimed ? "Deposit to artist" : "Artist deposit held by TattTester"}
+        </dt>
         <dd className="text-black tabular-nums">{money(estimate.deposit)}</dd>
       </div>
       <div className="mt-2 flex items-center justify-between gap-6">
@@ -132,11 +148,14 @@ export function CheckoutEstimate({
 export function TattooPrepPlan({
   artistName,
   showBookingsLink = true,
+  stage = "request",
 }: {
   artistName?: string | null;
   showBookingsLink?: boolean;
+  stage?: "request" | "appointment";
 }) {
   const artist = artistName || "your artist";
+  const appointment = stage === "appointment";
 
   return (
     <section className="mt-10 border hairline-quiet-soft" aria-labelledby="prep-plan-title">
@@ -145,11 +164,12 @@ export function TattooPrepPlan({
           Keep the momentum
         </p>
         <h2 id="prep-plan-title" className="mt-3 font-display-quiet text-[20px] text-quiet">
-          Your appointment game plan
+          {appointment ? "Your appointment game plan" : "Your booking-request plan"}
         </h2>
         <p className="mt-3 text-[12px] text-quiet-dim font-body leading-[1.8] max-w-2xl">
-          A short checklist for the details that are easiest to miss. The artist or shop&apos;s
-          instructions always take priority.
+          {appointment
+            ? "A short checklist for the details that are easiest to miss. The artist or shop's instructions always take priority."
+            : "Keep the request together while the artist confirms whether, when, and where an appointment will happen."}
         </p>
       </div>
       <ol className="grid grid-cols-1 md:grid-cols-3">
@@ -173,12 +193,15 @@ export function TattooPrepPlan({
         </li>
         <li className="p-6 md:p-8">
           <div className="text-[10px] uppercase tracking-[0.14em] text-quiet-dim font-body">
-            Before the appointment
+            {appointment ? "Before the appointment" : "Only after confirmation"}
           </div>
-          <p className="mt-3 text-[13px] text-quiet font-body">Make the chair easy</p>
+          <p className="mt-3 text-[13px] text-quiet font-body">
+            {appointment ? "Make the chair easy" : "Then prepare for the chair"}
+          </p>
           <p className="mt-2 text-[12px] text-quiet-dim font-body leading-[1.75]">
-            Follow the shop&apos;s prep instructions, bring required ID and payment, and wear
-            clothing that gives easy access to the placement.
+            {appointment
+              ? "Follow the shop's prep instructions, bring required ID and payment, and wear clothing that gives easy access to the placement."
+              : "Do not make appointment plans yet. Once the artist confirms, follow the shop's prep, ID, payment, and clothing instructions."}
           </p>
         </li>
       </ol>

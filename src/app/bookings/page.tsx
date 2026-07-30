@@ -186,7 +186,7 @@ function LocalBookingCard({
     : "Deposit not recorded";
   const nextStep = booking.depositPaid
     ? "Next: refresh for server verification. A date is not confirmed until the artist confirms it."
-    : "Next: complete checkout, then wait for the artist to confirm a date. This requested date is not booked yet.";
+    : "This device copy cannot resume checkout. Start a fresh request if you did not pay; this requested date is not booked.";
 
   return (
     <article className="border hairline-quiet p-8 md:p-10">
@@ -237,7 +237,7 @@ function LocalBookingCard({
             </QuietCTA>
           ) : (
             <QuietCTA href="/book" size="sm" variant="ghost">
-              Return to booking
+              Start a fresh request
             </QuietCTA>
           )}
           <button

@@ -1555,14 +1555,15 @@ export default function Generate() {
                                                 <div className="flex items-center justify-between gap-4">
                                                     <p className="text-[10px] normal-case text-white/50 font-body leading-relaxed">
                                                         You can stay on this page—your prompt and fine-tuning choices are saved.
-                                                        Complex designs can take a little longer than the estimate.
+                                                        Complex designs can take a little longer than the estimate. Stopping
+                                                        here only stops waiting; it cannot recall a render already sent.
                                                     </p>
                                                     <button
                                                         type="button"
                                                         onClick={cancelCurrent}
                                                         className="shrink-0 text-[10px] font-body uppercase tracking-[0.2em] text-white/60 underline underline-offset-4 hover:text-pink"
                                                     >
-                                                        Cancel
+                                                        Stop waiting
                                                     </button>
                                                 </div>
                                             </div>

@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import '../../../../../lib/auth-dal';
 import { generate, type AspectRatio } from '@/services/generation';
-import { uploadGeneratedImage } from '../../../../../services/storage/imageStorageService';
+import {
+  getImageUrl,
+  uploadGeneratedImage,
+} from '../../../../../services/storage/imageStorageService';
 import { verifyCloudTaskRequest } from '../../../../../lib/cloud-tasks-auth';
 import {
-  checkBudget,
-  recordSpend,
+  reconcileReservedSpend,
+  releaseReservedSpend,
+  reserveSpend,
   VERTEX_IMAGEN_COST_CENTS,
 } from '../../../../../lib/budget-tracker';
 
@@ -53,6 +57,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
+  const reservationKey = `async-imagen:${userId}:${designId}:${versionId}`;
+  let reservationAcquired = false;
+  let providerSucceeded = false;
+
   try {
     const startedAt = Date.now();
     const negativePrompt = typeof parameters?.negativePrompt === 'string' ? parameters.negativePrompt : undefined;
@@ -78,26 +86,46 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, imageUrl: existingImageUrl });
     }
 
-    const budgetResult = await checkBudget(userId);
     const requestedSpendCents = VERTEX_IMAGEN_COST_CENTS * sampleCount;
-    if (!budgetResult.allowed) {
+    const reservation = await reserveSpend(reservationKey, requestedSpendCents);
+    if (!reservation.allowed) {
       return NextResponse.json(
-        { error: 'Budget limit reached', spentCents: budgetResult.spentCents },
+        { error: 'Budget limit reached', spentCents: reservation.spentCents },
         { status: 402 }
       );
     }
-    // checkBudget uses remainingCents: -1 when its backing store is unavailable.
-    // Paid async work must fail closed so a temporary tracker outage cannot
-    // become an unbounded Cloud Tasks generation path.
-    if (budgetResult.remainingCents < 0) {
-      return NextResponse.json({ error: 'Budget verification unavailable' }, { status: 503 });
+
+    if (!reservation.acquired) {
+      if (reservation.status === 'billed') {
+        // The provider already succeeded on an earlier delivery. Recover a
+        // deterministic upload if it made it to GCS, but never buy it again.
+        const storedImageUrl = await getImageUrl(userId, designId, versionId);
+        if (storedImageUrl) {
+          await versionRef.set(
+            {
+              imageUrl: storedImageUrl,
+              updatedAt: FieldValue.serverTimestamp(),
+              generation: {
+                taskName,
+                provider: 'vertex-ai',
+                recoveredFromRetry: true,
+              },
+            },
+            { merge: true }
+          );
+          return NextResponse.json({ success: true, imageUrl: storedImageUrl });
+        }
+        return NextResponse.json(
+          { error: 'Generation already billed; stored image is unavailable' },
+          { status: 500 }
+        );
+      }
+
+      // Another delivery owns the reservation and may still be generating.
+      // Retrying is safe: followers cannot acquire the same reservation.
+      return NextResponse.json({ error: 'Generation already in progress' }, { status: 409 });
     }
-    if (budgetResult.remainingCents < requestedSpendCents) {
-      return NextResponse.json(
-        { error: 'Budget limit reached', spentCents: budgetResult.spentCents },
-        { status: 402 }
-      );
-    }
+    reservationAcquired = true;
 
     // Explicit model choice + no cross-provider fallback: this task handler
     // decodes data-URL output for its own GCS upload, and Replicate returns
@@ -116,9 +144,14 @@ export async function POST(req: NextRequest) {
       throw new Error('Generation returned no images');
     }
 
-    // Vertex has completed billable work at this point. Charge the number of
-    // images actually returned, not the requested count.
-    await recordSpend(VERTEX_IMAGEN_COST_CENTS * result.images.length);
+    providerSucceeded = true;
+    // The requested amount was reserved before Vertex. Reconcile it to the
+    // actual image count and mark it billed before any fallible post-processing;
+    // a retry can then recover storage, but can never purchase another render.
+    await reconcileReservedSpend(
+      reservationKey,
+      VERTEX_IMAGEN_COST_CENTS * result.images.length
+    );
 
     const { bytes } = decodeDataUrl(firstImage);
     const imageUrl = await uploadGeneratedImage(userId, designId, versionId, bytes);
@@ -139,6 +172,15 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, imageUrl });
   } catch (error: unknown) {
+    if (reservationAcquired && !providerSucceeded) {
+      try {
+        await releaseReservedSpend(reservationKey);
+      } catch (releaseError) {
+        // Keeping a reservation is safer than accidentally allowing a second
+        // paid attempt when Firestore is unavailable.
+        console.error('[TaskHandler] Failed to release unused budget reservation:', releaseError);
+      }
+    }
     console.error('[TaskHandler] Generation task failed:', error);
     return NextResponse.json(
       {

@@ -21,6 +21,14 @@ describe("booking money copy", () => {
     );
   });
 
+  it("describes custody and refund truth for an unclaimed profile", () => {
+    expect(bookingReviewMoneyCopy("Nadia", 10, false)).toMatch(
+      /holds the artist deposit while Nadia claims and verifies/i,
+    );
+    expect(bookingReviewMoneyCopy("Nadia", 10, false)).toMatch(/refunded/i);
+    expect(bookingReviewMoneyCopy("Nadia", 10, false)).toMatch(/10% booking fee/i);
+  });
+
   it("tells the notified artist who paid and what they keep", () => {
     expect(artistDepositNotificationMoneyCopy("$150.00")).toBe(
       "The client paid your $150.00 deposit plus TattTester’s booking fee. You keep the full $150.00 deposit; the fee is the only part TattTester keeps.",

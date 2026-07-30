@@ -152,7 +152,9 @@ function SuccessContent() {
   const deposit = sp.get("deposit");
   const sessionId = sp.get("session_id");
   const bookingId = sp.get("bookingId");
-  const hasPaymentReturnContext = Boolean(deposit || sessionId);
+  // A display-only amount is not a payment identifier. Reconcile only when
+  // the return URL can name an exact booking or Stripe session.
+  const hasPaymentReturnContext = Boolean(bookingId || sessionId);
 
   // Server truth, once reconciled. `null` = not yet loaded / unavailable.
   const [server, setServer] = useState<ServerBooking | null>(null);
@@ -187,9 +189,9 @@ function SuccessContent() {
         let booking: ServerBooking | undefined;
 
         try {
-          // Both reads are owner-scoped. Prefer the exact booking carried by
-          // checkout; older return URLs can only fall back to the owner's most
-          // recent booking.
+          // Both reads are owner-scoped, but ownership alone is not enough to
+          // prove which payment this page belongs to. We only accept an exact
+          // booking id or an exact Stripe session match.
           const url = bookingId
             ? `/api/v1/bookings/${encodeURIComponent(bookingId)}`
             : `/api/v1/bookings`;
@@ -205,7 +207,7 @@ function SuccessContent() {
                         (candidate: ServerBooking) =>
                           candidate.stripeSessionId === sessionId,
                       )
-                    : data.bookings[0]
+                    : undefined
                   : undefined;
             }
           }
@@ -515,10 +517,13 @@ function SuccessContent() {
               <QuietCTA href="/design" variant="ghost" size="sm">Start another design</QuietCTA>
             </div>
           </div>
-          <TattooPrepPlan
-            artistName={server?.artistName ?? artist}
-            showBookingsLink={false}
-          />
+          {!isNonPaidTerminal && (
+            <TattooPrepPlan
+              artistName={server?.artistName ?? artist}
+              showBookingsLink={false}
+              stage={appointmentConfirmed ? "appointment" : "request"}
+            />
+          )}
         </div>
       </div>
     </StudioShell>

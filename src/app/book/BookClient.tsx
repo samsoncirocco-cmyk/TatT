@@ -37,6 +37,7 @@ import {
   BookingPathExplainer,
   CheckoutEstimate,
   TattooPrepPlan,
+  bookingReviewLabels,
 } from "./BookingConfidence";
 import {
   depositDollarsForSize,
@@ -74,6 +75,8 @@ export type BookArtist = {
   availabilityStatus: string;
   availabilityLabel: string;
   availabilityNote: string | null;
+  /** True only after this profile has a verified owner. */
+  claimed: boolean;
 };
 
 const SIZES = [
@@ -199,6 +202,7 @@ export default function BookClient({
   const slotsByDate = useMemo(() => groupSlotsByDate(offer.slots), [offer.slots]);
   const chosenDesign = designs.find((d) => d.id === designId);
   const deposit = depositDollarsForSize(size || undefined);
+  const reviewLabels = bookingReviewLabels(reserving ? "reservation" : "request");
   const steps = [
     { n: "01", label: reserving ? "Pick a time" : "Request dates", hint: "When" },
     { n: "02", label: "Design + details", hint: "What" },
@@ -837,7 +841,7 @@ export default function BookClient({
           {step === 2 && (
             <div className="mt-12 border hairline-quiet p-8 md:p-12">
               <h2 className="font-display-quiet text-[20px] text-quiet mb-8">
-                {reserving ? "Review the reservation" : "Review the request"}
+                    {reviewLabels.heading}
               </h2>
               <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-7 text-[13px] font-body">
                 <div>
@@ -846,7 +850,9 @@ export default function BookClient({
                 </div>
                 <div>
                   <dt className="text-[11px] text-quiet-dim">
-                    {reserving ? "Reserved time" : `Requested dates (${timePref.toLowerCase()})`}
+                    {reserving
+                      ? reviewLabels.timing
+                      : `${reviewLabels.timing} (${timePref.toLowerCase()})`}
                   </dt>
                   <dd className="mt-1.5 text-quiet">
                     {reserving && selectedSlot
@@ -891,10 +897,14 @@ export default function BookClient({
                   <div className="font-display-quiet text-[22px] leading-none">
                     Checkout breakdown
                   </div>
-                  <CheckoutEstimate deposit={deposit} feePercent={feePercent} />
+                  <CheckoutEstimate
+                    deposit={deposit}
+                    feePercent={feePercent}
+                    artistClaimed={artist.claimed}
+                  />
                   <p className="mt-5 pt-5 border-t border-black/15 text-[13px] font-body text-black/80 leading-[1.7]">
                     {/* The money sentence (ADR-0036): who pays what, who keeps what. */}
-                    {bookingReviewMoneyCopy(artist.name, feePercent)}
+                    {bookingReviewMoneyCopy(artist.name, feePercent, artist.claimed)}
                   </p>
                   <p className="mt-3 text-[12px] font-body text-black/60 leading-[1.7]">
                     {reserving

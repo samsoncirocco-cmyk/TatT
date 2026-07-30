@@ -2,17 +2,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
 const {
-  checkBudgetMock,
   generateMock,
-  recordSpendMock,
+  getImageUrlMock,
+  reconcileReservedSpendMock,
+  releaseReservedSpendMock,
+  reserveSpendMock,
   uploadGeneratedImageMock,
   verifyCloudTaskRequestMock,
   versionGetMock,
   versionSetMock,
 } = vi.hoisted(() => ({
-  checkBudgetMock: vi.fn(),
   generateMock: vi.fn(),
-  recordSpendMock: vi.fn(),
+  getImageUrlMock: vi.fn(),
+  reconcileReservedSpendMock: vi.fn(),
+  releaseReservedSpendMock: vi.fn(),
+  reserveSpendMock: vi.fn(),
   uploadGeneratedImageMock: vi.fn(),
   verifyCloudTaskRequestMock: vi.fn(),
   versionGetMock: vi.fn(),
@@ -36,14 +40,16 @@ vi.mock('firebase-admin/firestore', () => ({
 
 vi.mock('@/services/generation', () => ({ generate: generateMock }));
 vi.mock('../../../../../services/storage/imageStorageService', () => ({
+  getImageUrl: getImageUrlMock,
   uploadGeneratedImage: uploadGeneratedImageMock,
 }));
 vi.mock('../../../../../lib/cloud-tasks-auth', () => ({
   verifyCloudTaskRequest: verifyCloudTaskRequestMock,
 }));
 vi.mock('../../../../../lib/budget-tracker', () => ({
-  checkBudget: checkBudgetMock,
-  recordSpend: recordSpendMock,
+  reconcileReservedSpend: reconcileReservedSpendMock,
+  releaseReservedSpend: releaseReservedSpendMock,
+  reserveSpend: reserveSpendMock,
   VERTEX_IMAGEN_COST_CENTS: 4,
 }));
 
@@ -67,6 +73,7 @@ const taskBody = {
   designId: 'design-1',
   versionId: 'version-1',
 };
+const reservationKey = 'async-imagen:user-1:design-1:version-1';
 
 function vertexResult(imageCount = 2) {
   return {
@@ -82,13 +89,18 @@ describe('/api/v1/tasks/generate', () => {
     vi.clearAllMocks();
     verifyCloudTaskRequestMock.mockResolvedValue(true);
     versionGetMock.mockResolvedValue({ data: () => ({}) });
-    checkBudgetMock.mockResolvedValue({
+    reserveSpendMock.mockResolvedValue({
       allowed: true,
-      spentCents: 100,
-      remainingCents: 1_000,
+      acquired: true,
+      status: 'reserved',
+      reservedCents: 8,
+      spentCents: 108,
+      remainingCents: 49_892,
     });
     generateMock.mockResolvedValue(vertexResult());
-    recordSpendMock.mockResolvedValue(undefined);
+    reconcileReservedSpendMock.mockResolvedValue(undefined);
+    releaseReservedSpendMock.mockResolvedValue(undefined);
+    getImageUrlMock.mockResolvedValue(null);
     uploadGeneratedImageMock.mockResolvedValue('https://storage.example/design.png');
     versionSetMock.mockResolvedValue(undefined);
   });
@@ -99,46 +111,16 @@ describe('/api/v1/tasks/generate', () => {
     const response = await POST(makeRequest(taskBody));
 
     expect(response.status).toBe(401);
-    expect(checkBudgetMock).not.toHaveBeenCalled();
+    expect(reserveSpendMock).not.toHaveBeenCalled();
     expect(generateMock).not.toHaveBeenCalled();
-    expect(recordSpendMock).not.toHaveBeenCalled();
   });
 
-  it('denies generation when the shared budget is exhausted', async () => {
-    checkBudgetMock.mockResolvedValue({
+  it('atomically denies a reservation that would exceed the shared budget', async () => {
+    reserveSpendMock.mockResolvedValue({
       allowed: false,
-      spentCents: 50_000,
-      remainingCents: 0,
-    });
-
-    const response = await POST(makeRequest(taskBody));
-
-    expect(response.status).toBe(402);
-    await expect(response.json()).resolves.toMatchObject({
-      error: 'Budget limit reached',
-      spentCents: 50_000,
-    });
-    expect(generateMock).not.toHaveBeenCalled();
-    expect(recordSpendMock).not.toHaveBeenCalled();
-  });
-
-  it('fails closed when the shared budget backing store is unavailable', async () => {
-    checkBudgetMock.mockResolvedValue({
-      allowed: true,
-      spentCents: 0,
-      remainingCents: -1,
-    });
-
-    const response = await POST(makeRequest(taskBody));
-
-    expect(response.status).toBe(503);
-    expect(generateMock).not.toHaveBeenCalled();
-    expect(recordSpendMock).not.toHaveBeenCalled();
-  });
-
-  it('does not start a request whose full requested cost exceeds the remaining budget', async () => {
-    checkBudgetMock.mockResolvedValue({
-      allowed: true,
+      acquired: false,
+      status: 'denied',
+      reservedCents: 0,
       spentCents: 49_996,
       remainingCents: 4,
     });
@@ -146,17 +128,45 @@ describe('/api/v1/tasks/generate', () => {
     const response = await POST(makeRequest(taskBody));
 
     expect(response.status).toBe(402);
+    expect(reserveSpendMock).toHaveBeenCalledWith(reservationKey, 8);
     expect(generateMock).not.toHaveBeenCalled();
-    expect(recordSpendMock).not.toHaveBeenCalled();
+    expect(reconcileReservedSpendMock).not.toHaveBeenCalled();
   });
 
-  it('records the actual number of Vertex images after generation succeeds', async () => {
+  it('fails closed when reserving budget is unavailable', async () => {
+    reserveSpendMock.mockRejectedValue(new Error('Firestore unavailable'));
+
+    const response = await POST(makeRequest(taskBody));
+
+    expect(response.status).toBe(500);
+    expect(generateMock).not.toHaveBeenCalled();
+    expect(reconcileReservedSpendMock).not.toHaveBeenCalled();
+  });
+
+  it('allows only the delivery that acquired the idempotent reservation to generate', async () => {
+    reserveSpendMock.mockResolvedValue({
+      allowed: true,
+      acquired: false,
+      status: 'reserved',
+      reservedCents: 8,
+      spentCents: 108,
+      remainingCents: 49_892,
+    });
+
+    const response = await POST(makeRequest(taskBody));
+
+    expect(response.status).toBe(409);
+    expect(generateMock).not.toHaveBeenCalled();
+    expect(reconcileReservedSpendMock).not.toHaveBeenCalled();
+  });
+
+  it('reconciles the reservation to the actual number of Vertex images', async () => {
     generateMock.mockResolvedValue(vertexResult(3));
 
     const response = await POST(makeRequest(taskBody));
 
     expect(response.status).toBe(200);
-    expect(checkBudgetMock).toHaveBeenCalledWith('user-1');
+    expect(reserveSpendMock).toHaveBeenCalledWith(reservationKey, 8);
     expect(generateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: 'blackwork dragon tattoo',
@@ -165,8 +175,11 @@ describe('/api/v1/tasks/generate', () => {
         allowProviderFallback: false,
       })
     );
-    expect(recordSpendMock).toHaveBeenCalledWith(4 * 3);
-    expect(recordSpendMock.mock.invocationCallOrder[0]).toBeGreaterThan(
+    expect(reconcileReservedSpendMock).toHaveBeenCalledWith(reservationKey, 4 * 3);
+    expect(reserveSpendMock.mock.invocationCallOrder[0]).toBeLessThan(
+      generateMock.mock.invocationCallOrder[0]
+    );
+    expect(reconcileReservedSpendMock.mock.invocationCallOrder[0]).toBeGreaterThan(
       generateMock.mock.invocationCallOrder[0]
     );
     expect(versionSetMock).toHaveBeenCalledWith(
@@ -182,28 +195,79 @@ describe('/api/v1/tasks/generate', () => {
     );
   });
 
-  it('never records spend when Vertex generation fails', async () => {
+  it('releases the reservation when Vertex fails before billable success', async () => {
     generateMock.mockRejectedValue(new Error('Vertex unavailable'));
 
     const response = await POST(makeRequest(taskBody));
 
     expect(response.status).toBe(500);
-    expect(recordSpendMock).not.toHaveBeenCalled();
+    expect(releaseReservedSpendMock).toHaveBeenCalledWith(reservationKey);
+    expect(reconcileReservedSpendMock).not.toHaveBeenCalled();
     expect(uploadGeneratedImageMock).not.toHaveBeenCalled();
-    expect(versionSetMock).not.toHaveBeenCalled();
   });
 
-  it('never records spend when Vertex returns no images', async () => {
+  it('releases the reservation when Vertex returns no images', async () => {
     generateMock.mockResolvedValue(vertexResult(0));
 
     const response = await POST(makeRequest(taskBody));
 
     expect(response.status).toBe(500);
-    expect(recordSpendMock).not.toHaveBeenCalled();
-    expect(uploadGeneratedImageMock).not.toHaveBeenCalled();
+    expect(releaseReservedSpendMock).toHaveBeenCalledWith(reservationKey);
+    expect(reconcileReservedSpendMock).not.toHaveBeenCalled();
   });
 
-  it('returns an existing completed version without duplicate generation or spend', async () => {
+  it('recovers a billed deterministic upload without purchasing another render', async () => {
+    reserveSpendMock.mockResolvedValue({
+      allowed: true,
+      acquired: false,
+      status: 'billed',
+      reservedCents: 8,
+      spentCents: 108,
+      remainingCents: 49_892,
+    });
+    getImageUrlMock.mockResolvedValue('https://storage.example/recovered.png');
+
+    const response = await POST(makeRequest(taskBody));
+
+    expect(response.status).toBe(200);
+    expect(generateMock).not.toHaveBeenCalled();
+    expect(reconcileReservedSpendMock).not.toHaveBeenCalled();
+    expect(uploadGeneratedImageMock).not.toHaveBeenCalled();
+    expect(versionSetMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        imageUrl: 'https://storage.example/recovered.png',
+        generation: expect.objectContaining({ recoveredFromRetry: true }),
+      }),
+      { merge: true }
+    );
+  });
+
+  it('never re-renders after a billable success whose upload failed', async () => {
+    uploadGeneratedImageMock.mockRejectedValueOnce(new Error('GCS unavailable'));
+
+    const firstResponse = await POST(makeRequest(taskBody));
+
+    expect(firstResponse.status).toBe(500);
+    expect(reconcileReservedSpendMock).toHaveBeenCalledWith(reservationKey, 8);
+    expect(releaseReservedSpendMock).not.toHaveBeenCalled();
+    expect(generateMock).toHaveBeenCalledTimes(1);
+
+    reserveSpendMock.mockResolvedValue({
+      allowed: true,
+      acquired: false,
+      status: 'billed',
+      reservedCents: 8,
+      spentCents: 108,
+      remainingCents: 49_892,
+    });
+    const retryResponse = await POST(makeRequest(taskBody));
+
+    expect(retryResponse.status).toBe(500);
+    expect(generateMock).toHaveBeenCalledTimes(1);
+    expect(uploadGeneratedImageMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns an existing completed version without reserving or generating', async () => {
     versionGetMock.mockResolvedValue({
       data: () => ({ imageUrl: 'https://storage.example/already-complete.png' }),
     });
@@ -215,10 +279,7 @@ describe('/api/v1/tasks/generate', () => {
       success: true,
       imageUrl: 'https://storage.example/already-complete.png',
     });
-    expect(checkBudgetMock).not.toHaveBeenCalled();
+    expect(reserveSpendMock).not.toHaveBeenCalled();
     expect(generateMock).not.toHaveBeenCalled();
-    expect(recordSpendMock).not.toHaveBeenCalled();
-    expect(uploadGeneratedImageMock).not.toHaveBeenCalled();
-    expect(versionSetMock).not.toHaveBeenCalled();
   });
 });
