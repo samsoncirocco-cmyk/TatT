@@ -14,6 +14,7 @@
     "lint": "eslint .",
     "docs:check": "node scripts/docs/validate-docs.mjs",
     "security:secrets": "node scripts/security/scan-secrets.mjs",
+    "supabase:verify": "node scripts/verify-supabase-schema.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },

@@ -24,108 +24,84 @@ TatTester's progressive migration strategy allows anonymous users to continue us
 
 ## Procedure
 
-### Step 1: Validate Export File
+**Note:** There is no standalone export-validation script (`validate_localStorage_export.py` does not exist in `execution/`). The only pre-migration validation available is `migrate_localStorage.py --dry-run`, which parses and checks the export file without writing to Firestore. Treat Step 1 below as the validation step.
 
-```bash
-# Validate JSON structure before migration
-python execution/validate_localStorage_export.py data/export-[user].json
-```
-
-**Expected output:**
-```
-✅ Valid localStorage export
-📊 Summary:
-   - Session ID: abc123def456
-   - Designs: 3
-   - Total versions: 12
-   - Total layers: 47
-   - Date range: 2026-01-15 to 2026-02-10
-✅ All required fields present
-✅ No schema violations
-```
-
-**If validation fails:** Fix reported issues before proceeding. Common issues:
-- Missing `sessionId` field
-- Malformed layer data
-- Invalid ISO8601 timestamps
-
-### Step 2: Preview Migration (Dry Run)
+### Step 1: Preview Migration (Dry Run)
 
 ```bash
 cd execution/
 python migrate_localStorage.py \
-  --source ../data/export-[user].json \
-  --user-uid [FIREBASE_UID] \
+  --input ../data/export-[user].json \
+  --user-id [FIREBASE_UID] \
   --dry-run
 ```
 
-**Expected output:**
+**Parameters (real flags, from `execution/migrate_localStorage.py`):**
+- `--input`: Path to localStorage export JSON file (required)
+- `--user-id`: Target Firestore user ID (required)
+- `--project-id`: GCP project ID (optional for `--dry-run`; defaults to `GCP_PROJECT_ID` env var; required for a real run)
+- `--bucket`: Cloud Storage bucket for uploaded images (optional; defaults to `{project_id}-designs`)
+- `--dry-run`: Parse and validate without writing to Firestore
+
+There are no `--source`, `--user-uid`, `--anonymous`, `--overwrite`, or `--batch-size` flags — the script does not implement them.
+
+**Expected output (illustrative — actual dry-run prints up to the first 3 versions):**
 ```
-🔍 DRY RUN MODE - No data will be written
-🔄 Loading export file...
-✅ Loaded 3 designs with 12 versions
+=== localStorage to Firestore Migration ===
 
-📋 Migration plan:
-   ├─ Design 1: "Dragon sleeve concept"
-   │  ├─ Version 1: 4 layers → users/[uid]/designs/[did]/versions/v001/layers/
-   │  ├─ Version 2: 5 layers → users/[uid]/designs/[did]/versions/v002/layers/
-   │  └─ Version 3: 6 layers → users/[uid]/designs/[did]/versions/v003/layers/
-   ├─ Design 2: "Minimalist geometric"
-   │  └─ Version 1: 3 layers → users/[uid]/designs/[did2]/versions/v001/layers/
-   └─ Design 3: "Floral back piece"
-       ├─ Version 1: 7 layers → users/[uid]/designs/[did3]/versions/v001/layers/
-       └─ Version 2: 8 layers → users/[uid]/designs/[did3]/versions/v002/layers/
+Reading ../data/export-[user].json...
+Found 12 versions
 
-📊 Total writes:
-   - 3 design documents
-   - 12 version documents
-   - 47 layer documents
-   - 62 total Firestore writes
+DRY RUN: Migration mapping:
+
+  Version 1:
+    → users/[uid]/designs/design_1/versions/version-uuid-1
+    Layers: 4
+    Image URL type: URL
+
+  Version 2:
+    → users/[uid]/designs/design_2/versions/version-uuid-2
+    Layers: 5
+    Image URL type: data URI
+
+  Version 3:
+    → users/[uid]/designs/design_3/versions/version-uuid-3
+    Layers: 6
+    Image URL type: URL
+
+  ... and 9 more
 ```
 
-**Review output carefully.** Ensure design names and version counts match expected data.
+**Review output carefully.** Confirm the version count and layer counts match expected data before proceeding.
 
-### Step 3: Run Migration
+### Step 2: Run Migration
 
 ```bash
 python migrate_localStorage.py \
-  --source ../data/export-[user].json \
-  --user-uid [FIREBASE_UID]
+  --input ../data/export-[user].json \
+  --user-id [FIREBASE_UID] \
+  --project-id [GCP_PROJECT_ID]
 ```
 
-**Parameters:**
-- `--source`: Path to localStorage export JSON
-- `--user-uid`: Target Firebase user UID (required for authenticated users)
-- `--anonymous`: Migrate to anonymous storage (uses `sessionId` as user identifier)
-- `--dry-run`: Preview migration without writing
-- `--overwrite`: Overwrite existing designs with same IDs (default: skip existing)
-- `--batch-size`: Documents per batch (default: 100, max: 500)
+Omit `--project-id` if `GCP_PROJECT_ID` is already set in the environment. Add `--bucket [BUCKET_NAME]` to override the default `{project_id}-designs` bucket.
 
 **Expected output:**
 ```
-🔄 Connecting to Firestore...
-✅ Connected
-🔄 Migrating 3 designs for user [uid]...
+=== localStorage to Firestore Migration ===
 
-   ├─ Design 1/3: dragon-sleeve-concept
-   │  ├─ Created design document ✅
-   │  ├─ Version 1: 4 layers written ✅
-   │  ├─ Version 2: 5 layers written ✅
-   │  └─ Version 3: 6 layers written ✅
-   ├─ Design 2/3: minimalist-geometric
-   │  ├─ Created design document ✅
-   │  └─ Version 1: 3 layers written ✅
-   └─ Design 3/3: floral-back-piece
-      ├─ Created design document ✅
-      ├─ Version 1: 7 layers written ✅
-      └─ Version 2: 8 layers written ✅
+Reading ../data/export-[user].json...
+Found 12 versions
+Migrated 1/12 designs
+Migrated 2/12 designs
+...
+Migrated 12/12 designs
 
-✅ Migration complete!
-📊 Total writes: 62 documents
-⏱️  Completed in 8.4 seconds
+✓ Successfully migrated 12 designs
 ```
 
-### Step 4: Verify Migration
+**Note:** The script migrates each *version* into its own generated design document (`design_id = sha256(version.id)[:16]`) — it does not group versions under a shared parent design the way the export file's `designs` array does. Review actual Firestore output structure after migration rather than assuming it mirrors the export file's nesting.
+
+### Step 3: Verify Migration
 
 ```bash
 # Count migrated documents
@@ -163,37 +139,21 @@ Layers: 47
 
 **Counts should match dry-run summary.** If counts are lower, check for partial migration errors in logs.
 
-### Step 5: Test User Access
-
-```bash
-# Verify user can read their migrated data
-python execution/test_user_access.py --user-uid [FIREBASE_UID]
-```
-
-**Expected output:**
-```
-🔄 Testing user access for [uid]...
-✅ User can read designs collection
-✅ User can read versions subcollection
-✅ User can read layers subcollection
-✅ Security rules enforce owner-only access
-✅ All access tests passed
-```
+**Note:** There is no `test_user_access.py` script in `execution/` — it does not exist. To confirm the target user can actually read their migrated data, either sign in as that user in the app UI and load their designs, or run the Firestore security-rules test suite (if one exists) against the deployed rules. Do not rely on the Step 3 admin-SDK read above as proof of user-level access — the admin client bypasses security rules entirely.
 
 ## Rollback
 
-### Delete Migrated Data
+**There is no rollback capability.** `migrate_localStorage.py` has no `--rollback` flag and implements no delete/undo functionality — check `execution/migrate_localStorage.py`'s argparse block (`--input`, `--user-id`, `--project-id`, `--bucket`, `--dry-run` only) to confirm. Do not treat this section as a safety net: **back up before running a real migration.**
+
+### Before running: back up
 
 ```bash
-# Delete all designs for a specific user
-python execution/migrate_localStorage.py \
-  --user-uid [FIREBASE_UID] \
-  --rollback
+# Export current Firestore state for the target user's collection before migrating
+gcloud firestore export gs://[BACKUP_BUCKET]/firestore-backups/[timestamp]/ \
+  --collection-ids=users
 ```
 
-**Warning:** This deletes ALL designs for the user, not just migrated data. Only use if migration corrupted data.
-
-### Restore from Firestore Backup
+### If migration corrupted data: restore from Firestore Backup
 
 ```bash
 # List available backups
@@ -313,14 +273,16 @@ Expected structure for localStorage export JSON:
 
 ## Appendix: Batch Size Guidance
 
-| User Type | Typical Data | Batch Size | Est. Time |
-|-----------|--------------|------------|-----------|
-| Casual user | 1-5 designs, 5-20 versions | 100 | < 5 seconds |
-| Active user | 5-20 designs, 20-100 versions | 100 | 5-15 seconds |
-| Power user | 20+ designs, 100+ versions | 200 | 15-60 seconds |
-| Bulk migration (admin) | 1000+ designs | 500 | 5-20 minutes |
+**Not configurable:** `migrate_localStorage.py` has no `--batch-size` flag — it writes documents one at a time via individual `.set()` calls, not batched commits. The table below is rough timing/volume guidance only, not a tunable parameter.
 
-**Firestore limits:**
+| User Type | Typical Data | Est. Time |
+|-----------|--------------|-----------|
+| Casual user | 1-5 designs, 5-20 versions | < 5 seconds |
+| Active user | 5-20 designs, 20-100 versions | 5-15 seconds |
+| Power user | 20+ designs, 100+ versions | 15-60 seconds |
+| Bulk migration (admin) | 1000+ designs | 5-20 minutes |
+
+**Firestore limits (informational — not enforced by this script):**
 - Max 500 writes per batch commit
 - Max 10MB per batch
 - No rate limit for writes (but monitor quota)

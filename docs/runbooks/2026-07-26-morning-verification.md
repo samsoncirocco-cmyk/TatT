@@ -1,3 +1,17 @@
+> **Status: historical incident record, not a current runbook.** This
+> document is a point-in-time account of the morning of 2026-07-26, when
+> Vercel was refusing new deployments for ~24 hours, production was stuck
+> serving an old build pinned at commit `3ddc0d6`, and the test suite stood at
+> 922 passed / 7 skipped / 92 files. None of that reflects the current state
+> of the repository — 400+ commits have landed on `main` since `3ddc0d6`, and
+> there is no evidence the Vercel deploy block is still in effect. Per
+> `docs/status/document-classification.md`, a runbook is authoritative only
+> for the operation it describes, and any product or infrastructure claim
+> embedded in it is not automatically current. Read this as historical
+> evidence of what happened that morning, not as an actionable checklist —
+> do not act on Step 0's deploy instructions or any commit/test-count figures
+> below without re-verifying them against the live repository first.
+
 # Morning verification — design bot + AR preview
 
 **Date:** 2026-07-26 · **Time budget:** ~20 minutes · **Money budget:** under $1 if you follow the steps as written

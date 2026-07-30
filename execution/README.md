@@ -93,13 +93,13 @@ by a scrape. Instagram is immutable after identity verification, and
 
 | Step | Implementation |
 |------|---------------|
-| Council enhancement | `src/services/councilService.ts` |
-| Image generation | `src/services/generationService.ts` |
-| Legacy generation + upload | `src/lib/vertex-imagen-client.ts` |
-| Multi-layer processing | `src/services/multiLayerService.js` |
+| Council enhancement | `src/services/council/internal/councilService.ts` |
+| Image generation | `src/services/generation/index.ts` |
+| Legacy generation + upload | `src/services/generation/internal/vertexImagen.ts` |
+| Multi-layer processing | `src/features/generate/services/multiLayerService.ts` |
 | Canvas layer management | `src/services/canvasService.ts` |
 | Layer management hook | `src/features/generate/hooks/useLayerManagement.ts` |
-| Generation hook | `src/features/generate/hooks/useImageGeneration.js` |
+| Generation hook | `src/features/generate/hooks/useImageGeneration.ts` |
 | API: v1 generate | `src/app/api/v1/generate/route.ts` |
 | API: legacy generate | `src/app/api/generate/route.ts` |
 | GCP auth | `src/lib/google-auth-edge.ts` |
@@ -108,7 +108,7 @@ by a scrape. Instagram is immutable after identity verification, and
 
 | Step | Implementation |
 |------|---------------|
-| Council service | `src/services/councilService.ts` |
+| Council service | `src/services/council/internal/councilService.ts` |
 | Character database | `src/config/characterDatabase.js` |
 | Council skill pack | `src/config/councilSkillPack.js` |
 | Style-model mapping | `src/utils/styleModelMapping.js` |
@@ -122,15 +122,15 @@ by a scrape. Instagram is immutable after identity verification, and
 |------|---------------|
 | Hybrid match service | `src/features/match-pulse/services/hybridMatchService.ts` |
 | Embedding service | `src/services/embeddingService.ts` |
-| Vector DB service | `src/services/vectorDbService.js` |
+| Vector DB service | `src/services/vectorDbService.ts` |
 | Neo4j service | `src/features/match-pulse/services/neo4jService.ts` |
 | Score aggregation | `src/utils/scoreAggregation.js` |
-| Firebase match service | `src/services/firebase-match-service.js` |
+| Firebase match service | `src/services/firebase-match-service.ts` |
 | Match service (legacy) | `src/features/match-pulse/services/matchService.js` |
 | Demo match service | `src/features/match-pulse/services/demoMatchService.js` |
 | Match update service | `src/features/match-pulse/services/matchUpdateService.js` |
-| Real-time hook | `src/features/match-pulse/hooks/useRealtimeMatchPulse.js` |
-| Artist matching hook | `src/features/match-pulse/hooks/useArtistMatching.js` |
+| Real-time hook | `src/features/match-pulse/hooks/useRealtimeMatchPulse.ts` |
+| Artist matching hook | `src/features/match-pulse/hooks/useArtistMatching.ts` |
 | MatchPulse UI | `src/features/match-pulse/components/Match/MatchPulse.tsx` |
 | API: semantic match | `src/app/api/v1/match/semantic/route.ts` |
 | API: match update | `src/app/api/v1/match/update/route.ts` |
@@ -177,7 +177,7 @@ and anatomical-mapping modules and `/api/v1/ar/visualize` were removed — see
 
 | Step | Implementation |
 |------|---------------|
-| Multi-layer service | `src/services/multiLayerService.js` |
+| Multi-layer service | `src/features/generate/services/multiLayerService.ts` |
 | Canvas service | `src/services/canvasService.ts` |
 | Image registry | `src/services/forgeImageRegistry.ts` |
 | Image load manager | `src/services/imageLoadManager.ts` |

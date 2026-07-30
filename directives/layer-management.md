@@ -21,7 +21,7 @@ Generate, manipulate, and merge multi-layer RGBA tattoo designs for complex comp
 ## Steps
 
 ### 1. Generate Multi-Layer Design (Vertex Imagen)
-**Location:** `src/lib/vertex-imagen-client.ts`
+**Location:** `src/services/generation/internal/vertexImagen.ts`
 
 **Layer Types:**
 - **Base (Outline):** Black lines only, transparent background

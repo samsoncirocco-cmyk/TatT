@@ -13,6 +13,8 @@ Rotate API keys, passwords, and other secrets stored in Google Cloud Secret Mana
 
 This directive covers rotation of all secrets used by TatTester, including Replicate API tokens, Neo4j passwords, Firebase private keys, and OpenRouter API keys.
 
+> **Deploy architecture note (2026-07-20):** Vercel is the only user-facing deploy target for this app; see `directives/deploy.md`. The `pangyo-staging` / `pangyo-production` Cloud Run services referenced below are **dormant** — their GitHub Actions deploy jobs are `workflow_dispatch`-only (see `.github/workflows/ci-cd.yml`) and nothing routes real traffic to them. Updating a secret on those Cloud Run services does **not** update the live production site. For any secret consumed by the live site, the value must also be updated as a Vercel environment variable (Vercel dashboard or `vercel env`) and a new deployment triggered — that is the step that actually matters for production.
+
 ## Prerequisites
 
 - [ ] New secret value obtained (new API key generated, password reset, etc.)
@@ -46,24 +48,24 @@ NAME  STATE    CREATED
 
 **Note:** Old version (1) remains enabled during transition. This allows rollback if new version has issues.
 
-### Step 2: Update Staging Environment
+### Step 2 (optional): Update Dormant Cloud Run Staging Service
+
+**This step only affects the dormant `pangyo-staging` Cloud Run service — it is not user-facing and is not the real staging surface.** (Real pre-prod validation for this app is a Vercel preview deployment; see `directives/deploy.md`.) Skip this step entirely unless you specifically need to keep the dormant Cloud Run services in sync with the new secret value.
 
 ```bash
-# Deploy staging with new secret version
+# Dormant service only — does not affect the live site
 gcloud run services update pangyo-staging \
   --region us-central1 \
   --update-secrets [ENV_VAR_NAME]=[SECRET_NAME]:2
 
-# Or via GitHub Actions:
+# Or via GitHub Actions (manual dispatch only — see .github/workflows/ci-cd.yml):
 gh workflow run ci-cd.yml -f environment=staging -f secret_version=2
 ```
 
-**Staging auto-picks up new secret on next deployment.** No manual restart needed.
-
-### Step 3: Test Staging with New Secret
+### Step 3 (optional): Sanity-Check the Dormant Cloud Run Service
 
 ```bash
-# Run health checks against staging
+# Run health checks against the dormant staging service, if Step 2 was performed
 python execution/run_health_checks.py --base-url https://pangyo-staging-[hash]-uc.a.run.app
 ```
 
@@ -76,39 +78,36 @@ python execution/run_health_checks.py --base-url https://pangyo-staging-[hash]-u
 ✅ All health checks passed
 ```
 
-**If health checks fail:** New secret is invalid. Rollback staging to old version (see Rollback section), verify new secret value, and retry.
+**This only validates the dormant Cloud Run service.** Passing or failing here says nothing about the live Vercel production site — proceed to Step 4 regardless once the new secret value itself has been confirmed correct.
 
-**If health checks pass:** Proceed to production update.
+### Step 4: Update Vercel Production Environment
 
-### Step 4: Update Production Environment
+**This is the step that actually updates the live, user-facing production site.**
 
 ```bash
-# Deploy production with new secret version
-gcloud run services update pangyo-production \
-  --region us-central1 \
-  --update-secrets [ENV_VAR_NAME]=[SECRET_NAME]:2
+# Remove the old value and add the new one (or edit it in the Vercel dashboard:
+# Project Settings -> Environment Variables)
+vercel env rm [ENV_VAR_NAME] production
+vercel env add [ENV_VAR_NAME] production
+# (paste the new secret value when prompted)
 
-# Cloud Run performs rolling update (zero downtime)
+# Redeploy so the new environment variable takes effect
+vercel --prod
 ```
 
-**Expected output:**
-```
-✓ Deploying new service... Done.
-  ✓ Creating Revision...
-  ✓ Routing traffic...
-Done.
-Service [pangyo-production] revision [pangyo-production-00042-abc] has been deployed and is serving 100 percent of traffic.
-```
+**Note:** Changing a Vercel environment variable does not by itself update a running deployment — a new deployment (`vercel --prod`, or a push to `main` if Git integration is configured) is required to pick it up.
 
 ### Step 5: Verify Production
 
 ```bash
-# Test production health checks
-python execution/run_health_checks.py --base-url https://pangyo-production-[hash]-uc.a.run.app
+# Confirm the new deployment is live
+vercel ls
 
-# Monitor logs for errors
-gcloud run services logs read pangyo-production --limit 100 --region us-central1 | grep ERROR
+# Tail logs for errors on the new deployment
+vercel logs https://tatt-app.vercel.app
 ```
+
+Also open `https://tatt-app.vercel.app` and exercise the feature that depends on the rotated secret (e.g. generate a design, run artist matching, hit the affected API route directly).
 
 **Monitor for 10 minutes.** Look for:
 - Authentication errors (indicates secret not working)
@@ -147,19 +146,33 @@ NAME  STATE     CREATED
 
 ### Immediate Rollback (Within 24 Hours)
 
-If new secret causes issues:
+If the new secret causes issues on the live site:
 
 ```bash
-# Revert to old secret version
+# Revert the Vercel production environment variable to the old value
+vercel env rm [ENV_VAR_NAME] production
+vercel env add [ENV_VAR_NAME] production
+# (paste the old secret value when prompted)
+
+# Redeploy to pick up the reverted value
+vercel --prod
+
+# Alternative: roll back to the previous deployment directly
+vercel rollback <previous-deployment-url>
+
+# Verify
+vercel logs https://tatt-app.vercel.app
+```
+
+Rollback completes in a few minutes (deployment build time).
+
+If Step 2 was also performed against the dormant `pangyo-staging`/`pangyo-production` Cloud Run services, revert those too for consistency (does not affect the live site):
+
+```bash
 gcloud run services update pangyo-production \
   --region us-central1 \
   --update-secrets [ENV_VAR_NAME]=[SECRET_NAME]:1
-
-# Verify rollback
-python execution/run_health_checks.py --base-url https://pangyo-production-[hash]-uc.a.run.app
 ```
-
-Rollback completes in < 2 minutes.
 
 ### Late Rollback (After Old Version Disabled)
 
@@ -168,12 +181,9 @@ If old version already disabled:
 ```bash
 # Re-enable old version
 gcloud secrets versions enable 1 --secret [SECRET_NAME]
-
-# Update service to use old version
-gcloud run services update pangyo-production \
-  --region us-central1 \
-  --update-secrets [ENV_VAR_NAME]=[SECRET_NAME]:1
 ```
+
+Then repeat the Vercel revert steps above with the re-enabled old value.
 
 ## Known Issues
 
@@ -181,9 +191,10 @@ No known issues yet. Update this section when issues are discovered during secre
 
 ## Post-Operation
 
-- [ ] Staging tested and healthy with new secret
-- [ ] Production deployed with new secret
-- [ ] Health checks pass in production
+- [ ] New secret value confirmed valid (dormant Cloud Run sanity check, if performed)
+- [ ] Vercel production environment variable updated with new secret value
+- [ ] New Vercel deployment triggered (`vercel --prod` or push to `main`) and live
+- [ ] Production functionality verified on `https://tatt-app.vercel.app`
 - [ ] Logs monitored for 10 minutes, no errors
 - [ ] Old secret version disabled (after 24-hour grace period)
 - [ ] Rotation documented in #security-changelog
@@ -243,7 +254,7 @@ All secrets managed in GCP Secret Manager:
 
 **Secret name:** `openrouter-api-key`
 **Env var:** `OPENROUTER_API_KEY`
-**Used by:** AI Council prompt enhancement (councilService.js)
+**Used by:** AI Council prompt enhancement (`src/services/council/internal/councilService.ts`)
 **How to rotate:**
 1. Log into OpenRouter dashboard
 2. API Keys → Create new key
@@ -295,8 +306,8 @@ If a secret is accidentally exposed:
 1. Revoke/disable exposed secret in provider dashboard
 2. Generate new secret
 3. Add new secret version to Secret Manager
-4. Deploy to all environments (staging, production)
-5. Verify health checks pass
+4. Update the Vercel production environment variable and redeploy (`vercel --prod`) — this is what actually protects the live site (see Step 4 above); also update the dormant Cloud Run services if they're being kept in sync
+5. Verify production functionality on `https://tatt-app.vercel.app`
 6. Notify team in #security-incidents
 
 **Follow-up actions (within 24 hours):**

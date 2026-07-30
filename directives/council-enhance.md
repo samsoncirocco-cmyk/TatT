@@ -46,7 +46,7 @@ Transform a short user tattoo idea (e.g., "dragon sleeve") into three progressiv
      }'
    ```
 
-3. The API route (`src/app/api/v1/council/enhance/route.ts`) validates the request (prompt must be >= 3 chars) and calls `enhancePrompt()` from `src/services/councilService.ts`.
+3. The API route (`src/app/api/v1/council/enhance/route.ts`) validates the request (prompt must be >= 3 chars) and calls `enhancePrompt()` from `src/services/council/internal/councilService.ts`.
 
 4. The enhancement service follows this **fallback chain**:
 

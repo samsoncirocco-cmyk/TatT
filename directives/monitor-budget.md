@@ -25,81 +25,60 @@ Budget awareness is critical during the bootstrap phase. Runaway costs from unca
 
 ### Step 1: Check Current Spend
 
+`execution/check_budget.py` estimates **Replicate generation spend only** (by
+counting generation events/design versions in Firestore and multiplying by
+per-model pricing). It does not query GCP Billing directly and has no
+`--period`, `--alerts`, or `--top-services` flags -- its real flags are
+`--budget`, `--warn-threshold`, `--project-id`, and `--json`.
+
 ```bash
 cd execution/
-python check_budget.py --period current-month
+python check_budget.py --budget 500 --warn-threshold 0.75
 ```
 
 **Expected output:**
 ```
-💰 Budget Report - February 2026
+=== Replicate API Budget Check ===
 
-📊 Current Spend:
-   ├─ Replicate API: $127.34 (25.5% of $500 budget)
-   ├─ Vertex AI: $18.92 (3.8% of $500 budget)
-   ├─ Cloud Run: $4.23 (0.8% of $500 budget)
-   ├─ Cloud Storage: $1.12 (0.2% of $500 budget)
-   ├─ Firestore: $2.87 (0.6% of $500 budget)
-   └─ Neo4j Aura: $0.00 (free tier)
+Total generations: 6234
+Estimated spend: $154.48 / $500.00 (30.9%)
+Remaining budget: $345.52
 
-💵 Total: $154.48 / $500 (30.9%)
-🟢 Status: Within budget
+Breakdown by model:
+  sdxl: 4471 gens × $0.020 = $89.42
+  default: 1516 gens × $0.025 = $37.90
+  flux: 247 gens × $0.030 = $7.41
 
-📈 Projection (7-day trend):
-   - Daily avg: $7.21
-   - Month-end estimate: $218.67
-   - Runway: 48 days remaining
-
-⚠️  Alerts:
-   - None
+✓ Spend is below 75% threshold
 ```
 
-**If spend > 75%:** Review top cost drivers and consider rate limiting or feature gating.
+The script exits with status `1` when spend is at or above `--warn-threshold`
+(useful for scripting/CI checks) and `0` otherwise. Pass `--json` for
+machine-readable output, e.g. `python check_budget.py --json | jq .breakdown`.
+
+**If spend > 75%:** Review the per-model breakdown above and consider rate
+limiting or feature gating.
 
 ### Step 2: View Budget Alert History
 
-```bash
-python check_budget.py --alerts
-```
+There is no built-in alert-history feature -- `check_budget.py` only reports
+the current estimated spend at the moment it's run. Budget *alerts*
+(threshold-crossing notifications) are configured and tracked in GCP Billing,
+not in this script. To see alert history, check the notification channel
+configured below (Step 4) or the GCP Console Billing > Budgets & alerts page.
 
-**Expected output:**
-```
-🔔 Budget Alert History
+### Step 3: Vertex AI / Cloud Run / Firestore / Storage Spend
 
-📅 February 2026:
-   ├─ 2026-02-12: 50% threshold crossed ($250.00)
-   │  └─ Action: Team notified via Slack
-   └─ 2026-02-14: 75% threshold crossed ($375.00)
-      └─ Action: Emergency review, rate limits applied
-
-📅 January 2026:
-   └─ No alerts
-```
-
-**Look for:** Frequent alerts may indicate need for stricter rate limiting.
-
-### Step 3: View Top Cost Drivers
+`check_budget.py` only covers Replicate spend. For actual spend across all
+GCP services (Vertex AI, Cloud Run, Firestore, Cloud Storage, Secret
+Manager), use GCP Billing directly -- there is no local script for this yet:
 
 ```bash
-python check_budget.py --top-services 10
+gcloud billing accounts describe [BILLING_ACCOUNT_ID]
 ```
 
-**Expected output:**
-```
-💸 Top Cost Drivers (Current Month)
-
-1. Replicate API - SDXL generations: $89.42 (17.9%)
-2. Replicate API - Anime XL generations: $37.92 (7.6%)
-3. Vertex AI - Text embeddings: $18.92 (3.8%)
-4. Cloud Run - Compute time: $4.23 (0.8%)
-5. Firestore - Document writes: $2.87 (0.6%)
-6. Cloud Storage - Egress: $1.12 (0.2%)
-7. Secret Manager - Access requests: $0.03 (0.0%)
-
-💡 Optimization opportunities:
-   - Replicate: Cache similar prompts to avoid duplicate generations
-   - Vertex AI: Batch embedding requests to reduce per-request overhead
-```
+Or check the Reports tab in the GCP Console Billing dashboard (Step 5 below)
+for a full per-service breakdown.
 
 ### Step 4: Check Alert Configuration
 
@@ -225,9 +204,14 @@ If budget alerts fire at 75%+ and spend must be reduced immediately:
 ```bash
 # Reduce the Replicate rate limit (e.g. from 10/min to 2/min) in the
 # rate-limit config used by the generation API routes (src/lib/rate-limit.ts)
-
-# Redeploy to Cloud Run
-gcloud run deploy pangyo-production --image gcr.io/[PROJECT_ID]/pangyo:latest
 ```
+
+**Vercel is the only active deploy target** (the legacy Railway/Express
+proxy was retired 2026-07-20, and Cloud Run is dormant/manual-dispatch-only
+in CI -- see `directives/deploy.md`). Redeploying to Cloud Run would **not**
+affect the live site. To get this rate-limit change live immediately, follow
+`directives/deploy.md`: commit the change, push to `main` (Vercel
+auto-deploys), or run `vercel --prod` directly for an out-of-band emergency
+deploy.
 
 **Impact:** Generation queue times increase 5x. Acceptable for budget preservation, but notify users of slower generations.

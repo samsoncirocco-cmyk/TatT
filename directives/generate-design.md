@@ -104,7 +104,7 @@ Generate tattoo design images via the Imagen 3.0 API (`imagen-3.0-generate-001`)
 
 **This directive costs real money per execution.**
 
-- **Imagen 3.0**: ~$0.02 per image generated (`IMAGEN_COST_PER_IMAGE` in `generationService.ts`)
+- **Imagen 3.0**: ~$0.02 per image generated (`IMAGEN_COST_PER_IMAGE` in `src/services/generation/internal/vertexImagen.ts`)
 - **Per request**: $0.02 x `sampleCount` (1-4 images)
 - **With retries**: Failed attempts that get retryable errors (429/5xx) do not incur cost. Only successful predictions are billed.
 - **Fallback attempt**: If the primary attempt fails and fallback fires, that is an additional $0.02 x `sampleCount`.
