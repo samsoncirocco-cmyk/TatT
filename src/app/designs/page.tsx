@@ -248,7 +248,7 @@ export default function DesignsPage() {
                       ) : (
                         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/50 mix-blend-multiply" />
                       )}
-                      <span className="absolute left-2 bottom-2 bg-black/75 px-2 py-1 text-[9px] uppercase tracking-[0.18em] text-white/70 font-body">
+                      <span className="absolute left-2 bottom-2 bg-black/75 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-white/70 font-body">
                         Last saved
                       </span>
                     </Link>
@@ -283,7 +283,7 @@ export default function DesignsPage() {
                       </Link>
                       <Link
                         href={`/designs/${latestDesign.id}`}
-                        className="border-2 hairline press inline-flex items-center justify-center px-4 py-3 text-[9px] uppercase tracking-[0.2em] text-white/60 hover:text-white font-body"
+                        className="border-2 hairline press inline-flex items-center justify-center px-4 py-3 text-[10px] uppercase tracking-[0.2em] text-white/60 hover:text-white font-body"
                       >
                         Review the cut
                       </Link>
@@ -370,7 +370,7 @@ export default function DesignsPage() {
                       {!selectMode && (
                         <div className="mt-4 border-t hairline pt-3">
                           <div className="flex items-center justify-between gap-3">
-                            <span className="text-[9px] uppercase tracking-[0.18em] text-white/45 font-body">
+                            <span className="text-[10px] uppercase tracking-[0.18em] text-white/45 font-body">
                               Next
                             </span>
                             <Link

@@ -161,7 +161,7 @@ export default function DesignDetailPage({
               aria-labelledby="next-move-heading"
               className="mt-8 border-2 border-pink p-5 bg-pink/[0.06]"
             >
-              <div className="text-[9px] uppercase tracking-[0.28em] text-pink font-body">
+              <div className="text-[10px] uppercase tracking-[0.28em] text-pink font-body">
                 Recommended next move
               </div>
               <h2
@@ -196,7 +196,7 @@ export default function DesignDetailPage({
             </div>
 
             <div className="mt-10">
-              <div className="text-[9px] uppercase tracking-[0.25em] text-white/40 font-body">
+              <div className="text-[10px] uppercase tracking-[0.25em] text-white/40 font-body">
                 Other ways forward
               </div>
               <div className="mt-3 flex flex-col sm:flex-row flex-wrap gap-3">

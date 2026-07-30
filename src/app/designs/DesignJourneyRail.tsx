@@ -24,7 +24,7 @@ export default function DesignJourneyRail({
             }`}
           />
           <div
-            className={`${compact ? "mt-1.5 text-[8px]" : "mt-2 text-[9px]"} uppercase tracking-[0.14em] font-body truncate ${
+            className={`${compact ? "mt-1.5" : "mt-2"} text-[10px] uppercase tracking-[0.14em] font-body truncate ${
               step.state === "recommended"
                 ? "text-white"
                 : step.state === "available"
