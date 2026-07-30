@@ -32,6 +32,13 @@ describe('PrivacyPage — SMS section (TAT-49)', () => {
     expect(text).toMatch(/or HELP\s*for help/);
   });
 
+  it('covers photos texted to SketchBot and their design-reference use (TAT-50)', () => {
+    render(<PrivacyPage />);
+    const text = (document.body.textContent ?? '').replace(/ /g, ' ');
+    expect(text).toContain('Photos you text to SketchBot are part of that message content');
+    expect(text).toContain('use them only as design references');
+  });
+
   it('carries the carrier-required no-sharing sentence verbatim', () => {
     render(<PrivacyPage />);
     // Exact wording required by the A2P registration — do not paraphrase.

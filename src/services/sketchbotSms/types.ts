@@ -1,12 +1,22 @@
 // Shared contract for the SketchBot SMS channel (TAT-49). The webhook route
 // and the channel adapter build against these types.
 
+/** One media attachment on an inbound MMS (TAT-50). */
+export interface InboundMediaItem {
+  /** Twilio media URL (`MediaUrl{N}`) — fetched server-side, never echoed. */
+  url: string;
+  /** Declared MIME type (`MediaContentType{N}`), lowercase. */
+  contentType: string;
+}
+
 /** One inbound SMS/MMS, already signature-verified by the webhook route. */
 export interface InboundSms {
   /** Sender in E.164 (Twilio's `From`). */
   phone: string;
   /** Message text (Twilio's `Body`), may be empty on media-only MMS. */
   body: string;
+  /** MMS attachments, in Twilio's order (TAT-50). */
+  media?: InboundMediaItem[];
 }
 
 /**
