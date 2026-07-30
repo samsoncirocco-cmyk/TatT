@@ -22,7 +22,7 @@ import { MM_PER_INCH, heightMmForWidth } from "./trueSizeMath";
 export const RULER_LENGTH_MM = 100;
 
 export const PRINT_TOO_BIG_MESSAGE =
-  "That width doesn't fit on one sheet (about 19cm is the max). A print shop can tile bigger pieces.";
+  "Too big for one sheet (about 20 × 28 cm max with margins). A print shop can tile bigger pieces.";
 
 type PaperPreset = {
   key: string;
@@ -53,7 +53,7 @@ export function fitsOnOneSheet(widthMm: number, heightMm: number): boolean {
 function addScaleRuler(
   pdf: jsPDF,
   paperWidthInches: number,
-  paperHeightInches: number
+  paperHeightInches: number,
 ): void {
   const rulerInches = RULER_LENGTH_MM / MM_PER_INCH; // 3.937"
   const x0 = (paperWidthInches - rulerInches) / 2;
@@ -74,21 +74,21 @@ function addScaleRuler(
     "this bar is exactly 10 cm — measure it",
     paperWidthInches / 2,
     y + 0.18,
-    { align: "center" }
+    { align: "center" },
   );
 }
 
 function addPrintInstruction(
   pdf: jsPDF,
   paperWidthInches: number,
-  paperHeightInches: number
+  paperHeightInches: number,
 ): void {
   pdf.setFontSize(9);
   pdf.text(
     "Print at 100% scale — no fit-to-page, no shrink. If the bar above isn't 10 cm, reprint.",
     paperWidthInches / 2,
     paperHeightInches - 0.28,
-    { align: "center" }
+    { align: "center" },
   );
 }
 
@@ -139,7 +139,7 @@ export function buildTrueSizePdf({
       },
       paper_size: paper.key,
       format: "pdf",
-    }
+    },
   ) as jsPDF;
 
   addScaleRuler(pdf, paper.widthInches, paper.heightInches);
@@ -155,7 +155,7 @@ export function buildTrueSizePdf({
  * stencil pipeline already draws this way.
  */
 export function loadImageAsPngDataUrl(
-  imageUrl: string
+  imageUrl: string,
 ): Promise<{ dataUrl: string; naturalWidth: number; naturalHeight: number }> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -199,15 +199,19 @@ export async function exportTrueSizePdf({
   designName?: string;
   designId?: string;
   variant?: "full" | "stencil";
-}): Promise<{ blob: Blob; filename: string; widthMm: number; heightMm: number }> {
+}): Promise<{
+  blob: Blob;
+  filename: string;
+  widthMm: number;
+  heightMm: number;
+}> {
   const { dataUrl, naturalWidth, naturalHeight } =
     await loadImageAsPngDataUrl(imageUrl);
 
   let printDataUrl = dataUrl;
   if (variant === "stencil") {
-    const { convertToStencil } = await import(
-      "@/features/stencil/services/stencilService"
-    );
+    const { convertToStencil } =
+      await import("@/features/stencil/services/stencilService");
     printDataUrl = await convertToStencil(dataUrl);
   }
 

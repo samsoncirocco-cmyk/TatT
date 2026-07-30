@@ -385,8 +385,8 @@ describe('DesignConversation', () => {
     fireEvent.click(screen.getByRole('button', { name: /show me/i }));
     await screen.findByText(REVEAL_NARRATION);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Pick design 2' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Design 3 feels most not me' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Pick design 2 / }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Design 3 feels most not me / }));
     fireEvent.click(await screen.findByRole('button', { name: 'Bolder lines' }));
     await screen.findByAltText('Your refined design');
 

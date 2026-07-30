@@ -57,7 +57,7 @@ export default function TrueSizeModal({
   onClose: () => void;
 }) {
   const [calibration, setCalibration] = useState<TrueSizeCalibration | null>(
-    () => loadCalibration()
+    () => loadCalibration(),
   );
   const [recalibrating, setRecalibrating] = useState(false);
   const [cardPx, setCardPx] = useState(() => {
@@ -69,7 +69,7 @@ export default function TrueSizeModal({
 
   const [unit, setUnit] = useState<SizeUnit>("cm");
   const [widthInput, setWidthInput] = useState(() =>
-    String(displaySize(DEFAULT_TATTOO_WIDTH_MM, "cm"))
+    String(displaySize(DEFAULT_TATTOO_WIDTH_MM, "cm")),
   );
   const [imageRatio, setImageRatio] = useState<number | null>(null);
   const [variant, setVariant] = useState<"full" | "stencil">("full");
@@ -82,10 +82,14 @@ export default function TrueSizeModal({
     return clampTattooWidthMm(toMm(parsed, unit));
   }, [widthInput, unit]);
 
-  const heightMm = imageRatio === null ? null : widthMm * imageRatio;
-  const printable = heightMm === null || fitsOnOneSheet(widthMm, heightMm);
-
   const showCalibrator = recalibrating || !calibration;
+  const heightMm = imageRatio === null ? null : widthMm * imageRatio;
+  // During calibration the preview isn't mounted, so height is unknown —
+  // exportTrueSizePdf loads dimensions itself. After calibration, wait for
+  // the preview onLoad so we can show the same disabled state / refusal
+  // message as once height is known (instead of enabling then failing later).
+  const printable =
+    heightMm === null ? showCalibrator : fitsOnOneSheet(widthMm, heightMm);
 
   const switchUnit = (next: SizeUnit) => {
     if (next === unit) return;
@@ -116,7 +120,7 @@ export default function TrueSizeModal({
       downloadStencil(blob, filename);
     } catch (e) {
       setPrintError(
-        e instanceof Error ? e.message : "Couldn't build the PDF. Try again."
+        e instanceof Error ? e.message : "Couldn't build the PDF. Try again.",
       );
     } finally {
       setPrinting(false);
@@ -157,9 +161,9 @@ export default function TrueSizeModal({
               </div>
               <p className="text-[14px] text-white/80 font-body leading-[1.55] max-w-prose">
                 Hold any bank or ID card flat against the screen and drag the
-                slider until the outline is exactly the size of your card.
-                That tells us your screen&apos;s real dimensions — we save it,
-                so you only do this once per device.
+                slider until the outline is exactly the size of your card. That
+                tells us your screen&apos;s real dimensions — we save it, so you
+                only do this once per device.
               </p>
               <div className="mt-6 flex items-start">
                 <div
@@ -168,7 +172,7 @@ export default function TrueSizeModal({
                   style={{
                     width: `${cardPx}px`,
                     height: `${Math.round(
-                      (cardPx * CARD_HEIGHT_MM) / CARD_WIDTH_MM
+                      (cardPx * CARD_HEIGHT_MM) / CARD_WIDTH_MM,
                     )}px`,
                   }}
                 >
@@ -223,7 +227,11 @@ export default function TrueSizeModal({
                   onChange={(e) => setWidthInput(e.target.value)}
                   className="w-24 bg-black border-2 hairline px-3 py-2 text-[15px] text-white font-body tabular-nums"
                 />
-                <div className="inline-flex border-2 hairline" role="group" aria-label="Units">
+                <div
+                  className="inline-flex border-2 hairline"
+                  role="group"
+                  aria-label="Units"
+                >
                   {(["cm", "in"] as const).map((u) => (
                     <button
                       key={u}
