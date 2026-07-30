@@ -31,3 +31,32 @@ enforced from now on:
    TAT-31 attribution posture. Exact wording is flagged for counsel review;
    the stance is not. Rejected: a bare "unclaimed" badge (unexplained), and
    silence (implies consent that was never given).
+
+---
+
+## Amendment — 2026-07-30: the money sentence is two-variant
+
+PR #260 rewrote several money-surface sentences to split by artist claim
+state, surfacing the ADR-0006/0008 held-deposit reality for unclaimed
+artists. That custody truth is right and stays. But the split shipped
+without amending this law, and the claimed-artist sentence lost its
+strongest clause in the rewrite. This amendment ratifies the variant split
+#260 introduced and fixes what each variant must say:
+
+- **Claimed artist** — the full-strength sentence, both clauses
+  load-bearing: the artist keeps **100% of the deposit**, and **the booking
+  fee is the only part we keep**. Neither clause may be dropped.
+- **Unclaimed artist** — the held-deposit sentence (ADR-0006/0008):
+  TattTester holds the deposit while the artist claims and verifies the
+  profile; it is released to the artist **in full** on claim, or refunded to
+  the client **in full** after `DEPOSIT_HOLD_DAYS` if the profile stays
+  unclaimed. The booking fee remains the only part TattTester keeps.
+- **Aggregate surfaces** that span both kinds of bookings at once (the
+  bookings list) state the claimed-artist rule and the unclaimed exception
+  in the same breath — one sentence each, still the quiet voice.
+
+Which variant renders follows the same claim discriminator the money flow
+itself uses (`artistClaimed` / `artistReady`), defaulting to the claimed
+sentence when the surface cannot know. Everything else in law 2 stands:
+every money surface, one visible sentence, who pays what and who keeps
+what, no exceptions without a superseding ADR.
