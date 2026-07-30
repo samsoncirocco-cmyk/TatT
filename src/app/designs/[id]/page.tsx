@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import StudioShell from "@/components/studio/StudioShell";
 import TapeCTA from "@/components/punk/TapeCTA";
 import ShareDesignAction from "@/features/share/components/ShareDesignAction";
+import GroupChatVerdict from "@/features/share/components/GroupChatVerdict";
+import TrueSizeActions from "@/features/true-size/components/TrueSizeActions";
 import { useDesigns, type TattDesign } from "@/lib/tattStorage";
 import { smartMatchUrlForDesign } from "@/lib/design-style-signal";
 
@@ -187,6 +189,14 @@ export default function DesignDetailPage({
               >
                 ▸ Iterate
               </Link>
+              {/* Size reality (TAT-52): actual-size on screen + print at
+                  100% — the answer to regret story #1, "I didn't know it
+                  would be that big." */}
+              <TrueSizeActions
+                imageUrl={design.image}
+                designName={title}
+                designId={design.id}
+              />
               <button
                 onClick={handleDelete}
                 className="text-[10px] uppercase tracking-[0.25em] text-pink hover:bg-pink hover:text-black border-2 hairline border-pink px-4 py-4 press font-body inline-flex items-center justify-center"
@@ -203,6 +213,13 @@ export default function DesignDetailPage({
               imageUrls={design.image ? [design.image] : []}
               prompt={design.prompt}
               redirectTo={`/designs/${design.id}`}
+            />
+
+            {/* What the group chat said (TAT-52). Renders nothing until this
+                browser has actually minted a share link for this design. */}
+            <GroupChatVerdict
+              className="mt-6"
+              imageUrls={design.image ? [design.image] : []}
             />
           </div>
         </div>

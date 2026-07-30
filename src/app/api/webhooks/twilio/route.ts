@@ -49,6 +49,7 @@ import {
   executeReveal,
   recordOptOut,
   isOptedOut,
+  parseInboundMedia,
 } from '@/services/sketchbotSms';
 import { createRequestLogger, logger } from '@/lib/logger';
 
@@ -208,7 +209,14 @@ export async function POST(req: NextRequest) {
       return twiml(); // silence — replying to a flood costs money per segment
     }
 
-    const outcome = await handleInbound({ phone, body });
+    // MMS attachments (TAT-50): MediaUrl0..N + content types ride along;
+    // the adapter fetches, caps, analyzes, and acknowledges them.
+    const media = parseInboundMedia(params);
+    const outcome = await handleInbound({
+      phone,
+      body,
+      ...(media.length > 0 ? { media } : {}),
+    });
 
     if (outcome.kind === 'silent') {
       reqLogger.complete('twilio_webhook.silent', {});

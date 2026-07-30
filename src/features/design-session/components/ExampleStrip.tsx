@@ -28,7 +28,10 @@ export function ExampleStrip() {
             key={d.src}
             src={d.src}
             alt={d.alt}
+            width={640}
+            height={640}
             loading="lazy"
+            decoding="async"
             className="w-full aspect-square object-cover border hairline-soft"
           />
         ))}

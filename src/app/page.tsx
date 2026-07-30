@@ -1,6 +1,7 @@
 import Link from "next/link";
 import StudioShell from "@/components/studio/StudioShell";
 import SlashHeadline from "@/components/punk/SlashHeadline";
+import TapeCTA from "@/components/punk/TapeCTA";
 import ArtistCard from "@/components/punk/ArtistCard";
 import SmsDisclosure from "@/components/sketchbot/SmsDisclosure";
 import { getSketchBotSmsContact } from "@/lib/sketchbot-sms";
@@ -85,13 +86,9 @@ export default async function Home() {
             </p>
 
             <div className="rise rise-4 mt-10 flex flex-col sm:flex-row sm:items-stretch gap-5">
-              <Link
-                href="/design"
-                className="tape press inline-flex items-center justify-center px-9 py-[18px] font-display text-[28px] sm:text-[34px] leading-none tracking-[0.02em] self-start"
-              >
+              <TapeCTA href="/design" size="lg" className="self-start">
                 Start your design
-                <span className="ml-3 text-[20px]">▸</span>
-              </Link>
+              </TapeCTA>
               <Link
                 href="/artists"
                 className="text-[10px] uppercase tracking-[0.2em] text-white/70 hover:text-black hover:bg-pink border-2 hairline px-6 py-5 press font-body self-start inline-flex items-center"
@@ -125,7 +122,7 @@ export default async function Home() {
                       {s.title}
                     </div>
                   </div>
-                  <h3 className="font-display text-white text-[36px] md:text-[48px] tracking-wide leading-[0.95]">
+                  <h3 className="font-display text-white text-[32px] md:text-[48px] tracking-wide leading-[0.95]">
                     {i === 1 ? (
                       <>
                         <span className="slash"><span>{s.title}</span></span>
@@ -176,7 +173,10 @@ export default async function Home() {
                   <img
                     src={d.src}
                     alt={d.alt}
+                    width={640}
+                    height={640}
                     loading="lazy"
+                    decoding="async"
                     className="w-full aspect-square object-cover"
                   />
                   <figcaption className="px-3 py-2.5 flex items-baseline justify-between gap-2">

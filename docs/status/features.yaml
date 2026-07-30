@@ -144,7 +144,7 @@ features:
       - docs/adr/0033-artist-ownership-is-human-verified.md
     limitations:
       - Identity approval is deliberately human-operated at launch.
-      - Instagram OAuth and consented media still require the Meta setup tracked in TAT-40.
+      - Instagram OAuth can strengthen an already-approved identity but does not bypass the human claim approval.
 
   artist_profile_management:
     status: implemented
@@ -155,7 +155,22 @@ features:
       - src/lib/artist-profile.test.ts
     limitations:
       - Instagram handle changes require manual review because the handle is the identity anchor.
-      - Portfolio media waits for the consented-media path in TAT-40.
+
+  artist_instagram_portfolio:
+    status: implemented_unverified
+    evidence:
+      - docs/adr/0037-artist-authorized-instagram-portfolios.md
+      - src/app/artist/profile/InstagramPortfolioManager.tsx
+      - src/app/api/v1/artist/instagram/connect/route.ts
+      - src/app/api/v1/artist/instagram/callback/route.ts
+      - src/app/api/v1/artist/instagram/media/route.ts
+      - src/lib/artist-instagram.test.ts
+      - src/lib/artist-portfolio-posts.test.ts
+      - src/app/api/v1/artist/instagram/connect/route.test.ts
+      - src/app/api/v1/artist/instagram/callback/route.test.ts
+    limitations:
+      - Meta Advanced Access and the production callback allowlist still need live verification.
+      - Meta's API exposes owned media only for Professional and Creator accounts.
 
   artist_calendar:
     status: implemented_unverified

@@ -18,6 +18,7 @@ import { scoreRecord } from './confidence';
 const VIBE_MAX = 140;
 const SCENE_MAX = 120;
 const CAST_FALLBACK_MAX = 90;
+const REFERENCE_MAX = 120;
 
 function truncateAtWord(text: string, max: number): string {
   if (text.length <= max) return text;
@@ -75,4 +76,32 @@ export function buildSessionNotes(
   if (vibe) notes.vibe = truncateAtWord(vibe, VIBE_MAX);
 
   return notes;
+}
+
+/**
+ * Overlay reference-image rows onto an engine-built projection (TAT-50).
+ * The engine builds notes from the record it extracted THIS turn; analyzed
+ * reference images live on the session, so the integration layer overlays
+ * them here — inside the whitelist file, so the boundary discipline stays
+ * in one place. Only the designed summary line crosses; the raw analysis
+ * structure never does. `record` is the reference-merged record, so the
+ * IP heads-up and readiness reflect what the references contributed
+ * (a recognized character in a photo fires the same heads-up as a text
+ * mention), and the cast falls back to reference-recognized characters
+ * when the conversation itself named none.
+ */
+export function withReferenceNotes(
+  notes: SessionNotes,
+  record: Partial<IntakeRecord>,
+  referenceSummaries: string[],
+  referenceCast: string[] = []
+): SessionNotes {
+  if (referenceSummaries.length === 0) return notes;
+  return {
+    ...notes,
+    references: referenceSummaries.map((summary) => truncateAtWord(summary, REFERENCE_MAX)),
+    cast: notes.cast.length > 0 ? notes.cast : referenceCast,
+    ipHeadsUp: notes.ipHeadsUp || Boolean((record.subject ?? '').trim()),
+    sufficient: scoreRecord(record).hasRequiredFields,
+  };
 }

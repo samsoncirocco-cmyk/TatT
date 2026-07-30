@@ -28,7 +28,7 @@ export default function GeneratePage() {
               ◂ Back to Design
             </TapeCTA>
             <span className="hidden sm:inline">
-              <span className="text-pink">●</span>&nbsp;&nbsp;The&nbsp;Studio&nbsp;— Legacy&nbsp;Editor
+              <span className="text-pink">●</span>&nbsp;&nbsp;The&nbsp;Studio&nbsp;— Layer&nbsp;Editor
             </span>
           </div>
           <span>Status:&nbsp;<span className="text-pink">Live</span></span>

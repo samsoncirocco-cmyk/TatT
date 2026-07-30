@@ -200,24 +200,23 @@ export default function InpaintingEditor({ imageUrl, onClose, onSave }) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-90 z-50 overflow-y-auto">
       <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="glass-panel border border-white/10 rounded-2xl shadow-xl max-w-5xl w-full text-white">
+        <div className="bg-black border-2 border-pink max-w-5xl w-full text-white">
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-white/10">
+          <div className="flex items-center justify-between px-6 py-4 border-b-2 hairline">
             <div>
-              <h2 className="text-2xl font-bold text-white">
-                Edit Your Design
+              <h2 className="text-[20px] font-display tracking-wide uppercase text-white leading-none">
+                <span className="text-pink">●</span>&nbsp;&nbsp;Edit Your Design
               </h2>
-              <p className="text-sm text-white/60 mt-1">
+              <p className="text-[11px] text-white/60 mt-2 font-body">
                 Paint over areas you want to change, then describe what you'd like instead
               </p>
             </div>
             <button
               onClick={onClose}
-              className="text-white/60 hover:text-white transition-colors"
+              className="text-[10px] font-body uppercase tracking-[0.22em] text-white/60 hover:text-pink"
+              aria-label="Close editor"
             >
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              Close ✕
             </button>
           </div>
 
@@ -376,10 +375,10 @@ export default function InpaintingEditor({ imageUrl, onClose, onSave }) {
                   <button
                     onClick={handleInpaint}
                     disabled={isProcessing || !prompt.trim() || !imageLoaded}
-                    className={`w-full py-4 rounded-lg font-semibold text-white transition-all ${
+                    className={`press w-full py-4 font-display uppercase text-[14px] tracking-[0.2em] transition-colors ${
                       isProcessing || !prompt.trim() || !imageLoaded
-                        ? 'bg-white/20 cursor-not-allowed'
-                        : 'bg-ducks-yellow text-black hover:bg-white active:scale-98'
+                        ? 'bg-white/20 text-white/50 cursor-not-allowed'
+                        : 'bg-pink text-black hover:bg-pink-deep'
                     }`}
                   >
                     {isProcessing ? (

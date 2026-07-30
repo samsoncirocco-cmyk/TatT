@@ -48,8 +48,10 @@ export default {
         hard: '6px 6px 0 rgba(245,245,240,0.22)',
       },
       fontFamily: {
-        display: ['"Anton"', 'Impact', 'Arial Narrow', 'sans-serif'],
-        body:    ['"Space Mono"', 'Menlo', 'monospace'],
+        // Self-hosted via next/font in src/app/layout.tsx; the quoted names
+        // stay as fallbacks for surfaces rendered outside the root layout.
+        display: ['var(--font-anton)', '"Anton"', 'Impact', 'Arial Narrow', 'sans-serif'],
+        body:    ['var(--font-space-mono)', '"Space Mono"', 'Menlo', 'monospace'],
       },
       borderRadius: {
         none: '0',
