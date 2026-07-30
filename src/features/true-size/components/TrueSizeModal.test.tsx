@@ -3,6 +3,15 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import TrueSizeModal from "./TrueSizeModal";
 import { CALIBRATION_STORAGE_KEY } from "../utils/calibrationStore";
 import { CARD_WIDTH_MM } from "../utils/trueSizeMath";
+import { PRINT_TOO_BIG_MESSAGE } from "../utils/printAtScale";
+
+/** jsdom never loads images — fire onLoad by hand with chosen dimensions. */
+function loadPreviewImage(width: number, height: number) {
+  const img = screen.getByTestId("true-size-image");
+  Object.defineProperty(img, "naturalWidth", { value: width });
+  Object.defineProperty(img, "naturalHeight", { value: height });
+  fireEvent.load(img);
+}
 
 function seedCalibration(pxPerMm: number) {
   window.localStorage.setItem(
@@ -87,6 +96,36 @@ describe("TrueSizeModal", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "cm" }));
     expect(input.value).toBe("9.9"); // 3.9in re-displayed in cm
+  });
+
+  it("disables print while the preview is still loading — without claiming it's too big", () => {
+    seedCalibration(4);
+    renderModal();
+
+    const download = screen.getByRole("button", {
+      name: /download print-ready pdf/i,
+    }) as HTMLButtonElement;
+    expect(download.disabled).toBe(true);
+    expect(screen.queryByText(PRINT_TOO_BIG_MESSAGE)).toBeNull();
+
+    loadPreviewImage(1000, 1000);
+    expect(download.disabled).toBe(false);
+  });
+
+  it("refuses honestly when the chosen width cannot print on one sheet", () => {
+    seedCalibration(4);
+    renderModal();
+    loadPreviewImage(1000, 1000);
+
+    fireEvent.change(screen.getByLabelText(/width/i), {
+      target: { value: "25" }, // 25cm — wider than letter/A4 printable width
+    });
+
+    const download = screen.getByRole("button", {
+      name: /download print-ready pdf/i,
+    }) as HTMLButtonElement;
+    expect(download.disabled).toBe(true);
+    expect(screen.getByText(PRINT_TOO_BIG_MESSAGE)).toBeTruthy();
   });
 
   it("offers the plain print instruction", () => {
