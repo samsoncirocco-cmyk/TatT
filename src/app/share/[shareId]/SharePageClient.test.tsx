@@ -82,6 +82,17 @@ describe("SharePageClient — what a stranger actually sees", () => {
     expect(screen.queryByText("Copied ✓")).toBeNull();
   });
 
+  // The decision engine (TAT-52): the page must ask the question, not just
+  // display the design — and the share copy must invite forwarding.
+  it("offers the vote and invites the visitor to poll their own people", () => {
+    render(<SharePageClient design={base} />);
+
+    expect(screen.getByRole("button", { name: /get it/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /sleep on it/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /absolutely not/i })).toBeTruthy();
+    expect(screen.getByText(/borrow this link — poll your people/i)).toBeTruthy();
+  });
+
   // The page is the first thing a stranger sees, so it has to be on-system:
   // no purple, no grey scale, no radii, no emoji wordmark.
   it("carries no off-system styling", () => {

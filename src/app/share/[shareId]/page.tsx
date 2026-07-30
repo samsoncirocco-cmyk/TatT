@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { SharePageClient } from './SharePageClient';
+import type { ShareVoteTally } from '@/lib/share-votes';
 
 interface SharedDesign {
   shareId: string;
@@ -13,6 +14,8 @@ interface SharedDesign {
   bodyPart?: string;
   sharedAt: string;
   views: number;
+  /** Friend-vote tally (TAT-52). Absent from responses of older deploys. */
+  votes?: Partial<ShareVoteTally>;
 }
 
 async function getDesign(shareId: string): Promise<SharedDesign | null> {

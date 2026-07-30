@@ -77,6 +77,15 @@ export const API_ROUTE_SECURITY: Record<string, RouteSecurityEntry> = {
     class: 'public',
     reason: 'Public share links are the product feature: read-only fetch of a design by unguessable shareId.',
   },
+  'v1/designs/share/[shareId]/vote': {
+    class: 'public',
+    reason:
+      'Friend voting on a shared design (TAT-52) is anonymous BY DESIGN — the friend in the ' +
+      'group chat has no account and must not need one. Scope is one atomic counter increment ' +
+      'on a share reached only by its unguessable shareId; the tally feeds nothing downstream ' +
+      '(no spend, no matching). Abuse posture: per-IP rate limit via the shared rate-limit lib, ' +
+      'one-vote-per-browser dedupe client-side; fails closed 503 when no durable store is wired.',
+  },
   'v1/artists/takedown': {
     class: 'public',
     reason:
