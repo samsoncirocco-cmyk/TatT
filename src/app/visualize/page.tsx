@@ -13,7 +13,10 @@ import { smartMatchUrlForDesign } from '@/lib/design-style-signal';
 const FEATURES = [
   { label: 'Live camera', desc: 'Your design composited onto the real feed.' },
   { label: 'You place it', desc: 'Drag, scale and rotate — no guessing.' },
-  { label: 'Save the view', desc: 'Export exactly what you see on screen.' },
+  {
+    label: 'Snap it, send it',
+    desc: 'Still or 3-sec clip, straight to the group chat — let them argue.',
+  },
 ];
 
 /**

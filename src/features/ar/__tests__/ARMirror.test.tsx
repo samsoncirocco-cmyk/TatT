@@ -1,5 +1,39 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
+
+/**
+ * The capture pipeline and link resolver have their own suites
+ * (captureService.test.ts, shareCapture.test.ts, shareLink.test.ts); here
+ * they are mocked so the component tests exercise the mirror's wiring —
+ * which buttons exist, what a tap does, what state each outcome renders —
+ * without jsdom needing to encode video.
+ */
+const captureMocks = vi.hoisted(() => ({
+  clipSupported: true,
+  downloadBlob: vi.fn(),
+  recordCanvasClip: vi.fn(),
+  shareLink: null as string | null,
+}));
+
+vi.mock('@/services/ar/captureService', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/services/ar/captureService')>();
+  return {
+    ...actual,
+    checkClipSupport: () =>
+      captureMocks.clipSupported
+        ? { supported: true, mime: { mimeType: 'video/webm', extension: 'webm' } }
+        : { supported: false, mime: null },
+    compositeFrame: vi.fn(),
+    canvasToPngBlob: vi.fn(async () => new Blob(['png'], { type: 'image/png' })),
+    recordCanvasClip: captureMocks.recordCanvasClip,
+    downloadBlob: captureMocks.downloadBlob,
+  };
+});
+
+vi.mock('../shareLink', () => ({
+  resolveShareLink: vi.fn(async () => captureMocks.shareLink),
+}));
+
 import ARMirror from '../components/ARMirror';
 
 /**
@@ -72,11 +106,19 @@ const designs = [
 
 /** Prototype descriptors we replace, so they can be put back exactly. */
 const mediaProto = HTMLMediaElement.prototype;
+const videoProto = HTMLVideoElement.prototype;
 const originalPlay = Object.getOwnPropertyDescriptor(mediaProto, 'play');
 const originalReadyState = Object.getOwnPropertyDescriptor(mediaProto, 'readyState');
+const originalVideoWidth = Object.getOwnPropertyDescriptor(videoProto, 'videoWidth');
+const originalVideoHeight = Object.getOwnPropertyDescriptor(videoProto, 'videoHeight');
 
 beforeEach(() => {
   vi.stubGlobal('isSecureContext', true);
+  captureMocks.clipSupported = true;
+  captureMocks.shareLink = null;
+  captureMocks.downloadBlob.mockClear();
+  captureMocks.recordCanvasClip.mockReset();
+  captureMocks.recordCanvasClip.mockResolvedValue(new Blob(['webm'], { type: 'video/webm' }));
   // jsdom has no media element playback.
   Object.defineProperty(mediaProto, 'play', {
     configurable: true,
@@ -86,6 +128,9 @@ beforeEach(() => {
     configurable: true,
     get: () => 1,
   });
+  // jsdom video never has dimensions; captures need a non-zero frame.
+  Object.defineProperty(videoProto, 'videoWidth', { configurable: true, get: () => SIZE });
+  Object.defineProperty(videoProto, 'videoHeight', { configurable: true, get: () => SIZE });
 });
 
 afterEach(() => {
@@ -98,6 +143,10 @@ afterEach(() => {
   else Reflect.deleteProperty(mediaProto, 'play');
   if (originalReadyState) Object.defineProperty(mediaProto, 'readyState', originalReadyState);
   else Reflect.deleteProperty(mediaProto, 'readyState');
+  if (originalVideoWidth) Object.defineProperty(videoProto, 'videoWidth', originalVideoWidth);
+  else Reflect.deleteProperty(videoProto, 'videoWidth');
+  if (originalVideoHeight) Object.defineProperty(videoProto, 'videoHeight', originalVideoHeight);
+  else Reflect.deleteProperty(videoProto, 'videoHeight');
 });
 
 /** Click and let the resulting async state updates settle. */
@@ -232,5 +281,127 @@ describe('ARMirror', () => {
     stubCamera(async () => ({ getTracks: () => [makeTrack()] }));
     render(<ARMirror designs={designs} />);
     expect(screen.queryByRole('link', { name: /find your artist/i })).toBeNull();
+  });
+});
+
+/** Boot the mirror to a live camera with the flash overlay composited. */
+async function startWithOverlay(nav?: Record<string, unknown>) {
+  installImageStub();
+  vi.stubGlobal('navigator', {
+    mediaDevices: { getUserMedia: vi.fn(async () => ({ getTracks: () => [makeTrack()] })) },
+    ...nav,
+  });
+  render(<ARMirror designs={designs} initialSelectedId="a" />);
+  await startCamera();
+  await waitFor(() => expect(screen.getByRole('button', { name: /snap it/i })).toBeTruthy());
+}
+
+describe('ARMirror placement guides', () => {
+  it('is OFF by default — the mirror never draws on the body uninvited', async () => {
+    await startWithOverlay();
+    expect(screen.queryByTestId('placement-guide')).toBeNull();
+    expect(screen.getByRole('button', { name: /guides: off/i })).toBeTruthy();
+  });
+
+  it('cycles forearm → wrist → upper arm → off, with a hint while on', async () => {
+    await startWithOverlay();
+    const toggle = () => screen.getByRole('button', { name: /guides:/i });
+
+    await clickAsync(toggle());
+    expect(screen.getByTestId('placement-guide').getAttribute('data-guide')).toBe('forearm');
+    expect(screen.getByText(/line your forearm up/i)).toBeTruthy();
+
+    await clickAsync(toggle());
+    expect(screen.getByTestId('placement-guide').getAttribute('data-guide')).toBe('wrist');
+
+    await clickAsync(toggle());
+    expect(screen.getByTestId('placement-guide').getAttribute('data-guide')).toBe('upper-arm');
+
+    await clickAsync(toggle());
+    expect(screen.queryByTestId('placement-guide')).toBeNull();
+  });
+});
+
+describe('ARMirror capture & share loop', () => {
+  it('offers the clip button only when the browser can record', async () => {
+    await startWithOverlay();
+    expect(screen.getByRole('button', { name: /3-sec clip/i })).toBeTruthy();
+  });
+
+  it('hides the clip button on browsers that cannot record — stills only, no dead button', async () => {
+    captureMocks.clipSupported = false;
+    await startWithOverlay();
+    expect(screen.queryByRole('button', { name: /3-sec clip/i })).toBeNull();
+    expect(screen.getByRole('button', { name: /snap it/i })).toBeTruthy();
+  });
+
+  it('a snap produces a local capture waiting on an explicit exit — nothing auto-downloads', async () => {
+    await startWithOverlay();
+    await clickAsync(screen.getByRole('button', { name: /snap it/i }));
+
+    await waitFor(() => expect(screen.getByText(/got the shot/i)).toBeTruthy());
+    expect(screen.getByRole('button', { name: /send it to the group chat/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /save it/i })).toBeTruthy();
+    // The capture exists only in memory until the user picks a door.
+    expect(captureMocks.downloadBlob).not.toHaveBeenCalled();
+  });
+
+  it('a clip records through the canvas recorder and lands in the same card', async () => {
+    await startWithOverlay();
+    await clickAsync(screen.getByRole('button', { name: /3-sec clip/i }));
+
+    await waitFor(() => expect(screen.getByText(/got the clip/i)).toBeTruthy());
+    expect(captureMocks.recordCanvasClip).toHaveBeenCalledOnce();
+  });
+
+  it('"save it" downloads locally', async () => {
+    await startWithOverlay();
+    await clickAsync(screen.getByRole('button', { name: /snap it/i }));
+    await waitFor(() => expect(screen.getByText(/got the shot/i)).toBeTruthy());
+
+    await clickAsync(screen.getByRole('button', { name: /save it/i }));
+    expect(captureMocks.downloadBlob).toHaveBeenCalledOnce();
+    const [, filename] = captureMocks.downloadBlob.mock.calls[0];
+    expect(filename).toMatch(/^tatt-ar-still-\d+\.png$/);
+  });
+
+  it('send uses the OS share sheet with the capture, the ask, and the design link', async () => {
+    captureMocks.shareLink = 'https://t.example/share/s1';
+    const share = vi.fn(async () => {});
+    await startWithOverlay({ share, canShare: () => true });
+
+    await clickAsync(screen.getByRole('button', { name: /snap it/i }));
+    await waitFor(() => expect(screen.getByText(/got the shot/i)).toBeTruthy());
+    await clickAsync(screen.getByRole('button', { name: /send it to the group chat/i }));
+
+    await waitFor(() => expect(share).toHaveBeenCalledOnce());
+    const data = share.mock.calls[0][0] as ShareData;
+    expect(data.files?.[0]?.name).toMatch(/^tatt-ar-still-\d+\.png$/);
+    expect(data.text).toMatch(/should I get/i);
+    expect(data.url).toBe('https://t.example/share/s1');
+    await waitFor(() => expect(screen.getByText(/sent\. now let them argue/i)).toBeTruthy());
+    // The share sheet is the exit — no parallel download.
+    expect(captureMocks.downloadBlob).not.toHaveBeenCalled();
+  });
+
+  it('falls back to download + guidance when the browser has no file share', async () => {
+    await startWithOverlay(); // navigator without share/canShare
+    await clickAsync(screen.getByRole('button', { name: /snap it/i }));
+    await waitFor(() => expect(screen.getByText(/got the shot/i)).toBeTruthy());
+
+    await clickAsync(screen.getByRole('button', { name: /send it to the group chat/i }));
+
+    await waitFor(() => expect(captureMocks.downloadBlob).toHaveBeenCalledOnce());
+    expect(screen.getByText(/no share sheet on this browser/i)).toBeTruthy();
+  });
+
+  it('switching designs discards the capture — a shot of design A must not ship as design B', async () => {
+    await startWithOverlay();
+    await clickAsync(screen.getByRole('button', { name: /snap it/i }));
+    await waitFor(() => expect(screen.getByText(/got the shot/i)).toBeTruthy());
+
+    await clickAsync(screen.getByTitle('On-skin render'));
+
+    await waitFor(() => expect(screen.queryByText(/got the shot/i)).toBeNull());
   });
 });

@@ -1,10 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import StudioShell from "@/components/studio/StudioShell";
 import SlashHeadline from "@/components/punk/SlashHeadline";
-import { useDesigns, type TattDesign } from "@/lib/tattStorage";
+import { useDesigns, useFavorites, type TattDesign } from "@/lib/tattStorage";
+import { useMatchStore } from "@/store/useMatchStore";
+import {
+  deriveTasteProfile,
+  pinnedArtistStyles,
+  smartMatchUrlForTaste,
+} from "@/lib/taste-profile";
 import { ManageBillingButton } from "@/components/billing/BillingButtons";
 
 function formatEdited(ts: number): string {
@@ -25,6 +31,75 @@ function deriveTitle(d: TattDesign): string {
   if (d.title) return d.title;
   const words = d.prompt.split(/[\s,]+/).filter(Boolean).slice(0, 3);
   return words.length ? words.join(" ") : "Untitled cut";
+}
+
+/**
+ * "Your ink identity (so far)" — the emerging-taste read at the top of
+ * the library. Computes ENTIRELY client-side from data already on this
+ * device: the local design library plus pinned artists whose styles the
+ * persisted match deck happens to know (ADR-0022, log now / personalize
+ * later). No new APIs, no server-side taste profile — any cross-session
+ * or global profile belongs to the SMS/global-taste lane, not here.
+ * Hidden outright below two local data points: no cold-start fakery.
+ */
+function TasteCard({ designs, hydrated }: { designs: TattDesign[]; hydrated: boolean }) {
+  const { favorites, hydrated: favoritesHydrated } = useFavorites();
+  const matches = useMatchStore((s) => s.matches);
+  const matchesHydrated = useMatchStore((s) => s.hasHydrated);
+
+  const profile = useMemo(() => {
+    if (!hydrated || !favoritesHydrated) return null;
+    const pins = matchesHydrated ? pinnedArtistStyles(matches, favorites) : [];
+    return deriveTasteProfile(designs, pins);
+  }, [designs, hydrated, favorites, favoritesHydrated, matches, matchesHydrated]);
+
+  if (!profile) return null;
+
+  const unit = profile.pinCount > 0 ? "saves & pins" : "saves";
+
+  return (
+    <section
+      aria-label="Your ink identity so far"
+      className="mt-10 border-2 hairline px-6 py-6 md:px-8 md:py-7"
+    >
+      <div className="flex items-center justify-between gap-4 text-[10px] uppercase tracking-[0.25em] font-body">
+        <span className="text-white/50">
+          <span className="text-pink">●</span>&nbsp;&nbsp;Your ink identity (so far)
+        </span>
+        {profile.earlyRead && (
+          <span className="text-white/40 tabular-nums">
+            early read — {profile.dataPoints} {unit} in
+          </span>
+        )}
+      </div>
+      <p className="mt-4 font-display text-[26px] md:text-[34px] leading-[1.05] text-white">
+        {profile.line}
+        <span className="text-pink">.</span>
+      </p>
+      <div className="mt-5 flex flex-wrap items-center gap-3">
+        {profile.topStyles.map(({ style, count }) => (
+          <span
+            key={style}
+            className="border-2 hairline px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-white/70 font-body tabular-nums"
+          >
+            {style} <span className="text-pink">×{count}</span>
+          </span>
+        ))}
+        {profile.palette && (
+          <span className="border-2 hairline px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-white/70 font-body">
+            {profile.palette === "blackwork" ? "black ink, mostly" : "color, mostly"}
+          </span>
+        )}
+        <Link
+          href={smartMatchUrlForTaste(profile)}
+          className="ml-auto border-2 hairline press inline-flex items-center justify-center px-6 py-3 font-display text-[20px] leading-none tracking-[0.02em] text-white hover:text-black hover:bg-pink hover:border-pink"
+        >
+          Find artists who match your taste
+          <span className="ml-2 text-[14px]">▸</span>
+        </Link>
+      </div>
+    </section>
+  );
 }
 
 export default function DesignsPage() {
@@ -123,6 +198,8 @@ export default function DesignsPage() {
               </Link>
             </div>
           </div>
+
+          <TasteCard designs={designs} hydrated={hydrated} />
 
           {showEmpty ? (
             <div className="mt-20 border-2 hairline py-20 px-6 text-center">
