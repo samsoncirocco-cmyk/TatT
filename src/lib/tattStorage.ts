@@ -9,15 +9,17 @@
  */
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { startCloudSync, stopCloudSync, queueCloudWrite } from "@/lib/cloudSync";
 import { mapFirebaseAuthError } from "@/lib/authErrors";
+import { resolveCanonicalStyle } from "@/lib/style-vocabulary";
 
 export const STORAGE_KEYS = {
   designs: "tatt:designs",
   favorites: "tatt:favorites",
   bookings: "tatt:bookings",
   user: "tatt:user",
+  stylePreferences: "tatt:style-preferences",
 } as const;
 
 // Cross-tab + same-tab listeners
@@ -114,6 +116,7 @@ function useStoredList<T>(key: string): {
   const [items, setItemsState] = useState<T[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
+  /* eslint-disable react-hooks/set-state-in-effect -- hydration reads an external localStorage source */
   useEffect(() => {
     setItemsState(safeRead<T[]>(key, []));
     setHydrated(true);
@@ -131,6 +134,7 @@ function useStoredList<T>(key: string): {
       window.removeEventListener("storage", storageSync);
     };
   }, [key]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const setItems = useCallback(
     (next: T[]) => {
@@ -243,6 +247,48 @@ export function useFavorites() {
   );
 
   return { favorites: items, hydrated, isFavorite, toggleFavorite };
+}
+
+// ─── Taste profile ─────────────────────────────────────────────────────
+
+function normalizeStylePreferences(styles: unknown): string[] {
+  if (!Array.isArray(styles)) return [];
+
+  const canonical = styles
+    .map((style) =>
+      resolveCanonicalStyle(typeof style === "string" ? style : null),
+    )
+    .filter((style): style is string => style !== null);
+
+  return [...new Set(canonical)];
+}
+
+/**
+ * The customer's durable style memory. Keeping this beside the other
+ * customer-facing local data means Settings and artist matching speak through
+ * one source of truth instead of each presenting a disconnected set of pills.
+ */
+export function useStylePreferences() {
+  const { items, hydrated, setItems } = useStoredList<string>(
+    STORAGE_KEYS.stylePreferences,
+  );
+  const stylePreferences = useMemo(
+    () => normalizeStylePreferences(items),
+    [items],
+  );
+
+  const setStylePreferences = useCallback(
+    (styles: string[]) => {
+      setItems(normalizeStylePreferences(styles));
+    },
+    [setItems],
+  );
+
+  return {
+    stylePreferences,
+    hydrated,
+    setStylePreferences,
+  };
 }
 
 // ─── Bookings ──────────────────────────────────────────────────────────

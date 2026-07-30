@@ -54,6 +54,7 @@ export default async function BookPage({
           availabilityStatus: availability.status,
           availabilityLabel: availabilityLabel(availability.status),
           availabilityNote: availability.note ?? null,
+          claimed: found.claimed,
         };
 
         // Reservation or request, decided per artist from live signals. The

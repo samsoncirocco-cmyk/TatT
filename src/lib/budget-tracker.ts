@@ -1,4 +1,5 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import { createHash } from 'node:crypto';
 import { ensureAdminApp } from './firebase-admin';
 import { logger } from './logger';
 import { writeBudgetMetric } from './monitoring-client';
@@ -41,8 +42,324 @@ export type BudgetResult = {
   remainingCents: number;
 };
 
+export type BudgetReservationResult = BudgetResult & {
+  acquired: boolean;
+  status: 'reserved' | 'billed' | 'denied';
+  reservedCents: number;
+  leaseExpiresAtMs: number | null;
+  takeover: boolean;
+};
+
+export type BudgetReservationOptions = {
+  ownerId: string;
+  leaseMs: number;
+};
+
 function isPeriodExpired(periodStartMs: number, config: BudgetConfig): boolean {
   return Date.now() - periodStartMs >= config.periodMs;
+}
+
+function reservationDocumentId(reservationKey: string): string {
+  return createHash('sha256').update(reservationKey).digest('hex');
+}
+
+/**
+ * Atomically reserve budget before paid asynchronous work.
+ *
+ * Unlike checkBudget/recordSpend, this is deliberately fail-closed and
+ * idempotent. A repeated reservation key never acquires a second right to
+ * spend, which lets Cloud Tasks retries distinguish the one dispatch allowed
+ * to call a provider from followers that must wait/recover.
+ */
+export async function reserveSpend(
+  reservationKey: string,
+  amountCents: number,
+  options: BudgetReservationOptions,
+  config: BudgetConfig = DEFAULT_BUDGET
+): Promise<BudgetReservationResult> {
+  if (!ensureAdminApp()) throw new Error('Firebase Admin not configured');
+
+  const db = getFirestore();
+  const budgetRef = db.collection('budget').doc('global');
+  const reservationRef = db
+    .collection('budgetReservations')
+    .doc(reservationDocumentId(reservationKey));
+  const requestedCents = Math.max(0, Math.floor(amountCents));
+
+  const result = await db.runTransaction(async (tx) => {
+    const [budgetSnap, reservationSnap] = await Promise.all([
+      tx.get(budgetRef),
+      tx.get(reservationRef),
+    ]);
+    const reservation = reservationSnap.data() || {};
+    const now = Date.now();
+    if (reservation.status === 'billed') {
+      const reservedCents =
+        typeof reservation.reservedCents === 'number' ? reservation.reservedCents : 0;
+      const budget = budgetSnap.data() || {};
+      const spentCents = typeof budget.spentCents === 'number' ? budget.spentCents : 0;
+      return {
+        allowed: true,
+        acquired: false,
+        status: 'billed' as const,
+        reservedCents,
+        leaseExpiresAtMs: null,
+        takeover: false,
+        spentCents,
+        remainingCents: Math.max(0, config.maxSpendCents - spentCents),
+      };
+    }
+
+    if (reservation.status === 'reserved') {
+      const reservedCents =
+        typeof reservation.reservedCents === 'number' ? reservation.reservedCents : 0;
+      const leaseExpiresAtMs =
+        typeof reservation.leaseExpiresAtMs === 'number' ? reservation.leaseExpiresAtMs : 0;
+      const budget = budgetSnap.data() || {};
+      const spentCents = typeof budget.spentCents === 'number' ? budget.spentCents : 0;
+
+      if (leaseExpiresAtMs > now) {
+        return {
+          allowed: true,
+          acquired: false,
+          status: 'reserved' as const,
+          reservedCents,
+          leaseExpiresAtMs,
+          takeover: false,
+          spentCents,
+          remainingCents: Math.max(0, config.maxSpendCents - spentCents),
+        };
+      }
+
+      const renewedLeaseExpiresAtMs = now + Math.max(1, Math.floor(options.leaseMs));
+      tx.set(
+        reservationRef,
+        {
+          ownerId: options.ownerId,
+          leaseExpiresAtMs: renewedLeaseExpiresAtMs,
+          takeoverCount: FieldValue.increment(1),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+      return {
+        allowed: true,
+        acquired: true,
+        status: 'reserved' as const,
+        reservedCents,
+        leaseExpiresAtMs: renewedLeaseExpiresAtMs,
+        takeover: true,
+        spentCents,
+        remainingCents: Math.max(0, config.maxSpendCents - spentCents),
+      };
+    }
+
+    const budget = budgetSnap.data() || {};
+    const storedPeriodStart =
+      typeof budget.periodStartMs === 'number' ? budget.periodStartMs : now;
+    const periodExpired = !budgetSnap.exists || isPeriodExpired(storedPeriodStart, config);
+    const periodStartMs = periodExpired ? now : storedPeriodStart;
+    const spentCents =
+      periodExpired || typeof budget.spentCents !== 'number' ? 0 : budget.spentCents;
+
+    if (spentCents + requestedCents > config.maxSpendCents) {
+      return {
+        allowed: false,
+        acquired: false,
+        status: 'denied' as const,
+        reservedCents: 0,
+        leaseExpiresAtMs: null,
+        takeover: false,
+        spentCents,
+        remainingCents: Math.max(0, config.maxSpendCents - spentCents),
+      };
+    }
+
+    const newTotalCents = spentCents + requestedCents;
+    const leaseExpiresAtMs = now + Math.max(1, Math.floor(options.leaseMs));
+    tx.set(
+      budgetRef,
+      {
+        periodStartMs,
+        spentCents: newTotalCents,
+        lastUpdated: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+    tx.set(
+      reservationRef,
+      {
+        reservationKey,
+        status: 'reserved',
+        reservedCents: requestedCents,
+        periodStartMs,
+        ownerId: options.ownerId,
+        leaseExpiresAtMs,
+        takeoverCount: 0,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    return {
+      allowed: true,
+      acquired: true,
+      status: 'reserved' as const,
+      reservedCents: requestedCents,
+      leaseExpiresAtMs,
+      takeover: false,
+      spentCents: newTotalCents,
+      remainingCents: config.maxSpendCents - newTotalCents,
+    };
+  });
+
+  if (result.acquired) {
+    await writeBudgetMetric(result.spentCents).catch((error) => {
+      logger.warn({
+        event_type: 'budget.metric_write_failed',
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+  }
+  return result;
+}
+
+/**
+ * Mark a reservation billable and reconcile its estimate to actual spend.
+ * Repeating this call is idempotent.
+ */
+export async function reconcileReservedSpend(
+  reservationKey: string,
+  actualCents: number
+): Promise<void> {
+  if (!ensureAdminApp()) throw new Error('Firebase Admin not configured');
+
+  const db = getFirestore();
+  const budgetRef = db.collection('budget').doc('global');
+  const reservationRef = db
+    .collection('budgetReservations')
+    .doc(reservationDocumentId(reservationKey));
+  const billedCents = Math.max(0, Math.floor(actualCents));
+  let newTotalCents: number | null = null;
+
+  await db.runTransaction(async (tx) => {
+    const [budgetSnap, reservationSnap] = await Promise.all([
+      tx.get(budgetRef),
+      tx.get(reservationRef),
+    ]);
+    const reservation = reservationSnap.data() || {};
+    if (reservation.status === 'billed') return;
+    if (reservation.status !== 'reserved') {
+      throw new Error('Budget reservation is not active');
+    }
+
+    const reservedCents =
+      typeof reservation.reservedCents === 'number' ? reservation.reservedCents : 0;
+    const budget = budgetSnap.data() || {};
+    const budgetPeriodStart =
+      typeof budget.periodStartMs === 'number' ? budget.periodStartMs : null;
+    const reservationPeriodStart =
+      typeof reservation.periodStartMs === 'number' ? reservation.periodStartMs : null;
+
+    if (budgetPeriodStart !== null && budgetPeriodStart === reservationPeriodStart) {
+      const spentCents = typeof budget.spentCents === 'number' ? budget.spentCents : 0;
+      newTotalCents = Math.max(0, spentCents + billedCents - reservedCents);
+      tx.set(
+        budgetRef,
+        {
+          spentCents: newTotalCents,
+          lastUpdated: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    }
+
+    tx.set(
+      reservationRef,
+      {
+        status: 'billed',
+        actualCents: billedCents,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  });
+
+  if (newTotalCents !== null) {
+    await writeBudgetMetric(newTotalCents).catch((error) => {
+      logger.warn({
+        event_type: 'budget.metric_write_failed',
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+  }
+}
+
+/**
+ * Return a reservation to the pool only when provider work did not succeed.
+ * A billed reservation is never refundable through this path.
+ */
+export async function releaseReservedSpend(
+  reservationKey: string,
+  ownerId: string
+): Promise<void> {
+  if (!ensureAdminApp()) throw new Error('Firebase Admin not configured');
+
+  const db = getFirestore();
+  const budgetRef = db.collection('budget').doc('global');
+  const reservationRef = db
+    .collection('budgetReservations')
+    .doc(reservationDocumentId(reservationKey));
+  let newTotalCents: number | null = null;
+
+  await db.runTransaction(async (tx) => {
+    const [budgetSnap, reservationSnap] = await Promise.all([
+      tx.get(budgetRef),
+      tx.get(reservationRef),
+    ]);
+    const reservation = reservationSnap.data() || {};
+    if (reservation.status !== 'reserved' || reservation.ownerId !== ownerId) return;
+
+    const reservedCents =
+      typeof reservation.reservedCents === 'number' ? reservation.reservedCents : 0;
+    const budget = budgetSnap.data() || {};
+    const budgetPeriodStart =
+      typeof budget.periodStartMs === 'number' ? budget.periodStartMs : null;
+    const reservationPeriodStart =
+      typeof reservation.periodStartMs === 'number' ? reservation.periodStartMs : null;
+
+    if (budgetPeriodStart !== null && budgetPeriodStart === reservationPeriodStart) {
+      const spentCents = typeof budget.spentCents === 'number' ? budget.spentCents : 0;
+      newTotalCents = Math.max(0, spentCents - reservedCents);
+      tx.set(
+        budgetRef,
+        {
+          spentCents: newTotalCents,
+          lastUpdated: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    }
+
+    tx.set(
+      reservationRef,
+      {
+        status: 'released',
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  });
+
+  if (newTotalCents !== null) {
+    await writeBudgetMetric(newTotalCents).catch((error) => {
+      logger.warn({
+        event_type: 'budget.metric_write_failed',
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+  }
 }
 
 export async function checkBudget(_userId?: string, config: BudgetConfig = DEFAULT_BUDGET): Promise<BudgetResult> {
@@ -234,4 +551,3 @@ export async function recordConversationTurnSpend(): Promise<void> {
     }, '[Budget] Firestore unavailable for conversation-turn tracking; skipping.');
   }
 }
-

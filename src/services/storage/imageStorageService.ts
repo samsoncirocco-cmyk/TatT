@@ -54,11 +54,32 @@ function publicUrl(bucketName: string, objectPath: string): string {
   return `https://storage.googleapis.com/${bucketName}/${objectPath}`;
 }
 
+async function retryStorageOperation<T>(operation: () => Promise<T>, attempts = 3): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts) {
+        await new Promise((resolve) => setTimeout(resolve, attempt * 150));
+      }
+    }
+  }
+  throw lastError;
+}
+
+export type GeneratedImageRecovery = {
+  imageUrl: string;
+  actualImageCount: number | null;
+};
+
 export async function uploadGeneratedImage(
   userId: string,
   designId: string,
   versionId: string,
-  imageData: Blob | ArrayBuffer | Uint8Array
+  imageData: Blob | ArrayBuffer | Uint8Array,
+  generation?: { actualImageCount?: number }
 ): Promise<string> {
   if (typeof window !== 'undefined') {
     throw new Error('[ImageStorage] uploadGeneratedImage is server-only');
@@ -73,28 +94,77 @@ export async function uploadGeneratedImage(
     const bucket = storage.bucket(bucketName);
     const file = bucket.file(objectPath);
 
-    await file.save(buffer, {
-      resumable: false,
-      contentType: 'image/png',
-      metadata: {
-        cacheControl: 'public, max-age=31536000, immutable',
+    await retryStorageOperation(() =>
+      file.save(buffer, {
+        resumable: false,
+        contentType: 'image/png',
         metadata: {
-          userId,
-          designId,
-          versionId,
-          uploadedAt: new Date().toISOString(),
+          cacheControl: 'public, max-age=31536000, immutable',
+          metadata: {
+            userId,
+            designId,
+            versionId,
+            uploadedAt: new Date().toISOString(),
+            ...(typeof generation?.actualImageCount === 'number'
+              ? { actualImageCount: String(generation.actualImageCount) }
+              : {}),
+          },
         },
-      },
-    });
+      })
+    );
 
-    // Permanent URL requirement: make the object public.
-    await file.makePublic();
+    // Permanent URL requirement: make the object public. Save and ACL repair
+    // retry independently so a successful private stage survives ACL trouble.
+    await retryStorageOperation(() => file.makePublic());
 
     return publicUrl(bucketName, objectPath);
   } catch (error) {
     console.error('[ImageStorage] Failed to upload image:', error);
     throw new Error(
       `Failed to upload image: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
+}
+
+/**
+ * Recover a deterministically staged generated image. Calling makePublic even
+ * when the object exists repairs the partial-success case where save() worked
+ * but the ACL update failed, which otherwise produces a public URL that 403s.
+ */
+export async function recoverGeneratedImage(
+  userId: string,
+  designId: string,
+  versionId: string
+): Promise<GeneratedImageRecovery | null> {
+  if (typeof window !== 'undefined') {
+    throw new Error('[ImageStorage] recoverGeneratedImage is server-only');
+  }
+
+  const bucketName = getBucketName();
+  const objectPath = `generated/${userId}/${designId}/${versionId}/design.png`;
+
+  try {
+    const storage = getStorageClient();
+    const bucket = storage.bucket(bucketName);
+    const file = bucket.file(objectPath);
+    const [exists] = await file.exists();
+    if (!exists) return null;
+
+    await retryStorageOperation(() => file.makePublic());
+    const [metadata] = await file.getMetadata();
+    const imageCountRaw = metadata.metadata?.actualImageCount;
+    const parsedImageCount =
+      typeof imageCountRaw === 'string' ? Number.parseInt(imageCountRaw, 10) : Number.NaN;
+
+    return {
+      imageUrl: publicUrl(bucketName, objectPath),
+      actualImageCount:
+        Number.isInteger(parsedImageCount) && parsedImageCount > 0 ? parsedImageCount : null,
+    };
+  } catch (error) {
+    console.error('[ImageStorage] Failed to recover image:', error);
+    throw new Error(
+      `Failed to recover image: ${error instanceof Error ? error.message : 'Unknown error'}`
     );
   }
 }
@@ -133,23 +203,8 @@ export async function getImageUrl(
     throw new Error('[ImageStorage] getImageUrl is server-only');
   }
 
-  const bucketName = getBucketName();
-  const objectPath = `generated/${userId}/${designId}/${versionId}/design.png`;
-
-  try {
-    const storage = getStorageClient();
-    const bucket = storage.bucket(bucketName);
-    const file = bucket.file(objectPath);
-
-    const [exists] = await file.exists();
-    if (!exists) return null;
-    return publicUrl(bucketName, objectPath);
-  } catch (error) {
-    console.error('[ImageStorage] Failed to get image URL:', error);
-    throw new Error(
-      `Failed to get image URL: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  const recovered = await recoverGeneratedImage(userId, designId, versionId);
+  return recovered?.imageUrl ?? null;
 }
 
 export async function deleteImage(userId: string, designId: string, versionId: string): Promise<void> {
@@ -173,4 +228,3 @@ export async function deleteImage(userId: string, designId: string, versionId: s
     );
   }
 }
-

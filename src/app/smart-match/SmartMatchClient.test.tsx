@@ -29,6 +29,14 @@ vi.mock("@/lib/client-api-auth", () => ({
   getApiAuthHeaders: vi.fn(async () => ({ Authorization: "Bearer test-token" })),
 }));
 
+let savedStylePreferences: string[] = [];
+vi.mock("@/lib/tattStorage", () => ({
+  useStylePreferences: () => ({
+    stylePreferences: savedStylePreferences,
+    hydrated: true,
+  }),
+}));
+
 const setMatches = vi.fn();
 vi.mock("@/store/useMatchStore", () => ({
   useMatchStore: (selector: (s: { setMatches: typeof setMatches }) => unknown) =>
@@ -72,6 +80,7 @@ beforeEach(() => {
   push.mockClear();
   setMatches.mockClear();
   searchParams = new URLSearchParams();
+  savedStylePreferences = [];
   vi.stubGlobal("fetch", fetchMock);
   vi.spyOn(console, "info").mockImplementation(() => {});
   vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -321,5 +330,50 @@ describe("SmartMatchClient design-session prefill", () => {
         String(url).startsWith("/api/v1/design-session/")
       )
     ).toHaveLength(0);
+  });
+
+  it("prefills a sessionless search from the customer's saved taste", async () => {
+    savedStylePreferences = ["Fine Line", "Blackwork", "not-a-style"];
+    fetchMock.mockImplementation(async () => jsonResponse(liveMatchResponse));
+
+    render(<SmartMatchClient />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Fine Line" }).getAttribute("aria-pressed"),
+      ).toBe("true"),
+    );
+    expect(
+      screen.getByRole("button", { name: "Blackwork" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(screen.getByText(/saved taste is already dialed in/i)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /find artists/i }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/swipe"));
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(body.style_preferences).toEqual(["Fine Line", "Blackwork"]);
+  });
+
+  it("treats an empty ?styles= handoff as explicit instead of restoring saved taste", () => {
+    searchParams = new URLSearchParams("styles=");
+    savedStylePreferences = ["Fine Line"];
+
+    render(<SmartMatchClient />);
+
+    expect(
+      screen.getByRole("button", { name: "Fine Line" }).getAttribute("aria-pressed"),
+    ).toBe("false");
+    expect(screen.queryByText(/saved taste is already dialed in/i)).toBeNull();
+  });
+
+  it("does not claim invalid saved values were applied", () => {
+    savedStylePreferences = ["not-a-style"];
+
+    render(<SmartMatchClient />);
+
+    expect(screen.queryByText(/saved taste is already dialed in/i)).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Fine Line" }).getAttribute("aria-pressed"),
+    ).toBe("false");
   });
 });

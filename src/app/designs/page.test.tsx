@@ -84,6 +84,22 @@ describe("DesignsPage — easy delete", () => {
     const stored = JSON.parse(localStorage.getItem("tatt:designs") || "[]");
     expect(stored).toHaveLength(1);
   });
+
+  it("shows the newest design as a resumable journey", async () => {
+    const { id } = addDesignToStorage("fine line moth", {
+      image: "https://cdn.example.com/moth.png",
+      sessionId: "sess-9",
+    });
+    render(<DesignsPage />);
+
+    expect(await screen.findByText("A strong next move")).toBeTruthy();
+    expect(screen.getByText("Ready for placement.")).toBeTruthy();
+    expect(
+      screen
+        .getAllByRole("link", { name: /see it on your skin/i })[0]
+        .getAttribute("href"),
+    ).toBe(`/visualize?design=${id}&ds=sess-9`);
+  });
 });
 
 describe("DesignsPage — taste card (your ink identity so far)", () => {
