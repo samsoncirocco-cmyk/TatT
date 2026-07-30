@@ -34,12 +34,23 @@ const OUTPUT_FILE = join(DATA_DIR, 'gemini_validation.json');
 const MODEL = 'gemini-flash-latest';
 
 const args = process.argv.slice(2);
-const limitIdx = args.indexOf('--limit');
-const LIMIT = limitIdx >= 0 ? parseInt(args[limitIdx + 1], 10) : Infinity;
-const imgIdx = args.indexOf('--images-per-artist');
-const IMAGES_PER_ARTIST = imgIdx >= 0 ? parseInt(args[imgIdx + 1], 10) : 3;
+function positiveIntegerFlag(name, fallback, maximum) {
+  const index = args.indexOf(name);
+  if (index < 0) return fallback;
+  const value = Number(args[index + 1]);
+  if (!Number.isInteger(value) || value < 1 || value > maximum) {
+    console.error(`${name} must be a whole number between 1 and ${maximum}`);
+    process.exit(1);
+  }
+  return value;
+}
+
+const LIMIT = positiveIntegerFlag('--limit', Infinity, 100_000);
+const IMAGES_PER_ARTIST = positiveIntegerFlag('--images-per-artist', 3, 8);
 const DELAY_MS = 4000;
 const MAX_RETRIES = 4;
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const SUPPORTED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 const PROMPT = `Analyze these tattoo portfolio images from one artist. Respond with ONLY JSON, no markdown fences:
 {
@@ -76,7 +87,25 @@ async function fetchImageAsInlineData(url) {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const contentType = (res.headers.get('content-type') || '').split(';')[0];
   const mimeType = contentType.startsWith('image/') ? contentType : guessMimeFromUrl(url);
-  const buf = Buffer.from(await res.arrayBuffer());
+  if (!SUPPORTED_IMAGE_TYPES.has(mimeType)) {
+    throw new Error(`unsupported image type: ${mimeType}`);
+  }
+  const declaredSize = Number(res.headers.get('content-length'));
+  if (Number.isFinite(declaredSize) && declaredSize > MAX_IMAGE_BYTES) {
+    throw new Error(`image exceeds ${MAX_IMAGE_BYTES} byte limit`);
+  }
+  if (!res.body) throw new Error('empty image response');
+
+  const chunks = [];
+  let totalBytes = 0;
+  for await (const chunk of res.body) {
+    totalBytes += chunk.byteLength;
+    if (totalBytes > MAX_IMAGE_BYTES) {
+      throw new Error(`image exceeds ${MAX_IMAGE_BYTES} byte limit`);
+    }
+    chunks.push(Buffer.from(chunk));
+  }
+  const buf = Buffer.concat(chunks, totalBytes);
   return { inline_data: { mime_type: mimeType, data: buf.toString('base64') } };
 }
 
@@ -85,10 +114,15 @@ async function sleep(ms) {
 }
 
 async function callGemini(parts, attempt = 1) {
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
   const res = await fetch(endpoint, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    // Keep credentials out of URLs, which are commonly captured in request
+    // logs and error reports by proxies and observability tooling.
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': GEMINI_API_KEY,
+    },
     body: JSON.stringify({ contents: [{ parts }] }),
     signal: AbortSignal.timeout(30000),
   });
