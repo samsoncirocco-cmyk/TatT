@@ -14,12 +14,16 @@ import { INSTAGRAM_OAUTH_STATE_COLLECTION } from "../connect/route";
 export const runtime = "nodejs";
 
 function baseUrl(req: NextRequest): string {
-  return (process.env.NEXT_PUBLIC_APP_URL ?? req.nextUrl.origin).replace(/\/$/, "");
+  return (process.env.NEXT_PUBLIC_APP_URL ?? req.nextUrl.origin).replace(
+    /\/$/,
+    "",
+  );
 }
 
 function back(req: NextRequest, params: Record<string, string>) {
   const url = new URL("/artist/profile", baseUrl(req));
-  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
+  for (const [key, value] of Object.entries(params))
+    url.searchParams.set(key, value);
   return NextResponse.redirect(url);
 }
 
@@ -42,6 +46,7 @@ export async function GET(req: NextRequest) {
     artistId: string;
     uid: string;
     expectedUsername: string;
+    redirectUri?: string;
     expiresAt?: string;
     used?: boolean;
   } | null = null;
@@ -50,7 +55,10 @@ export async function GET(req: NextRequest) {
       const snap = await tx.get(stateRef);
       if (!snap.exists) return null;
       const doc = snap.data() as NonNullable<typeof stored>;
-      if (doc.used || (doc.expiresAt && Date.parse(doc.expiresAt) < Date.now())) {
+      if (
+        doc.used ||
+        (doc.expiresAt && Date.parse(doc.expiresAt) < Date.now())
+      ) {
         return null;
       }
       tx.update(stateRef, { used: true, usedAt: new Date().toISOString() });
@@ -64,31 +72,37 @@ export async function GET(req: NextRequest) {
     return back(req, { instagram: "error", reason: "bad_state" });
   }
   const config = instagramOAuthConfig(baseUrl(req));
-  if (!config) return back(req, { instagram: "error", reason: "not_configured" });
+  if (!config)
+    return back(req, { instagram: "error", reason: "not_configured" });
+  // Instagram requires the exchange redirect_uri to match authorize exactly.
+  // Prefer the URI persisted at connect time over rebuilding from this request.
+  const exchangeConfig =
+    typeof stored.redirectUri === "string" && stored.redirectUri.length > 0
+      ? { ...config, redirectUri: stored.redirectUri }
+      : config;
 
   try {
-    const short = await exchangeInstagramCode({ config, code });
-    if (!short.ok) return back(req, { instagram: "error", reason: short.reason });
+    const short = await exchangeInstagramCode({ config: exchangeConfig, code });
+    if (!short.ok)
+      return back(req, { instagram: "error", reason: short.reason });
     const long = await exchangeForLongLivedInstagramToken({
-      config,
+      config: exchangeConfig,
       accessToken: short.accessToken,
     });
     if (!long.ok) return back(req, { instagram: "error", reason: long.reason });
-    const profile = await fetchInstagramProfile({ accessToken: long.accessToken });
-    if (!profile) return back(req, { instagram: "error", reason: "profile_lookup" });
+    const profile = await fetchInstagramProfile({
+      accessToken: long.accessToken,
+    });
+    if (!profile)
+      return back(req, { instagram: "error", reason: "profile_lookup" });
     if (
       normalizeInstagramHandle(profile.username) !==
       normalizeInstagramHandle(stored.expectedUsername)
     ) {
       return back(req, { instagram: "error", reason: "account_mismatch" });
     }
-    const saved = await saveInstagramConnection({
-      artistId: stored.artistId,
-      profile,
-      accessToken: long.accessToken,
-      expiresInSeconds: long.expiresInSeconds,
-    });
-    if (!saved.ok) return back(req, { instagram: "error", reason: saved.reason });
+    // Ownership stamp before credential write: if the Neo4j claim no longer
+    // matches the OAuth uid, never leave an API-usable token on the artist.
     const marked = await markInstagramOAuthVerified({
       artistId: stored.artistId,
       uid: stored.uid,
@@ -98,6 +112,14 @@ export async function GET(req: NextRequest) {
     if (!marked) {
       return back(req, { instagram: "error", reason: "ownership_changed" });
     }
+    const saved = await saveInstagramConnection({
+      artistId: stored.artistId,
+      profile,
+      accessToken: long.accessToken,
+      expiresInSeconds: long.expiresInSeconds,
+    });
+    if (!saved.ok)
+      return back(req, { instagram: "error", reason: saved.reason });
     return back(req, { instagram: "connected" });
   } catch (err) {
     console.error("[instagram/callback] provider request failed:", err);

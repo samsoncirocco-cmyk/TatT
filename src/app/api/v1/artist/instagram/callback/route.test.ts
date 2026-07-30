@@ -49,6 +49,8 @@ beforeEach(() => {
           artistId: "artist_1",
           uid: "uid-1",
           expectedUsername: "sam.ink",
+          redirectUri:
+            "https://tatttester.com/api/v1/artist/instagram/callback",
           expiresAt: new Date(Date.now() + 60_000).toISOString(),
           used: false,
         }),
@@ -83,12 +85,14 @@ describe("Instagram OAuth callback", () => {
       ),
     );
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toContain("reason=account_mismatch");
+    expect(response.headers.get("location")).toContain(
+      "reason=account_mismatch",
+    );
     expect(mocks.saveConnection).not.toHaveBeenCalled();
     expect(mocks.markVerified).not.toHaveBeenCalled();
   });
 
-  it("stores the credential only after the account identity matches", async () => {
+  it("stores the credential only after ownership is confirmed", async () => {
     mocks.fetchProfile.mockResolvedValue({
       userId: "ig-1",
       username: "SAM.INK",
@@ -100,12 +104,42 @@ describe("Instagram OAuth callback", () => {
       ),
     );
     expect(response.headers.get("location")).toContain("instagram=connected");
-    expect(mocks.saveConnection).toHaveBeenCalledWith(
-      expect.objectContaining({ artistId: "artist_1", accessToken: "long" }),
+    expect(mocks.exchangeCode).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: expect.objectContaining({
+          redirectUri:
+            "https://tatttester.com/api/v1/artist/instagram/callback",
+        }),
+      }),
     );
     expect(mocks.markVerified).toHaveBeenCalledWith(
       expect.objectContaining({ artistId: "artist_1", uid: "uid-1" }),
     );
+    expect(mocks.saveConnection).toHaveBeenCalledWith(
+      expect.objectContaining({ artistId: "artist_1", accessToken: "long" }),
+    );
+    expect(mocks.markVerified.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.saveConnection.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("does not store a credential when ownership no longer matches", async () => {
+    mocks.fetchProfile.mockResolvedValue({
+      userId: "ig-1",
+      username: "SAM.INK",
+      accountType: "CREATOR",
+    });
+    mocks.markVerified.mockResolvedValue(false);
+    const response = await GET(
+      new NextRequest(
+        "http://localhost/api/v1/artist/instagram/callback?state=s&code=c",
+      ),
+    );
+    expect(response.headers.get("location")).toContain(
+      "reason=ownership_changed",
+    );
+    expect(mocks.markVerified).toHaveBeenCalled();
+    expect(mocks.saveConnection).not.toHaveBeenCalled();
   });
 
   it("returns to the profile when Instagram is temporarily unavailable", async () => {
@@ -118,7 +152,9 @@ describe("Instagram OAuth callback", () => {
     );
 
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toContain("reason=provider_unavailable");
+    expect(response.headers.get("location")).toContain(
+      "reason=provider_unavailable",
+    );
     expect(mocks.saveConnection).not.toHaveBeenCalled();
   });
 });
