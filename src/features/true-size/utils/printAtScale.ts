@@ -21,6 +21,16 @@ import { MM_PER_INCH, heightMmForWidth } from "./trueSizeMath";
 /** The printed check-bar is exactly 10cm — measurable with any ruler. */
 export const RULER_LENGTH_MM = 100;
 
+/**
+ * Inches from the page bottom that the verification bar occupies (baseline at
+ * 0.55" up, tallest tick 0.16" above that). Artwork is centered, so fit checks
+ * must reserve this clearance on both top and bottom.
+ */
+const RULER_BAND_INCHES = 0.55 + 0.16;
+
+/** Stencil suggestPaperSize already pads 0.25" per side. */
+const STENCIL_SIDE_MARGIN_INCHES = 0.25;
+
 export const PRINT_TOO_BIG_MESSAGE =
   "Too big for one sheet (about 20 × 28 cm max with margins). A print shop can tile bigger pieces.";
 
@@ -37,12 +47,25 @@ export type TrueSizePdfResult = {
   heightMm: number;
 };
 
+/**
+ * Paper pick for true-size prints. Inflates height so centered art clears the
+ * bottom ruler band that `suggestPaperSize` does not know about.
+ */
+function suggestTrueSizePaper(widthInches: number, heightInches: number) {
+  const extraBottom = Math.max(0, RULER_BAND_INCHES - STENCIL_SIDE_MARGIN_INCHES);
+  return suggestPaperSize({
+    widthInches,
+    // Centering mirrors bottom clearance at the top — pad twice the extra.
+    heightInches: heightInches + 2 * extraBottom,
+  });
+}
+
 /** True when a design of this physical size prints on one letter/A4 sheet. */
 export function fitsOnOneSheet(widthMm: number, heightMm: number): boolean {
-  const suggestion = suggestPaperSize({
-    widthInches: widthMm / MM_PER_INCH,
-    heightInches: heightMm / MM_PER_INCH,
-  });
+  const suggestion = suggestTrueSizePaper(
+    widthMm / MM_PER_INCH,
+    heightMm / MM_PER_INCH,
+  );
   return suggestion !== "custom";
 }
 
@@ -115,7 +138,7 @@ export function buildTrueSizePdf({
   const widthInches = widthMm / MM_PER_INCH;
   const heightInches = heightMm / MM_PER_INCH;
 
-  const paperKey = suggestPaperSize({ widthInches, heightInches });
+  const paperKey = suggestTrueSizePaper(widthInches, heightInches);
   if (paperKey === "custom") {
     throw new Error(PRINT_TOO_BIG_MESSAGE);
   }

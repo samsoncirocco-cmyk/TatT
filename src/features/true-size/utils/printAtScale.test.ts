@@ -101,6 +101,14 @@ describe("buildTrueSizePdf — exact physical dimensions", () => {
     ).toThrow(PRINT_TOO_BIG_MESSAGE);
     expect(createStencilPDF).not.toHaveBeenCalled();
   });
+
+  it("refuses a tall design that would overlap the verification ruler", () => {
+    // Fits A4 under stencil margins alone (~284mm) but covers the ruler when centered.
+    expect(() =>
+      buildTrueSizePdf({ imageDataUrl: PNG, widthMm: 100, heightMm: 265 })
+    ).toThrow(PRINT_TOO_BIG_MESSAGE);
+    expect(createStencilPDF).not.toHaveBeenCalled();
+  });
 });
 
 describe("fitsOnOneSheet", () => {
@@ -116,5 +124,12 @@ describe("fitsOnOneSheet", () => {
     // 8.5" sheet − 0.5" margins = 8" ≈ 203mm printable width.
     expect(fitsOnOneSheet(203, 100)).toBe(true);
     expect(fitsOnOneSheet(210, 100)).toBe(false);
+  });
+
+  it("rejects tall designs that would cover the bottom ruler band", () => {
+    // A4 max under stencil margins alone is ~284mm; with ruler clearance
+    // (centered art needs 0.71" top and bottom) the cap is ~261mm.
+    expect(fitsOnOneSheet(100, 260)).toBe(true);
+    expect(fitsOnOneSheet(100, 265)).toBe(false);
   });
 });
