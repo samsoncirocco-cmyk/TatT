@@ -152,13 +152,41 @@ describe("BookingSuccessPage — no dead ends", () => {
 
     expect(bookingFetchMock).toHaveBeenCalledTimes(2);
     expect(screen.getAllByText(/^deposit paid$/i).length).toBeGreaterThan(0);
+    // Request model (no .ics): paid copy keeps the ADR-0027 distinction — the
+    // artist still confirms the final slot, and no time is called booked.
     expect(screen.getByText(/your deposit cleared/i)).toBeTruthy();
-    expect(screen.queryByText(/confirm the final slot/i)).toBeNull();
+    expect(screen.getByText(/they confirm the final slot/i)).toBeTruthy();
+    expect(screen.queryByText(/your time is booked/i)).toBeNull();
 
     await act(async () => {
       await vi.runAllTimersAsync();
     });
     expect(bookingFetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("paid, claimed artist: the full-strength money sentence (ADR-0036 amendment)", async () => {
+    bookingFetchMock.mockResolvedValueOnce(bookingResponse("deposit_paid"));
+
+    render(<BookingSuccessPage />);
+    await flushInitialRead();
+
+    expect(screen.getByText(/whole deposit goes to your artist/i)).toBeTruthy();
+    expect(screen.getByText(/only part we keep/i)).toBeTruthy();
+    expect(screen.queryByText(/held during verification/i)).toBeNull();
+  });
+
+  it("paid, unclaimed artist (artistClaimed=0): the held-deposit money sentence", async () => {
+    searchParams = new URLSearchParams(
+      "artist=Nadia&deposit=100&session_id=cs_test_123&bookingId=book_123&artistClaimed=0"
+    );
+    bookingFetchMock.mockResolvedValueOnce(bookingResponse("deposit_paid"));
+
+    render(<BookingSuccessPage />);
+    await flushInitialRead();
+
+    expect(screen.getByText(/held during verification/i)).toBeTruthy();
+    expect(screen.getByText(/refunded to you if the claim window closes/i)).toBeTruthy();
+    expect(screen.queryByText(/whole deposit goes to your artist/i)).toBeNull();
   });
 
   it("stops after a bounded reconciliation window without falling back to Deposit due", async () => {
@@ -307,6 +335,10 @@ describe("BookingSuccessPage — what-happens-next timeline", () => {
     // Deposit-confirms-slot (ADR 0027): no artist-review step on this path.
     expect(screen.queryByText("Artist review")).toBeNull();
     expect(screen.getByText(/time is yours/i)).toBeTruthy();
+    // Paid + reserved: the receipt copy says the time is booked — no
+    // final-slot confirmation is pending on this path.
+    expect(screen.getByText(/your time is booked/i)).toBeTruthy();
+    expect(screen.queryByText(/they confirm the final slot/i)).toBeNull();
     expect(screen.getByRole("button", { name: /add to calendar/i })).toBeTruthy();
     // Paid ⇒ the session step is what's ahead.
     const current = document.querySelector('[aria-current="step"]');

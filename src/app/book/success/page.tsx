@@ -20,7 +20,7 @@ import QuietCTA from "@/components/quiet/QuietCTA";
 import ReceiptCard from "@/components/quiet/ReceiptCard";
 import { getApiAuthHeaders } from "@/lib/client-api-auth";
 import type { BookingStatus } from "@/lib/booking";
-import { bookingMoneyCopy } from "@/lib/money-copy";
+import { bookingSuccessMoneyCopy } from "@/lib/money-copy";
 import { TattooPrepPlan } from "../BookingConfidence";
 
 /** Statuses at or past a paid deposit — safe to say "Deposit paid". */
@@ -152,6 +152,10 @@ function SuccessContent() {
   const deposit = sp.get("deposit");
   const sessionId = sp.get("session_id");
   const bookingId = sp.get("bookingId");
+  // Which money-sentence variant applies (ADR-0036 amendment). Checkout sets
+  // artistClaimed=0 on the held-deposit path; absent means claimed. Display
+  // copy only — never used to infer payment.
+  const artistClaimed = sp.get("artistClaimed") !== "0";
   // A display-only amount is not a payment identifier. Reconcile only when
   // the return URL can name an exact booking or Stripe session.
   const hasPaymentReturnContext = Boolean(bookingId || sessionId);
@@ -312,14 +316,19 @@ function SuccessContent() {
         : null;
   const depositValue = server?.depositAmount != null ? String(server.depositAmount) : deposit;
   const appointmentConfirmed = serverStatus === "confirmed" || serverStatus === "completed";
+  // Reservation vs request (ADR 0027) — the same honest discriminator that
+  // drives the timeline below: a fetched .ics proves a concrete slot.
+  const reserved = calendarIcs !== null;
 
   const paymentStatusCopy = isPaid ? (
     <>
-      {bookingMoneyCopy.bookingSuccess}
+      {bookingSuccessMoneyCopy(artistClaimed)}
       <br />
       {appointmentConfirmed
         ? "Your appointment is confirmed. Check Your bookings for the latest details."
-        : "Your deposit cleared. Your artist has your booking details; check Your bookings for the latest status."}
+        : reserved
+          ? "Your deposit cleared and your time is booked. Check Your bookings for the latest details."
+          : "Your deposit cleared. Your requested time is with the artist — they confirm the final slot. Check Your bookings for the latest status."}
       <br />
       Balance settles at the shop.
     </>
@@ -357,11 +366,10 @@ function SuccessContent() {
   ];
 
   // ── What happens next ─────────────────────────────────────────────
-  // Two honest variants (ADR 0027). Reservation: the deposit confirmed a
-  // concrete, exclusively-held slot — nothing further to wait on before the
-  // session. Request: the deposit accompanies an ask, and the artist still
-  // confirms or counters — no invented response windows.
-  const reserved = calendarIcs !== null;
+  // Two honest variants (ADR 0027), keyed on `reserved` above. Reservation:
+  // the deposit confirmed a concrete, exclusively-held slot — nothing further
+  // to wait on before the session. Request: the deposit accompanies an ask,
+  // and the artist still confirms or counters — no invented response windows.
   const artistLabel = server?.artistName ?? artist ?? "the artist";
   const whenLabel = date ? (time ? `${date} at ${time}` : date) : null;
 
