@@ -37,6 +37,14 @@ export interface IntakeRecord {
    * the request has no nameable subject.
    */
   subject?: string;
+  /**
+   * Set to 'aesthetic' when the user answered the meaning question with
+   * pure looks ("it just goes hard") — a complete answer (TAT-51). Closes
+   * the meaning slot permanently: the bot never asks about meaning again,
+   * and the brief carries the user's own phrasing as the meaning. Absent
+   * for sessions that gave a meaning or never addressed it.
+   */
+  vibe?: 'aesthetic';
   /** Reference imagery the user mentioned, if any. */
   references: string[];
   /** Axes the intake left ambiguous — drives variation-axis selection (ADR-0012). */
