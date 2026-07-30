@@ -125,14 +125,14 @@ export default function TrueSizeModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/85 overflow-y-auto"
+      className="fixed inset-0 z-50 bg-black/80 halftone flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-label="True size"
       onClick={onClose}
     >
       <div
-        className="max-w-3xl mx-auto my-8 md:my-16 bg-black border-2 hairline"
+        className="bg-black border-2 border-pink w-full max-w-3xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* header */}
