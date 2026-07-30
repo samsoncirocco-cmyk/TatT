@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { RefreshCw, X, Sparkles, AlertCircle } from 'lucide-react';
+import { RefreshCw, Sparkles, AlertCircle } from 'lucide-react';
 import Button from '../ui/Button';
 
 export default function RegenerateElementModal({
@@ -55,31 +55,26 @@ export default function RegenerateElementModal({
     };
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-            <div className="studio-glass border border-white/10 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/80 halftone flex items-center justify-center p-4">
+            <div className="bg-black border-2 border-pink w-full max-w-2xl max-h-[90vh] overflow-y-auto">
 
                 {/* Header */}
-                <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-white/10 bg-black/40 backdrop-blur-xl">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-[rgba(0,255,65,0.2)] border border-[rgba(0,255,65,0.4)] flex items-center justify-center">
-                            <RefreshCw size={20} className="text-studio-neon" />
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-bold text-white uppercase tracking-wider">
-                                Regenerate Element
-                            </h3>
-                            <p className="text-xs text-white/50 font-mono">
-                                Layer: {layer.name}
-                            </p>
-                        </div>
+                <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b-2 hairline bg-black">
+                    <div>
+                        <h3 className="text-[16px] font-display tracking-wide text-white uppercase">
+                            <span className="text-pink">●</span>&nbsp;&nbsp;Regenerate Element
+                        </h3>
+                        <p className="mt-1 text-[10px] uppercase tracking-[0.22em] text-white/50 font-body">
+                            Layer: {layer.name}
+                        </p>
                     </div>
                     <button
                         onClick={onClose}
                         disabled={isGenerating}
-                        className="p-2 rounded-full hover:bg-white/10 transition-colors text-white/60 hover:text-white disabled:opacity-50"
+                        className="text-[10px] font-body uppercase tracking-[0.22em] text-white/60 hover:text-pink disabled:opacity-50"
                         aria-label="Close regenerate modal"
                     >
-                        <X size={20} />
+                        Close ✕
                     </button>
                 </div>
 
@@ -87,12 +82,12 @@ export default function RegenerateElementModal({
                 <div className="p-6 space-y-6">
 
                     {/* Current Layer Preview */}
-                    <div className="bg-black/30 border border-white/10 rounded-xl p-4">
-                        <p className="text-xs font-mono uppercase tracking-[0.3em] text-studio-neon mb-3">
-                            Current Element
+                    <div className="border-2 hairline p-4">
+                        <p className="text-[10px] font-body uppercase tracking-[0.28em] text-pink mb-3">
+                            <span className="text-pink">●</span>&nbsp;&nbsp;Current Element
                         </p>
                         <div className="flex items-start gap-4">
-                            <div className="w-24 h-24 rounded-lg border border-white/10 bg-black/40 overflow-hidden flex-shrink-0">
+                            <div className="w-24 h-24 border hairline-white bg-black overflow-hidden flex-shrink-0">
                                 <img
                                     src={layer.imageUrl}
                                     alt={layer.name}
@@ -101,22 +96,18 @@ export default function RegenerateElementModal({
                             </div>
                             <div className="flex-1 space-y-2">
                                 <div className="flex items-center gap-2">
-                                    <span className={`
-                                        px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider
-                                        ${layer.type === 'subject' ? 'bg-blue-500/20 text-blue-200' : ''}
-                                        ${layer.type === 'background' ? 'bg-purple-500/20 text-purple-200' : ''}
-                                        ${layer.type === 'effect' ? 'bg-orange-500/20 text-orange-200' : ''}
-                                    `}>
+                                    <span className="px-2 py-0.5 bg-pink text-black text-[10px] font-body uppercase tracking-[0.2em]">
                                         {layer.type}
                                     </span>
-                                    <span className={`
-                                        px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider
-                                        ${layer.blendMode === 'normal' ? 'bg-white/10 text-white/60' : 'bg-[rgba(255,62,0,0.2)] text-studio-accent'}
-                                    `}>
+                                    <span className={`px-2 py-0.5 text-[10px] font-body uppercase tracking-[0.2em] ${
+                                        layer.blendMode === 'normal'
+                                            ? 'bg-white/10 text-white/60'
+                                            : 'border hairline text-pink'
+                                    }`}>
                                         {layer.blendMode}
                                     </span>
                                 </div>
-                                <p className="text-sm text-white/70">
+                                <p className="text-[13px] text-white/70 font-body leading-[1.55]">
                                     This layer will be regenerated with your adjusted prompt while maintaining the same position and transforms.
                                 </p>
                             </div>
@@ -125,58 +116,57 @@ export default function RegenerateElementModal({
 
                     {/* Element Prompt */}
                     <div>
-                        <label htmlFor="element-prompt" className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-white/60 mb-2">
-                            <Sparkles size={14} className="text-studio-neon" />
-                            Element Description
+                        <label htmlFor="element-prompt" className="block text-[10px] font-body uppercase tracking-[0.25em] text-pink mb-2">
+                            ▸ Element Description
                         </label>
                         <textarea
                             id="element-prompt"
                             value={elementPrompt}
                             onChange={(e) => setElementPrompt(e.target.value)}
                             placeholder="e.g., fierce dragon, lightning bolt, ornamental frame"
-                            className="w-full rounded-xl bg-[var(--studio-bg)] border border-white/[0.05] px-4 py-3 text-sm text-white font-mono placeholder-white/30 focus:outline-none focus:border-studio-neon focus:shadow-[0_0_12px_rgba(0,255,65,0.3)] transition-all"
+                            className="w-full bg-black border-2 hairline focus:border-pink px-4 py-3 text-[14px] text-white font-display tracking-tight focus:outline-none placeholder-white/30 transition-colors"
                             rows={2}
                             disabled={isGenerating}
                         />
-                        <p className="mt-2 text-[10px] text-white/40 font-mono">
+                        <p className="mt-2 text-[10px] text-white/40 font-body uppercase tracking-[0.18em]">
                             Core description of this element
                         </p>
                     </div>
 
                     {/* Adjustments */}
                     <div>
-                        <label htmlFor="adjustments" className="text-xs font-mono uppercase tracking-wider text-white/60 mb-2 block">
-                            Additional Adjustments (Optional)
+                        <label htmlFor="adjustments" className="block text-[10px] font-body uppercase tracking-[0.25em] text-pink mb-2">
+                            ▸ Additional Adjustments (Optional)
                         </label>
                         <textarea
                             id="adjustments"
                             value={adjustments}
                             onChange={(e) => setAdjustments(e.target.value)}
                             placeholder="e.g., more detail, darker colors, add texture, simplify, sharper lines"
-                            className="w-full rounded-xl bg-[var(--studio-bg)] border border-white/[0.05] px-4 py-3 text-sm text-white font-mono placeholder-white/30 focus:outline-none focus:border-studio-neon focus:shadow-[0_0_12px_rgba(0,255,65,0.3)] transition-all"
+                            className="w-full bg-black border-2 hairline focus:border-pink px-4 py-3 text-[14px] text-white font-display tracking-tight focus:outline-none placeholder-white/30 transition-colors"
                             rows={2}
                             disabled={isGenerating}
                         />
-                        <p className="mt-2 text-[10px] text-white/40 font-mono">
+                        <p className="mt-2 text-[10px] text-white/40 font-body uppercase tracking-[0.18em]">
                             Refinements or style changes to apply
                         </p>
                     </div>
 
                     {/* Options */}
-                    <div className="bg-black/20 border border-white/10 rounded-xl p-4">
+                    <div className="border hairline-white p-4">
                         <label className="flex items-center gap-3 cursor-pointer group">
                             <input
                                 type="checkbox"
                                 checked={useOriginalStyle}
                                 onChange={(e) => setUseOriginalStyle(e.target.checked)}
                                 disabled={isGenerating}
-                                className="w-4 h-4 rounded border-white/20 bg-black/40 text-studio-neon focus:ring-2 focus:ring-[rgba(0,255,65,0.4)] focus:ring-offset-0 transition-all"
+                                className="w-4 h-4 border-white/20 bg-black accent-[#ff1f6b] focus:ring-2 focus:ring-pink focus:ring-offset-0"
                             />
                             <div className="flex-1">
-                                <span className="text-sm text-white font-medium group-hover:text-studio-neon transition-colors">
+                                <span className="text-[13px] text-white font-body group-hover:text-pink transition-colors">
                                     Preserve original design style
                                 </span>
-                                <p className="text-[10px] text-white/50 mt-0.5">
+                                <p className="text-[10px] text-white/50 mt-0.5 font-body uppercase tracking-[0.18em]">
                                     Maintains overall design aesthetic and visual coherence
                                 </p>
                             </div>
@@ -185,21 +175,21 @@ export default function RegenerateElementModal({
 
                     {/* Error Display */}
                     {error && (
-                        <div className="flex items-start gap-3 p-4 rounded-xl border border-red-500/40 bg-red-500/10">
-                            <AlertCircle size={18} className="text-red-400 flex-shrink-0 mt-0.5" />
+                        <div className="flex items-start gap-3 p-4 border-2 border-pink">
+                            <AlertCircle size={18} className="text-pink flex-shrink-0 mt-0.5" />
                             <div className="flex-1">
-                                <p className="text-sm text-red-200 font-medium">Regeneration Failed</p>
-                                <p className="text-xs text-red-300/80 mt-1">{error}</p>
+                                <p className="text-[12px] text-pink font-body uppercase tracking-[0.18em]">Regeneration Failed</p>
+                                <p className="text-[11px] text-white/70 mt-1 font-body">{error}</p>
                             </div>
                         </div>
                     )}
 
                     {/* Info Box */}
-                    <div className="bg-[rgba(0,255,65,0.1)] border border-[rgba(0,255,65,0.3)] rounded-xl p-4">
+                    <div className="border hairline p-4">
                         <div className="flex items-start gap-3">
-                            <Sparkles size={16} className="text-studio-neon flex-shrink-0 mt-0.5" />
-                            <div className="text-[11px] text-white/70 space-y-1">
-                                <p className="font-medium text-studio-neon">Smart Regeneration</p>
+                            <Sparkles size={16} className="text-pink flex-shrink-0 mt-0.5" />
+                            <div className="text-[11px] text-white/70 space-y-1 font-body leading-[1.55]">
+                                <p className="text-pink uppercase tracking-[0.18em] text-[10px]">Smart Regeneration</p>
                                 <p>The AI will regenerate this element while preserving layer position, transforms, and blend mode. Your version history will be updated automatically.</p>
                             </div>
                         </div>
@@ -211,7 +201,8 @@ export default function RegenerateElementModal({
                             onClick={onClose}
                             disabled={isGenerating}
                             variant="outline"
-                            className="flex-1 h-12 text-sm tracking-wider"
+                            size="lg"
+                            className="flex-1"
                         >
                             Cancel
                         </Button>
@@ -219,10 +210,11 @@ export default function RegenerateElementModal({
                             onClick={handleSubmit}
                             disabled={!elementPrompt.trim() || isGenerating}
                             variant="primary"
-                            className="flex-1 h-12 text-sm tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+                            size="lg"
+                            className="flex-1"
                             icon={RefreshCw}
                         >
-                            {isGenerating ? 'REGENERATING...' : 'REGENERATE ELEMENT'}
+                            {isGenerating ? 'Regenerating...' : 'Regenerate Element'}
                         </Button>
                     </div>
                 </div>
