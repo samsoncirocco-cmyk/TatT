@@ -25,6 +25,7 @@ Every page below is judged by whether it moves someone along this line.
 | Route | Verdict | Why / where it went |
 |---|---|---|
 | `/` | core funnel | Needs real example designs (TAT-36 condition) |
+| `/image2ink` | **marketing door — feeds the funnel** | TAT-46; served at image2ink.com via middleware rewrite (`src/proxy.ts`); not a second brand or a separate signup — every CTA hands off to TattTester (`/signup`, `/design`, `/claim`) |
 | `/design` | **core funnel — the one door** | ADR-0028; all CTAs point here (TAT-34) |
 | `/generate/stencil` (Forge) | **redirects → `/design` fast lane** | Implemented in PR #214; preserves the prompt |
 | `/generate` (Studio) | keep — editing room | ADR-0017 stands; reachable from any picked design; facelift + path rename open (TAT-34, non-blocking) |

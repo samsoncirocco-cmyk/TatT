@@ -27,6 +27,14 @@ an image provider is called.
 camera overlay. It does not imply anatomical tracking, depth mapping, or
 measurement accuracy.
 
+**AR Mirror** — The live-camera variant of placement preview, at `/visualize`
+(`src/features/ar/`). The user drags, scales, and rotates a saved design onto
+their own camera feed, then captures a still or short clip to share to a
+group chat. _Avoid_: "AR" here means live camera compositing only — do not
+imply body tracking, depth estimation, perspective correction, or
+measurement-grade accuracy. ADR-0024 removed the MindAR-based tracking spec as
+unbuildable and untracked by design.
+
 **Matching** — Design- and preference-aware artist discovery using semantic,
 graph, and interaction evidence.
 

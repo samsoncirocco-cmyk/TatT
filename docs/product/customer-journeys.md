@@ -15,7 +15,9 @@ flowchart LR
     C --> D["Four generated directions"]
     D --> E["Pick and bounded refinement"]
     E --> F["Placement review"]
-    E --> G["Smart match"]
+    E --> V["AR mirror (/visualize)"]
+    V --> G["Smart match"]
+    E --> G
     G --> H["Swipe or browse artists"]
     H --> I["Artist profile"]
     I --> J["Availability and booking"]
@@ -31,6 +33,9 @@ The launch routes now implement the convergence decisions:
   prompt.
 - `/generate`: the intentional multi-layer Studio editing room.
 - `/journey`: removed.
+- `/visualize`: the AR mirror, an optional conviction step between refinement
+  and matching. It carries the design and design-session thread forward to
+  `/smart-match` (ADR-0028 funnel seams).
 - `/smart-match` and `/swipe`: design-aware match chain.
 - `/matches`: compatibility redirect to `/artists` with filter mapping.
 - `/artists`: browse/compare directory.
@@ -94,6 +99,8 @@ publicly disclosing why the profile is absent.
 - Placement: `src/features/design-session/components/PlacementPreview.tsx`,
   `src/features/design-session/__tests__/PlacementPreview.test.tsx`,
   `src/services/ar/__tests__/arService.test.js`
+- AR mirror: `src/app/visualize/page.tsx`, `src/features/ar/`,
+  `docs/adr/0024-live-ar-is-untracked.md`
 - Sharing: `src/app/api/v1/designs/share/__tests__/route.test.ts`,
   `src/app/share/[shareId]/page.test.tsx`
 - Booking holds and relay: `src/lib/booking-holds.test.ts`,

@@ -71,6 +71,15 @@ features:
       - docs/adr/0024-live-ar-is-untracked.md
       - src/services/ar/__tests__/arService.test.js
       - src/services/ar/__tests__/designSource.test.ts
+      - src/features/ar/index.ts
+      - src/features/ar/components/ARMirror.tsx
+      - src/features/ar/components/PlacementGuides.tsx
+      - src/features/ar/useArSession.ts
+      - src/features/ar/shareLink.ts
+      - src/features/ar/__tests__/ARMirror.test.tsx
+      - src/features/ar/__tests__/PlacementGuides.test.tsx
+      - src/features/ar/__tests__/useArSession.test.tsx
+      - src/features/ar/__tests__/shareLink.test.ts
 
   anatomical_ar_tracking:
     status: retired
