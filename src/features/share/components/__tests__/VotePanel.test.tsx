@@ -23,11 +23,11 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-function voteResponse(votes: Record<string, number>, status = 200) {
+function voteResponse(body: Record<string, unknown>, status = 200) {
   return {
     ok: status >= 200 && status < 300,
     status,
-    json: async () => (status === 200 ? { success: true, votes } : votes),
+    json: async () => (status === 200 ? { success: true, votes: body } : body),
   };
 }
 
