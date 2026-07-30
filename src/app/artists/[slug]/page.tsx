@@ -30,13 +30,21 @@ export default async function ArtistProfilePage({
   const firstNames = nameParts.join(" ");
   const igUrl = instagramUrl(artist.instagram);
   const heroImage = artist.portfolioImages[0];
-  const featuredPermalink = artist.portfolioPermalinks[0];
-  const remainingPermalinks = artist.portfolioPermalinks.slice(
+  // Artist-authorized selections outrank imported website images and the old
+  // unclaimed recovery tier. They are the work this artist chose to show.
+  const displayedPermalinks =
+    artist.authorizedPortfolioPermalinks.length > 0
+      ? artist.authorizedPortfolioPermalinks
+      : artist.portfolioPermalinks;
+  const artistSelectedInstagram =
+    artist.authorizedPortfolioPermalinks.length > 0;
+  const featuredPermalink = displayedPermalinks[0];
+  const remainingPermalinks = displayedPermalinks.slice(
     1,
     PROFILE_EMBED_LIMIT,
   );
   const hasDisplayedWork =
-    Boolean(heroImage) || artist.portfolioPermalinks.length > 0;
+    Boolean(heroImage) || displayedPermalinks.length > 0;
   const monogram = artist.name
     .split(/\s+/)
     .map((w) => w[0])
@@ -63,7 +71,28 @@ export default async function ArtistProfilePage({
       <div className="px-6 md:px-12 py-10 md:py-12">
         <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12 items-start">
           <div className="md:col-span-5">
-            {heroImage ? (
+            {featuredPermalink ? (
+              <div data-testid="instagram-embed-featured">
+                <div className="text-[10px] uppercase tracking-[0.28em] text-pink mb-4 font-body">
+                  ▸&nbsp;Featured&nbsp;work&nbsp;·&nbsp;
+                  {artistSelectedInstagram ? "selected on Instagram" : "via Instagram"}
+                </div>
+                <InstagramEmbed
+                  permalink={featuredPermalink}
+                  className="border-2 hairline bg-black/40 overflow-hidden"
+                  fallback={
+                    <div className="min-h-[260px] border-2 hairline bg-pink/10 flex flex-col items-center justify-center gap-4 p-8 text-center">
+                      <span className="font-display text-[64px] leading-none text-pink">
+                        {monogram}
+                      </span>
+                      <span className="font-body text-[10px] uppercase tracking-[0.22em] text-white/50">
+                        Instagram post unavailable
+                      </span>
+                    </div>
+                  }
+                />
+              </div>
+            ) : heroImage ? (
               <div className="aspect-[3/4] bg-bone border-2 hairline relative overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -88,26 +117,6 @@ export default async function ArtistProfilePage({
                     See their work on Instagram&nbsp;▸
                   </a>
                 )}
-              </div>
-            ) : featuredPermalink ? (
-              <div data-testid="instagram-embed-featured">
-                <div className="text-[10px] uppercase tracking-[0.28em] text-pink mb-4 font-body">
-                  ▸&nbsp;Featured&nbsp;work&nbsp;·&nbsp;via&nbsp;Instagram
-                </div>
-                <InstagramEmbed
-                  permalink={featuredPermalink}
-                  className="border-2 hairline bg-black/40 overflow-hidden"
-                  fallback={
-                    <div className="min-h-[260px] border-2 hairline bg-pink/10 flex flex-col items-center justify-center gap-4 p-8 text-center">
-                      <span className="font-display text-[64px] leading-none text-pink">
-                        {monogram}
-                      </span>
-                      <span className="font-body text-[10px] uppercase tracking-[0.22em] text-white/50">
-                        Instagram post unavailable
-                      </span>
-                    </div>
-                  }
-                />
               </div>
             ) : (
               <div
@@ -345,19 +354,16 @@ export default async function ArtistProfilePage({
         </div>
       </div>
 
-      {/* MORE RECENT WORK — Instagram embed tier (TAT-40). The first recovered
-          post is featured above the fold; only the remaining surface budget
-          lands here. portfolioPermalinks is
-          policy-filtered server-side (src/lib/portfolio-display): it is empty
-          unless ENABLE_IG_EMBEDS=true and this artist is unclaimed, so this
-          whole section is inert until that flag is deliberately flipped.
-          The media is served by Instagram inside Instagram's iframe — nothing
-          here is hosted or cached on TatT infrastructure. */}
+      {/* MORE RECENT WORK — artist-authorized Instagram selections first;
+          legacy recovered links only when their server-side flag permits. The
+          media is served by Instagram; TatT stores the canonical permalink and
+          consent/provenance record, never an expiring media URL. */}
       {remainingPermalinks.length > 0 && (
         <div className="px-6 md:px-12 pb-12 md:pb-16">
           <div className="max-w-6xl mx-auto">
             <div className="text-[10px] uppercase tracking-[0.28em] text-pink mb-6 font-body border-t hairline pt-8">
-              ▸&nbsp;More&nbsp;recent&nbsp;work&nbsp;·&nbsp;via&nbsp;Instagram
+              ▸&nbsp;More&nbsp;{artistSelectedInstagram ? "selected" : "recent"}
+              &nbsp;work&nbsp;·&nbsp;via&nbsp;Instagram
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
               {remainingPermalinks.map((permalink) => (

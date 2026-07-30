@@ -61,6 +61,28 @@ afterEach(() => {
 });
 
 describe("artist profile — Instagram embed tier (TAT-40)", () => {
+  it("claimed artist-authorized selections outrank imported website images without a feature flag", async () => {
+    const hosted = "https://studio.example/portfolio/old-image.jpg";
+    const selected = [
+      { permalink: PERMALINKS[1], displayOrder: 1 },
+      { permalink: PERMALINKS[0], displayOrder: 0 },
+    ];
+    const { container } = await renderProfile(
+      graphRow({
+        claimedByUid: "uid_9",
+        portfolioImages: [hosted],
+        authorizedPortfolioPosts: selected,
+      }),
+    );
+    const embeds = container.querySelectorAll("blockquote.instagram-media");
+    expect(embeds).toHaveLength(2);
+    expect(embeds[0].getAttribute("data-instgrm-permalink")).toBe(PERMALINKS[0]);
+    expect(container.querySelector("img")).toBeNull();
+    expect(container.textContent?.replace(/\s+/g, " ")).toContain(
+      "Featured work · selected on Instagram",
+    );
+  });
+
   it("default (ENABLE_IG_EMBEDS unset): no embed section, page unchanged", async () => {
     const { container } = await renderProfile(graphRow());
     expect(

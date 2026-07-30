@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import StudioShell from '@/components/studio/StudioShell';
 import { useAuth } from '@/hooks/useAuth';
+import InstagramPortfolioManager from './InstagramPortfolioManager';
 
 type Profile = {
   id: string;
@@ -171,6 +172,7 @@ export default function ArtistProfileEditor() {
                   {profile.instagram || 'No Instagram handle on file'}
                 </div>
               </div>
+              <InstagramPortfolioManager artistId={profile.id} />
               <button
                 type="button"
                 disabled={saving}
@@ -185,8 +187,7 @@ export default function ArtistProfileEditor() {
                 </span>
               )}
               <p className="font-body text-[12px] leading-[1.6] text-white/45">
-                Portfolio uploads are intentionally unavailable until TattTester’s consented Instagram
-                media path is approved and configured. Your availability already has its own editor.
+                Your availability already has its own editor in the artist console.
               </p>
             </div>
           )}

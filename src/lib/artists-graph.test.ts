@@ -33,7 +33,10 @@ describe("buildRosterFilter", () => {
   });
 
   it("trims and forwards active filters as parameters, never inline", () => {
-    const { where, params } = buildRosterFilter({ q: " austin ", style: "Blackwork" });
+    const { where, params } = buildRosterFilter({
+      q: " austin ",
+      style: "Blackwork",
+    });
     expect(params.q).toBe("austin");
     expect(params.hasPortfolio).toBe(false);
     // The style reaches Cypher as its spelling group, not as a bare name.
@@ -48,7 +51,12 @@ describe("buildRosterFilter", () => {
   // A takedown that the roster ignores is cosmetic. Every roster read must be
   // gated on removedAt — see docs/adr/0025.
   it("suppresses taken-down artists unconditionally, whatever the filters", () => {
-    for (const filter of [{}, { q: "austin" }, { style: "Blackwork" }, { hasPortfolio: true }]) {
+    for (const filter of [
+      {},
+      { q: "austin" },
+      { style: "Blackwork" },
+      { hasPortfolio: true },
+    ]) {
       expect(buildRosterFilter(filter).where).toContain("a.removedAt IS NULL");
     }
   });
@@ -86,18 +94,26 @@ describe("buildRosterFilter", () => {
       ENABLE_IG_EMBEDS: "true",
     };
 
-    it("switch on (default): stored images count, claimed or not — current behavior", () => {
+    it("switch on (default): stored images or authorized IG posts count", () => {
       const { where } = buildRosterFilter({ hasPortfolio: true }, {});
       expect(where).toContain("size(a.portfolioImages) > 0");
-      // No claim gate, no permalink tier: images alone decide.
+      expect(where).toContain("SHOWCASES");
+      expect(where).toContain("PortfolioPost");
+      // No claim gate, no legacy permalink tier.
       expect(where).not.toContain("claimedByUid");
       expect(where).not.toContain("portfolioPermalinks");
     });
 
-    it("switch off, embeds off: only claimed artists' images count", () => {
-      const { where } = buildRosterFilter({ hasPortfolio: true }, KILL_SWITCH_OFF);
-      expect(where).toContain("(a.claimedByUid IS NOT NULL AND a.claimedByUid <> '')");
+    it("switch off, embeds off: claimed artists' images or authorized IG posts count", () => {
+      const { where } = buildRosterFilter(
+        { hasPortfolio: true },
+        KILL_SWITCH_OFF,
+      );
+      expect(where).toContain(
+        "(a.claimedByUid IS NOT NULL AND a.claimedByUid <> '')",
+      );
       expect(where).toContain("size(a.portfolioImages) > 0");
+      expect(where).toContain("SHOWCASES");
       // No embed tier ⇒ an unclaimed artist displays nothing ⇒ never matches.
       expect(where).not.toContain("portfolioPermalinks");
     });
@@ -107,12 +123,17 @@ describe("buildRosterFilter", () => {
         { hasPortfolio: true },
         KILL_SWITCH_OFF_EMBEDS_ON,
       );
-      // Claimed lane: licensed hosted images.
-      expect(where).toContain("(a.claimedByUid IS NOT NULL AND a.claimedByUid <> '')");
+      // Claimed lane: licensed hosted images or artist-authorized IG posts.
+      expect(where).toContain(
+        "(a.claimedByUid IS NOT NULL AND a.claimedByUid <> '')",
+      );
       expect(where).toContain("size(a.portfolioImages) > 0");
+      expect(where).toContain("SHOWCASES");
       // Unclaimed lane: at least one permalink filterPermalinksForDisplay
       // would keep — matched via the shared pattern, passed as a $param.
-      expect(where).toContain("NOT (a.claimedByUid IS NOT NULL AND a.claimedByUid <> '')");
+      expect(where).toContain(
+        "NOT (a.claimedByUid IS NOT NULL AND a.claimedByUid <> '')",
+      );
       expect(where).toContain("coalesce(a.portfolioPermalinks, [])");
       expect(where).toContain("$igPermalinkPattern");
       expect(params.igPermalinkPattern).toBe(IG_PERMALINK_CYPHER);
@@ -166,7 +187,9 @@ describe("rosterPageWindow", () => {
 
 describe("instagramUrl", () => {
   it("normalizes handles, urls, and trailing paths", () => {
-    expect(instagramUrl("@ink.by.sam")).toBe("https://instagram.com/ink.by.sam");
+    expect(instagramUrl("@ink.by.sam")).toBe(
+      "https://instagram.com/ink.by.sam",
+    );
     expect(instagramUrl("https://www.instagram.com/ink.by.sam/reels")).toBe(
       "https://instagram.com/ink.by.sam",
     );
@@ -236,12 +259,19 @@ describe("roster portfolio kill switch", () => {
   it("flag off: the /artists/[slug] profile read comes back image-less end to end", async () => {
     vi.stubEnv("SHOW_UNCLAIMED_PORTFOLIOS", "false");
     mockedQuery.mockResolvedValue([
-      { id: "artist_1", name: "A", portfolioImages: GCS_IMAGES, claimedByUid: null },
+      {
+        id: "artist_1",
+        name: "A",
+        portfolioImages: GCS_IMAGES,
+        claimedByUid: null,
+      },
     ]);
     const artist = await getRosterArtistById("artist_1");
     expect(artist?.portfolioImages).toEqual([]);
     // And the profile query itself asked for the claim binding.
-    expect(mockedQuery.mock.calls[0][0]).toContain("a.claimedByUid AS claimedByUid");
+    expect(mockedQuery.mock.calls[0][0]).toContain(
+      "a.claimedByUid AS claimedByUid",
+    );
   });
 });
 
@@ -261,7 +291,8 @@ describe("roster Instagram permalinks (TAT-40)", () => {
       resolve(process.cwd(), "src/lib/artists-graph.ts"),
       "utf8",
     );
-    const hits = source.match(/a\.portfolioPermalinks AS portfolioPermalinks/g) ?? [];
+    const hits =
+      source.match(/a\.portfolioPermalinks AS portfolioPermalinks/g) ?? [];
     expect(hits.length).toBeGreaterThanOrEqual(2);
   });
 
@@ -299,7 +330,11 @@ describe("roster Instagram permalinks (TAT-40)", () => {
 
   it("graph rows without the property (backfill not run) degrade to []", () => {
     vi.stubEnv("ENABLE_IG_EMBEDS", "true");
-    const row = toRosterArtist({ id: "artist_1", name: "A", claimedByUid: null });
+    const row = toRosterArtist({
+      id: "artist_1",
+      name: "A",
+      claimedByUid: null,
+    });
     expect(row.portfolioPermalinks).toEqual([]);
   });
 
@@ -310,7 +345,9 @@ describe("roster Instagram permalinks (TAT-40)", () => {
       {
         id: "artist_1",
         name: "A",
-        portfolioImages: ["https://storage.googleapis.com/tatt-pro-assets/a/0.jpg"],
+        portfolioImages: [
+          "https://storage.googleapis.com/tatt-pro-assets/a/0.jpg",
+        ],
         portfolioPermalinks: PERMALINKS,
         claimedByUid: null,
       },
@@ -329,7 +366,11 @@ describe("roster Instagram permalinks (TAT-40)", () => {
 // the server.
 describe("toRosterArtist claimed flag (TAT-16)", () => {
   it("unclaimed (claimedByUid null): claimed is false", () => {
-    const row = toRosterArtist({ id: "artist_1", name: "A", claimedByUid: null });
+    const row = toRosterArtist({
+      id: "artist_1",
+      name: "A",
+      claimedByUid: null,
+    });
     expect(row.claimed).toBe(false);
   });
 
@@ -339,7 +380,11 @@ describe("toRosterArtist claimed flag (TAT-16)", () => {
   });
 
   it("claimed: the flag is true and the uid is NOT exposed on the row", () => {
-    const row = toRosterArtist({ id: "artist_1", name: "A", claimedByUid: "uid_9" });
+    const row = toRosterArtist({
+      id: "artist_1",
+      name: "A",
+      claimedByUid: "uid_9",
+    });
     expect(row.claimed).toBe(true);
     expect("claimedByUid" in row).toBe(false);
   });
