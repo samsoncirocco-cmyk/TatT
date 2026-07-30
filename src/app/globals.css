@@ -1,4 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Anton&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+/* Anton + Space Mono are self-hosted via next/font in src/app/layout.tsx
+   (--font-anton / --font-space-mono). Only the icon font still comes from
+   Google — next/font cannot express Material Symbols' variable axes. */
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap');
 
 @tailwind base;
@@ -25,7 +27,7 @@ html, body {
 body {
   color: var(--foreground);
   background: var(--black);
-  font-family: 'Space Mono', 'Menlo', monospace;
+  font-family: var(--font-space-mono), 'Space Mono', 'Menlo', monospace;
   font-size: 14px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
@@ -33,20 +35,20 @@ body {
 }
 
 .font-display {
-  font-family: 'Anton', 'Impact', 'Arial Narrow', sans-serif;
+  font-family: var(--font-anton), 'Anton', 'Impact', 'Arial Narrow', sans-serif;
   font-weight: 400;
   letter-spacing: 0.005em;
   text-transform: uppercase;
 }
 
 .font-body {
-  font-family: 'Space Mono', 'Menlo', monospace;
+  font-family: var(--font-space-mono), 'Space Mono', 'Menlo', monospace;
 }
 
 /* QUIET DARK (ADR-0032) — same display family, volume down: sentence case,
    smaller sizes, no forced uppercase. For the calm register only. */
 .font-display-quiet {
-  font-family: 'Anton', 'Impact', 'Arial Narrow', sans-serif;
+  font-family: var(--font-anton), 'Anton', 'Impact', 'Arial Narrow', sans-serif;
   font-weight: 400;
   letter-spacing: 0.015em;
   text-transform: none;

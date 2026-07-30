@@ -2,15 +2,16 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { User } from 'firebase/auth';
-import {
-  signInWithGoogle,
-  signInWithEmail,
-  signUpWithEmail,
-  signOut,
-  onAuthStateChanged,
-} from '@/services/authService';
 import { useAuthStore } from '@/store/useAuthStore';
 import { markKnownUser } from '@/lib/knownUser';
+
+// authService (and with it firebase/auth + firebase/app, ~34 KB gz) is
+// imported lazily. This hook sits in the root layout via AuthProvider, and
+// this file's static import was the one edge that pulled Firebase into every
+// route's First Load JS — every other call site (login, signup, tattStorage,
+// getIdToken below) already used await import('@/services/authService').
+// The auth listener still attaches on mount; it just loads after hydration
+// instead of gating first paint.
 
 export function useAuth() {
   const [loading, setLoading] = useState(true);
@@ -38,16 +39,25 @@ export function useAuth() {
   );
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged((firebaseUser) => {
-      syncUser(firebaseUser);
-      setLoading(false);
+    let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
+    import('@/services/authService').then(({ onAuthStateChanged }) => {
+      if (cancelled) return;
+      unsubscribe = onAuthStateChanged((firebaseUser) => {
+        syncUser(firebaseUser);
+        setLoading(false);
+      });
     });
-    return unsubscribe;
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
   }, [syncUser]);
 
   const loginWithGoogle = useCallback(async () => {
     setError(null);
     try {
+      const { signInWithGoogle } = await import('@/services/authService');
       await signInWithGoogle();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Google sign-in failed';
@@ -58,6 +68,7 @@ export function useAuth() {
   const loginWithEmail = useCallback(async (email: string, password: string) => {
     setError(null);
     try {
+      const { signInWithEmail } = await import('@/services/authService');
       await signInWithEmail(email, password);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Email sign-in failed';
@@ -68,6 +79,7 @@ export function useAuth() {
   const signUpEmail = useCallback(async (email: string, password: string) => {
     setError(null);
     try {
+      const { signUpWithEmail } = await import('@/services/authService');
       await signUpWithEmail(email, password);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Sign-up failed';
@@ -78,6 +90,7 @@ export function useAuth() {
   const logout = useCallback(async () => {
     setError(null);
     try {
+      const { signOut } = await import('@/services/authService');
       await signOut();
       clearStore();
     } catch (err: unknown) {

@@ -173,7 +173,10 @@ export default async function Home() {
                   <img
                     src={d.src}
                     alt={d.alt}
+                    width={640}
+                    height={640}
                     loading="lazy"
+                    decoding="async"
                     className="w-full aspect-square object-cover"
                   />
                   <figcaption className="px-3 py-2.5 flex items-baseline justify-between gap-2">
