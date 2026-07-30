@@ -10,16 +10,24 @@ export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/v1/designs/share/[shareId] — public read of a shared design.
+ * The vote tally (TAT-52) rides along in the response; there is no separate
+ * tally endpoint.
+ *
+ * `?peek=1` reads without counting a view — for the owner checking their own
+ * tally from /designs/[id]. Their glance at the verdict is not a visitor,
+ * and letting it bump "Views" would quietly falsify the stat the share page
+ * shows to actual strangers.
  *
  * 404 means the share genuinely does not exist. A backend that is down or
  * unconfigured returns 503, never 404: we don't tell a visitor a design is
  * gone when the truth is that we cannot look.
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ shareId: string }> }
 ) {
   const { shareId } = await params;
+  const peek = request.nextUrl.searchParams.get('peek') === '1';
 
   const store = resolveSharedDesignStore();
   if (!store) {
@@ -29,7 +37,7 @@ export async function GET(
 
   let design;
   try {
-    design = await store.getAndCountView(shareId);
+    design = peek ? await store.get(shareId) : await store.getAndCountView(shareId);
   } catch (err) {
     console.error(
       `[share] lookup ${shareId} failed:`,

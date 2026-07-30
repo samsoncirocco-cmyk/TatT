@@ -7,14 +7,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
-const { verifyApiAuthMock, verifyFirebaseTokenMock, resolveStoreMock, saveMock, getAndCountViewMock } =
-  vi.hoisted(() => ({
-    verifyApiAuthMock: vi.fn(),
-    verifyFirebaseTokenMock: vi.fn(),
-    resolveStoreMock: vi.fn(),
-    saveMock: vi.fn(),
-    getAndCountViewMock: vi.fn(),
-  }));
+const {
+  verifyApiAuthMock,
+  verifyFirebaseTokenMock,
+  resolveStoreMock,
+  saveMock,
+  getAndCountViewMock,
+  getMock,
+} = vi.hoisted(() => ({
+  verifyApiAuthMock: vi.fn(),
+  verifyFirebaseTokenMock: vi.fn(),
+  resolveStoreMock: vi.fn(),
+  saveMock: vi.fn(),
+  getAndCountViewMock: vi.fn(),
+  getMock: vi.fn(),
+}));
 
 vi.mock('@/lib/api-auth', () => ({ verifyApiAuth: verifyApiAuthMock }));
 vi.mock('@/lib/auth-dal', () => ({ verifyFirebaseToken: verifyFirebaseTokenMock }));
@@ -26,7 +33,12 @@ vi.mock('@/lib/shared-design-store', async (importOriginal) => {
 import { POST } from '../route';
 import { GET } from '../[shareId]/route';
 
-const store = { save: saveMock, getAndCountView: getAndCountViewMock };
+const store = {
+  save: saveMock,
+  getAndCountView: getAndCountViewMock,
+  get: getMock,
+  recordVote: vi.fn(),
+};
 
 const VALID_BODY = { imageUrl: 'https://img/design.png', prompt: 'fine line fern' };
 
@@ -38,9 +50,9 @@ function postRequest(body: Record<string, unknown> = VALID_BODY) {
   });
 }
 
-function getRequest(shareId: string) {
+function getRequest(shareId: string, query = '') {
   return {
-    request: new NextRequest(`http://localhost/api/v1/designs/share/${shareId}`),
+    request: new NextRequest(`http://localhost/api/v1/designs/share/${shareId}${query}`),
     params: Promise.resolve({ shareId }),
   };
 }
@@ -181,6 +193,61 @@ describe('GET /api/v1/designs/share/[shareId]', () => {
 
     expect(json.imageUrls).toEqual(imageUrls);
     expect(json.uid).toBeUndefined();
+  });
+
+  // GET is also the tally read (TAT-52) — there is no separate endpoint.
+  it('carries the vote tally, normalised to all three options', async () => {
+    getAndCountViewMock.mockResolvedValue({
+      shareId: 'abc1234567',
+      imageUrl: 'https://img/design.png',
+      prompt: 'fine line fern',
+      sharedAt: '2026-07-25T00:00:00.000Z',
+      shareUrl: 'https://tatt-app.vercel.app/share/abc1234567',
+      views: 3,
+      votes: { get_it: 7 }, // Firestore only grows keys that were voted
+    });
+
+    const { request, params } = getRequest('abc1234567');
+    const json = await (await GET(request, { params })).json();
+
+    expect(json.votes).toEqual({ get_it: 7, sleep_on_it: 0, absolutely_not: 0 });
+  });
+
+  it('reads a share minted before voting existed as an all-zero tally', async () => {
+    getAndCountViewMock.mockResolvedValue({
+      shareId: 'old1234567',
+      imageUrl: 'https://img/design.png',
+      prompt: 'fine line fern',
+      sharedAt: '2026-07-25T00:00:00.000Z',
+      shareUrl: 'https://tatt-app.vercel.app/share/old1234567',
+      views: 3,
+    });
+
+    const { request, params } = getRequest('old1234567');
+    const json = await (await GET(request, { params })).json();
+
+    expect(json.votes).toEqual({ get_it: 0, sleep_on_it: 0, absolutely_not: 0 });
+  });
+
+  it('?peek=1 reads without counting a view — the owner is not a visitor', async () => {
+    getMock.mockResolvedValue({
+      shareId: 'abc1234567',
+      imageUrl: 'https://img/design.png',
+      prompt: 'fine line fern',
+      sharedAt: '2026-07-25T00:00:00.000Z',
+      shareUrl: 'https://tatt-app.vercel.app/share/abc1234567',
+      views: 3,
+      votes: { get_it: 2, absolutely_not: 1 },
+    });
+
+    const { request, params } = getRequest('abc1234567', '?peek=1');
+    const res = await GET(request, { params });
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.votes).toEqual({ get_it: 2, sleep_on_it: 0, absolutely_not: 1 });
+    expect(getMock).toHaveBeenCalledWith('abc1234567');
+    expect(getAndCountViewMock).not.toHaveBeenCalled();
   });
 
   it('returns 404 for an unknown shareId', async () => {
