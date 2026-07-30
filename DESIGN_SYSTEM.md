@@ -80,6 +80,8 @@ Tailwind defaults. Notable rhythms in the stencil page:
 
 One animation: `snap` — a hard 6-step cut-in (`steps(6, end)`). Use `.rise .rise-1` through `.rise-5` for staggered entrances. No fades. No spring curves. Press feedback is `.press` (1px Y translate on `:active`).
 
+One sanctioned exception to the `.rise` timings: the four-cut reveal (TAT-52) uses `.reveal-cut .reveal-cut-1..4` — the same `snap` cut-in spaced a full 260ms beat apart so the cuts land one at a time. Reveal grid only; don't reach for it elsewhere. `prefers-reduced-motion: reduce` disables both `.rise` and `.reveal-cut` (content renders in place, all at once).
+
 ---
 
 ## Component Patterns
@@ -230,7 +232,7 @@ Always Space Mono, always uppercase, always `tabular-nums`, always wrapped in a 
 - Leave aggressive negative space. Punk uses silence too.
 - Keep exactly one tape CTA, one sticker, one slashed word per screen.
 - Use `tabular-nums` on every numeric label.
-- Animate with `.rise rise-1..5` for staggered entrances, nothing else.
+- Animate with `.rise rise-1..5` for staggered entrances (`.reveal-cut 1..4` on the reveal grid only), nothing else.
 - Reach for `hairline` (pink at 35%) before `hairline-white`.
 
 **DON'T**
