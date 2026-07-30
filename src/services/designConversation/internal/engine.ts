@@ -731,7 +731,8 @@ export async function runConversationTurn(
     !evocationAsked &&
     record.vibe !== 'aesthetic' &&
     !(record.subject ?? '').trim() &&
-    !moment &&
+    // moment alone never lands on the record (only appended when a subject
+    // base already exists — unlike scene), so it must not skip the mine.
     evocationRefOf(record.meaning ?? '')
   ) {
     stage = 'chatting';
