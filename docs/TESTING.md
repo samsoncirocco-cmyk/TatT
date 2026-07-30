@@ -1,3 +1,11 @@
+> **⚠️ Not a current entry point.** This file is not listed in
+> `docs/status/document-classification.md`'s "Current entry points" and may be
+> stale. Last touched 2026-02-06 — treat any specific commands or file paths
+> below as unverified until checked against the code. For current test
+> commands, use `npm test` / `npm run test:watch` (Vitest) and
+> `npm run docs:check` as defined in `package.json`, and see CLAUDE.md's
+> Troubleshooting section for still-accurate operational fixes.
+
 # TatTester Testing Guide
 
 Comprehensive testing instructions for the AI tattoo design generator.

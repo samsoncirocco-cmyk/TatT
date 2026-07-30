@@ -1,3 +1,12 @@
+> **This is a live operating manual (rules and mode-flags for the autonomous
+> overnight crew agent), not a source of product or architecture truth.** It
+> is not on the entry-point list in `docs/status/document-classification.md`.
+> Fields like `CREW_MODE` and the spend cap are meant to be edited in place as
+> operating conditions change, so treat this file as "current process," not
+> as a description of what the product does — for that, use
+> `docs/product/current-product.md` and
+> `docs/architecture/current-architecture.md`.
+
 # TatT Overnight Crew — Operating Manual
 
 You are an autonomous code agent working TatT's issue queue while the maintainer

@@ -1,3 +1,12 @@
+> **⚠️ Not a current entry point.** This file is not listed in
+> `docs/status/document-classification.md`'s "Current entry points" and may be
+> stale. Last touched 2026-02-06 (and self-dated December 18, 2024 in the
+> line below, which is itself untrustworthy). It also hardcodes a stale
+> absolute path from a different machine/user
+> (`/Users/ciroccofam/my-project/tatt-tester`) throughout — **do not follow
+> the setup steps or paths literally.** Use README.md's actual Quick Start
+> section for current setup instructions instead.
+
 # TatTester - Complete Project Guide for Beginners
 
 > **Last Updated:** December 18, 2024
