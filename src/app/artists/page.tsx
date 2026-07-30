@@ -61,7 +61,7 @@ export default async function ArtistsPage({
           <SlashHeadline
             before="The"
             slashed="roster"
-            sizeClassName="text-[48px] md:text-[88px] leading-[0.88]"
+            size="section"
           />
           <p className="mt-6 text-[14px] text-white/60 font-body max-w-xl leading-[1.55]">
             Real tattoo artists, live from the graph. Search by name, city, or
