@@ -44,7 +44,14 @@ vi.mock('@/lib/twilio', () => ({
   TWILIO_NOT_CONFIGURED: { error: 'SMS is not configured.', code: 'TWILIO_NOT_CONFIGURED' },
 }));
 
-vi.mock('@/services/sketchbotSms', () => ({
+vi.mock('@/services/sketchbotSms', async () => ({
+  // The real field parser (leaf module, no service deps): the media-flow
+  // test below exercises the route's actual NumMedia wiring.
+  parseInboundMedia: (
+    await vi.importActual<typeof import('@/services/sketchbotSms/internal/media')>(
+      '@/services/sketchbotSms/internal/media'
+    )
+  ).parseInboundMedia,
   handleInbound: vi.fn(async () => ({ kind: 'reply', text: 'Where would it go?' })),
   executeReveal: vi.fn(async () => ({
     cuts: [
@@ -230,6 +237,23 @@ describe('conversation round trip', () => {
     vi.mocked(handleInbound).mockResolvedValueOnce({ kind: 'silent' });
     const res = await POST(webhookRequest({ From: PHONE, Body: 'x' }));
     expect(await res.text()).not.toContain('<Message>');
+  });
+
+  it('passes MMS media fields through to the adapter (TAT-50)', async () => {
+    await POST(
+      webhookRequest({
+        From: PHONE,
+        Body: 'like this',
+        NumMedia: '1',
+        MediaUrl0: 'https://api.twilio.com/m/0',
+        MediaContentType0: 'image/jpeg',
+      })
+    );
+    expect(handleInbound).toHaveBeenCalledWith({
+      phone: PHONE,
+      body: 'like this',
+      media: [{ url: 'https://api.twilio.com/m/0', contentType: 'image/jpeg' }],
+    });
   });
 });
 
