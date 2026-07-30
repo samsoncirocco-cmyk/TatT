@@ -34,6 +34,11 @@ import { useBookings, useDesigns, type TattDesign } from "@/lib/tattStorage";
 import { getApiAuthHeaders } from "@/lib/client-api-auth";
 import { bookingReviewMoneyCopy } from "@/lib/money-copy";
 import {
+  BookingPathExplainer,
+  CheckoutEstimate,
+  TattooPrepPlan,
+} from "./BookingConfidence";
+import {
   depositDollarsForSize,
   MAX_REQUESTED_SLOTS,
   type RequestedSlot,
@@ -70,12 +75,6 @@ export type BookArtist = {
   availabilityLabel: string;
   availabilityNote: string | null;
 };
-
-const STEPS = [
-  { n: "01", label: "Request a time", hint: "When" },
-  { n: "02", label: "Design + details", hint: "What" },
-  { n: "03", label: "Review + deposit", hint: "Send it" },
-];
 
 const SIZES = [
   { id: "small", label: "Small", desc: 'Under 2"' },
@@ -200,6 +199,11 @@ export default function BookClient({
   const slotsByDate = useMemo(() => groupSlotsByDate(offer.slots), [offer.slots]);
   const chosenDesign = designs.find((d) => d.id === designId);
   const deposit = depositDollarsForSize(size || undefined);
+  const steps = [
+    { n: "01", label: reserving ? "Pick a time" : "Request dates", hint: "When" },
+    { n: "02", label: "Design + details", hint: "What" },
+    { n: "03", label: "Review checkout", hint: "Deposit + fee" },
+  ];
 
   const detailsValid =
     size && placement && description.trim().length > 10 && name.trim() && email.trim() && budget;
@@ -422,6 +426,7 @@ export default function BookClient({
                   </>
                 )}
               </p>
+              <TattooPrepPlan artistName={artist.name} showBookingsLink={false} />
               <div className="mt-12 flex flex-col sm:flex-row items-start gap-5">
                 <QuietCTA href="/bookings" size="md">Your bookings</QuietCTA>
                 <QuietCTA href={`/artists/${artist.slug}`} variant="ghost" size="sm">
@@ -448,6 +453,10 @@ export default function BookClient({
       <div className="px-6 md:px-12 py-16 md:py-24">
         <div className="max-w-5xl mx-auto">
           <QuietHeadline>Book the chair</QuietHeadline>
+          <p className="mt-5 text-[13px] text-quiet-dim font-body leading-[1.8] max-w-2xl">
+            See exactly what you&apos;re requesting, what you&apos;ll pay at checkout, and
+            what happens after you pay.
+          </p>
 
           {/* ARTIST STRIP — who you're booking, with honest availability */}
           <div className="mt-12 border hairline-quiet p-6 flex flex-wrap items-center gap-x-6 gap-y-3">
@@ -466,9 +475,14 @@ export default function BookClient({
             </div>
           </div>
 
+          <BookingPathExplainer
+            mode={reserving ? "reservation" : "request"}
+            artistName={artist.name}
+          />
+
           {/* STEP INDICATOR */}
           <div className="mt-12 flex flex-col sm:flex-row sm:items-stretch gap-0 border hairline-quiet">
-            {STEPS.map((s, i) => {
+            {steps.map((s, i) => {
               const active = i === step;
               const done = i < step;
               const doneDetail =
@@ -823,7 +837,7 @@ export default function BookClient({
           {step === 2 && (
             <div className="mt-12 border hairline-quiet p-8 md:p-12">
               <h2 className="font-display-quiet text-[20px] text-quiet mb-8">
-                Review the request
+                {reserving ? "Review the reservation" : "Review the request"}
               </h2>
               <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-7 text-[13px] font-body">
                 <div>
@@ -832,12 +846,14 @@ export default function BookClient({
                 </div>
                 <div>
                   <dt className="text-[11px] text-quiet-dim">
-                    Requested dates ({timePref.toLowerCase()})
+                    {reserving ? "Reserved time" : `Requested dates (${timePref.toLowerCase()})`}
                   </dt>
                   <dd className="mt-1.5 text-quiet">
-                    {selectedDates
-                      .map((iso) => shortDate(new Date(`${iso}T00:00:00`)))
-                      .join(" · ")}
+                    {reserving && selectedSlot
+                      ? `${formatSlotDate(selectedSlot.date)} · ${selectedSlot.startTime}`
+                      : selectedDates
+                          .map((iso) => shortDate(new Date(`${iso}T00:00:00`)))
+                          .join(" · ")}
                   </dd>
                 </div>
                 <div>
@@ -872,20 +888,22 @@ export default function BookClient({
 
               <div className="mt-10 border-t hairline-quiet-soft pt-8">
                 <ReceiptCard className="max-w-xl">
-                  <div className="flex items-baseline justify-between gap-6">
-                    <div className="font-display-quiet text-[28px] leading-none tabular-nums">
-                      ${deposit}
-                    </div>
-                    <div className="font-body text-[12px] text-black/60">Deposit</div>
+                  <div className="font-display-quiet text-[22px] leading-none">
+                    Checkout breakdown
                   </div>
+                  <CheckoutEstimate deposit={deposit} feePercent={feePercent} />
                   <p className="mt-5 pt-5 border-t border-black/15 text-[13px] font-body text-black/80 leading-[1.7]">
                     {/* The money sentence (ADR-0036): who pays what, who keeps what. */}
                     {bookingReviewMoneyCopy(artist.name, feePercent)}
                   </p>
                   <p className="mt-3 text-[12px] font-body text-black/60 leading-[1.7]">
-                    Deposit holds your request. Balance settles at the shop.
+                    {reserving
+                      ? "We place a short hold before checkout; payment secures that held time."
+                      : "Payment starts the booking process; it does not confirm one of your requested dates."}
                     <br />
-                    Dates are confirmed by the artist — not by paying.
+                    {reserving
+                      ? "If the hold expires before payment, the time returns to availability."
+                      : "The artist confirms a date or offers another time."}
                   </p>
                 </ReceiptCard>
               </div>
@@ -931,7 +949,11 @@ export default function BookClient({
               )}
               {step === 2 && (
                 <QuietCTA size="md" disabled={phase === "submitting"} onClick={submit}>
-                  {phase === "submitting" ? "Sending…" : "Send request"}
+                  {phase === "submitting"
+                    ? "Preparing checkout…"
+                    : reserving
+                      ? "Hold time & continue"
+                      : "Send request & continue"}
                 </QuietCTA>
               )}
             </div>

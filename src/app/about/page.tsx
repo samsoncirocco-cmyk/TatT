@@ -15,8 +15,8 @@ const SECTIONS = [
     n: "02",
     word: "Generate",
     body: [
-      "Four passes back in under thirty seconds. Each one a different cut at the same idea — different angle, different weight, different attitude.",
-      "Pick the one that hits. Or scrap them all and try again. Credits don't tick on garbage.",
+      "Four passes, each a different cut at the same idea — different angle, different weight, different attitude. Render time varies with the design and studio traffic.",
+      "Pick the one that hits or try again. If a render breaks, your prompt and settings stay put so you can retry the exact idea without rebuilding it.",
     ],
   },
   {
@@ -31,8 +31,8 @@ const SECTIONS = [
     n: "04",
     word: "Connect",
     body: [
-      "Match with vetted artists who actually do this style. We rank by portfolio fit, location, and availability — not by who paid for placement.",
-      "Book the chair through the platform. Pay the deposit. Show up. Get inked.",
+      "Search real artist records by portfolio fit, location, and availability — not by who paid for placement. Claimed and unclaimed profiles are labeled so you know who controls the page.",
+      "Some artists offer live times; everyone else receives a date request. You see the deposit and TattTester's separate booking fee before checkout, and the artist confirms what happens next.",
     ],
   },
 ];

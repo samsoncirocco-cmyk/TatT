@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
 import { describe, expect, it, beforeEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
-import { useDesigns, STORAGE_KEYS } from "./tattStorage";
+import { renderHook, act, waitFor } from "@testing-library/react";
+import {
+  useDesigns,
+  useStylePreferences,
+  STORAGE_KEYS,
+} from "./tattStorage";
 
 describe("useDesigns", () => {
   beforeEach(() => {
@@ -71,5 +75,46 @@ describe("useDesigns", () => {
     });
 
     expect(result.current.designs).toHaveLength(1);
+  });
+});
+
+describe("useStylePreferences", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("persists a canonical, deduplicated taste profile", async () => {
+    const { result } = renderHook(() => useStylePreferences());
+
+    await waitFor(() => expect(result.current.hydrated).toBe(true));
+
+    act(() => {
+      result.current.setStylePreferences([
+        "Fine Line",
+        "Blackwork",
+        "Fine Line",
+        "fineline",
+        "not-a-style",
+      ]);
+    });
+
+    expect(result.current.stylePreferences).toEqual(["Fine Line", "Blackwork"]);
+    expect(
+      JSON.parse(
+        localStorage.getItem(STORAGE_KEYS.stylePreferences) || "[]",
+      ),
+    ).toEqual(["Fine Line", "Blackwork"]);
+  });
+
+  it("fails safely when the saved value is not a list", async () => {
+    localStorage.setItem(
+      STORAGE_KEYS.stylePreferences,
+      JSON.stringify({ style: "Fine Line" }),
+    );
+
+    const { result } = renderHook(() => useStylePreferences());
+
+    await waitFor(() => expect(result.current.hydrated).toBe(true));
+    expect(result.current.stylePreferences).toEqual([]);
   });
 });

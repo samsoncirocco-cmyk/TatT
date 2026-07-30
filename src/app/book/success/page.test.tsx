@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup, waitFor } from "@testing-library/react";
+import { render, screen, cleanup, waitFor, act } from "@testing-library/react";
 import BookingSuccessPage from "./page";
 
 let searchParams = new URLSearchParams();
+const getApiAuthHeadersMock = vi.hoisted(() => vi.fn());
+const fetchMock = vi.hoisted(() => vi.fn());
+const bookingFetchMock = vi.hoisted(() => vi.fn());
+
 vi.mock("next/navigation", () => ({
   useSearchParams: () => searchParams,
 }));
@@ -12,14 +16,9 @@ vi.mock("@/components/studio/StudioShell", () => ({
   default: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
-const { getApiAuthHeadersMock } = vi.hoisted(() => ({
-  getApiAuthHeadersMock: vi.fn(),
-}));
 vi.mock("@/lib/client-api-auth", () => ({
   getApiAuthHeaders: getApiAuthHeadersMock,
 }));
-
-const fetchMock = vi.fn();
 
 /**
  * Wire the page's two owner-scoped fetches. `booking` null ⇒ 404 from
@@ -49,37 +48,204 @@ function stubServer({
   });
 }
 
-beforeEach(() => {
-  searchParams = new URLSearchParams("artist=Nadia&deposit=100&bookingId=BK-TEST1234");
-  // Default: signed out — param-based display, no server truth, no calendar.
-  getApiAuthHeadersMock.mockReset();
-  getApiAuthHeadersMock.mockRejectedValue(new Error("signed out"));
-  fetchMock.mockReset();
-  vi.stubGlobal("fetch", fetchMock);
-});
+function bookingResponse(status: string, overrides: Record<string, unknown> = {}) {
+  return {
+    ok: true,
+    json: vi.fn().mockResolvedValue({
+      success: true,
+      booking: {
+        status,
+        depositAmount: 100,
+        artistName: "Nadia",
+        ...overrides,
+      },
+    }),
+  };
+}
+
+async function flushInitialRead() {
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
 describe("BookingSuccessPage — no dead ends", () => {
-  it("offers the bookings door", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    searchParams = new URLSearchParams(
+      "artist=Nadia&deposit=100&session_id=cs_test_123&bookingId=book_123"
+    );
+    getApiAuthHeadersMock.mockReset();
+    getApiAuthHeadersMock.mockResolvedValue({ Authorization: "Bearer owner" });
+    fetchMock.mockReset();
+    bookingFetchMock.mockReset();
+    bookingFetchMock.mockResolvedValue(bookingResponse("pending"));
+    fetchMock.mockImplementation((url: string, init?: RequestInit) =>
+      String(url).endsWith("/calendar.ics")
+        ? Promise.resolve({ ok: false, status: 404 })
+        : bookingFetchMock(url, init)
+    );
+    vi.stubGlobal("fetch", fetchMock);
+  });
+
+  it("offers the bookings door", async () => {
     render(<BookingSuccessPage />);
+    await flushInitialRead();
     expect(
       screen.getByRole("link", { name: /your bookings/i }).getAttribute("href")
     ).toBe("/bookings");
   });
 
-  it("offers a way back into the funnel — start another design", () => {
+  it("offers a way back into the funnel — start another design", async () => {
     render(<BookingSuccessPage />);
+    await flushInitialRead();
     expect(
       screen.getByRole("link", { name: /start another design/i }).getAttribute("href")
     ).toBe("/design");
   });
+
+  it("turns the receipt into an actionable appointment plan", async () => {
+    render(<BookingSuccessPage />);
+    await flushInitialRead();
+    expect(
+      screen.getByRole("heading", { name: /your appointment game plan/i })
+    ).toBeTruthy();
+    expect(screen.getByText(/shop address, remaining quote/i)).toBeTruthy();
+    expect(screen.getByText(/bring required ID and payment/i)).toBeTruthy();
+  });
+
+  it("does not call an unreconciled return URL paid", async () => {
+    render(<BookingSuccessPage />);
+    await flushInitialRead();
+    expect(screen.getAllByText(/confirming deposit/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/^deposit paid$/i)).toBeNull();
+    expect(screen.getByText("book_123")).toBeTruthy();
+  });
+
+  it("polls the exact owner-scoped booking until the webhook marks the deposit paid", async () => {
+    bookingFetchMock
+      .mockResolvedValueOnce(bookingResponse("pending"))
+      .mockResolvedValueOnce(
+        bookingResponse("deposit_paid", { paidAt: "2026-07-29T23:00:00.000Z" })
+      );
+
+    render(<BookingSuccessPage />);
+    await flushInitialRead();
+
+    expect(bookingFetchMock).toHaveBeenCalledTimes(1);
+    expect(bookingFetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/bookings/book_123",
+      { headers: { Authorization: "Bearer owner" } }
+    );
+    expect(screen.getAllByText(/confirming deposit/i).length).toBeGreaterThan(0);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+
+    expect(bookingFetchMock).toHaveBeenCalledTimes(2);
+    expect(screen.getAllByText(/^deposit paid$/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/your deposit cleared/i)).toBeTruthy();
+    expect(screen.queryByText(/confirm the final slot/i)).toBeNull();
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    expect(bookingFetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops after a bounded reconciliation window without falling back to Deposit due", async () => {
+    render(<BookingSuccessPage />);
+    await flushInitialRead();
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+
+    expect(bookingFetchMock).toHaveBeenCalledTimes(6);
+    expect(screen.getAllByText(/confirmation taking longer/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/we haven't marked your deposit paid/i)).toBeTruthy();
+    expect(screen.queryByText(/^deposit due$/i)).toBeNull();
+  });
+
+  it("does not borrow payment truth from a different booking on a legacy return URL", async () => {
+    searchParams = new URLSearchParams(
+      "artist=Nadia&deposit=100&session_id=cs_legacy_target",
+    );
+    bookingFetchMock.mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        success: true,
+        bookings: [
+          {
+            status: "deposit_paid",
+            stripeSessionId: "cs_some_other_booking",
+            depositAmount: 100,
+          },
+        ],
+      }),
+    });
+
+    render(<BookingSuccessPage />);
+    await flushInitialRead();
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+
+    expect(bookingFetchMock).toHaveBeenCalledTimes(6);
+    expect(screen.getAllByText(/confirmation taking longer/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/^deposit paid$/i)).toBeNull();
+  });
+
+  it("stops polling on a non-paid terminal status and does not imply a secured slot", async () => {
+    bookingFetchMock
+      .mockResolvedValueOnce(bookingResponse("pending"))
+      .mockResolvedValueOnce(bookingResponse("cancelled"));
+
+    render(<BookingSuccessPage />);
+    await flushInitialRead();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+      await vi.runAllTimersAsync();
+    });
+
+    expect(bookingFetchMock).toHaveBeenCalledTimes(2);
+    expect(screen.getAllByText(/^cancelled$/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/no paid deposit is being claimed here/i)).toBeTruthy();
+    expect(screen.queryByText(/secured|final slot/i)).toBeNull();
+  });
+
+  it("only calls the appointment confirmed when server status proves it", async () => {
+    bookingFetchMock.mockResolvedValueOnce(bookingResponse("confirmed"));
+
+    render(<BookingSuccessPage />);
+    await flushInitialRead();
+
+    expect(screen.getByRole("heading", { name: /^booking confirmed$/i })).toBeTruthy();
+    expect(screen.getByText(/your appointment is confirmed/i)).toBeTruthy();
+    expect(bookingFetchMock).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("BookingSuccessPage — what-happens-next timeline", () => {
+  beforeEach(() => {
+    searchParams = new URLSearchParams(
+      "artist=Nadia&deposit=100&bookingId=BK-TEST1234"
+    );
+    // Default: signed out — param-based display, no server truth, no calendar.
+    getApiAuthHeadersMock.mockReset();
+    getApiAuthHeadersMock.mockRejectedValue(new Error("signed out"));
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+
   it("signed out: fails closed to the request-model timeline, no calendar button", () => {
     render(<BookingSuccessPage />);
     expect(screen.getByText("What happens next")).toBeTruthy();
@@ -115,7 +281,7 @@ describe("BookingSuccessPage — what-happens-next timeline", () => {
     });
     // Deposit-confirms-slot (ADR 0027): no artist-review step on this path.
     expect(screen.queryByText("Artist review")).toBeNull();
-    expect(screen.getByText(/your time is booked/i)).toBeTruthy();
+    expect(screen.getByText(/time is yours/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: /add to calendar/i })).toBeTruthy();
     // Paid ⇒ the session step is what's ahead.
     const current = document.querySelector('[aria-current="step"]');

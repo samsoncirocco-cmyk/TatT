@@ -1,13 +1,20 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import StudioShell from "@/components/studio/StudioShell";
 import QuietHeadline from "@/components/quiet/QuietHeadline";
 import QuietCTA from "@/components/quiet/QuietCTA";
-import { useBookings, useDesigns, type TattBooking } from "@/lib/tattStorage";
+import {
+  useBookings,
+  useDesigns,
+  type TattBooking,
+  type TattDesign,
+} from "@/lib/tattStorage";
 import { getApiAuthHeaders } from "@/lib/client-api-auth";
 import type { BookingStatus } from "@/lib/booking";
 import { bookingMoneyCopy } from "@/lib/money-copy";
+import { bookingStatusCopy } from "./bookingStatus";
 
 function formatBookingDate(iso: string): string {
   const [y, m, d] = iso.split("-");
@@ -19,136 +26,237 @@ function formatBookingDate(iso: string): string {
   return `${month} ${parseInt(d, 10)}, ${y}`;
 }
 
-// ─── Server truth ──────────────────────────────────────────────────────
-
 type RequestedSlot = { date: string; time?: string };
 type ServerBooking = {
   id: string;
   bookingId?: string;
+  artistId?: string;
   artistName?: string;
+  designId?: string;
   status?: BookingStatus;
   depositAmount?: number | string;
   requestedSlots?: RequestedSlot[];
-  createdAt?: string;
 };
 
-const STATUS_LABELS: Record<BookingStatus, string> = {
-  pending: "Awaiting deposit",
-  held: "Slot held — finish payment",
-  deposit_paid: "Deposit paid",
-  confirmed: "Confirmed",
-  declined: "Declined",
-  completed: "Completed",
-  cancelled: "Cancelled",
-  refunded: "Refunded",
-  expired: "Expired",
+type DesignSummary = {
+  id: string;
+  label: string;
 };
 
-/** Statuses that read as "live / holding the chair". */
-const ACTIVE_STATUSES = new Set<BookingStatus>(["deposit_paid", "confirmed", "completed"]);
-
-function statusLabel(status?: BookingStatus): string {
-  return status ? STATUS_LABELS[status] : "Awaiting deposit";
+function designSummary(designs: TattDesign[], id?: string): DesignSummary | null {
+  if (!id) return null;
+  const design = designs.find((candidate) => candidate.id === id);
+  if (!design) return null;
+  return {
+    id,
+    label:
+      design.title?.trim() ||
+      design.prompt.split(/[\s,]+/).slice(0, 4).join(" ") ||
+      "Untitled design",
+  };
 }
 
-function serverDisplayDate(b: ServerBooking): string {
-  const slot = b.requestedSlots?.find((s) => /^\d{4}-\d{2}-\d{2}$/.test(s.date));
-  if (slot) return formatBookingDate(slot.date);
-  if (b.createdAt) {
-    const d = new Date(b.createdAt);
-    if (!Number.isNaN(d.getTime())) return formatBookingDate(d.toISOString().slice(0, 10));
-  }
-  return "Date on request";
+function requestedDate(slots?: RequestedSlot[]): string | null {
+  const slot = slots?.find((candidate) =>
+    /^\d{4}-\d{2}-\d{2}$/.test(candidate.date),
+  );
+  return slot ? formatBookingDate(slot.date) : null;
 }
 
-function ServerBookingCard({ b }: { b: ServerBooking }) {
-  const active = ACTIVE_STATUSES.has(b.status ?? "pending");
+function SavedDesignLink({ design }: { design: DesignSummary }) {
   return (
-    <div className="border hairline-quiet p-8 md:p-10 relative">
-      <div className="flex items-baseline justify-between gap-6 flex-wrap">
+    <Link
+      href={`/designs/${design.id}`}
+      className="text-quiet underline underline-offset-4 hover:text-white"
+    >
+      {design.label}
+    </Link>
+  );
+}
+
+function CardAction({
+  status,
+  design,
+}: {
+  status?: BookingStatus;
+  design: DesignSummary | null;
+}) {
+  const copy = bookingStatusCopy(status);
+  if (design && copy.preferDesignAction) {
+    return (
+      <QuietCTA href={`/designs/${design.id}`} size="sm" variant="ghost">
+        View saved design
+      </QuietCTA>
+    );
+  }
+  return (
+    <QuietCTA href={copy.actionHref} size="sm" variant="ghost">
+      {copy.actionLabel}
+    </QuietCTA>
+  );
+}
+
+function ServerBookingCard({
+  booking,
+  design,
+}: {
+  booking: ServerBooking;
+  design: DesignSummary | null;
+}) {
+  const copy = bookingStatusCopy(booking.status);
+  const date = requestedDate(booking.requestedSlots);
+
+  return (
+    <article className="border hairline-quiet p-8 md:p-10">
+      <div className="flex items-start justify-between gap-6 flex-wrap">
         <div>
-          <div className="font-display-quiet text-quiet text-[24px] sm:text-[28px] leading-none">
-            {serverDisplayDate(b)}
+          <div className="font-body text-[10px] uppercase tracking-[0.16em] text-quiet-dim">
+            Requested date
+          </div>
+          <div className="mt-2 font-display-quiet text-quiet text-[24px] sm:text-[28px] leading-none">
+            {date ?? "No date requested"}
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-3 text-[12px] text-quiet-dim font-body">
             <span>
-              Artist:&nbsp;<span className="text-quiet">{b.artistName ?? "TBC"}</span>
+              Artist:&nbsp;
+              <span className="text-quiet">
+                {booking.artistName ?? "Not assigned"}
+              </span>
             </span>
-            <span>·</span>
+            <span aria-hidden="true">·</span>
             <span>
-              Ref:&nbsp;<span className="text-quiet">{b.bookingId ?? b.id}</span>
+              Ref:&nbsp;
+              <span className="text-quiet">
+                {booking.bookingId ?? booking.id}
+              </span>
             </span>
-            {b.depositAmount != null && (
+            {booking.depositAmount != null && (
               <>
-                <span>·</span>
+                <span aria-hidden="true">·</span>
                 <span>
-                  Deposit:&nbsp;<span className="text-quiet">${String(b.depositAmount)}</span>
+                  Deposit amount:&nbsp;
+                  <span className="text-quiet">
+                    ${String(booking.depositAmount)}
+                  </span>
+                </span>
+              </>
+            )}
+            {design && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span>
+                  Design:&nbsp;<SavedDesignLink design={design} />
                 </span>
               </>
             )}
           </div>
         </div>
+
         <div className="inline-block border hairline-quiet px-3 py-2">
           <div className="font-display-quiet text-quiet text-[13px] leading-none">
-            {statusLabel(b.status)}
+            {copy.label}
           </div>
           <div className="font-body text-[10px] text-quiet-dim leading-none mt-1">
-            {active ? "Studio hold" : "Request"}
+            {copy.qualifier}
           </div>
         </div>
       </div>
-    </div>
+
+      <div className="mt-8 pt-6 border-t hairline-quiet-soft flex items-center justify-between gap-5 flex-wrap">
+        <p className="font-body text-[12px] leading-[1.6] text-quiet-dim max-w-2xl">
+          {copy.nextStep}
+        </p>
+        <CardAction status={booking.status} design={design} />
+      </div>
+    </article>
   );
 }
 
-// ─── Local fallback card (unchanged behavior) ──────────────────────────
-
-function BookingCard({
-  b,
-  designLabel,
+function LocalBookingCard({
+  booking,
+  design,
   onRemove,
 }: {
-  b: TattBooking;
-  designLabel: string;
+  booking: TattBooking;
+  design: DesignSummary | null;
   onRemove: () => void;
 }) {
+  const paymentLabel = booking.depositPaid
+    ? "Payment saved on this device"
+    : "Deposit not recorded";
+  const nextStep = booking.depositPaid
+    ? "Next: refresh for server verification. A date is not confirmed until the artist confirms it."
+    : "Next: complete checkout, then wait for the artist to confirm a date. This requested date is not booked yet.";
+
   return (
-    <div className="border hairline-quiet p-8 md:p-10 relative group">
-      <div className="flex items-baseline justify-between gap-6 flex-wrap">
+    <article className="border hairline-quiet p-8 md:p-10">
+      <div className="flex items-start justify-between gap-6 flex-wrap">
         <div>
-          <div className="font-display-quiet text-quiet text-[24px] sm:text-[28px] leading-none">
-            {formatBookingDate(b.date)}
+          <div className="font-body text-[10px] uppercase tracking-[0.16em] text-quiet-dim">
+            Requested date
+          </div>
+          <div className="mt-2 font-display-quiet text-quiet text-[24px] sm:text-[28px] leading-none">
+            {formatBookingDate(booking.date)}
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-3 text-[12px] text-quiet-dim font-body">
-            <span>Design:&nbsp;<span className="text-quiet">{designLabel}</span></span>
-            <span>·</span>
             <span>
-              Deposit:&nbsp;
+              Artist:&nbsp;
               <span className="text-quiet">
-                {b.depositPaid ? "Paid" : "Pending"}
+                {booking.artistName ?? "Not assigned"}
               </span>
             </span>
+            {design && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span>
+                  Design:&nbsp;<SavedDesignLink design={design} />
+                </span>
+              </>
+            )}
           </div>
         </div>
+
         <div className="inline-block border hairline-quiet px-3 py-2">
           <div className="font-display-quiet text-quiet text-[13px] leading-none">
-            Confirmed
+            Request saved on this device
           </div>
           <div className="font-body text-[10px] text-quiet-dim leading-none mt-1">
-            Studio hold
+            {paymentLabel}
           </div>
         </div>
       </div>
-      <button
-        onClick={() => {
-          if (confirm("Cancel this booking?")) onRemove();
-        }}
-        aria-label="Cancel booking"
-        className="absolute top-3 right-3 px-3 py-1.5 text-[11px] text-quiet-dim hover:text-white border hairline-quiet-soft opacity-0 group-hover:opacity-100 transition-opacity press font-body"
-      >
-        Cancel
-      </button>
-    </div>
+
+      <div className="mt-8 pt-6 border-t hairline-quiet-soft flex items-center justify-between gap-5 flex-wrap">
+        <p className="font-body text-[12px] leading-[1.6] text-quiet-dim max-w-2xl">
+          {nextStep}
+        </p>
+        <div className="flex items-center gap-3 flex-wrap">
+          {design ? (
+            <QuietCTA href={`/designs/${design.id}`} size="sm" variant="ghost">
+              View saved design
+            </QuietCTA>
+          ) : (
+            <QuietCTA href="/book" size="sm" variant="ghost">
+              Return to booking
+            </QuietCTA>
+          )}
+          <button
+            onClick={() => {
+              if (
+                confirm(
+                  "Hide this device copy? This does not cancel the request with the artist.",
+                )
+              ) {
+                onRemove();
+              }
+            }}
+            className="px-3 py-2 text-[11px] text-quiet-dim hover:text-white font-body"
+          >
+            Hide from this device
+          </button>
+        </div>
+      </div>
+    </article>
   );
 }
 
@@ -156,8 +264,8 @@ export default function BookingsPage() {
   const { bookings, hydrated, removeBooking } = useBookings();
   const { designs } = useDesigns();
 
-  // Server truth. `null` = not resolved yet; then either an array (server view)
-  // or we fall back to the localStorage view on auth/network failure.
+  // Server truth. `null` means unresolved or unavailable, in which case the
+  // device copy remains visible but is explicitly labelled as such.
   const [server, setServer] = useState<ServerBooking[] | null>(null);
   const [serverResolved, setServerResolved] = useState(false);
 
@@ -168,19 +276,18 @@ export default function BookingsPage() {
       try {
         headers = await getApiAuthHeaders();
       } catch {
-        if (!cancelled) setServerResolved(true); // signed out → local fallback
+        if (!cancelled) setServerResolved(true);
         return;
       }
       try {
-        const res = await fetch("/api/v1/bookings", { headers });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json().catch(() => null);
-        if (cancelled) return;
-        if (data?.success && Array.isArray(data.bookings)) {
+        const response = await fetch("/api/v1/bookings", { headers });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json().catch(() => null);
+        if (!cancelled && data?.success && Array.isArray(data.bookings)) {
           setServer(data.bookings as ServerBooking[]);
         }
       } catch {
-        // Leave `server` null → local fallback below.
+        // Keep the labelled device copy instead of presenting a false server state.
       } finally {
         if (!cancelled) setServerResolved(true);
       }
@@ -190,18 +297,8 @@ export default function BookingsPage() {
     };
   }, []);
 
-  const designLabel = (id?: string) => {
-    if (!id) return "No design — decide in chair";
-    const d = designs.find((x) => x.id === id);
-    if (!d) return "Design (deleted)";
-    return d.prompt.split(/[\s,]+/).slice(0, 4).join(" ") || "Untitled cut";
-  };
-
-  // Which view are we showing? Server truth wins once we have it AND it has rows.
-  // But an EMPTY server list must not suppress a just-created localStorage row
-  // (the booking was mirrored via addBooking and may not have propagated to the
-  // Firestore query yet) — fall back to local in that case. A failed fetch leaves
-  // `server` null (see the effect) and also falls back.
+  // A just-created request can take a moment to appear in the owner query.
+  // Keep its device copy visible until the server returns at least one row.
   const useServer = server !== null && (server.length > 0 || bookings.length === 0);
   const count = useServer ? server.length : bookings.length;
   const ready = useServer ? true : hydrated && serverResolved;
@@ -211,19 +308,24 @@ export default function BookingsPage() {
     <StudioShell quiet>
       <div className="px-6 md:px-12 pt-8 pb-6 border-b hairline-quiet-soft">
         <div className="max-w-5xl mx-auto flex items-center justify-between text-[12px] text-quiet-dim tabular-nums font-body">
-          <span>Bookings</span>
-          <span>Holds: {ready ? count : "—"}</span>
+          <span>Booking status</span>
+          <span>Requests: {ready ? count : "—"}</span>
         </div>
       </div>
 
       <div className="px-6 md:px-12 py-24 md:py-32">
         <div className="max-w-5xl mx-auto">
           <div className="flex items-end justify-between gap-6 flex-wrap">
-            <QuietHeadline>Chair time</QuietHeadline>
+            <div>
+              <QuietHeadline>Your bookings</QuietHeadline>
+              <p className="mt-4 font-body text-[13px] text-quiet-dim leading-[1.7] max-w-2xl">
+                Requested dates are not appointments until the booking status
+                says confirmed and the artist sends the exact details.
+              </p>
+            </div>
             <QuietCTA href="/book" size="md">New booking</QuietCTA>
           </div>
 
-          {/* The money sentence (ADR-0036): who pays what, who keeps what. */}
           <p className="mt-6 font-body text-[14px] text-quiet leading-[1.7] max-w-xl">
             {bookingMoneyCopy.bookingsList}
           </p>
@@ -231,29 +333,40 @@ export default function BookingsPage() {
           {showEmpty ? (
             <div className="mt-24 border hairline-quiet py-28 px-6 text-center">
               <div className="font-display-quiet text-[26px] sm:text-[32px] leading-[1.1] text-quiet">
-                No bookings yet.
+                No booking requests yet.
               </div>
               <p className="mt-5 text-[13px] text-quiet-dim font-body">
-                The chair&apos;s open.
+                Start with an artist, a design, and dates that work for you.
               </p>
-              <div className="mt-12">
-                <QuietCTA href="/book" size="lg">Book the chair</QuietCTA>
+              <div className="mt-12 flex justify-center gap-3 flex-wrap">
+                <QuietCTA href="/book" size="lg">Start a booking</QuietCTA>
+                <QuietCTA href="/designs" size="lg" variant="ghost">
+                  Choose a saved design
+                </QuietCTA>
               </div>
             </div>
           ) : useServer ? (
             <div className="mt-16 space-y-6">
-              {server.map((b) => (
-                <ServerBookingCard key={b.id} b={b} />
+              {server.map((booking) => (
+                <ServerBookingCard
+                  key={booking.id}
+                  booking={booking}
+                  design={designSummary(designs, booking.designId)}
+                />
               ))}
             </div>
           ) : (
             <div className="mt-16 space-y-6">
-              {bookings.map((b) => (
-                <BookingCard
-                  key={b.id}
-                  b={b}
-                  designLabel={designLabel(b.designId)}
-                  onRemove={() => removeBooking(b.id)}
+              <div className="border hairline-quiet-soft px-5 py-4 font-body text-[12px] leading-[1.6] text-quiet-dim">
+                Showing the copy saved on this device. Refresh later for payment
+                and artist-confirmation updates.
+              </div>
+              {bookings.map((booking) => (
+                <LocalBookingCard
+                  key={booking.id}
+                  booking={booking}
+                  design={designSummary(designs, booking.designId)}
+                  onRemove={() => removeBooking(booking.id)}
                 />
               ))}
             </div>
