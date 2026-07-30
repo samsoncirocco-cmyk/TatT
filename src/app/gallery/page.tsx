@@ -36,7 +36,7 @@ export default function GalleryPage() {
             before="Nothing on the"
             slashed="wall"
             after="yet"
-            sizeClassName="text-[48px] sm:text-[72px] md:text-[96px] leading-[0.88]"
+            size="section"
           />
           <p className="mt-8 max-w-xl text-[15px] leading-[1.55] text-white/70 font-body">
             The community wall opens when people start sharing cuts. Until
@@ -49,7 +49,7 @@ export default function GalleryPage() {
             </TapeCTA>
             <Link
               href="/designs"
-              className="text-[10px] uppercase tracking-[0.25em] text-white/60 hover:text-pink border hairline px-4 py-3 press font-body"
+              className="text-[10px] uppercase tracking-[0.2em] text-white/70 hover:text-black hover:bg-pink border-2 hairline px-4 py-3 press font-body"
             >
               ▸ Your designs
             </Link>

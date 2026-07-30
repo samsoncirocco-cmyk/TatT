@@ -124,6 +124,68 @@ export function isDrawRequest(message: string): boolean {
   return DRAW_REQUEST_PATTERN.test((message || '').trim());
 }
 
+/* ──────────────────────────────────────────────────────────────────────────
+ * Evocation reference (TAT-51). A meaning that points at a person, creator,
+ * franchise, or fandom ("my love for toriyama", "for my grandmother", "us
+ * against the world with my brother") carries no drawable yet — the
+ * evocation follow-up mines it for one. These patterns extract WHO the
+ * meaning points at so the question can name them in-voice.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+const RELATION_WORDS =
+  'mom|mother|dad|father|grandma|grandmother|grandpa|grandfather|nana|papa|' +
+  'brother|sister|son|daughter|wife|husband|partner|fianc[eé]e?|' +
+  'best friend|friend|uncle|aunt|cousin|dog|cat';
+
+const EVOCATION_PATTERNS: readonly { pattern: RegExp; yours: boolean }[] = [
+  // "my love for toriyama", "my love of studio ghibli"
+  { pattern: /\bmy love (?:for|of) ([^,.;!?]{2,40})/i, yours: false },
+  // "for my grandmother", "with my brother", "in memory of my dad", …
+  {
+    pattern: new RegExp(
+      `\\b(?:for|about|with|honou?ring|remembering|missing|in memory of|after) my (${RELATION_WORDS})\\b`,
+      'i'
+    ),
+    yours: true,
+  },
+  // "tribute to toriyama", "obsessed with dragon ball", "fan of ghibli"
+  { pattern: /\b(?:tribute to|inspired by|obsessed with|fan of|love letter to) ([^,.;!?]{2,40})/i, yours: false },
+];
+
+/**
+ * Who the stated meaning points at, phrased for the evocation question
+ * ("toriyama", "your grandmother"), or undefined when the meaning doesn't
+ * reference a person/creator/franchise. Deliberately conservative: a miss
+ * costs one generic follow-up; a false fire spends the session's single
+ * evocation question on the wrong thing.
+ */
+export function evocationRefOf(meaning: string): string | undefined {
+  const text = (meaning || '').trim();
+  if (!text) return undefined;
+  for (const { pattern, yours } of EVOCATION_PATTERNS) {
+    const match = text.match(pattern);
+    if (!match) continue;
+    // Trim the capture to the referenced entity: cut at connectives.
+    const ref = match[1].split(/\s+(?:and|&|because|since)\s+/i)[0].trim();
+    if (ref.length < 2) continue;
+    return yours ? `your ${ref.toLowerCase()}` : ref;
+  }
+  return undefined;
+}
+
+/**
+ * A pure-looks answer to the meaning question ("it just goes hard", "it
+ * just looks sick", "no deeper meaning") — a complete answer (TAT-51). The
+ * whole message must be the aesthetic statement, so "it should look sick
+ * and mean rebirth" never closes the meaning slot.
+ */
+const AESTHETIC_ANSWER_PATTERN =
+  /^\s*(?:honestly |tbh |lol )?(?:it|this|that)?\s*(?:just)?\s*(?:looks?|goes)\s+(?:sick|hard|cool|clean|dope|fire|good|great|badass|amazing)\b[\s!.…]*$|^\s*(?:no|not really any|there'?s no)\s+(?:deep(?:er)? )?meaning\b[^?]*$|^\s*(?:just|pure(?:ly)?)\s+(?:the )?(?:aesthetics?|looks?|vibes?)\b[\s!.…]*$/i;
+
+export function isAestheticAnswer(message: string): boolean {
+  return AESTHETIC_ANSWER_PATTERN.test(message || '');
+}
+
 const AFFIRMATION_PATTERN =
   /^\s*(i (really |kinda |actually )?(like|love) (it|that|this|them|both|those)|love (it|that|this)|yes+|yeah+|yep|yup|sure|perfect|exactly|absolutely|that works|sounds (good|great|perfect|amazing)|do (it|that)|let'?s (do|go with) (it|that|those)|(i'?m|im) (in|down|sold)|go (for|with) (it|that))\b[\s!.…]*$/i;
 

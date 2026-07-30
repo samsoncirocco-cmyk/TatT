@@ -8,6 +8,9 @@ import type { ARMirrorProps } from "@/features/ar";
 let searchParams = new URLSearchParams();
 vi.mock("next/navigation", () => ({
   useSearchParams: () => searchParams,
+  // The page renders inside StudioShell (TAT-45), which reads the pathname
+  // for nav highlighting.
+  usePathname: () => "/visualize",
 }));
 
 // The mirror itself is exercised in its own suite; here we only care about
@@ -62,7 +65,7 @@ describe("VisualizePage funnel seams", () => {
     ).toBe("/smart-match?ds=sess-1");
 
     // Opening the mirror carries the same design + forward context.
-    fireEvent.click(await screen.findByRole("button", { name: /open ar mirror/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /open the mirror/i }));
     expect(mirrorProps.at(-1)).toMatchObject({
       initialSelectedId: id,
       findArtistHref: "/smart-match?ds=sess-1",

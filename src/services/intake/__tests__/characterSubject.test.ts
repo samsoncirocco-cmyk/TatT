@@ -50,6 +50,28 @@ describe('characterSubjectFrom — false-positive guards', () => {
     expect(subject).toBeDefined();
     expect(subject!.toLowerCase()).toContain('power');
   });
+
+  it('accepts an ambiguous name when an unambiguous castmate pins the series', () => {
+    // "cell" alone is an ordinary word, but Gohan pins Dragon Ball — the
+    // evocation answer "gohan and cell's beam struggle" names no series
+    // (TAT-51), and dropping Cell would truncate the cast.
+    const matches = charactersIn("gohan and cell's beam struggle");
+
+    expect(matches.map((m) => m.name)).toEqual(['gohan', 'cell']);
+    expect(matches.every((m) => m.series === 'Dragon Ball')).toBe(true);
+  });
+
+  it('does not treat a homonym as cast just because a castmate matched', () => {
+    // Gohan pins Dragon Ball, but "prison cell" is the common noun — not Cell.
+    const matches = charactersIn('gohan in a prison cell');
+
+    expect(matches.map((m) => m.name)).toEqual(['gohan']);
+    expect(matches.some((m) => m.name === 'cell')).toBe(false);
+  });
+
+  it('still rejects ambiguous names with no castmate and no series', () => {
+    expect(charactersIn('a healthy cell under a microscope')).toEqual([]);
+  });
 });
 
 describe('charactersIn — structured matches', () => {

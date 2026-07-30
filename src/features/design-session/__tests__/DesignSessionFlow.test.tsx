@@ -154,14 +154,14 @@ describe('DesignSessionFlow', () => {
     expect(screen.getAllByAltText(/^Design \d$/)).toHaveLength(4);
 
     // Pick one → most-not-you prompt over the remaining three.
-    fireEvent.click(screen.getByRole('button', { name: 'Pick design 2' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Pick design 2 / }));
     await screen.findByText(/which one feels most/i);
     expect(screen.getByText('Your pick')).toBeTruthy();
     const notYouButtons = screen.getAllByRole('button', { name: /feels most not me/i });
     expect(notYouButtons).toHaveLength(3);
 
     // Most-not-you tap → pick POST with both signals.
-    fireEvent.click(screen.getByRole('button', { name: 'Design 3 feels most not me' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Design 3 feels most not me / }));
     await screen.findByText(pickedSession.refinementQuestion!);
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/v1/design-session/sess-1/pick',
@@ -203,8 +203,8 @@ describe('DesignSessionFlow', () => {
     render(<DesignSessionFlow />);
     await answerIntake();
     await screen.findByText(REVEAL_NARRATION);
-    fireEvent.click(screen.getByRole('button', { name: 'Pick design 2' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Design 3 feels most not me' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Pick design 2 / }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Design 3 feels most not me / }));
     fireEvent.click(await screen.findByRole('button', { name: 'Bolder lines' }));
     await screen.findByAltText('Your refined design');
 

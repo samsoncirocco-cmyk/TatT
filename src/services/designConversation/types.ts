@@ -51,6 +51,10 @@ export interface TurnLog {
      *  was already generation-sufficient — the visible fast lane (TAT-48,
      *  ADR-0028 readiness); the announce beat still runs (ADR-0020). */
     | 'draw-request-proposal'
+    /** The meaning pointed at a person/creator/franchise with nothing
+     *  drawable on the record — the single evocation follow-up mined it
+     *  for imagery (TAT-51). Asked at most once per session. */
+    | 'evocation-question'
     | 'none';
   /** Model that served the turn (per-session pinned; fallback noted). */
   model: string;
