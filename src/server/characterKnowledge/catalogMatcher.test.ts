@@ -126,6 +126,31 @@ describe('generated character catalog matcher', () => {
     ]);
   });
 
+  it('refuses a unique name when the customer named a different franchise', () => {
+    const matcher = createCharacterCatalogMatcher(fixture);
+
+    // Silence about franchises still enriches: one Spike, no contradiction.
+    expect(matcher('a Spike Spiegel sleeve')[0]?.characterId).toBe('kitsu-character-1');
+    // A named catalog series that is not his makes the guess wrong.
+    expect(matcher('a Death Note sleeve with Spike')).toEqual([]);
+  });
+
+  it('treats a franchise the anime catalog cannot hold as a franchise', () => {
+    const matcher = createCharacterCatalogMatcher(fixture);
+
+    // The production failure: a game franchise leaves the catalog no series
+    // signal at all, so the only same-named anime character got accepted.
+    expect(matcher('a kingdom hearts sleeve with Spike, Riku and Roxas')).toEqual([]);
+  });
+
+  it('still enriches when the named franchise IS the character’s series', () => {
+    const matcher = createCharacterCatalogMatcher(fixture);
+
+    expect(
+      matcher('a Cowboy Bebop sleeve with Spike')[0],
+    ).toMatchObject({ characterId: 'kitsu-character-1', series: 'Cowboy Bebop' });
+  });
+
   it('does not turn an ordinary prose word into a character', () => {
     const matcher = createCharacterCatalogMatcher(fixture);
 
