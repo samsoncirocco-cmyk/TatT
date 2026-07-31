@@ -13,11 +13,14 @@ import type { IntakeRecord } from '../../intake/types';
 import { enhanceStructured } from '../../council';
 import { generate, routeGeneration } from '../../generation';
 import type { AspectRatio, GenerationRequest } from '../../generation';
+import { resolveFixAllowance } from '@/lib/studio-fix-allowance';
 import type {
   Variation,
   StartSessionRequest,
   PickRequest,
   RefineRequest,
+  CritiqueRequest,
+  CritiqueResult,
 } from '../types';
 import { resolveSessionStore } from './store';
 import type { SessionStore, StoredSession } from './store';
@@ -25,6 +28,20 @@ import { deriveRefinementQuestion, adjustPromptForAnswer } from './refinement';
 import { derivePlacementNotes } from './placementNotes';
 import { durableRender } from './durableImage';
 import { recordImageSpend } from './spend';
+import {
+  allCuts,
+  adjustPromptForCritique,
+  cutLabel,
+  isFixRequest,
+  resolveCritiqueTarget,
+} from './critique';
+import {
+  ALLOWANCE_SPENT_LINE,
+  CHATTER_LINE,
+  WHICH_CUT_LINE,
+  fixLandedLine,
+  fixesLeftLine,
+} from './critiqueVoice';
 
 export type DesignSessionErrorCode =
   | 'SESSION_NOT_FOUND'
@@ -255,8 +272,11 @@ export async function recordPick(sessionId: string, request: PickRequest): Promi
       'pickId and mostNotYouId must be two different variations.'
     );
   }
-  const picked = session.variations.find(variation => variation.id === pickId);
-  const rejected = session.variations.find(variation => variation.id === mostNotYouId);
+  // Cuts the critique lane produced are pickable too (ADR-0039) — a re-cut
+  // the user asked for is the likeliest thing they want to take forward.
+  const cuts = allCuts(session);
+  const picked = cuts.find(variation => variation.id === pickId);
+  const rejected = cuts.find(variation => variation.id === mostNotYouId);
   if (!picked || !rejected) {
     throw new DesignSessionError(
       'INVALID_VARIATION',
@@ -298,21 +318,22 @@ export async function refine(sessionId: string, request: RefineRequest): Promise
     );
   }
 
-  const picked = session.variations.find(variation => variation.id === session.pickId);
+  const cuts = allCuts(session);
+  const picked = cuts.find(variation => variation.id === session.pickId);
   if (!picked) {
     throw new DesignSessionError(
       'INVALID_VARIATION',
       `Session '${sessionId}' pick no longer matches its variations.`
     );
   }
-  const rejected = session.variations.find(variation => variation.id === session.mostNotYouId);
+  const rejected = cuts.find(variation => variation.id === session.mostNotYouId);
 
   const adjustedPrompt = adjustPromptForAnswer(session, picked, request.answer);
   let imageUrl: string | undefined;
   if (isDemoMode()) {
     // Demo regen: the stock image after the picked one, so the refinement
     // visibly changes the design without a paid render.
-    const pickedIndex = session.variations.indexOf(picked);
+    const pickedIndex = cuts.indexOf(picked);
     imageUrl = DEMO_MOCK_IMAGES[(pickedIndex + 1) % DEMO_MOCK_IMAGES.length];
   } else {
     let imagesPurchased = 0;
@@ -361,6 +382,126 @@ export async function refine(sessionId: string, request: RefineRequest): Promise
 
   await store.save(session);
   return session;
+}
+
+/**
+ * One post-reveal critique turn (ADR-0039): the chat that used to die at the
+ * reveal, kept alive so plain criticism — "riku's missing", "too busy", "the
+ * third one but less color" — lands somewhere useful.
+ *
+ * Deterministic throughout (see ./critique): resolve which cut the critique is
+ * about, fold the user's own words into that cut's prompt, and regenerate ONE
+ * image on the session's pinned model (ADR-0016). Three turns spend nothing —
+ * chatter, an unresolvable target, and a spent allowance — and each says so in
+ * voice (ADR-0038's rule: the ceiling is spoken and ends in an artist).
+ *
+ * Open at phases 'revealed' and 'picked' only. At 'complete' the ADR-0013
+ * round has fired and produced the Brief; the Studio and the artist own
+ * everything after.
+ */
+export async function critique(
+  sessionId: string,
+  request: CritiqueRequest
+): Promise<{ session: StoredSession } & Omit<CritiqueResult, 'session'>> {
+  const store = resolveSessionStore();
+  const session = await loadSession(store, sessionId);
+
+  if (session.phase !== 'revealed' && session.phase !== 'picked') {
+    throw new DesignSessionError(
+      'INVALID_PHASE',
+      session.phase === 'complete'
+        ? 'This session already closed with its Brief (ADR-0013 hard stop) — the Studio and the artist consult own everything after.'
+        : `Cannot critique while the session is '${session.phase}' — there is nothing revealed to talk about yet.`
+    );
+  }
+
+  const message = request.message.trim();
+  const allowance = resolveFixAllowance();
+  const used = session.fixesUsed ?? 0;
+  const remainingBefore = Math.max(0, allowance - used);
+
+  /** Record the turn and persist without spending anything. */
+  const settle = async (
+    reply: string,
+    extra: { targetId?: string; cutId?: string } = {}
+  ) => {
+    const now = new Date().toISOString();
+    session.critiqueTurns = [
+      ...(session.critiqueTurns ?? []),
+      { message, reply, ...extra, at: now },
+    ];
+    session.updatedAt = now;
+    await store.save(session);
+    const remaining = Math.max(0, allowance - (session.fixesUsed ?? 0));
+    return {
+      session,
+      reply,
+      fixesRemaining: remaining,
+      exhausted: remaining <= 0,
+      generated: false as boolean,
+    };
+  };
+
+  if (!isFixRequest(message)) return settle(CHATTER_LINE);
+  // Refused before any paid call, and spoken — never a silent no-op.
+  if (remainingBefore <= 0) return settle(ALLOWANCE_SPENT_LINE);
+
+  const target = resolveCritiqueTarget(session, message);
+  if (!target) return settle(WHICH_CUT_LINE);
+
+  const adjustedPrompt = adjustPromptForCritique(target, message);
+  const cutId = `${target.id}-fix${used + 1}`;
+
+  let imageUrl: string | undefined;
+  if (isDemoMode()) {
+    // Demo re-cut: the stock image after the target's, so the fix visibly
+    // changes the design without a paid render.
+    const index = allCuts(session).indexOf(target);
+    imageUrl = DEMO_MOCK_IMAGES[(index + 1) % DEMO_MOCK_IMAGES.length];
+  } else {
+    // ADR-0016: the re-cut reuses the exact model pinned at session start.
+    // It goes through renderDurably for the same reason every other render
+    // does — a provider URL dies in an hour, and a re-cut is the image the
+    // customer asked for by name, so it is the LAST one that may expire.
+    let purchased = 0;
+    try {
+      imageUrl = await renderDurably(
+        session,
+        cutId,
+        pinnedRequest(
+          { modelId: session.pinnedModelId, aspectRatio: session.pinnedAspectRatio },
+          adjustedPrompt,
+          target.negativePrompt
+        ),
+        () => {
+          purchased += 1;
+        }
+      );
+    } finally {
+      // Billed at the moment of purchase, so a copy that fails after a paid
+      // render still records the money; a reuse records nothing.
+      await recordImageSpend(session.provider, purchased);
+    }
+  }
+
+  const cut: Variation = {
+    id: cutId,
+    axisPosition: target.axisPosition,
+    prompt: adjustedPrompt,
+    negativePrompt: target.negativePrompt,
+    imageUrl,
+  };
+  session.critiqueCuts = [...(session.critiqueCuts ?? []), cut];
+  // Only a render that came back counts against the allowance — same rule the
+  // Studio's ledger follows.
+  session.fixesUsed = used + 1;
+
+  const remainingAfter = Math.max(0, allowance - session.fixesUsed);
+  const settled = await settle(
+    `${fixLandedLine(cutLabel(session, target))} ${fixesLeftLine(remainingAfter)}`,
+    { targetId: target.id, cutId }
+  );
+  return { ...settled, cut, generated: true };
 }
 
 /** Fetch a session by id. Throws SESSION_NOT_FOUND when it doesn't exist. */

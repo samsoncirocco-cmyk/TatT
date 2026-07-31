@@ -95,6 +95,9 @@ export function toDesignSession(session: StoredSession): DesignSession {
     axisSelection,
     provider,
     variations,
+    critiqueCuts,
+    critiqueTurns,
+    fixesUsed,
     pickId,
     mostNotYouId,
     refinementQuestion,
@@ -111,6 +114,11 @@ export function toDesignSession(session: StoredSession): DesignSession {
     axisSelection,
     provider,
     variations,
+    // Post-reveal re-cuts and their turns are the user's own material
+    // (ADR-0039) — unlike TurnLogs, they render, so they cross the boundary.
+    critiqueCuts,
+    critiqueTurns,
+    fixesUsed,
     pickId,
     mostNotYouId,
     refinementQuestion,
