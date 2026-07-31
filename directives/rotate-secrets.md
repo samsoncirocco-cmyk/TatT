@@ -24,6 +24,8 @@ This directive covers rotation of all secrets used by TatTester, including Repli
 - [ ] Backup of current secret version taken (automatic in Secret Manager)
 - [ ] Recoverable old Vercel value secured in the approved password manager and
       reconciled to the provider credential currently serving production
+      (for providers such as Neo4j that invalidate it immediately, this is an
+      audit record rather than a usable rollback credential)
 
 ## Procedure
 
@@ -174,6 +176,10 @@ revoked immediately.
 
 If the new secret causes issues on the live site:
 
+The old-value procedure below applies only while the provider still accepts
+`[SECURED_OLD_VALUE]`. Neo4j password resets invalidate the old value
+immediately; use the fresh-reset recovery in the Neo4j appendix instead.
+
 ```bash
 # Revert the Vercel production environment variable to the old value
 vercel env rm [ENV_VAR_NAME] production
@@ -265,6 +271,14 @@ not merely its Secret Manager copy, is what revokes access.
 5. Follow general rotation process above
 
 **Caution:** Neo4j password change is immediate. Old password stops working instantly. Minimize time between steps 2 and 4.
+
+**Neo4j recovery exception:** never paste the old password back into Vercel;
+Aura has already invalidated it. If the replacement fails, reset the Aura
+password again to a fresh credential, add that fresh credential as a new Secret
+Manager version, update `NEO4J_PASSWORD` in Vercel, redeploy the immutable
+reviewed production deployment with
+`vercel redeploy [CURRENT_PRODUCTION_DEPLOYMENT_URL] --target production`, and
+repeat production verification.
 
 ### 3. Firebase Private Key
 
