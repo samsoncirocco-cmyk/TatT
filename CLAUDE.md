@@ -24,9 +24,18 @@ incident framing. The useful question is *would this be wrong on day one*, not
 - **Spend.** Vertex, Replicate and OpenRouter calls cost real money against a
   real cap (`BUDGET_MAX_SPEND_CENTS`). An unmetered generation path is a genuine
   problem now, not at launch.
-- **Third-party data.** Roughly 7,828 artists were scraped and ~62,000 of their
-  photos are hosted on TatT infrastructure, publicly reachable, without consent.
-  That exposure exists today and is independent of launch.
+- **Third-party data.** A read-only production Neo4j count on 2026-07-30 found
+  18,002 artist records. 7,511 have portfolio images attached — 68,532 image
+  URLs total. The current scraper stores external source URLs rather than image
+  files, but this repo also contains `scripts/host-artist-images.mjs`, an
+  operator tool that downloads images into TatT's public GCS bucket. Production
+  currently has 26 GCS-hosted portfolio URLs across 6 artists; the other 68,506
+  URLs are external. The earlier claim that roughly 62,000 photos were all
+  re-hosted is false, but "none are re-hosted" is also false. The artist/shop
+  directory data itself is stored in production today, independent of launch.
+  Public rendering of unclaimed portfolio images is separately controlled by
+  `SHOW_UNCLAIMED_PORTFOLIOS`; do not claim its production value without
+  checking it.
 - **The deployed site is public.** tatttester.com, tatt-t.com and image2ink.com
   serve anyone who finds them.
 - **Security gaps still get fixed properly** — but the framing is "close it

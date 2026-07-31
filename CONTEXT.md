@@ -98,11 +98,29 @@ destination); the Forge name leaves the UI.
 _Avoid_: Forge (retired from UI), raw prompt (Council always runs)
 
 **Studio**:
-The multi-layer power editor at `/generate` (canvas, placement, transforms).
-A power tool behind explicit doors — never part of the main journey; the
-optional editing room reachable from any picked design (ADR-0017, ADR-0028).
-Invest or delete based on real usage.
-_Avoid_: Forge (its old name), editor page
+The refinery: the room where a picked design goes from *almost* to *yes*
+(ADR-0038, closing ADR-0017's open verdict). Entered from a picked design,
+never from cold; sheds prompting and style choice to the one door (ADR-0028),
+keeps inpainting, cleanup, layers, versions, stencil export.
+_Avoid_: Forge (its old name), editor page, "the generator" (that's the one door)
+
+**Gear**:
+One of the Studio's three ranked depths, not three doors: point and say
+(default), plain-language tools (one tap), the full bench (explicit door).
+Deeper gears never crowd shallower ones.
+_Avoid_: mode, tab
+
+**Point and say**:
+The Studio's default surface: circle the part that's wrong, say what's wrong,
+SketchBot redraws only that region. The product's conversation zoomed into one
+square inch — tools run underneath, unshown.
+_Avoid_: inpainting (that's the machinery, not the experience)
+
+**Fix allowance**:
+The bounded, env-tunable number of refinement generations a design carries in
+the Studio. Drawn from the global budget; the ceiling is spoken in voice and
+ends in a booking prompt, never a paywall (ADR-0038, ADR-0030).
+_Avoid_: credits, quota
 
 **Artist console**:
 The artist-side home at `/console`: bookings and status history, availability,
