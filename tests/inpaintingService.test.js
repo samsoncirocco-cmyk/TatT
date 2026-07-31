@@ -12,6 +12,7 @@ vi.mock('../src/lib/client-api-auth', () => ({
 
 import {
   INPAINTING_MODEL,
+  INPAINT_BUDGET_EXHAUSTED,
   createMaskCanvas,
   getInpaintingCost,
   inpaintTattooDesign
@@ -184,6 +185,47 @@ describe('Inpainting Service', () => {
           prompt: 'test'
         })
       ).rejects.toThrow('rate limited');
+    });
+
+    // The Studio has to tell "the shared cap is spent" apart from an ordinary
+    // failure so it can say "at capacity" honestly (ADR-0038).
+    it('should tag a 402 from the shared budget with a distinguishable code', async () => {
+      fetchSpy.mockReset();
+      fetchSpy.mockResolvedValueOnce({
+        ok: false,
+        status: 402,
+        json: () => Promise.resolve({ error: 'Budget limit reached' })
+      });
+
+      const { canvas } = makeMockCanvas();
+
+      await expect(
+        inpaintTattooDesign({
+          imageUrl: 'data:image/png;base64,img',
+          maskCanvas: canvas,
+          prompt: 'test'
+        })
+      ).rejects.toMatchObject({ code: INPAINT_BUDGET_EXHAUSTED });
+    });
+
+    it('should leave an ordinary failure untagged', async () => {
+      fetchSpy.mockReset();
+      fetchSpy.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: () => Promise.resolve({ error: 'upstream exploded' })
+      });
+
+      const { canvas } = makeMockCanvas();
+
+      const failure = await inpaintTattooDesign({
+        imageUrl: 'data:image/png;base64,img',
+        maskCanvas: canvas,
+        prompt: 'test'
+      }).catch((error) => error);
+
+      expect(failure).toBeInstanceOf(Error);
+      expect(failure.code).toBeUndefined();
     });
   });
 });
