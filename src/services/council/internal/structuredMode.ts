@@ -198,16 +198,85 @@ const ENSEMBLE_TREATMENTS: CompositionalTreatment[] = [
   },
 ];
 
+/*
+ * Sleeve substitutes. Placement guidance for a sleeve describes one
+ * continuous run down a limb, and three of the treatments above argue with
+ * that in the same prompt: an emblem is by definition self-contained, a
+ * close crop is the opposite of limb-length, and a small off-center subject
+ * abandons the run. Flux folds the whole prompt into one instruction, so a
+ * prompt that asks for an emblem and for "not a standalone emblem" is the
+ * same failure class as asking for four characters and forbidding multiple
+ * people.
+ *
+ * Each of these expresses what a sleeve actually needs — vertical story
+ * flow, connected transitions, focal hierarchy along the taper — and each
+ * substitutes 1:1, so the count stays at four and the four stay divergent.
+ */
+const VERTICAL_STORY: CompositionalTreatment = {
+  composition: 'vertical story',
+  phrase: 'vertical story-flow composition',
+  detail:
+    'distinct beats reading top to bottom along the limb, each one whole, the eye ' +
+    'travelling the full length in a single direction',
+};
+
+const CONNECTED_TRANSITIONS: CompositionalTreatment = {
+  composition: 'connected transitions',
+  phrase: 'connected transition composition',
+  detail:
+    'sections joined by continuous connective flow — smoke, water, cloud — so the run ' +
+    'never breaks into separate unrelated patches',
+};
+
+const FOCAL_HIERARCHY: CompositionalTreatment = {
+  composition: 'focal hierarchy',
+  phrase: 'anchored focal-hierarchy composition',
+  detail:
+    'one dominant anchor set at the widest point, supporting elements scaling down and ' +
+    'thinning along the taper',
+};
+
+/** Treatment → what replaces it when the brief is a sleeve. */
+const SLEEVE_SUBSTITUTIONS: Record<string, CompositionalTreatment> = {
+  'centered emblem': VERTICAL_STORY,
+  'negative space': CONNECTED_TRANSITIONS,
+  'close crop': FOCAL_HIERARCHY,
+  // The ensemble pool's only sleeve conflict; its other three already run
+  // along a limb happily.
+  'ensemble emblem': CONNECTED_TRANSITIONS,
+};
+
 /**
- * Which four compositional cuts a brief gets. The cast size comes from the
- * intake roster and nowhere else: re-deriving it from the character catalog
- * is what scored this same Kingdom Hearts session as single-subject, since
- * the catalog covers anime and Kingdom Hearts is a game.
+ * Is this brief a sleeve? Deliberately the ONE place sleeve-ness is decided:
+ * when `resolvePlacement` (TAT-57 placement work) lands, replace the
+ * placement half of this test with `resolvePlacement(record.placement).isSleeve`
+ * and nothing else has to change.
+ *
+ * The meaning half stays either way. The session that exposed this said
+ * `placement: 'left arm'` — the word "sleeve" appeared only in the meaning,
+ * and a sleeve is what the customer was describing.
+ */
+function isSleeveBrief(record: IntakeRecord): boolean {
+  const sleeve = /\bsleeve\b/i;
+  return sleeve.test(record.placement ?? '') || sleeve.test(record.meaning ?? '');
+}
+
+/**
+ * Which four compositional cuts a brief gets: never a treatment that its own
+ * cast size or its own placement guidance contradicts.
+ *
+ * The cast size comes from the intake roster and nowhere else — re-deriving
+ * it from the character catalog is what scored this same Kingdom Hearts
+ * session as single-subject, since the catalog covers anime and Kingdom
+ * Hearts is a game.
  */
 function compositionalTreatments(record: IntakeRecord): CompositionalTreatment[] {
-  return (record.requestedCharacters?.length ?? 0) > 1
-    ? ENSEMBLE_TREATMENTS
-    : COMPOSITIONAL_TREATMENTS;
+  const pool =
+    (record.requestedCharacters?.length ?? 0) > 1
+      ? ENSEMBLE_TREATMENTS
+      : COMPOSITIONAL_TREATMENTS;
+  if (!isSleeveBrief(record)) return pool;
+  return pool.map(treatment => SLEEVE_SUBSTITUTIONS[treatment.composition] ?? treatment);
 }
 
 /** Keep the freeform meaning bounded so embedded prose can't blow the token budget. */

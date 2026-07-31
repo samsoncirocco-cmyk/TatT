@@ -54,6 +54,10 @@ const COMPOSITION_IDENTITY: Record<string, CutIdentity> = {
   'battle scene': { name: 'the clash', caption: 'everyone in it, mid-fight' },
   'stacked tiers': { name: 'the totem', caption: 'stacked top to bottom' },
   'flowing procession': { name: 'the procession', caption: 'strung along the flow' },
+  // A sleeve swaps out the cuts that argue with a limb-length run.
+  'vertical story': { name: 'the story', caption: 'top to bottom, in order' },
+  'connected transitions': { name: 'the run', caption: 'one piece, no seams' },
+  'focal hierarchy': { name: 'the anchor', caption: 'one hero, the rest follow' },
 };
 
 const ORDINAL = ['one', 'two', 'three', 'four'];
