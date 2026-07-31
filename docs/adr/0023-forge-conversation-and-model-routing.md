@@ -127,7 +127,18 @@ The `negative_prompt` field is never sent to the Flux or Krea lanes. SDXL weight
 Enforced at intake extraction, not left to the prompt template:
 
 - A detected named character or franchise **locks the literal-abstract axis to "literal"** — a named character means the user wants a recognizable depiction, so that axis is never offered as a variation.
+- Every explicitly requested character is also stored in `requestedCharacters`,
+  in the customer's mention order. This roster is lossless: a partial catalog
+  match may add visual anchors to `subject`, but it must never replace, reorder,
+  or truncate the customer's cast.
+- The conversation provider returns the roster as structured data. Each returned
+  display name must be grounded in the transcript before it is accepted, so the
+  provider can normalize capitalization but cannot invent a cast member.
 - The `subject` field is filled with a concrete visual phrase: character name, franchise, signature visual detail, specific expression or moment.
+- `subject` and `requestedCharacters` have different jobs. `subject` is the
+  prompt-facing visual description and may be detail-budgeted; the roster is
+  the customer-visible completeness contract and remains intact even for names
+  outside the finite curated knowledge catalog.
 - The template uses `subject` **directly**. It never wraps verbatim meaning in `expressing "..."` — quoting the user's own words back into a prompt fights the model for recognizable IP.
 
 Example: `subject = "Son Goku, Dragon Ball Z, spiky hair, determined expression, Super Saiyan energy aura crackling around raised fist"`.

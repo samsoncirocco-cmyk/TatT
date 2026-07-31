@@ -194,6 +194,120 @@ export function buildPlayback(
   return `${article} ${style}piece ${placement}${tailPart}`;
 }
 
+/**
+ * The provider's cumulative subject is the only generic source for named
+ * characters outside our finite character database. Use it as the spoken
+ * cast label when it is a short list, while keeping database labels for
+ * single-character subjects where the provider often includes long costume
+ * prose. This prevents a partial database hit from making the playback claim
+ * the customer named only that one character.
+ */
+function compactCastParts(subject: string | undefined): string[] {
+  const value = (subject ?? '').trim();
+  if (!value || value.length > 180) return [];
+  const hasListJoin = /[,;]|\s(?:and|&)\s/i.test(value);
+  const words = value.split(/\s+/).filter(Boolean);
+  if (!hasListJoin || words.length > 28) return [];
+
+  const parts = value
+    .split(/\s*[,;]\s*|\s+(?:and|&)\s+/i)
+    .map((part) => part.trim().replace(/^(?:and|&)\s+/i, ''))
+    .filter(Boolean);
+  // Three is intentional: two-character action phrases such as "Gohan and
+  // Cell beam struggle" are better served by the database labels. Three or
+  // more compact entries is the strong cast-list shape seen in the failure.
+  if (parts.length < 3) return [];
+  if (parts.some((part) => part.length > 60)) return [];
+  return parts;
+}
+
+function compactCastLabel(subject: string | undefined): string | undefined {
+  return compactCastParts(subject).length > 0 ? subject?.trim() : undefined;
+}
+
+function uniqueNames(names: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const name of names) {
+    const cleaned = name.trim().replace(/\s+/g, ' ').slice(0, 80);
+    const key = normalizeForCompare(cleaned);
+    const keyTokens = key.split(' ');
+    const duplicatesExisting = [...seen].some((existing) => {
+      if (existing === key) return true;
+      const existingTokens = existing.split(' ');
+      // Provider names lead this union. A later catalog shorthand ("Cloud")
+      // is the same requested person as the fuller grounded name
+      // ("Cloud Strife"), not an eighth cast member.
+      return (
+        (keyTokens.length === 1 && existingTokens.includes(key)) ||
+        (existingTokens.length === 1 && keyTokens.includes(existing))
+      );
+    });
+    if (!key || duplicatesExisting) continue;
+    seen.add(key);
+    result.push(cleaned);
+  }
+  return result;
+}
+
+/**
+ * The model's structured roster is accepted only when each display name is
+ * grounded in the conversation text. The model may normalize capitalization,
+ * but it may not invent an extra cast member.
+ */
+function groundedCharacterNames(value: unknown, scanText: string): string[] {
+  const normalizedTranscript = normalizeForCompare(scanText);
+  return uniqueNames(asStringArray(value)).filter((name) => {
+    const normalizedName = normalizeForCompare(name);
+    if (normalizedTranscript.includes(normalizedName)) return true;
+    // Accept the common catalog form "Last, First" when the customer used
+    // natural spoken order ("First Last").
+    const comma = name.match(/^\s*([^,]+),\s*(.+)\s*$/);
+    if (!comma) return false;
+    return normalizedTranscript.includes(
+      normalizeForCompare(`${comma[2]} ${comma[1]}`)
+    );
+  });
+}
+
+function joinCastNames(names: readonly string[]): string | undefined {
+  if (names.length === 0) return undefined;
+  if (names.length === 1) return names[0];
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
+}
+
+/** Ensure the lossless roster leads the visual subject even if extraction was partial. */
+function subjectWithRequestedCast(
+  extractedSubject: string | undefined,
+  requestedCharacters: readonly string[]
+): string | undefined {
+  const extracted = (extractedSubject ?? '').trim();
+  const missing = requestedCharacters.filter(
+    (name) => !normalizeForCompare(extracted).includes(normalizeForCompare(name))
+  );
+  if (missing.length === 0) return extracted || undefined;
+  const roster = joinCastNames(requestedCharacters);
+  return extracted ? `${roster}; ${extracted}` : roster;
+}
+
+/**
+ * Database anchors enrich the model's cumulative subject; they never replace
+ * it. The model knows names beyond our finite catalog, while the catalog adds
+ * the costume specificity image models need for the characters it recognizes.
+ */
+function mergeExtractedSubject(
+  extractedSubject: string | undefined,
+  anchoredSubject: string | undefined
+): string | undefined {
+  const extracted = (extractedSubject ?? '').trim();
+  const anchored = (anchoredSubject ?? '').trim();
+  if (!extracted) return anchored || undefined;
+  if (!anchored) return extracted;
+  if (extracted.toLowerCase().includes(anchored.toLowerCase())) return extracted;
+  return `${extracted}; visual anchors for recognized cast: ${anchored}`;
+}
+
 /* ──────────────────────────────────────────────────────────────────────────
  * Repeat guard: the model occasionally re-emits its own previous question,
  * which reads as the bot not listening. Observed in a real session log, the
@@ -584,7 +698,32 @@ export async function runConversationTurn(
   // when nothing else matched ("the ocean at night" is a complete subject).
   const evocationAsked = evocationAskedIn(request.messages);
   const scene = evocationAnswerIn(request.messages);
-  const subjectBase = subjectPhraseFor(characters) ?? asTrimmedString(record.subject);
+  const extractedSubject = asTrimmedString(record.subject);
+  const providerCharacters = groundedCharacterNames(
+    payload.record?.characters,
+    scanText
+  );
+  const fallbackCast = compactCastParts(extractedSubject);
+  const explicitCast = uniqueNames([
+    ...providerCharacters,
+    ...fallbackCast,
+  ]);
+  const detectedCast = characters.map(
+    (match) =>
+      `${match.name.replace(/\b[a-z]/g, (letter) => letter.toUpperCase())} (${match.series})`
+  );
+  // A transcript-grounded provider/list roster preserves the customer's own
+  // display names and ordering. The curated detector remains the fallback
+  // when no explicit roster was extracted, keeping its useful series labels.
+  const requestedCharacters =
+    explicitCast.length > 0 ? explicitCast : uniqueNames(detectedCast);
+  if (requestedCharacters.length > 0) {
+    record.requestedCharacters = requestedCharacters;
+  }
+  const subjectBase = mergeExtractedSubject(
+    subjectWithRequestedCast(extractedSubject, requestedCharacters),
+    subjectPhraseFor(characters)
+  );
   let subjectValue = subjectBase;
   if (subjectValue && moment && !subjectValue.toLowerCase().includes(moment.toLowerCase())) {
     subjectValue = `${subjectValue}, ${moment}`;
@@ -607,7 +746,10 @@ export async function runConversationTurn(
       (axis) => axis !== 'literal-abstract'
     );
   }
-  const characterLabel = characterLabelFor(characters);
+  const characterLabel =
+    joinCastNames(requestedCharacters) ??
+    compactCastLabel(extractedSubject) ??
+    characterLabelFor(characters);
 
   // Meaning is optional (TAT-51): a pure-looks answer anywhere in the
   // session records vibe=aesthetic and closes the meaning slot — the user's
@@ -859,6 +1001,11 @@ export async function runConversationTurn(
     // The notepad projection (TAT-48) — built AFTER every branch above, so
     // it reflects the record the branches may have resolved (palette calls,
     // axis spreads). The only record view that ever reaches the browser.
-    notes: buildSessionNotes(record, characters, sceneAnchor),
+    notes: buildSessionNotes(
+      record,
+      characters,
+      sceneAnchor,
+      requestedCharacters
+    ),
   };
 }
