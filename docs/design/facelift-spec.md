@@ -17,6 +17,7 @@ on the pop-punk record, not a different band.
 |---|---|---|
 | `/` home | Loud | showcase stays honest (AI-generated example labels) |
 | `/design` shell + reveal | Loud | conversation content itself follows ADR-0023 consultant voice |
+| `/studio` (the refinery) | Loud | compact top bar, no hero — the canvas is the point (ADR-0038) |
 | `/gallery`, `/artists` browse, `/visualize`, `/about` | Loud | |
 | `/swipe` | Loud | **Book CTA + confirm sheet = quiet** |
 | `/artists/[slug]` | Split | loud showcase top; quiet booking module + provenance label |
@@ -67,6 +68,6 @@ rewrite its logic.
 
 1. Copy flip + money sentences + provenance labels (site-wide strings pass).
 2. Quiet-dark treatment of the quiet-register screens.
-3. Loud-surface systematization + the Studio facelift (`/generate`).
+3. Loud-surface systematization + the Studio facelift (`/studio`).
 4. image2ink.com landing (copy exists: `docs/brand/image2ink-landing-copy.md`)
    + domain canonicalization (tatt-t.com → 301 tatttester.com).

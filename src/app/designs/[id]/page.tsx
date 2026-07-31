@@ -9,7 +9,11 @@ import ShareDesignAction from "@/features/share/components/ShareDesignAction";
 import GroupChatVerdict from "@/features/share/components/GroupChatVerdict";
 import TrueSizeActions from "@/features/true-size/components/TrueSizeActions";
 import { useBookings, useDesigns } from "@/lib/tattStorage";
-import { smartMatchUrlForDesign } from "@/lib/design-style-signal";
+import {
+  smartMatchUrlForDesign,
+  studioUrlForDesign,
+  visualizeUrlForDesign,
+} from "@/lib/design-style-signal";
 import DesignJourneyRail from "../DesignJourneyRail";
 import { deriveDesignTitle, getDesignJourney } from "../designJourney";
 
@@ -97,10 +101,7 @@ export default function DesignDetailPage({
 
   const title = deriveDesignTitle(design);
   const journey = getDesignJourney(design, bookings);
-  const visualizeHref = `/visualize?${new URLSearchParams({
-    design: design.id,
-    ...(design.sessionId ? { ds: design.sessionId } : {}),
-  }).toString()}`;
+  const visualizeHref = visualizeUrlForDesign(design.id, design.sessionId);
 
   return (
     <StudioShell>
@@ -206,6 +207,16 @@ export default function DesignDetailPage({
                     className="text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-black hover:bg-pink border-2 hairline px-4 py-4 press font-body inline-flex items-center justify-center"
                   >
                     ▸ Try placement
+                  </Link>
+                )}
+                {/* The refinery's entrance (ADR-0038). Only offered once a
+                    cut exists — there is nothing to refine before that. */}
+                {design.image && (
+                  <Link
+                    href={studioUrlForDesign(design.id)}
+                    className="text-[10px] uppercase tracking-[0.25em] text-white/70 hover:text-black hover:bg-pink border-2 hairline px-4 py-4 press font-body inline-flex items-center justify-center"
+                  >
+                    ▸ Fix it in the Studio
                   </Link>
                 )}
                 {design.image && (

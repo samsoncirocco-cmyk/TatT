@@ -45,8 +45,10 @@ preferences in `/smart-match`, then review design-aware artist cards in
 **Forge** — Legacy UI name for the direct design surface currently at
 `/generate/stencil`. ADR-0028 retires the name from the launch UI.
 
-**Studio** — The multi-layer editing surface currently at `/generate`. It is a
-power tool, not the accepted primary launch entry.
+**Studio** — The refinery at `/studio` (ADR-0038): where a picked design goes
+from *almost* to *yes*. Entered from a picked design (`/studio?design=<id>`),
+never from cold, so it appears in no nav or footer — the design library is its
+door. `/generate` redirects here.
 
 **Claim** — The process by which an artist takes control of a scraped profile
 and becomes eligible for payout onboarding.

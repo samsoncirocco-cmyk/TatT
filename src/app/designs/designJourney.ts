@@ -1,4 +1,5 @@
 import type { TattBooking, TattDesign } from "@/lib/tattStorage";
+import { visualizeUrlForDesign } from "@/lib/design-style-signal";
 
 export type DesignJourneyStep = {
   label: string;
@@ -14,10 +15,7 @@ export type DesignJourney = {
 };
 
 function placementHref(design: TattDesign): string {
-  return `/visualize?${new URLSearchParams({
-    design: design.id,
-    ...(design.sessionId ? { ds: design.sessionId } : {}),
-  }).toString()}`;
+  return visualizeUrlForDesign(design.id, design.sessionId);
 }
 
 /**
