@@ -60,6 +60,7 @@ DRY RUN: Complete recovery manifest (no writes):
     Layers: 4
       - users/[uid]/designs/design_[sha256-prefix]/versions/version-uuid-1/layers/layer-uuid-1
       ...
+    Storage: gs://[bucket]/users/[uid]/designs/design_[sha256-prefix]/images/[content-hash].png
     Image URL type: URL
 
   Version 2:
@@ -76,6 +77,9 @@ DRY RUN: Complete recovery manifest (no writes):
 ```
 
 **Review output carefully.** Confirm the version count and layer counts match expected data before proceeding.
+For an exact storage manifest, supply `--bucket [BUCKET_NAME]` (or supply a
+project ID so the default bucket can be derived). The real run performs the
+same complete preflight before its first write.
 
 **Safe target requirement:** run this tool only for a new or empty target user.
 It deliberately creates documents without overwriting existing ones and stops if
@@ -165,7 +169,7 @@ gcloud firestore export gs://[BACKUP_BUCKET]/firestore-backups/[timestamp]/
 Before a real run, also record:
 
 - proof that the target user's `designs` collection is empty;
-- every deterministic design/version/layer path shown by the dry run; and
+- every deterministic Firestore and Cloud Storage path shown by the dry run; and
 - the dry-run version/layer counts.
 
 The script uses create-only writes, so it will fail rather than overwrite a
@@ -176,9 +180,10 @@ verified ahead of time, do not run the migration.
 
 ### If migration fails partway: remove only newly created paths
 
-Use the reviewed manifest to delete only documents created by the failed run,
-starting with layer and version children and then their parent designs. Confirm
-the target returns to zero designs before retrying.
+Use the reviewed manifest to delete only documents and storage objects created
+by the failed run, starting with layer and version children, then parent
+designs, then orphaned Cloud Storage objects. Confirm the target returns to zero
+designs and none of the manifest's storage objects remain before retrying.
 
 Do **not** use a full Firestore import to recover one user's migration. Imports
 merge into the live database and can overwrite unrelated documents changed
@@ -289,7 +294,7 @@ Expected structure for localStorage export JSON:
 
 ## Appendix: Batch Size Guidance
 
-**Not configurable:** `migrate_localStorage.py` has no `--batch-size` flag — it writes documents one at a time via individual `.set()` calls, not batched commits. The table below is rough timing/volume guidance only, not a tunable parameter.
+**Not configurable:** `migrate_localStorage.py` has no `--batch-size` flag — it writes documents one at a time via create-only `.create()` calls, not batched commits. The table below is rough timing/volume guidance only, not a tunable parameter.
 
 | User Type | Typical Data | Est. Time |
 |-----------|--------------|-----------|

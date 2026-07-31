@@ -7,12 +7,38 @@ import json
 from unittest.mock import patch, MagicMock
 from execution.migrate_localStorage import (
     design_id_for_version,
+    preflight_destination,
     parse_version_history,
     is_data_uri,
+    storage_object_path,
     upload_data_uri_to_storage,
+    validate_versions,
     migrate_version_to_firestore,
     main
 )
+
+
+def test_storage_object_path_is_deterministic():
+    """The recovery manifest can predict every uploaded object."""
+    data_uri = "data:text/plain;base64,aGVsbG8="
+    path = storage_object_path(data_uri, "user1", "design1")
+    assert path.startswith("users/user1/designs/design1/images/")
+    assert path.endswith(".plain")
+
+
+def test_validate_versions_rejects_layer_without_id(sample_version_history):
+    """No source layer may be silently omitted."""
+    sample_version_history["version_history_abc123"][0]["layers"][0].pop("id")
+    with pytest.raises(ValueError, match="layer missing 'id'"):
+        validate_versions(sample_version_history["version_history_abc123"])
+
+
+def test_validate_versions_rejects_duplicate_version_id(sample_version_history):
+    """Duplicate source IDs would map to the same destination."""
+    versions = sample_version_history["version_history_abc123"]
+    versions[1]["id"] = versions[0]["id"]
+    with pytest.raises(ValueError, match="Duplicate version id"):
+        validate_versions(versions)
 
 def test_design_id_for_version_is_deterministic():
     """A source version always maps to one predictable design document."""
@@ -80,6 +106,7 @@ def test_upload_data_uri_to_storage(mock_storage_client):
 
     assert url == "https://storage.googleapis.com/bucket/test.png"
     mock_blob.upload_from_string.assert_called_once()
+    assert mock_blob.upload_from_string.call_args.kwargs["if_generation_match"] == 0
     mock_blob.make_public.assert_called_once()
 
 
@@ -107,6 +134,67 @@ def test_migrate_version_to_firestore_dry_run(sample_version_history, mock_fires
 
     # Should not have created any documents
     mock_firestore_client.collection.assert_not_called()
+
+
+def test_preflight_rejects_non_empty_target(
+    sample_version_history,
+    mock_firestore_client,
+    mock_storage_client
+):
+    """A customer with any existing design is never merged into."""
+    designs = MagicMock()
+    designs.limit.return_value.stream.return_value = [MagicMock()]
+    user_ref = MagicMock()
+    user_ref.collection.return_value = designs
+    users = MagicMock()
+    users.document.return_value = user_ref
+    mock_firestore_client.collection.return_value = users
+
+    with pytest.raises(ValueError, match="requires an empty target"):
+        preflight_destination(
+            "project",
+            "bucket",
+            "user",
+            sample_version_history["version_history_abc123"]
+        )
+
+    mock_storage_client.bucket.assert_not_called()
+
+
+def test_preflight_rejects_orphan_collision_before_upload(
+    sample_version_history,
+    mock_firestore_client,
+    mock_storage_client
+):
+    """An orphan child collision is detected before any object is uploaded."""
+    designs = MagicMock()
+    designs.limit.return_value.stream.return_value = []
+
+    design_ref = MagicMock()
+    design_ref.get.return_value.exists = False
+    version_ref = MagicMock()
+    version_ref.get.return_value.exists = True
+    versions = MagicMock()
+    versions.document.return_value = version_ref
+    design_ref.collection.return_value = versions
+    designs.document.return_value = design_ref
+
+    user_ref = MagicMock()
+    user_ref.collection.return_value = designs
+    users = MagicMock()
+    users.document.return_value = user_ref
+    mock_firestore_client.collection.return_value = users
+
+    with pytest.raises(ValueError, match="already contains data"):
+        preflight_destination(
+            "project",
+            "bucket",
+            "user",
+            sample_version_history["version_history_abc123"]
+        )
+
+    bucket = mock_storage_client.bucket.return_value
+    bucket.blob.return_value.upload_from_string.assert_not_called()
 
 
 def test_migrate_version_to_firestore(sample_version_history, mock_firestore_client):
@@ -224,6 +312,7 @@ def test_main_dry_run(sample_version_history, tmp_path, capsys):
     assert "users/user123/designs/" in captured.out
     assert "/versions/" in captured.out
     assert "/layers/" in captured.out
+    assert "Storage: gs://" in captured.out
 
 
 def test_main_version_mapping(sample_version_history, tmp_path, capsys):

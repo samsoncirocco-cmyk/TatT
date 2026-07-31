@@ -13,7 +13,32 @@ import json
 import os
 import re
 import sys
-from typing import Dict, Any
+from typing import Dict, Any, List
+
+
+def decode_data_uri(data_uri: str) -> tuple[str, bytes]:
+    """Validate and decode a base64 data URI."""
+    match = re.match(r'data:([^;]+);base64,(.+)', data_uri)
+    if not match:
+        raise ValueError("Invalid data URI format")
+
+    mime_type = match.group(1)
+    base64_data = match.group(2)
+    padded = base64_data + "=" * (-len(base64_data) % 4)
+    return mime_type, base64.b64decode(padded, validate=True)
+
+
+def storage_object_path(
+    data_uri: str,
+    user_id: str,
+    design_id: str
+) -> str:
+    """Return the deterministic Cloud Storage object path for a data URI."""
+    mime_type, file_data = decode_data_uri(data_uri)
+    content_hash = hashlib.sha256(file_data).hexdigest()[:16]
+    extension = mime_type.split('/')[-1]
+    filename = f"{content_hash}.{extension}"
+    return f"users/{user_id}/designs/{design_id}/images/{filename}"
 
 
 def design_id_for_version(version: Dict[str, Any]) -> str:
@@ -53,33 +78,102 @@ def upload_data_uri_to_storage(
     """Upload data: URI to Cloud Storage and return public URL."""
     from google.cloud import storage
 
-    # Parse data URI
-    match = re.match(r'data:([^;]+);base64,(.+)', data_uri)
-    if not match:
-        raise ValueError("Invalid data URI format")
-
-    mime_type = match.group(1)
-    base64_data = match.group(2)
-
-    # Decode (localStorage exports sometimes strip base64 padding — restore it)
-    padded = base64_data + "=" * (-len(base64_data) % 4)
-    file_data = base64.b64decode(padded)
-
-    # Generate filename from content hash
-    content_hash = hashlib.sha256(file_data).hexdigest()[:16]
-    extension = mime_type.split('/')[-1]
-    filename = f"{content_hash}.{extension}"
+    mime_type, file_data = decode_data_uri(data_uri)
 
     # Upload to Cloud Storage
     client = storage.Client()
     bucket = client.bucket(bucket_name)
-    blob_path = f"users/{user_id}/designs/{design_id}/images/{filename}"
+    blob_path = storage_object_path(data_uri, user_id, design_id)
     blob = bucket.blob(blob_path)
 
-    blob.upload_from_string(file_data, content_type=mime_type)
+    # The generation precondition makes this create-only even if another
+    # process writes the same path after preflight.
+    blob.upload_from_string(
+        file_data,
+        content_type=mime_type,
+        if_generation_match=0
+    )
     blob.make_public()
 
     return blob.public_url
+
+
+def validate_versions(versions: List[Dict[str, Any]]) -> None:
+    """Validate the complete export before any external reads or writes."""
+    seen_versions = set()
+    for version in versions:
+        version_id = version.get('id')
+        design_id_for_version(version)
+        if version_id in seen_versions:
+            raise ValueError(f"Duplicate version id: {version_id}")
+        seen_versions.add(version_id)
+
+        image_url = version.get('imageUrl', '')
+        if is_data_uri(image_url):
+            decode_data_uri(image_url)
+
+        layers = version.get('layers', [])
+        if not isinstance(layers, list):
+            raise ValueError(f"Version {version_id} layers must be an array")
+
+        seen_layers = set()
+        for layer in layers:
+            layer_id = layer.get('id')
+            if not layer_id:
+                raise ValueError(f"Version {version_id} has a layer missing 'id'")
+            if layer_id in seen_layers:
+                raise ValueError(
+                    f"Version {version_id} has duplicate layer id: {layer_id}"
+                )
+            seen_layers.add(layer_id)
+            layer_url = layer.get('imageUrl', '')
+            if is_data_uri(layer_url):
+                decode_data_uri(layer_url)
+
+
+def preflight_destination(
+    project_id: str,
+    bucket_name: str,
+    user_id: str,
+    versions: List[Dict[str, Any]]
+) -> None:
+    """Prove all destination paths are empty before any migration side effect."""
+    from google.cloud import firestore, storage
+
+    firestore_client = firestore.Client(project=project_id)
+    designs = firestore_client.collection("users").document(user_id) \
+        .collection("designs")
+
+    if next(iter(designs.limit(1).stream()), None) is not None:
+        raise ValueError("Target user already has designs; migration requires an empty target")
+
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket_name)
+
+    for version in versions:
+        design_id = design_id_for_version(version)
+        version_id = version['id']
+        design_ref = designs.document(design_id)
+        version_ref = design_ref.collection("versions").document(version_id)
+        refs = [design_ref, version_ref]
+        refs.extend(
+            version_ref.collection("layers").document(layer['id'])
+            for layer in version.get('layers', [])
+        )
+        if any(ref.get().exists for ref in refs):
+            raise ValueError(
+                f"Destination already contains data for source version {version_id}"
+            )
+
+        urls = [version.get('imageUrl', '')]
+        urls.extend(layer.get('imageUrl', '') for layer in version.get('layers', []))
+        for url in urls:
+            if is_data_uri(url):
+                object_path = storage_object_path(url, user_id, design_id)
+                if bucket.blob(object_path).exists():
+                    raise ValueError(
+                        f"Destination storage object already exists: gs://{bucket_name}/{object_path}"
+                    )
 
 def migrate_version_to_firestore(
     project_id: str,
@@ -228,9 +322,14 @@ def main(argv=None) -> int:
         if not isinstance(versions, list):
             raise ValueError(f"{session_key} must be an array of versions")
 
+        validate_versions(versions)
         print(f"Found {len(versions)} versions")
 
         if args.dry_run:
+            project_id = args.project_id or os.environ.get("GCP_PROJECT_ID")
+            bucket_name = args.bucket or (
+                f"{project_id}-designs" if project_id else "[BUCKET_NAME]"
+            )
             print("\nDRY RUN: Complete recovery manifest (no writes):")
             for i, version in enumerate(versions):
                 design_id = design_id_for_version(version)
@@ -241,12 +340,19 @@ def main(argv=None) -> int:
                 layers = version.get('layers', [])
                 print(f"    Layers: {len(layers)}")
                 for layer in layers:
-                    if layer.get('id'):
-                        print(
-                            "      - "
-                            f"users/{args.user_id}/designs/{design_id}/versions/"
-                            f"{version_id}/layers/{layer['id']}"
+                    print(
+                        "      - "
+                        f"users/{args.user_id}/designs/{design_id}/versions/"
+                        f"{version_id}/layers/{layer['id']}"
+                    )
+                urls = [version.get('imageUrl', '')]
+                urls.extend(layer.get('imageUrl', '') for layer in layers)
+                for url in urls:
+                    if is_data_uri(url):
+                        object_path = storage_object_path(
+                            url, args.user_id, design_id
                         )
+                        print(f"    Storage: gs://{bucket_name}/{object_path}")
                 print(f"    Image URL type: {'data URI' if is_data_uri(version.get('imageUrl', '')) else 'URL'}")
 
             return 0
@@ -259,6 +365,12 @@ def main(argv=None) -> int:
             return 1
 
         bucket_name = args.bucket or f"{project_id}-designs"
+        preflight_destination(
+            project_id,
+            bucket_name,
+            args.user_id,
+            versions
+        )
 
         migrated = 0
         for version in versions:
