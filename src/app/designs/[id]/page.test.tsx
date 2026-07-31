@@ -82,6 +82,26 @@ describe("DesignDetailPage — funnel CTAs", () => {
     ).toBe("/smart-match?ds=sess-7");
   });
 
+  it("opens the Studio carrying this design (ADR-0038: entry from a picked design)", async () => {
+    const { id } = addDesignToStorage("a tiger", {
+      image: "https://cdn.example.com/cut.png",
+    });
+
+    await renderDetail(id);
+
+    expect(
+      screen.getByRole("link", { name: /fix it in the studio/i }).getAttribute("href")
+    ).toBe(`/studio?design=${id}`);
+  });
+
+  it("offers no Studio door for an idea with no cut yet", async () => {
+    const { id } = addDesignToStorage("a tiger");
+
+    await renderDetail(id);
+
+    expect(screen.queryByRole("link", { name: /fix it in the studio/i })).toBeNull();
+  });
+
   it("falls back to the prompt's style signal for sessionless cuts", async () => {
     const { id } = addDesignToStorage("heavy black linework skull", {
       image: "https://cdn.example.com/cut.png",

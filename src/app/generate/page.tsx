@@ -1,42 +1,28 @@
-'use client';
+import { redirect } from "next/navigation";
 
-import dynamic from 'next/dynamic';
-import StudioShell from '@/components/studio/StudioShell';
-import TapeCTA from '@/components/punk/TapeCTA';
-
-const LegacyContent = dynamic(() => import('../../features/Generate.jsx'), {
-  ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center h-full bg-black text-white font-body text-[10px] uppercase tracking-[0.28em]">
-      <span className="text-pink">●</span>&nbsp;&nbsp;Loading&nbsp;the&nbsp;studio…
-    </div>
-  )
-});
-
-export default function GeneratePage() {
-  return (
-    <StudioShell footer={false}>
-      <div className="px-6 md:px-12 pt-6 pb-4 border-b hairline">
-        <div className="max-w-6xl mx-auto flex items-center justify-between gap-4 text-[10px] uppercase tracking-[0.25em] text-white/50 tabular-nums font-body">
-          <div className="flex items-center gap-4">
-            <TapeCTA
-              href="/design"
-              variant="ghost"
-              size="sm"
-              arrow={false}
-            >
-              ◂ Back to Design
-            </TapeCTA>
-            <span className="hidden sm:inline">
-              <span className="text-pink">●</span>&nbsp;&nbsp;The&nbsp;Studio&nbsp;— Layer&nbsp;Editor
-            </span>
-          </div>
-          <span>Status:&nbsp;<span className="text-pink">Live</span></span>
-        </div>
-      </div>
-      <div className="min-h-[70vh] bg-black">
-        <LegacyContent />
-      </div>
-    </StudioShell>
-  );
+/**
+ * The Studio moved to /studio (TAT-54). ADR-0028 flagged the crossed names —
+ * the Studio at /generate, the retired Forge at /generate/stencil — as
+ * deferred cleanup; this is that cleanup. ADR-0038 names the room's job
+ * (refinement), and the path now says so.
+ *
+ * Every query param is forwarded, so a carried design id (?design=…) and
+ * any old deep link survive the hop. /generate/stencil keeps its own
+ * redirect into /design — the Forge stays retired.
+ */
+export default async function GeneratePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const forwarded = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined) continue;
+    for (const one of Array.isArray(value) ? value : [value]) {
+      forwarded.append(key, one);
+    }
+  }
+  const query = forwarded.toString();
+  redirect(query ? `/studio?${query}` : "/studio");
 }

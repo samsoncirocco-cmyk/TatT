@@ -8,6 +8,8 @@ import {
   parseStylesParam,
   artistsUrlForDesign,
   smartMatchUrlForDesign,
+  visualizeUrlForDesign,
+  studioUrlForDesign,
   canonicalStylesFromOntologyTags,
 } from "./design-style-signal";
 import { canonicalStyleForTag } from "./style-vocabulary";
@@ -243,5 +245,43 @@ describe("smartMatchUrlForDesign", () => {
   it("hands off clean when the prompt names no style and no session exists", () => {
     expect(smartMatchUrlForDesign("a cool dragon on my arm")).toBe("/smart-match");
     expect(smartMatchUrlForDesign("")).toBe("/smart-match");
+  });
+});
+
+describe("visualizeUrlForDesign", () => {
+  it("carries the design and the session so the mirror preselects and threads on", () => {
+    expect(visualizeUrlForDesign("design-7", "sess-42")).toBe(
+      "/visualize?design=design-7&ds=sess-42",
+    );
+  });
+
+  it("carries whichever half exists", () => {
+    expect(visualizeUrlForDesign("design-7")).toBe("/visualize?design=design-7");
+    expect(visualizeUrlForDesign(null, "sess-42")).toBe("/visualize?ds=sess-42");
+  });
+
+  it("hands off clean with no context at all — a walk-in still gets the mirror", () => {
+    expect(visualizeUrlForDesign()).toBe("/visualize");
+    expect(visualizeUrlForDesign(null, null)).toBe("/visualize");
+  });
+
+  it("URL-encodes ids so they survive the round trip", () => {
+    const url = visualizeUrlForDesign("design/7", "sess/odd id");
+    expect(url.startsWith("/visualize?")).toBe(true);
+    const params = new URLSearchParams(url.split("?")[1]);
+    expect(params.get("design")).toBe("design/7");
+    expect(params.get("ds")).toBe("sess/odd id");
+  });
+});
+
+describe("studioUrlForDesign", () => {
+  it("always carries a design — the refinery is never entered cold (ADR-0038)", () => {
+    expect(studioUrlForDesign("design-7")).toBe("/studio?design=design-7");
+  });
+
+  it("URL-encodes ids safely", () => {
+    expect(studioUrlForDesign("design/7")).toBe(
+      `/studio?design=${encodeURIComponent("design/7")}`,
+    );
   });
 });

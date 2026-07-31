@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { createElement } from 'react';
 import type { DesignSession } from '@/services/designSession/types';
@@ -187,11 +187,17 @@ describe('DesignSessionFlow', () => {
     expect(screen.getByText(/“strength after a rough year”/)).toBeTruthy();
     expect(screen.getByText(/wrist crease may blur/i)).toBeTruthy();
 
-    // CTAs out — AR mirror, artist matching, canvas.
+    // CTAs out — AR mirror, artist matching, and the refinery (which only
+    // appears once the refined cut has landed in the local library, and
+    // carries that design id into /studio — ADR-0038).
     expect(screen.getByRole('link', { name: /see it on your skin/i }).getAttribute('href')).toContain('/visualize?');
     expect(screen.getByRole('link', { name: /see it on your skin/i }).getAttribute('href')).toContain('ds=sess-1');
-    expect(screen.getByRole('link', { name: /fine-tune on the canvas/i }).getAttribute('href')).toBe('/generate');
     expect(screen.getByRole('link', { name: /find your artist/i }).getAttribute('href')).toBe('/smart-match?ds=sess-1');
+    await waitFor(() =>
+      expect(
+        screen.getByRole('link', { name: /fine-tune in the studio/i }).getAttribute('href'),
+      ).toMatch(/^\/studio\?design=/),
+    );
   });
 
   it('offers no second refinement affordance after completion (ADR-0013 hard stop)', async () => {
