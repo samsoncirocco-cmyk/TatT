@@ -37,6 +37,17 @@ export function readPickedDesign(): PickedDesign | null {
   }
 }
 
+/**
+ * The `?design=` id the Studio route carries (`/studio?design=…`). Read from
+ * the URL rather than from `useSearchParams` so the refinery surface stays
+ * usable outside a Next router — the route itself owns the param.
+ */
+export function readPickedDesignId(): string | null {
+  if (typeof window === 'undefined') return null;
+  const id = new URLSearchParams(window.location.search).get('design');
+  return id || null;
+}
+
 export function writePickedDesign(design: PickedDesign): void {
   if (typeof sessionStorage === 'undefined') return;
   try {

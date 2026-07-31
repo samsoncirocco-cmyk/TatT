@@ -80,6 +80,7 @@ beforeEach(() => {
   inpaintTattooDesign.mockReset();
   inpaintTattooDesign.mockResolvedValue('https://cdn.test/fixed.png');
   window.innerWidth = DESKTOP;
+  window.history.replaceState(null, '', '/studio');
   // The layer store is a module singleton — a canvas left behind by one
   // test would otherwise stand in for the next test's picked design.
   useForgeStore.getState().clearLayers();
@@ -339,6 +340,41 @@ describe('the ceiling and the cap', () => {
     const cta = screen.getByRole('link', { name: /find your artist/i });
     expect(cta.getAttribute('href')).toBe('/smart-match');
     expect(document.body.textContent).not.toMatch(/upgrade|buy credits|subscribe/i);
+  });
+});
+
+describe('entering with a picked design', () => {
+  it('resolves the design the /studio route carries in ?design=', async () => {
+    localStorage.setItem(
+      'tatt:designs',
+      JSON.stringify([
+        {
+          id: 'saved-1',
+          prompt: 'a coiling dragon',
+          createdAt: 1,
+          color: 'bg-pink',
+          image: 'https://cdn.test/saved.png',
+        },
+      ])
+    );
+    window.history.replaceState(null, '', '/studio?design=saved-1');
+
+    renderStudio();
+
+    const canvas = await screen.findByTestId('region-canvas');
+    expect(canvas.querySelector('img').getAttribute('src')).toBe('https://cdn.test/saved.png');
+  });
+
+  it('falls back to the stashed design for entry points that only have storage', async () => {
+    sessionStorage.setItem(
+      'tatt:studio-design',
+      JSON.stringify({ id: 'stashed-1', imageUrl: 'https://cdn.test/stashed.png' })
+    );
+
+    renderStudio();
+
+    const canvas = await screen.findByTestId('region-canvas');
+    expect(canvas.querySelector('img').getAttribute('src')).toBe('https://cdn.test/stashed.png');
   });
 });
 

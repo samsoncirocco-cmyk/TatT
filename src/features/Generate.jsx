@@ -57,9 +57,10 @@ import TransformControls from '../components/generate/TransformControls';
 import { useTransformShortcuts } from '../hooks/useTransformShortcuts';
 import { exportAsPNG, exportAsARAsset } from './generate/services/canvasService';
 import { convertToStencil } from './stencil/services/stencilService';
-import { readPickedDesign } from './generate/services/pickedDesign';
+import { readPickedDesign, readPickedDesignId } from './generate/services/pickedDesign';
 import { NO_DESIGN_LINE } from './generate/services/refineryVoice';
 import { useForgeStore } from '../store/useForgeStore';
+import { useDesigns } from '../lib/tattStorage';
 import {
     processGenerationResult,
     addMultipleLayers,
@@ -67,16 +68,32 @@ import {
 } from './generate/services/multiLayerService';
 
 export default function Generate({ design = null }) {
-    // The Studio is entered from a picked design. Props first; storage is the
-    // fallback seam for entry points that can only hand it over that way.
-    const [picked, setPicked] = useState(design);
-    useEffect(() => {
-        if (design) {
-            setPicked(design);
-            return;
+    // The Studio is entered from a picked design, resolved in three steps:
+    // the prop, then the `?design=` id the /studio route carries against the
+    // saved-designs library, then the sessionStorage seam for entry points
+    // that can only hand a design over that way.
+    // Client-only surface (loaded with ssr:false), so the stash can be read
+    // once during the first render rather than through an effect.
+    const { designs, hydrated } = useDesigns();
+    const [stashed] = useState(() => readPickedDesign());
+
+    const picked = useMemo(() => {
+        if (design) return design;
+
+        const id = readPickedDesignId();
+        const saved = id && hydrated ? designs.find((entry) => entry.id === id) : null;
+        if (saved?.image) {
+            return {
+                id: saved.id,
+                imageUrl: saved.image,
+                prompt: saved.prompt,
+                style: undefined,
+                bodyPart: undefined
+            };
         }
-        setPicked(readPickedDesign());
-    }, [design]);
+
+        return stashed;
+    }, [design, designs, hydrated, stashed]);
 
     const bodyPart = picked?.bodyPart || DEFAULT_BODY_PART;
     const promptText = picked?.prompt || '';
