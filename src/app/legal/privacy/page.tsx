@@ -1,13 +1,11 @@
 /**
  * Privacy policy, v1.0 — the complete published policy.
  *
- * Section 4 ("Artists we listed without asking") is the part that matters and
- * the part that is unusual. It is written for TatT's actual position — roughly
- * 7,800 artists were collected without consent and about 62,000 of their
- * portfolio photographs re-hosted on TatT's own storage — rather than adapted
- * from a generic cookie-and-analytics notice. Those templates address data a
- * user hands you; they have nothing to say about data taken from third parties
- * without consent, which is the whole of the problem here.
+ * Section 4 ("Artists collected from public sources") is the part that matters
+ * and the part that is unusual. It is grounded in dated production counts and
+ * distinguishes external image URLs from the small number of GCS-hosted
+ * copies. Generic cookie-and-analytics templates do not address data collected
+ * from third-party public sources.
  *
  * Every factual claim below is traceable to behaviour in this repo:
  *   §1 what we collect          → Firebase auth (src/lib/firebase-client.ts),
@@ -61,7 +59,7 @@ export default function PrivacyPage() {
         <div className="max-w-3xl mx-auto">
           <QuietHeadline>Privacy policy</QuietHeadline>
           <p className="mt-6 text-[12px] text-quiet-dim font-body tabular-nums">
-            Last updated: 29 July 2026. We&rsquo;ll announce material changes on this page.
+            Last updated: 30 July 2026. We&rsquo;ll announce material changes on this page.
           </p>
 
           {/* Section 4 makes commitments about other people's data. The
@@ -78,10 +76,9 @@ export default function PrivacyPage() {
             <p className="text-[15px] text-quiet">
               TattTester holds personal data about two groups of people who are in very different
               positions. Sections 1 to 3 cover people who signed up, and section 5 covers
-              texting with SketchBot. Section 4 covers tattoo
-              artists whose details we collected from the public internet without asking them
-              first. If you are an artist who found your name or your work on this site and
-              did not put it there,{" "}
+              texting with SketchBot. Section 4 covers artist records collected from the
+              public internet with no identified opt-in evidence. If you are an artist who
+              found your name or your work on this site and did not put it there,{' '}
               <a href="#artists" className="text-quiet underline underline-offset-4 hover:text-white">
                 section 4 is the one you want
               </a>

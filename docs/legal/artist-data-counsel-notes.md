@@ -1,11 +1,11 @@
 # Artist data — notes for counsel
 
-**Status:** Engineering's notes on the draft privacy language. **Not legal advice.**
-**Accompanies:** section 4 of `src/app/legal/privacy/page.tsx` (published as a draft)
+**Status:** Engineering's notes on the published v1.0 privacy language. **Not legal advice.**
+**Accompanies:** section 4 of `src/app/legal/privacy/page.tsx`
 **Date:** 2026-07-26 (production counts refreshed 2026-07-30)
 
 This is a handover document. It records what the system actually does, which
-claims in the published draft depend on that, and the questions engineering
+claims in the published policy depend on that, and the questions engineering
 cannot answer. Someone qualified needs to go through it.
 
 ## 1. The factual position
@@ -56,10 +56,11 @@ process, and nothing at all about data collected from third parties without
 consent — which is TatT's entire situation.
 
 Templates of that kind address data a user hands you. The hard problem here is
-data taken from people who never interacted with us. Section 4 of the draft was
-written from scratch for that reason.
+the set of records collected from third-party public sources with no identified
+opt-in evidence. Section 4 of the policy was written from scratch for that
+reason.
 
-## 3. Why the draft is published rather than held back
+## 3. Why the policy addresses this processing
 
 Engineering's reasoning, for counsel to overturn if wrong:
 
@@ -71,13 +72,11 @@ Engineering's reasoning, for counsel to overturn if wrong:
   disclosure obligations are triggered by the processing, which has already
   happened. Silence looks like the exposure; disclosure looks like the remedy.
 - An artist who reaches `/takedown` today has nowhere to read what removal does.
-- The page already carried a "pending counsel review" banner and lorem ipsum, so
-  publishing replaces filler with something honest **at the same status**. It does
-  not promote unreviewed text to settled policy.
 
-If counsel disagrees, the section can be moved to `docs/` in one commit.
+If counsel disagrees, section 4 should be revised through the policy's normal
+versioned update process and the material change announced on the page.
 
-## 4. Claims in the draft that are load-bearing
+## 4. Claims in the policy that are load-bearing
 
 Each is currently true of the code. If the code changes, the text becomes false.
 
@@ -94,7 +93,7 @@ Each is currently true of the code. If the code changes, the text becomes false.
 | A person reviews every request | ADR 0025 §5; the route has no write path | |
 | Removed artists disappear from the homepage | `src/lib/featured-artists.ts` | Newly true; was **false** before this PR |
 
-**The strongest and most unusual commitment is the suppression list.** The draft
+**The strongest and most unusual commitment is the suppression list.** The policy
 states plainly that it is *itself retained personal data* — one identifier kept
 indefinitely for the sole purpose of never processing anything else about that
 person again. Counsel should decide whether that framing is right and whether the
@@ -118,16 +117,16 @@ offer to delete it on request (with a stated consequence) is the correct balance
    procedure framed as such.
 
 3. **Lawful basis.** If legitimate interests is the intended basis, a legitimate
-   interests assessment should exist and does not. The draft deliberately states
+   interests assessment should exist and does not. The policy deliberately states
    the commercial motive plainly rather than dressing it up as a benefit to
    artists, which may help or hurt that assessment.
 
 4. **Statutory response windows.** Nothing in the system tracks deadlines. The
-   draft says "a few days" and defers to statutory deadlines if invoked. If real
+   policy says "a few days" and defers to statutory deadlines if invoked. If real
    deadlines apply, that needs a tracked queue, which does not exist.
 
 5. **Jurisdiction.** The dataset is US artists; obligations differ by state (e.g.
-   CCPA/CPRA) and would differ again for any EU/UK artist in the set. The draft
+   CCPA/CPRA) and would differ again for any EU/UK artist in the set. The policy
    makes one global promise rather than jurisdiction-specific ones. Deliberate
    simplification — confirm it is acceptable.
 
