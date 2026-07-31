@@ -30,7 +30,7 @@ import { ensureAdminApp } from '@/lib/firebase-admin';
 import { stripe, stripeConfigured, platformFeeCents, CURRENCY } from '@/lib/stripe';
 import { getArtistStripe } from '@/lib/artist-stripe';
 import { depositCentsForSize, type TattooSize } from '@/lib/booking';
-import { bookingMoneyCopy } from '@/lib/money-copy';
+import { checkoutFeeMoneyCopy } from '@/lib/money-copy';
 
 export const runtime = 'nodejs';
 
@@ -208,6 +208,10 @@ export async function POST(req: NextRequest) {
     time,
     deposit: String(depositAmount),
   });
+  // Tell /book/success which money-sentence variant applies (ADR-0036
+  // amendment): the held-deposit sentence for an unclaimed artist. Display
+  // copy only — payment truth still comes from reconciliation.
+  if (!artistReady) successParams.set('artistClaimed', '0');
   // Carry the bookingId so /book/success can reconcile against the exact
   // booking record (server truth) rather than the caller's most-recent one.
   if (bookingId) successParams.set('bookingId', bookingId);
@@ -292,8 +296,10 @@ export async function POST(req: NextRequest) {
             product_data: {
               name: 'TattTester booking fee',
               // The money sentence (ADR-0036) on the Stripe-hosted summary:
-              // who pays what, who keeps what.
-              description: bookingMoneyCopy.checkoutFee,
+              // who pays what, who keeps what — claimed-artist strength or
+              // the held-deposit truth, decided by the same flag that shapes
+              // the charge itself.
+              description: checkoutFeeMoneyCopy(artistReady),
             },
             tax_behavior: 'exclusive',
           },

@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import StudioShell from "@/components/studio/StudioShell";
 import QuietHeadline from "@/components/quiet/QuietHeadline";
 import PunkToggle from "@/components/punk/PunkToggle";
-import { useUser } from "@/lib/tattStorage";
+import { useStylePreferences, useUser } from "@/lib/tattStorage";
 import { authDoorHref } from "@/lib/knownUser";
 import { CANONICAL_STYLES } from "@/lib/style-vocabulary";
 
@@ -44,17 +45,22 @@ const STYLES = CANONICAL_STYLES;
 export default function SettingsPage() {
   const router = useRouter();
   const { user, hydrated, updateUser, signOut, error: authError } = useUser();
+  const {
+    stylePreferences,
+    hydrated: stylesHydrated,
+    setStylePreferences,
+  } = useStylePreferences();
   const [active, setActive] = useState(0);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [picked, setPicked] = useState<string[]>(["Fine Line", "Blackwork"]);
+  const [picked, setPicked] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
   const [notifs, setNotifs] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(NOTIF_OPTIONS.map((o) => [o.key, o.default])),
   );
 
   // Sync local form state from store on hydration / user change.
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot hydration sync from localStorage, same pattern as useStoredList
+  /* eslint-disable react-hooks/set-state-in-effect -- one-shot hydration sync from external auth/localStorage stores */
   useEffect(() => {
     if (!hydrated) return;
     setName(user?.name ?? "");
@@ -66,6 +72,16 @@ export default function SettingsPage() {
       /* corrupted prefs — keep defaults */
     }
   }, [hydrated, user]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  // The saved taste profile is deliberately independent of sign-in: a visitor
+  // can teach TatT their taste before deciding to create an account.
+  /* eslint-disable react-hooks/set-state-in-effect -- one-shot hydration sync from the external taste store */
+  useEffect(() => {
+    if (!stylesHydrated) return;
+    setPicked(stylePreferences);
+  }, [stylePreferences, stylesHydrated]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const setNotif = (key: string, value: boolean) => {
     setNotifs((n) => {
@@ -83,8 +99,10 @@ export default function SettingsPage() {
     setPicked((p) => (p.includes(s) ? p.filter((x) => x !== s) : [...p, s]));
 
   const handleSave = async () => {
-    if (!user) return;
-    await updateUser({ name: name.trim() || undefined });
+    setStylePreferences(picked);
+    if (user) {
+      await updateUser({ name: name.trim() || undefined });
+    }
     setSaved(true);
     window.setTimeout(() => setSaved(false), 2000);
   };
@@ -99,7 +117,7 @@ export default function SettingsPage() {
       <div className="px-6 md:px-12 pt-8 pb-6 border-b hairline-quiet-soft">
         <div className="max-w-5xl mx-auto flex items-center justify-between text-[12px] text-quiet-dim tabular-nums font-body">
           <span>Settings</span>
-          <span>Account: Pro</span>
+          <span>Taste + account</span>
         </div>
       </div>
 
@@ -171,16 +189,22 @@ export default function SettingsPage() {
                     </p>
                   </div>
 
-                  <div>
-                    <label className="block text-[12px] text-quiet-dim mb-4 font-body">
+                  <fieldset>
+                    <legend className="block text-[12px] text-quiet-dim mb-4 font-body">
                       Default style preferences
-                    </label>
+                    </legend>
+                    <p className="-mt-1 mb-4 text-[11px] text-quiet-dim/80 font-body leading-[1.6]">
+                      TatT remembers these on this device and starts your next
+                      artist search with them already selected.
+                    </p>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {STYLES.map((s) => {
                         const on = picked.includes(s);
                         return (
                           <button
                             key={s}
+                            type="button"
+                            aria-pressed={on}
                             onClick={() => toggle(s)}
                             className={`text-[12px] border hairline-quiet-soft px-4 py-3 press font-body text-left ${
                               on
@@ -194,25 +218,23 @@ export default function SettingsPage() {
                         );
                       })}
                     </div>
-                  </div>
+                  </fieldset>
 
                   <div className="pt-8 border-t hairline-quiet-soft flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                     <div className="flex items-center gap-4 flex-wrap">
                       <button
                         onClick={handleSave}
-                        disabled={!user}
-                        className={`press inline-flex items-center justify-center px-8 py-4 font-body text-[14px] leading-none bg-quiet text-black hover:bg-white ${
-                          !user ? "opacity-40 cursor-not-allowed" : ""
-                        }`}
+                        disabled={!stylesHydrated}
+                        className="press inline-flex items-center justify-center px-8 py-4 font-body text-[14px] leading-none bg-quiet text-black hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         Save changes
                       </button>
                       {saved && (
                         <span className="text-[12px] text-quiet font-body">
-                          Saved
+                          Preferences saved
                         </span>
                       )}
-                      {authError && !saved && (
+                      {authError && (
                         <span className="text-[12px] text-pink font-body">
                           {authError}
                         </span>
@@ -229,7 +251,8 @@ export default function SettingsPage() {
                   </div>
                   {hydrated && !user && (
                     <p className="text-[12px] text-quiet-dim font-body">
-                      Not signed in. Demo sign-in:&nbsp;
+                      Your taste is saved on this device and will prefill artist
+                      matching. To sync your profile too,&nbsp;
                       <a href={authDoorHref()} className="text-quiet underline underline-offset-4 hover:text-white">sign in</a>.
                     </p>
                   )}
@@ -256,13 +279,66 @@ export default function SettingsPage() {
                     Saved on your device. Email delivery lands with accounts v2.
                   </p>
                 </div>
-              ) : (
-                <div className="py-20 text-center">
-                  <div className="font-display-quiet text-[22px] text-quiet-dim">
-                    {NAV[active]}
+              ) : active === 2 ? (
+                <div className="space-y-10">
+                  <h2 className="font-display-quiet text-quiet text-[22px] border-b hairline-quiet-soft pb-5">
+                    Billing
+                  </h2>
+                  <div className="border hairline-quiet-soft p-6">
+                    <div className="text-[11px] uppercase tracking-[0.18em] text-quiet-dim font-body">
+                      Customer plan
+                    </div>
+                    <div className="mt-3 font-display-quiet text-[24px] text-quiet">
+                      Free to design
+                    </div>
+                    <p className="mt-4 text-[13px] text-quiet-dim font-body leading-[1.8] max-w-xl">
+                      There is no customer subscription to manage. You pay an
+                      artist&apos;s deposit and TattTester&apos;s disclosed booking fee
+                      only when you choose to book.
+                    </p>
+                    <Link
+                      href="/pricing"
+                      className="mt-6 inline-flex border hairline-quiet px-5 py-3 text-[12px] text-quiet hover:bg-quiet hover:text-black press font-body"
+                    >
+                      See the full breakdown&nbsp;→
+                    </Link>
                   </div>
-                  <p className="mt-4 text-[12px] text-quiet-dim/80 font-body">
-                    Coming soon
+                  <p className="text-[12px] text-quiet-dim font-body leading-[1.7]">
+                    Looking for a booking receipt? Open{" "}
+                    <Link href="/bookings" className="text-quiet underline underline-offset-4 hover:text-white">
+                      Your bookings
+                    </Link>
+                    . Artist plans are separate and listed on the pricing page.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-10">
+                  <h2 className="font-display-quiet text-quiet text-[22px] border-b hairline-quiet-soft pb-5">
+                    Delete account
+                  </h2>
+                  <div className="border border-pink/50 p-6">
+                    <div className="font-display-quiet text-[20px] text-quiet">
+                      A real request, handled by a person
+                    </div>
+                    <p className="mt-4 text-[13px] text-quiet-dim font-body leading-[1.8] max-w-xl">
+                      Account deletion is not self-serve yet. Email support
+                      from the address on your account and ask us to delete it.
+                      We will verify the request before removing account data.
+                    </p>
+                    <a
+                      href="mailto:support@tatttester.com?subject=Account%20deletion%20request"
+                      className="mt-6 inline-flex bg-pink text-black px-5 py-3 text-[12px] press font-body"
+                    >
+                      Request account deletion
+                    </a>
+                  </div>
+                  <p className="text-[12px] text-quiet-dim font-body leading-[1.7]">
+                    Read what deletion covers in the{" "}
+                    <Link href="/legal/privacy" className="text-quiet underline underline-offset-4 hover:text-white">
+                      privacy policy
+                    </Link>
+                    . Designs saved only on this browser may remain until you
+                    clear this site&apos;s local storage.
                   </p>
                 </div>
               )}

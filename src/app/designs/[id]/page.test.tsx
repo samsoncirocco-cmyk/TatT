@@ -93,4 +93,18 @@ describe("DesignDetailPage — funnel CTAs", () => {
       screen.getByRole("link", { name: /find your artist/i }).getAttribute("href")
     ).toBe(`/smart-match?${new URLSearchParams({ styles: "Blackwork" }).toString()}`);
   });
+
+  it("makes the customer's current stage and next move explicit", async () => {
+    const { id } = addDesignToStorage("a tiger", {
+      image: "https://cdn.example.com/cut.png",
+    });
+
+    await renderDetail(id);
+
+    expect(screen.getByText("Recommended next move")).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { name: /ready for placement/i }),
+    ).toBeTruthy();
+    expect(screen.getByRole("list", { name: "Suggested tattoo path" })).toBeTruthy();
+  });
 });
