@@ -21,6 +21,7 @@ import { resetStyleTagCache } from '../internal/ontology';
 import {
   PROVIDER_FAILOVER_EVENT,
   CONVERSATION_DEGRADED_EVENT,
+  DEFAULT_VERTEX_MODEL,
 } from '../internal/providers';
 import { logger } from '@/lib/logger';
 
@@ -570,7 +571,7 @@ describe('runTurn — degradation logging', () => {
     expect(degraded.attempts).toEqual([
       {
         provider: 'vertex',
-        model: 'gemini-2.5-flash-lite',
+        model: DEFAULT_VERTEX_MODEL,
         failure: 'provider_error',
         error_class: 'ProviderHttpError',
         status: 429,
@@ -603,7 +604,7 @@ describe('runTurn — degradation logging', () => {
     expect(degradeds[0].attempts).toEqual([
       {
         provider: 'vertex',
-        model: 'gemini-2.5-flash-lite',
+        model: DEFAULT_VERTEX_MODEL,
         failure: 'not_configured',
         error_class: null,
         status: null,
@@ -702,7 +703,7 @@ describe('TurnLog — always present, always logged', () => {
       confidence: expect.any(Number),
       missingFields: expect.any(Array),
       firedRule: 'judgment',
-      model: 'gemini-2.5-flash-lite',
+      model: DEFAULT_VERTEX_MODEL,
     });
     expect(logger.info).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -710,7 +711,7 @@ describe('TurnLog — always present, always logged', () => {
         stage: 'proposal',
         turn: 3,
         firedRule: 'judgment',
-        model: 'gemini-2.5-flash-lite',
+        model: DEFAULT_VERTEX_MODEL,
       })
     );
   });
