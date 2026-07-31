@@ -11,8 +11,8 @@
 
 import type { IntakeRecord, AxisSelection, VariationAxis } from '../../intake/types';
 import { VARIATION_AXIS_POOL } from '../../intake/types';
-import { getAspectRatioGuidance, getBaseNegativePrompt, validatePromptLength } from './councilService';
-import { COUNCIL_SKILL_PACK } from '../../../config/councilSkillPack';
+import { getBaseNegativePrompt, validatePromptLength } from './councilService';
+import { resolvePlacement } from '@/lib/placement';
 
 export interface StructuredVariation {
   /** Which quadrant this variation occupies (questionnaire mode) or which compositional treatment it uses. */
@@ -379,15 +379,24 @@ function buildContext(record: IntakeRecord): PromptContext {
         'body part; every intake lane must resolve placement before enhancement.'
     );
   }
-  const anatomicalFlow = COUNCIL_SKILL_PACK.anatomicalFlow as Record<string, string>;
+  // One resolver for composition and flow (and, elsewhere, the render aspect
+  // ratio). Both fields used to come from exact-match lookups that answered
+  // only for a bare "forearm"; a "left arm" session got 'balanced
+  // composition' and 'body-part appropriate flow' — a tautology that told the
+  // model nothing while occupying the slot where placement should have spoken.
+  //
+  // The meaning goes in as the sleeve signal: "a kingdom hearts sleeve" with
+  // placement "left arm" is a sleeve request, and the placement tag alone
+  // loses the scale of it. Meaning cannot influence anything else.
+  const guidance = resolvePlacement(placement, record.meaning);
   return {
     styleDesc: record.styleTags.length > 0 ? record.styleTags.join(', ') : 'tattoo',
     placement,
     palette: resolvePalette(record.styleTags),
     subject: record.subject?.trim() || undefined,
     meaningShort: truncateWords(record.meaning, 60),
-    aspectGuidance: getAspectRatioGuidance(placement),
-    flowToken: anatomicalFlow[placement.toLowerCase().trim()] || 'body-part appropriate flow',
+    aspectGuidance: guidance.composition,
+    flowToken: guidance.flow,
     styleTags: record.styleTags,
     requestedCharacterCount: record.requestedCharacters?.length || undefined,
   };
