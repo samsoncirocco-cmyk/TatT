@@ -7,8 +7,6 @@ import { createRequestLogger } from '@/lib/logger';
 import {
     designSessionErrorResponse,
     invalidRequestResponse,
-    recordImageSpend,
-    REFINE_IMAGE_COUNT,
 } from '../../shared';
 
 export const runtime = 'nodejs';
@@ -27,8 +25,8 @@ export const maxDuration = 300;
  *
  * Demo mode (NEXT_PUBLIC_DEMO_MODE): the real service still runs (the
  * orchestrator substitutes a free stock image for the regen, and the ADR-0013
- * hard stop stays enforced) — no cost, so rate/budget policy and spend
- * recording are skipped, matching the start route.
+ * hard stop stays enforced) — no cost, so rate/budget policy is skipped,
+ * matching the start route.
  */
 export async function POST(
     req: NextRequest,
@@ -71,10 +69,6 @@ export async function POST(
         if (demoMode) await new Promise(r => setTimeout(r, 1500));
 
         const session = await refine(sessionId, { answer: answer.trim() });
-
-        // The refinement round regenerates exactly 1 image — free stock in
-        // demo mode, so nothing to record.
-        if (!demoMode) await recordImageSpend(session.provider, REFINE_IMAGE_COUNT);
 
         reqLogger.complete('design_session.refine.success', {
             session_id: session.id,

@@ -46,9 +46,6 @@ vi.mock('@/lib/budget-tracker', () => ({
   checkBudget: vi.fn(async () => ({ allowed: true, spentCents: 0, remainingCents: 1000 })),
   recordConversationTurnSpend: vi.fn(async () => {}),
 }));
-vi.mock('@/app/api/v1/design-session/shared', () => ({
-  recordImageSpend: vi.fn(async () => {}),
-}));
 vi.mock('@/lib/firebase-admin', () => ({ ensureAdminApp: () => null }));
 vi.mock('firebase-admin/auth', () => ({
   getAuth: vi.fn(() => ({
