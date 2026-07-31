@@ -58,11 +58,22 @@ describe('HandoffCard CTAs', () => {
     ).toBe('/smart-match?ds=sess-42');
   });
 
-  it('keeps the canvas CTA pointing at /generate', () => {
+  it('carries the saved design into the Studio (ADR-0038 entry from a picked design)', async () => {
     render(<HandoffCard session={completeSession} />);
-    expect(
-      screen.getByRole('link', { name: /fine-tune on the canvas/i }).getAttribute('href')
-    ).toBe('/generate');
+
+    await waitFor(() => expect(storedDesigns()).toHaveLength(1));
+    const [design] = storedDesigns();
+    await waitFor(() =>
+      expect(
+        screen.getByRole('link', { name: /fine-tune in the studio/i }).getAttribute('href')
+      ).toBe(`/studio?design=${design.id}`)
+    );
+  });
+
+  it('offers no Studio door until the cut is saved — the refinery needs a design', () => {
+    const noImage: DesignSession = { ...completeSession, refinedVariation: undefined };
+    render(<HandoffCard session={noImage} />);
+    expect(screen.queryByRole('link', { name: /fine-tune in the studio/i })).toBeNull();
   });
 
   it('URL-encodes session ids safely', () => {

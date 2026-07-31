@@ -2,7 +2,7 @@
 
 import PunkErrorBoundary from "@/components/punk/PunkErrorBoundary";
 
-export default function GenerateError(props: {
+export default function StudioError(props: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
