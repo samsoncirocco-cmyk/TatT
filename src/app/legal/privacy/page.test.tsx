@@ -53,6 +53,7 @@ describe('PrivacyPage — v1.0 published policy', () => {
     render(<PrivacyPage />);
     const text = document.body.textContent ?? '';
     expect(text).toContain('v1.0');
+    expect(text).toContain('Last updated: 30 July 2026');
     expect(text).not.toContain('draft');
     expect(text).not.toContain('Draft — not yet reviewed by a lawyer');
     expect(text).toMatch(/announce material changes on this page/i);
@@ -66,8 +67,18 @@ describe('PrivacyPage — v1.0 published policy', () => {
       /substance of section 4 — the removal right for artists, and what removal actually does/
     );
     expect(
-      screen.getByRole('heading', { name: /artists we listed without asking/i })
+      screen.getByRole('heading', { name: /artists collected from public sources/i })
     ).toBeTruthy();
+  });
+
+  it('states the verified artist-data scale without repeating the retired re-hosting claim', () => {
+    render(<PrivacyPage />);
+    const text = (document.body.textContent ?? '').replace(/\s+/g, ' ');
+    expect(text).toContain('18,000 artist records');
+    expect(text).toContain('roughly 68,500 URLs');
+    expect(text).toContain('26 TattTester-hosted image URLs across 6 artist records');
+    expect(text).not.toMatch(/7,800 tattoo artists/i);
+    expect(text).not.toMatch(/re-hosted approximately 62,000/i);
   });
 
   it('states prominently that the AR mirror never uploads camera frames', () => {
