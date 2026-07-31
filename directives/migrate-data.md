@@ -30,7 +30,7 @@ TatTester's progressive migration strategy allows anonymous users to continue us
 
 ```bash
 cd execution/
-python migrate_localStorage.py \
+python3 migrate_localStorage.py \
   --input ../data/export-[user].json \
   --user-id [FIREBASE_UID] \
   --dry-run
@@ -77,7 +77,7 @@ DRY RUN: Migration mapping:
 ### Step 2: Run Migration
 
 ```bash
-python migrate_localStorage.py \
+python3 migrate_localStorage.py \
   --input ../data/export-[user].json \
   --user-id [FIREBASE_UID] \
   --project-id [GCP_PROJECT_ID]
@@ -105,7 +105,7 @@ Migrated 12/12 designs
 
 ```bash
 # Count migrated documents
-python -c "
+python3 -c "
 from google.cloud import firestore
 db = firestore.Client()
 
@@ -132,12 +132,16 @@ print(f'Layers: {total_layers}')
 
 **Expected output:**
 ```
-Designs: 3
+Designs: 12
 Versions: 12
 Layers: 47
 ```
 
-**Counts should match dry-run summary.** If counts are lower, check for partial migration errors in logs.
+For an empty target user, the script creates one design document per source
+version, so the design and version counts are equal. For a user who already
+has designs, compare the before/after delta to the dry-run version count rather
+than comparing the totals directly. If the delta is lower, check for partial
+migration errors in logs.
 
 **Note:** There is no `test_user_access.py` script in `execution/` — it does not exist. To confirm the target user can actually read their migrated data, either sign in as that user in the app UI and load their designs, or run the Firestore security-rules test suite (if one exists) against the deployed rules. Do not rely on the Step 3 admin-SDK read above as proof of user-level access — the admin client bypasses security rules entirely.
 
@@ -145,25 +149,41 @@ Layers: 47
 
 **There is no rollback capability.** `migrate_localStorage.py` has no `--rollback` flag and implements no delete/undo functionality — check `execution/migrate_localStorage.py`'s argparse block (`--input`, `--user-id`, `--project-id`, `--bucket`, `--dry-run` only) to confirm. Do not treat this section as a safety net: **back up before running a real migration.**
 
-### Before running: back up
+### Before running: back up and build a recovery manifest
 
 ```bash
-# Export current Firestore state for the target user's collection before migrating
-gcloud firestore export gs://[BACKUP_BUCKET]/firestore-backups/[timestamp]/ \
-  --collection-ids=users
+# Full-database managed export. A users-only collection-group export does NOT
+# automatically include nested designs/versions/layers subcollections.
+gcloud firestore export gs://[BACKUP_BUCKET]/firestore-backups/[timestamp]/
 ```
 
-### If migration corrupted data: restore from Firestore Backup
+Before a real run, also record:
+
+- every existing document path under the target user that the migration may
+  overwrite;
+- every generated design document path the migration will create; and
+- the dry-run version/layer counts.
+
+This reviewed manifest is required because a Firestore import does not delete
+new documents that were absent from the export. If the exact affected paths
+cannot be identified ahead of time, do not run the migration.
+
+### If migration corrupted data: manual recovery
 
 ```bash
 # List available backups
 gsutil ls gs://[BACKUP_BUCKET]/firestore-backups/
 
-# Restore specific backup
+# Restore exported documents that existed before the migration
 gcloud firestore import gs://[BACKUP_BUCKET]/firestore-backups/[timestamp]/
 ```
 
-**Caution:** Firestore import is ALL-OR-NOTHING. Restoring a backup overwrites the entire database, not just one user's data.
+Managed import merges exported documents into the database and overwrites
+matching document IDs. It is **not** all-or-nothing and it does **not** remove
+new documents created by the failed migration. Use the reviewed recovery
+manifest to delete only those newly created paths, then verify the target
+user's full design/version/layer tree. Treat this as manual disaster recovery,
+not rollback.
 
 ## Known Issues
 
@@ -227,45 +247,40 @@ users/
 
 ## Appendix: Export File Format
 
+The parser requires a top-level key containing `version_history_` whose value
+is the versions array. It does not accept a top-level `designs` array.
+
 Expected structure for localStorage export JSON:
 
 ```json
 {
-  "sessionId": "abc123def456",
-  "exportedAt": "2026-02-16T10:30:00Z",
-  "designs": [
+  "version_history_abc123def456": [
     {
-      "id": "design-uuid-1",
-      "name": "Dragon sleeve concept",
-      "createdAt": "2026-01-15T14:22:00Z",
-      "versions": [
+      "id": "version-uuid-1",
+      "versionNumber": 1,
+      "timestamp": "2026-01-15T14:22:00Z",
+      "prompt": "Japanese dragon sleeve",
+      "enhancedPrompt": "Traditional Japanese dragon...",
+      "parameters": {
+        "model": "sdxl",
+        "size": "1024x1024"
+      },
+      "imageUrl": "https://storage.googleapis.com/...",
+      "layers": [
         {
-          "id": "version-uuid-1",
-          "versionNumber": 1,
-          "timestamp": "2026-01-15T14:22:00Z",
-          "prompt": "Japanese dragon sleeve",
-          "enhancedPrompt": "Traditional Japanese dragon...",
-          "parameters": {
-            "model": "sdxl",
-            "size": "1024x1024"
+          "id": "layer-uuid-1",
+          "type": "subject",
+          "imageUrl": "https://storage.googleapis.com/...",
+          "blendMode": "normal",
+          "opacity": 1.0,
+          "visible": true,
+          "transform": {
+            "x": 0, "y": 0, "rotation": 0, "scale": 1
           },
-          "layers": [
-            {
-              "id": "layer-uuid-1",
-              "type": "subject",
-              "imageUrl": "https://storage.googleapis.com/...",
-              "blendMode": "normal",
-              "opacity": 1.0,
-              "visible": true,
-              "transform": {
-                "x": 0, "y": 0, "rotation": 0, "scale": 1
-              },
-              "zIndex": 0
-            }
-          ],
-          "isFavorite": false
+          "zIndex": 0
         }
-      ]
+      ],
+      "isFavorite": false
     }
   ]
 }

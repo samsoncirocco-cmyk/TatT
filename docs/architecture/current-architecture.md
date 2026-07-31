@@ -1,7 +1,7 @@
 ---
 status: current
-verified_against: 018bbaa
-verified_on: 2026-07-27
+verified_against: a8ada4c
+verified_on: 2026-07-30
 ---
 
 # Current architecture

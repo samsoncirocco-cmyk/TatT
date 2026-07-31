@@ -220,7 +220,7 @@ Removal semantics and identity-proof decisions: `docs/adr/0025-artist-takedown-s
 | UI: request form | `src/app/takedown/[artistId]/page.tsx` |
 | Read-path suppression | `src/lib/artists-graph.ts`, `src/features/match-pulse/services/neo4jService.ts`, `src/app/api/v1/book/route.ts`, `src/app/api/v1/connect/claim/route.ts` |
 | Homepage featured grid (curated candidates, suppression-checked, fails closed) | `src/lib/featured-artists.ts` |
-| Public disclosure of the scrape and the removal right (**draft, needs counsel**) | `src/app/legal/privacy/page.tsx` §4, `docs/legal/artist-data-counsel-notes.md` |
+| Published v1.0 disclosure of the scrape and removal right (engineering notes are not legal advice) | `src/app/legal/privacy/page.tsx` §4, `docs/legal/artist-data-counsel-notes.md` |
 | **Scripts** | |
 | Execute a takedown (dry-run by default) | `scripts/execute-takedown.mjs` |
 | Planner / executor | `scripts/lib/takedown-plan.mjs` |

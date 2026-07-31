@@ -1,7 +1,7 @@
 ---
 status: current
-verified_against: 8db5d3e
-verified_on: 2026-07-27
+verified_against: a8ada4c
+verified_on: 2026-07-30
 ---
 
 # Current product

@@ -66,7 +66,7 @@ gh workflow run ci-cd.yml -f environment=staging -f secret_version=2
 
 ```bash
 # Run health checks against the dormant staging service, if Step 2 was performed
-python execution/run_health_checks.py --base-url https://pangyo-staging-[hash]-uc.a.run.app
+python3 execution/run_health_checks.py --base-url https://pangyo-staging-[hash]-uc.a.run.app
 ```
 
 **Expected output:**
@@ -91,11 +91,17 @@ vercel env rm [ENV_VAR_NAME] production
 vercel env add [ENV_VAR_NAME] production
 # (paste the new secret value when prompted)
 
-# Redeploy so the new environment variable takes effect
-vercel --prod
+# Rebuild the exact reviewed deployment currently serving production so the
+# new environment variable takes effect. Copy this immutable deployment URL
+# from Vercel's Production deployment details; do not use a local checkout.
+vercel redeploy [CURRENT_PRODUCTION_DEPLOYMENT_URL] --target production
 ```
 
-**Note:** Changing a Vercel environment variable does not by itself update a running deployment — a new deployment (`vercel --prod`, or a push to `main` if Git integration is configured) is required to pick it up.
+**Note:** Changing a Vercel environment variable does not by itself update a
+running deployment. Redeploy the exact current production deployment as shown
+above, or merge a reviewed commit to `main` and let Git integration deploy it.
+Do not run `vercel --prod` from an arbitrary local checkout just to activate an
+environment variable.
 
 ### Step 5: Verify Production
 
@@ -154,8 +160,8 @@ vercel env rm [ENV_VAR_NAME] production
 vercel env add [ENV_VAR_NAME] production
 # (paste the old secret value when prompted)
 
-# Redeploy to pick up the reverted value
-vercel --prod
+# Rebuild the exact reviewed deployment currently intended for production
+vercel redeploy [CURRENT_PRODUCTION_DEPLOYMENT_URL] --target production
 
 # Alternative: roll back to the previous deployment directly
 vercel rollback <previous-deployment-url>

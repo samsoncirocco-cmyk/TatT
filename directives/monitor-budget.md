@@ -33,7 +33,7 @@ per-model pricing). It does not query GCP Billing directly and has no
 
 ```bash
 cd execution/
-python check_budget.py --budget 500 --warn-threshold 0.75
+python3 check_budget.py --budget 500 --warn-threshold 0.75
 ```
 
 **Expected output:**
@@ -73,12 +73,10 @@ configured below (Step 4) or the GCP Console Billing > Budgets & alerts page.
 GCP services (Vertex AI, Cloud Run, Firestore, Cloud Storage, Secret
 Manager), use GCP Billing directly -- there is no local script for this yet:
 
-```bash
-gcloud billing accounts describe [BILLING_ACCOUNT_ID]
-```
-
-Or check the Reports tab in the GCP Console Billing dashboard (Step 5 below)
-for a full per-service breakdown.
+The `gcloud billing accounts describe` command only shows account metadata; it
+does **not** report spend. Use the Reports tab in the GCP Console Billing
+dashboard (Step 5 below) for a per-service breakdown, or query the project's
+BigQuery billing export if one has been configured.
 
 ### Step 4: Check Alert Configuration
 
@@ -119,9 +117,9 @@ If alerts are firing incorrectly, update thresholds:
 ```bash
 gcloud billing budgets update [BUDGET_ID] \
   --billing-account=[BILLING_ACCOUNT_ID] \
-  --threshold-rule=percent=50 \
-  --threshold-rule=percent=75 \
-  --threshold-rule=percent=90
+  --threshold-rule=percent=0.50 \
+  --threshold-rule=percent=0.75 \
+  --threshold-rule=percent=0.90
 ```
 
 ## Known Issues
@@ -164,10 +162,10 @@ gcloud billing budgets create \
   --billing-account=[BILLING_ACCOUNT_ID] \
   --display-name="TatTester Phase 1 MVP" \
   --budget-amount=500USD \
-  --threshold-rule=percent=50 \
-  --threshold-rule=percent=75 \
-  --threshold-rule=percent=90 \
-  --threshold-rule=percent=100 \
+  --threshold-rule=percent=0.50 \
+  --threshold-rule=percent=0.75 \
+  --threshold-rule=percent=0.90 \
+  --threshold-rule=percent=1.0 \
   --notification-channels=[NOTIFICATION_CHANNEL_ID]
 ```
 

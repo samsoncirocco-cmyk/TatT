@@ -1,6 +1,6 @@
 schema_version: 1
-verified_against: 018bbaa
-verified_on: 2026-07-27
+verified_against: a8ada4c
+verified_on: 2026-07-30
 
 statuses:
   implemented: Source and focused test evidence exist; production operation is not implied.
