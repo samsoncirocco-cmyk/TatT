@@ -101,6 +101,35 @@ describe('charactersIn — structured matches', () => {
         'Reinhard von Lohengramm, a main character from Ginga Eiyuu Densetsu',
     });
   });
+
+  /*
+   * Founder-reported (2026-07-30): a Kingdom Hearts sleeve resolved "Sora"
+   * to the No Game No Life character — the only Sora in the anime catalog,
+   * accepted because the name is unique there. Kingdom Hearts is a game and
+   * is not in the catalog at all, so nothing ever contradicted the guess.
+   */
+  it('does not enrich a catalog name the customer’s franchise contradicts', () => {
+    const matches = charactersIn(
+      'a kingdom hearts sleeve with Roxas, Sora, Axel and Riku sparring with their Keyblades'
+    );
+
+    expect(matches.map((match) => match.series)).not.toContain('No Game No Life');
+    expect(
+      characterSubjectFrom(
+        'a kingdom hearts sleeve with Roxas, Sora, Axel and Riku sparring'
+      ) ?? ''
+    ).not.toMatch(/no game no life/i);
+  });
+
+  it('keeps enriching a unique catalog name no franchise contradicts', () => {
+    expect(charactersIn('a sleeve with Sora')[0]).toMatchObject({
+      name: 'sora',
+      series: 'No Game No Life',
+    });
+    expect(charactersIn('deku from my hero academia')[0]?.series).toBe(
+      'My Hero Academia'
+    );
+  });
 });
 
 describe('characterLabelFor — the playback-facing short label', () => {

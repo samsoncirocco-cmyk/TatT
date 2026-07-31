@@ -33,6 +33,15 @@ const KINGDOM_HEARTS: IntakeRecord = {
   ambiguousAxes: [],
 };
 
+/** Same session, one character and no sleeve — the unaffected control. */
+const SINGLE_SUBJECT: IntakeRecord = {
+  ...KINGDOM_HEARTS,
+  placement: 'left forearm',
+  meaning: 'a kingdom hearts piece',
+  subject: 'Sora holding his Keyblade',
+  requestedCharacters: ['Sora'],
+};
+
 /** `cartoon` as a standalone entry, not the substring inside another token. */
 const hasCartoonNegative = (negative: string) =>
   negative.split(',').some(entry => entry.trim() === 'cartoon');
@@ -80,6 +89,106 @@ describe('ensemble prompt contract — the Kingdom Hearts session', () => {
         expect(prompt, `prompt lost ${name}`).toContain(name);
       }
     }
+  });
+});
+
+/*
+ * The other half of the same reveal: one of the four came back as a single
+ * cropped face. `close crop` ("subject rendered large and close") and
+ * `negative space` ("small off-center subject") cannot hold four sparring
+ * characters — those two cuts were spent before the model ran.
+ */
+describe('compositional treatments — an ensemble gets four cuts that can hold it', () => {
+  const compositionsOf = async (record: IntakeRecord) =>
+    (await enhanceStructured(record)).variations.map(
+      variation => (variation.axisPosition as { composition: string }).composition
+    );
+
+  it('never offers a close crop or negative space to a named cast', async () => {
+    const compositions = await compositionsOf(KINGDOM_HEARTS);
+
+    expect(compositions).not.toContain('close crop');
+    expect(compositions).not.toContain('negative space');
+  });
+
+  it('keeps exactly four distinct cuts for the ensemble (ADR-0012)', async () => {
+    const compositions = await compositionsOf(KINGDOM_HEARTS);
+
+    expect(compositions).toHaveLength(4);
+    expect(new Set(compositions).size).toBe(4);
+  });
+
+  it('still offers both to a single-subject brief', async () => {
+    const compositions = await compositionsOf(SINGLE_SUBJECT);
+
+    expect(compositions).toContain('close crop');
+    expect(compositions).toContain('negative space');
+  });
+
+  it('treats a brief with no roster as single-subject rather than guessing', async () => {
+    const { requestedCharacters: _roster, ...noRoster } = SINGLE_SUBJECT;
+
+    expect(await compositionsOf(noRoster as IntakeRecord)).toContain('close crop');
+  });
+});
+
+/*
+ * The other contradiction in the same prompt, live as soon as placement
+ * guidance stops being a tautology: a sleeve's guidance describes one
+ * continuous run down a limb ("...rather than a standalone emblem") while
+ * treatment 1 asked for a "self-contained emblem", and treatment 4 asked for
+ * a tight close-up. Flux receives both instructions at once.
+ *
+ * The invariant asserted here survives that guidance landing: a sleeve brief
+ * never REQUESTS an emblem or a close crop in the first place, so no prompt
+ * can both request and forbid one.
+ */
+describe('compositional treatments — a sleeve never argues with its own placement', () => {
+  const promptsOf = async (record: IntakeRecord) =>
+    (await enhanceStructured(record)).variations.flatMap(variation =>
+      Object.values(variation.prompts).filter((prompt): prompt is string => Boolean(prompt))
+    );
+
+  it('never asks a sleeve for a self-contained emblem', async () => {
+    // The real session: "sleeve" was in the meaning, never in the placement.
+    for (const prompt of await promptsOf(KINGDOM_HEARTS)) {
+      expect(prompt).not.toMatch(/emblem/i);
+    }
+  });
+
+  it('never asks a sleeve for a tight close crop', async () => {
+    for (const prompt of await promptsOf(KINGDOM_HEARTS)) {
+      expect(prompt).not.toMatch(/tightly cropped|rendered large and close/i);
+    }
+  });
+
+  it('applies to a single-subject sleeve too, and keeps four distinct cuts', async () => {
+    const result = await enhanceStructured({
+      ...SINGLE_SUBJECT,
+      placement: 'full sleeve',
+    });
+    const compositions = result.variations.map(
+      variation => (variation.axisPosition as { composition: string }).composition
+    );
+
+    expect(compositions).toHaveLength(4);
+    expect(new Set(compositions).size).toBe(4);
+    expect(compositions).not.toContain('centered emblem');
+    expect(compositions).not.toContain('close crop');
+  });
+
+  it('leaves a non-sleeve placement on the default cuts', async () => {
+    const result = await enhanceStructured(SINGLE_SUBJECT);
+    const compositions = result.variations.map(
+      variation => (variation.axisPosition as { composition: string }).composition
+    );
+
+    expect(compositions).toEqual([
+      'centered emblem',
+      'dynamic flow',
+      'negative space',
+      'close crop',
+    ]);
   });
 });
 
