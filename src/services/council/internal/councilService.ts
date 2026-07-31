@@ -380,27 +380,93 @@ const MOCK_RESPONSES = {
     return `A photorealistic ${style} style tattoo of ${userIdea}, masterfully composed for ${bodyPart} placement. The design features hyper-detailed linework with gradient shading from deep blacks to subtle grays, creating dimensional depth and texture. Artistic elements include: dramatic contrast between positive and negative space, flowing composition that wraps naturally around body contours, and carefully balanced visual weight. The style authentically captures traditional ${style} techniques with bold outlines, selective color placement, and atmospheric background elements. Lighting and perspective create a three-dimensional effect, with focal points strategically positioned for maximum visual impact. The overall aesthetic balances intricate character detail with clean, readable forms suitable for professional tattooing.`;
   },
 
-  negative: (userIdea = '') => {
-    const characterMatches = CHARACTER_NAMES.filter(name =>
-      new RegExp(`\\b${name}\\b`, 'i').test(userIdea)
-    );
-    const hasMultipleCharacters = characterMatches.length > 1;
-
-    if (hasMultipleCharacters) {
-      return 'blurry, low quality, distorted, watermark, text, signature, unrealistic anatomy, merged bodies, conjoined figures, fused characters, morphed faces, duplicate limbs, cluttered background, oversaturated, low contrast, pixelated, amateur, messy linework, body horror, abstract, deformed proportions';
-    }
-
-    return 'blurry, low quality, distorted, watermark, text, signature, cartoon, childish, unrealistic anatomy, multiple people, cluttered background, oversaturated, low contrast, pixelated, amateur, messy linework';
-  }
+  negative: (userIdea = '', options: NegativePromptOptions = {}) =>
+    buildNegativeList(userIdea, options).join(', ')
 };
+
+/** Negatives for a single-subject piece. */
+const SINGLE_SUBJECT_NEGATIVES = [
+  'blurry', 'low quality', 'distorted', 'watermark', 'text', 'signature',
+  'cartoon', 'childish', 'unrealistic anatomy', 'multiple people',
+  'cluttered background', 'oversaturated', 'low contrast', 'pixelated',
+  'amateur', 'messy linework'
+];
+
+/**
+ * Negatives for a cast of two or more. Drops `multiple people` — the whole
+ * request IS multiple people — and guards the real ensemble failure mode
+ * instead: figures melting into each other.
+ */
+const ENSEMBLE_NEGATIVES = [
+  'blurry', 'low quality', 'distorted', 'watermark', 'text', 'signature',
+  'unrealistic anatomy', 'merged bodies', 'conjoined figures',
+  'fused characters', 'morphed faces', 'duplicate limbs',
+  'cluttered background', 'oversaturated', 'low contrast', 'pixelated',
+  'amateur', 'messy linework', 'body horror', 'abstract',
+  'deformed proportions'
+];
+
+/**
+ * Style tags whose entire point is a drawn, illustrated look. `cartoon` as a
+ * negative argues with the style the session just committed to — and for the
+ * Flux lane negatives are folded into the prompt as an `Avoid:` clause, so
+ * the contradiction is fed to the model in a single breath.
+ */
+const ILLUSTRATIVE_STYLE_TAGS = [
+  'anime', 'illustrative', 'new school', 'neo traditional', 'cartoon',
+  'manga', 'comic'
+];
+
+/** Negatives dropped when a style tag directly contradicts them. */
+const STYLE_CONTRADICTIONS: { negative: string; contradictedBy: string[] }[] = [
+  { negative: 'cartoon', contradictedBy: ILLUSTRATIVE_STYLE_TAGS },
+  { negative: 'childish', contradictedBy: ILLUSTRATIVE_STYLE_TAGS }
+];
+
+export interface NegativePromptOptions {
+  /**
+   * Authoritative cast size, from `IntakeRecord.requestedCharacters`.
+   *
+   * Supply this whenever the caller has it. Without it the cast is
+   * re-derived by regex against the character catalog, which only covers
+   * anime — a Kingdom Hearts cast (a game) matches nothing, the request
+   * reads as single-subject, and `multiple people` lands in a prompt that
+   * just asked for four of them. That is exactly how a four-character
+   * sleeve came back as one cropped face.
+   */
+  requestedCharacterCount?: number;
+  /** Session style tags; negatives they contradict are dropped. */
+  styleTags?: string[];
+}
+
+function buildNegativeList(userIdea: string, options: NegativePromptOptions): string[] {
+  const detectedCount = CHARACTER_NAMES.filter(name =>
+    new RegExp(`\\b${name}\\b`, 'i').test(userIdea)
+  ).length;
+  // Trust the intake's roster over re-detection; fall back to detection only
+  // for legacy callers that never resolved one.
+  const castSize = options.requestedCharacterCount ?? detectedCount;
+
+  const negatives = castSize > 1 ? ENSEMBLE_NEGATIVES : SINGLE_SUBJECT_NEGATIVES;
+  const tags = (options.styleTags ?? []).map(tag => tag.toLowerCase().trim());
+
+  return negatives.filter(negative => {
+    const rule = STYLE_CONTRADICTIONS.find(entry => entry.negative === negative);
+    if (!rule) return true;
+    return !tags.some(tag => rule.contradictedBy.includes(tag));
+  });
+}
 
 /**
  * Base negative prompt shared with the structured-input mode (ADR-0015).
  * Kept as a thin wrapper so both modes draw from the same negative-prompt
  * craft instead of drifting apart.
  */
-export function getBaseNegativePrompt(userIdea = ''): string {
-  return MOCK_RESPONSES.negative(userIdea);
+export function getBaseNegativePrompt(
+  userIdea = '',
+  options: NegativePromptOptions = {}
+): string {
+  return MOCK_RESPONSES.negative(userIdea, options);
 }
 
 function buildCouncilSystemPrompt({ bodyPart, isStencilMode }: { bodyPart: string; isStencilMode: boolean }) {

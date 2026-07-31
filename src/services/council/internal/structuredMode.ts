@@ -350,6 +350,17 @@ interface PromptContext {
   meaningShort: string;
   aspectGuidance: string;
   flowToken: string;
+  /** Closed style tags, verbatim — drives style-contradicting negatives. */
+  styleTags: string[];
+  /**
+   * Size of the cast the customer actually named. Authoritative: the intake
+   * already resolved this roster, so the negative-prompt builder must not
+   * re-guess it from a catalog that only covers anime.
+   *
+   * Undefined — never 0 — when the record carries no roster, so the builder
+   * falls back to catalog detection instead of asserting "no characters".
+   */
+  requestedCharacterCount?: number;
 }
 
 function buildContext(record: IntakeRecord): PromptContext {
@@ -377,6 +388,8 @@ function buildContext(record: IntakeRecord): PromptContext {
     meaningShort: truncateWords(record.meaning, 60),
     aspectGuidance: getAspectRatioGuidance(placement),
     flowToken: anatomicalFlow[placement.toLowerCase().trim()] || 'body-part appropriate flow',
+    styleTags: record.styleTags,
+    requestedCharacterCount: record.requestedCharacters?.length || undefined,
   };
 }
 
@@ -451,7 +464,10 @@ function buildQuadrantVariation(
     'and remain legible as it ages — suitable for professional tattooing.';
 
   const negativePrompt = [
-    getBaseNegativePrompt(ctx.subject ?? ''),
+    getBaseNegativePrompt(ctx.subject ?? '', {
+        requestedCharacterCount: ctx.requestedCharacterCount,
+        styleTags: ctx.styleTags,
+      }),
     ...specs.map(spec => spec.negative),
     ...paletteNegatives(ctx.palette),
     PRESENTATION_NEGATIVES,
@@ -489,7 +505,10 @@ function buildCompositionalVariation(
       ultra: keepIfValid(ultra),
     },
     negativePrompt: [
-      getBaseNegativePrompt(ctx.subject ?? ''),
+      getBaseNegativePrompt(ctx.subject ?? '', {
+        requestedCharacterCount: ctx.requestedCharacterCount,
+        styleTags: ctx.styleTags,
+      }),
       ...paletteNegatives(ctx.palette),
       PRESENTATION_NEGATIVES,
     ].join(', '),
