@@ -28,10 +28,11 @@ type StudioShellProps = {
 
 const NAV = [
   // "Design" is the one consumer design entry (ADR-0028): one input, talk
-  // or type — a complete prompt takes the fast lane. "Studio" stays a
-  // separate power room behind explicit doors (ADR-0017).
+  // or type — a complete prompt takes the fast lane. "Studio" is the
+  // refinery (ADR-0038): a separate room, entered from a picked design, so
+  // this entry lands on /studio's picker rather than an empty canvas.
   { label: "Design", href: "/design" },
-  { label: "Studio", href: "/generate" },
+  { label: "Studio", href: "/studio" },
   { label: "Artists", href: "/artists" },
   { label: "My Designs", href: "/designs" },
   { label: "Pricing", href: "/pricing" },

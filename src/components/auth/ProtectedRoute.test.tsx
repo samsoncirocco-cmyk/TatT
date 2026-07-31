@@ -4,7 +4,7 @@ import { render, screen } from '@testing-library/react';
 import ProtectedRoute from './ProtectedRoute';
 
 const replace = vi.fn();
-let mockPathname = '/generate';
+let mockPathname = '/studio';
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace }),
@@ -20,10 +20,10 @@ vi.mock('@/components/AuthProvider', () => ({
 describe('ProtectedRoute', () => {
   beforeEach(() => {
     replace.mockClear();
-    mockPathname = '/generate';
+    mockPathname = '/studio';
     mockAuth.isAuthenticated = false;
     mockAuth.loading = true;
-    window.history.replaceState(null, '', '/generate');
+    window.history.replaceState(null, '', '/studio');
   });
 
   it('shows the styled hold state (not children) while auth is resolving', () => {
@@ -47,7 +47,7 @@ describe('ProtectedRoute', () => {
     );
     expect(screen.queryByText('secret forge')).toBeNull();
     expect(replace).toHaveBeenCalledWith(
-      `/signup?redirect=${encodeURIComponent('/generate')}`,
+      `/signup?redirect=${encodeURIComponent('/studio')}`,
     );
   });
 
@@ -60,7 +60,7 @@ describe('ProtectedRoute', () => {
       </ProtectedRoute>,
     );
     expect(replace).toHaveBeenCalledWith(
-      `/login?redirect=${encodeURIComponent('/generate')}`,
+      `/login?redirect=${encodeURIComponent('/studio')}`,
     );
     window.localStorage.removeItem('tatt:known-user');
   });

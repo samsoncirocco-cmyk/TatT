@@ -168,3 +168,35 @@ export function smartMatchUrlForDesign(prompt: string, designSessionId?: string)
   if (styles.length === 0) return "/smart-match";
   return `/smart-match?${new URLSearchParams({ styles: styles.join(",") }).toString()}`;
 }
+
+/**
+ * Build the /visualize URL carrying a design into the AR mirror — the
+ * funnel's "See it on your skin" handoff (ADR-0028).
+ *
+ * `design` preselects the cut in the mirror's tray; `ds` keeps the
+ * design-session thread so the mirror's own "Find your artist" exit still
+ * hands off the brief. Either may be absent — a walk-in gets the full
+ * mirror either way.
+ */
+export function visualizeUrlForDesign(
+  designId?: string | null,
+  designSessionId?: string | null,
+): string {
+  const params = new URLSearchParams();
+  if (designId) params.set("design", designId);
+  if (designSessionId) params.set("ds", designSessionId);
+  const query = params.toString();
+  return query ? `/visualize?${query}` : "/visualize";
+}
+
+/**
+ * Build the /studio URL carrying a design into the refinery.
+ *
+ * ADR-0038: the Studio is entered from a picked design, never from cold, so
+ * this is the only shape of Studio link the funnel should produce. The
+ * design session id is not carried — the Studio reads it back off the saved
+ * design record, which is the same source of truth every other surface uses.
+ */
+export function studioUrlForDesign(designId: string): string {
+  return `/studio?${new URLSearchParams({ design: designId }).toString()}`;
+}
