@@ -8,7 +8,7 @@
  *
  * It is READ-ONLY: it fetches config and message logs, and changes nothing.
  *
- *   node scripts/diagnose-twilio-sms.mjs [+1XXXXXXXXXX]
+ *   node scripts/diagnose-twilio-sms.mjs +1XXXXXXXXXX
  *
  * Reads .env.local (same convention as the other scripts). To diagnose
  * production, run it with production's Twilio values — the credentials and
@@ -125,6 +125,7 @@ async function main() {
   let effectiveMethod = '';
   let numberUrl = '';
   let numberMethod = '';
+  let effectiveRoutingKnown = true;
 
   if (number) {
     try {
@@ -158,6 +159,7 @@ async function main() {
   } else {
     warn('No number given — pass one as an argument or set TWILIO_PHONE_NUMBER');
     incompleteChecks.push('incoming-number configuration');
+    effectiveRoutingKnown = false;
   }
 
   if (serviceSid) {
@@ -188,6 +190,7 @@ async function main() {
         } catch (error) {
           warn(`Could not read the sender pool: ${error.message}`);
           incompleteChecks.push('Messaging Service sender-pool membership');
+          effectiveRoutingKnown = false;
         }
       }
 
@@ -213,7 +216,9 @@ async function main() {
   }
 
   // The comparison that explains a 403-on-genuine-traffic.
-  if (!effectiveUrl) {
+  if (!effectiveRoutingKnown) {
+    warn('Cannot determine the active inbound webhook without confirmed sender-pool routing');
+  } else if (!effectiveUrl) {
     bad('No inbound webhook is configured — Twilio receives the text and calls nothing');
     problems.push(
       `Point the inbound webhook at ${expected.url || 'https://tatttester.com' + WEBHOOK_PATH} (Messaging Service → Integration, or the number's Messaging config).`
