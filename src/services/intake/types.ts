@@ -38,6 +38,14 @@ export interface IntakeRecord {
    */
   subject?: string;
   /**
+   * Every character the customer explicitly requested, in their mention
+   * order. This roster is lossless and independent from `subject`, whose
+   * richer visual prose is allowed to operate under a prompt-detail budget.
+   * Unknown characters remain as literal names instead of disappearing
+   * because the finite knowledge catalog did not recognize them.
+   */
+  requestedCharacters?: string[];
+  /**
    * Set to 'aesthetic' when the user answered the meaning question with
    * pure looks ("it just goes hard") — a complete answer (TAT-51). Closes
    * the meaning slot permanently: the bot never asks about meaning again,

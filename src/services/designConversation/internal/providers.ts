@@ -48,6 +48,8 @@ export interface RawTurnPayload {
      * real session, leaving only the deterministic backfill's matches.
      */
     subject?: unknown;
+    /** Lossless named roster; visual subject prose must never replace it. */
+    characters?: unknown;
     references?: unknown;
     ambiguousAxes?: unknown;
   };

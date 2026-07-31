@@ -12,6 +12,7 @@
  */
 
 import { CHARACTER_DATABASE } from '../../../config/characterDatabase.js';
+import { charactersInGeneratedCatalog } from '../../../server/characterKnowledge/generatedCatalog.server';
 
 interface CharacterEntry {
   name: string;
@@ -132,12 +133,13 @@ export interface CharacterMatch {
 }
 
 /*
- * A sleeve or back piece legitimately carries a whole cast — a real session
- * asked for five Togashi characters and the old cap of two silently dropped
- * three of them from the brief AND the renders. Six bounds the prompt while
- * covering every plausible group request.
+ * A sleeve or back piece legitimately carries a whole cast. Six was not
+ * enough: a founder-reported Kingdom Hearts sleeve named seven characters
+ * and the seventh could never survive even if every name was recognized.
+ * Twelve remains bounded while covering ensemble requests without silently
+ * editing the customer's cast.
  */
-const MAX_CHARACTERS = 6;
+const MAX_CHARACTERS = 12;
 
 /**
  * Every character the text names (up to MAX_CHARACTERS), or an empty array
@@ -191,6 +193,38 @@ export function charactersIn(text: string): CharacterMatch[] {
       continue;
     }
     matched.push(candidate);
+  }
+
+  // The generated catalog expands factual identity coverage while the
+  // hand-curated database remains the premium visual layer. The matcher
+  // overlays a curated description whenever identities align; generated-only
+  // characters get a factual name/series anchor and no invented appearance.
+  const generated = charactersInGeneratedCatalog(source, MAX_CHARACTERS - matched.length);
+  for (const candidate of generated) {
+    if (matched.length === MAX_CHARACTERS) break;
+    const candidateName = candidate.name.toLowerCase();
+    const duplicatesCuratedIdentity = matched.some((existing) => {
+      const curatedEntry = ENTRIES.find((entry) => entry.description === existing.description);
+      if (!curatedEntry) return false;
+      return [curatedEntry.name, ...curatedEntry.aliases].some(
+        (name) => name.toLowerCase() === candidateName
+      );
+    });
+    if (
+      duplicatesCuratedIdentity ||
+      matched.some(
+        (existing) =>
+          existing.description === candidate.description ||
+          (existing.name === candidate.name && existing.series === candidate.series)
+      )
+    ) {
+      continue;
+    }
+    matched.push({
+      name: candidate.name,
+      series: candidate.series,
+      description: candidate.description,
+    });
   }
 
   return matched;
