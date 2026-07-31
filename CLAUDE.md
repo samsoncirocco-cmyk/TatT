@@ -32,8 +32,10 @@ incident framing. The useful question is *would this be wrong on day one*, not
   currently has 26 GCS-hosted portfolio URLs across 6 artists; the other 68,506
   URLs are external. The earlier claim that roughly 62,000 photos were all
   re-hosted is false, but "none are re-hosted" is also false. The artist/shop
-  directory data itself (names, bios, ratings, contact information) is scraped
-  and exposed today, independent of launch.
+  directory data itself is stored in production today, independent of launch.
+  Public rendering of unclaimed portfolio images is separately controlled by
+  `SHOW_UNCLAIMED_PORTFOLIOS`; do not claim its production value without
+  checking it.
 - **The deployed site is public.** tatttester.com, tatt-t.com and image2ink.com
   serve anyone who finds them.
 - **Security gaps still get fixed properly** — but the framing is "close it

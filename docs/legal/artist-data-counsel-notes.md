@@ -17,8 +17,7 @@ cannot answer. Someone qualified needs to go through it.
 | Total portfolio image URLs across those artists | 68,532 |
 | External portfolio image URLs | 68,506 |
 | TatT GCS-hosted portfolio image URLs | 26, across 6 artists |
-| Artists who opted in | 0 |
-| Customers / onboarded artists | None. Pre-launch. |
+| Opt-in evidence attached to the collected dataset | None identified |
 
 **Correction to the prior version of this table:** it described roughly 62,313
 photos as downloaded and re-hosted on TatT storage. A read-only query of the
@@ -31,17 +30,22 @@ contains 26 such GCS URLs across 6 artists; the remaining 68,506 portfolio URLs
 are external. Counsel should therefore treat both blanket claims — "about
 62,000 are re-hosted" and "none are re-hosted" — as false.
 
-What's unambiguous regardless of the photo question: the **artist/shop
-directory data itself** — names, bios, shop affiliations, ratings, Instagram
-handles/permalinks, contact info — for 18,002 people who never opted in is
-scraped and live in the production Neo4j graph today.
+What's unambiguous regardless of the photo question: **18,002 artist records**
+are live in the production Neo4j graph today. Depending on the record, fields
+can include names, bios, shop affiliations, ratings, Instagram
+handles/permalinks, or contact information. The current dataset contains no
+identified opt-in evidence; this count is records, not a claim that all records
+are unique people.
 
 Sources were public: shop and studio websites, public artist directories, public
 Instagram profiles. "Public" is doing no work in that sentence — it describes
 where we found it, not whether we were entitled to copy it into our own
 database and display it.
 
-Pre-launch status does **not** reduce this one. The data is live today.
+Pre-launch status does **not** reduce this one. The data and limited GCS copies
+exist today. Public display of unclaimed portfolios is separately controlled by
+the server-side `SHOW_UNCLAIMED_PORTFOLIOS` flag; this memo does not claim the
+flag's current production value.
 
 ## 2. The suggested template does not fit, and this is worth stating
 
@@ -59,8 +63,10 @@ written from scratch for that reason.
 
 Engineering's reasoning, for counsel to overturn if wrong:
 
-- The collection, external display, and limited GCS hosting are **already public**. The notice is what is
-  missing, not the processing.
+- The collection and limited GCS hosting already exist. The notice is what is
+  missing, not the processing. Public display of unclaimed portfolios depends
+  on a server-side flag whose current production value was not verified for
+  this memo.
 - Where personal data is obtained from someone other than the data subject,
   disclosure obligations are triggered by the processing, which has already
   happened. Silence looks like the exposure; disclosure looks like the remedy.
@@ -99,17 +105,17 @@ offer to delete it on request (with a stated consequence) is the correct balance
 1. **Should the collection have happened at all, and should it continue?** This
    PR and ADR 0025 build the exit door. Neither addresses whether an opt-out model
    is defensible, whether the 26 GCS-hosted images should be deleted
-   proactively, or whether external portfolio images should continue to be
-   displayed without opt-in. That is the biggest open question and it is not an
-   engineering one.
+   proactively, or whether external portfolio images should remain eligible for
+   display without identified opt-in evidence. That is the biggest open question
+   and it is not an engineering one.
 
 2. **Copyright is separate from privacy and is not addressed anywhere.** The
    photographs are almost certainly someone's copyrighted work — possibly the
    artist's, possibly the studio's, possibly a client's. Both copying files into
-   GCS and displaying third-party-hosted files raise copyright questions that the
-   privacy policy does not touch and cannot fix. There is no DMCA agent, no
-   designated agent registration, and no notice-and-takedown procedure framed as
-   such.
+   GCS and any display of third-party-hosted files raise copyright questions
+   that the privacy policy does not touch and cannot fix. There is no DMCA
+   agent, no designated agent registration, and no notice-and-takedown
+   procedure framed as such.
 
 3. **Lawful basis.** If legitimate interests is the intended basis, a legitimate
    interests assessment should exist and does not. The draft deliberately states
