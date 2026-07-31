@@ -155,6 +155,7 @@ async function main() {
     } catch (error) {
       warn(`Could not read the number: ${error.message}`);
       incompleteChecks.push('incoming-number configuration');
+      effectiveRoutingKnown = false;
     }
   } else {
     warn('No number given — pass one as an argument or set TWILIO_PHONE_NUMBER');
@@ -238,14 +239,18 @@ async function main() {
       `Make these identical: set TWILIO_WEBHOOK_URL="${effectiveUrl}" in the deployment, or change the console webhook to "${expected.url}".`
     );
   }
-  if (effectiveUrl && String(effectiveMethod).toUpperCase() !== 'POST') {
+  if (
+    effectiveRoutingKnown &&
+    effectiveUrl &&
+    String(effectiveMethod).toUpperCase() !== 'POST'
+  ) {
     bad(
       `Inbound webhook method is "${effectiveMethod || '(unset)'}", but this route accepts POST only`
     );
     problems.push(
       'Set the active Twilio inbound webhook method to POST. GET requests receive 405 and no reply.'
     );
-  } else if (effectiveUrl) {
+  } else if (effectiveRoutingKnown && effectiveUrl) {
     ok('Active inbound webhook method is POST');
   }
 
