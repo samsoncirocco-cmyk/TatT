@@ -247,18 +247,19 @@ const SLEEVE_SUBSTITUTIONS: Record<string, CompositionalTreatment> = {
 };
 
 /**
- * Is this brief a sleeve? Deliberately the ONE place sleeve-ness is decided:
- * when `resolvePlacement` (TAT-57 placement work) lands, replace the
- * placement half of this test with `resolvePlacement(record.placement).isSleeve`
- * and nothing else has to change.
+ * Is this brief a sleeve? One place decides it, and that place is the shared
+ * placement resolver — the same call that produces the sleeve composition
+ * guidance these treatments have to agree with. Two independent readings of
+ * "is this a sleeve" is exactly how a prompt ends up asking for a limb-length
+ * run and a self-contained emblem in the same breath.
  *
- * The meaning half stays either way. The session that exposed this said
- * `placement: 'left arm'` — the word "sleeve" appeared only in the meaning,
- * and a sleeve is what the customer was describing.
+ * The meaning is passed as the brief: the session that exposed this said
+ * `placement: 'left arm'` and put "sleeve" only in the meaning. The resolver
+ * also disqualifies the idiom ("wears his heart on his sleeve"), which a bare
+ * /\bsleeve\b/ over the meaning would have swallowed.
  */
 function isSleeveBrief(record: IntakeRecord): boolean {
-  const sleeve = /\bsleeve\b/i;
-  return sleeve.test(record.placement ?? '') || sleeve.test(record.meaning ?? '');
+  return resolvePlacement(record.placement, record.meaning).isSleeve;
 }
 
 /**

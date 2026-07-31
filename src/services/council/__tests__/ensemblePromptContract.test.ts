@@ -150,9 +150,14 @@ describe('compositional treatments — a sleeve never argues with its own placem
     );
 
   it('never asks a sleeve for a self-contained emblem', async () => {
+    // Matches the REQUEST for an emblem, not the bare word. Once the shared
+    // placement resolver landed, a sleeve's own guidance began saying
+    // "...rather than a standalone emblem" — so /emblem/i now hits the very
+    // sentence that forbids one, and banning the word would fail on the fix.
+    // The invariant is that no prompt ASKS for an emblem.
     // The real session: "sleeve" was in the meaning, never in the placement.
     for (const prompt of await promptsOf(KINGDOM_HEARTS)) {
-      expect(prompt).not.toMatch(/emblem/i);
+      expect(prompt).not.toMatch(/self-contained emblem|emblematic composition/i);
     }
   });
 
