@@ -32,6 +32,13 @@ yarn-error.log*
 .claude/worktrees/
 .claude/settings.local.json
 
+# Local agent worktrees and generated review/build artifacts
+/.codex/worktrees/
+/.codex-slide-makeover/
+/.codex-slide-review/
+/.deck-build.*/
+/graphify-out/
+
 # Editor directories and files
 .vscode
 .idea
