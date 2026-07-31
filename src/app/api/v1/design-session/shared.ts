@@ -15,30 +15,12 @@
 // the mapper below translates them to HTTP.
 
 import { NextResponse } from 'next/server';
-import { recordSpend, VERTEX_IMAGEN_COST_CENTS } from '@/lib/budget-tracker';
 
-/** A reveal always renders exactly 4 variations (ADR-0012). */
-export const REVEAL_IMAGE_COUNT = 4;
-/** The refinement round regenerates exactly 1 image (ADR-0013). */
-export const REFINE_IMAGE_COUNT = 1;
-
-// Spend on a replicate result (~1 cent flat), matching the generate route's
-// fallback cost. The session's provider is locked per ADR-0016, so a single
-// check covers all of a request's images.
-export const REPLICATE_COST_CENTS = 1;
-
-/**
- * Record image spend for a session step using the same cost constants as
- * /api/v1/generate: per-image Vertex cents on the primary provider, flat
- * ~1 cent when the session's locked provider is Replicate.
- */
-export async function recordImageSpend(provider: string, imageCount: number): Promise<void> {
-    if (provider === 'replicate') {
-        await recordSpend(REPLICATE_COST_CENTS);
-        return;
-    }
-    await recordSpend(VERTEX_IMAGEN_COST_CENTS * imageCount);
-}
+// Spend recording moved into the designSession service
+// (src/services/designSession/internal/spend.ts): only the orchestrator knows
+// how many renders a step actually bought, since a retry can reuse an
+// already-staged image and a failed step can still have paid. Routes keep the
+// pre-flight checkBudget policy below.
 
 // Domain error codes → HTTP status. The service owns the vocabulary; the
 // route only translates. Unknown codes fall through to 500.
@@ -55,9 +37,10 @@ const BAD_REQUEST_CODES = new Set(['INVALID_VARIATION']);
  * is wrong". Replicate's low-credit throttle (429) is the observed one: the
  * generation provider already retries it 5 times internally honoring
  * `retry_after`, so an error reaching here means the throttle window
- * outlasted the whole request. A later retry is the correct recovery — and
- * because spend is only recorded after a successful reveal, retrying a
- * throttled confirm cannot double-charge.
+ * outlasted the whole request. A later retry is the correct recovery — a
+ * throttled render never reached the provider, so it recorded no spend, and
+ * any render the throttled attempt DID buy is reused from its durable object
+ * rather than bought again.
  */
 const RETRYABLE_UPSTREAM_STATUS = new Set([429, 502, 503, 504]);
 

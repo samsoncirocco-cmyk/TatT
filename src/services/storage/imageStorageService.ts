@@ -11,7 +11,7 @@
  * - Permanent URLs (public object URLs, not expiring signed URLs)
  */
 
-import { Storage } from '@google-cloud/storage';
+import { Storage, type File } from '@google-cloud/storage';
 
 function getBucketName(): string {
   return (
@@ -74,19 +74,29 @@ export type GeneratedImageRecovery = {
   actualImageCount: number | null;
 };
 
-export async function uploadGeneratedImage(
-  userId: string,
-  designId: string,
-  versionId: string,
+function generatedObjectPath(userId: string, designId: string, versionId: string): string {
+  return `generated/${userId}/${designId}/${versionId}/design.png`;
+}
+
+/**
+ * Write image bytes to a caller-chosen object path and return the permanent
+ * public URL. The path is the caller's idempotency key: writing the same path
+ * twice overwrites one object instead of accumulating copies.
+ *
+ * The write is only reported as durable once the object is verified readable —
+ * present, non-empty, and public. Returning a URL that 404s or 403s is the
+ * same defect as returning a provider URL that expires.
+ */
+export async function uploadImageToPath(
+  objectPath: string,
   imageData: Blob | ArrayBuffer | Uint8Array,
-  generation?: { actualImageCount?: number }
+  objectMetadata: Record<string, string> = {}
 ): Promise<string> {
   if (typeof window !== 'undefined') {
-    throw new Error('[ImageStorage] uploadGeneratedImage is server-only');
+    throw new Error('[ImageStorage] uploadImageToPath is server-only');
   }
 
   const bucketName = getBucketName();
-  const objectPath = `generated/${userId}/${designId}/${versionId}/design.png`;
 
   try {
     const buffer = await toBuffer(imageData);
@@ -101,13 +111,8 @@ export async function uploadGeneratedImage(
         metadata: {
           cacheControl: 'public, max-age=31536000, immutable',
           metadata: {
-            userId,
-            designId,
-            versionId,
             uploadedAt: new Date().toISOString(),
-            ...(typeof generation?.actualImageCount === 'number'
-              ? { actualImageCount: String(generation.actualImageCount) }
-              : {}),
+            ...objectMetadata,
           },
         },
       })
@@ -116,6 +121,11 @@ export async function uploadGeneratedImage(
     // Permanent URL requirement: make the object public. Save and ACL repair
     // retry independently so a successful private stage survives ACL trouble.
     await retryStorageOperation(() => file.makePublic());
+
+    const verified = await verifyStoredObject(file, objectPath);
+    if (!verified) {
+      throw new Error(`Stored object is not readable: ${objectPath}`);
+    }
 
     return publicUrl(bucketName, objectPath);
   } catch (error) {
@@ -127,21 +137,35 @@ export async function uploadGeneratedImage(
 }
 
 /**
- * Recover a deterministically staged generated image. Calling makePublic even
- * when the object exists repairs the partial-success case where save() worked
- * but the ACL update failed, which otherwise produces a public URL that 403s.
+ * Read back what was just written. `save()` resolving is not proof the object
+ * landed — a zero-byte or missing object would still hand the caller a URL.
  */
-export async function recoverGeneratedImage(
-  userId: string,
-  designId: string,
-  versionId: string
-): Promise<GeneratedImageRecovery | null> {
+async function verifyStoredObject(file: File, objectPath: string): Promise<boolean> {
+  const [metadata] = await file.getMetadata();
+  const size = Number(metadata?.size);
+  // Buckets/mocks that omit `size` cannot disprove the write; only a
+  // reported empty object is treated as a failure.
+  if (Number.isFinite(size) && size <= 0) {
+    console.error('[ImageStorage] Stored object is empty:', objectPath);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Probe a deterministic object path. Returns null when nothing is staged
+ * there. Calling makePublic on an existing object repairs the partial-success
+ * case where save() worked but the ACL update failed, which otherwise
+ * produces a public URL that 403s.
+ */
+export async function recoverImageAtPath(
+  objectPath: string
+): Promise<{ imageUrl: string; metadata: Record<string, string> } | null> {
   if (typeof window !== 'undefined') {
-    throw new Error('[ImageStorage] recoverGeneratedImage is server-only');
+    throw new Error('[ImageStorage] recoverImageAtPath is server-only');
   }
 
   const bucketName = getBucketName();
-  const objectPath = `generated/${userId}/${designId}/${versionId}/design.png`;
 
   try {
     const storage = getStorageClient();
@@ -152,14 +176,10 @@ export async function recoverGeneratedImage(
 
     await retryStorageOperation(() => file.makePublic());
     const [metadata] = await file.getMetadata();
-    const imageCountRaw = metadata.metadata?.actualImageCount;
-    const parsedImageCount =
-      typeof imageCountRaw === 'string' ? Number.parseInt(imageCountRaw, 10) : Number.NaN;
 
     return {
       imageUrl: publicUrl(bucketName, objectPath),
-      actualImageCount:
-        Number.isInteger(parsedImageCount) && parsedImageCount > 0 ? parsedImageCount : null,
+      metadata: (metadata.metadata as Record<string, string>) || {},
     };
   } catch (error) {
     console.error('[ImageStorage] Failed to recover image:', error);
@@ -169,29 +189,80 @@ export async function recoverGeneratedImage(
   }
 }
 
+/**
+ * Copy a hosted image into the product's own bucket at a deterministic path.
+ *
+ * Every provider image URL is transport, not storage: Replicate serves API
+ * prediction output from replicate.delivery and deletes it after an hour. A
+ * design that outlives that hour has to be holding our copy, not their link.
+ */
+export async function copyImageToPath(objectPath: string, sourceUrl: string): Promise<string> {
+  if (typeof window !== 'undefined') {
+    throw new Error('[ImageStorage] copyImageToPath is server-only');
+  }
+
+  const response = await fetch(sourceUrl);
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch image for durable copy: ${response.status} ${response.statusText}`
+    );
+  }
+  const bytes = await response.arrayBuffer();
+  return uploadImageToPath(objectPath, bytes, { sourceHost: hostOf(sourceUrl) });
+}
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return 'unknown';
+  }
+}
+
+export async function uploadGeneratedImage(
+  userId: string,
+  designId: string,
+  versionId: string,
+  imageData: Blob | ArrayBuffer | Uint8Array,
+  generation?: { actualImageCount?: number }
+): Promise<string> {
+  return uploadImageToPath(generatedObjectPath(userId, designId, versionId), imageData, {
+    userId,
+    designId,
+    versionId,
+    ...(typeof generation?.actualImageCount === 'number'
+      ? { actualImageCount: String(generation.actualImageCount) }
+      : {}),
+  });
+}
+
+/** Recover a deterministically staged generated image (see recoverImageAtPath). */
+export async function recoverGeneratedImage(
+  userId: string,
+  designId: string,
+  versionId: string
+): Promise<GeneratedImageRecovery | null> {
+  const recovered = await recoverImageAtPath(generatedObjectPath(userId, designId, versionId));
+  if (!recovered) return null;
+
+  const imageCountRaw = recovered.metadata.actualImageCount;
+  const parsedImageCount =
+    typeof imageCountRaw === 'string' ? Number.parseInt(imageCountRaw, 10) : Number.NaN;
+
+  return {
+    imageUrl: recovered.imageUrl,
+    actualImageCount:
+      Number.isInteger(parsedImageCount) && parsedImageCount > 0 ? parsedImageCount : null,
+  };
+}
+
 export async function uploadImageFromUrl(
   userId: string,
   designId: string,
   versionId: string,
   sourceUrl: string
 ): Promise<string> {
-  if (typeof window !== 'undefined') {
-    throw new Error('[ImageStorage] uploadImageFromUrl is server-only');
-  }
-
-  try {
-    const response = await fetch(sourceUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
-    }
-    const ab = await response.arrayBuffer();
-    return uploadGeneratedImage(userId, designId, versionId, ab);
-  } catch (error) {
-    console.error('[ImageStorage] Failed to upload image from URL:', error);
-    throw new Error(
-      `Failed to upload image from URL: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  return copyImageToPath(generatedObjectPath(userId, designId, versionId), sourceUrl);
 }
 
 export async function getImageUrl(
@@ -213,7 +284,7 @@ export async function deleteImage(userId: string, designId: string, versionId: s
   }
 
   const bucketName = getBucketName();
-  const objectPath = `generated/${userId}/${designId}/${versionId}/design.png`;
+  const objectPath = generatedObjectPath(userId, designId, versionId);
 
   try {
     const storage = getStorageClient();

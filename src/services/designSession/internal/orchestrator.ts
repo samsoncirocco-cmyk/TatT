@@ -23,6 +23,8 @@ import { resolveSessionStore } from './store';
 import type { SessionStore, StoredSession } from './store';
 import { deriveRefinementQuestion, adjustPromptForAnswer } from './refinement';
 import { derivePlacementNotes } from './placementNotes';
+import { durableRender } from './durableImage';
+import { recordImageSpend } from './spend';
 
 export type DesignSessionErrorCode =
   | 'SESSION_NOT_FOUND'
@@ -113,24 +115,36 @@ export async function startSession(request: StartSessionRequest): Promise<Stored
 }
 
 /**
- * Firestore documents cap at ~1MB, but Vertex Imagen returns images as
- * inline base64 data URLs — megabytes each. Anything inline moves to GCS
- * before it can be persisted; hosted URLs (Replicate, demo stock) pass
- * through untouched.
+ * Render one image and capture it durably (TAT-57). Nothing a provider hands
+ * back is persistable as-is: Replicate URLs expire within the hour and Vertex
+ * inline base64 blows past Firestore's ~1MB document cap. Every URL that
+ * leaves this function is an object in our own bucket.
+ *
+ * `onPurchase` fires the moment the provider answers — before the durable
+ * copy — because that is when the money is gone. A copy that then fails must
+ * still be billed (see ./spend); a render reused from a previous attempt must
+ * not be.
  */
-async function persistableImageUrl(
-  imageUrl: string,
-  sessionId: string,
-  tag: string
+async function renderDurably(
+  session: { id: string },
+  tag: string,
+  request: GenerationRequest,
+  onPurchase: () => void
 ): Promise<string> {
-  if (!imageUrl.startsWith('data:')) return imageUrl;
-  const base64 = imageUrl.slice(imageUrl.indexOf(',') + 1);
-  const { uploadToGCS } = await import('../../gcs-service');
-  const upload = await uploadToGCS(
-    Buffer.from(base64, 'base64'),
-    `design-sessions/${sessionId}/${tag}-${Date.now()}.png`
+  return durableRender(
+    {
+      sessionId: session.id,
+      tag,
+      prompt: request.prompt,
+      negativePrompt: request.negativePrompt,
+      modelId: request.modelId ?? '',
+    },
+    async () => {
+      const result = await generate(request);
+      onPurchase();
+      return result.images[0];
+    }
   );
-  return upload.url;
 }
 
 /**
@@ -163,26 +177,46 @@ export async function startFromRecord(
   const demo = isDemoMode();
   const now = new Date().toISOString();
   const shell = base ?? { id: randomUUID(), createdAt: now };
-  const variations: Variation[] = await Promise.all(
-    enhanced.variations.map(async (structured, index) => {
-      const prompt = generationPrompt(structured.prompts);
-      // Demo mode: stock image instead of a paid render; everything else real.
-      const imageUrl = demo
-        ? DEMO_MOCK_IMAGES[index % DEMO_MOCK_IMAGES.length]
-        : await persistableImageUrl(
-            (await generate(pinnedRequest(route, prompt, structured.negativePrompt))).images[0],
-            shell.id,
-            `v${index + 1}`
+
+  // Settled in a finally: a render that succeeded before a sibling threw was
+  // still paid for. allSettled (rather than all) so every in-flight render is
+  // accounted for before the failure surfaces.
+  let imagesPurchased = 0;
+  let variations: Variation[];
+  try {
+    const results = await Promise.allSettled(
+      enhanced.variations.map(async (structured, index): Promise<Variation> => {
+        const prompt = generationPrompt(structured.prompts);
+        const id = `v${index + 1}`;
+        // Demo mode: repo-local stock image instead of a paid render. It is
+        // already a permanent same-origin asset, so nothing to capture.
+        let imageUrl: string;
+        if (demo) {
+          imageUrl = DEMO_MOCK_IMAGES[index % DEMO_MOCK_IMAGES.length];
+        } else {
+          imageUrl = await renderDurably(
+            shell,
+            id,
+            pinnedRequest(route, prompt, structured.negativePrompt),
+            () => { imagesPurchased += 1; }
           );
-      return {
-        id: `v${index + 1}`,
-        axisPosition: structured.axisPosition as Record<string, string>,
-        prompt,
-        negativePrompt: structured.negativePrompt,
-        imageUrl,
-      };
-    })
-  );
+        }
+        return {
+          id,
+          axisPosition: structured.axisPosition as Record<string, string>,
+          prompt,
+          negativePrompt: structured.negativePrompt,
+          imageUrl,
+        };
+      })
+    );
+    const failure = results.find(result => result.status === 'rejected');
+    if (failure) throw (failure as PromiseRejectedResult).reason;
+    variations = results.map(result => (result as PromiseFulfilledResult<Variation>).value);
+  } finally {
+    await recordImageSpend(route.provider, imagesPurchased);
+  }
+
   const session: StoredSession = {
     ...shell,
     phase: 'revealed',
@@ -281,15 +315,22 @@ export async function refine(sessionId: string, request: RefineRequest): Promise
     const pickedIndex = session.variations.indexOf(picked);
     imageUrl = DEMO_MOCK_IMAGES[(pickedIndex + 1) % DEMO_MOCK_IMAGES.length];
   } else {
-    // ADR-0016: the regen reuses the exact model pinned at session start.
-    const result = await generate(
-      pinnedRequest(
-        { modelId: session.pinnedModelId, aspectRatio: session.pinnedAspectRatio },
-        adjustedPrompt,
-        picked.negativePrompt
-      )
-    );
-    imageUrl = await persistableImageUrl(result.images[0], session.id, `${picked.id}-refined`);
+    let imagesPurchased = 0;
+    try {
+      // ADR-0016: the regen reuses the exact model pinned at session start.
+      imageUrl = await renderDurably(
+        session,
+        `${picked.id}-refined`,
+        pinnedRequest(
+          { modelId: session.pinnedModelId, aspectRatio: session.pinnedAspectRatio },
+          adjustedPrompt,
+          picked.negativePrompt
+        ),
+        () => { imagesPurchased = 1; }
+      );
+    } finally {
+      await recordImageSpend(session.provider, imagesPurchased);
+    }
   }
 
   session.refinementAnswer = request.answer;

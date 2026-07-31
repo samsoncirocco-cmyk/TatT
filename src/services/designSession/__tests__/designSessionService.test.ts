@@ -1,9 +1,10 @@
 /**
  * Design-session orchestrator tests (ADR-0012, ADR-0013, ADR-0016).
  *
- * Every module boundary is mocked — intake, council, generation, and the
- * Firebase Admin bootstrap (forced off, so persistence runs on the
- * in-memory store). No live provider or Firestore call is ever made.
+ * Every module boundary is mocked — intake, council, generation, durable
+ * image storage, the budget ledger, and the Firebase Admin bootstrap (forced
+ * off, so persistence runs on the in-memory store). No live provider, GCS, or
+ * Firestore call is ever made.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { DEMO_MOCK_IMAGES } from '@/lib/demo-images';
@@ -20,17 +21,40 @@ import type { StoredSession } from '../internal/store';
 import { extractIntake } from '../../intake';
 import { enhanceStructured } from '../../council';
 import { generate, routeGeneration } from '../../generation';
+import {
+  copyImageToPath,
+  recoverImageAtPath,
+  uploadImageToPath,
+} from '@/services/storage/imageStorageService';
+import { recordSpend } from '@/lib/budget-tracker';
 import type { IntakeRecord } from '../../intake/types';
 
 vi.mock('../../intake', () => ({ extractIntake: vi.fn() }));
 vi.mock('../../council', () => ({ enhanceStructured: vi.fn() }));
 vi.mock('../../generation', () => ({ generate: vi.fn(), routeGeneration: vi.fn() }));
 vi.mock('@/lib/firebase-admin', () => ({ ensureAdminApp: vi.fn(() => false) }));
+vi.mock('@/services/storage/imageStorageService', () => ({
+  recoverImageAtPath: vi.fn(),
+  copyImageToPath: vi.fn(),
+  uploadImageToPath: vi.fn(),
+}));
+vi.mock('@/lib/budget-tracker', () => ({
+  recordSpend: vi.fn(),
+  VERTEX_IMAGEN_COST_CENTS: 4,
+}));
 
 const mockExtractIntake = vi.mocked(extractIntake);
 const mockEnhanceStructured = vi.mocked(enhanceStructured);
 const mockGenerate = vi.mocked(generate);
 const mockRouteGeneration = vi.mocked(routeGeneration);
+const mockRecoverImageAtPath = vi.mocked(recoverImageAtPath);
+const mockCopyImageToPath = vi.mocked(copyImageToPath);
+const mockUploadImageToPath = vi.mocked(uploadImageToPath);
+const mockRecordSpend = vi.mocked(recordSpend);
+
+/** Where a durable copy lands — the shape imageStorageService returns. */
+const BUCKET_URL = 'https://storage.googleapis.com/tatt-pro-assets';
+const durableUrl = (objectPath: string) => `${BUCKET_URL}/${objectPath}`;
 
 const intakeRecord: IntakeRecord = {
   placement: 'ribs',
@@ -106,8 +130,12 @@ beforeEach(() => {
   mockExtractIntake.mockResolvedValue(intakeRecord);
   mockEnhanceStructured.mockResolvedValue(questionnaireEnhance);
   mockRouteGeneration.mockReturnValue(vertexRoute);
+  mockRecoverImageAtPath.mockResolvedValue(null);
+  mockCopyImageToPath.mockImplementation(async objectPath => durableUrl(objectPath));
+  mockUploadImageToPath.mockImplementation(async objectPath => durableUrl(objectPath));
+  mockRecordSpend.mockResolvedValue(undefined);
   mockGenerate.mockImplementation(async request => ({
-    images: [`https://img.test/${++imageCounter}.png`],
+    images: [`https://replicate.delivery/pbxt/${++imageCounter}/out.png`],
     metadata: {
       model: request.modelId ?? 'unknown',
       provider: 'vertex-ai' as const,
@@ -142,7 +170,7 @@ describe('startSession', () => {
     expect(session.variations).toHaveLength(4);
     expect(session.variations.map(v => v.id)).toEqual(['v1', 'v2', 'v3', 'v4']);
     for (const variation of session.variations) {
-      expect(variation.imageUrl).toMatch(/^https:\/\/img\.test\//);
+      expect(variation.imageUrl).toMatch(/^https:\/\/storage\.googleapis\.com\//);
     }
     expect(session.variations[2].axisPosition).toEqual({
       'color-blackwork': 'blackwork',
@@ -278,7 +306,7 @@ describe('refine', () => {
     expect(refined).toBeDefined();
     expect(refined?.id).toBe('v3-refined');
     expect(refined?.axisPosition).toEqual(picked.variations[2].axisPosition);
-    expect(refined?.imageUrl).toMatch(/^https:\/\/img\.test\//);
+    expect(refined?.imageUrl).toMatch(/^https:\/\/storage\.googleapis\.com\//);
     // Template adjustment: picked prompt kept, intensifying modifier appended.
     expect(refined?.prompt).toContain('d3');
     expect(refined?.prompt).toContain('deeper solid blacks');

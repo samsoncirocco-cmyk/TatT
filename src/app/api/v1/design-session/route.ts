@@ -7,8 +7,6 @@ import { createRequestLogger } from '@/lib/logger';
 import {
     designSessionErrorResponse,
     invalidRequestResponse,
-    recordImageSpend,
-    REVEAL_IMAGE_COUNT,
 } from './shared';
 
 export const runtime = 'nodejs';
@@ -21,14 +19,14 @@ export const maxDuration = 300;
 
 // POST /api/v1/design-session — start a session: intake → council → the
 // 4-variation reveal. Thin adapter over the designSession service; this route
-// only does auth/rate/budget policy, validation, spend recording, and
-// response-shape mapping.
+// only does auth/rate/budget policy, validation, and response-shape mapping;
+// the service records the spend of the renders it actually buys.
 //
 // Demo mode (NEXT_PUBLIC_DEMO_MODE): the REAL service still runs — and
 // persists the session, so the follow-up pick/refine/get routes work — but
 // the orchestrator substitutes free stock images for the four renders. No
-// cost, so rate/budget policy and spend recording are skipped; a short
-// simulated latency keeps the /api/v1/generate demo feel.
+// cost, so rate/budget policy is skipped; a short simulated latency keeps
+// the /api/v1/generate demo feel.
 
 export async function POST(req: NextRequest) {
     const reqLogger = createRequestLogger('design-session');
@@ -73,10 +71,6 @@ export async function POST(req: NextRequest) {
             placementAnswer: placementAnswer.trim(),
             meaningAnswer: meaningAnswer.trim(),
         });
-
-        // The reveal is always 4 images on the session's locked provider —
-        // demo renders are free stock images, so nothing to record.
-        if (!demoMode) await recordImageSpend(session.provider, REVEAL_IMAGE_COUNT);
 
         reqLogger.complete('design_session.start.success', {
             session_id: session.id,
