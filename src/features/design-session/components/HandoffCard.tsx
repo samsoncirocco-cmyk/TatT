@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import type { DesignSession } from '@/services/designSession/types';
 import { useDesigns } from '@/lib/tattStorage';
+import { studioUrlForDesign, visualizeUrlForDesign } from '@/lib/design-style-signal';
 
 /**
  * The hard stop (ADR-0013). Shows the refined design plus the brief the
@@ -42,10 +43,7 @@ export function HandoffCard({ session }: { session: DesignSession }) {
 
   // The AR mirror preselects ?design= when the save has landed; ds rides
   // along so the mirror's own "Find your artist" exit keeps the thread.
-  const visualizeParams = new URLSearchParams();
-  if (savedDesignId) visualizeParams.set('design', savedDesignId);
-  visualizeParams.set('ds', session.id);
-  const visualizeHref = `/visualize?${visualizeParams.toString()}`;
+  const visualizeHref = visualizeUrlForDesign(savedDesignId, session.id);
 
   return (
     <div className="border-2 hairline bg-white/[0.02]">
@@ -119,12 +117,16 @@ export function HandoffCard({ session }: { session: DesignSession }) {
           >
             Find your artist
           </Link>
-          <Link
-            href="/generate"
-            className="press inline-flex items-center justify-center px-6 py-4 border hairline font-body text-[11px] uppercase tracking-[0.25em] text-white/80 hover:bg-pink hover:text-black"
-          >
-            Fine-tune on the canvas
-          </Link>
+          {/* The refinery (ADR-0038) is entered from a picked design, so
+              this door only exists once the cut has landed in the library. */}
+          {savedDesignId && (
+            <Link
+              href={studioUrlForDesign(savedDesignId)}
+              className="press inline-flex items-center justify-center px-6 py-4 border hairline font-body text-[11px] uppercase tracking-[0.25em] text-white/80 hover:bg-pink hover:text-black"
+            >
+              Fine-tune in the Studio
+            </Link>
+          )}
         </div>
       </div>
     </div>

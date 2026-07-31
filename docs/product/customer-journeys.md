@@ -31,7 +31,9 @@ The launch routes now implement the convergence decisions:
 - `/design`: the only consumer design entry, with conversation and fast lane.
 - `/generate/stencil`: compatibility redirect to `/design` that preserves the
   prompt.
-- `/generate`: the intentional multi-layer Studio editing room.
+- `/studio`: the Studio — the refinery (ADR-0038), entered from a picked design
+  as `/studio?design=<id>`.
+- `/generate`: compatibility redirect to `/studio` that forwards every param.
 - `/journey`: removed.
 - `/visualize`: the AR mirror, an optional conviction step between refinement
   and matching. It carries the design and design-session thread forward to
