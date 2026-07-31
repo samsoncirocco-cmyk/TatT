@@ -42,6 +42,18 @@ export interface InpaintingCost {
   formatted: string;
 }
 
+/**
+ * `code` on a thrown inpainting error. `/api/predictions` answers 402 when the
+ * shared generation cap is spent; the Studio has to tell those apart from an
+ * ordinary failure so it can say "at capacity" honestly instead of "try again"
+ * (ADR-0038 — never a silent failure).
+ */
+export const INPAINT_BUDGET_EXHAUSTED = 'budget_exhausted';
+
+export interface InpaintError extends Error {
+  code?: string;
+}
+
 // ===== Constants =====
 
 // Inpainting model configuration
@@ -138,7 +150,11 @@ export async function inpaintTattooDesign({
 
     if (!createResponse.ok) {
       const errorData = await createResponse.json();
-      throw new Error(errorData.error || errorData.detail || 'Failed to start inpainting');
+      const failure: InpaintError = new Error(
+        errorData.error || errorData.detail || 'Failed to start inpainting'
+      );
+      if (createResponse.status === 402) failure.code = INPAINT_BUDGET_EXHAUSTED;
+      throw failure;
     }
 
     const prediction = await createResponse.json() as PredictionResponse;
@@ -186,9 +202,11 @@ export async function inpaintTattooDesign({
     return outputImage;
 
   } catch (error) {
-    const err = error as Error;
+    const err = error as InpaintError;
     console.error('[Inpainting] Error:', err);
-    throw new Error(`Inpainting failed: ${err.message}`);
+    const wrapped: InpaintError = new Error(`Inpainting failed: ${err.message}`);
+    if (err.code) wrapped.code = err.code;
+    throw wrapped;
   }
 }
 

@@ -1,15 +1,28 @@
 /**
- * Generate Page - Enhanced with Layer Management
- * 
- * Integrates prompt interface, vibe chips, and canvas layer management
+ * The Studio — the refinery (ADR-0038).
+ *
+ * A picked design goes from *almost* to *yes* here, in three ranked gears:
+ *
+ *   1. Point and say — the default surface. Circle the part that's wrong, say
+ *      what's wrong, SketchBot redraws only that region. No tool vocabulary.
+ *   2. Plain-language tools — one tap deeper: redraw area, erase, resize part,
+ *      undo. The same capabilities in words instead of jargon.
+ *   3. The full bench — behind an explicit door: layers, blend modes, version
+ *      timeline and compare, element regeneration, stencil export, cleanup.
+ *      Desktop-only, and honest about it.
+ *
+ * What the Studio no longer holds: the prompt box, vibe chips, and body-part
+ * selector. `/design` is the one door and owns intake (ADR-0028); the
+ * components survive in the tree for that surface.
+ *
+ * Fixes are bounded per design (`studio-fix-allowance`), drawn from the same
+ * global budget as every other render, and the ceiling ends in a booking
+ * prompt rather than a paywall.
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { BodyPartSelector } from '../components/generate/BodyPartSelector';
+import Link from 'next/link';
 import { ForgeCanvas } from './generate/components/ForgeCanvas';
-import { BodyPartWarningModal } from '../components/generate/BodyPartWarningModal';
-import PromptInterface from '../components/generate/PromptInterface';
-import VibeChips from '../components/generate/VibeChips';
 import AdvancedOptions from '../components/generate/AdvancedOptions';
 import LayerStack from '../components/generate/LayerStack';
 import MatchPulseSidebar from './generate/components/MatchPulseSidebar';
@@ -23,208 +36,81 @@ import VersionTimeline from './generate/components/VersionTimeline';
 import VersionComparison from './generate/components/VersionComparison';
 import LayerContextMenu from '../components/generate/LayerContextMenu';
 import RegenerateElementModal from '../components/generate/RegenerateElementModal';
-import ForgeGuide from '../components/generate/ForgeGuide';
+import PointAndSay from './generate/components/PointAndSay';
+import PlainToolsRow from './generate/components/PlainToolsRow';
+import FullBench from './generate/components/FullBench';
 import { ToastContainer } from '../components/ui/Toast';
 import { DEFAULT_BODY_PART } from '../constants/bodyPartAspectRatios';
-import { enhance as enhancePrompt } from '../services/council';
-import { isPromptVague } from '../utils/promptQuality';
-import PunkToggle from '../components/punk/PunkToggle';
-import useVibeChipSuggestions from '../hooks/useVibeChipSuggestions';
 import { useLayerManagement } from './generate/hooks/useLayerManagement';
 import { useRealtimeMatchPulse } from './match-pulse/hooks/useRealtimeMatchPulse';
 import { useCanvasAspectRatio } from '../hooks/useCanvasAspectRatio';
 import { useVersionHistory } from './generate/hooks/useVersionHistory';
-import { useSmartPreview } from './generate/hooks/useSmartPreview';
+import { useRefinement } from './generate/hooks/useRefinement';
 import { useToast } from '../hooks/useToast';
 import { useStorageWarning } from '../hooks/useStorageWarning';
 import * as versionService from './generate/services/versionService';
 import Button from '../components/ui/Button';
-import { Wand2, Zap, Download, Sparkles, Layers, CheckCircle, Plus, Eraser } from 'lucide-react';
+import { Wand2, Download, Sparkles, Plus, Eraser } from 'lucide-react';
 import { useImageGeneration } from './generate/hooks/useImageGeneration';
 import { normalizeStyleKey } from '../config/promptTemplates';
 import TransformControls from '../components/generate/TransformControls';
 import { useTransformShortcuts } from '../hooks/useTransformShortcuts';
 import { exportAsPNG, exportAsARAsset } from './generate/services/canvasService';
 import { convertToStencil } from './stencil/services/stencilService';
-import { decomposeLayers } from '../services/layerDecompositionService';
+import { readPickedDesign, readPickedDesignId } from './generate/services/pickedDesign';
+import { NO_DESIGN_LINE } from './generate/services/refineryVoice';
 import { useForgeStore } from '../store/useForgeStore';
+import { useDesigns } from '../lib/tattStorage';
 import {
     processGenerationResult,
     addMultipleLayers,
     shouldUseMultiLayer
 } from './generate/services/multiLayerService';
-import { addDesignToStorage } from '../lib/tattStorage';
 
-const TRENDING_EXAMPLES = [
-    {
-        id: 'cyberpunk-gohan',
-        title: 'Cyberpunk Gohan',
-        description: 'Neon energy, bold anime contrasts',
-        bodyPart: 'forearm',
-        prompt: 'Cyberpunk Gohan in a neon rainstorm with electric aura',
-        layers: [
-            {
-                imageUrl: '/images/trending/cyberpunk-gohan-bg.svg',
-                type: 'background'
-            },
-            {
-                imageUrl: '/images/trending/cyberpunk-gohan-subject.svg',
-                type: 'subject'
-            }
-        ]
-    },
-    {
-        id: 'fine-line-peonies',
-        title: 'Fine-line Peonies',
-        description: 'Delicate florals with clean linework',
-        bodyPart: 'thigh',
-        prompt: 'Fine-line peonies with soft shading and airy spacing',
-        layers: [
-            {
-                imageUrl: '/images/trending/fine-line-peonies-subject.svg',
-                type: 'subject'
-            },
-            {
-                imageUrl: '/images/trending/fine-line-peonies-bg.svg',
-                type: 'background'
-            }
-        ]
-    },
-    {
-        id: 'dragon-storm',
-        title: 'Dragon Storm',
-        description: 'High energy with lightning accents',
-        bodyPart: 'back',
-        prompt: 'A coiling dragon with lightning and storm clouds',
-        layers: [
-            {
-                imageUrl: '/images/trending/dragon-storm-subject.svg',
-                type: 'subject'
-            },
-            {
-                imageUrl: '/images/trending/dragon-storm-bg.svg',
-                type: 'effect'
-            }
-        ]
-    },
-    {
-        id: 'neo-trad-owl',
-        title: 'Neo-Trad Owl',
-        description: 'Warm gradients with bold lines',
-        bodyPart: 'shoulder',
-        prompt: 'Neo-traditional owl with botanical accents',
-        layers: [
-            {
-                imageUrl: '/images/trending/neo-trad-owl-subject.svg',
-                type: 'subject'
-            },
-            {
-                imageUrl: '/images/trending/neo-trad-owl-bg.svg',
-                type: 'background'
-            }
-        ]
-    },
-    {
-        id: 'blackwork-serpent',
-        title: 'Blackwork Serpent',
-        description: 'Bold ink, high contrast textures',
-        bodyPart: 'ribs',
-        prompt: 'Blackwork serpent with geometric halo',
-        layers: [
-            {
-                imageUrl: '/images/trending/blackwork-serpent-subject.svg',
-                type: 'subject'
-            },
-            {
-                imageUrl: '/images/trending/blackwork-serpent-bg.svg',
-                type: 'effect'
-            }
-        ]
-    },
-    {
-        id: 'japanese-crane',
-        title: 'Japanese Crane',
-        description: 'Classic Irezumi balance',
-        bodyPart: 'chest',
-        prompt: 'Japanese crane with waves and maple leaves',
-        layers: [
-            {
-                imageUrl: '/images/trending/japanese-crane-subject.svg',
-                type: 'subject'
-            },
-            {
-                imageUrl: '/images/trending/japanese-crane-bg.svg',
-                type: 'background'
-            }
-        ]
-    },
-    {
-        id: 'phoenix-crest',
-        title: 'Phoenix Crest',
-        description: 'Rising flame silhouette',
-        bodyPart: 'calf',
-        prompt: 'Phoenix crest with ember trails and clean contours',
-        layers: [
-            {
-                imageUrl: '/images/trending/phoenix-crest-subject.svg',
-                type: 'subject'
-            },
-            {
-                imageUrl: '/images/trending/phoenix-crest-bg.svg',
-                type: 'background'
-            }
-        ]
-    },
-    {
-        id: 'ornamental-crown',
-        title: 'Ornamental Crown',
-        description: 'Symmetry with filigree accents',
-        bodyPart: 'sternum',
-        prompt: 'Ornamental crown with filigree and gemstone inlays',
-        layers: [
-            {
-                imageUrl: '/images/trending/ornamental-crown-subject.svg',
-                type: 'subject'
-            },
-            {
-                imageUrl: '/images/trending/ornamental-crown-bg.svg',
-                type: 'background'
-            }
-        ]
-    }
-];
+export default function Generate({ design = null }) {
+    // The Studio is entered from a picked design, resolved in three steps:
+    // the prop, then the `?design=` id the /studio route carries against the
+    // saved-designs library, then the sessionStorage seam for entry points
+    // that can only hand a design over that way.
+    // Client-only surface (loaded with ssr:false), so the stash can be read
+    // once during the first render rather than through an effect.
+    const { designs, hydrated } = useDesigns();
+    const [stashed] = useState(() => readPickedDesign());
 
-export default function Generate() {
-    // Body part state
-    const [bodyPart, setBodyPart] = useState(DEFAULT_BODY_PART);
-    const [showWarning, setShowWarning] = useState(false);
-    const [pendingBodyPart, setPendingBodyPart] = useState(null);
+    const picked = useMemo(() => {
+        if (design) return design;
 
-    // Prompt state
-    const [promptText, setPromptText] = useState('');
-    const [selectedChips, setSelectedChips] = useState([]);
-    const [enhancedPrompt, setEnhancedPrompt] = useState(null);
-    const [isEnhancing, setIsEnhancing] = useState(false);
-    // Council (AI prompt enhancement) toggle — issue #69. Defaults OFF since
-    // Council costs ~$0.02/request (Vertex AI Gemini, see CLAUDE.md). When the
-    // toggle is off, Council still auto-enables for short/vague prompts via
-    // isPromptVague() so new users get help without needing to find the toggle.
-    const [councilEnabled, setCouncilEnabled] = useState(false);
+        const id = readPickedDesignId();
+        const saved = id && hydrated ? designs.find((entry) => entry.id === id) : null;
+        if (saved?.image) {
+            return {
+                id: saved.id,
+                imageUrl: saved.image,
+                prompt: saved.prompt,
+                style: undefined,
+                bodyPart: undefined
+            };
+        }
 
-    // Advanced options state
-    const [showAdvanced, setShowAdvanced] = useState(false);
+        return stashed;
+    }, [design, designs, hydrated, stashed]);
+
+    const bodyPart = picked?.bodyPart || DEFAULT_BODY_PART;
+    const promptText = picked?.prompt || '';
+    const matchStyle = picked?.style || 'Traditional';
+    const normalizedStyle = normalizeStyleKey(matchStyle) || 'traditional';
+
+    // Bench-only generation parameters. No prompt box lives here any more —
+    // these only shape element regeneration and restyle (gear 3).
     const [size, setSize] = useState('medium');
     const [aiModel, setAiModel] = useState('tattoo');
     const [negativePrompt, setNegativePrompt] = useState('');
     const [enhancementLevel, setEnhancementLevel] = useState('detailed');
     const [separateRGBA, setSeparateRGBA] = useState(false);
-    const [showGuide, setShowGuide] = useState(() => {
-        if (typeof window === 'undefined') return true;
-        return localStorage.getItem('tattester_forge_guide_dismissed') !== 'true';
-    });
-    const [guideStepIndex, setGuideStepIndex] = useState(0);
+    const [showAdvanced, setShowAdvanced] = useState(false);
 
     const [sessionId, setSessionId] = useState(() => {
+        if (typeof sessionStorage === 'undefined') return 'session_studio';
         const stored = sessionStorage.getItem('tattester_session_id');
         if (stored) return stored;
         const created = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -254,67 +140,34 @@ export default function Generate() {
         updateTransform,
         flipHorizontal,
         flipVertical,
-        clearLayers,
         replaceLayers,
         updateImage,
         updateBlendMode,
         duplicateLayer,
-        clearHistory: clearLayerHistory,
         undo,
         redo
     } = useLayerManagement();
 
-    const resolvedStyle = selectedChips[0] || 'Traditional';
-    const normalizedStyle = normalizeStyleKey(resolvedStyle) || 'traditional';
-
-    // Council is "active" (worth its cost/latency) when the user has forced it
-    // on via the toggle, or the raw prompt is vague enough to need help.
-    const shouldAutoRunCouncil = useMemo(
-        () => councilEnabled || isPromptVague(promptText),
-        [councilEnabled, promptText]
-    );
+    const { toast, toasts, removeToast } = useToast();
+    useStorageWarning(toast);
 
     const generationInput = useMemo(() => ({
-        subject: enhancedPrompt || promptText,
+        subject: promptText,
         style: normalizedStyle,
         bodyPart,
         size,
         aiModel,
         negativePrompt
-    }), [enhancedPrompt, promptText, normalizedStyle, bodyPart, size, aiModel, negativePrompt]);
+    }), [promptText, normalizedStyle, bodyPart, size, aiModel, negativePrompt]);
 
-    // Toast and storage monitoring
-    const { toast, toasts, removeToast } = useToast();
-    useStorageWarning(toast);
-
-    // Generation hook
     const {
         generateHighRes,
-        retryLastFailed,
-        canRetry,
-        cancelCurrent,
         isGenerating,
         error: generationError,
-        errorDetails: generationErrorDetails,
-        progress,
-        queueLength,
         arAsset
-    } = useImageGeneration({
-        userInput: generationInput
-    });
+    } = useImageGeneration({ userInput: generationInput });
 
-    const {
-        preview,
-        isPreviewing,
-        error: previewError
-    } = useSmartPreview({
-        userInput: generationInput,
-        enabled: Boolean((enhancedPrompt || promptText).trim()),
-        debounceMs: 300
-    });
-
-    // UI state
-    const [isLoadingExample, setIsLoadingExample] = useState(false);
+    // Bench UI state
     const [showInpainting, setShowInpainting] = useState(false);
     const [showCleanup, setShowCleanup] = useState(false);
     const [restyleLayerId, setRestyleLayerId] = useState(null);
@@ -325,8 +178,8 @@ export default function Generate() {
     const [elementType, setElementType] = useState('subject');
     const [contextMenu, setContextMenu] = useState(null);
     const [regenerateModal, setRegenerateModal] = useState(null);
+    const [toolSeed, setToolSeed] = useState(null);
 
-    // Keyboard shortcuts
     const keyboardShortcuts = useKeyboardShortcuts();
     const [stencilView, setStencilView] = useState(false);
     const [stencilPreview, setStencilPreview] = useState(null);
@@ -335,18 +188,11 @@ export default function Generate() {
     const [stencilSourceUrl, setStencilSourceUrl] = useState(null);
     const [showStencilExport, setShowStencilExport] = useState(false);
 
-    // Vibe chip suggestions
-    const { suggestions, isLoading: isSuggestionsLoading } = useVibeChipSuggestions(promptText);
     const { width: canvasWidth, height: canvasHeight } = useCanvasAspectRatio(bodyPart);
 
     const selectedLayer = useMemo(() => (
         layers.find(layer => layer.id === selectedLayerId) || null
     ), [layers, selectedLayerId]);
-
-    const previewImage = preview?.images?.[0] || null;
-    const showPreview = Boolean(previewImage && layers.length === 0);
-
-    const matchStyle = resolvedStyle;
 
     const matchContext = useMemo(() => ({
         style: matchStyle,
@@ -358,14 +204,14 @@ export default function Generate() {
 
     const currentDesign = useMemo(() => ({
         id: sessionId,
-        prompt: enhancedPrompt || promptText,
+        prompt: promptText,
         style: matchStyle,
         bodyPart,
         imageUrl: layers[layers.length - 1]?.imageUrl || null,
         location: null,
         budget: null,
         embeddingVector: null
-    }), [sessionId, enhancedPrompt, promptText, matchStyle, bodyPart, layers]);
+    }), [sessionId, promptText, matchStyle, bodyPart, layers]);
 
     const {
         matches,
@@ -382,35 +228,21 @@ export default function Generate() {
     const historyPastCount = useForgeStore((state) => state.history.past.length);
     const historyFutureCount = useForgeStore((state) => state.history.future.length);
 
-
-
     const timeline = useMemo(() => (
         versionService.getVersionTimeline(sessionId)
     ), [sessionId, versions]);
-
-    const createSessionId = useCallback(() => (
-        `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-    ), []);
-
-    const resetSession = useCallback(() => {
-        const newSessionId = createSessionId();
-        sessionStorage.setItem('tattester_session_id', newSessionId);
-        setSessionId(newSessionId);
-        setComparison(null);
-    }, [createSessionId]);
 
     const buildVersionPayload = useCallback((overrides = {}) => {
         const resolvedLayers = overrides.layers || sortedLayers;
         return {
             prompt: promptText,
-            enhancedPrompt,
+            enhancedPrompt: null,
             parameters: {
                 size,
                 aiModel,
                 negativePrompt,
                 enhancementLevel,
-                bodyPart,
-                vibeChips: selectedChips
+                bodyPart
             },
             layers: resolvedLayers,
             imageUrl: overrides.imageUrl || resolvedLayers[resolvedLayers.length - 1]?.imageUrl || null,
@@ -426,65 +258,36 @@ export default function Generate() {
     }, [
         arAsset,
         bodyPart,
-        enhancedPrompt,
         enhancementLevel,
         matchStyle,
         negativePrompt,
         promptText,
-        selectedChips,
         size,
         aiModel,
         sortedLayers
     ]);
 
-    // Load from session storage on mount
+    // Seed the canvas with the picked design exactly once — this is the whole
+    // entry contract: the Studio always opens on something already chosen.
+    const [seeded, setSeeded] = useState(false);
     useEffect(() => {
-        const savedState = sessionStorage.getItem('promptState');
-        if (savedState) {
-            try {
-                const state = JSON.parse(savedState);
-                if (state.promptText) setPromptText(state.promptText);
-                if (state.selectedChips) setSelectedChips(state.selectedChips);
-                if (state.enhancementLevel) setEnhancementLevel(state.enhancementLevel);
-                if (state.enhancedPrompt) setEnhancedPrompt(state.enhancedPrompt);
-                if (state.bodyPart) setBodyPart(state.bodyPart);
-                if (state.size) setSize(state.size);
-                if (state.aiModel) setAiModel(state.aiModel);
-                if (state.negativePrompt !== undefined) setNegativePrompt(state.negativePrompt);
-                if (state.separateRGBA !== undefined) setSeparateRGBA(state.separateRGBA);
-                if (state.councilEnabled !== undefined) setCouncilEnabled(state.councilEnabled);
-            } catch (e) {
-                console.error('Failed to load saved state:', e);
-            }
-        }
-    }, []);
-
-    // Save to session storage on changes
-    useEffect(() => {
-        sessionStorage.setItem('promptState', JSON.stringify({
-            promptText,
-            selectedChips,
-            enhancementLevel,
-            enhancedPrompt,
-            bodyPart,
-            size,
-            aiModel,
-            negativePrompt,
-            separateRGBA,
-            councilEnabled
-        }));
-    }, [
-        promptText,
-        selectedChips,
-        enhancementLevel,
-        enhancedPrompt,
-        bodyPart,
-        size,
-        aiModel,
-        negativePrompt,
-        separateRGBA,
-        councilEnabled
-    ]);
+        if (seeded || !picked?.imageUrl || layers.length > 0) return;
+        let cancelled = false;
+        (async () => {
+            const layer = await addLayer(picked.imageUrl, 'subject');
+            if (cancelled) return;
+            setSeeded(true);
+            addVersion(buildVersionPayload({
+                layers: [layer],
+                imageUrl: picked.imageUrl,
+                mode: 'picked'
+            }));
+        })();
+        return () => { cancelled = true; };
+        // buildVersionPayload changes with every layer edit; seeding must not
+        // re-run for that.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [addLayer, addVersion, layers.length, picked, seeded]);
 
     useTransformShortcuts({
         selectedLayerId,
@@ -496,270 +299,37 @@ export default function Generate() {
         redo
     });
 
-    const handleBodyPartChange = (newPart) => {
-        if (enhancedPrompt) {
-            setPendingBodyPart(newPart);
-            setShowWarning(true);
-        } else {
-            setBodyPart(newPart);
-        }
-    };
+    // ---- Gear 1 / gear 2: the refinement loop ----------------------------
 
-    const handleConfirmBodyPartChange = () => {
-        if (pendingBodyPart) {
-            setBodyPart(pendingBodyPart);
-            setEnhancedPrompt(null);
-            setPendingBodyPart(null);
-        }
-        setShowWarning(false);
-    };
+    // The layer a fix lands on: whatever is selected, else the base layer.
+    const refineTargetId = selectedLayerId || sortedLayers[0]?.id || null;
+    const refineTarget = useMemo(() => (
+        layers.find(layer => layer.id === refineTargetId) || null
+    ), [layers, refineTargetId]);
+    const refineImageUrl = refineTarget?.imageUrl || picked?.imageUrl || null;
 
-    const handleCancelBodyPartChange = () => {
-        setPendingBodyPart(null);
-        setShowWarning(false);
-    };
-
-    const handleChipSelect = (chip) => {
-        setSelectedChips(prev => {
-            if (prev.includes(chip)) {
-                return prev.filter(c => c !== chip);
-            } else {
-                return [...prev, chip];
-            }
-        });
-    };
-
-    // Shared Council call used by both the manual "Enhance" button and the
-    // auto-enhance path in handleGenerate. Returns the resolved prompt/negative
-    // prompt so callers can generate immediately without waiting on a re-render.
-    const runCouncilEnhance = useCallback(async () => {
-        const fullPrompt = [promptText, ...selectedChips].join(', ');
-
-        const result = await enhancePrompt({
-            userIdea: fullPrompt,
-            style: matchStyle,
-            bodyPart: bodyPart,
-            isStencilMode: stencilView
-        });
-
-        const prompt = result.prompts[enhancementLevel];
-        setEnhancedPrompt(prompt);
-
-        const resolvedNegativePrompt = (!negativePrompt && result.negativePrompt)
-            ? result.negativePrompt
-            : negativePrompt;
-        if (resolvedNegativePrompt !== negativePrompt) {
-            setNegativePrompt(resolvedNegativePrompt);
-        }
-
-        return { prompt, negativePrompt: resolvedNegativePrompt };
-    }, [promptText, selectedChips, matchStyle, bodyPart, stencilView, enhancementLevel, negativePrompt]);
-
-    const handleEnhance = async () => {
-        setIsEnhancing(true);
-        try {
-            await runCouncilEnhance();
-        } catch (error) {
-            console.error('Enhancement failed:', error);
-            toast.error(error?.message || 'Council enhancement failed');
-        } finally {
-            setIsEnhancing(false);
-        }
-    };
-
-    const handleGenerate = async (finalize = false) => {
-        if (!promptText.trim() && !enhancedPrompt?.trim()) return;
-
-        try {
-            // Auto-run Council for vague prompts (or when forced via the toggle)
-            // if the user hasn't already enhanced manually — issue #69. Skipped
-            // otherwise so Council's cost/latency (~$0.02/req, Vertex AI Gemini)
-            // is only ever paid when it's actually active.
-            let councilOverride;
-            if (!enhancedPrompt?.trim() && shouldAutoRunCouncil) {
-                try {
-                    const { prompt, negativePrompt: resolvedNegativePrompt } = await runCouncilEnhance();
-                    councilOverride = {
-                        subject: prompt,
-                        style: normalizedStyle,
-                        bodyPart,
-                        size,
-                        aiModel,
-                        negativePrompt: resolvedNegativePrompt
-                    };
-                } catch (error) {
-                    console.error('[Generate] Auto Council enhancement failed, generating from raw prompt:', error);
-                }
-            }
-
-            const result = await generateHighRes({
-                finalize,
-                ...(councilOverride ? { userInputOverride: councilOverride } : {})
-            });
-
-            if (result && result.images && result.images.length > 0) {
-                let createdLayers = [];
-
-                // Check if we should use multi-layer processing
-                if (shouldUseMultiLayer(result)) {
-                    console.log('[Generate] Using multi-layer processing for', result.images.length, 'images');
-
-                    // Process generation result into layer specifications
-                    const layerSpecs = await processGenerationResult(result, {
-                        separateAlpha: separateRGBA,  // Use user preference
-                        autoDetectAlpha: true         // Always detect alpha channel
-                    });
-
-                    // Add all layers to canvas
-                    createdLayers = await addMultipleLayers(layerSpecs, addLayer);
-
-                    // Use the last layer's image as the version thumbnail
-                    const thumbnailUrl = createdLayers[createdLayers.length - 1]?.imageUrl || result.images[0];
-                    const nextLayers = [...layers, ...createdLayers];
-
-                    addVersion(buildVersionPayload({
-                        layers: nextLayers,
-                        imageUrl: thumbnailUrl,
-                        arAssetUrl: arAsset?.url || null,
-                        mode: finalize ? 'final' : 'refine'
-                    }));
-
-                    console.log(`[Generate] Created ${createdLayers.length} layers from ${result.images.length} images`);
-                } else {
-                    // Single image - use legacy flow
-                    console.log('[Generate] Using single-layer flow');
-                    let nextLayers = [];
-                    try {
-                        const decomposition = await decomposeLayers(result.images[0], sessionId, sessionId);
-                        if (Array.isArray(decomposition.layers) && decomposition.layers.length > 0) {
-                            const maxZ = layers.reduce((max, layer) => Math.max(max, layer.zIndex || 0), -1) + 1;
-                            const normalized = decomposition.layers.map((layer, index) => ({
-                                ...layer,
-                                zIndex: maxZ + index
-                            }));
-                            nextLayers = [...layers, ...normalized];
-                            replaceLayers(nextLayers);
-                        }
-                    } catch (error) {
-                        console.warn('[Generate] Decomposition failed, falling back to single layer:', error);
-                    }
-
-                    if (nextLayers.length === 0) {
-                        const newLayer = await addLayer(result.images[0], 'subject');
-                        nextLayers = [...layers, newLayer];
-                    }
-
-                    addVersion(buildVersionPayload({
-                        layers: nextLayers,
-                        imageUrl: nextLayers[nextLayers.length - 1]?.imageUrl || result.images[0],
-                        arAssetUrl: arAsset?.url || null,
-                        mode: finalize ? 'final' : 'refine'
-                    }));
-                }
-
-                console.log('Generation successful:', result);
-
-                // On finalize, persist the design to the punk demo library
-                // (tatt:designs) so it shows up on /designs and /designs/[id].
-                // Demo-only; the source-of-truth is still the Forge's version
-                // history in IndexedDB. Failures here must not break the
-                // generation flow — wrapped in try/catch and logged.
-                if (finalize) {
-                    try {
-                        const titlePrompt = (enhancedPrompt || promptText || '').trim();
-                        if (titlePrompt) {
-                            addDesignToStorage(titlePrompt);
-                        }
-                    } catch (storageError) {
-                        console.warn('[Generate] tatt:designs persist failed:', storageError);
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('Generation failed:', error);
-        }
-    };
-
-    const handleStartFromScratch = () => {
-        resetSession();
-        clearLayers();
-        setPromptText('');
-        setEnhancedPrompt(null);
-        setSelectedChips([]);
-    };
-
-    const guideSteps = useMemo(() => ([
-        {
-            title: 'Pick a launch point',
-            description: 'Start with a trending composition or press “Start from Scratch” to begin clean.',
-            targetId: 'forge-trending',
-            targetLabel: 'Trending'
-        },
-        {
-            title: 'Choose placement',
-            description: 'Select the body placement so the canvas matches the correct aspect ratio.',
-            targetId: 'forge-placement',
-            targetLabel: 'Placement'
-        },
-        {
-            title: 'Describe the vision',
-            description: 'Write the core prompt and tap vibe chips to shape style, elements, and mood.',
-            targetId: 'forge-prompt',
-            targetLabel: 'Prompt'
-        },
-        {
-            title: 'Refine or finalize',
-            description: 'Use Refine for quick iterations, Finalize for high-res output.',
-            targetId: 'forge-actions',
-            targetLabel: 'Actions'
-        },
-        {
-            title: 'Review results',
-            description: 'Track versions, compare options, and see artist matches update in real time.',
-            targetId: 'forge-review',
-            targetLabel: 'Review'
-        }
-    ]), []);
-
-    const handleGuideClose = useCallback(() => {
-        setShowGuide(false);
-        if (typeof window !== 'undefined') {
-            localStorage.setItem('tattester_forge_guide_dismissed', 'true');
-        }
-    }, []);
-
-    const handleGuideJump = useCallback((targetId) => {
-        if (!targetId) return;
-        const target = document.getElementById(targetId);
-        if (target) {
-            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-    }, []);
-
-    const handleLoadExample = async (example) => {
-        setIsLoadingExample(true);
-        clearHistory();
-        clearLayers();
-        setBodyPart(example.bodyPart);
-        setPromptText(example.prompt || '');
-        setEnhancedPrompt(null);
-        setSelectedChips([]);
-
-        try {
-            const loadedLayers = [];
-            for (const layer of example.layers) {
-                const newLayer = await addLayer(layer.imageUrl, layer.type);
-                loadedLayers.push(newLayer);
-            }
-
+    const applyRefinement = useCallback((imageUrl) => {
+        if (!imageUrl) return;
+        if (refineTargetId) {
+            updateImage(refineTargetId, imageUrl);
+            const nextLayers = layers.map(layer => (
+                layer.id === refineTargetId ? { ...layer, imageUrl } : layer
+            ));
             addVersion(buildVersionPayload({
-                layers: loadedLayers,
-                imageUrl: loadedLayers[loadedLayers.length - 1]?.imageUrl || null
+                layers: nextLayers,
+                imageUrl,
+                mode: 'fix'
             }));
-        } finally {
-            setIsLoadingExample(false);
         }
-    };
+    }, [addVersion, buildVersionPayload, layers, refineTargetId, updateImage]);
+
+    const refinement = useRefinement({
+        designId: picked?.id || sessionId,
+        imageUrl: refineImageUrl,
+        onApply: applyRefinement
+    });
+
+    // ---- Gear 3: the bench ------------------------------------------------
 
     const createStencilSource = async () => {
         const compositeBlob = await exportAsPNG(sortedLayers, canvasWidth, canvasHeight, 1.0);
@@ -790,38 +360,6 @@ export default function Generate() {
     };
 
     useEffect(() => {
-        if (!stencilView) return;
-        let active = true;
-
-        const timer = setTimeout(async () => {
-            setIsStencilProcessing(true);
-            setStencilError(null);
-            try {
-                const compositeUrl = await createStencilSource();
-                const stencil = await convertToStencil(compositeUrl, { invert: true });
-                if (active) {
-                    setStencilPreview(stencil);
-                }
-            } catch (error) {
-                if (active) {
-                    console.error('Stencil generation failed:', error);
-                    setStencilError('Failed to refresh stencil preview.');
-                }
-            } finally {
-                if (active) {
-                    setIsStencilProcessing(false);
-                }
-            }
-        }, 300);
-
-        return () => {
-            active = false;
-            clearTimeout(timer);
-        };
-    }, [stencilView, layers.length, canvasWidth, canvasHeight]);
-
-
-    useEffect(() => {
         return () => {
             if (stencilSourceUrl) {
                 URL.revokeObjectURL(stencilSourceUrl);
@@ -840,7 +378,7 @@ export default function Generate() {
             URL.revokeObjectURL(url);
         } catch (error) {
             console.error('Export failed:', error);
-            alert('Failed to export design. Please try again.');
+            toast?.error?.('Failed to export design. Please try again.');
         }
     };
 
@@ -855,70 +393,41 @@ export default function Generate() {
             URL.revokeObjectURL(url);
         } catch (error) {
             console.error('AR export failed:', error);
-            alert('Failed to export AR asset. Please try again.');
+            toast?.error?.('Failed to export AR asset. Please try again.');
         }
-    };
-
-    const handleBlendModeChange = (layerId, blendMode) => {
-        updateBlendMode(layerId, blendMode);
     };
 
     const handleLoadVersion = (versionId) => {
         const version = loadVersion(versionId);
         if (!version) return;
-
         replaceLayers(version.layers || []);
-        if (version.prompt !== undefined) setPromptText(version.prompt || '');
-        if (version.enhancedPrompt !== undefined) setEnhancedPrompt(version.enhancedPrompt || null);
-        if (version.parameters?.bodyPart) setBodyPart(version.parameters.bodyPart);
         if (version.parameters?.size) setSize(version.parameters.size);
         if (version.parameters?.aiModel) setAiModel(version.parameters.aiModel);
         if (version.parameters?.negativePrompt !== undefined) {
             setNegativePrompt(version.parameters.negativePrompt || '');
         }
         if (version.parameters?.enhancementLevel) setEnhancementLevel(version.parameters.enhancementLevel);
-        if (Array.isArray(version.parameters?.vibeChips)) {
-            setSelectedChips(version.parameters.vibeChips);
-        }
     };
 
     const handleBranchVersion = (versionId) => {
         const branch = versionService.branchFromVersion(sessionId, versionId);
         if (!branch) return;
-
         sessionStorage.setItem('tattester_session_id', branch.sessionId);
         setSessionId(branch.sessionId);
         replaceLayers(branch.version.layers || []);
-        if (branch.version.prompt !== undefined) setPromptText(branch.version.prompt || '');
-        if (branch.version.enhancedPrompt !== undefined) setEnhancedPrompt(branch.version.enhancedPrompt || null);
-        if (branch.version.parameters?.bodyPart) setBodyPart(branch.version.parameters.bodyPart);
-        if (branch.version.parameters?.size) setSize(branch.version.parameters.size);
-        if (branch.version.parameters?.aiModel) setAiModel(branch.version.parameters.aiModel);
-        if (branch.version.parameters?.negativePrompt !== undefined) {
-            setNegativePrompt(branch.version.parameters.negativePrompt || '');
-        }
-        if (branch.version.parameters?.enhancementLevel) setEnhancementLevel(branch.version.parameters.enhancementLevel);
-        if (Array.isArray(branch.version.parameters?.vibeChips)) {
-            setSelectedChips(branch.version.parameters.vibeChips);
-        }
     };
 
     const handleCompareVersions = ({ first, second }) => {
         const compare = versionService.compareVersions(sessionId, first, second);
         if (compare) {
-            setComparison({
-                versionA: compare.version1,
-                versionB: compare.version2
-            });
+            setComparison({ versionA: compare.version1, versionB: compare.version2 });
         }
     };
 
     const handleMergeVersions = (versionA, versionB) => {
-        // Get layer indices for all layers from both versions
         const layersFromVersion1 = (versionA.layers || []).map((_, idx) => idx);
         const layersFromVersion2 = (versionB.layers || []).map((_, idx) => idx);
 
-        // Merge versions
         const merged = versionService.mergeVersions(sessionId, versionA.id, versionB.id, {
             layersFromVersion1,
             layersFromVersion2,
@@ -927,9 +436,8 @@ export default function Generate() {
         });
 
         if (merged) {
-            // Load the merged version
             replaceLayers(merged.layers || []);
-            setComparison(null); // Close comparison modal
+            setComparison(null);
             toast?.success?.(`Merged v${versionA.versionNumber} and v${versionB.versionNumber} into new version`);
         }
     };
@@ -937,8 +445,7 @@ export default function Generate() {
     const handleRestyle = async () => {
         if (!restyleLayerId || !restyleStyle.trim()) return;
 
-        const promptBase = enhancedPrompt || promptText;
-        const restylePrompt = [promptBase, restyleStyle].filter(Boolean).join(', ');
+        const restylePrompt = [promptText, restyleStyle].filter(Boolean).join(', ');
 
         try {
             const response = await generateHighRes({
@@ -953,8 +460,6 @@ export default function Generate() {
             });
 
             if (response?.images?.length > 0) {
-                // For restyle, always use the first image to replace the target layer
-                // Multi-layer output from restyle would be confusing UX
                 updateImage(restyleLayerId, response.images[0]);
                 const nextLayers = layers.map(layer =>
                     layer.id === restyleLayerId ? { ...layer, imageUrl: response.images[0] } : layer
@@ -966,7 +471,7 @@ export default function Generate() {
                 }));
             }
         } catch (error) {
-            console.error('[Generate] Restyle failed:', error);
+            console.error('[Studio] Restyle failed:', error);
         } finally {
             setRestyleLayerId(null);
             setRestyleStyle('');
@@ -991,24 +496,16 @@ export default function Generate() {
             if (response?.images?.length > 0) {
                 let createdLayers = [];
 
-                // Check if multi-layer processing is needed
                 if (shouldUseMultiLayer(response)) {
-                    console.log('[Generate] Adding element with multi-layer processing');
-
-                    // Process into layer specs, but override all types to match user selection
                     const layerSpecs = await processGenerationResult(response, {
                         separateAlpha: separateRGBA,
                         autoDetectAlpha: true
                     });
-
-                    // Override layer types with user-selected element type
                     layerSpecs.forEach(spec => {
                         spec.type = elementType;
                     });
-
                     createdLayers = await addMultipleLayers(layerSpecs, addLayer);
                 } else {
-                    // Single layer
                     const newLayer = await addLayer(response.images[0], elementType);
                     createdLayers = [newLayer];
                 }
@@ -1021,7 +518,7 @@ export default function Generate() {
                 }));
             }
         } catch (error) {
-            console.error('[Generate] Add element failed:', error);
+            console.error('[Studio] Add element failed:', error);
         } finally {
             setShowElementModal(false);
             setElementPrompt('');
@@ -1035,10 +532,7 @@ export default function Generate() {
         const nextLayers = layers.map(layer =>
             layer.id === selectedLayerId ? { ...layer, imageUrl } : layer
         );
-        addVersion(buildVersionPayload({
-            layers: nextLayers,
-            imageUrl
-        }));
+        addVersion(buildVersionPayload({ layers: nextLayers, imageUrl }));
         setShowInpainting(false);
     };
 
@@ -1048,16 +542,11 @@ export default function Generate() {
         const nextLayers = layers.map(layer =>
             layer.id === selectedLayerId ? { ...layer, imageUrl } : layer
         );
-        addVersion(buildVersionPayload({
-            layers: nextLayers,
-            imageUrl,
-            mode: 'cleanup'
-        }));
+        addVersion(buildVersionPayload({ layers: nextLayers, imageUrl, mode: 'cleanup' }));
         setShowCleanup(false);
         toast?.success?.('Layer cleaned up successfully');
     };
 
-    // Context menu handlers
     const handleLayerContextMenu = (layer, x, y) => {
         setContextMenu({ layer, x, y });
     };
@@ -1065,10 +554,7 @@ export default function Generate() {
     const handleDuplicateLayer = async (layer) => {
         const newLayer = await addLayer(layer.imageUrl, layer.type);
         const nextLayers = [...layers, newLayer];
-        addVersion(buildVersionPayload({
-            layers: nextLayers,
-            imageUrl: newLayer.imageUrl
-        }));
+        addVersion(buildVersionPayload({ layers: nextLayers, imageUrl: newLayer.imageUrl }));
         toast?.success?.(`Duplicated layer: ${layer.name}`);
     };
 
@@ -1095,124 +581,73 @@ export default function Generate() {
                     imageUrl: response.images[0],
                     mode: 'regenerate'
                 }));
-
                 setRegenerateModal(null);
                 toast?.success?.('Element regenerated successfully');
             }
         } catch (error) {
-            console.error('[Generate] Regenerate failed:', error);
+            console.error('[Studio] Regenerate failed:', error);
             toast?.error?.('Failed to regenerate element');
         }
     };
 
-    return (
-        // Texture (halftone + grain) and the black base come from StudioShell —
-        // painting them again here doubled the overlays.
-        <div className="min-h-screen pt-8 px-6 md:px-12 pb-24 text-white font-body">
-            {/* Header — compact power-room banner; the tools stay above the fold */}
-            <div className="max-w-[1560px] mx-auto mb-10" role="banner">
-                <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-                    <div>
-                        <h1 className="rise rise-1 font-display text-white leading-[0.88] tracking-[0.005em] text-[48px] md:text-[80px]">
-                            THE&nbsp;<span className="slash"><span>STUDIO</span></span><span className="text-pink">.</span>
-                        </h1>
-                        <p className="rise rise-2 mt-4 text-[10px] font-body text-pink uppercase tracking-[0.3em]">
-                            <span className="text-pink">●</span>&nbsp;&nbsp;Multi-layer editor&nbsp;—&nbsp;placement, layers, stencils
-                        </p>
-                    </div>
-                    <div className="rise rise-3 flex items-center gap-3 pb-1">
-                        <button
-                            onClick={() => {
-                                setGuideStepIndex(0);
-                                setShowGuide(true);
-                            }}
-                            className="press border hairline-white px-4 py-2 text-[10px] font-body uppercase tracking-[0.25em] text-white/70 hover:text-black hover:bg-pink hover:border-pink"
-                        >
-                            Guided Tour
-                        </button>
-                        <span className="text-[10px] font-body uppercase tracking-[0.28em] text-white/30">
-                            Learn the flow in 60 seconds
-                        </span>
-                    </div>
+    // ---- Render -----------------------------------------------------------
+
+    // Entered cold: say so and point back at the one door, rather than
+    // pretending the refinery has something on the bench.
+    if (!refineImageUrl) {
+        return (
+            <div className="min-h-screen pt-8 px-6 md:px-12 pb-24 text-white font-body">
+                <div className="max-w-xl mx-auto space-y-6">
+                    <h1 className="font-display text-[40px] md:text-[64px] leading-[0.9] uppercase">
+                        the&nbsp;<span className="slash"><span>studio</span></span><span className="text-pink">.</span>
+                    </h1>
+                    <p data-testid="studio-empty" className="text-[15px] text-white/70 leading-[1.55]">
+                        {NO_DESIGN_LINE}
+                    </p>
+                    <Link
+                        href="/design"
+                        className="press inline-flex min-h-[44px] items-center justify-center px-6 bg-pink text-black font-display uppercase text-[14px] tracking-[0.2em]"
+                    >
+                        start a design
+                    </Link>
                 </div>
+                <ToastContainer toasts={toasts} removeToast={removeToast} />
             </div>
+        );
+    }
 
-            <div className="max-w-[1560px] mx-auto space-y-10" role="main">
-                <section
-                    id="forge-trending"
-                    className="border-2 hairline bg-black p-6"
-                    aria-label="Trending design examples"
-                >
-                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-                        <div>
-                            <p className="text-[10px] font-body uppercase tracking-[0.3em] text-pink">
-                                <span className="text-pink">●</span>&nbsp;&nbsp;Trending Now
-                            </p>
-                            <h2 className="text-[28px] md:text-[36px] font-display tracking-wide text-white mt-2 uppercase leading-none">
-                                Inspiration library
-                            </h2>
-                            <p className="text-[13px] text-white/60 mt-3 max-w-xl font-body leading-[1.55]">
-                                Start from a curated concept or burn a blank canvas.
-                            </p>
-                        </div>
-                        <Button
-                            variant="primary"
-                            size="lg"
-                            onClick={handleStartFromScratch}
-                            disabled={isLoadingExample}
-                            aria-label="Start a new design from scratch"
-                        >
-                            Start from Scratch
-                        </Button>
-                    </div>
+    return (
+        // Texture (halftone + grain) and the black base come from StudioShell.
+        <div className="min-h-screen pt-8 px-4 sm:px-6 md:px-12 pb-24 text-white font-body">
+            <div className="max-w-[1560px] mx-auto space-y-8">
+                <header role="banner">
+                    <h1 className="rise rise-1 font-display text-white leading-[0.88] tracking-[0.005em] text-[40px] md:text-[72px]">
+                        THE&nbsp;<span className="slash"><span>STUDIO</span></span><span className="text-pink">.</span>
+                    </h1>
+                    <p className="rise rise-2 mt-3 text-[10px] font-body text-pink uppercase tracking-[0.3em]">
+                        <span className="text-pink">●</span>&nbsp;&nbsp;the last ten percent
+                    </p>
+                </header>
 
-                    <div className="mt-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                        {TRENDING_EXAMPLES.map((example) => (
-                            <button
-                                key={example.id}
-                                onClick={() => handleLoadExample(example)}
-                                className="press group text-left border hairline-white bg-black hover:border-pink transition-colors overflow-hidden focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-pink"
-                                disabled={isLoadingExample}
-                            >
-                                <div className="relative h-36 overflow-hidden">
-                                    <img
-                                        src={example.layers[0]?.imageUrl}
-                                        alt={example.title}
-                                        className="w-full h-full object-cover"
-                                    />
-                                    <span className="absolute bottom-3 left-3 text-[10px] font-body uppercase tracking-[0.25em] text-white bg-black/70 px-2 py-1">
-                                        {example.bodyPart}
-                                    </span>
-                                </div>
-                                <div className="p-4 space-y-2 border-t hairline-white">
-                                    <h3 className="text-[18px] font-display tracking-wide uppercase text-white group-hover:text-pink">{example.title}</h3>
-                                    <p className="text-[11px] text-white/60 font-body">{example.description}</p>
-                                </div>
-                            </button>
-                        ))}
-                    </div>
-                </section>
+                {/* Gear 1 — the default surface. */}
+                <PointAndSay
+                    imageUrl={refineImageUrl}
+                    refinement={refinement}
+                    seed={toolSeed}
+                />
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Gear 2 — one tap deeper, never crowding gear 1. */}
+                <PlainToolsRow
+                    onSeed={setToolSeed}
+                    onUndo={undo}
+                    canUndo={historyPastCount > 0}
+                    disabled={refinement.status === 'working'}
+                />
 
-                    {/* Left Sidebar - Body Part Selector */}
-                    <div className="lg:col-span-3 xl:col-span-3 2xl:col-span-2">
-                        <div
-                            id="forge-placement"
-                            className="bg-black border-2 hairline p-4 sticky top-24"
-                        >
-                            <BodyPartSelector
-                                selectedBodyPart={bodyPart}
-                                onSelect={handleBodyPartChange}
-                                disabled={false}
-                            />
-                        </div>
-                    </div>
-
-                    {/* Center - Canvas */}
-                    <div className="lg:col-span-9 xl:col-span-9 2xl:col-span-7">
-                        <div className="space-y-6">
-                            {/* Canvas */}
+                {/* Gear 3 — the full bench, behind its explicit door. */}
+                <FullBench>
+                    <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+                        <div className="xl:col-span-8 space-y-6">
                             <div className="bg-black border-2 hairline p-6">
                                 <div className="relative group">
                                     <ForgeCanvas
@@ -1223,20 +658,8 @@ export default function Generate() {
                                         onUpdateTransform={updateTransform}
                                     />
 
-                                    {showPreview && (
-                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                            <img
-                                                src={previewImage}
-                                                alt="Preview"
-                                                className="w-full h-full object-contain opacity-80"
-                                            />
-                                            <div className="absolute top-3 left-3 px-3 py-1 bg-pink text-black text-[10px] font-body uppercase tracking-[0.25em]">
-                                                Preview
-                                            </div>
-                                        </div>
-                                    )}
-
                                     {stencilView && stencilPreview && (
+                                        // eslint-disable-next-line @next/next/no-img-element
                                         <img
                                             src={stencilPreview}
                                             alt="Stencil preview"
@@ -1244,7 +667,6 @@ export default function Generate() {
                                         />
                                     )}
 
-                                    {/* Transform Controls Toolbar */}
                                     {selectedLayerId && (
                                         <div className="absolute top-4 left-1/2 -translate-x-1/2">
                                             <TransformControls
@@ -1279,47 +701,45 @@ export default function Generate() {
                                     >
                                         Export Stencil
                                     </Button>
-                                    <div className="flex items-center gap-2">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={undo}
-                                            disabled={historyPastCount === 0}
-                                            aria-label="Undo"
-                                        >
-                                            Undo
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={redo}
-                                            disabled={historyFutureCount === 0}
-                                            aria-label="Redo"
-                                        >
-                                            Redo
-                                        </Button>
-                                        <span className="text-[10px] font-body uppercase tracking-[0.2em] text-white/60 tabular-nums">
-                                            {historyPastCount} changes
-                                        </span>
-                                        <button
-                                            type="button"
-                                            onClick={clearHistory}
-                                            disabled={historyPastCount === 0 && historyFutureCount === 0}
-                                            className="text-[10px] font-body uppercase tracking-[0.2em] text-white/40 hover:text-pink disabled:opacity-40"
-                                        >
-                                            Clear History
-                                        </button>
-                                    </div>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={undo}
+                                        disabled={historyPastCount === 0}
+                                        aria-label="Undo"
+                                    >
+                                        Undo
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={redo}
+                                        disabled={historyFutureCount === 0}
+                                        aria-label="Redo"
+                                    >
+                                        Redo
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleExportARAsset}
+                                        aria-label="Export AR asset"
+                                    >
+                                        AR Asset
+                                    </Button>
+                                    <button
+                                        type="button"
+                                        onClick={clearHistory}
+                                        disabled={historyPastCount === 0 && historyFutureCount === 0}
+                                        className="text-[10px] font-body uppercase tracking-[0.2em] text-white/40 hover:text-pink disabled:opacity-40"
+                                    >
+                                        Clear History
+                                    </button>
                                     {isStencilProcessing && (
                                         <span className="text-[10px] text-pink font-body uppercase tracking-[0.25em]">Generating stencil...</span>
                                     )}
                                     {stencilError && (
                                         <span className="text-[10px] text-pink font-body uppercase tracking-[0.25em]">{stencilError}</span>
-                                    )}
-                                    {isPreviewing && (
-                                        <span className="text-[10px] text-white/50 font-body uppercase tracking-[0.25em]">
-                                            Updating preview...
-                                        </span>
                                     )}
                                 </div>
 
@@ -1335,7 +755,7 @@ export default function Generate() {
                                             <div className="mt-3">
                                                 <BlendModeSelector
                                                     value={selectedLayer.blendMode}
-                                                    onChange={(value) => handleBlendModeChange(selectedLayer.id, value)}
+                                                    onChange={(value) => updateBlendMode(selectedLayer.id, value)}
                                                 />
                                             </div>
                                         </div>
@@ -1385,78 +805,10 @@ export default function Generate() {
                                         </div>
                                     </div>
                                 )}
-                            </div>
-
-                            {/* Prompt Interface */}
-                            <div id="forge-prompt" className="bg-black border-2 hairline p-8">
-                                <div className="mb-6">
-                                    <div className="flex items-center justify-between text-[10px] font-body uppercase tracking-[0.28em] text-white/50">
-                                        <span><span className="text-pink">01</span> Placement</span>
-                                        <span><span className="text-pink">02</span> Prompt</span>
-                                        <span><span className="text-pink">03</span> Generate</span>
-                                    </div>
-                                    <div className="mt-3 h-1.5 bg-white/10 overflow-hidden">
-                                        <div
-                                            className="h-full bg-pink transition-all duration-200"
-                                            style={{
-                                                width: `${Math.round(([
-                                                    bodyPart ? 1 : 0,
-                                                    promptText.trim() || enhancedPrompt?.trim() ? 1 : 0,
-                                                    layers.length > 0 ? 1 : 0
-                                                ].reduce((sum, value) => sum + value, 0) / 3) * 100)}%`
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-                                <PromptInterface
-                                    value={promptText}
-                                    onChange={setPromptText}
-                                    selectedChips={selectedChips}
-                                />
-
-                                <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-                                    <Button
-                                        variant="outline"
-                                        size="lg"
-                                        onClick={handleEnhance}
-                                        disabled={isEnhancing || !promptText.trim()}
-                                        icon={Sparkles}
-                                    >
-                                        Enhance with AI Council
-                                    </Button>
-                                    <button
-                                        onClick={() => setShowAdvanced(!showAdvanced)}
-                                        className="press border hairline-white px-4 py-2 text-[10px] font-body uppercase tracking-[0.25em] text-white/70 hover:text-black hover:bg-pink hover:border-pink"
-                                    >
-                                        Tattoo Fine-Tuning
-                                    </button>
-                                </div>
-
-                                <PunkToggle
-                                    id="council-auto-toggle"
-                                    label="Always Use AI Council"
-                                    description={
-                                        councilEnabled
-                                            ? 'On: every Refine/Finalize enhances your prompt first.'
-                                            : isPromptVague(promptText)
-                                                ? 'Off, but your prompt looks short — Council will auto-run once.'
-                                                : 'Off: Council only runs when you tap Enhance (saves cost/latency).'
-                                    }
-                                    checked={councilEnabled}
-                                    onChange={setCouncilEnabled}
-                                />
-
-                                <VibeChips
-                                    suggestions={suggestions}
-                                    selectedChips={selectedChips}
-                                    onChipSelect={handleChipSelect}
-                                    isLoading={isSuggestionsLoading}
-                                />
 
                                 <AdvancedOptions
                                     isExpanded={showAdvanced}
                                     onToggle={() => setShowAdvanced(!showAdvanced)}
-                                    hideToggle
                                     size={size}
                                     onSizeChange={setSize}
                                     aiModel={aiModel}
@@ -1468,157 +820,19 @@ export default function Generate() {
                                     separateRGBA={separateRGBA}
                                     onSeparateRGBAChange={setSeparateRGBA}
                                 />
-
-                                {enhancedPrompt && (
-                                    <div className="mt-6 p-6 bg-black border-2 border-pink">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <h4 className="text-[12px] font-display tracking-[0.22em] text-pink uppercase">
-                                                <span className="text-pink">●</span>&nbsp;&nbsp;Council Enhanced ({enhancementLevel})
-                                            </h4>
-                                            <button
-                                                onClick={() => setEnhancedPrompt(null)}
-                                                className="text-[10px] font-body uppercase tracking-[0.22em] text-white/50 hover:text-pink"
-                                            >
-                                                Clear
-                                            </button>
-                                        </div>
-                                        <p className="text-[13px] text-white/80 leading-[1.55] font-body">
-                                            {enhancedPrompt}
-                                        </p>
-                                    </div>
-                                )}
-
-                                {(enhancedPrompt || promptText.trim()) && (
-                                    <div id="forge-actions" className="mt-6 space-y-3">
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <Button
-                                                variant="outline"
-                                                size="lg"
-                                                onClick={() => handleGenerate(false)}
-                                                disabled={isGenerating}
-                                                icon={Layers}
-                                                className="h-16 text-base"
-                                            >
-                                                REFINE
-                                            </Button>
-                                            <Button
-                                                variant="primary"
-                                                size="lg"
-                                                onClick={() => handleGenerate(true)}
-                                                disabled={isGenerating}
-                                                icon={CheckCircle}
-                                                className="h-16 text-base"
-                                            >
-                                                FINALIZE
-                                            </Button>
-                                        </div>
-                                        <p className="text-[10px] text-white/40 font-body uppercase tracking-[0.2em] text-center">
-                                            Refine: Quick iteration (50 steps) <span className="text-pink">●</span> Finalize: Max quality (60+ steps, 300 DPI)
-                                        </p>
-                                        {isGenerating && (
-                                            <div
-                                                className="mt-4 space-y-3 border hairline-white p-4"
-                                            >
-                                                <div className="flex items-center justify-between text-[10px] text-white/70 font-body uppercase tracking-[0.22em] tabular-nums">
-                                                    <span role="status" aria-live="polite" aria-atomic="true">
-                                                        <span className="text-pink">●</span>&nbsp;&nbsp;
-                                                        {progress?.phase === 'preparing'
-                                                            ? 'Preparing your design'
-                                                            : progress?.phase === 'finishing'
-                                                                ? 'Finishing the details'
-                                                                : 'Drawing your design'}
-                                                    </span>
-                                                    <span aria-hidden="true">
-                                                        {progress?.etaSeconds !== null
-                                                            ? `About ${progress.etaSeconds}s`
-                                                            : 'Almost there'}
-                                                    </span>
-                                                </div>
-                                                <div
-                                                    className="h-1.5 bg-white/10 overflow-hidden"
-                                                    role="progressbar"
-                                                    aria-label="Tattoo generation progress"
-                                                    aria-valuemin={0}
-                                                    aria-valuemax={100}
-                                                    aria-valuenow={Math.round((progress?.percent || 0) * 100)}
-                                                >
-                                                    <div
-                                                        className="h-full bg-pink transition-all"
-                                                        style={{ width: `${Math.round((progress?.percent || 0) * 100)}%` }}
-                                                    />
-                                                </div>
-                                                {queueLength > 0 && (
-                                                    <div className="text-[10px] text-white/40 font-body uppercase tracking-[0.22em]">
-                                                        Queue: {queueLength} request{queueLength > 1 ? 's' : ''} waiting
-                                                    </div>
-                                                )}
-                                                <div className="flex items-center justify-between gap-4">
-                                                    <p className="text-[10px] normal-case text-white/50 font-body leading-relaxed">
-                                                        You can stay on this page—your prompt and fine-tuning choices are saved.
-                                                        Complex designs can take a little longer than the estimate. Stopping
-                                                        here only stops waiting; it cannot recall a render already sent.
-                                                    </p>
-                                                    <button
-                                                        type="button"
-                                                        onClick={cancelCurrent}
-                                                        className="shrink-0 text-[10px] font-body uppercase tracking-[0.2em] text-white/60 underline underline-offset-4 hover:text-pink"
-                                                    >
-                                                        Stop waiting
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
-                                        {generationError && generationErrorDetails && (
-                                            <div
-                                                className="mt-4 p-4 border-2 border-pink bg-black font-body"
-                                                role="alert"
-                                            >
-                                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                                                    <div>
-                                                        <p className="text-[12px] text-pink uppercase tracking-[0.18em]">
-                                                            {generationErrorDetails.title}
-                                                        </p>
-                                                        <p className="mt-2 text-[11px] text-white/70 leading-relaxed">
-                                                            {generationErrorDetails.message} {generationErrorDetails.guidance}
-                                                        </p>
-                                                    </div>
-                                                    {canRetry && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={retryLastFailed}
-                                                            className="press shrink-0 px-4 py-2 bg-pink text-black text-[10px] font-body uppercase tracking-[0.22em]"
-                                                        >
-                                                            Retry same design
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
-                                        {previewError && (
-                                            <div className="mt-4 text-[10px] text-pink font-body uppercase tracking-[0.22em] text-center">
-                                                Preview failed. Adjust your prompt and try again.
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
                             </div>
 
-                            <div id="forge-review">
-                                <VersionTimeline
-                                    versions={timeline}
-                                    currentVersionId={currentVersionId}
-                                    onLoadVersion={handleLoadVersion}
-                                    onBranchVersion={handleBranchVersion}
-                                    onCompareVersions={handleCompareVersions}
-                                    onDeleteVersion={removeVersion}
-                                />
-                            </div>
+                            <VersionTimeline
+                                versions={timeline}
+                                currentVersionId={currentVersionId}
+                                onLoadVersion={handleLoadVersion}
+                                onBranchVersion={handleBranchVersion}
+                                onCompareVersions={handleCompareVersions}
+                                onDeleteVersion={removeVersion}
+                            />
                         </div>
-                    </div>
 
-                    {/* Right Sidebar - Match Pulse + Layer Stack */}
-                    <div className="lg:col-span-12 xl:col-span-12 2xl:col-span-3">
-                        <div className="space-y-6 2xl:sticky 2xl:top-24">
+                        <div className="xl:col-span-4 space-y-6">
                             <MatchPulseSidebar
                                 matches={matches}
                                 totalMatches={totalMatches}
@@ -1627,7 +841,7 @@ export default function Generate() {
                                 context={matchContext}
                             />
 
-                            <div className="bg-black border-2 hairline h-[360px] md:h-[calc(100vh-28rem)]">
+                            <div className="bg-black border-2 hairline h-[360px]">
                                 <LayerStack
                                     layers={layers}
                                     selectedLayerId={selectedLayerId}
@@ -1646,17 +860,8 @@ export default function Generate() {
                             </div>
                         </div>
                     </div>
-                </div>
+                </FullBench>
             </div>
-
-            {/* Warning Modal */}
-            <BodyPartWarningModal
-                isOpen={showWarning}
-                currentBodyPart={bodyPart}
-                newBodyPart={pendingBodyPart || DEFAULT_BODY_PART}
-                onCancel={handleCancelBodyPartChange}
-                onConfirm={handleConfirmBodyPartChange}
-            />
 
             {showStencilExport && stencilSourceUrl && (
                 <div className="fixed inset-0 z-50 bg-black/80 halftone flex items-center justify-center p-4">
@@ -1785,7 +990,7 @@ export default function Generate() {
                                     className="mt-2 w-full bg-black border-2 hairline focus:border-pink px-4 py-3 text-[14px] text-white font-display tracking-tight focus:outline-none placeholder-white/30 transition-colors"
                                 />
                                 <p className="mt-2 text-[11px] text-white/60 font-body leading-[1.55]">
-                                    We&apos;ll regenerate the selected layer using the new style while keeping your core prompt.
+                                    We&apos;ll regenerate the selected layer using the new style while keeping the design&apos;s brief.
                                 </p>
                             </div>
                             <Button
@@ -1803,23 +1008,6 @@ export default function Generate() {
                 </div>
             )}
 
-            {showGuide && (
-                <ForgeGuide
-                    steps={guideSteps}
-                    stepIndex={guideStepIndex}
-                    onNext={() => {
-                        if (guideStepIndex >= guideSteps.length - 1) {
-                            handleGuideClose();
-                        } else {
-                            setGuideStepIndex((prev) => prev + 1);
-                        }
-                    }}
-                    onPrev={() => setGuideStepIndex((prev) => Math.max(0, prev - 1))}
-                    onClose={handleGuideClose}
-                    onJump={handleGuideJump}
-                />
-            )}
-
             {comparison && (
                 <VersionComparison
                     versionA={comparison.versionA}
@@ -1831,7 +1019,6 @@ export default function Generate() {
                 />
             )}
 
-            {/* Layer Context Menu */}
             {contextMenu && (
                 <LayerContextMenu
                     x={contextMenu.x}
@@ -1863,7 +1050,6 @@ export default function Generate() {
                 />
             )}
 
-            {/* Regenerate Element Modal */}
             {regenerateModal && (
                 <RegenerateElementModal
                     layer={regenerateModal}
@@ -1874,13 +1060,11 @@ export default function Generate() {
                 />
             )}
 
-            {/* Keyboard Shortcuts Modal */}
             <KeyboardShortcutsModal
                 isOpen={keyboardShortcuts.isOpen}
                 onClose={keyboardShortcuts.close}
             />
 
-            {/* Toast Notifications */}
             <ToastContainer toasts={toasts} removeToast={removeToast} />
         </div>
     );
