@@ -93,13 +93,13 @@ by a scrape. Instagram is immutable after identity verification, and
 
 | Step | Implementation |
 |------|---------------|
-| Council enhancement | `src/services/council/internal/councilService.ts` |
-| Image generation | `src/services/generation/index.ts` |
-| Legacy generation + upload | `src/services/generation/internal/vertexImagen.ts` |
-| Multi-layer processing | `src/features/generate/services/multiLayerService.ts` |
+| Council enhancement | `src/services/councilService.ts` |
+| Image generation | `src/services/generationService.ts` |
+| Legacy generation + upload | `src/lib/vertex-imagen-client.ts` |
+| Multi-layer processing | `src/services/multiLayerService.js` |
 | Canvas layer management | `src/services/canvasService.ts` |
 | Layer management hook | `src/features/generate/hooks/useLayerManagement.ts` |
-| Generation hook | `src/features/generate/hooks/useImageGeneration.ts` |
+| Generation hook | `src/features/generate/hooks/useImageGeneration.js` |
 | API: v1 generate | `src/app/api/v1/generate/route.ts` |
 | API: legacy generate | `src/app/api/generate/route.ts` |
 | GCP auth | `src/lib/google-auth-edge.ts` |
@@ -108,7 +108,7 @@ by a scrape. Instagram is immutable after identity verification, and
 
 | Step | Implementation |
 |------|---------------|
-| Council service | `src/services/council/internal/councilService.ts` |
+| Council service | `src/services/councilService.ts` |
 | Character database | `src/config/characterDatabase.js` |
 | Council skill pack | `src/config/councilSkillPack.js` |
 | Style-model mapping | `src/utils/styleModelMapping.js` |
@@ -122,15 +122,15 @@ by a scrape. Instagram is immutable after identity verification, and
 |------|---------------|
 | Hybrid match service | `src/features/match-pulse/services/hybridMatchService.ts` |
 | Embedding service | `src/services/embeddingService.ts` |
-| Vector DB service | `src/services/vectorDbService.ts` |
+| Vector DB service | `src/services/vectorDbService.js` |
 | Neo4j service | `src/features/match-pulse/services/neo4jService.ts` |
 | Score aggregation | `src/utils/scoreAggregation.js` |
-| Firebase match service | `src/services/firebase-match-service.ts` |
+| Firebase match service | `src/services/firebase-match-service.js` |
 | Match service (legacy) | `src/features/match-pulse/services/matchService.js` |
 | Demo match service | `src/features/match-pulse/services/demoMatchService.js` |
 | Match update service | `src/features/match-pulse/services/matchUpdateService.js` |
-| Real-time hook | `src/features/match-pulse/hooks/useRealtimeMatchPulse.ts` |
-| Artist matching hook | `src/features/match-pulse/hooks/useArtistMatching.ts` |
+| Real-time hook | `src/features/match-pulse/hooks/useRealtimeMatchPulse.js` |
+| Artist matching hook | `src/features/match-pulse/hooks/useArtistMatching.js` |
 | MatchPulse UI | `src/features/match-pulse/components/Match/MatchPulse.tsx` |
 | API: semantic match | `src/app/api/v1/match/semantic/route.ts` |
 | API: match update | `src/app/api/v1/match/update/route.ts` |
@@ -177,7 +177,7 @@ and anatomical-mapping modules and `/api/v1/ar/visualize` were removed — see
 
 | Step | Implementation |
 |------|---------------|
-| Multi-layer service | `src/features/generate/services/multiLayerService.ts` |
+| Multi-layer service | `src/services/multiLayerService.js` |
 | Canvas service | `src/services/canvasService.ts` |
 | Image registry | `src/services/forgeImageRegistry.ts` |
 | Image load manager | `src/services/imageLoadManager.ts` |
@@ -220,7 +220,7 @@ Removal semantics and identity-proof decisions: `docs/adr/0025-artist-takedown-s
 | UI: request form | `src/app/takedown/[artistId]/page.tsx` |
 | Read-path suppression | `src/lib/artists-graph.ts`, `src/features/match-pulse/services/neo4jService.ts`, `src/app/api/v1/book/route.ts`, `src/app/api/v1/connect/claim/route.ts` |
 | Homepage featured grid (curated candidates, suppression-checked, fails closed) | `src/lib/featured-artists.ts` |
-| Published v1.0 disclosure of the scrape and removal right (engineering notes are not legal advice) | `src/app/legal/privacy/page.tsx` §4, `docs/legal/artist-data-counsel-notes.md` |
+| Public disclosure of the scrape and the removal right (**draft, needs counsel**) | `src/app/legal/privacy/page.tsx` §4, `docs/legal/artist-data-counsel-notes.md` |
 | **Scripts** | |
 | Execute a takedown (dry-run by default) | `scripts/execute-takedown.mjs` |
 | Planner / executor | `scripts/lib/takedown-plan.mjs` |

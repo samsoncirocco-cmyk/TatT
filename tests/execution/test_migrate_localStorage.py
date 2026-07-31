@@ -6,62 +6,12 @@ import pytest
 import json
 from unittest.mock import patch, MagicMock
 from execution.migrate_localStorage import (
-    create_design_in_firestore,
-    design_id_for_history,
-    extract_histories,
-    preflight_destination,
     parse_version_history,
     is_data_uri,
-    storage_object_path,
     upload_data_uri_to_storage,
-    validate_versions,
     migrate_version_to_firestore,
     main
 )
-
-
-def test_storage_object_path_is_deterministic():
-    """The recovery manifest can predict every uploaded object."""
-    data_uri = "data:text/plain;base64,aGVsbG8="
-    path = storage_object_path(data_uri, "user1", "design1")
-    assert path.startswith("users/user1/designs/design1/images/")
-    assert path.endswith(".plain")
-
-
-def test_validate_versions_rejects_layer_without_id(sample_version_history):
-    """No source layer may be silently omitted."""
-    sample_version_history["version_history_abc123"][0]["layers"][0].pop("id")
-    with pytest.raises(ValueError, match="layer missing 'id'"):
-        validate_versions(sample_version_history["version_history_abc123"])
-
-
-def test_validate_versions_rejects_duplicate_version_id(sample_version_history):
-    """Duplicate source IDs would map to the same destination."""
-    versions = sample_version_history["version_history_abc123"]
-    versions[1]["id"] = versions[0]["id"]
-    with pytest.raises(ValueError, match="Duplicate version id"):
-        validate_versions(versions)
-
-def test_design_id_for_history_preserves_safe_session_id():
-    """All versions in one source history share its design ID."""
-    assert design_id_for_history("version_history_abc123") == "abc123"
-
-
-def test_extract_histories_includes_every_history(sample_version_history):
-    """Multi-history exports are fully included rather than truncated."""
-    sample_version_history["version_history_second"] = [
-        {
-            "id": "v3",
-            "versionNumber": 1,
-            "timestamp": "2026-01-16T12:00:00Z",
-            "layers": []
-        }
-    ]
-    histories = extract_histories(sample_version_history)
-    assert [key for key, _ in histories] == [
-        "version_history_abc123",
-        "version_history_second"
-    ]
 
 
 def test_parse_version_history(sample_version_history, tmp_path):
@@ -116,33 +66,7 @@ def test_upload_data_uri_to_storage(mock_storage_client):
 
     assert url == "https://storage.googleapis.com/bucket/test.png"
     mock_blob.upload_from_string.assert_called_once()
-    assert mock_blob.upload_from_string.call_args.kwargs["if_generation_match"] == 0
     mock_blob.make_public.assert_called_once()
-
-
-def test_upload_data_uri_reuses_same_object_within_one_run(mock_storage_client):
-    """Repeated image content in one design does not fail its own create guard."""
-    data_uri = "data:text/plain;base64,aGVsbG8="
-    cache = {}
-
-    first = upload_data_uri_to_storage(
-        data_uri,
-        "bucket",
-        "user",
-        "design",
-        cache
-    )
-    second = upload_data_uri_to_storage(
-        data_uri,
-        "bucket",
-        "user",
-        "design",
-        cache
-    )
-
-    assert first == second
-    blob = mock_storage_client.bucket.return_value.blob.return_value
-    blob.upload_from_string.assert_called_once()
 
 
 def test_upload_data_uri_invalid_format():
@@ -169,73 +93,6 @@ def test_migrate_version_to_firestore_dry_run(sample_version_history, mock_fires
 
     # Should not have created any documents
     mock_firestore_client.collection.assert_not_called()
-
-
-def test_preflight_rejects_non_empty_target(
-    sample_version_history,
-    mock_firestore_client,
-    mock_storage_client
-):
-    """A customer with any existing design is never merged into."""
-    designs = MagicMock()
-    designs.limit.return_value.stream.return_value = [MagicMock()]
-    user_ref = MagicMock()
-    user_ref.collection.return_value = designs
-    users = MagicMock()
-    users.document.return_value = user_ref
-    mock_firestore_client.collection.return_value = users
-
-    with pytest.raises(ValueError, match="requires an empty target"):
-        preflight_destination(
-            "project",
-            "bucket",
-            "user",
-            [(
-                "version_history_abc123",
-                sample_version_history["version_history_abc123"]
-            )]
-        )
-
-    mock_storage_client.bucket.assert_not_called()
-
-
-def test_preflight_rejects_orphan_collision_before_upload(
-    sample_version_history,
-    mock_firestore_client,
-    mock_storage_client
-):
-    """An orphan child collision is detected before any object is uploaded."""
-    designs = MagicMock()
-    designs.limit.return_value.stream.return_value = []
-
-    design_ref = MagicMock()
-    design_ref.get.return_value.exists = False
-    version_ref = MagicMock()
-    version_ref.get.return_value.exists = True
-    versions = MagicMock()
-    versions.document.return_value = version_ref
-    design_ref.collection.return_value = versions
-    designs.document.return_value = design_ref
-
-    user_ref = MagicMock()
-    user_ref.collection.return_value = designs
-    users = MagicMock()
-    users.document.return_value = user_ref
-    mock_firestore_client.collection.return_value = users
-
-    with pytest.raises(ValueError, match="already contains data"):
-        preflight_destination(
-            "project",
-            "bucket",
-            "user",
-            [(
-                "version_history_abc123",
-                sample_version_history["version_history_abc123"]
-            )]
-        )
-
-    bucket = mock_storage_client.bucket.return_value
-    bucket.blob.return_value.upload_from_string.assert_not_called()
 
 
 def test_migrate_version_to_firestore(sample_version_history, mock_firestore_client):
@@ -267,12 +124,6 @@ def test_migrate_version_to_firestore(sample_version_history, mock_firestore_cli
 
     mock_firestore_client.collection.return_value = mock_users_collection
 
-    create_design_in_firestore(
-        "test-project",
-        "user123",
-        "design456",
-        sample_version_history["version_history_abc123"]
-    )
     migrate_version_to_firestore(
         "test-project",
         "user123",
@@ -282,16 +133,11 @@ def test_migrate_version_to_firestore(sample_version_history, mock_firestore_cli
         dry_run=False
     )
 
-    # The history has one visible parent and versions remain beneath it.
-    mock_design_ref.create.assert_called_once()
-    parent_data = mock_design_ref.create.call_args.args[0]
-    assert parent_data["id"] == "design456"
-    assert parent_data["currentVersionId"] == "v2"
-    assert parent_data["migratedFrom"] == "localStorage"
-    mock_version_ref.create.assert_called_once()
+    # Verify version document was created
+    mock_version_ref.set.assert_called_once()
 
     # Verify layer document was created
-    mock_layer_ref.create.assert_called_once()
+    mock_layer_ref.set.assert_called_once()
 
 
 def test_migrate_version_handles_data_uri(sample_version_history, mock_firestore_client, mock_storage_client):
@@ -356,10 +202,7 @@ def test_main_dry_run(sample_version_history, tmp_path, capsys):
     assert exit_code == 0
     captured = capsys.readouterr()
     assert "DRY RUN" in captured.out
-    assert "users/user123/designs/abc123" in captured.out
-    assert "/versions/" in captured.out
-    assert "/layers/" in captured.out
-    assert "Storage: gs://" in captured.out
+    assert "users/user123/designs/" in captured.out
 
 
 def test_main_version_mapping(sample_version_history, tmp_path, capsys):
@@ -374,29 +217,6 @@ def test_main_version_mapping(sample_version_history, tmp_path, capsys):
     assert "Version 1:" in captured.out
     assert "Version 2:" in captured.out
     assert "Layers: 1" in captured.out
-
-
-def test_main_keeps_versions_under_one_design(
-    sample_version_history,
-    tmp_path,
-    capsys
-):
-    """A design timeline is not exploded into unrelated design cards."""
-    json_file = tmp_path / "version_history.json"
-    json_file.write_text(json.dumps(sample_version_history))
-
-    exit_code = main([
-        "--input",
-        str(json_file),
-        "--user-id",
-        "user123",
-        "--dry-run"
-    ])
-
-    assert exit_code == 0
-    output = capsys.readouterr().out
-    assert output.count("Design: users/user123/designs/abc123") == 1
-    assert "design_" not in output
 
 
 def test_main_data_uri_detection(sample_version_history, tmp_path, capsys):

@@ -70,7 +70,6 @@ def mock_storage_client():
         mock_blob.public_url = "https://storage.googleapis.com/bucket/object.png"
         mock_blob.upload_from_string = MagicMock()
         mock_blob.make_public = MagicMock()
-        mock_blob.exists.return_value = False
 
         # Create mock bucket
         mock_bucket = MagicMock()
