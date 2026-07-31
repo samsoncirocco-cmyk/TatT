@@ -307,6 +307,7 @@ is a separate, identity-checked self-signup.
 | SMS rendering + channel voice | `src/services/sketchbotSms/internal/render.ts` |
 | Twilio config, signature validation, sender | `src/lib/twilio.ts` |
 | Per-phone rate limit (`sms-inbound`) | `src/lib/rate-limit.ts` |
+| Channel diagnostics ("why didn't it reply?") | `scripts/diagnose-twilio-sms.mjs` |
 
 ### Reference-image vision (TAT-50)
 

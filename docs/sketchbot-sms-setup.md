@@ -85,6 +85,43 @@ inside the global `BUDGET_MAX_SPEND_CENTS` cap like all other spend.
 9. **Turn on**: set `SKETCHBOT_SMS_ENABLED=true` in Vercel and redeploy.
    Turn-off is the same flag — the webhook 404s again immediately.
 
+## Troubleshooting: "I texted the number and nothing came back"
+
+Every failure in this channel looks the same from a phone — the text sends,
+nothing returns — because the webhook fails closed and stays quiet by
+design. Run the diagnostics with the **deployment's** Twilio values rather
+than guessing:
+
+```bash
+node scripts/diagnose-twilio-sms.mjs [+1XXXXXXXXXX]
+```
+
+It is read-only, and it names the cause: flag off, credentials rejected, no
+inbound webhook configured, a webhook URL that doesn't match what the server
+validates against, an unregistered/pending A2P campaign, or a specific
+delivery error on the replies Twilio already tried to send.
+
+The three that actually bite, in order:
+
+1. **Webhook URL mismatch** — the signature is HMAC'd over the URL
+   byte-for-byte, so `https://www.tatttester.com/...` vs
+   `https://tatttester.com/...` (or a trailing slash) 403s *every* genuine
+   inbound. Twilio logs error 11200; the server logs
+   `twilio_webhook.signature_rejected` with the URL it validated against.
+   Note `useInboundWebhookOnNumber` on the Messaging Service — it decides
+   whether Twilio calls the *number's* webhook or the *service's*.
+2. **A2P 10DLC not approved** — inbound still arrives and the webhook still
+   replies, but US carriers block the outbound reply (**error 30034**). The
+   texter sees their message send and no answer, identical to a dead number.
+   Registration is the fix; approval can take a day.
+3. **The number isn't in the Messaging Service's sender pool** — the
+   campaign and opt-out settings then don't govern it.
+
+A verified inbound that fails *downstream* (store, engine, provider) is not
+silent: the route answers with an in-voice TwiML apology and logs
+`twilio_webhook.failed`. Silence therefore points at the list above — the
+request never reached the route, or never got past its gates.
+
 ## Delivery design notes
 
 - **Sequential MMS, not a collage**: Twilio allows up to 10 `MediaUrl`s per

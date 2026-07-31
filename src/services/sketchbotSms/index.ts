@@ -14,6 +14,7 @@ export {
   freeReveals,
 } from './internal/adapter';
 export { parseInboundMedia } from './internal/media';
+export { INTERNAL_ERROR_TEXT } from './internal/render';
 export type {
   InboundSms,
   InboundOutcome,
