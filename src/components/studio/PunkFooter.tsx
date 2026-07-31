@@ -5,8 +5,10 @@ const COLS = [
   {
     title: "Product",
     links: [
+      // The Studio is deliberately absent here too — see the note on
+      // StudioShell's NAV. The refinery is reached from a picked design,
+      // not from site chrome.
       { label: "Design Session", href: "/design" },
-      { label: "The Studio", href: "/studio" },
       { label: "Artists", href: "/artists" },
       { label: "Pricing", href: "/pricing" },
     ],

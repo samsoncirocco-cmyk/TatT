@@ -28,11 +28,14 @@ type StudioShellProps = {
 
 const NAV = [
   // "Design" is the one consumer design entry (ADR-0028): one input, talk
-  // or type — a complete prompt takes the fast lane. "Studio" is the
-  // refinery (ADR-0038): a separate room, entered from a picked design, so
-  // this entry lands on /studio's picker rather than an empty canvas.
+  // or type — a complete prompt takes the fast lane.
+  //
+  // The Studio is deliberately absent. A nav entry is a cold entry, and the
+  // refinery is entered from a picked design (ADR-0038) and is never part of
+  // the main journey (ADR-0017). "My Designs" is its door: every saved cut
+  // carries "Fix it in the Studio". /studio still answers bookmarks and
+  // direct URLs with its picker — it just isn't advertised here.
   { label: "Design", href: "/design" },
-  { label: "Studio", href: "/studio" },
   { label: "Artists", href: "/artists" },
   { label: "My Designs", href: "/designs" },
   { label: "Pricing", href: "/pricing" },
