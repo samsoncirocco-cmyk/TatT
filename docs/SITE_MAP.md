@@ -27,7 +27,8 @@ Every page below is judged by whether it moves someone along this line.
 | `/` | core funnel | Needs real example designs (TAT-36 condition) |
 | `/design` | **core funnel — the one door** | ADR-0028; all CTAs point here (TAT-34) |
 | `/generate/stencil` (Forge) | **redirects → `/design` fast lane** | Implemented in PR #214; preserves the prompt |
-| `/generate` (Studio) | keep — editing room | ADR-0017 stands; reachable from any picked design; facelift + path rename open (TAT-34, non-blocking) |
+| `/studio` (Studio) | keep — **the refinery** | ADR-0038; entered from a picked design (`?design=<id>`), never cold; renamed from `/generate` in TAT-54 |
+| `/generate` | **redirects → `/studio`** | Path rename ADR-0028 deferred; all query params forwarded |
 | `/journey` | **removed** | Legacy flow removed in PR #214 |
 | `/visualize` | core funnel | AR mirror = the conviction step between design and match |
 | `/designs`, `/designs/[id]` | keep | Consumer design library |
