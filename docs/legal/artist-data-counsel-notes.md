@@ -2,7 +2,7 @@
 
 **Status:** Engineering's notes on the draft privacy language. **Not legal advice.**
 **Accompanies:** section 4 of `src/app/legal/privacy/page.tsx` (published as a draft)
-**Date:** 2026-07-26 (numbers updated 2026-07-30, after the scrape reached its 50,000-record target)
+**Date:** 2026-07-26 (production counts refreshed 2026-07-30)
 
 This is a handover document. It records what the system actually does, which
 claims in the published draft depend on that, and the questions engineering
@@ -12,30 +12,28 @@ cannot answer. Someone qualified needs to go through it.
 
 | | |
 |---|---|
-| Artists discovered (raw scrape output, before cleanup) | 21,832 |
-| Artists after dedup/cleanup — the actual usable dataset | 17,847 |
-| Artists imported into Neo4j (the live app's data source) | 17,847 (all of them — 0 were skipped as claimed, removed, tombstoned, or under a pending takedown request, since none of those exist yet) |
-| Artists with at least one portfolio image URL attached | 7,444 (42% of 17,847) |
-| Total portfolio image URLs across those artists | 67,969 |
+| Artists in production Neo4j | 18,002 |
+| Artists with at least one portfolio image URL attached | 7,511 (42% of 18,002) |
+| Total portfolio image URLs across those artists | 68,532 |
+| External portfolio image URLs | 68,506 |
+| TatT GCS-hosted portfolio image URLs | 26, across 6 artists |
 | Artists who opted in | 0 |
 | Customers / onboarded artists | None. Pre-launch. |
 
-**Correction to the prior version of this table:** it described the photo count
-as "downloaded and re-hosted on TatT's own storage." That is not what the
-current scraper does. Read directly from the crawl code
-(`tatt-scraper/execution/scrape_artists.py`, `extract_images()`): portfolio
-image URLs are **hotlinks to each artist's or shop's own website** —
-`urljoin(base_url, src)` against whatever `<img>` tags the crawler finds on
-that site. Nothing is downloaded or copied to TatT infrastructure by this
-pipeline. That's a materially different exposure than re-hosting (unauthorized
-display without consent, not unauthorized copying), though not a risk-free
-one. The prior "~62,313 re-hosted photos" figure predates this pipeline
-entirely and its actual source hasn't been tracked down — treat it as
-unverified, not superseded, until someone finds where it came from.
+**Correction to the prior version of this table:** it described roughly 62,313
+photos as downloaded and re-hosted on TatT storage. A read-only query of the
+production graph on 2026-07-30 does not support that claim. The current crawl
+pipeline (`execution/scrape_artists.py`, `extract_images()`) records absolute
+source URLs from artist and shop websites. Separately,
+`scripts/host-artist-images.mjs` can download source images into TatT's public
+GCS bucket and write those hosted URLs back to Neo4j. Production currently
+contains 26 such GCS URLs across 6 artists; the remaining 68,506 portfolio URLs
+are external. Counsel should therefore treat both blanket claims — "about
+62,000 are re-hosted" and "none are re-hosted" — as false.
 
 What's unambiguous regardless of the photo question: the **artist/shop
 directory data itself** — names, bios, shop affiliations, ratings, Instagram
-handles/permalinks, contact info — for 17,847 people who never opted in is
+handles/permalinks, contact info — for 18,002 people who never opted in is
 scraped and live in the production Neo4j graph today.
 
 Sources were public: shop and studio websites, public artist directories, public
@@ -61,7 +59,7 @@ written from scratch for that reason.
 
 Engineering's reasoning, for counsel to overturn if wrong:
 
-- The collection and re-hosting are **already public**. The notice is what is
+- The collection, external display, and limited GCS hosting are **already public**. The notice is what is
   missing, not the processing.
 - Where personal data is obtained from someone other than the data subject,
   disclosure obligations are triggered by the processing, which has already
@@ -100,16 +98,18 @@ offer to delete it on request (with a stated consequence) is the correct balance
 
 1. **Should the collection have happened at all, and should it continue?** This
    PR and ADR 0025 build the exit door. Neither addresses whether an opt-out model
-   is defensible, or whether the ~62,000 re-hosted photographs should be deleted
-   proactively rather than on request. That is the biggest open question and it is
-   not an engineering one.
+   is defensible, whether the 26 GCS-hosted images should be deleted
+   proactively, or whether external portfolio images should continue to be
+   displayed without opt-in. That is the biggest open question and it is not an
+   engineering one.
 
 2. **Copyright is separate from privacy and is not addressed anywhere.** The
    photographs are almost certainly someone's copyrighted work — possibly the
-   artist's, possibly the studio's, possibly a client's. Re-hosting them is a
-   copyright question that the privacy policy does not touch and cannot fix. There
-   is no DMCA agent, no designated agent registration, and no notice-and-takedown
-   procedure framed as such.
+   artist's, possibly the studio's, possibly a client's. Both copying files into
+   GCS and displaying third-party-hosted files raise copyright questions that the
+   privacy policy does not touch and cannot fix. There is no DMCA agent, no
+   designated agent registration, and no notice-and-takedown procedure framed as
+   such.
 
 3. **Lawful basis.** If legitimate interests is the intended basis, a legitimate
    interests assessment should exist and does not. The draft deliberately states

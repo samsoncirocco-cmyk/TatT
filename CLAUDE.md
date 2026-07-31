@@ -24,20 +24,16 @@ incident framing. The useful question is *would this be wrong on day one*, not
 - **Spend.** Vertex, Replicate and OpenRouter calls cost real money against a
   real cap (`BUDGET_MAX_SPEND_CENTS`). An unmetered generation path is a genuine
   problem now, not at launch.
-- **Third-party data.** As of the 2026-07-30 scrape (target 50,000 combined
-  artists+shops, hit at 50,002): 21,832 artists discovered, 17,847 after
-  dedup/cleanup, all 17,847 imported into Neo4j. 7,444 of those have portfolio
-  images attached — 67,969 image URLs total. Correction to the prior note
-  here: the current scraper (`tatt-scraper/execution/scrape_scheduler.py`)
-  does **not** download or re-host these photos on TatT infrastructure — the
-  URLs are hotlinks straight to each artist's or shop's own website
-  (confirmed by reading the crawl code, `extract_images()` in
-  `execution/scrape_artists.py`). The earlier "~62,000 photos re-hosted on
-  TatT's own storage" figure predates this pipeline and traces to a different,
-  unverified source — worth tracking down before counsel relies on it. Either
-  way, the artist/shop directory data itself (names, bios, ratings, contact
-  info for 17,847 non-consenting people) is scraped and exposed today,
-  independent of launch.
+- **Third-party data.** A read-only production Neo4j count on 2026-07-30 found
+  18,002 artist records. 7,511 have portfolio images attached — 68,532 image
+  URLs total. The current scraper stores external source URLs rather than image
+  files, but this repo also contains `scripts/host-artist-images.mjs`, an
+  operator tool that downloads images into TatT's public GCS bucket. Production
+  currently has 26 GCS-hosted portfolio URLs across 6 artists; the other 68,506
+  URLs are external. The earlier claim that roughly 62,000 photos were all
+  re-hosted is false, but "none are re-hosted" is also false. The artist/shop
+  directory data itself (names, bios, ratings, contact information) is scraped
+  and exposed today, independent of launch.
 - **The deployed site is public.** tatttester.com, tatt-t.com and image2ink.com
   serve anyone who finds them.
 - **Security gaps still get fixed properly** — but the framing is "close it
