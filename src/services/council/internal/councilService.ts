@@ -12,6 +12,7 @@
 import { buildCharacterMap, getAllCharacterNames } from '../../../config/characterDatabase.js';
 import { selectModelWithFallback, getModelPromptEnhancements } from '../../../utils/styleModelMapping.js';
 import { COUNCIL_SKILL_PACK } from '../../../config/councilSkillPack';
+import { resolvePlacement } from '@/lib/placement';
 import { getGcpAccessToken } from '@/lib/google-auth-edge';
 import { logEvent } from '@/lib/observability';
 
@@ -162,25 +163,21 @@ export function validatePromptLength(
   return { valid: true, tokenCount };
 }
 
-// 3) Body-specific aspect ratio guidance (used to bias composition in prompt enhancement)
+/**
+ * 3) Body-specific composition guidance (biases composition during prompt
+ * enhancement).
+ *
+ * This used to be an exact-match object lookup, so it answered only for a
+ * bare "forearm" or "chest" — never "left arm", "left forearm", "inner
+ * forearm" or "sleeve", which is what intake actually produces. Every real
+ * session got the literal string 'balanced composition' back and the prompt
+ * ended "Composition follows balanced composition."
+ *
+ * Now a thin wrapper over the shared resolver, which matches phrases inside
+ * the string the way generation routing always did.
+ */
 export function getAspectRatioGuidance(bodyPart: string): string {
-  const guidance: Record<string, string> = {
-    forearm: 'vertical orientation, tall narrow canvas (1:3 ratio)',
-    shin: 'vertical orientation, elongated (1:3 ratio)',
-    chest: 'square-ish format, slightly wider than tall (4:5 ratio)',
-    back: 'vertical rectangle, portrait orientation (2:3 ratio)',
-    thigh: 'vertical oval shape (1:2 ratio)',
-    shoulder: 'radial composition, follows joint curvature',
-    bicep: 'circular to oval, wraps around arm (1:1 ratio)',
-    calf: 'vertical elongated (1:2 ratio)',
-    ribcage: 'vertical, follows torso contour (2:3 ratio)',
-    neck: 'vertical narrow column (1:4 ratio)',
-    hand: 'square to slightly tall (4:5 ratio)',
-    foot: 'horizontal landscape (3:2 ratio)'
-  };
-
-  const key = (bodyPart || '').toLowerCase().trim();
-  return guidance[key] || 'balanced composition';
+  return resolvePlacement(bodyPart).composition;
 }
 
 function parseJsonFromText(text: string) {
@@ -260,10 +257,8 @@ function applyCouncilSkillPack(prompts: Record<string, string>, negativePrompt: 
       context = { bodyPart: 'forearm', isStencilMode: false, characterMatches: [] };
     }
 
-    const bodyPartKey =
-      typeof context.bodyPart === 'string' ? context.bodyPart.toLowerCase().trim() : '';
-    const anatomicalFlow = COUNCIL_SKILL_PACK.anatomicalFlow as Record<string, string>;
-    const flowToken = anatomicalFlow[bodyPartKey] || '';
+    const bodyPartKey = typeof context.bodyPart === 'string' ? context.bodyPart : '';
+    const flowToken = bodyPartKey ? resolvePlacement(bodyPartKey).flow : '';
     const spatialKeywords = COUNCIL_SKILL_PACK.spatialKeywords || [];
 
     const hardenedPrompts = Object.entries(prompts).reduce((acc, [level, prompt]) => {
@@ -470,8 +465,7 @@ export function getBaseNegativePrompt(
 }
 
 function buildCouncilSystemPrompt({ bodyPart, isStencilMode }: { bodyPart: string; isStencilMode: boolean }) {
-  const flowToken = (COUNCIL_SKILL_PACK.anatomicalFlow as Record<string, string>)[bodyPart] || '';
-  const aspectRatioGuidance = getAspectRatioGuidance(bodyPart);
+  const { composition: aspectRatioGuidance, flow: flowToken } = resolvePlacement(bodyPart);
   const stencilRule = isStencilMode
     ? 'STENCIL INTEGRITY: prioritize binary line-art and avoid gradients or soft shading.'
     : 'STENCIL INTEGRITY: only apply stencil rules when requested.';
@@ -481,7 +475,7 @@ function buildCouncilSystemPrompt({ bodyPart, isStencilMode }: { bodyPart: strin
     'Your goal is to produce elite, tattoo-ready prompts.',
     `COMPOSITION (ASPECT RATIO): ${aspectRatioGuidance}`,
     `POSITIONAL ANCHORING: ${COUNCIL_SKILL_PACK.positionalInstructions}`,
-    `ANATOMICAL FLOW: ${flowToken || 'Use body-part appropriate flow guidance.'}`,
+    `ANATOMICAL FLOW: ${flowToken}`,
     `AESTHETIC ANCHORS: ${COUNCIL_SKILL_PACK.aestheticAnchors}`,
     stencilRule
   ].join('\n');
@@ -530,7 +524,7 @@ async function enhancePromptWithOpenRouter({
 }: any) {
   const startTime = Date.now();
   const councilSystemPrompt = buildCouncilSystemPrompt({ bodyPart, isStencilMode });
-  const flowToken = (COUNCIL_SKILL_PACK.anatomicalFlow as Record<string, string>)[bodyPart] || '';
+  const flowToken = resolvePlacement(bodyPart).flow;
   const stencilHint = isStencilMode ? 'Stencil mode: prioritize clean, high-contrast linework.' : '';
 
   if (onDiscussionUpdate) {
