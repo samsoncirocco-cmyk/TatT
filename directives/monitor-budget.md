@@ -93,14 +93,11 @@ budget-1234             TatTester Phase 1 MVP   500 USD   [50, 75, 90, 100]
 
 **If no budgets configured:** See Appendix: Configure Budget Alerts.
 
-### Step 5: View Cloud Monitoring Dashboard
+### Step 5: View Billing Reports
 
-```bash
-# Open billing dashboard in browser
-gcloud monitoring dashboards list --filter="displayName:Billing" --format="value(name)" | head -1 | xargs -I {} gcloud monitoring dashboards describe {} --format="value(dashboardUrl)"
-```
+Cloud Monitoring dashboard records do not contain a browser `dashboardUrl`
+field. Open the authoritative Billing Reports page directly:
 
-Or navigate manually:
 1. Go to [GCP Console > Billing](https://console.cloud.google.com/billing)
 2. Select project: TatTester
 3. Click "Reports" tab

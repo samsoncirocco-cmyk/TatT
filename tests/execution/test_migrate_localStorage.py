@@ -6,12 +6,26 @@ import pytest
 import json
 from unittest.mock import patch, MagicMock
 from execution.migrate_localStorage import (
+    design_id_for_version,
     parse_version_history,
     is_data_uri,
     upload_data_uri_to_storage,
     migrate_version_to_firestore,
     main
 )
+
+def test_design_id_for_version_is_deterministic():
+    """A source version always maps to one predictable design document."""
+    assert design_id_for_version(
+        {"id": "version-123"}
+    ) == design_id_for_version({"id": "version-123"})
+    assert design_id_for_version({"id": "version-123"}).startswith("design_")
+
+
+def test_design_id_for_version_requires_id():
+    """Versions without IDs cannot be migrated safely."""
+    with pytest.raises(ValueError, match="missing 'id'"):
+        design_id_for_version({})
 
 
 def test_parse_version_history(sample_version_history, tmp_path):
@@ -133,11 +147,16 @@ def test_migrate_version_to_firestore(sample_version_history, mock_firestore_cli
         dry_run=False
     )
 
-    # Verify version document was created
-    mock_version_ref.set.assert_called_once()
+    # Verify the visible parent design and its version were both created.
+    mock_design_ref.create.assert_called_once()
+    parent_data = mock_design_ref.create.call_args.args[0]
+    assert parent_data["id"] == "design456"
+    assert parent_data["currentVersionId"] == version["id"]
+    assert parent_data["migratedFrom"] == "localStorage"
+    mock_version_ref.create.assert_called_once()
 
     # Verify layer document was created
-    mock_layer_ref.set.assert_called_once()
+    mock_layer_ref.create.assert_called_once()
 
 
 def test_migrate_version_handles_data_uri(sample_version_history, mock_firestore_client, mock_storage_client):
@@ -203,6 +222,8 @@ def test_main_dry_run(sample_version_history, tmp_path, capsys):
     captured = capsys.readouterr()
     assert "DRY RUN" in captured.out
     assert "users/user123/designs/" in captured.out
+    assert "/versions/" in captured.out
+    assert "/layers/" in captured.out
 
 
 def test_main_version_mapping(sample_version_history, tmp_path, capsys):

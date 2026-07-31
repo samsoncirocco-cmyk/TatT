@@ -24,7 +24,7 @@ TatTester's progressive migration strategy allows anonymous users to continue us
 
 ## Procedure
 
-**Note:** There is no standalone export-validation script (`validate_localStorage_export.py` does not exist in `execution/`). The only pre-migration validation available is `migrate_localStorage.py --dry-run`, which parses and checks the export file without writing to Firestore. Treat Step 1 below as the validation step.
+**Note:** There is no standalone export-validation script (`validate_localStorage_export.py` does not exist in `execution/`). The only pre-migration validation available is `migrate_localStorage.py --dry-run`, which parses and checks the export file and prints the complete recovery manifest without writing to Firestore. Treat Step 1 below as the validation step.
 
 ### Step 1: Preview Migration (Dry Run)
 
@@ -45,34 +45,42 @@ python3 migrate_localStorage.py \
 
 There are no `--source`, `--user-uid`, `--anonymous`, `--overwrite`, or `--batch-size` flags — the script does not implement them.
 
-**Expected output (illustrative — actual dry-run prints up to the first 3 versions):**
+**Expected output (illustrative — the actual dry run prints every path):**
 ```
 === localStorage to Firestore Migration ===
 
 Reading ../data/export-[user].json...
 Found 12 versions
 
-DRY RUN: Migration mapping:
+DRY RUN: Complete recovery manifest (no writes):
 
   Version 1:
-    → users/[uid]/designs/design_1/versions/version-uuid-1
+    Design: users/[uid]/designs/design_[sha256-prefix]
+    Version: users/[uid]/designs/design_[sha256-prefix]/versions/version-uuid-1
     Layers: 4
+      - users/[uid]/designs/design_[sha256-prefix]/versions/version-uuid-1/layers/layer-uuid-1
+      ...
     Image URL type: URL
 
   Version 2:
-    → users/[uid]/designs/design_2/versions/version-uuid-2
+    Design: users/[uid]/designs/design_[sha256-prefix]
+    Version: users/[uid]/designs/design_[sha256-prefix]/versions/version-uuid-2
     Layers: 5
     Image URL type: data URI
 
   Version 3:
-    → users/[uid]/designs/design_3/versions/version-uuid-3
+    Design: users/[uid]/designs/design_[sha256-prefix]
+    Version: users/[uid]/designs/design_[sha256-prefix]/versions/version-uuid-3
     Layers: 6
     Image URL type: URL
-
-  ... and 9 more
 ```
 
 **Review output carefully.** Confirm the version count and layer counts match expected data before proceeding.
+
+**Safe target requirement:** run this tool only for a new or empty target user.
+It deliberately creates documents without overwriting existing ones and stops if
+a generated path already exists. Do not use it to merge an export into a user
+who already has designs.
 
 ### Step 2: Run Migration
 
@@ -99,7 +107,7 @@ Migrated 12/12 designs
 ✓ Successfully migrated 12 designs
 ```
 
-**Note:** The script migrates each *version* into its own generated design document (`design_id = sha256(version.id)[:16]`) — it does not group versions under a shared parent design the way the export file's `designs` array does. Review actual Firestore output structure after migration rather than assuming it mirrors the export file's nesting.
+**Note:** The script migrates each *version* into its own generated design document (`design_id = "design_" + sha256(version.id)[:16]`) — it does not group versions under a shared parent design. Each parent is created explicitly with the metadata required by TatTester's design list. Review actual Firestore output after migration rather than assuming it mirrors another export format.
 
 ### Step 3: Verify Migration
 
@@ -137,11 +145,9 @@ Versions: 12
 Layers: 47
 ```
 
-For an empty target user, the script creates one design document per source
-version, so the design and version counts are equal. For a user who already
-has designs, compare the before/after delta to the dry-run version count rather
-than comparing the totals directly. If the delta is lower, check for partial
-migration errors in logs.
+For the required empty target user, the script creates one design document per
+source version, so the design and version counts are equal. If the counts are
+lower, stop and inspect the migration error before retrying.
 
 **Note:** There is no `test_user_access.py` script in `execution/` — it does not exist. To confirm the target user can actually read their migrated data, either sign in as that user in the app UI and load their designs, or run the Firestore security-rules test suite (if one exists) against the deployed rules. Do not rely on the Step 3 admin-SDK read above as proof of user-level access — the admin client bypasses security rules entirely.
 
@@ -149,41 +155,36 @@ migration errors in logs.
 
 **There is no rollback capability.** `migrate_localStorage.py` has no `--rollback` flag and implements no delete/undo functionality — check `execution/migrate_localStorage.py`'s argparse block (`--input`, `--user-id`, `--project-id`, `--bucket`, `--dry-run` only) to confirm. Do not treat this section as a safety net: **back up before running a real migration.**
 
-### Before running: back up and build a recovery manifest
+### Before running: confirm an empty target and build a recovery manifest
 
 ```bash
-# Full-database managed export. A users-only collection-group export does NOT
-# automatically include nested designs/versions/layers subcollections.
+# Optional disaster-recovery insurance. This is not the routine rollback path.
 gcloud firestore export gs://[BACKUP_BUCKET]/firestore-backups/[timestamp]/
 ```
 
 Before a real run, also record:
 
-- every existing document path under the target user that the migration may
-  overwrite;
-- every generated design document path the migration will create; and
+- proof that the target user's `designs` collection is empty;
+- every deterministic design/version/layer path shown by the dry run; and
 - the dry-run version/layer counts.
 
-This reviewed manifest is required because a Firestore import does not delete
-new documents that were absent from the export. If the exact affected paths
-cannot be identified ahead of time, do not run the migration.
+The script uses create-only writes, so it will fail rather than overwrite a
+matching document. The reviewed path manifest is the routine recovery tool:
+if a partial migration fails, delete only paths that the manifest proves were
+newly created by that run. If the exact paths or empty-target state cannot be
+verified ahead of time, do not run the migration.
 
-### If migration corrupted data: manual recovery
+### If migration fails partway: remove only newly created paths
 
-```bash
-# List available backups
-gsutil ls gs://[BACKUP_BUCKET]/firestore-backups/
+Use the reviewed manifest to delete only documents created by the failed run,
+starting with layer and version children and then their parent designs. Confirm
+the target returns to zero designs before retrying.
 
-# Restore exported documents that existed before the migration
-gcloud firestore import gs://[BACKUP_BUCKET]/firestore-backups/[timestamp]/
-```
-
-Managed import merges exported documents into the database and overwrites
-matching document IDs. It is **not** all-or-nothing and it does **not** remove
-new documents created by the failed migration. Use the reviewed recovery
-manifest to delete only those newly created paths, then verify the target
-user's full design/version/layer tree. Treat this as manual disaster recovery,
-not rollback.
+Do **not** use a full Firestore import to recover one user's migration. Imports
+merge into the live database and can overwrite unrelated documents changed
+after the export. A full managed import is disaster recovery for a
+whole-database incident only, during a maintenance window and with an explicit
+restore decision.
 
 ## Known Issues
 

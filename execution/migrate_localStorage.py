@@ -13,8 +13,17 @@ import json
 import os
 import re
 import sys
-from typing import Dict, Any, List
-from urllib.parse import urlparse
+from typing import Dict, Any
+
+
+def design_id_for_version(version: Dict[str, Any]) -> str:
+    """Return the deterministic parent design ID for a source version."""
+    version_id = version.get("id")
+    if not version_id:
+        raise ValueError("Version missing 'id' field")
+    digest = hashlib.sha256(version_id.encode()).hexdigest()[:16]
+    return f"design_{digest}"
+
 
 def parse_version_history(file_path: str) -> Dict[str, Any]:
     """Parse localStorage export JSON."""
@@ -92,9 +101,9 @@ def migrate_version_to_firestore(
     if not version_id:
         raise ValueError("Version missing 'id' field")
 
-    version_ref = client.collection("users").document(user_id) \
-        .collection("designs").document(design_id) \
-        .collection("versions").document(version_id)
+    design_ref = client.collection("users").document(user_id) \
+        .collection("designs").document(design_id)
+    version_ref = design_ref.collection("versions").document(version_id)
 
     # Handle image URL (upload if data: URI)
     image_url = version.get('imageUrl', '')
@@ -106,10 +115,30 @@ def migrate_version_to_firestore(
             design_id
         )
 
-    # Create version document
+    timestamp = version.get('timestamp', '')
+    parameters = version.get('parameters', {})
+    metadata = version.get('metadata', {})
+
+    # Firestore does not materialize parent documents when a subcollection is
+    # written. Create the parent explicitly so the design appears in list views.
+    # create() is intentional: migrations must fail instead of overwriting an
+    # existing customer's design.
+    design_data = {
+        'id': design_id,
+        'createdAt': timestamp,
+        'updatedAt': timestamp,
+        'currentVersionId': version_id,
+        'bodyPart': parameters.get('bodyPart') or metadata.get('bodyPart') or 'forearm',
+        'canvas': {'width': 1024, 'height': 1024, 'aspectRatio': 1},
+        'isFavorite': version.get('isFavorite', False),
+        'migratedFrom': 'localStorage'
+    }
+    design_ref.create(design_data)
+
+    # Create version document without overwriting any existing record.
     version_data = {
         'versionNumber': version.get('versionNumber', 0),
-        'timestamp': version.get('timestamp', ''),
+        'timestamp': timestamp,
         'prompt': version.get('prompt', ''),
         'enhancedPrompt': version.get('enhancedPrompt', ''),
         'parameters': version.get('parameters', {}),
@@ -119,7 +148,7 @@ def migrate_version_to_firestore(
         'mergedFrom': version.get('mergedFrom')
     }
 
-    version_ref.set(version_data)
+    version_ref.create(version_data)
 
     # Migrate layers as subcollection
     layers = version.get('layers', [])
@@ -150,7 +179,7 @@ def migrate_version_to_firestore(
             'zIndex': layer.get('zIndex', 0)
         }
 
-        layer_ref.set(layer_data)
+        layer_ref.create(layer_data)
 
 def main(argv=None) -> int:
     """Main entry point.
@@ -202,16 +231,23 @@ def main(argv=None) -> int:
         print(f"Found {len(versions)} versions")
 
         if args.dry_run:
-            print("\nDRY RUN: Migration mapping:")
-            for i, version in enumerate(versions[:3]):
-                design_id = f"design_{i+1}"
+            print("\nDRY RUN: Complete recovery manifest (no writes):")
+            for i, version in enumerate(versions):
+                design_id = design_id_for_version(version)
+                version_id = version.get('id')
                 print(f"\n  Version {version.get('versionNumber', i+1)}:")
-                print(f"    → users/{args.user_id}/designs/{design_id}/versions/{version.get('id')}")
-                print(f"    Layers: {len(version.get('layers', []))}")
+                print(f"    Design: users/{args.user_id}/designs/{design_id}")
+                print(f"    Version: users/{args.user_id}/designs/{design_id}/versions/{version_id}")
+                layers = version.get('layers', [])
+                print(f"    Layers: {len(layers)}")
+                for layer in layers:
+                    if layer.get('id'):
+                        print(
+                            "      - "
+                            f"users/{args.user_id}/designs/{design_id}/versions/"
+                            f"{version_id}/layers/{layer['id']}"
+                        )
                 print(f"    Image URL type: {'data URI' if is_data_uri(version.get('imageUrl', '')) else 'URL'}")
-
-            if len(versions) > 3:
-                print(f"\n  ... and {len(versions) - 3} more")
 
             return 0
 
@@ -226,8 +262,7 @@ def main(argv=None) -> int:
 
         migrated = 0
         for version in versions:
-            # Generate design ID from version or use hash
-            design_id = f"design_{hashlib.sha256(version.get('id', '').encode()).hexdigest()[:16]}"
+            design_id = design_id_for_version(version)
 
             migrate_version_to_firestore(
                 project_id,
