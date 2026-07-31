@@ -1,28 +1,51 @@
 # Artist data — notes for counsel
 
-**Status:** Engineering's notes on the draft privacy language. **Not legal advice.**
-**Accompanies:** section 4 of `src/app/legal/privacy/page.tsx` (published as a draft)
-**Date:** 2026-07-26
+**Status:** Engineering's notes on the published v1.0 privacy language. **Not legal advice.**
+**Accompanies:** section 4 of `src/app/legal/privacy/page.tsx`
+**Date:** 2026-07-26 (production counts refreshed 2026-07-30)
 
 This is a handover document. It records what the system actually does, which
-claims in the published draft depend on that, and the questions engineering
+claims in the published policy depend on that, and the questions engineering
 cannot answer. Someone qualified needs to go through it.
 
 ## 1. The factual position
 
 | | |
 |---|---|
-| Artists collected without consent | ~7,828 |
-| Portfolio photographs downloaded and **re-hosted on TatT's own storage** | ~62,313 |
-| Artists who opted in | 0 |
-| Currently publicly reachable | Yes — the photographs are served from TatT infrastructure now |
-| Customers / onboarded artists | None. Pre-launch. |
+| Artists in production Neo4j | 18,002 |
+| Artists with at least one portfolio image URL attached | 7,511 (42% of 18,002) |
+| Total portfolio image URLs across those artists | 68,532 |
+| External portfolio image URLs | 68,506 |
+| TatT GCS-hosted portfolio image URLs | 26, across 6 artists |
+| Opt-in evidence attached to the collected dataset | None identified |
+
+**Correction to the prior version of this table:** it described roughly 62,313
+photos as downloaded and re-hosted on TatT storage. A read-only query of the
+production graph on 2026-07-30 does not support that claim. The current crawl
+pipeline (`execution/scrape_artists.py`, `extract_images()`) records absolute
+source URLs from artist and shop websites. Separately,
+`scripts/host-artist-images.mjs` can download source images into TatT's public
+GCS bucket and write those hosted URLs back to Neo4j. Production currently
+contains 26 such GCS URLs across 6 artists; the remaining 68,506 portfolio URLs
+are external. Counsel should therefore treat both blanket claims — "about
+62,000 are re-hosted" and "none are re-hosted" — as false.
+
+What's unambiguous regardless of the photo question: **18,002 artist records**
+are live in the production Neo4j graph today. Depending on the record, fields
+can include names, bios, shop affiliations, ratings, Instagram
+handles/permalinks, or contact information. The current dataset contains no
+identified opt-in evidence; this count is records, not a claim that all records
+are unique people.
 
 Sources were public: shop and studio websites, public artist directories, public
 Instagram profiles. "Public" is doing no work in that sentence — it describes
-where we found it, not whether we were entitled to copy and re-host it.
+where we found it, not whether we were entitled to copy it into our own
+database and display it.
 
-Pre-launch status does **not** reduce this one. The images are live today.
+Pre-launch status does **not** reduce this one. The data and limited GCS copies
+exist today. Public display of unclaimed portfolios is separately controlled by
+the server-side `SHOW_UNCLAIMED_PORTFOLIOS` flag; this memo does not claim the
+flag's current production value.
 
 ## 2. The suggested template does not fit, and this is worth stating
 
@@ -33,30 +56,31 @@ process, and nothing at all about data collected from third parties without
 consent — which is TatT's entire situation.
 
 Templates of that kind address data a user hands you. The hard problem here is
-data taken from people who never interacted with us. Section 4 of the draft was
-written from scratch for that reason.
+the set of records collected from third-party public sources with no identified
+opt-in evidence. Section 4 of the policy was written from scratch for that
+reason.
 
-## 3. Why the draft is published rather than held back
+## 3. Why the policy addresses this processing
 
 Engineering's reasoning, for counsel to overturn if wrong:
 
-- The collection and re-hosting are **already public**. The notice is what is
-  missing, not the processing.
+- The collection and limited GCS hosting already exist. The notice is what is
+  missing, not the processing. Public display of unclaimed portfolios depends
+  on a server-side flag whose current production value was not verified for
+  this memo.
 - Where personal data is obtained from someone other than the data subject,
   disclosure obligations are triggered by the processing, which has already
   happened. Silence looks like the exposure; disclosure looks like the remedy.
 - An artist who reaches `/takedown` today has nowhere to read what removal does.
-- The page already carried a "pending counsel review" banner and lorem ipsum, so
-  publishing replaces filler with something honest **at the same status**. It does
-  not promote unreviewed text to settled policy.
 
-If counsel disagrees, the section can be moved to `docs/` in one commit.
+If counsel disagrees, section 4 should be revised through the policy's normal
+versioned update process and the material change announced on the page.
 
-## 4. Claims in the draft that are load-bearing
+## 4. Claims in the policy that are load-bearing
 
 Each is currently true of the code. If the code changes, the text becomes false.
 
-| Draft says | Guaranteed by | Notes |
+| Policy says | Guaranteed by | Notes |
 |---|---|---|
 | Photographs are deleted, not hidden | `scripts/execute-takedown.mjs` (GCS hard delete) | Executor has **never** been run against production |
 | Embedding is deleted | same, Supabase `portfolio_embeddings` | |
@@ -69,7 +93,7 @@ Each is currently true of the code. If the code changes, the text becomes false.
 | A person reviews every request | ADR 0025 §5; the route has no write path | |
 | Removed artists disappear from the homepage | `src/lib/featured-artists.ts` | Newly true; was **false** before this PR |
 
-**The strongest and most unusual commitment is the suppression list.** The draft
+**The strongest and most unusual commitment is the suppression list.** The policy
 states plainly that it is *itself retained personal data* — one identifier kept
 indefinitely for the sole purpose of never processing anything else about that
 person again. Counsel should decide whether that framing is right and whether the
@@ -79,28 +103,30 @@ offer to delete it on request (with a stated consequence) is the correct balance
 
 1. **Should the collection have happened at all, and should it continue?** This
    PR and ADR 0025 build the exit door. Neither addresses whether an opt-out model
-   is defensible, or whether the ~62,000 re-hosted photographs should be deleted
-   proactively rather than on request. That is the biggest open question and it is
-   not an engineering one.
+   is defensible, whether the 26 GCS-hosted images should be deleted
+   proactively, or whether external portfolio images should remain eligible for
+   display without identified opt-in evidence. That is the biggest open question
+   and it is not an engineering one.
 
 2. **Copyright is separate from privacy and is not addressed anywhere.** The
    photographs are almost certainly someone's copyrighted work — possibly the
-   artist's, possibly the studio's, possibly a client's. Re-hosting them is a
-   copyright question that the privacy policy does not touch and cannot fix. There
-   is no DMCA agent, no designated agent registration, and no notice-and-takedown
+   artist's, possibly the studio's, possibly a client's. Both copying files into
+   GCS and any display of third-party-hosted files raise copyright questions
+   that the privacy policy does not touch and cannot fix. There is no DMCA
+   agent, no designated agent registration, and no notice-and-takedown
    procedure framed as such.
 
 3. **Lawful basis.** If legitimate interests is the intended basis, a legitimate
-   interests assessment should exist and does not. The draft deliberately states
+   interests assessment should exist and does not. The policy deliberately states
    the commercial motive plainly rather than dressing it up as a benefit to
    artists, which may help or hurt that assessment.
 
 4. **Statutory response windows.** Nothing in the system tracks deadlines. The
-   draft says "a few days" and defers to statutory deadlines if invoked. If real
+   policy says "a few days" and defers to statutory deadlines if invoked. If real
    deadlines apply, that needs a tracked queue, which does not exist.
 
 5. **Jurisdiction.** The dataset is US artists; obligations differ by state (e.g.
-   CCPA/CPRA) and would differ again for any EU/UK artist in the set. The draft
+   CCPA/CPRA) and would differ again for any EU/UK artist in the set. The policy
    makes one global promise rather than jurisdiction-specific ones. Deliberate
    simplification — confirm it is acceptable.
 
