@@ -80,7 +80,7 @@ versioned update process and the material change announced on the page.
 
 Each is currently true of the code. If the code changes, the text becomes false.
 
-| Draft says | Guaranteed by | Notes |
+| Policy says | Guaranteed by | Notes |
 |---|---|---|
 | Photographs are deleted, not hidden | `scripts/execute-takedown.mjs` (GCS hard delete) | Executor has **never** been run against production |
 | Embedding is deleted | same, Supabase `portfolio_embeddings` | |
