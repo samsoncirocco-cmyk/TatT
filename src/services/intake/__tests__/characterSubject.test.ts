@@ -88,6 +88,19 @@ describe('charactersIn — structured matches', () => {
     expect(charactersIn('keep it simple, black and grey')).toEqual([]);
     expect(charactersIn('')).toEqual([]);
   });
+
+  it('recognizes a main character from the generated top-1000 catalog', () => {
+    const [reinhard] = charactersIn(
+      'Reinhard von Lohengramm from Ginga Eiyuu Densetsu in a throne-room scene'
+    );
+
+    expect(reinhard).toEqual({
+      name: 'reinhard von lohengramm',
+      series: 'Ginga Eiyuu Densetsu',
+      description:
+        'Reinhard von Lohengramm, a main character from Ginga Eiyuu Densetsu',
+    });
+  });
 });
 
 describe('characterLabelFor — the playback-facing short label', () => {

@@ -6,17 +6,22 @@ import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import {
   buildMalCatalog,
+  parseMalTopHtml,
   serializeCompactCatalog,
 } from './mal_catalog.mjs';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_OUT = resolve(SCRIPT_DIR, '../../src/data/generated/mal-character-catalog.json');
 const DEFAULT_CACHE = resolve(SCRIPT_DIR, '../../.tmp/mal-character-catalog');
+const MAL_ORIGIN = 'https://myanimelist.net';
+const KITSU_ORIGIN = 'https://kitsu.io/api/edge';
 const JIKAN_ORIGIN = 'https://api.jikan.moe/v4';
-const USER_AGENT = 'TatTTester character catalog builder/1.0 (https://tatttester.com)';
+const MANAMI_SNAPSHOT =
+  'https://github.com/manami-project/anime-offline-database/releases/latest/download/anime-offline-database-minified.json';
+const USER_AGENT = 'TatTTester character catalog builder/2.0 (https://tatttester.com)';
 
 function usage() {
-  return `Build a resumable MyAnimeList anime/main-character catalog.
+  return `Build a resumable ranked-anime/main-character catalog.
 
 Usage:
   node scripts/data_acquisition/build_mal_character_catalog.mjs [options]
@@ -24,17 +29,21 @@ Usage:
 Options:
   --limit N          Ranked anime entries to include (default: 1000)
   --out PATH         Generated compact JSON path
-  --cache-dir PATH   HTML cache/checkpoint directory
-  --concurrency N    Character records processed concurrently (default: 2)
-  --delay-ms N       Minimum delay between live requests (default: 1100)
-  --refresh          Ignore cached responses and fetch all pages again
+  --cache-dir PATH   Source cache/checkpoint directory
+  --concurrency N    Kitsu anime records processed concurrently (default: 2)
+  --delay-ms N       Minimum delay per source between requests (default: 1100)
+  --refresh          Ignore cached responses and fetch all sources again
   --as-of ISO        Fixed provenance timestamp for a new cache
   --acknowledge-source-terms
-                     Confirm authorization to acquire/reuse MAL-derived data
+                     Confirm authorization and source terms were reviewed
+  --skip-jikan-fallback
+                     Build from MAL/manami/Kitsu only; leave Kitsu gaps empty
   --help             Show this help
 
-Interrupted runs are resumed from cached pages. Delete the cache or use
---refresh to intentionally take a new ranking snapshot.
+The supplied MAL top-anime ranking selects the shows. manami-project maps MAL anime IDs to Kitsu
+IDs. Kitsu supplies main-character relationships and factual names. Jikan fills
+only shows with no Kitsu main cast. Interrupted runs resume from reduced source
+caches; no descriptions or images are retained.
 `;
 }
 
@@ -48,6 +57,7 @@ function parseArgs(argv) {
     refresh: false,
     asOf: null,
     acknowledgeSourceTerms: false,
+    skipJikanFallback: false,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -58,6 +68,10 @@ function parseArgs(argv) {
     }
     if (arg === '--acknowledge-source-terms') {
       options.acknowledgeSourceTerms = true;
+      continue;
+    }
+    if (arg === '--skip-jikan-fallback') {
+      options.skipJikanFallback = true;
       continue;
     }
     const value = argv[index + 1];
@@ -94,38 +108,113 @@ async function readJson(path) {
 }
 
 function cacheName(sourcePath) {
-  const ranking = sourcePath.match(/^\/top\/anime\?page=(\d+)&limit=25$/);
-  if (ranking) return `ranking-${ranking[1].padStart(2, '0')}.json`;
-  const anime = sourcePath.match(/^\/anime\/(\d+)\/characters$/);
-  if (anime) return `anime-${anime[1]}-characters.json`;
-  throw new Error(`Refusing unsafe or unexpected Jikan path: ${sourcePath}`);
+  const ranking = sourcePath.match(/^\/topanime\.php\?limit=(\d+)$/);
+  if (ranking) {
+    const page = Math.floor(Number(ranking[1]) / 50) + 1;
+    return `ranking-${String(page).padStart(2, '0')}.json`;
+  }
+  if (sourcePath === 'anime-offline-database-minified.json') return 'anime-offline-database.json';
+  const jikanCharacters = sourcePath.match(/^\/anime\/([1-9]\d*)\/characters$/);
+  if (jikanCharacters) return `mal-anime-${jikanCharacters[1]}-characters.json`;
+  const url = new URL(`${KITSU_ORIGIN}${sourcePath}`);
+  const allowedKitsuParams = new Set([
+    'filter[animeId]',
+    'include',
+    'page[limit]',
+    'page[offset]',
+  ]);
+  const hasOnlyAllowedParams = [...url.searchParams.keys()]
+    .every((key) => allowedKitsuParams.has(key));
+  const kitsuId = url.searchParams.get('filter[animeId]');
+  const offset = url.searchParams.get('page[offset]');
+  if (
+    url.origin === new URL(KITSU_ORIGIN).origin &&
+    url.pathname === '/api/edge/anime-characters' &&
+    hasOnlyAllowedParams &&
+    /^[1-9]\d*$/.test(kitsuId ?? '') &&
+    url.searchParams.get('include') === 'character' &&
+    url.searchParams.get('page[limit]') === '20' &&
+    /^\d+$/.test(offset ?? '')
+  ) {
+    return `anime-${kitsuId}-characters-${offset.padStart(4, '0')}.json`;
+  }
+  throw new Error(`Refusing unsafe or unexpected source path: ${sourcePath}`);
 }
 
-function compactResponse(sourcePath, document) {
-  if (!document || !Array.isArray(document.data)) return document;
-  if (sourcePath.startsWith('/top/anime?')) {
-    return {
-      data: document.data.map((anime) => ({
-        mal_id: anime.mal_id,
-        rank: anime.rank,
-        title: anime.title,
-        title_english: anime.title_english,
-        title_japanese: anime.title_japanese,
-      })),
-    };
-  }
+function compactMalRanking(html) {
+  const entries = parseMalTopHtml(html);
   return {
-    data: document.data.map((appearance) => ({
-      role: appearance.role,
+    data: entries.map((anime) => ({
+      mal_id: anime.malId,
+      rank: anime.rank,
+      title: anime.title,
+    })),
+  };
+}
+
+function compactMappingDatabase(document) {
+  if (!document || !Array.isArray(document.data)) return document;
+  return {
+    license: document.license,
+    repository: document.repository,
+    lastUpdate: document.lastUpdate,
+    data: document.data.map((anime) => ({ sources: anime.sources })),
+  };
+}
+
+function compactKitsuCharacters(document) {
+  if (!document || !Array.isArray(document.data)) return document;
+  return {
+    data: document.data.map((relationship) => ({
+      id: relationship.id,
+      type: relationship.type,
+      attributes: { role: relationship.attributes?.role },
+      relationships: {
+        character: { data: relationship.relationships?.character?.data },
+      },
+    })),
+    included: Array.isArray(document.included)
+      ? document.included
+        .filter((item) => item?.type === 'characters')
+        .map((character) => ({
+          id: character.id,
+          type: character.type,
+          attributes: {
+            canonicalName: character.attributes?.canonicalName,
+            name: character.attributes?.name,
+            names: character.attributes?.names,
+            otherNames: character.attributes?.otherNames,
+          },
+        }))
+      : [],
+    links: { next: document.links?.next ?? null },
+  };
+}
+
+function compactJikanCharacters(document) {
+  if (!document || !Array.isArray(document.data)) return document;
+  return {
+    data: document.data.map((relationship) => ({
+      role: relationship.role,
       character: {
-        mal_id: appearance.character?.mal_id,
-        name: appearance.character?.name,
+        mal_id: relationship.character?.mal_id,
+        name: relationship.character?.name,
       },
     })),
   };
 }
 
-function createCachedLoader({ cacheDir, cacheNamespace, delayMs, refresh }) {
+function createCachedLoader({
+  cacheDir,
+  cacheNamespace,
+  origin,
+  absoluteUrl = null,
+  accept = 'application/json',
+  delayMs,
+  refresh,
+  compact,
+  readResponse = (response) => response.json(),
+}) {
   let requestGate = Promise.resolve();
   let lastRequestAt = 0;
 
@@ -151,31 +240,32 @@ function createCachedLoader({ cacheDir, cacheNamespace, delayMs, refresh }) {
         if (waitMs) await new Promise((resolveWait) => setTimeout(resolveWait, waitMs));
         lastRequestAt = Date.now();
 
-        const response = await fetch(`${JIKAN_ORIGIN}${sourcePath}`, {
-          headers: { accept: 'application/json', 'user-agent': USER_AGENT },
+        const response = await fetch(absoluteUrl ?? `${origin}${sourcePath}`, {
+          headers: { accept, 'user-agent': USER_AGENT },
           redirect: 'follow',
           signal: AbortSignal.timeout(30_000),
         });
         if (response.ok) {
-          const document = compactResponse(sourcePath, await response.json());
+          const document = compact(await readResponse(response));
           await atomicWrite(cachePath, `${JSON.stringify(document)}\n`);
           return document;
         }
 
         const retryable = response.status === 429 || response.status >= 500;
         if (!retryable || attempt === 5) {
-          throw new Error(`Jikan returned HTTP ${response.status} for ${sourcePath}`);
+          throw new Error(`Source returned HTTP ${response.status} for ${sourcePath}`);
         }
-        const retryAfter = Number(response.headers.get('retry-after'));
-        const backoffMs = Number.isFinite(retryAfter)
-          ? retryAfter * 1000
+        const retryAfterHeader = response.headers.get('retry-after');
+        const retryAfter = retryAfterHeader === null ? Number.NaN : Number(retryAfterHeader);
+        const backoffMs = Number.isFinite(retryAfter) && retryAfter >= 0
+          ? Math.max(1000, retryAfter * 1000)
           : Math.min(30_000, 1000 * 2 ** attempt);
         process.stderr.write(
-          `Jikan HTTP ${response.status}; retrying ${sourcePath} in ${backoffMs}ms\n`,
+          `Source HTTP ${response.status}; retrying ${sourcePath} in ${backoffMs}ms\n`,
         );
         await new Promise((resolveWait) => setTimeout(resolveWait, backoffMs));
       }
-      throw new Error(`Jikan retries exhausted for ${sourcePath}`);
+      throw new Error(`Source retries exhausted for ${sourcePath}`);
     } finally {
       release();
     }
@@ -190,7 +280,9 @@ async function run(argv) {
   }
   if (!options.acknowledgeSourceTerms) {
     throw new Error(
-      'Live acquisition is disabled until an operator confirms written MAL permission or a licensed feed with --acknowledge-source-terms',
+      'Live acquisition is disabled until an operator confirms required ' +
+      'authorization and reviews the MAL, manami, Kitsu, and Jikan terms with ' +
+      '--acknowledge-source-terms',
     );
   }
 
@@ -201,27 +293,64 @@ async function run(argv) {
     const retrievedAt = options.asOf ?? new Date().toISOString();
     if (Number.isNaN(Date.parse(retrievedAt))) throw new Error('--as-of must be an ISO-compatible timestamp');
     state = {
-      schemaVersion: 1,
+      schemaVersion: 3,
       retrievedAt: new Date(retrievedAt).toISOString(),
       cacheNamespace: `snapshot-${new Date(retrievedAt).toISOString().replace(/[^0-9A-Za-z]/g, '-')}`,
       requestedLimit: options.limit,
       completedAnimeIds: [],
     };
     await atomicWrite(statePath, `${JSON.stringify(state, null, 2)}\n`);
+  } else if (![2, 3].includes(state.schemaVersion)) {
+    throw new Error('Cache uses an older schema; choose another --cache-dir or use --refresh');
   } else if (state.requestedLimit !== options.limit) {
     throw new Error(
       `Cache was created for limit ${state.requestedLimit}; reuse that limit or choose another --cache-dir`,
     );
   }
+  if (state.schemaVersion === 2) {
+    state.schemaVersion = 3;
+    await atomicWrite(statePath, `${JSON.stringify(state, null, 2)}\n`);
+  }
 
   const completed = new Set(state.completedAnimeIds);
   let stateWrite = Promise.resolve();
-  const load = createCachedLoader({ ...options, cacheNamespace: state.cacheNamespace });
+  const rankingLoader = createCachedLoader({
+    ...options,
+    cacheNamespace: state.cacheNamespace,
+    origin: MAL_ORIGIN,
+    compact: compactMalRanking,
+    readResponse: (response) => response.text(),
+  });
+  const mappingLoader = createCachedLoader({
+    ...options,
+    cacheNamespace: state.cacheNamespace,
+    origin: '',
+    absoluteUrl: MANAMI_SNAPSHOT,
+    compact: compactMappingDatabase,
+  });
+  const kitsuLoader = createCachedLoader({
+    ...options,
+    cacheNamespace: state.cacheNamespace,
+    origin: KITSU_ORIGIN,
+    accept: 'application/vnd.api+json',
+    compact: compactKitsuCharacters,
+  });
+  const jikanLoader = options.skipJikanFallback
+    ? undefined
+    : createCachedLoader({
+      ...options,
+      cacheNamespace: state.cacheNamespace,
+      origin: JIKAN_ORIGIN,
+      compact: compactJikanCharacters,
+    });
   const catalog = await buildMalCatalog({
     limit: options.limit,
     retrievedAt: state.retrievedAt,
-    loadRankingPage: load,
-    loadCharacterPage: load,
+    loadRankingPage: rankingLoader,
+    loadMappingDatabase: () => mappingLoader('anime-offline-database-minified.json'),
+    loadKitsuPage: kitsuLoader,
+    loadJikanCharacters: jikanLoader,
+    skipJikanFallback: options.skipJikanFallback,
     concurrency: options.concurrency,
     onAnimeComplete: async (anime) => {
       if (completed.has(anime.malId)) return;
