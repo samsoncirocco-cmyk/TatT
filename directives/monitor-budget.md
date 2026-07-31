@@ -41,8 +41,8 @@ python3 check_budget.py --budget 500 --warn-threshold 0.75
 === Replicate API Budget Check ===
 
 Total generations: 6234
-Estimated spend: $154.48 / $500.00 (30.9%)
-Remaining budget: $345.52
+Estimated spend: $134.73 / $500.00 (26.9%)
+Remaining budget: $365.27
 
 Breakdown by model:
   sdxl: 4471 gens × $0.020 = $89.42

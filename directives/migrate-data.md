@@ -19,7 +19,8 @@ TatTester's progressive migration strategy allows anonymous users to continue us
 - [ ] `GCP_PROJECT_ID` environment variable set
 - [ ] GCP credentials available (`gcloud auth application-default login` or service account)
 - [ ] Python dependencies installed: `pip install -r execution/requirements.txt`
-- [ ] Exported localStorage JSON file available (user exports via UI or manual browser extraction)
+- [ ] Version-history JSON captured manually from browser localStorage (the
+      Design Library's UI export uses a different schema and is not accepted)
 - [ ] Target user's Firebase UID known (for authenticated migrations)
 
 ## Procedure
@@ -117,7 +118,7 @@ migration and preserves the customer's timeline.
 # Count migrated documents
 python3 -c "
 from google.cloud import firestore
-db = firestore.Client()
+db = firestore.Client(project='[GCP_PROJECT_ID]')
 
 user_uid = '[FIREBASE_UID]'
 designs = db.collection('users').document(user_uid).collection('designs').stream()
@@ -162,7 +163,9 @@ retrying.
 
 ```bash
 # Optional disaster-recovery insurance. This is not the routine rollback path.
-gcloud firestore export gs://[BACKUP_BUCKET]/firestore-backups/[timestamp]/
+gcloud firestore export \
+  --project=[GCP_PROJECT_ID] \
+  gs://[BACKUP_BUCKET]/firestore-backups/[timestamp]/
 ```
 
 Before a real run, also record:
@@ -218,20 +221,26 @@ users/
   {uid}/
     designs/
       {designId}/
-        name: string
-        createdAt: timestamp
-        updatedAt: timestamp
-        metadata: object
+        id: string
+        createdAt: string (source ISO timestamp)
+        updatedAt: string (source ISO timestamp)
+        currentVersionId: string
+        bodyPart: string
+        canvas: object
+        isFavorite: boolean
+        migratedFrom: 'localStorage'
 
         versions/
           {versionId}/
             versionNumber: number
-            timestamp: timestamp
+            timestamp: string (source ISO timestamp)
             prompt: string
             enhancedPrompt: string
             parameters: object
+            imageUrl: string
             isFavorite: boolean
             branchedFrom: object (optional)
+            mergedFrom: object (optional)
 
             layers/
               {layerId}/
@@ -254,6 +263,12 @@ users/
 
 The parser requires a top-level key containing `version_history_` whose value
 is the versions array. It does not accept a top-level `designs` array.
+
+To capture compatible input, open the browser's developer tools, go to
+Application > Local Storage for TatTester, and copy every key containing
+`version_history_` with its full JSON array value into one JSON object. Do not
+use the Design Library export button for this script: that export contains
+`{version, exportedAt, designs}` and serves a different restore path.
 
 Expected structure for localStorage export JSON:
 
@@ -302,7 +317,7 @@ Expected structure for localStorage export JSON:
 | Power user | 20+ designs, 100+ versions | 15-60 seconds |
 | Bulk migration (admin) | 1000+ designs | 5-20 minutes |
 
-**Firestore limits (informational — not enforced by this script):**
-- Max 500 writes per batch commit
-- Max 10MB per batch
-- No rate limit for writes (but monitor quota)
+**Firestore limits:** this script performs individual writes and does not
+throttle itself. Before a large run, review the current official
+[Firestore usage and limits](https://firebase.google.com/docs/firestore/quotas)
+for the target project and monitor its write usage.

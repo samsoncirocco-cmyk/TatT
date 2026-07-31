@@ -22,6 +22,8 @@ This directive covers rotation of all secrets used by TatTester, including Repli
 - [ ] Staging environment available for testing rotated secrets
 - [ ] Communication sent to team about planned rotation (if causing downtime)
 - [ ] Backup of current secret version taken (automatic in Secret Manager)
+- [ ] Recoverable old Vercel value secured in the approved password manager and
+      reconciled to the provider credential currently serving production
 
 ## Procedure
 
@@ -54,6 +56,12 @@ NAME  STATE    CREATED
 
 **Note:** `[OLD_VERSION]` remains enabled during transition. Never assume the
 old and new versions are `1` and `2`; use the exact IDs recorded above.
+Secret Manager and Vercel are separate stores: `[OLD_VERSION]` alone does not
+prove what value is live in Vercel. Before continuing, confirm the old
+provider credential still works, that its identity/fingerprint matches the
+production rotation record, and that its value is recoverable as
+`[SECURED_OLD_VALUE]`. If that cannot be proved, stop before deleting the
+Vercel variable and establish a recoverable rollback credential first.
 
 ### Step 2 (optional): Update Dormant Cloud Run Staging Service
 
@@ -154,6 +162,11 @@ NAME  STATE     CREATED
 ```
 
 **Old version is retained but disabled.** Can be re-enabled if needed for emergency rollback.
+This only disables the stored Secret Manager copy; it does not revoke the
+credential at Replicate, Google, Neo4j, or OpenRouter. Complete the
+provider-side revocation in the applicable appendix. Provider-specific planned
+grace periods override the general 24-hour timing; suspected compromises are
+revoked immediately.
 
 ## Rollback
 
@@ -165,7 +178,7 @@ If the new secret causes issues on the live site:
 # Revert the Vercel production environment variable to the old value
 vercel env rm [ENV_VAR_NAME] production
 vercel env add [ENV_VAR_NAME] production
-# (paste the old secret value when prompted)
+# (paste [SECURED_OLD_VALUE] when prompted)
 
 # Rebuild the exact reviewed deployment currently intended for production
 vercel redeploy [CURRENT_PRODUCTION_DEPLOYMENT_URL] --target production
@@ -231,8 +244,13 @@ All secrets managed in GCP Secret Manager:
 1. Generate new token at https://replicate.com/account/api-tokens
 2. Add new version: `echo -n "[TOKEN]" | gcloud secrets versions add replicate-api-token --data-file=-`
 3. Follow general rotation process above
+4. After the seven-day planned-rotation grace period, disable the old token at
+   https://replicate.com/account/api-tokens and verify it can no longer
+   authenticate. For a suspected compromise, disable it immediately instead of
+   waiting.
 
-**Grace period:** 7 days (Replicate doesn't invalidate old tokens immediately)
+**Grace period:** 7 days for a planned rotation. Disabling the provider token,
+not merely its Secret Manager copy, is what revokes access.
 
 ### 2. Neo4j Password
 
@@ -251,17 +269,27 @@ All secrets managed in GCP Secret Manager:
 ### 3. Firebase Private Key
 
 **Secret name:** `firebase-private-key`
-**Env var:** `FIREBASE_PRIVATE_KEY` (JSON string)
+**Env var:** `FIREBASE_PRIVATE_KEY` (PEM private-key value only)
 **Used by:** Backend Firestore Admin SDK
 **How to rotate:**
-1. Go to Firebase Console → Project Settings → Service Accounts
-2. Click "Generate new private key"
-3. Download JSON file
-4. Add new version: `cat firebase-key.json | gcloud secrets versions add firebase-private-key --data-file=-`
-5. Follow general rotation process above
-6. Delete downloaded JSON file securely: `shred -u firebase-key.json`
+1. Record the deployed service-account email as `[SERVICE_ACCOUNT_EMAIL]` and
+   its current user-managed key ID as `[OLD_KEY_ID]`:
+   `gcloud iam service-accounts keys list --iam-account=[SERVICE_ACCOUNT_EMAIL] --managed-by=user`.
+2. Go to Firebase Console → Project Settings → Service Accounts, generate a new
+   private key, and download the JSON file.
+3. Store only its `private_key` field in the existing Secret Manager secret:
+   `jq -r '.private_key' firebase-key.json | gcloud secrets versions add firebase-private-key --data-file=-`.
+4. Confirm Vercel's `FIREBASE_PROJECT_ID` and `FIREBASE_CLIENT_EMAIL` match the
+   JSON file's `project_id` and `client_email`, then follow the general rotation
+   process for `FIREBASE_PRIVATE_KEY`.
+5. After the 30-day planned-rotation grace period, delete the old provider key:
+   `gcloud iam service-accounts keys delete [OLD_KEY_ID] --iam-account=[SERVICE_ACCOUNT_EMAIL]`.
+   For suspected compromise, delete or disable it immediately.
+6. Delete the downloaded JSON file securely and confirm it was never committed.
 
-**Grace period:** 30 days (old service account keys remain valid)
+**Grace period:** 30 days for a planned rotation. Disabling the Secret Manager
+version does not revoke the Google IAM key; the provider-side delete above is
+required to finish rotation.
 
 ### 4. OpenRouter API Key
 
