@@ -1,7 +1,7 @@
 ---
 status: current
-verified_against: 2131a00
-verified_on: 2026-07-27
+verified_against: 0e2ad0a
+verified_on: 2026-07-30
 ---
 
 # Product glossary

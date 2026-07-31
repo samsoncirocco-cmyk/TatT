@@ -1,6 +1,6 @@
 ---
 status: current
-verified_against: a8ada4c
+verified_against: 0e2ad0a
 verified_on: 2026-07-30
 ---
 
@@ -96,6 +96,7 @@ publicly disclosing why the profile is absent.
   `src/features/design-session/__tests__/DesignSessionFlow.test.tsx`
 - Route convergence: `src/app/design/page.tsx`,
   `src/app/generate/stencil/page.tsx`, `src/app/generate/page.tsx`,
+  `src/app/studio/page.tsx`, `src/app/studio/page.test.tsx`,
   `src/app/generate/stencil/page.test.tsx`, `src/app/smart-match/page.tsx`,
   `src/app/swipe/page.tsx`, `src/app/matches/page.tsx`
 - Placement: `src/features/design-session/components/PlacementPreview.tsx`,
