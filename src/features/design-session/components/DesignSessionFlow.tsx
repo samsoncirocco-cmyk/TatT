@@ -2,7 +2,13 @@
 
 import { useState } from 'react';
 import type { DesignSession } from '@/services/designSession/types';
-import { startSession, submitPick, submitRefinement } from '../services/designSessionApi';
+import type { ConversationMessage } from '@/services/designConversation/types';
+import {
+  startSession,
+  submitCritique,
+  submitPick,
+  submitRefinement,
+} from '../services/designSessionApi';
 import { revealNarration } from '../services/revealNarration';
 import { ChatBubble } from './ChatBubble';
 import { ChatInput } from './ChatInput';
@@ -17,6 +23,16 @@ import { PlacementPreview } from './PlacementPreview';
 // as conversation, never labeled form fields.
 const QUESTION_PLACEMENT = 'Where does it go?';
 const QUESTION_MEANING = 'And what do you want to feel when you look at it?';
+
+/**
+ * The invitation that keeps the chat alive past the reveal (ADR-0039). Says
+ * the feature out loud with the exact kind of sentence it accepts — nobody
+ * types criticism at a screen that never offered to hear it.
+ */
+export const CRITIQUE_INVITE =
+  "and if something's off, just say it — ‘riku’s missing’, ‘too busy’, ‘the third one but less color’. i’ll re-cut it.";
+
+export const CRITIQUE_PLACEHOLDER = 'tell me what’s wrong with it…';
 
 type FlowStep =
   | 'ask-placement'
@@ -54,6 +70,10 @@ export function DesignSessionFlow({ initialSession }: { initialSession?: DesignS
   const [pickId, setPickId] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
   const [lastAction, setLastAction] = useState<SessionAction | null>(null);
+  // The critique lane (ADR-0039): its own transcript below the reveal, so the
+  // pick/most-not-you taps and the typed criticism read as one conversation.
+  const [critiqueLog, setCritiqueLog] = useState<ConversationMessage[]>([]);
+  const [critiquePending, setCritiquePending] = useState(false);
 
   const runAction = (action: SessionAction) => {
     setError(null);
@@ -107,8 +127,39 @@ export function DesignSessionFlow({ initialSession }: { initialSession?: DesignS
     }
   };
 
+  /**
+   * One critique turn (ADR-0039). Deliberately outside `runAction`: it never
+   * moves the phase machine, and a failed critique must not strand the reveal
+   * behind the retry banner — the lane just says so and stays open.
+   */
+  const handleCritique = (text: string) => {
+    if (!session || critiquePending) return;
+    setCritiqueLog((prev) => [...prev, { role: 'user', text }]);
+    setCritiquePending(true);
+    submitCritique(session.id, { message: text })
+      .then((result) => {
+        setSession(result.session);
+        setCritiqueLog((prev) => [...prev, { role: 'bot', text: result.reply }]);
+      })
+      .catch((err: unknown) => {
+        setCritiqueLog((prev) => [
+          ...prev,
+          {
+            role: 'bot',
+            text: err instanceof Error ? err.message : 'that one snapped — say it again?',
+          },
+        ]);
+      })
+      .finally(() => setCritiquePending(false));
+  };
+
   const gridMode: RevealMode = step === 'reveal' ? 'pick' : step === 'most-not-you' ? 'not-you' : 'locked';
   const showGrid = session !== null && (step === 'reveal' || step === 'most-not-you' || step === 'picking');
+  // Open from the reveal until the Brief exists — at 'complete' the ADR-0013
+  // hard stop has fired and the handoff owns the screen.
+  const showCritique =
+    session !== null && (step === 'reveal' || step === 'most-not-you' || step === 'refine');
+  const critiqueCuts = session?.critiqueCuts ?? [];
 
   return (
     <div className="space-y-5">
@@ -177,6 +228,38 @@ export function DesignSessionFlow({ initialSession }: { initialSession?: DesignS
         </>
       )}
       {step === 'refining' && !error && <GeneratingBeat lines={REFINE_BEAT_LINES} />}
+
+      {/* The critique lane (ADR-0039): the chat survives the reveal, so plain
+          criticism re-cuts the design instead of being discarded. Re-cuts
+          render through the same grid, and stay pickable. */}
+      {showCritique && session && (
+        <>
+          <ChatBubble role="bot">{CRITIQUE_INVITE}</ChatBubble>
+          {critiqueLog.map((message, i) => (
+            <ChatBubble key={i} role={message.role}>
+              {message.text}
+            </ChatBubble>
+          ))}
+          {critiqueCuts.length > 0 && (
+            <RevealGrid
+              variations={critiqueCuts}
+              mode={gridMode}
+              pickId={pickId}
+              onSelect={handleGridSelect}
+              indexOffset={session.variations.length}
+            />
+          )}
+          {critiquePending ? (
+            <GeneratingBeat lines={REFINE_BEAT_LINES} />
+          ) : (
+            <ChatInput
+              placeholder={CRITIQUE_PLACEHOLDER}
+              ariaLabel="Tell me what's wrong with it"
+              onSubmit={handleCritique}
+            />
+          )}
+        </>
+      )}
 
       {step === 'complete' && session && (
         <>

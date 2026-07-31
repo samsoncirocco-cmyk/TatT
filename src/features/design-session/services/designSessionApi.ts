@@ -8,6 +8,8 @@ import type {
   StartSessionRequest,
   PickRequest,
   RefineRequest,
+  CritiqueRequest,
+  CritiqueResult,
 } from '@/services/designSession/types';
 import type {
   ConverseRequest,
@@ -113,6 +115,47 @@ export function submitPick(sessionId: string, request: PickRequest): Promise<Des
 /** POST /api/v1/design-session/[id]/refine — allowed exactly once (ADR-0013). */
 export function submitRefinement(sessionId: string, request: RefineRequest): Promise<DesignSession> {
   return postJson(`${BASE_PATH}/${sessionId}/refine`, request);
+}
+
+/**
+ * POST /api/v1/design-session/[id]/critique — one post-reveal critique turn
+ * (ADR-0039). Unlike the other calls this returns more than the session: the
+ * bot's reply, the new cut when one was rendered, and what's left of the fix
+ * allowance, all of which the reveal lane renders.
+ */
+export async function submitCritique(
+  sessionId: string,
+  request: CritiqueRequest
+): Promise<CritiqueResult> {
+  const res = await postAuthed(`${BASE_PATH}/${sessionId}/critique`, request);
+
+  let data: unknown = null;
+  try {
+    data = await res.json();
+  } catch {
+    // Non-JSON body — fall through to the status error below.
+  }
+
+  if (!res.ok) {
+    const payload = (data ?? {}) as {
+      error?: string;
+      code?: string;
+      retryable?: boolean;
+      retryAfterMs?: number;
+    };
+    throw new DesignSessionRequestError(
+      payload.error ?? `Design session request failed (${res.status})`,
+      {
+        code: payload.code ?? 'DESIGN_SESSION_FAILED',
+        status: res.status,
+        retryable: payload.retryable === true,
+        retryAfterMs: payload.retryAfterMs,
+      }
+    );
+  }
+
+  if (!data) throw new Error('Design session response was empty');
+  return data as CritiqueResult;
 }
 
 /**
