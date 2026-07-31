@@ -180,6 +180,56 @@ describe('gear 3 — the full bench behind an explicit door', () => {
   });
 });
 
+describe('phone posture — gears 1 and 2 are thumb-sized', () => {
+  it('gives every control on the default surface a 44px minimum', () => {
+    setViewport(PHONE);
+    renderStudio({ design: DESIGN });
+
+    const controls = [
+      screen.getByLabelText(/what's wrong with that part/i),
+      screen.getByRole('button', { name: /redraw that bit/i }),
+      ...screen.getAllByRole('button').filter((button) =>
+        screen.getByTestId('plain-tools').contains(button)
+      ),
+    ];
+
+    for (const control of controls) {
+      expect(control.className).toContain('min-h-[44px]');
+    }
+  });
+
+  it('takes the lasso from touch as well as mouse, without scrolling the page', () => {
+    setViewport(PHONE);
+    renderStudio({ design: DESIGN });
+
+    const canvas = screen.getByTestId('region-canvas');
+    // Pointer events cover pen and touch on one path; touch-action: none is
+    // what stops a thumb-drawn loop from panning the page instead.
+    expect(canvas.style.touchAction).toBe('none');
+
+    canvas.getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      width: 343,
+      height: 343,
+      right: 343,
+      bottom: 343,
+    });
+    canvas.setPointerCapture = vi.fn();
+
+    fireEvent.pointerDown(canvas, {
+      pointerId: 1,
+      pointerType: 'touch',
+      clientX: 100,
+      clientY: 100,
+    });
+    fireEvent.pointerUp(canvas, { pointerId: 1, pointerType: 'touch' });
+
+    // A single thumb tap stands for a generous region — no precision needed.
+    expect(screen.getByTestId('region-tap')).toBeTruthy();
+  });
+});
+
 describe('what the one door owns is shed (ADR-0028)', () => {
   it('has no prompt box, no vibe chips, and no body-part selector on the surface', () => {
     renderStudio({ design: DESIGN });
