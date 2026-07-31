@@ -25,7 +25,9 @@
  * routing's behavior must not shift while we fix the other two.
  */
 
-import type { AspectRatio } from '@/services/generation/internal/provider';
+// Type-only, so this never becomes a runtime cycle with the routing module
+// inside that barrel — which imports this file back for the ratio matcher.
+import type { AspectRatio } from '@/services/generation';
 
 export type PlacementRegion = 'limb' | 'torso';
 
