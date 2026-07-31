@@ -47,6 +47,13 @@ const COMPOSITION_IDENTITY: Record<string, CutIdentity> = {
   'dynamic flow': { name: 'the mover', caption: 'built to sweep with the body' },
   'negative space': { name: 'the breather', caption: 'small mark, big air' },
   'close crop': { name: 'the close-up', caption: 'in tight, on purpose' },
+  // Ensemble briefs get their own four cuts (a close crop of four characters
+  // is one cropped face), so each needs a designed name here too — otherwise
+  // a whole cast reveal falls back to "cut one … cut four".
+  'ensemble emblem': { name: 'the emblem', caption: 'the whole cast, dead center' },
+  'battle scene': { name: 'the clash', caption: 'everyone in it, mid-fight' },
+  'stacked tiers': { name: 'the totem', caption: 'stacked top to bottom' },
+  'flowing procession': { name: 'the procession', caption: 'strung along the flow' },
 };
 
 const ORDINAL = ['one', 'two', 'three', 'four'];

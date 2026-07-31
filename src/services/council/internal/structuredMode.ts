@@ -117,8 +117,14 @@ const POLES: Record<string, PoleSpec> = {
   },
 };
 
+interface CompositionalTreatment {
+  composition: string;
+  phrase: string;
+  detail: string;
+}
+
 /** Compositional-mode treatments: style locks, the four slots vary pose/framing/negative space (ADR-0012). */
-const COMPOSITIONAL_TREATMENTS: { composition: string; phrase: string; detail: string }[] = [
+const COMPOSITIONAL_TREATMENTS: CompositionalTreatment[] = [
   {
     composition: 'centered emblem',
     phrase: 'centered emblematic composition',
@@ -146,6 +152,63 @@ const COMPOSITIONAL_TREATMENTS: { composition: string; phrase: string; detail: s
     detail: 'subject rendered large and close, held just inside a clean white margin',
   },
 ];
+
+/*
+ * The ensemble pool. Two of the default treatments cannot satisfy a
+ * multi-character brief by construction, not by bad luck: `close crop` asks
+ * for the subject "rendered large and close" — for a cast of four that is a
+ * cropped face, which is exactly what the Kingdom Hearts reveal returned —
+ * and `negative space` asks for a "small off-center subject", the opposite
+ * of a group. Burning two of four cuts on treatments that must fail leaves
+ * the customer two real options, not four.
+ *
+ * These four all hold multiple interacting figures and stay divergent from
+ * each other along the dimension that matters here — how the group is
+ * arranged: symmetric and static, interlocked and dense, stacked vertically,
+ * or strung along a diagonal.
+ */
+const ENSEMBLE_TREATMENTS: CompositionalTreatment[] = [
+  {
+    composition: 'ensemble emblem',
+    phrase: 'centered ensemble emblem composition',
+    detail:
+      'the full cast arranged symmetrically around a shared center, every figure whole and ' +
+      'individually readable, together forming one self-contained emblem',
+  },
+  {
+    composition: 'battle scene',
+    phrase: 'connected battle-scene composition',
+    detail:
+      'the cast interlocked mid-clash, weapons and eyelines linking figure to figure so the ' +
+      'group reads as one continuous scene rather than separate portraits',
+  },
+  {
+    composition: 'stacked tiers',
+    phrase: 'vertically tiered stacked composition',
+    detail:
+      'figures stacked in distinct tiers up the length of the design, largest at the base, ' +
+      'each face clear of the figures around it',
+  },
+  {
+    composition: 'flowing procession',
+    phrase: 'flowing procession composition',
+    detail:
+      'the cast strung along a sweeping diagonal in motion, staggered in depth from the lead ' +
+      'figure back through the trailing ones',
+  },
+];
+
+/**
+ * Which four compositional cuts a brief gets. The cast size comes from the
+ * intake roster and nowhere else: re-deriving it from the character catalog
+ * is what scored this same Kingdom Hearts session as single-subject, since
+ * the catalog covers anime and Kingdom Hearts is a game.
+ */
+function compositionalTreatments(record: IntakeRecord): CompositionalTreatment[] {
+  return (record.requestedCharacters?.length ?? 0) > 1
+    ? ENSEMBLE_TREATMENTS
+    : COMPOSITIONAL_TREATMENTS;
+}
 
 /** Keep the freeform meaning bounded so embedded prose can't blow the token budget. */
 function truncateWords(text: string, maxWords: number): string {
@@ -485,7 +548,7 @@ function buildQuadrantVariation(
 }
 
 function buildCompositionalVariation(
-  treatment: (typeof COMPOSITIONAL_TREATMENTS)[number],
+  treatment: CompositionalTreatment,
   ctx: PromptContext
 ): StructuredVariation {
   const lead = paletteClause(ctx.palette) + PRESENTATION_LEAD;
@@ -543,7 +606,7 @@ export async function enhanceStructured(
       buildQuadrantVariation([axisA, axisB], [a1, b1], ctx),
     ];
   } else {
-    variations = COMPOSITIONAL_TREATMENTS.map(treatment =>
+    variations = compositionalTreatments(record).map(treatment =>
       buildCompositionalVariation(treatment, ctx)
     );
   }

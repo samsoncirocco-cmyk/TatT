@@ -82,6 +82,50 @@ describe('ensemble prompt contract — the Kingdom Hearts session', () => {
   });
 });
 
+/*
+ * The other half of the same reveal: one of the four came back as a single
+ * cropped face. `close crop` ("subject rendered large and close") and
+ * `negative space` ("small off-center subject") cannot hold four sparring
+ * characters — those two cuts were spent before the model ran.
+ */
+describe('compositional treatments — an ensemble gets four cuts that can hold it', () => {
+  const compositionsOf = async (record: IntakeRecord) =>
+    (await enhanceStructured(record)).variations.map(
+      variation => (variation.axisPosition as { composition: string }).composition
+    );
+
+  it('never offers a close crop or negative space to a named cast', async () => {
+    const compositions = await compositionsOf(KINGDOM_HEARTS);
+
+    expect(compositions).not.toContain('close crop');
+    expect(compositions).not.toContain('negative space');
+  });
+
+  it('keeps exactly four distinct cuts for the ensemble (ADR-0012)', async () => {
+    const compositions = await compositionsOf(KINGDOM_HEARTS);
+
+    expect(compositions).toHaveLength(4);
+    expect(new Set(compositions).size).toBe(4);
+  });
+
+  it('still offers both to a single-subject brief', async () => {
+    const compositions = await compositionsOf({
+      ...KINGDOM_HEARTS,
+      subject: 'Sora holding his Keyblade',
+      requestedCharacters: ['Sora'],
+    });
+
+    expect(compositions).toContain('close crop');
+    expect(compositions).toContain('negative space');
+  });
+
+  it('treats a brief with no roster as single-subject rather than guessing', async () => {
+    const { requestedCharacters: _roster, ...noRoster } = KINGDOM_HEARTS;
+
+    expect(await compositionsOf(noRoster as IntakeRecord)).toContain('close crop');
+  });
+});
+
 describe('getBaseNegativePrompt — cast size is the intake\'s call, not the catalog\'s', () => {
   it('trusts requestedCharacterCount over catalog detection', () => {
     // The catalog cannot see this cast; without the count it scores as a
