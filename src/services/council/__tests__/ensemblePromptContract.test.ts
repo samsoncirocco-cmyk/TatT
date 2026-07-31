@@ -29,8 +29,9 @@ const KINGDOM_HEARTS: IntakeRecord = {
   meaning: 'a kingdom hearts sleeve',
   subject: 'Roxas, Sora, Axel, and Riku sparring with their unique Keyblades',
   requestedCharacters: ['Roxas', 'Sora', 'Axel', 'Riku'],
+  references: [],
   ambiguousAxes: [],
-} as IntakeRecord;
+};
 
 /** `cartoon` as a standalone entry, not the substring inside another token. */
 const hasCartoonNegative = (negative: string) =>
