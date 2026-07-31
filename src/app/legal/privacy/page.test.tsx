@@ -83,13 +83,16 @@ describe('PrivacyPage — v1.0 published policy', () => {
 
   it('states prominently that the AR mirror never uploads camera frames', () => {
     render(<PrivacyPage />);
-    const text = document.body.textContent ?? '';
+    const text = (document.body.textContent ?? '').replace(/\s+/g, ' ');
     // Verified against src/services/ar/arService.js and src/features/ar/ —
     // the camera stream feeds a local <video>, capture composites on a local
-    // canvas and downloads via a blob URL. No network path exists.
+    // canvas and exits only via a blob-URL download ("save it") or the OS
+    // share sheet via navigator.share ("send it to the group chat"). No
+    // network path exists.
     expect(text).toContain('The AR mirror runs entirely on your device.');
     expect(text).toMatch(/camera frames are not uploaded, stored, or sent to us/);
-    expect(text).toMatch(/saves the\s+picture to your device, not to TattTester/);
+    expect(text).toContain('“save it” saves it to your device, not to TattTester');
+    expect(text).toContain('“send it to the group chat” opens your phone’s own share sheet');
   });
 
   it('enumerates the real service providers', () => {

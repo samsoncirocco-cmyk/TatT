@@ -129,8 +129,11 @@ export default function PrivacyPage() {
                 <strong>The AR mirror runs entirely on your device.</strong> When you point
                 your camera at your skin to preview a design, the video never leaves your
                 phone: camera frames are not uploaded, stored, or sent to us. The whole
-                preview happens in your browser, and &ldquo;Save this view&rdquo; saves the
-                picture to your device, not to TattTester.
+                preview happens in your browser. If you capture a snap or a clip,
+                &ldquo;save it&rdquo; saves it to your device, not to TattTester, and
+                &ldquo;send it to the group chat&rdquo; opens your phone&rsquo;s own share
+                sheet — the capture goes straight from your device, without passing
+                through our servers.
               </p>
             </div>
 
