@@ -69,6 +69,6 @@ consent remain separate gates.
 Two files used the `0026` prefix. `0026-reinstatement-self-signup.md` has 11
 inbound references across code and docs and kept its number.
 `0026-money-in-cents-reject-out-of-range.md` had no inbound references beyond
-this file, so it was renamed to `0038-money-in-cents-reject-out-of-range.md`
-(the next free number; ADRs run through `0037`). No other file required a
-reference update.
+this file. `0038` is now occupied by the accepted Studio/refinery ADR, so the
+money ADR was renamed to `0039-money-in-cents-reject-out-of-range.md`. No other
+file required a reference update.

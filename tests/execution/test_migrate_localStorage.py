@@ -6,7 +6,9 @@ import pytest
 import json
 from unittest.mock import patch, MagicMock
 from execution.migrate_localStorage import (
-    design_id_for_version,
+    create_design_in_firestore,
+    design_id_for_history,
+    extract_histories,
     preflight_destination,
     parse_version_history,
     is_data_uri,
@@ -40,18 +42,26 @@ def test_validate_versions_rejects_duplicate_version_id(sample_version_history):
     with pytest.raises(ValueError, match="Duplicate version id"):
         validate_versions(versions)
 
-def test_design_id_for_version_is_deterministic():
-    """A source version always maps to one predictable design document."""
-    assert design_id_for_version(
-        {"id": "version-123"}
-    ) == design_id_for_version({"id": "version-123"})
-    assert design_id_for_version({"id": "version-123"}).startswith("design_")
+def test_design_id_for_history_preserves_safe_session_id():
+    """All versions in one source history share its design ID."""
+    assert design_id_for_history("version_history_abc123") == "abc123"
 
 
-def test_design_id_for_version_requires_id():
-    """Versions without IDs cannot be migrated safely."""
-    with pytest.raises(ValueError, match="missing 'id'"):
-        design_id_for_version({})
+def test_extract_histories_includes_every_history(sample_version_history):
+    """Multi-history exports are fully included rather than truncated."""
+    sample_version_history["version_history_second"] = [
+        {
+            "id": "v3",
+            "versionNumber": 1,
+            "timestamp": "2026-01-16T12:00:00Z",
+            "layers": []
+        }
+    ]
+    histories = extract_histories(sample_version_history)
+    assert [key for key, _ in histories] == [
+        "version_history_abc123",
+        "version_history_second"
+    ]
 
 
 def test_parse_version_history(sample_version_history, tmp_path):
@@ -110,6 +120,31 @@ def test_upload_data_uri_to_storage(mock_storage_client):
     mock_blob.make_public.assert_called_once()
 
 
+def test_upload_data_uri_reuses_same_object_within_one_run(mock_storage_client):
+    """Repeated image content in one design does not fail its own create guard."""
+    data_uri = "data:text/plain;base64,aGVsbG8="
+    cache = {}
+
+    first = upload_data_uri_to_storage(
+        data_uri,
+        "bucket",
+        "user",
+        "design",
+        cache
+    )
+    second = upload_data_uri_to_storage(
+        data_uri,
+        "bucket",
+        "user",
+        "design",
+        cache
+    )
+
+    assert first == second
+    blob = mock_storage_client.bucket.return_value.blob.return_value
+    blob.upload_from_string.assert_called_once()
+
+
 def test_upload_data_uri_invalid_format():
     """Test uploading invalid data URI."""
     invalid_uri = "data:invalid"
@@ -155,7 +190,10 @@ def test_preflight_rejects_non_empty_target(
             "project",
             "bucket",
             "user",
-            sample_version_history["version_history_abc123"]
+            [(
+                "version_history_abc123",
+                sample_version_history["version_history_abc123"]
+            )]
         )
 
     mock_storage_client.bucket.assert_not_called()
@@ -190,7 +228,10 @@ def test_preflight_rejects_orphan_collision_before_upload(
             "project",
             "bucket",
             "user",
-            sample_version_history["version_history_abc123"]
+            [(
+                "version_history_abc123",
+                sample_version_history["version_history_abc123"]
+            )]
         )
 
     bucket = mock_storage_client.bucket.return_value
@@ -226,6 +267,12 @@ def test_migrate_version_to_firestore(sample_version_history, mock_firestore_cli
 
     mock_firestore_client.collection.return_value = mock_users_collection
 
+    create_design_in_firestore(
+        "test-project",
+        "user123",
+        "design456",
+        sample_version_history["version_history_abc123"]
+    )
     migrate_version_to_firestore(
         "test-project",
         "user123",
@@ -235,11 +282,11 @@ def test_migrate_version_to_firestore(sample_version_history, mock_firestore_cli
         dry_run=False
     )
 
-    # Verify the visible parent design and its version were both created.
+    # The history has one visible parent and versions remain beneath it.
     mock_design_ref.create.assert_called_once()
     parent_data = mock_design_ref.create.call_args.args[0]
     assert parent_data["id"] == "design456"
-    assert parent_data["currentVersionId"] == version["id"]
+    assert parent_data["currentVersionId"] == "v2"
     assert parent_data["migratedFrom"] == "localStorage"
     mock_version_ref.create.assert_called_once()
 
@@ -309,7 +356,7 @@ def test_main_dry_run(sample_version_history, tmp_path, capsys):
     assert exit_code == 0
     captured = capsys.readouterr()
     assert "DRY RUN" in captured.out
-    assert "users/user123/designs/" in captured.out
+    assert "users/user123/designs/abc123" in captured.out
     assert "/versions/" in captured.out
     assert "/layers/" in captured.out
     assert "Storage: gs://" in captured.out
@@ -327,6 +374,29 @@ def test_main_version_mapping(sample_version_history, tmp_path, capsys):
     assert "Version 1:" in captured.out
     assert "Version 2:" in captured.out
     assert "Layers: 1" in captured.out
+
+
+def test_main_keeps_versions_under_one_design(
+    sample_version_history,
+    tmp_path,
+    capsys
+):
+    """A design timeline is not exploded into unrelated design cards."""
+    json_file = tmp_path / "version_history.json"
+    json_file.write_text(json.dumps(sample_version_history))
+
+    exit_code = main([
+        "--input",
+        str(json_file),
+        "--user-id",
+        "user123",
+        "--dry-run"
+    ])
+
+    assert exit_code == 0
+    output = capsys.readouterr().out
+    assert output.count("Design: users/user123/designs/abc123") == 1
+    assert "design_" not in output
 
 
 def test_main_data_uri_detection(sample_version_history, tmp_path, capsys):

@@ -50,30 +50,25 @@ There are no `--source`, `--user-uid`, `--anonymous`, `--overwrite`, or `--batch
 === localStorage to Firestore Migration ===
 
 Reading ../data/export-[user].json...
-Found 12 versions
+Found 1 design history containing 12 versions
 
 DRY RUN: Complete recovery manifest (no writes):
 
-  Version 1:
-    Design: users/[uid]/designs/design_[sha256-prefix]
-    Version: users/[uid]/designs/design_[sha256-prefix]/versions/version-uuid-1
-    Layers: 4
-      - users/[uid]/designs/design_[sha256-prefix]/versions/version-uuid-1/layers/layer-uuid-1
-      ...
-    Storage: gs://[bucket]/users/[uid]/designs/design_[sha256-prefix]/images/[content-hash].png
-    Image URL type: URL
+    Design: users/[uid]/designs/abc123def456
+    Source: version_history_abc123def456
 
-  Version 2:
-    Design: users/[uid]/designs/design_[sha256-prefix]
-    Version: users/[uid]/designs/design_[sha256-prefix]/versions/version-uuid-2
-    Layers: 5
-    Image URL type: data URI
+      Version 1:
+        Document: users/[uid]/designs/abc123def456/versions/version-uuid-1
+        Layers: 4
+          - users/[uid]/designs/abc123def456/versions/version-uuid-1/layers/layer-uuid-1
+          ...
+        Storage: gs://[bucket]/users/[uid]/designs/abc123def456/images/[content-hash].png
+        Image URL type: URL
 
-  Version 3:
-    Design: users/[uid]/designs/design_[sha256-prefix]
-    Version: users/[uid]/designs/design_[sha256-prefix]/versions/version-uuid-3
-    Layers: 6
-    Image URL type: URL
+      Version 2:
+        Document: users/[uid]/designs/abc123def456/versions/version-uuid-2
+        Layers: 5
+        Image URL type: data URI
 ```
 
 **Review output carefully.** Confirm the version count and layer counts match expected data before proceeding.
@@ -102,16 +97,19 @@ Omit `--project-id` if `GCP_PROJECT_ID` is already set in the environment. Add `
 === localStorage to Firestore Migration ===
 
 Reading ../data/export-[user].json...
-Found 12 versions
-Migrated 1/12 designs
-Migrated 2/12 designs
+Found 1 design history containing 12 versions
+Migrated 1/12 versions
+Migrated 2/12 versions
 ...
-Migrated 12/12 designs
+Migrated 12/12 versions
 
-✓ Successfully migrated 12 designs
+✓ Successfully migrated 1 designs and 12 versions
 ```
 
-**Note:** The script migrates each *version* into its own generated design document (`design_id = "design_" + sha256(version.id)[:16]`) — it does not group versions under a shared parent design. Each parent is created explicitly with the metadata required by TatTester's design list. Review actual Firestore output after migration rather than assuming it mirrors another export format.
+**Note:** Each `version_history_[design-id]` entry becomes one visible parent
+design, with every source version preserved beneath that parent. Multiple
+history keys are migrated independently. This matches TatTester's in-app
+migration and preserves the customer's timeline.
 
 ### Step 3: Verify Migration
 
@@ -144,14 +142,15 @@ print(f'Layers: {total_layers}')
 
 **Expected output:**
 ```
-Designs: 12
+Designs: 1
 Versions: 12
 Layers: 47
 ```
 
-For the required empty target user, the script creates one design document per
-source version, so the design and version counts are equal. If the counts are
-lower, stop and inspect the migration error before retrying.
+For the required empty target user, the design count must equal the number of
+`version_history_` keys and the version count must equal the sum of their
+arrays. If either count differs, stop and inspect the migration error before
+retrying.
 
 **Note:** There is no `test_user_access.py` script in `execution/` — it does not exist. To confirm the target user can actually read their migrated data, either sign in as that user in the app UI and load their designs, or run the Firestore security-rules test suite (if one exists) against the deployed rules. Do not rely on the Step 3 admin-SDK read above as proof of user-level access — the admin client bypasses security rules entirely.
 

@@ -32,21 +32,28 @@ All secrets follow this process. Specific secrets covered in Appendix.
 ### Step 1: Create New Secret Version
 
 ```bash
-# Add new version to existing secret
-echo -n "[NEW_SECRET_VALUE]" | gcloud secrets versions add [SECRET_NAME] --data-file=-
+# Record the currently enabled version that production uses as [OLD_VERSION].
+gcloud secrets versions list [SECRET_NAME] \
+  --filter="state:ENABLED" \
+  --sort-by="~createTime"
 
-# Verify new version created
+# Add the replacement and record the returned version number as [NEW_VERSION].
+printf '%s' "[NEW_SECRET_VALUE]" | \
+  gcloud secrets versions add [SECRET_NAME] --data-file=-
+
+# Verify both recorded version IDs and their states.
 gcloud secrets versions list [SECRET_NAME]
 ```
 
 **Expected output:**
 ```
 NAME  STATE    CREATED
-2     enabled  2026-02-16T10:30:00Z
-1     enabled  2026-02-10T08:15:00Z
+[NEW_VERSION]  enabled  2026-02-16T10:30:00Z
+[OLD_VERSION]  enabled  2026-02-10T08:15:00Z
 ```
 
-**Note:** Old version (1) remains enabled during transition. This allows rollback if new version has issues.
+**Note:** `[OLD_VERSION]` remains enabled during transition. Never assume the
+old and new versions are `1` and `2`; use the exact IDs recorded above.
 
 ### Step 2 (optional): Update Dormant Cloud Run Staging Service
 
@@ -56,10 +63,10 @@ NAME  STATE    CREATED
 # Dormant service only — does not affect the live site
 gcloud run services update pangyo-staging \
   --region us-central1 \
-  --update-secrets [ENV_VAR_NAME]=[SECRET_NAME]:2
+  --update-secrets [ENV_VAR_NAME]=[SECRET_NAME]:[NEW_VERSION]
 
 # Or via GitHub Actions (manual dispatch only — see .github/workflows/ci-cd.yml):
-gh workflow run ci-cd.yml -f environment=staging -f secret_version=2
+gh workflow run ci-cd.yml -f environment=staging -f secret_version=[NEW_VERSION]
 ```
 
 ### Step 3 (optional): Sanity-Check the Dormant Cloud Run Service
@@ -133,7 +140,7 @@ After 24 hours:
 
 ```bash
 # Disable old version
-gcloud secrets versions disable 1 --secret [SECRET_NAME]
+gcloud secrets versions disable [OLD_VERSION] --secret [SECRET_NAME]
 
 # Verify only new version enabled
 gcloud secrets versions list [SECRET_NAME]
@@ -142,8 +149,8 @@ gcloud secrets versions list [SECRET_NAME]
 **Expected output:**
 ```
 NAME  STATE     CREATED
-2     enabled   2026-02-16T10:30:00Z
-1     disabled  2026-02-10T08:15:00Z
+[NEW_VERSION]  enabled   2026-02-16T10:30:00Z
+[OLD_VERSION]  disabled  2026-02-10T08:15:00Z
 ```
 
 **Old version is retained but disabled.** Can be re-enabled if needed for emergency rollback.
@@ -177,7 +184,7 @@ If Step 2 was also performed against the dormant `pangyo-staging`/`pangyo-produc
 ```bash
 gcloud run services update pangyo-production \
   --region us-central1 \
-  --update-secrets [ENV_VAR_NAME]=[SECRET_NAME]:1
+  --update-secrets [ENV_VAR_NAME]=[SECRET_NAME]:[OLD_VERSION]
 ```
 
 ### Late Rollback (After Old Version Disabled)
@@ -186,7 +193,7 @@ If old version already disabled:
 
 ```bash
 # Re-enable old version
-gcloud secrets versions enable 1 --secret [SECRET_NAME]
+gcloud secrets versions enable [OLD_VERSION] --secret [SECRET_NAME]
 ```
 
 Then repeat the Vercel revert steps above with the re-enabled old value.
@@ -199,7 +206,7 @@ No known issues yet. Update this section when issues are discovered during secre
 
 - [ ] New secret value confirmed valid (dormant Cloud Run sanity check, if performed)
 - [ ] Vercel production environment variable updated with new secret value
-- [ ] New Vercel deployment triggered (`vercel --prod` or push to `main`) and live
+- [ ] Exact reviewed production deployment redeployed with `vercel redeploy [CURRENT_PRODUCTION_DEPLOYMENT_URL] --target production`, or a reviewed commit merged to `main`
 - [ ] Production functionality verified on `https://tatt-app.vercel.app`
 - [ ] Logs monitored for 10 minutes, no errors
 - [ ] Old secret version disabled (after 24-hour grace period)
@@ -312,7 +319,7 @@ If a secret is accidentally exposed:
 1. Revoke/disable exposed secret in provider dashboard
 2. Generate new secret
 3. Add new secret version to Secret Manager
-4. Update the Vercel production environment variable and redeploy (`vercel --prod`) — this is what actually protects the live site (see Step 4 above); also update the dormant Cloud Run services if they're being kept in sync
+4. Update the Vercel production environment variable and redeploy the immutable current production deployment (`vercel redeploy [CURRENT_PRODUCTION_DEPLOYMENT_URL] --target production`) — this is what actually protects the live site (see Step 4 above); also update the dormant Cloud Run services if they're being kept in sync
 5. Verify production functionality on `https://tatt-app.vercel.app`
 6. Notify team in #security-incidents
 
