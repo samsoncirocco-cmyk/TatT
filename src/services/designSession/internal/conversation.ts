@@ -97,6 +97,9 @@ function completeIntakeRecord(
     styleTags: record.styleTags ?? [],
     meaning: record.meaning ?? '',
     subject,
+    ...(record.requestedCharacters
+      ? { requestedCharacters: [...record.requestedCharacters] }
+      : {}),
     // A looks-first session stays looks-first through the reveal (TAT-51).
     ...(record.vibe ? { vibe: record.vibe } : {}),
     references: record.references ?? [],

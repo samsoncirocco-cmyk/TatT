@@ -132,12 +132,13 @@ export interface CharacterMatch {
 }
 
 /*
- * A sleeve or back piece legitimately carries a whole cast — a real session
- * asked for five Togashi characters and the old cap of two silently dropped
- * three of them from the brief AND the renders. Six bounds the prompt while
- * covering every plausible group request.
+ * A sleeve or back piece legitimately carries a whole cast. Six was not
+ * enough: a founder-reported Kingdom Hearts sleeve named seven characters
+ * and the seventh could never survive even if every name was recognized.
+ * Twelve remains bounded while covering ensemble requests without silently
+ * editing the customer's cast.
  */
-const MAX_CHARACTERS = 6;
+const MAX_CHARACTERS = 12;
 
 /**
  * Every character the text names (up to MAX_CHARACTERS), or an empty array

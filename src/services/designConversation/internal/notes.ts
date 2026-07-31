@@ -42,10 +42,13 @@ function titleCase(name: string): string {
 export function buildSessionNotes(
   record: Partial<IntakeRecord>,
   characters: CharacterMatch[],
-  moment?: string
+  moment?: string,
+  extractedCast: string[] = []
 ): SessionNotes {
   const subject = (record.subject ?? '').trim();
-  const cast = characters.length
+  const cast = extractedCast.length
+    ? extractedCast
+    : characters.length
     ? characters.map((match) => `${titleCase(match.name)} (${match.series})`)
     : subject
       ? [truncateAtWord(subject, CAST_FALLBACK_MAX)]
