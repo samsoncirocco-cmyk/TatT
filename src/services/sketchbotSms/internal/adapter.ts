@@ -40,6 +40,8 @@ import {
   converse,
   confirmProposal,
   attachReference,
+  getSession,
+  recordPick,
   DesignSessionError,
 } from '@/services/designSession';
 import {
@@ -53,6 +55,9 @@ import {
 // copy of this list is a real bug class — a phrase that reveals on the web
 // but argues over SMS.
 import { isConfirmationIntent } from '@/features/design-session/services/confirmationIntent';
+// Same law for the pick: one ordinal vocabulary shared with the web reveal,
+// so "the third one" means the same thing on both channels.
+import { parsePickOrdinals } from '@/features/design-session/services/pickIntent';
 import type { InboundSms, InboundOutcome, RevealDelivery, SmsProfile } from '../types';
 import { resolveProfileStore, newProfile } from './profileStore';
 import { analyzeInboundMedia, type MediaIngest } from './media';
@@ -67,6 +72,9 @@ import {
   revealClosingText,
   cutCaption,
   referenceAckText,
+  pickRetryText,
+  mostNotYouQuestion,
+  pickCollisionText,
 } from './render';
 
 /** After this long, an unreported in-flight reveal is presumed dead. */
@@ -242,6 +250,15 @@ export async function handleInbound(inbound: InboundSms): Promise<InboundOutcome
     return withReferenceAck(await armReveal(profile, store), ackText);
   }
 
+  // ── After the cuts land: the pick, then the most-not-you tap ─────────
+  // These stages own the next message because the channel just asked a
+  // specific question. Falling through to conversationTurn here would open
+  // a BRAND-NEW session (the continuable set is intake-only), silently
+  // throwing away the reveal the texter is answering about.
+  if (profile.activeSessionId && POST_REVEAL_STAGES.has(profile.lastStage ?? '')) {
+    return withReferenceAck(await postRevealTurn(profile, store, body), ackText);
+  }
+
   // ── A regular conversation turn on the shared engine ─────────────────
   return withReferenceAck(
     await conversationTurn(profile, store, withMediaAnnotation(body, ingest)),
@@ -349,6 +366,137 @@ function withReferenceAck(outcome: InboundOutcome, ackText: string): InboundOutc
 }
 
 type ProfileStoreT = ReturnType<typeof resolveProfileStore>;
+
+/**
+ * Stages where the texter is answering a question the channel asked about a
+ * delivered reveal, rather than describing a new tattoo.
+ */
+const POST_REVEAL_STAGES = new Set(['revealed', 'pick-pending']);
+
+/**
+ * The pick (ADR-0012): which cut they'd actually get, then the one clean
+ * negative signal. Two turns rather than one, because recordPick needs both
+ * ids at once and refuses a pair naming the same cut — and because guessing
+ * a most-not-you the texter never gave would write a preference they don't
+ * hold into the artist's Brief.
+ *
+ * Three outcomes, keyed on how many cuts the message named:
+ *
+ *   none — they aren't answering the pick question at all. The channel's
+ *          existing rule wins: a fresh text after a reveal opens a fresh
+ *          design (see conversationTurn's continuable set). Intercepting
+ *          here instead would trap anyone who texts a new idea.
+ *   one  — the answer. Advance.
+ *   many — they tried to answer and were ambiguous. Re-ask; never guess,
+ *          because a misread picks the wrong tattoo or invents a dislike.
+ */
+async function postRevealTurn(
+  profile: SmsProfile,
+  store: ProfileStoreT,
+  body: string
+): Promise<InboundOutcome> {
+  const sessionId = profile.activeSessionId!;
+
+  let session;
+  try {
+    session = await getSession(sessionId);
+  } catch {
+    // The session expired out from under the profile. Drop the post-reveal
+    // state and let the message open a fresh design rather than dead-end.
+    profile.activeSessionId = null;
+    profile.lastStage = null;
+    profile.pendingPickId = null;
+    profile.updatedAt = new Date().toISOString();
+    await store.save(profile);
+    return conversationTurn(profile, store, body);
+  }
+
+  const cutCount = session.variations.length;
+  const ordinals = parsePickOrdinals(body, cutCount);
+  const stage = profile.lastStage;
+
+  if (ordinals.length === 0) {
+    // Not an answer — a new idea. Let go of the half-finished pick and hand
+    // the message to the engine exactly as an unrevealed session would.
+    profile.pendingPickId = null;
+    return conversationTurn(profile, store, body);
+  }
+
+  if (ordinals.length > 1) {
+    return {
+      kind: 'reply',
+      text:
+        stage === 'pick-pending'
+          ? `One number for the least-you one — 1 to ${cutCount}.`
+          : pickRetryText(cutCount),
+    };
+  }
+
+  const namedId = session.variations[ordinals[0] - 1].id;
+
+  // ── First tap: hold the pick, ask for its opposite ──────────────────
+  if (stage !== 'pick-pending') {
+    profile.pendingPickId = namedId;
+    profile.lastStage = 'pick-pending';
+    profile.updatedAt = new Date().toISOString();
+    await store.save(profile);
+    return { kind: 'reply', text: mostNotYouQuestion(ordinals[0]) };
+  }
+
+  // ── Second tap: both ids in hand ────────────────────────────────────
+  if (namedId === profile.pendingPickId) {
+    return { kind: 'reply', text: pickCollisionText(cutCount) };
+  }
+
+  let picked;
+  try {
+    picked = await recordPick(sessionId, {
+      pickId: profile.pendingPickId!,
+      mostNotYouId: namedId,
+    });
+  } catch (error) {
+    // The session moved on without this channel — most likely the same
+    // person picked on the web. Clear the post-reveal state so the next
+    // text opens a new design instead of re-asking a dead question.
+    if (error instanceof DesignSessionError) {
+      profile.pendingPickId = null;
+      profile.lastStage = null;
+      profile.activeSessionId = null;
+      profile.updatedAt = new Date().toISOString();
+      await store.save(profile);
+      logger.warn({
+        event_type: 'sketchbot_sms.pick_rejected',
+        phone_last4: phoneLast4(profile.phone),
+        session_id: sessionId,
+        code: error.code,
+      });
+      return {
+        kind: 'reply',
+        text: "Looks like that set already moved on without me. Tell me what you're after and I'll start a fresh one.",
+      };
+    }
+    throw error;
+  }
+
+  profile.pendingPickId = null;
+  profile.lastStage = 'refine-pending';
+  profile.updatedAt = new Date().toISOString();
+  await store.save(profile);
+
+  logger.info({
+    event_type: 'sketchbot_sms.pick_recorded',
+    phone_last4: phoneLast4(profile.phone),
+    session_id: sessionId,
+  });
+
+  return {
+    kind: 'reply',
+    text: renderSmsReply(
+      picked.refinementQuestion ??
+        'Locked in. One last thing — what would you change about it?'
+    ),
+  };
+}
 
 async function armReveal(
   profile: SmsProfile,
@@ -539,6 +687,8 @@ export async function executeReveal(sessionId: string, phone: string): Promise<R
   const profile = (await store.get(phone)) ?? newProfile(phone);
   profile.lastStage = 'revealed';
   profile.revealArmedAt = null;
+  // A fresh set of cuts invalidates any half-finished pick from the last one.
+  profile.pendingPickId = null;
   profile.updatedAt = new Date().toISOString();
   await store.save(profile);
 

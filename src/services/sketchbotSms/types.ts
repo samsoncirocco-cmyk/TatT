@@ -61,13 +61,26 @@ export interface SmsProfile {
   activeSessionId?: string | null;
   /**
    * Conversation stage after the last turn. Engine stages ('chatting',
-   * 'proposal', 'handoff') plus two channel-owned ones: 'reveal-pending'
-   * (renders in flight — a second "yes" must not double-fire) and
-   * 'revealed' (delivered; the next text starts a new design).
+   * 'proposal', 'handoff') plus the channel-owned ones:
+   *
+   *   'reveal-pending' — renders in flight; a second "yes" must not double-fire
+   *   'revealed'       — cuts delivered, awaiting the pick
+   *   'pick-pending'   — pick captured, awaiting the most-not-you tap
+   *   'refine-pending' — pick recorded, awaiting the refinement answer
+   *
+   * The three post-reveal stages own the texter's next message: the channel
+   * asked a specific question, so the reply answers it rather than opening a
+   * new design.
    */
   lastStage?: string | null;
   /** When the in-flight reveal was armed — stale-recovery for 'reveal-pending'. */
   revealArmedAt?: string | null;
+  /**
+   * Variation id chosen at 'revealed', held until the most-not-you tap
+   * arrives — recordPick needs both ids at once and refuses a pair that
+   * names the same cut twice.
+   */
+  pendingPickId?: string | null;
   /** Lifetime reveals — drives the account-link gate. */
   totalReveals: number;
   /** Rolling per-day reveal counter (UTC date), reset on date change. */

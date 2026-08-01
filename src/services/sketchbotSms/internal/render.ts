@@ -122,9 +122,39 @@ export function unavailableText(webUrl: string): string {
 export const INTERNAL_ERROR_TEXT =
   "Something went sideways on my end — that's mine to fix, not yours. Text me again in a minute and I'll pick this straight back up.";
 
-/** Closing text of a reveal MMS sequence — the bridge into the web session. */
+/**
+ * Closing text of a reveal MMS sequence — the bridge into the web session,
+ * and the channel's ask for the pick.
+ *
+ * The pick is what the rest of the flow hangs off: it is the only way an SMS
+ * session reaches phase 'complete', which is the only phase that carries a
+ * Brief into a booking. So the closing turn asks for it directly rather than
+ * leaving the texter with four images and no next move.
+ */
 export function revealClosingText(shareUrl: string): string {
-  return `Four takes, four directions. See them big, try them on your skin in AR, and book the artist who can ink it: ${shareUrl}`;
+  return (
+    'Four takes, four directions. Text me the number of the one you would ' +
+    `actually get — then I'll tighten it into something an artist can work ` +
+    `from. See them big here: ${shareUrl}`
+  );
+}
+
+/** The reply named no single cut — ask again without scolding. */
+export function pickRetryText(cutCount: number): string {
+  return `Just the number — 1 to ${cutCount} — whichever one you'd actually put on your body.`;
+}
+
+/** The pick landed; now the one clean negative signal (ADR-0012). */
+export function mostNotYouQuestion(pickedNumber: number): string {
+  return `Cut ${pickedNumber} it is. Now the opposite: which one is the least you? That tells me what to steer away from.`;
+}
+
+/** The most-not-you tap named the cut they already picked. */
+export function pickCollisionText(cutCount: number): string {
+  return (
+    `That's the one you're keeping — I need a different number for the one ` +
+    `that's least you. Any of the other ${Math.max(cutCount - 1, 1)}.`
+  );
 }
 
 /** Caption for cut n of 4 in the sequential MMS delivery. */

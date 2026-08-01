@@ -16,7 +16,13 @@ import {
   memoryProfileStore,
 } from '../internal/profileStore';
 import { REVEAL_ACK, BUDGET_EXHAUSTED_TEXT, REVEAL_FAILED_TEXT } from '../internal/render';
-import { converse, confirmProposal, DesignSessionError } from '@/services/designSession';
+import {
+  converse,
+  confirmProposal,
+  getSession,
+  recordPick,
+  DesignSessionError,
+} from '@/services/designSession';
 import { checkBudget, recordConversationTurnSpend } from '@/lib/budget-tracker';
 import { recordImageSpend } from '@/app/api/v1/design-session/shared';
 import { resolveSharedDesignStore } from '@/lib/shared-design-store';
@@ -37,6 +43,8 @@ vi.mock('@/services/designSession', () => {
     converse: vi.fn(),
     confirmProposal: vi.fn(),
     attachReference: vi.fn(),
+    getSession: vi.fn(),
+    recordPick: vi.fn(),
     DesignSessionError,
   };
 });
@@ -319,6 +327,151 @@ describe('reveal flow', () => {
 
     const delivery = await executeReveal('s1', PHONE);
     expect(delivery.closingText).toContain('https://tatttester.com/design');
+  });
+});
+
+describe('the pick', () => {
+  /** Walk a phone all the way to delivered cuts, awaiting the pick. */
+  async function driveToRevealed(phone = PHONE) {
+    await driveToProposal(phone);
+    await handleInbound({ phone, body: 'yes' });
+    vi.mocked(confirmProposal).mockResolvedValueOnce(
+      revealedSession() as unknown as Awaited<ReturnType<typeof confirmProposal>>
+    );
+    await executeReveal('s1', phone);
+    vi.mocked(getSession).mockResolvedValue(
+      revealedSession() as unknown as Awaited<ReturnType<typeof getSession>>
+    );
+  }
+
+  it('holds the first tap and asks for its opposite', async () => {
+    await driveToRevealed();
+
+    const outcome = await handleInbound({ phone: PHONE, body: '3' });
+
+    expect(outcome.kind).toBe('reply');
+    if (outcome.kind === 'reply') expect(outcome.text).toContain('least you');
+    const profile = await memoryProfileStore.get(PHONE);
+    expect(profile?.pendingPickId).toBe('v3');
+    expect(profile?.lastStage).toBe('pick-pending');
+    // Nothing is recorded until both ids are in hand.
+    expect(recordPick).not.toHaveBeenCalled();
+  });
+
+  it('records the pair on the second tap and asks the refinement question', async () => {
+    await driveToRevealed();
+    await handleInbound({ phone: PHONE, body: 'the third one' });
+
+    vi.mocked(recordPick).mockResolvedValueOnce({
+      ...revealedSession(),
+      phase: 'picked',
+      refinementQuestion: 'Bolder, or keep it fine?',
+    } as unknown as Awaited<ReturnType<typeof recordPick>>);
+
+    const outcome = await handleInbound({ phone: PHONE, body: '1' });
+
+    expect(recordPick).toHaveBeenCalledWith('s1', { pickId: 'v3', mostNotYouId: 'v1' });
+    expect(outcome.kind).toBe('reply');
+    if (outcome.kind === 'reply') expect(outcome.text).toBe('Bolder, or keep it fine?');
+    const profile = await memoryProfileStore.get(PHONE);
+    expect(profile?.lastStage).toBe('refine-pending');
+    expect(profile?.pendingPickId).toBeNull();
+  });
+
+  // The regression this branch exists to prevent: without it a numbered
+  // reply falls through to conversationTurn, which opens a brand-new session
+  // because the continuable set is intake-only — discarding the reveal.
+  it('never opens a new session while answering about a reveal', async () => {
+    await driveToRevealed();
+    const before = vi.mocked(converse).mock.calls.length;
+
+    await handleInbound({ phone: PHONE, body: '2' });
+    await handleInbound({ phone: PHONE, body: '2 and 3' });
+
+    expect(vi.mocked(converse).mock.calls.length).toBe(before);
+    const profile = await memoryProfileStore.get(PHONE);
+    expect(profile?.activeSessionId).toBe('s1');
+  });
+
+  it('re-asks when the reply names several cuts', async () => {
+    await driveToRevealed();
+
+    const several = await handleInbound({ phone: PHONE, body: '2 and 3' });
+
+    expect(several.kind).toBe('reply');
+    if (several.kind === 'reply') expect(several.text).toContain('1 to 4');
+    const profile = await memoryProfileStore.get(PHONE);
+    expect(profile?.lastStage).toBe('revealed');
+    expect(profile?.pendingPickId).toBeFalsy();
+  });
+
+  // The channel's existing rule survives the new branch: a text that isn't
+  // answering the pick question opens a fresh design rather than trapping
+  // the texter in "just give me a number".
+  it('lets a new idea after the reveal start a new design', async () => {
+    await driveToRevealed();
+    vi.mocked(converse).mockResolvedValueOnce(turn('chatting', { sessionId: 's2' }));
+
+    const outcome = await handleInbound({ phone: PHONE, body: 'actually I want a dragon' });
+
+    expect(outcome.kind).toBe('reply');
+    expect(converse).toHaveBeenLastCalledWith({ message: 'actually I want a dragon' });
+    const profile = await memoryProfileStore.get(PHONE);
+    expect(profile?.activeSessionId).toBe('s2');
+  });
+
+  it('abandons a half-finished pick when the texter moves on', async () => {
+    await driveToRevealed();
+    await handleInbound({ phone: PHONE, body: '3' });
+    vi.mocked(converse).mockResolvedValueOnce(turn('chatting', { sessionId: 's2' }));
+
+    await handleInbound({ phone: PHONE, body: 'scrap it, I want a koi instead' });
+
+    expect(recordPick).not.toHaveBeenCalled();
+    const profile = await memoryProfileStore.get(PHONE);
+    expect(profile?.pendingPickId).toBeNull();
+    expect(profile?.activeSessionId).toBe('s2');
+  });
+
+  it('refuses a most-not-you that names the kept cut', async () => {
+    await driveToRevealed();
+    await handleInbound({ phone: PHONE, body: '2' });
+
+    const outcome = await handleInbound({ phone: PHONE, body: '2' });
+
+    expect(recordPick).not.toHaveBeenCalled();
+    expect(outcome.kind).toBe('reply');
+    if (outcome.kind === 'reply') expect(outcome.text).toContain('different number');
+    const profile = await memoryProfileStore.get(PHONE);
+    expect(profile?.lastStage).toBe('pick-pending');
+  });
+
+  it('starts a fresh design when the session expired underneath the profile', async () => {
+    await driveToRevealed();
+    vi.mocked(getSession).mockRejectedValueOnce(new DesignSessionError('SESSION_NOT_FOUND'));
+    vi.mocked(converse).mockResolvedValueOnce(turn('chatting', { sessionId: 's2' }));
+
+    const outcome = await handleInbound({ phone: PHONE, body: '3' });
+
+    expect(outcome.kind).toBe('reply');
+    expect(converse).toHaveBeenLastCalledWith({ message: '3' });
+    const profile = await memoryProfileStore.get(PHONE);
+    expect(profile?.activeSessionId).toBe('s2');
+  });
+
+  it('clears post-reveal state when the session already moved on', async () => {
+    await driveToRevealed();
+    await handleInbound({ phone: PHONE, body: '4' });
+    vi.mocked(recordPick).mockRejectedValueOnce(new DesignSessionError('INVALID_PHASE'));
+
+    const outcome = await handleInbound({ phone: PHONE, body: '1' });
+
+    expect(outcome.kind).toBe('reply');
+    if (outcome.kind === 'reply') expect(outcome.text).toContain('fresh one');
+    const profile = await memoryProfileStore.get(PHONE);
+    expect(profile?.lastStage).toBeNull();
+    expect(profile?.activeSessionId).toBeNull();
+    expect(profile?.pendingPickId).toBeNull();
   });
 });
 
