@@ -221,6 +221,155 @@ describe('DesignSessionFlow', () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
+  // ADR-0039: the chat used to die at the reveal — there was no reply box at
+  // all, so "riku's missing" had nowhere to go. These pin that it survives,
+  // that the re-cut it produces is pickable, and that it still closes at the
+  // Brief.
+  describe('critique lane (ADR-0039)', () => {
+    async function reachReveal() {
+      fetchMock.mockResolvedValueOnce(jsonResponse(baseSession));
+      render(<DesignSessionFlow />);
+      await answerIntake();
+      await screen.findByText(REVEAL_NARRATION);
+    }
+
+    it('keeps the reply box open at the reveal and re-cuts on plain criticism', async () => {
+      await reachReveal();
+
+      const box = screen.getByLabelText("Tell me what's wrong with it");
+      expect(screen.getByText(/if something.s off, just say it/i)).toBeTruthy();
+
+      const recut = {
+        id: 'v3-fix1',
+        axisPosition: { 'bold-fine': 'bold' },
+        prompt: 'prompt 3 recut',
+        imageUrl: 'https://img.test/recut.png',
+      };
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse({
+          success: true,
+          session: { ...baseSession, critiqueCuts: [recut], fixesUsed: 1 },
+          reply: 're-cut cut three with that. 5 more re-cuts before i hand you over.',
+          cut: recut,
+          fixesRemaining: 5,
+          exhausted: false,
+          generated: true,
+        })
+      );
+
+      fireEvent.change(box, { target: { value: 'the third one but less color' } });
+      fireEvent.submit(box.closest('form')!);
+
+      await screen.findByText(/re-cut cut three with that/i);
+      expect(fetchMock).toHaveBeenLastCalledWith(
+        '/api/v1/design-session/sess-1/critique',
+        expect.objectContaining({ method: 'POST' })
+      );
+      expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({
+        message: 'the third one but less color',
+      });
+
+      // The user's words are echoed back, and the re-cut renders beside the
+      // four — pickable, so the loop closes where it started.
+      expect(screen.getByText('the third one but less color')).toBeTruthy();
+      expect(screen.getAllByAltText(/^Design \d$/)).toHaveLength(5);
+      // The re-cut counts on from the reveal's four, so no two pick targets
+      // announce themselves as the same design.
+      expect(screen.getByRole('button', { name: /^Pick design 5 / })).toBeTruthy();
+    });
+
+    it('speaks the ceiling instead of silently refusing, and never renders past it', async () => {
+      await reachReveal();
+
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse({
+          success: true,
+          session: baseSession,
+          reply: "you've been round this a few times now — that's your artist's job, honestly.",
+          fixesRemaining: 0,
+          exhausted: true,
+          generated: false,
+        })
+      );
+
+      const box = screen.getByLabelText("Tell me what's wrong with it");
+      fireEvent.change(box, { target: { value: 'one more, less color' } });
+      fireEvent.submit(box.closest('form')!);
+
+      await screen.findByText(/that.s your artist.s job/i);
+      // Refusal spoken, no new cut — the four are still all there is.
+      expect(screen.getAllByAltText(/^Design \d$/)).toHaveLength(4);
+    });
+
+    it('keeps the reveal usable when a critique turn fails', async () => {
+      await reachReveal();
+
+      fetchMock.mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        json: async () => ({ error: 'The image provider is busy right now — retrying shortly usually clears it.', code: 'GENERATION_UNAVAILABLE', retryable: true }),
+      } as Response);
+
+      const box = screen.getByLabelText("Tell me what's wrong with it");
+      fireEvent.change(box, { target: { value: 'too busy' } });
+      fireEvent.submit(box.closest('form')!);
+
+      await screen.findByText(/image provider is busy/i);
+      // The failure is a line in the lane, not a banner over the reveal: the
+      // four cuts are still tappable.
+      expect(screen.getByRole('button', { name: /^Pick design 2 / })).toBeTruthy();
+      expect(screen.getByLabelText("Tell me what's wrong with it")).toBeTruthy();
+    });
+
+    it('lets a customer take a re-cut forward after the first pick', async () => {
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse(baseSession))
+        .mockResolvedValueOnce(jsonResponse(pickedSession));
+      render(<DesignSessionFlow />);
+      await answerIntake();
+      await screen.findByText(REVEAL_NARRATION);
+      fireEvent.click(screen.getByRole('button', { name: /^Pick design 2 / }));
+      fireEvent.click(await screen.findByRole('button', { name: /^Design 3 feels most not me / }));
+      await screen.findByText(pickedSession.refinementQuestion!);
+
+      const recut = {
+        id: 'v1-fix1',
+        axisPosition: { 'bold-fine': 'bold' },
+        prompt: 'prompt 1 with Riku restored',
+        imageUrl: 'https://img.test/recut-after-pick.png',
+      };
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({
+          success: true,
+          session: { ...pickedSession, critiqueCuts: [recut], fixesUsed: 1 },
+          reply: 're-cut cut one with that.',
+          cut: recut,
+          fixesRemaining: 5,
+          exhausted: false,
+          generated: true,
+        }))
+        .mockResolvedValueOnce(jsonResponse({ ...pickedSession, pickId: recut.id }));
+
+      const box = screen.getByLabelText("Tell me what's wrong with it");
+      fireEvent.change(box, { target: { value: "riku's missing" } });
+      fireEvent.submit(box.closest('form')!);
+
+      const recutButton = await screen.findByRole('button', { name: /^Pick design 5 / });
+      expect(recutButton.hasAttribute('disabled')).toBe(false);
+      fireEvent.click(recutButton);
+
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
+      expect(fetchMock).toHaveBeenLastCalledWith(
+        '/api/v1/design-session/sess-1/pick',
+        expect.objectContaining({ method: 'POST' })
+      );
+      expect(JSON.parse(fetchMock.mock.calls[3][1].body)).toEqual({
+        pickId: recut.id,
+        mostNotYouId: 'v3',
+      });
+    });
+  });
+
   it('shows a thinking line while the session starts, then the rationale', async () => {
     let resolveStart!: (value: Response) => void;
     fetchMock.mockReturnValueOnce(

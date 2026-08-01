@@ -4,4 +4,8 @@ export * from './LocalStorageAdapter';
 export * from './FirestoreAdapter';
 export * from './StorageFactory';
 export * from './migrationService';
-
+export {
+  copyImageToPath,
+  recoverImageAtPath,
+  uploadImageToPath,
+} from './imageStorageService';

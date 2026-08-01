@@ -5,6 +5,7 @@ import {
   MODEL_FALLBACK_CHAIN
 } from '@/config/modelRoutingRules.js';
 import type { AspectRatio, GenerationRequest, ProviderName } from './provider';
+import { getAnatomicalAspectRatio } from '@/lib/placement';
 
 // Plain-language exclusion list — no SDXL "(…: 1.5)" weight dialect, since
 // these tokens now reach Imagen's negativePrompt or get folded into a Flux
@@ -53,8 +54,14 @@ const STYLE_MAPPING_BY_KEY: Record<string, StyleModelMapping> = Object.fromEntri
   )
 );
 
-const lookupStyleMapping = (style?: string): StyleModelMapping | undefined =>
-  STYLE_MAPPING_BY_KEY[styleKey(style || '')];
+const lookupStyleMapping = (style?: string | string[]): StyleModelMapping | undefined => {
+  const candidates = Array.isArray(style) ? style : [style];
+  for (const candidate of candidates) {
+    const mapping = STYLE_MAPPING_BY_KEY[styleKey(candidate || '')];
+    if (mapping) return mapping;
+  }
+  return undefined;
+};
 
 const resolveModelId = (modelId: string): string => MODEL_ID_MAP[modelId] || modelId;
 
@@ -66,78 +73,14 @@ const resolveFallbackChain = (modelId: string): string[] => {
 };
 
 /**
- * Placement → aspect ratio (ADR-0023).
- *
- * Placement is free text from intake ("left forearm", "back of the upper
- * arm"), never a bare enum, so this matches phrases inside the string. The
- * previous whole-string equality check matched almost nothing real and every
- * conversational session fell through to 1:1 — square renders for placements
- * that are obviously portrait.
- *
- * Two placements can both match, and the limb ALWAYS wins over the torso —
- * "back of the arm" is an arm piece, "back of the calf" is a calf piece.
- * Region precedence is unconditional, not a length tiebreak: phrase length
- * is not a proxy for anatomical specificity, and using it as one silently
- * routed "back of the arm" and "back of the leg" to the torso because
- * "back" (4) outranks "arm" and "leg" (3).
- *
- * Within a region the longest phrase wins, so "upper arm" beats "arm".
- * Word boundaries keep "forearm" from matching the "arm" rule, and the
- * optional trailing "s" keeps plurals ("hands", "wrists") matching.
+ * Placement → aspect ratio (ADR-0023) now lives in `@/lib/placement`, which
+ * is the one resolver the council prompt builders read too. It moved because
+ * this matcher was the only one of three that worked: the council's two
+ * exact-match lookups silently returned placeholder text for every
+ * conversational placement. Re-exported so existing importers of
+ * `@/services/generation/internal/routing` are unaffected.
  */
-type PlacementRegion = 'limb' | 'torso';
-
-interface PlacementRule {
-  phrase: string;
-  region: PlacementRegion;
-  ratio: AspectRatio;
-}
-
-const DEFAULT_ASPECT_RATIO: AspectRatio = '9:16';
-
-const PLACEMENT_RULES: readonly PlacementRule[] = [
-  // Limbs run portrait — the design follows the length of the limb.
-  { phrase: 'upper arm', region: 'limb', ratio: '9:16' },
-  { phrase: 'lower arm', region: 'limb', ratio: '9:16' },
-  { phrase: 'forearm', region: 'limb', ratio: '9:16' },
-  { phrase: 'upperarm', region: 'limb', ratio: '9:16' },
-  { phrase: 'lowerarm', region: 'limb', ratio: '9:16' },
-  { phrase: 'bicep', region: 'limb', ratio: '9:16' },
-  { phrase: 'tricep', region: 'limb', ratio: '9:16' },
-  { phrase: 'thigh', region: 'limb', ratio: '9:16' },
-  { phrase: 'calf', region: 'limb', ratio: '9:16' },
-  { phrase: 'shin', region: 'limb', ratio: '9:16' },
-  { phrase: 'arm', region: 'limb', ratio: '9:16' },
-  { phrase: 'leg', region: 'limb', ratio: '9:16' },
-  // Extremities are small and banded — square holds them better than portrait.
-  { phrase: 'wrist', region: 'limb', ratio: '1:1' },
-  { phrase: 'ankle', region: 'limb', ratio: '1:1' },
-  { phrase: 'hand', region: 'limb', ratio: '1:1' },
-  // Torso stays portrait but wider.
-  { phrase: 'chest', region: 'torso', ratio: '3:4' },
-  { phrase: 'stomach', region: 'torso', ratio: '3:4' },
-  { phrase: 'sternum', region: 'torso', ratio: '3:4' },
-  { phrase: 'back', region: 'torso', ratio: '3:4' },
-];
-
-/** Limb outranks torso outright; ties inside a region go to the longer phrase. */
-const outranks = (candidate: PlacementRule, incumbent: PlacementRule): boolean => {
-  if (candidate.region !== incumbent.region) return candidate.region === 'limb';
-  return candidate.phrase.length > incumbent.phrase.length;
-};
-
-export const getAnatomicalAspectRatio = (bodyPart?: string): AspectRatio => {
-  const text = (bodyPart || '').toLowerCase();
-  if (!text) return DEFAULT_ASPECT_RATIO;
-
-  let best: PlacementRule | undefined;
-  for (const rule of PLACEMENT_RULES) {
-    if (!new RegExp(`\\b${rule.phrase}s?\\b`).test(text)) continue;
-    if (!best || outranks(rule, best)) best = rule;
-  }
-
-  return best?.ratio ?? DEFAULT_ASPECT_RATIO;
-};
+export { getAnatomicalAspectRatio };
 
 const buildNegativePrompt = (baseNegativePrompt: string | undefined, isStencilMode: boolean | undefined): string => {
   if (!isStencilMode) return baseNegativePrompt || '';

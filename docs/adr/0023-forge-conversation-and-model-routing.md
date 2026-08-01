@@ -134,11 +134,22 @@ Enforced at intake extraction, not left to the prompt template:
 - The conversation provider returns the roster as structured data. Each returned
   display name must be grounded in the transcript before it is accepted, so the
   provider can normalize capitalization but cannot invent a cast member.
+- Verified name-to-source pairs are stored separately in `characterIdentities`.
+  Both the character and source must be grounded in the customer's words, or
+  come from an unambiguous catalog match. Shared bare names abstain instead of
+  guessing. Known source aliases such as KH, FF7, HxH, and JJK normalize through
+  one shared alias table. Multi-source requests require catalog corroboration
+  for each pair; uncorroborated crossover names stay in the roster without a
+  source binding rather than risking a swapped franchise.
+- The Council emits `Character identities: Name — Source` for every verified
+  pair, for single characters, ensembles, and crossovers alike. The exact clause
+  passes unchanged through the design-session seam into generation.
 - The `subject` field is filled with a concrete visual phrase: character name, franchise, signature visual detail, specific expression or moment.
-- `subject` and `requestedCharacters` have different jobs. `subject` is the
-  prompt-facing visual description and may be detail-budgeted; the roster is
-  the customer-visible completeness contract and remains intact even for names
-  outside the finite curated knowledge catalog.
+- `subject`, `requestedCharacters`, and `characterIdentities` have different
+  jobs. `subject` is prompt-facing visual/action prose; the roster is the
+  lossless customer-visible completeness contract; identities are the verified
+  source bindings. Unknown names remain in the roster without an invented
+  source.
 - The template uses `subject` **directly**. It never wraps verbatim meaning in `expressing "..."` — quoting the user's own words back into a prompt fights the model for recognizable IP.
 
 Example: `subject = "Son Goku, Dragon Ball Z, spiky hair, determined expression, Super Saiyan energy aura crackling around raised fist"`.

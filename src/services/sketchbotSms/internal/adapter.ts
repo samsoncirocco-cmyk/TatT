@@ -29,12 +29,9 @@ import {
   checkBudget,
   recordConversationTurnSpend,
 } from '@/lib/budget-tracker';
-// Route-layer helper reused deliberately: the SMS reveal must spend from the
-// same pool with the same per-provider cost constants as the web reveal —
-// duplicating them here is how two channels drift apart.
-import {
-  recordImageSpend,
-} from '@/app/api/v1/design-session/shared';
+// Image spend for the SMS reveal is recorded by the designSession service
+// itself (confirmProposal), from the same pool and the same per-provider
+// constants as the web reveal — this channel must not add a second charge.
 import { resolveSharedDesignStore, type SharedDesign } from '@/lib/shared-design-store';
 import {
   converse,
@@ -507,7 +504,6 @@ async function conversationTurn(
  */
 export async function executeReveal(sessionId: string, phone: string): Promise<RevealDelivery> {
   const store = resolveProfileStore();
-  const demo = isDemoMode();
 
   let session;
   try {
@@ -531,10 +527,6 @@ export async function executeReveal(sessionId: string, phone: string): Promise<R
     });
     return { cuts: [], closingText: REVEAL_FAILED_TEXT };
   }
-
-  // Same spend recording as the web confirm route (4 images, per-provider
-  // constants); demo renders are free stock images.
-  if (!demo) await recordImageSpend(session.provider, session.variations.length);
 
   const profile = (await store.get(phone)) ?? newProfile(phone);
   profile.lastStage = 'revealed';

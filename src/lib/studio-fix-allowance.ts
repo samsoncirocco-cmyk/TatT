@@ -19,8 +19,16 @@
  * hard stop on spend is and stays the server-side cap on `/api/predictions`.
  */
 
-/** ADR-0038 says 5–8; 6 is the middle of the band. */
-export const DEFAULT_STUDIO_FIX_ALLOWANCE = 6;
+/**
+ * ADR-0038, amended 2026-08-01: 25.
+ *
+ * The original 5–8 band fenced spend, but spend is not what this counter
+ * governs — `BUDGET_MAX_SPEND_CENTS` is, and it is unmoved by this number.
+ * What the allowance decides is when someone is told to stop adjusting a
+ * design they intend to wear permanently, and 8 was cutting off the exact
+ * customer this is built for.
+ */
+export const DEFAULT_STUDIO_FIX_ALLOWANCE = 25;
 
 /** localStorage map of designId → fixes already spent on that design. */
 export const FIX_ALLOWANCE_STORAGE_KEY = 'tatt:studio-fixes';

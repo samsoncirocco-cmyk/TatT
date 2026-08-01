@@ -97,17 +97,9 @@ describe('POST /api/v1/design-session/[id]/refine route adapter', () => {
     // The route trims the answer before handing it to the service.
     expect(refineMock).toHaveBeenCalledWith('sess-1', { answer: 'yes, as bold as it gets' });
 
-    // Vertex spend: cents-per-image * 1 regen image.
-    expect(recordSpendMock).toHaveBeenCalledWith(4);
-  });
-
-  it('records the flat replicate cost when the session locked onto replicate', async () => {
-    refineMock.mockResolvedValueOnce(makeSession({ ...completeSession(), provider: 'replicate' }));
-
-    const res = await POST(makeRequest(URL, { answer: 'bolder' }), routeParams('sess-1'));
-
-    expect(res.status).toBe(200);
-    expect(recordSpendMock).toHaveBeenCalledWith(1);
+    // Spend belongs to the service, which alone knows how many renders it
+    // actually bought — the route must not add a second charge.
+    expect(recordSpendMock).not.toHaveBeenCalled();
   });
 
   it('rejects a missing answer with 400 before calling the service', async () => {

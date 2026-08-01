@@ -5,6 +5,11 @@
  * server adapter loads the generated snapshot once; tests can build the same
  * matcher from a tiny in-memory catalog.
  */
+import {
+  REFERENCE_SERIES_ALIASES,
+  referenceSeriesMentioned,
+} from '@/config/referenceSeriesAliases';
+
 
 export interface GeneratedCatalogCharacter {
   id: string;
@@ -77,7 +82,45 @@ const ORDINARY_SINGLE_WORD_NAMES = new Set([
   'monster', 'nana', 'orange', 'pain', 'panda', 'power', 'raven', 'rei',
   'robin', 'scar', 'shin', 'simon', 'todo', 'uta', 'venom', 'violet',
   'wrath', 'yuki', 'zero',
+  // Shared by Kingdom Hearts and No Game No Life; a bare name is unsafe.
+  'sora',
 ]);
+
+/*
+ * Franchises this catalog can never corroborate. The snapshot is an ANIME
+ * catalog, so a customer who anchors the piece to a game or a western
+ * franchise gets no series signal out of it at all — which is exactly how a
+ * Kingdom Hearts sleeve resolved "Sora" to the No Game No Life character,
+ * the only Sora the catalog holds. Naming one of these counts as the
+ * customer naming a series: an otherwise-uncorroborated catalog name is then
+ * somebody else's character, and stays a literal name.
+ *
+ * The catalog's own titles and the curated series names already join this
+ * vocabulary automatically; this list only covers what an anime snapshot
+ * structurally cannot know about.
+ */
+const NON_CATALOG_FRANCHISES: readonly string[] = [
+  'kingdom hearts', 'final fantasy', 'legend of zelda', 'super mario',
+  'metal gear', 'dark souls', 'elden ring', 'genshin impact',
+  'mortal kombat', 'street fighter', 'resident evil', 'devil may cry',
+  'silent hill', 'god of war', 'league of legends', 'apex legends',
+  'hollow knight', 'animal crossing', 'super smash', 'red dead redemption',
+  'the witcher', 'mass effect', 'the last of us', 'world of warcraft',
+  'star wars', 'star trek', 'harry potter', 'lord of the rings',
+  'game of thrones', 'stranger things', 'the walking dead',
+  'rick and morty', 'adventure time', 'steven universe', 'gravity falls',
+  'the last airbender', 'teenage mutant ninja turtles', 'dc comics',
+  'marvel comics', 'nightmare before christmas',
+];
+
+/*
+ * A franchise phrase has to be at least two words. Single-word titles are
+ * indistinguishable from ordinary tattoo prose — "Monster", "Orange" and
+ * "Bleach" are all real catalog titles — and a phantom franchise signal
+ * costs a correct enrichment. Missing "a Naruto sleeve" is the cheaper
+ * error, and it is the same trade ORDINARY_SINGLE_WORD_NAMES already makes.
+ */
+const FRANCHISE_MIN_WORDS = 2;
 
 function words(value: string): string[] {
   const unicodeWord = new RegExp('[\\p{L}\\p{M}\\p{N}]+', 'gu');
@@ -228,9 +271,38 @@ function buildCandidates(
   return candidates;
 }
 
+/**
+ * Every phrase that, said in a tattoo brief, names a body of work: the
+ * catalog's own titles and aliases, the curated series, and the franchises
+ * an anime catalog cannot represent.
+ */
+function buildFranchiseVocabulary(
+  catalog: GeneratedCharacterCatalog,
+  curated: readonly CuratedCharacterAnchor[],
+): Array<{ phrase: string; series: string }> {
+  const phrases = new Map<string, string>();
+  const add = (value: string, series = value, allowSingleWord = false) => {
+    const key = phraseKey(value);
+    if (allowSingleWord || key.split(' ').length >= FRANCHISE_MIN_WORDS) {
+      phrases.set(key, series);
+    }
+  };
+  for (const anime of catalog.anime) {
+    add(anime.title, anime.title);
+    for (const alias of anime.aliases ?? []) add(alias, anime.title);
+  }
+  for (const anchor of curated) add(anchor.series, anchor.series);
+  for (const franchise of NON_CATALOG_FRANCHISES) add(franchise, franchise);
+  for (const [series, aliases] of Object.entries(REFERENCE_SERIES_ALIASES)) {
+    for (const alias of aliases) add(alias, series, true);
+  }
+  return [...phrases].map(([phrase, series]) => ({ phrase, series }));
+}
+
 function seriesMentioned(sourceWords: readonly string[], candidate: Candidate): Appearance | undefined {
   return candidate.appearances.find((appearance) =>
-    appearance.seriesAliases.some((alias) => containsPhrase(sourceWords, alias))
+    appearance.seriesAliases.some((alias) => containsPhrase(sourceWords, alias)) ||
+    referenceSeriesMentioned(sourceWords.join(' '), appearance.series)
   );
 }
 
@@ -264,10 +336,33 @@ export function createCharacterCatalogMatcher(
   for (const candidate of candidates) {
     for (const alias of candidate.aliases) addToTrie(root, alias, candidate);
   }
+  const franchiseVocabulary = buildFranchiseVocabulary(catalog, curated);
 
   return (text: string, limit = 12): CatalogCharacterMatch[] => {
     const sourceWords = words(text || '');
     if (sourceWords.length === 0 || limit < 1) return [];
+
+    // Which bodies of work this brief names. Cheap first-word prefilter so a
+    // thousand catalog titles do not each scan the sentence.
+    const present = new Set(sourceWords);
+    const namedFranchises = franchiseVocabulary
+      .filter(({ phrase }) => {
+        const firstWord = phrase.split(' ')[0];
+        return present.has(firstWord) && containsPhrase(sourceWords, phrase);
+      })
+      .map(({ series }) => series);
+    /**
+     * The customer named a franchise, and it is not this character's. Their
+     * series never came up, so accepting them would change the subject of
+     * the tattoo to somebody who merely shares a given name.
+     */
+    const franchiseDisagrees = (candidate: Candidate): boolean =>
+      namedFranchises.length > 0 &&
+      !namedFranchises.some((franchise) =>
+        candidate.appearances.some((appearance) =>
+          seriesRelated(appearance.series, franchise),
+        ),
+      );
 
     const matches = new Map<string, { candidate: Candidate; appearance: Appearance }>();
     for (let start = 0; start < sourceWords.length; start += 1) {
@@ -287,10 +382,14 @@ export function createCharacterCatalogMatcher(
         let selected: { candidate: Candidate; appearance: Appearance } | undefined;
         if (node.candidates.length === 1 && !node.ambiguousOrdinaryWord) {
           const candidate = node.candidates[0];
-          selected = {
-            candidate,
-            appearance: seriesMentioned(sourceWords, candidate) ?? candidate.appearances[0],
-          };
+          // A name unique in the catalog is still only a guess when the
+          // brief never mentions the character's series. Require franchise
+          // agreement before spending that guess: silence still enriches,
+          // a named and disagreeing franchise does not.
+          const appearance = seriesMentioned(sourceWords, candidate);
+          if (appearance || !franchiseDisagrees(candidate)) {
+            selected = { candidate, appearance: appearance ?? candidate.appearances[0] };
+          }
         } else if (qualified.length === 1) {
           selected = qualified[0];
         }

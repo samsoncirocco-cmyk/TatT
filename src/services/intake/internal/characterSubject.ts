@@ -12,7 +12,11 @@
  */
 
 import { CHARACTER_DATABASE } from '../../../config/characterDatabase.js';
+import {
+  referenceSeriesMentioned,
+} from '../../../config/referenceSeriesAliases';
 import { charactersInGeneratedCatalog } from '../../../server/characterKnowledge/generatedCatalog.server';
+import type { CharacterIdentity } from '../types';
 
 interface CharacterEntry {
   name: string;
@@ -49,6 +53,7 @@ const AMBIGUOUS_NAMES = new Set([
   'flash', 'greed', 'guile', 'hawks', 'hide', 'iron', 'joker', 'law', 'lust',
   'maul', 'mercy', 'pain', 'panda', 'power', 'raven', 'robin', 'scar', 'todo',
   'venom', 'wrath', 'brook', 'gon', 'ken', 'mai', 'uta', 'kira', 'dio',
+  'sora',
   // Shared across franchises (Naruto's Nine-Tails is also Kurama) — only
   // counts when the series is named too.
   'kurama',
@@ -61,19 +66,6 @@ const AMBIGUOUS_NAMES = new Set([
  * characters the user clearly named (a real session lost Gon to exactly
  * this: "characters from hxh").
  */
-const SERIES_ALIASES: Record<string, string[]> = {
-  'hunter x hunter': ['hxh', 'hunterxhunter'],
-  'yu yu hakusho': ['yyh', 'yuyu hakusho', 'yuyu'],
-  'my hero academia': ['mha', 'bnha', 'boku no hero'],
-  'jujutsu kaisen': ['jjk'],
-  'dragon ball': ['dbz', 'dragon ball z', 'dragonball'],
-  'attack on titan': ['aot', 'snk', 'shingeki no kyojin'],
-  'demon slayer': ['kny', 'kimetsu no yaiba'],
-  'one piece': ['op'],
-  'fullmetal alchemist': ['fma', 'fmab'],
-  'chainsaw man': ['csm'],
-};
-
 const MIN_NAME_LENGTH = 3;
 
 function escapeRegExp(value: string): string {
@@ -103,9 +95,7 @@ function coMentionedWith(text: string, name: string, castmateNames: string[]): b
 }
 
 function mentionsSeries(text: string, series: string): boolean {
-  if (mentions(text, series)) return true;
-  const aliases = SERIES_ALIASES[series.toLowerCase()] ?? [];
-  return aliases.some((alias) => mentions(text, alias));
+  return referenceSeriesMentioned(text, series);
 }
 
 /** A name counts when it is unambiguous, or when its series is named too. */
@@ -277,6 +267,16 @@ export function characterLabelFor(matches: CharacterMatch[]): string | undefined
   return groups
     .map((group) => `${joinNames(group.names)} (${group.series})`)
     .join(', ');
+}
+
+/** Verified name-to-source bindings for the generation prompt contract. */
+export function characterIdentitiesFor(
+  matches: readonly CharacterMatch[]
+): CharacterIdentity[] {
+  return matches.map((match) => ({
+    name: titleCase(match.name),
+    series: match.series,
+  }));
 }
 
 /*

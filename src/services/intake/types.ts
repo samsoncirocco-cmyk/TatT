@@ -17,6 +17,12 @@ export const VARIATION_AXIS_POOL: readonly VariationAxis[] = [
   'minimal-ornate',
 ];
 
+/** A verified character-to-source binding used by every generation lane. */
+export interface CharacterIdentity {
+  name: string;
+  series: string;
+}
+
 /**
  * The structured record a design session's intake produces (ADR-0009).
  * Style tags are closed to the style ontology; meaning stays freeform
@@ -45,6 +51,13 @@ export interface IntakeRecord {
    * because the finite knowledge catalog did not recognize them.
    */
   requestedCharacters?: string[];
+  /**
+   * Verified character-to-source bindings. This is intentionally separate
+   * from the lossless roster: unknown characters remain requested even when
+   * no source can be proven, while known identities can never lose or swap
+   * their franchise on the way to generation.
+   */
+  characterIdentities?: CharacterIdentity[];
   /**
    * Set to 'aesthetic' when the user answered the meaning question with
    * pure looks ("it just goes hard") — a complete answer (TAT-51). Closes

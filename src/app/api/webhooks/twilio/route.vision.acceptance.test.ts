@@ -41,6 +41,17 @@ vi.mock('@/lib/rate-limit', () => ({
   rateLimit: vi.fn(async () => ({ allowed: true, limit: 30, remaining: 29, reset: 0 })),
 }));
 vi.mock('@/lib/shared-design-store', () => ({ resolveSharedDesignStore: () => null }));
+// The reveal captures every render into our own bucket (TAT-57) — stubbed
+// here so no GCS call is made and the durable URL is predictable.
+vi.mock('@/services/storage/imageStorageService', () => ({
+  recoverImageAtPath: vi.fn(async () => null),
+  copyImageToPath: vi.fn(
+    async (objectPath: string) => `https://storage.googleapis.com/tatt-pro-assets/${objectPath}`
+  ),
+  uploadImageToPath: vi.fn(
+    async (objectPath: string) => `https://storage.googleapis.com/tatt-pro-assets/${objectPath}`
+  ),
+}));
 vi.mock('@/services/generation', () => ({
   generate: vi.fn(async () => ({ images: ['https://img.example/render.png'] })),
   routeGeneration: vi.fn(() => ({
@@ -213,7 +224,7 @@ describe('TAT-50 acceptance — MMS reference image end to end', () => {
     expect(prompt).toContain('anime');
     expect(prompt).toContain('yusuke');
     expect(vi.mocked(routeGeneration)).toHaveBeenCalledWith(
-      expect.objectContaining({ style: expect.any(String), bodyPart: 'forearm' })
+      expect.objectContaining({ style: expect.arrayContaining(['anime']), bodyPart: 'forearm' })
     );
   });
 });

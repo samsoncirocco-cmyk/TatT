@@ -13,16 +13,35 @@ import type { IntakeRecord } from '../../intake/types';
 import { enhanceStructured } from '../../council';
 import { generate, routeGeneration } from '../../generation';
 import type { AspectRatio, GenerationRequest } from '../../generation';
+import { resolveFixAllowance } from '@/lib/studio-fix-allowance';
 import type {
   Variation,
   StartSessionRequest,
   PickRequest,
   RefineRequest,
+  CritiqueRequest,
+  CritiqueResult,
 } from '../types';
 import { resolveSessionStore } from './store';
 import type { SessionStore, StoredSession } from './store';
 import { deriveRefinementQuestion, adjustPromptForAnswer } from './refinement';
 import { derivePlacementNotes } from './placementNotes';
+import { durableRender } from './durableImage';
+import { recordImageSpend } from './spend';
+import {
+  allCuts,
+  adjustPromptForCritique,
+  cutLabel,
+  isFixRequest,
+  resolveCritiqueTarget,
+} from './critique';
+import {
+  ALLOWANCE_SPENT_LINE,
+  CHATTER_LINE,
+  WHICH_CUT_LINE,
+  fixLandedLine,
+  fixesLeftLine,
+} from './critiqueVoice';
 
 export type DesignSessionErrorCode =
   | 'SESSION_NOT_FOUND'
@@ -113,24 +132,36 @@ export async function startSession(request: StartSessionRequest): Promise<Stored
 }
 
 /**
- * Firestore documents cap at ~1MB, but Vertex Imagen returns images as
- * inline base64 data URLs — megabytes each. Anything inline moves to GCS
- * before it can be persisted; hosted URLs (Replicate, demo stock) pass
- * through untouched.
+ * Render one image and capture it durably (TAT-57). Nothing a provider hands
+ * back is persistable as-is: Replicate URLs expire within the hour and Vertex
+ * inline base64 blows past Firestore's ~1MB document cap. Every URL that
+ * leaves this function is an object in our own bucket.
+ *
+ * `onPurchase` fires the moment the provider answers — before the durable
+ * copy — because that is when the money is gone. A copy that then fails must
+ * still be billed (see ./spend); a render reused from a previous attempt must
+ * not be.
  */
-async function persistableImageUrl(
-  imageUrl: string,
-  sessionId: string,
-  tag: string
+async function renderDurably(
+  session: { id: string },
+  tag: string,
+  request: GenerationRequest,
+  onPurchase: () => void
 ): Promise<string> {
-  if (!imageUrl.startsWith('data:')) return imageUrl;
-  const base64 = imageUrl.slice(imageUrl.indexOf(',') + 1);
-  const { uploadToGCS } = await import('../../gcs-service');
-  const upload = await uploadToGCS(
-    Buffer.from(base64, 'base64'),
-    `design-sessions/${sessionId}/${tag}-${Date.now()}.png`
+  return durableRender(
+    {
+      sessionId: session.id,
+      tag,
+      prompt: request.prompt,
+      negativePrompt: request.negativePrompt,
+      modelId: request.modelId ?? '',
+    },
+    async () => {
+      const result = await generate(request);
+      onPurchase();
+      return result.images[0];
+    }
   );
-  return upload.url;
 }
 
 /**
@@ -156,33 +187,56 @@ export async function startFromRecord(
   // model; the pin is persisted so the regen never re-routes.
   const route = routeGeneration({
     prompt: '',
-    style: intake.styleTags[0],
+    // Intake tags are ordered by conversation/extraction, not by routing
+    // importance. Passing the full set means ['color', 'anime'] still reaches
+    // the anime-capable model instead of falling through on the generic tag.
+    style: intake.styleTags,
     bodyPart: intake.placement,
   });
 
   const demo = isDemoMode();
   const now = new Date().toISOString();
   const shell = base ?? { id: randomUUID(), createdAt: now };
-  const variations: Variation[] = await Promise.all(
-    enhanced.variations.map(async (structured, index) => {
-      const prompt = generationPrompt(structured.prompts);
-      // Demo mode: stock image instead of a paid render; everything else real.
-      const imageUrl = demo
-        ? DEMO_MOCK_IMAGES[index % DEMO_MOCK_IMAGES.length]
-        : await persistableImageUrl(
-            (await generate(pinnedRequest(route, prompt, structured.negativePrompt))).images[0],
-            shell.id,
-            `v${index + 1}`
+
+  // Settled in a finally: a render that succeeded before a sibling threw was
+  // still paid for. allSettled (rather than all) so every in-flight render is
+  // accounted for before the failure surfaces.
+  let imagesPurchased = 0;
+  let variations: Variation[];
+  try {
+    const results = await Promise.allSettled(
+      enhanced.variations.map(async (structured, index): Promise<Variation> => {
+        const prompt = generationPrompt(structured.prompts);
+        const id = `v${index + 1}`;
+        // Demo mode: repo-local stock image instead of a paid render. It is
+        // already a permanent same-origin asset, so nothing to capture.
+        let imageUrl: string;
+        if (demo) {
+          imageUrl = DEMO_MOCK_IMAGES[index % DEMO_MOCK_IMAGES.length];
+        } else {
+          imageUrl = await renderDurably(
+            shell,
+            id,
+            pinnedRequest(route, prompt, structured.negativePrompt),
+            () => { imagesPurchased += 1; }
           );
-      return {
-        id: `v${index + 1}`,
-        axisPosition: structured.axisPosition as Record<string, string>,
-        prompt,
-        negativePrompt: structured.negativePrompt,
-        imageUrl,
-      };
-    })
-  );
+        }
+        return {
+          id,
+          axisPosition: structured.axisPosition as Record<string, string>,
+          prompt,
+          negativePrompt: structured.negativePrompt,
+          imageUrl,
+        };
+      })
+    );
+    const failure = results.find(result => result.status === 'rejected');
+    if (failure) throw (failure as PromiseRejectedResult).reason;
+    variations = results.map(result => (result as PromiseFulfilledResult<Variation>).value);
+  } finally {
+    await recordImageSpend(route.provider, imagesPurchased);
+  }
+
   const session: StoredSession = {
     ...shell,
     phase: 'revealed',
@@ -207,10 +261,10 @@ export async function recordPick(sessionId: string, request: PickRequest): Promi
   const store = resolveSessionStore();
   const session = await loadSession(store, sessionId);
 
-  if (session.phase !== 'revealed') {
+  if (session.phase !== 'revealed' && session.phase !== 'picked') {
     throw new DesignSessionError(
       'INVALID_PHASE',
-      `Cannot record a pick while the session is '${session.phase}' — a pick is only valid on a revealed session.`
+      `Cannot record a pick while the session is '${session.phase}' — a pick is only valid before the final refinement.`
     );
   }
 
@@ -221,8 +275,11 @@ export async function recordPick(sessionId: string, request: PickRequest): Promi
       'pickId and mostNotYouId must be two different variations.'
     );
   }
-  const picked = session.variations.find(variation => variation.id === pickId);
-  const rejected = session.variations.find(variation => variation.id === mostNotYouId);
+  // Cuts the critique lane produced are pickable too (ADR-0039) — a re-cut
+  // the user asked for is the likeliest thing they want to take forward.
+  const cuts = allCuts(session);
+  const picked = cuts.find(variation => variation.id === pickId);
+  const rejected = cuts.find(variation => variation.id === mostNotYouId);
   if (!picked || !rejected) {
     throw new DesignSessionError(
       'INVALID_VARIATION',
@@ -264,32 +321,40 @@ export async function refine(sessionId: string, request: RefineRequest): Promise
     );
   }
 
-  const picked = session.variations.find(variation => variation.id === session.pickId);
+  const cuts = allCuts(session);
+  const picked = cuts.find(variation => variation.id === session.pickId);
   if (!picked) {
     throw new DesignSessionError(
       'INVALID_VARIATION',
       `Session '${sessionId}' pick no longer matches its variations.`
     );
   }
-  const rejected = session.variations.find(variation => variation.id === session.mostNotYouId);
+  const rejected = cuts.find(variation => variation.id === session.mostNotYouId);
 
   const adjustedPrompt = adjustPromptForAnswer(session, picked, request.answer);
   let imageUrl: string | undefined;
   if (isDemoMode()) {
     // Demo regen: the stock image after the picked one, so the refinement
     // visibly changes the design without a paid render.
-    const pickedIndex = session.variations.indexOf(picked);
+    const pickedIndex = cuts.indexOf(picked);
     imageUrl = DEMO_MOCK_IMAGES[(pickedIndex + 1) % DEMO_MOCK_IMAGES.length];
   } else {
-    // ADR-0016: the regen reuses the exact model pinned at session start.
-    const result = await generate(
-      pinnedRequest(
-        { modelId: session.pinnedModelId, aspectRatio: session.pinnedAspectRatio },
-        adjustedPrompt,
-        picked.negativePrompt
-      )
-    );
-    imageUrl = await persistableImageUrl(result.images[0], session.id, `${picked.id}-refined`);
+    let imagesPurchased = 0;
+    try {
+      // ADR-0016: the regen reuses the exact model pinned at session start.
+      imageUrl = await renderDurably(
+        session,
+        `${picked.id}-refined`,
+        pinnedRequest(
+          { modelId: session.pinnedModelId, aspectRatio: session.pinnedAspectRatio },
+          adjustedPrompt,
+          picked.negativePrompt
+        ),
+        () => { imagesPurchased = 1; }
+      );
+    } finally {
+      await recordImageSpend(session.provider, imagesPurchased);
+    }
   }
 
   session.refinementAnswer = request.answer;
@@ -320,6 +385,126 @@ export async function refine(sessionId: string, request: RefineRequest): Promise
 
   await store.save(session);
   return session;
+}
+
+/**
+ * One post-reveal critique turn (ADR-0039): the chat that used to die at the
+ * reveal, kept alive so plain criticism — "riku's missing", "too busy", "the
+ * third one but less color" — lands somewhere useful.
+ *
+ * Deterministic throughout (see ./critique): resolve which cut the critique is
+ * about, fold the user's own words into that cut's prompt, and regenerate ONE
+ * image on the session's pinned model (ADR-0016). Three turns spend nothing —
+ * chatter, an unresolvable target, and a spent allowance — and each says so in
+ * voice (ADR-0038's rule: the ceiling is spoken and ends in an artist).
+ *
+ * Open at phases 'revealed' and 'picked' only. At 'complete' the ADR-0013
+ * round has fired and produced the Brief; the Studio and the artist own
+ * everything after.
+ */
+export async function critique(
+  sessionId: string,
+  request: CritiqueRequest
+): Promise<{ session: StoredSession } & Omit<CritiqueResult, 'session'>> {
+  const store = resolveSessionStore();
+  const session = await loadSession(store, sessionId);
+
+  if (session.phase !== 'revealed' && session.phase !== 'picked') {
+    throw new DesignSessionError(
+      'INVALID_PHASE',
+      session.phase === 'complete'
+        ? 'This session already closed with its Brief (ADR-0013 hard stop) — the Studio and the artist consult own everything after.'
+        : `Cannot critique while the session is '${session.phase}' — there is nothing revealed to talk about yet.`
+    );
+  }
+
+  const message = request.message.trim();
+  const allowance = resolveFixAllowance();
+  const used = session.fixesUsed ?? 0;
+  const remainingBefore = Math.max(0, allowance - used);
+
+  /** Record the turn and persist without spending anything. */
+  const settle = async (
+    reply: string,
+    extra: { targetId?: string; cutId?: string } = {}
+  ) => {
+    const now = new Date().toISOString();
+    session.critiqueTurns = [
+      ...(session.critiqueTurns ?? []),
+      { message, reply, ...extra, at: now },
+    ];
+    session.updatedAt = now;
+    await store.save(session);
+    const remaining = Math.max(0, allowance - (session.fixesUsed ?? 0));
+    return {
+      session,
+      reply,
+      fixesRemaining: remaining,
+      exhausted: remaining <= 0,
+      generated: false as boolean,
+    };
+  };
+
+  if (!isFixRequest(message)) return settle(CHATTER_LINE);
+  // Refused before any paid call, and spoken — never a silent no-op.
+  if (remainingBefore <= 0) return settle(ALLOWANCE_SPENT_LINE);
+
+  const target = resolveCritiqueTarget(session, message);
+  if (!target) return settle(WHICH_CUT_LINE);
+
+  const adjustedPrompt = adjustPromptForCritique(target, message);
+  const cutId = `${target.id}-fix${used + 1}`;
+
+  let imageUrl: string | undefined;
+  if (isDemoMode()) {
+    // Demo re-cut: the stock image after the target's, so the fix visibly
+    // changes the design without a paid render.
+    const index = allCuts(session).indexOf(target);
+    imageUrl = DEMO_MOCK_IMAGES[(index + 1) % DEMO_MOCK_IMAGES.length];
+  } else {
+    // ADR-0016: the re-cut reuses the exact model pinned at session start.
+    // It goes through renderDurably for the same reason every other render
+    // does — a provider URL dies in an hour, and a re-cut is the image the
+    // customer asked for by name, so it is the LAST one that may expire.
+    let purchased = 0;
+    try {
+      imageUrl = await renderDurably(
+        session,
+        cutId,
+        pinnedRequest(
+          { modelId: session.pinnedModelId, aspectRatio: session.pinnedAspectRatio },
+          adjustedPrompt,
+          target.negativePrompt
+        ),
+        () => {
+          purchased += 1;
+        }
+      );
+    } finally {
+      // Billed at the moment of purchase, so a copy that fails after a paid
+      // render still records the money; a reuse records nothing.
+      await recordImageSpend(session.provider, purchased);
+    }
+  }
+
+  const cut: Variation = {
+    id: cutId,
+    axisPosition: target.axisPosition,
+    prompt: adjustedPrompt,
+    negativePrompt: target.negativePrompt,
+    imageUrl,
+  };
+  session.critiqueCuts = [...(session.critiqueCuts ?? []), cut];
+  // Only a render that came back counts against the allowance — same rule the
+  // Studio's ledger follows.
+  session.fixesUsed = used + 1;
+
+  const remainingAfter = Math.max(0, allowance - session.fixesUsed);
+  const settled = await settle(
+    `${fixLandedLine(cutLabel(session, target))} ${fixesLeftLine(remainingAfter)}`,
+    { targetId: target.id, cutId }
+  );
+  return { ...settled, cut, generated: true };
 }
 
 /** Fetch a session by id. Throws SESSION_NOT_FOUND when it doesn't exist. */

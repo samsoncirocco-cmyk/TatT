@@ -77,6 +77,7 @@ function vertexResponse(payload: unknown) {
 }
 
 const CAST = ['Sora', 'Roxas', 'Riku', 'Cloud Strife', 'Mickey', 'Donald', 'Goofy'];
+const IDENTITIES = CAST.map((name) => ({ name, series: 'Kingdom Hearts' }));
 
 const MESSAGES: ConversationMessage[] = [
   { role: 'bot', text: opener() },
@@ -111,6 +112,7 @@ async function runCase(subject: string | null, characters: string[] = CAST) {
           meaning: 'a Kingdom Hearts sleeve in the style of Akira Toriyama',
           subject,
           characters,
+          characterIdentities: IDENTITIES,
           references: [],
           ambiguousAxes: ['bold-fine', 'minimal-ornate'],
         },
@@ -133,6 +135,7 @@ function expectCompleteCast(result: Awaited<ReturnType<typeof runTurn>>) {
     );
   }
   expect(result.record.requestedCharacters).toEqual(CAST);
+  expect(result.record.characterIdentities).toEqual(IDENTITIES);
   expect(result.notes.cast).toEqual(CAST);
 }
 
@@ -144,6 +147,8 @@ async function expectGenerationKeepsCompleteCast(
   for (const variation of enhanced.variations) {
     for (const prompt of Object.values(variation.prompts)) {
       if (!prompt) continue;
+      expect(prompt).toContain('Kingdom Hearts');
+      expect(prompt).not.toContain('No Game No Life');
       for (const name of CAST) {
         expect(prompt, `generation prompt lost ${name}`).toMatch(
           new RegExp(`\\b${name}\\b`, 'i')

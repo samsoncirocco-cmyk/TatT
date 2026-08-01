@@ -9,9 +9,25 @@
 // guaranteed to be canonical ids from the closed style ontology; meaning is
 // the user's answer kept verbatim as prose for the artist brief.
 import { extractIntakeRecord } from './internal/extractionService';
+export {
+  charactersIn,
+  characterLabelFor,
+  subjectPhraseFor,
+  characterIdentitiesFor,
+  momentFrom,
+} from './internal/characterSubject';
+export {
+  groundedCharacterIdentities,
+  mergeCharacterIdentities,
+} from './internal/characterIdentity';
 import type { IntakeRecord } from './types';
 
-export type { IntakeRecord, VariationAxis, AxisSelection } from './types';
+export type {
+  IntakeRecord,
+  CharacterIdentity,
+  VariationAxis,
+  AxisSelection,
+} from './types';
 export { VARIATION_AXIS_POOL } from './types';
 
 export interface IntakeAnswers {

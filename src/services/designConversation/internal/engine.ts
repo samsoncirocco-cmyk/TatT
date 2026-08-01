@@ -25,14 +25,18 @@
  */
 
 import { logger } from '@/lib/logger';
-import type { IntakeRecord, VariationAxis } from '@/services/intake';
-import { VARIATION_AXIS_POOL } from '@/services/intake';
 import {
+  type IntakeRecord,
+  type VariationAxis,
+  VARIATION_AXIS_POOL,
   charactersIn,
   characterLabelFor,
   subjectPhraseFor,
+  characterIdentitiesFor,
   momentFrom,
-} from '@/services/intake/internal/characterSubject';
+  groundedCharacterIdentities,
+  mergeCharacterIdentities,
+} from '@/services/intake';
 import type {
   ConversationMessage,
   ConversationStage,
@@ -703,6 +707,10 @@ export async function runConversationTurn(
     payload.record?.characters,
     scanText
   );
+  const providerIdentities = groundedCharacterIdentities(
+    payload.record?.characterIdentities,
+    scanText
+  );
   const fallbackCast = compactCastParts(extractedSubject);
   const explicitCast = uniqueNames([
     ...providerCharacters,
@@ -719,6 +727,14 @@ export async function runConversationTurn(
     explicitCast.length > 0 ? explicitCast : uniqueNames(detectedCast);
   if (requestedCharacters.length > 0) {
     record.requestedCharacters = requestedCharacters;
+  }
+  const characterIdentities = mergeCharacterIdentities(
+    providerIdentities,
+    characterIdentitiesFor(characters),
+    scanText
+  );
+  if (characterIdentities.length > 0) {
+    record.characterIdentities = characterIdentities;
   }
   const subjectBase = mergeExtractedSubject(
     subjectWithRequestedCast(extractedSubject, requestedCharacters),
