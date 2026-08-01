@@ -18,6 +18,7 @@ import {
   resolveCritiqueTarget,
 } from '../internal/critique';
 import { ALLOWANCE_SPENT_LINE, CHATTER_LINE, WHICH_CUT_LINE } from '../internal/critiqueVoice';
+import { DEFAULT_STUDIO_FIX_ALLOWANCE } from '@/lib/studio-fix-allowance';
 import { generate } from '../../generation';
 import {
   copyImageToPath,
@@ -251,7 +252,10 @@ describe('critique — the orchestrator turn', () => {
   it('defaults the allowance to the Studio’s knob (ADR-0038)', async () => {
     await seed();
     const result = await critique('sess-critique', { message: 'cut one, too busy' });
-    expect(result.fixesRemaining).toBe(5);
+    // Tracks the shared constant, not a literal: this asserts the lane reads
+    // the Studio's knob, which is the actual claim. Pinning the number meant
+    // retuning the allowance broke a test that was never about the number.
+    expect(result.fixesRemaining).toBe(DEFAULT_STUDIO_FIX_ALLOWANCE - 1);
   });
 
   it('spends nothing on chatter', async () => {
@@ -262,7 +266,7 @@ describe('critique — the orchestrator turn', () => {
     expect(result.reply).toBe(CHATTER_LINE);
     expect(mockGenerate).not.toHaveBeenCalled();
     // A turn that spent nothing still leaves the allowance whole.
-    expect(result.fixesRemaining).toBe(6);
+    expect(result.fixesRemaining).toBe(DEFAULT_STUDIO_FIX_ALLOWANCE);
   });
 
   it('asks which cut rather than guessing, and spends nothing', async () => {
@@ -310,7 +314,7 @@ describe('critique — the orchestrator turn', () => {
     expect(result.generated).toBe(true);
     expect(result.cut?.imageUrl).toBeTruthy();
     // The allowance still counts down — demo mode changes cost, not policy.
-    expect(result.fixesRemaining).toBe(5);
+    expect(result.fixesRemaining).toBe(DEFAULT_STUDIO_FIX_ALLOWANCE - 1);
   });
 
   it('leaves a re-cut pickable, so the loop closes where it started', async () => {

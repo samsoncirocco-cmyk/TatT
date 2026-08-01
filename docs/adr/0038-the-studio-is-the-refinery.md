@@ -49,7 +49,7 @@ ranked depth does not.
 Every fix is a real generation call against the real cap, and point-and-say is
 designed to invite tinkering — an unmetered path would be a genuine present-day
 spend problem, not a launch-day one. Each design therefore carries a generous
-per-design fix allowance (default 5–8, env-tunable, drawn from the same global
+per-design fix allowance (25 as of the 2026-08-01 amendment below; env-tunable, drawn from the same global
 budget as every other generation).
 
 The ceiling is **spoken in voice, not enforced as a paywall**: someone on their
@@ -66,3 +66,30 @@ want pixels and a cursor, and a cramped phone imitation would be worse than an
 honest in-voice handoff offering the link for later. Rejected: full mobile
 parity (most expensive work, smallest audience) and a desktop-only Studio
 (strands the mobile majority at exactly the *almost* moment).
+
+---
+
+## Amendment — 2026-08-01: the fix allowance is 25, not 5–8
+
+The band above was set before anything shipped, reasoning from cost. Samson
+raised it to **25** with the reveal working end to end and the post-reveal
+critique lane (ADR-0039) drawing from the same counter.
+
+Why the original band was wrong: 5–8 was picked to fence spend, but the
+allowance is not the spend control — `checkBudget`/`recordSpend` against
+`BUDGET_MAX_SPEND_CENTS` is, and it is unmoved by this. What the allowance
+actually governs is **when a person is told to stop tinkering**, and a tattoo
+is permanent. Someone who wants a ninth adjustment before committing to
+something they wear forever is the customer this product is for, not an abuse
+case. Cutting them off at 8 protects a cap that is already protected.
+
+The arithmetic, stated so the next person does not have to rediscover it:
+worst case per session becomes 4 reveal + 25 fixes + 1 refine = **30 renders**,
+roughly 75¢ at the Flux rate the reveal path actually uses. Against the current
+$500/month cap that is ~660 fully-exhausted sessions a month, and nobody uses
+the whole allowance. The global cap still stops the bleeding if that is wrong.
+
+Set via `NEXT_PUBLIC_STUDIO_FIX_ALLOWANCE`; `DEFAULT_STUDIO_FIX_ALLOWANCE`
+stays the in-code fallback. Revisit when real usage exists — if the median
+session uses 20+, the designs are not good enough on the first pass and the
+fix is upstream, not a smaller number here.
