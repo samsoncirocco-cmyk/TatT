@@ -216,13 +216,24 @@ function compactCastParts(subject: string | undefined): string[] {
   const parts = value
     .split(/\s*[,;]\s*|\s+(?:and|&)\s+/i)
     .map((part) => part.trim().replace(/^(?:and|&)\s+/i, ''))
-    .filter(Boolean);
+    .filter(isLikelyCharacterName);
   // Three is intentional: two-character action phrases such as "Gohan and
   // Cell beam struggle" are better served by the database labels. Three or
   // more compact entries is the strong cast-list shape seen in the failure.
   if (parts.length < 3) return [];
   if (parts.some((part) => part.length > 60)) return [];
   return parts;
+}
+
+/** Reject scene directions that providers occasionally put in `characters`. */
+function isLikelyCharacterName(value: string): boolean {
+  const cleaned = value.trim();
+  if (!cleaned) return false;
+  const words = cleaned.split(/\s+/);
+  if (words.length > 4) return false;
+  return !/^(?:with|each|using|wielding|holding|surrounded|amid|sparring|fighting|a connected|an interconnected)\b/i.test(
+    cleaned
+  ) && !/\b(?:swirling energy|vertical composition|story flow)\b/i.test(cleaned);
 }
 
 function compactCastLabel(subject: string | undefined): string | undefined {
@@ -262,6 +273,7 @@ function uniqueNames(names: readonly string[]): string[] {
 function groundedCharacterNames(value: unknown, scanText: string): string[] {
   const normalizedTranscript = normalizeForCompare(scanText);
   return uniqueNames(asStringArray(value)).filter((name) => {
+    if (!isLikelyCharacterName(name)) return false;
     const normalizedName = normalizeForCompare(name);
     if (normalizedTranscript.includes(normalizedName)) return true;
     // Accept the common catalog form "Last, First" when the customer used
@@ -703,14 +715,18 @@ export async function runConversationTurn(
   const evocationAsked = evocationAskedIn(request.messages);
   const scene = evocationAnswerIn(request.messages);
   const extractedSubject = asTrimmedString(record.subject);
-  const providerCharacters = groundedCharacterNames(
-    payload.record?.characters,
-    scanText
-  );
   const providerIdentities = groundedCharacterIdentities(
     payload.record?.characterIdentities,
     scanText
   );
+  // A verified identity pair is the strongest roster signal. When it exists,
+  // do not re-split the provider's prose subject: phrases such as "with
+  // swirling energy" and "a connected vertical composition" are grounded in
+  // the transcript but are not people.
+  const providerCharacters = uniqueNames([
+    ...providerIdentities.map((identity) => identity.name),
+    ...groundedCharacterNames(payload.record?.characters, scanText),
+  ]);
   const fallbackCast = compactCastParts(extractedSubject);
   const explicitCast = uniqueNames([
     ...providerCharacters,

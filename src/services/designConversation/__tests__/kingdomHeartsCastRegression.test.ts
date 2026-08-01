@@ -188,4 +188,79 @@ describe('Kingdom Hearts sleeve cast preservation', () => {
     expect(result.record.requestedCharacters).not.toContain('Sephiroth');
     expect(result.record.subject).not.toMatch(/\bSephiroth\b/i);
   });
+
+  it('does not turn action and composition phrases into extra cast members', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        vertexResponse({
+          reply: 'Four characters across the sleeve. Ready for four directions.',
+          record: {
+            placement: 'left arm elbow to wrist',
+            styleTags: ['anime', 'color'],
+            meaning: 'friendship and rivalry',
+            subject:
+              'Roxas, Sora, Axel, Riku, each wielding their correct Keyblade, with swirling energy, a connected vertical composition',
+            characters: [
+              'Roxas',
+              'Sora',
+              'Axel',
+              'Riku',
+              'each wielding their correct Keyblade',
+              'with swirling energy',
+              'a connected vertical composition',
+            ],
+            characterIdentities: [{ name: 'Roxas', series: 'Kingdom Hearts' }],
+            references: [],
+            ambiguousAxes: [],
+          },
+        })
+      )
+    );
+
+    const result = await runTurn({
+      messages: [
+        { role: 'bot', text: opener() },
+        {
+          role: 'user',
+          text: 'A Kingdom Hearts sleeve with Roxas, Sora, Axel, and Riku sparring together',
+        },
+      ],
+      userTurn: 1,
+    });
+
+    expect(result.record.requestedCharacters).toEqual(['Roxas', 'Sora', 'Axel', 'Riku']);
+    expect(result.notes.cast).toEqual(['Roxas', 'Sora', 'Axel', 'Riku']);
+  });
+
+  it('keeps an unfamiliar identity-free cast when provider extraction is partial', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        vertexResponse({
+          reply: 'Four characters. Ready for four directions.',
+          record: {
+            placement: 'left arm',
+            styleTags: ['color'],
+            meaning: 'found family',
+            subject: 'Auren, Bex, Cyra, and Dovan',
+            characters: ['Auren'],
+            characterIdentities: [],
+            references: [],
+            ambiguousAxes: [],
+          },
+        })
+      )
+    );
+
+    const result = await runTurn({
+      messages: [
+        { role: 'bot', text: opener() },
+        { role: 'user', text: 'Auren, Bex, Cyra, and Dovan on my left arm for found family' },
+      ],
+      userTurn: 1,
+    });
+
+    expect(result.record.requestedCharacters).toEqual(['Auren', 'Bex', 'Cyra', 'Dovan']);
+  });
 });
