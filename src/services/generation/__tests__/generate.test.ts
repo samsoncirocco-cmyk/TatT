@@ -359,6 +359,20 @@ describe('generation module seam — vertex provider', () => {
     expect(events).toContain('generation.result');
   });
 
+  // Imagen 3's :predict body has no source-image field. Rendering from the
+  // prompt alone would return a different design than the caller asked to
+  // preserve, so the request is refused before any paid call.
+  it('refuses an image-to-image request rather than rendering from text', async () => {
+    await expect(
+      generate({
+        prompt: 'clean line art',
+        modelId: 'imagen3',
+        sourceImage: 'https://storage.example/picked.png'
+      })
+    ).rejects.toThrow(/no image-to-image input/);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('emits an error-level result event when generation fails outright', async () => {
     fetchMock.mockResolvedValue(errorResponse(400));
 

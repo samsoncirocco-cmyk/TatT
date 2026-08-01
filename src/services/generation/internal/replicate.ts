@@ -24,6 +24,14 @@ interface ReplicateModel {
   cost: number;
   /** Krea accepts one output per prediction; the Flux family takes num_outputs. */
   supportsNumOutputs: boolean;
+  /**
+   * Accepts an `image` input for image-to-image (verified against each
+   * model's published schema, 2026-08-01). Only flux-dev does: schnell has
+   * no image input at all, and krea2's style_reference_images transfers
+   * style rather than preserving composition, which is the opposite of what
+   * an image-to-image caller is asking for.
+   */
+  supportsSourceImage: boolean;
   /** Ratios this model's input schema actually accepts (verified against its OpenAPI schema). */
   aspectRatios: ReadonlySet<string>;
   /** Requested ratio → nearest schema-legal ratio, for the gaps in aspectRatios. */
@@ -46,6 +54,7 @@ export const REPLICATE_MODELS: Record<string, ReplicateModel> = {
     slug: 'black-forest-labs/flux-dev',
     cost: 0.025,
     supportsNumOutputs: true,
+    supportsSourceImage: true,
     aspectRatios: FLUX_ASPECT_RATIOS,
     aspectRemap: {},
     params: {
@@ -60,6 +69,7 @@ export const REPLICATE_MODELS: Record<string, ReplicateModel> = {
     slug: 'black-forest-labs/flux-schnell',
     cost: 0.003,
     supportsNumOutputs: true,
+    supportsSourceImage: false,
     aspectRatios: FLUX_ASPECT_RATIOS,
     aspectRemap: {},
     params: {
@@ -72,6 +82,7 @@ export const REPLICATE_MODELS: Record<string, ReplicateModel> = {
     slug: 'krea/krea-2-medium',
     cost: 0.035,
     supportsNumOutputs: false,
+    supportsSourceImage: false,
     aspectRatios: KREA_ASPECT_RATIOS,
     // Krea's schema has no 3:4 — 4:5 is the nearest portrait ratio it takes.
     aspectRemap: { '3:4': '4:5' },
@@ -94,6 +105,15 @@ function resolveModel(modelId?: string): ReplicateModel {
   const alias = modelId ? LEGACY_MODEL_ALIASES[modelId] : undefined;
   if (alias) return REPLICATE_MODELS[alias];
   return REPLICATE_MODELS['flux-dev'];
+}
+
+/**
+ * Whether a model id can honor `sourceImage`. Exported so the fallback
+ * chain can skip models that would refuse, instead of letting their
+ * refusal mask the primary model's real failure.
+ */
+export function modelSupportsSourceImage(modelId?: string): boolean {
+  return resolveModel(modelId).supportsSourceImage;
 }
 
 function resolveAspectRatio(model: ReplicateModel, aspectRatio?: AspectRatio): string {
@@ -213,6 +233,25 @@ async function generateWithReplicate(request: GenerationRequest): Promise<Genera
   };
   if (model.supportsNumOutputs) {
     input.num_outputs = numImages;
+  }
+
+  // Image-to-image. Refused loudly rather than dropped: a caller asking to
+  // keep a source's composition and silently getting a fresh text render
+  // back has no way to tell — they just receive a different design.
+  if (request.sourceImage) {
+    if (!model.supportsSourceImage) {
+      throw makeGenerationError(
+        `Model '${model.id}' has no image-to-image input; sourceImage cannot be honored.`,
+        { status: 400, code: 'SOURCE_IMAGE_UNSUPPORTED' }
+      );
+    }
+    input.image = request.sourceImage;
+    // flux-dev derives the output ratio from the source, so the requested
+    // aspect_ratio would silently disagree with what comes back.
+    delete input.aspect_ratio;
+    if (typeof request.sourceStrength === 'number' && Number.isFinite(request.sourceStrength)) {
+      input.prompt_strength = Math.min(Math.max(request.sourceStrength, 0), 1);
+    }
   }
   if (request.seed !== undefined && request.seed !== '') {
     const seed = Number(request.seed);
