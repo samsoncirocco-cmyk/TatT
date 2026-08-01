@@ -23,12 +23,16 @@ import { enhanceStructured } from '../internal/structuredMode';
 import { getBaseNegativePrompt } from '../internal/councilService';
 import type { IntakeRecord } from '../../intake/types';
 
+const identities = (names: readonly string[], series: string) =>
+  names.map((name) => ({ name, series }));
+
 const KINGDOM_HEARTS: IntakeRecord = {
   placement: 'left arm',
   styleTags: ['anime', 'color', 'illustrative', 'neo traditional'],
   meaning: 'a kingdom hearts sleeve',
   subject: 'Roxas, Sora, Axel, and Riku sparring with their unique Keyblades',
   requestedCharacters: ['Roxas', 'Sora', 'Axel', 'Riku'],
+  characterIdentities: identities(['Roxas', 'Sora', 'Axel', 'Riku'], 'Kingdom Hearts'),
   references: [],
   ambiguousAxes: [],
 };
@@ -46,6 +50,7 @@ const SINGLE_SUBJECT: IntakeRecord = {
   meaning: 'a kingdom hearts piece',
   subject: 'Sora holding his Keyblade',
   requestedCharacters: ['Sora'],
+  characterIdentities: [{ name: 'Sora', series: 'Kingdom Hearts' }],
 };
 
 /** `cartoon` as a standalone entry, not the substring inside another token. */
@@ -123,6 +128,15 @@ describe('ensemble prompt contract — the Kingdom Hearts session', () => {
       }
     }
   });
+
+  it('passes the source for a single IP character too', async () => {
+    const result = await enhanceStructured(SINGLE_SUBJECT);
+
+    for (const variation of result.variations) {
+      const prompt = variation.prompts.detailed ?? variation.prompts.simple ?? '';
+      expect(prompt).toContain('Character identities: Sora — Kingdom Hearts.');
+    }
+  });
 });
 
 describe('ensemble contract is title-agnostic, not a Kingdom Hearts patch', () => {
@@ -133,6 +147,7 @@ describe('ensemble contract is title-agnostic, not a Kingdom Hearts patch', () =
       meaning: 'a Frieren sleeve',
       subject: 'Frieren, Fern, Stark, and Himmel traveling through a field of blue-moon weed',
       requestedCharacters: ['Frieren', 'Fern', 'Stark', 'Himmel'],
+      characterIdentities: identities(['Frieren', 'Fern', 'Stark', 'Himmel'], 'Frieren'),
       references: [],
       ambiguousAxes: ['bold-fine', 'minimal-ornate'],
     },
@@ -142,6 +157,7 @@ describe('ensemble contract is title-agnostic, not a Kingdom Hearts patch', () =
       meaning: 'an Attack on Titan tattoo',
       subject: 'Eren, Mikasa, Levi, and Armin fighting together with their canonical gear',
       requestedCharacters: ['Eren', 'Mikasa', 'Levi', 'Armin'],
+      characterIdentities: identities(['Eren', 'Mikasa', 'Levi', 'Armin'], 'Attack on Titan'),
       references: [],
       ambiguousAxes: ['bold-fine', 'minimal-ornate'],
     },
@@ -151,6 +167,7 @@ describe('ensemble contract is title-agnostic, not a Kingdom Hearts patch', () =
       meaning: 'a One Piece design',
       subject: 'Luffy, Zoro, Nami, and Sanji charging into battle together',
       requestedCharacters: ['Luffy', 'Zoro', 'Nami', 'Sanji'],
+      characterIdentities: identities(['Luffy', 'Zoro', 'Nami', 'Sanji'], 'One Piece'),
       references: [],
       ambiguousAxes: ['bold-fine', 'minimal-ornate'],
     },
@@ -163,10 +180,59 @@ describe('ensemble contract is title-agnostic, not a Kingdom Hearts patch', () =
     for (const variation of result.variations) {
       const prompt = variation.prompts.detailed ?? variation.prompts.simple ?? '';
       expect(prompt).toMatch(/exactly four distinct figures/i);
-      expect(prompt).toContain(brief.meaning.replace(/^an?\s+/i, '').replace(/\s+(?:sleeve|tattoo|design)$/i, ''));
+      for (const identity of brief.characterIdentities ?? []) {
+        expect(prompt).toContain(`${identity.name} — ${identity.series}`);
+      }
       expect(prompt).toMatch(/never swap, merge, or homogenize them/i);
       for (const name of brief.requestedCharacters ?? []) expect(prompt).toContain(name);
       expect(prompt).not.toMatch(/single clear focal element|one dominant subject|minimal composition/i);
+    }
+  });
+
+  it('binds every character independently in a crossover', async () => {
+    const crossover: IntakeRecord = {
+      placement: 'back',
+      styleTags: ['anime', 'color'],
+      meaning: 'friendship across worlds',
+      subject: 'Gon, Killua, Yusuke, and Hiei fighting together',
+      requestedCharacters: ['Gon', 'Killua', 'Yusuke', 'Hiei'],
+      characterIdentities: [
+        { name: 'Gon', series: 'Hunter x Hunter' },
+        { name: 'Killua', series: 'Hunter x Hunter' },
+        { name: 'Yusuke', series: 'Yu Yu Hakusho' },
+        { name: 'Hiei', series: 'Yu Yu Hakusho' },
+      ],
+      references: [],
+      ambiguousAxes: [],
+    };
+
+    const result = await enhanceStructured(crossover);
+    for (const variation of result.variations) {
+      const prompt = variation.prompts.detailed ?? variation.prompts.simple ?? '';
+      expect(prompt).toContain('Gon — Hunter x Hunter');
+      expect(prompt).toContain('Killua — Hunter x Hunter');
+      expect(prompt).toContain('Yusuke — Yu Yu Hakusho');
+      expect(prompt).toContain('Hiei — Yu Yu Hakusho');
+      expect(prompt).not.toContain('friendship across worlds —');
+    }
+  });
+
+  it('never invents a franchise from emotional meaning', async () => {
+    const unverified: IntakeRecord = {
+      placement: 'left arm',
+      styleTags: ['color'],
+      meaning: 'a memorial sleeve for my brother',
+      subject: 'an unknown character named Orion looking toward the stars',
+      requestedCharacters: ['Orion'],
+      references: [],
+      ambiguousAxes: [],
+    };
+
+    const result = await enhanceStructured(unverified);
+    for (const variation of result.variations) {
+      const prompt = variation.prompts.detailed ?? variation.prompts.simple ?? '';
+      expect(prompt).not.toContain('Character identities:');
+      expect(prompt).not.toMatch(/Orion — memorial|Orion — my brother/i);
     }
   });
 });

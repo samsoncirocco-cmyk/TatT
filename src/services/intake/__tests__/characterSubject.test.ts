@@ -121,11 +121,23 @@ describe('charactersIn — structured matches', () => {
     ).not.toMatch(/no game no life/i);
   });
 
-  it('keeps enriching a unique catalog name no franchise contradicts', () => {
-    expect(charactersIn('a sleeve with Sora')[0]).toMatchObject({
+  it('does not guess a source for a bare name shared across media', () => {
+    expect(charactersIn('a sleeve with Sora')).toEqual([]);
+    expect(charactersIn('KH Sora')).toEqual([]);
+  });
+
+  it('enriches the same shared name when its matching series is explicit', () => {
+    expect(charactersIn('No Game No Life Sora')[0]).toMatchObject({
       name: 'sora',
       series: 'No Game No Life',
     });
+    expect(charactersIn('NGNL Sora')[0]).toMatchObject({
+      name: 'sora',
+      series: 'No Game No Life',
+    });
+  });
+
+  it('keeps enriching an unambiguous catalog name', () => {
     expect(charactersIn('deku from my hero academia')[0]?.series).toBe(
       'My Hero Academia'
     );

@@ -47,13 +47,16 @@ features:
   ensemble_generation_quality:
     status: implemented_unverified
     evidence:
+      - src/services/intake/internal/characterIdentity.ts
       - src/services/council/internal/structuredMode.ts
       - src/services/council/__tests__/ensemblePromptContract.test.ts
+      - src/services/designSession/__tests__/designSessionService.test.ts
       - src/services/generation/internal/routing.ts
       - src/services/generation/__tests__/routing.test.ts
     limitations:
-      - Named multi-character briefs lock cast count, franchise context, interaction, and prop ownership in the prompt and use ensemble-safe compositional cuts.
-      - The prompt contract works from an extracted title and roster without a title-specific code path; catalog descriptions are optional fidelity enrichment.
+      - Single- and multi-character briefs preserve verified character-to-series bindings in the final generation prompt, including crossovers, while ambiguous bare names abstain instead of guessing a franchise.
+      - Identity bindings come from customer-grounded structured extraction or unambiguous catalog matches; multi-source requests require per-character catalog corroboration, so out-of-catalog crossover names remain in the roster without a source binding rather than risking a swapped franchise.
+      - The exact identity clause crosses the design-session-to-generation boundary unchanged, alongside cast count, interaction, prop ownership, and ensemble-safe compositional cuts.
       - The current generated snapshot contains 1,000 ranked anime titles, but only 505 have main-character rows from the present Kitsu mapping and manga coverage is not yet included.
       - Production image-level character fidelity still depends on the pinned generation model and has not yet been measured against a scored render corpus.
 

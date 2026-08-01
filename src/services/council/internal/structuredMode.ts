@@ -9,7 +9,12 @@
  * provider fallbacks are untouched.
  */
 
-import type { IntakeRecord, AxisSelection, VariationAxis } from '../../intake/types';
+import type {
+  CharacterIdentity,
+  IntakeRecord,
+  AxisSelection,
+  VariationAxis,
+} from '../../intake/types';
 import { VARIATION_AXIS_POOL } from '../../intake/types';
 import { getBaseNegativePrompt, validatePromptLength } from './councilService';
 import { resolvePlacement } from '@/lib/placement';
@@ -511,6 +516,7 @@ interface PromptContext {
   requestedCharacterCount?: number;
   /** Exact roster extracted by intake, in the customer's order. */
   requestedCharacters: string[];
+  characterIdentities: CharacterIdentity[];
 }
 
 function buildContext(record: IntakeRecord): PromptContext {
@@ -557,6 +563,7 @@ function buildContext(record: IntakeRecord): PromptContext {
     styleTags: record.styleTags,
     requestedCharacterCount: record.requestedCharacters?.length || undefined,
     requestedCharacters: record.requestedCharacters ?? [],
+    characterIdentities: record.characterIdentities ?? [],
   };
 }
 
@@ -604,33 +611,38 @@ function naturalList(items: readonly string[]): string {
   return `${items.slice(0, -1).join(', ')}, and ${items.at(-1)}`;
 }
 
-function sourceLabel(meaning: string): string {
-  return meaning
-    .replace(/^\s*(?:a|an|the)\s+/i, '')
-    .replace(/\s+(?:full\s+)?(?:sleeve|tattoo|piece|design)\s*$/i, '')
-    .trim();
+function characterIdentityClause(
+  identities: readonly CharacterIdentity[]
+): string {
+  if (identities.length === 0) return '';
+  return `Character identities: ${identities
+    .map((identity) => `${identity.name} — ${identity.series}`)
+    .join('; ')}.`;
 }
 
 function subjectClause(ctx: PromptContext): string {
+  const identityClause = characterIdentityClause(ctx.characterIdentities);
   if (ctx.subject) {
-    const subject =
-      ctx.palette === 'monochrome' ? stripChromaticWords(ctx.subject) : ctx.subject;
+    const subject = (
+      ctx.palette === 'monochrome' ? stripChromaticWords(ctx.subject) : ctx.subject
+    ).replace(/[.\s]+$/, '');
     if (ctx.requestedCharacters.length > 1) {
       const count = ctx.requestedCharacters.length;
       const countWord = count === 4 ? 'four' : String(count);
       const roster = naturalList(ctx.requestedCharacters);
-      const source = sourceLabel(ctx.meaningShort)
-        ? ` Source/franchise: ${sourceLabel(ctx.meaningShort)}.`
-        : '';
+      const identityPrefix = identityClause ? `${identityClause} ` : '';
       return (
         `depicting exactly ${countWord} distinct figures, one each of ${roster}: ${subject}.` +
-        `${source} No duplicates or omissions; all ${countWord} figures are fully visible and ` +
+        ` ${identityPrefix}No duplicates or omissions; all ${countWord} figures are fully visible and ` +
         'visibly interact in the requested action. Keep every character’s canonical costume, ' +
         'face, silhouette, powers, weapon, and signature props distinct and attached only to ' +
         'that named character; never swap, merge, or homogenize them.'
       );
     }
-    return `depicting ${subject}`;
+    return `depicting ${subject}.${identityClause ? ` ${identityClause}` : ''}`;
+  }
+  if (ctx.characterIdentities.length > 0) {
+    return `depicting ${naturalList(ctx.characterIdentities.map((identity) => identity.name))}. ${identityClause}`;
   }
   return ctx.meaningShort ? `expressing "${ctx.meaningShort}"` : 'as a personal design';
 }

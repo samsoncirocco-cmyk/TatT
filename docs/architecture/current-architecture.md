@@ -59,12 +59,16 @@ directly. Provider choice and fallback belong inside generation.
 The design-session orchestrator passes the full intake style set into routing,
 pins one resulting model for the session, and records each image actually
 purchased. Named multi-character briefs are treated as composition problems:
-Council locks the exact roster, shared source/franchise, requested interaction,
-and signature-prop ownership while varying four ensemble-safe layouts. Every
-ensemble receives the same contract from structured intake; no franchise has a
-generation-code branch. The generated character catalog enriches recognized
-names with series and visual context when available, but is not required to
-preserve an extracted title and roster. Every
+Council locks the exact roster, verified character-to-source bindings,
+requested interaction, and signature-prop ownership while varying four
+ensemble-safe layouts. The same identity clause also accompanies a single IP
+character. Every brief receives the same contract from structured intake; no
+franchise has a generation-code branch. The generated character catalog
+enriches recognized names with series and visual context when available, while
+provider-extracted bindings are accepted only when both the character and its
+source are grounded in the customer's words. Multi-source requests additionally
+require catalog corroboration per character; an uncorroborated name stays in the
+cast without an invented or potentially swapped source binding. Every
 design-session provider result is transport only; reveal, critique, and refine
 images are copied into product-owned Google Cloud Storage at deterministic,
 retry-safe paths before the session persists them. This durability guarantee

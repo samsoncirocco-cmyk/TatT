@@ -5,6 +5,11 @@
  * server adapter loads the generated snapshot once; tests can build the same
  * matcher from a tiny in-memory catalog.
  */
+import {
+  REFERENCE_SERIES_ALIASES,
+  referenceSeriesMentioned,
+} from '@/config/referenceSeriesAliases';
+
 
 export interface GeneratedCatalogCharacter {
   id: string;
@@ -77,6 +82,8 @@ const ORDINARY_SINGLE_WORD_NAMES = new Set([
   'monster', 'nana', 'orange', 'pain', 'panda', 'power', 'raven', 'rei',
   'robin', 'scar', 'shin', 'simon', 'todo', 'uta', 'venom', 'violet',
   'wrath', 'yuki', 'zero',
+  // Shared by Kingdom Hearts and No Game No Life; a bare name is unsafe.
+  'sora',
 ]);
 
 /*
@@ -272,24 +279,30 @@ function buildCandidates(
 function buildFranchiseVocabulary(
   catalog: GeneratedCharacterCatalog,
   curated: readonly CuratedCharacterAnchor[],
-): string[] {
-  const phrases = new Set<string>();
-  const add = (value: string) => {
+): Array<{ phrase: string; series: string }> {
+  const phrases = new Map<string, string>();
+  const add = (value: string, series = value, allowSingleWord = false) => {
     const key = phraseKey(value);
-    if (key.split(' ').length >= FRANCHISE_MIN_WORDS) phrases.add(key);
+    if (allowSingleWord || key.split(' ').length >= FRANCHISE_MIN_WORDS) {
+      phrases.set(key, series);
+    }
   };
   for (const anime of catalog.anime) {
-    add(anime.title);
-    for (const alias of anime.aliases ?? []) add(alias);
+    add(anime.title, anime.title);
+    for (const alias of anime.aliases ?? []) add(alias, anime.title);
   }
-  for (const anchor of curated) add(anchor.series);
-  for (const franchise of NON_CATALOG_FRANCHISES) add(franchise);
-  return [...phrases];
+  for (const anchor of curated) add(anchor.series, anchor.series);
+  for (const franchise of NON_CATALOG_FRANCHISES) add(franchise, franchise);
+  for (const [series, aliases] of Object.entries(REFERENCE_SERIES_ALIASES)) {
+    for (const alias of aliases) add(alias, series, true);
+  }
+  return [...phrases].map(([phrase, series]) => ({ phrase, series }));
 }
 
 function seriesMentioned(sourceWords: readonly string[], candidate: Candidate): Appearance | undefined {
   return candidate.appearances.find((appearance) =>
-    appearance.seriesAliases.some((alias) => containsPhrase(sourceWords, alias))
+    appearance.seriesAliases.some((alias) => containsPhrase(sourceWords, alias)) ||
+    referenceSeriesMentioned(sourceWords.join(' '), appearance.series)
   );
 }
 
@@ -332,11 +345,12 @@ export function createCharacterCatalogMatcher(
     // Which bodies of work this brief names. Cheap first-word prefilter so a
     // thousand catalog titles do not each scan the sentence.
     const present = new Set(sourceWords);
-    const namedFranchises = franchiseVocabulary.filter(
-      (phrase) =>
-        present.has(phrase.slice(0, phrase.indexOf(' '))) &&
-        containsPhrase(sourceWords, phrase),
-    );
+    const namedFranchises = franchiseVocabulary
+      .filter(({ phrase }) => {
+        const firstWord = phrase.split(' ')[0];
+        return present.has(firstWord) && containsPhrase(sourceWords, phrase);
+      })
+      .map(({ series }) => series);
     /**
      * The customer named a franchise, and it is not this character's. Their
      * series never came up, so accepting them would change the subject of

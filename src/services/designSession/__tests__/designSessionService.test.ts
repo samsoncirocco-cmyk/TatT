@@ -191,6 +191,25 @@ describe('startSession', () => {
     expect(mockGenerate.mock.calls[0][0].negativePrompt).toBe('n1');
   });
 
+  it('passes the Council character-to-series bindings unchanged to generation', async () => {
+    const identityPrompt =
+      'Character identities: Sora — Kingdom Hearts; Riku — Kingdom Hearts.';
+    mockEnhanceStructured.mockResolvedValue({
+      ...questionnaireEnhance,
+      variations: questionnaireEnhance.variations.map((variation, index) => ({
+        ...variation,
+        prompts: { detailed: `${identityPrompt} Cut ${index + 1}.` },
+      })),
+    });
+
+    await startSession(startRequest);
+
+    expect(mockGenerate).toHaveBeenCalledTimes(4);
+    for (const [request] of mockGenerate.mock.calls) {
+      expect(request.prompt).toContain(identityPrompt);
+    }
+  });
+
   it('resolves the route once and pins one model for all four renders (ADR-0016)', async () => {
     await startSession(startRequest);
 
