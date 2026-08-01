@@ -61,6 +61,10 @@ pins one resulting model for the session, and records each image actually
 purchased. Named multi-character briefs are treated as composition problems:
 Council locks the exact roster, shared source/franchise, requested interaction,
 and signature-prop ownership while varying four ensemble-safe layouts. Every
+ensemble receives the same contract from structured intake; no franchise has a
+generation-code branch. The generated character catalog enriches recognized
+names with series and visual context when available, but is not required to
+preserve an extracted title and roster. Every
 design-session provider result is transport only; reveal, critique, and refine
 images are copied into product-owned Google Cloud Storage at deterministic,
 retry-safe paths before the session persists them. This durability guarantee

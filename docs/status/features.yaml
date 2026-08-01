@@ -53,6 +53,8 @@ features:
       - src/services/generation/__tests__/routing.test.ts
     limitations:
       - Named multi-character briefs lock cast count, franchise context, interaction, and prop ownership in the prompt and use ensemble-safe compositional cuts.
+      - The prompt contract works from an extracted title and roster without a title-specific code path; catalog descriptions are optional fidelity enrichment.
+      - The current generated snapshot contains 1,000 ranked anime titles, but only 505 have main-character rows from the present Kitsu mapping and manga coverage is not yet included.
       - Production image-level character fidelity still depends on the pinned generation model and has not yet been measured against a scored render corpus.
 
   durable_design_session_images:

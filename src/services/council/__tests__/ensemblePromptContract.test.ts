@@ -73,7 +73,8 @@ describe('ensemble prompt contract — the Kingdom Hearts session', () => {
       expect(prompt).toMatch(/one each of Roxas, Sora, Axel, and Riku/i);
       expect(prompt).toMatch(/Kingdom Hearts/i);
       expect(prompt).toMatch(/sparring|visibly interact/i);
-      expect(prompt).toMatch(/each named character.*distinct Keyblade/i);
+      expect(prompt).toMatch(/every character.s canonical costume/i);
+      expect(prompt).toMatch(/weapon, and signature props distinct and attached only to/i);
       expect(prompt).toMatch(/no duplicates or omissions/i);
       expect(prompt).not.toMatch(/single clear focal element|one dominant subject|minimal composition/i);
     }
@@ -120,6 +121,52 @@ describe('ensemble prompt contract — the Kingdom Hearts session', () => {
       for (const name of KINGDOM_HEARTS.requestedCharacters ?? []) {
         expect(prompt, `prompt lost ${name}`).toContain(name);
       }
+    }
+  });
+});
+
+describe('ensemble contract is title-agnostic, not a Kingdom Hearts patch', () => {
+  const briefs: IntakeRecord[] = [
+    {
+      placement: 'left arm',
+      styleTags: ['color', 'anime'],
+      meaning: 'a Frieren sleeve',
+      subject: 'Frieren, Fern, Stark, and Himmel traveling through a field of blue-moon weed',
+      requestedCharacters: ['Frieren', 'Fern', 'Stark', 'Himmel'],
+      references: [],
+      ambiguousAxes: ['bold-fine', 'minimal-ornate'],
+    },
+    {
+      placement: 'back',
+      styleTags: ['manga', 'blackwork'],
+      meaning: 'an Attack on Titan tattoo',
+      subject: 'Eren, Mikasa, Levi, and Armin fighting together with their canonical gear',
+      requestedCharacters: ['Eren', 'Mikasa', 'Levi', 'Armin'],
+      references: [],
+      ambiguousAxes: ['bold-fine', 'minimal-ornate'],
+    },
+    {
+      placement: 'full sleeve',
+      styleTags: ['anime', 'color'],
+      meaning: 'a One Piece design',
+      subject: 'Luffy, Zoro, Nami, and Sanji charging into battle together',
+      requestedCharacters: ['Luffy', 'Zoro', 'Nami', 'Sanji'],
+      references: [],
+      ambiguousAxes: ['bold-fine', 'minimal-ornate'],
+    },
+  ];
+
+  it.each(briefs)('locks roster and source for $meaning', async (brief) => {
+    const result = await enhanceStructured(brief);
+
+    expect(result.axisSelection.mode).toBe('compositional');
+    for (const variation of result.variations) {
+      const prompt = variation.prompts.detailed ?? variation.prompts.simple ?? '';
+      expect(prompt).toMatch(/exactly four distinct figures/i);
+      expect(prompt).toContain(brief.meaning.replace(/^an?\s+/i, '').replace(/\s+(?:sleeve|tattoo|design)$/i, ''));
+      expect(prompt).toMatch(/never swap, merge, or homogenize them/i);
+      for (const name of brief.requestedCharacters ?? []) expect(prompt).toContain(name);
+      expect(prompt).not.toMatch(/single clear focal element|one dominant subject|minimal composition/i);
     }
   });
 });

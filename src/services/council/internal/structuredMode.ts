@@ -622,13 +622,12 @@ function subjectClause(ctx: PromptContext): string {
       const source = sourceLabel(ctx.meaningShort)
         ? ` Source/franchise: ${sourceLabel(ctx.meaningShort)}.`
         : '';
-      const weapon = /\bkeyblades?\b/i.test(subject)
-        ? ' Each named character holds a visually distinct Keyblade belonging to that character, never an ordinary sword.'
-        : '';
       return (
         `depicting exactly ${countWord} distinct figures, one each of ${roster}: ${subject}.` +
         `${source} No duplicates or omissions; all ${countWord} figures are fully visible and ` +
-        `visibly interact in the requested action.${weapon}`
+        'visibly interact in the requested action. Keep every character’s canonical costume, ' +
+        'face, silhouette, powers, weapon, and signature props distinct and attached only to ' +
+        'that named character; never swap, merge, or homogenize them.'
       );
     }
     return `depicting ${subject}`;
