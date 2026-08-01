@@ -73,6 +73,9 @@ design-session provider result is transport only; reveal, critique, and refine
 images are copied into product-owned Google Cloud Storage at deterministic,
 retry-safe paths before the session persists them. This durability guarantee
 is scoped to the design-session pipeline, not every legacy generation route.
+Storage clients share one credential resolver: Vercel reads service-account
+JSON or split credentials from environment variables, while local development
+may continue to use a credential file.
 
 ### Booking and calendar
 

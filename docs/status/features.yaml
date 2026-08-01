@@ -68,6 +68,7 @@ features:
       - src/services/storage/imageStorageService.ts
     limitations:
       - Design-session reveal, critique, and refinement images are copied to product-owned storage before persistence.
+      - Production storage requires an existing GCP_STORAGE_BUCKET and service-account credentials supplied as JSON or split environment variables; local credential-file fallback remains supported.
       - Other generation entry points must be audited separately; this feature does not claim every provider URL product-wide is durable.
 
   post_reveal_critique:

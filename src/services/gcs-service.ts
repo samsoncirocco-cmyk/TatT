@@ -10,6 +10,7 @@
 
 import { Storage, Bucket, File } from '@google-cloud/storage';
 import type { GetSignedUrlConfig, UploadOptions } from '@google-cloud/storage';
+import { googleStorageAuthOptions } from '@/lib/gcp-storage-auth';
 
 // Type Definitions
 export interface GCSUploadOptions {
@@ -67,11 +68,8 @@ export interface StencilMetadata {
 // Initialize Google Cloud Storage. Serverless has no credentials file —
 // the service account lives in GOOGLE_APPLICATION_CREDENTIALS_JSON there
 // (same variable google-auth-edge and the monitoring client read).
-const gcsCredsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GCP_SERVICE_ACCOUNT_KEY;
 const storage = new Storage({
-    ...(gcsCredsJson
-        ? { credentials: JSON.parse(gcsCredsJson) }
-        : { keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS }),
+    ...googleStorageAuthOptions(),
     projectId: process.env.GCP_PROJECT_ID
 });
 
