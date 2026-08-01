@@ -34,6 +34,7 @@ import {
 // duplicating them here is how two channels drift apart.
 import {
   recordImageSpend,
+  REFINE_IMAGE_COUNT,
 } from '@/app/api/v1/design-session/shared';
 import { resolveSharedDesignStore, type SharedDesign } from '@/lib/shared-design-store';
 import {
@@ -42,6 +43,7 @@ import {
   attachReference,
   getSession,
   recordPick,
+  refine,
   DesignSessionError,
 } from '@/services/designSession';
 import {
@@ -75,10 +77,30 @@ import {
   pickRetryText,
   mostNotYouQuestion,
   pickCollisionText,
+  REFINE_ACK,
+  REFINE_FAILED_TEXT,
+  REFINED_CAPTION,
+  refinedClosingText,
 } from './render';
 
-/** After this long, an unreported in-flight reveal is presumed dead. */
+/** After this long, an unreported in-flight render is presumed dead. */
 const REVEAL_PENDING_STALE_MS = 10 * 60 * 1000;
+
+/**
+ * Stages where a paid render is already running. A second text must never
+ * re-fire one; it waits, or — past the stale window — falls back to the
+ * stage that armed it so the texter can try again.
+ */
+const IN_FLIGHT_STAGES: Record<string, { waiting: string; recoverTo: string }> = {
+  'reveal-pending': {
+    waiting: 'Still sketching — your four cuts land here in a minute or two.',
+    recoverTo: 'proposal',
+  },
+  'refine-running': {
+    waiting: 'Still reworking it — the new one lands here shortly.',
+    recoverTo: 'refine-pending',
+  },
+};
 
 /** Per-phone reveal cap per UTC day. REQUIRED guardrail, env-tunable. */
 export function revealsPerDay(): number {
@@ -199,18 +221,16 @@ export async function handleInbound(inbound: InboundSms): Promise<InboundOutcome
   // ── Renders in flight: never double-fire on an impatient second yes ──
   // Media sent mid-render is deliberately NOT analyzed: no vision spend on
   // a message that cannot attach to anything yet.
-  if (profile.lastStage === 'reveal-pending') {
+  const inFlight = IN_FLIGHT_STAGES[profile.lastStage ?? ''];
+  if (inFlight) {
     const armedAtMs = Date.parse(profile.revealArmedAt ?? '') || 0;
     if (Date.now() - armedAtMs < REVEAL_PENDING_STALE_MS) {
-      return {
-        kind: 'reply',
-        text: 'Still sketching — your four cuts land here in a minute or two.',
-      };
+      return { kind: 'reply', text: inFlight.waiting };
     }
-    // The in-flight reveal died without reporting (crashed instance). The
-    // slot was refunded only if the failure path ran, so recover to
-    // 'proposal': a fresh "yes" re-arms through every guardrail again.
-    profile.lastStage = 'proposal';
+    // The in-flight render died without reporting (crashed instance). Any
+    // reserved slot was refunded only if the failure path ran, so recover to
+    // the stage before it: a fresh answer re-arms through every guardrail.
+    profile.lastStage = inFlight.recoverTo;
     profile.revealArmedAt = null;
     await store.save(profile);
   }
@@ -248,6 +268,13 @@ export async function handleInbound(inbound: InboundSms): Promise<InboundOutcome
     isConfirmationIntent(body)
   ) {
     return withReferenceAck(await armReveal(profile, store), ackText);
+  }
+
+  // ── The refinement answer: the last paid step, and the only one that
+  // reaches phase 'complete' — where the Brief an artist reads is built.
+  // Free text, not an ordinal: whatever they'd change IS the answer.
+  if (profile.activeSessionId && profile.lastStage === 'refine-pending') {
+    return withReferenceAck(await armRefine(profile, store, body), ackText);
   }
 
   // ── After the cuts land: the pick, then the most-not-you tap ─────────
@@ -570,6 +597,121 @@ async function armReveal(
   };
 }
 
+/**
+ * Arm the one refinement round (ADR-0013 hard stop). One render, so the
+ * global budget gate applies — but NOT the daily reveal cap, which counts
+ * reveals: this session already spent its slot, and charging it twice would
+ * strand a texter mid-flow with a design they can't finish.
+ */
+async function armRefine(
+  profile: SmsProfile,
+  store: ProfileStoreT,
+  answer: string
+): Promise<InboundOutcome> {
+  if (!isDemoMode()) {
+    const budget = await checkBudget();
+    if (!budget.allowed) {
+      logger.warn({
+        event_type: 'sketchbot_sms.refine_budget_exhausted',
+        phone_last4: phoneLast4(profile.phone),
+        spent_cents: budget.spentCents,
+      });
+      return { kind: 'reply', text: BUDGET_EXHAUSTED_TEXT };
+    }
+  }
+
+  profile.lastStage = 'refine-running';
+  profile.revealArmedAt = new Date().toISOString();
+  profile.updatedAt = profile.revealArmedAt;
+  await store.save(profile);
+
+  logger.info({
+    event_type: 'sketchbot_sms.refine_armed',
+    phone_last4: phoneLast4(profile.phone),
+    session_id: profile.activeSessionId,
+  });
+
+  return {
+    kind: 'refine',
+    text: REFINE_ACK,
+    sessionId: profile.activeSessionId!,
+    phone: profile.phone,
+    answer,
+  };
+}
+
+/**
+ * The deferred half of a refinement, mirroring executeReveal: one regen on
+ * the session's pinned provider, then the handoff. Reaching phase
+ * 'complete' is what assembles the Brief — until this runs, an SMS session
+ * has nothing an artist can be handed.
+ */
+export async function executeRefine(
+  sessionId: string,
+  phone: string,
+  answer: string
+): Promise<RevealDelivery> {
+  const store = resolveProfileStore();
+  const demo = isDemoMode();
+  const base = appBaseUrl();
+
+  let session;
+  try {
+    session = await refine(sessionId, { answer });
+  } catch (error) {
+    // Re-arm so a fresh answer can retry — the failure text promises it.
+    // No cap slot to refund: refinement never consumed one.
+    const profile = await store.get(phone);
+    if (profile) {
+      profile.lastStage = 'refine-pending';
+      profile.revealArmedAt = null;
+      profile.updatedAt = new Date().toISOString();
+      await store.save(profile);
+    }
+    logger.error({
+      event_type: 'sketchbot_sms.refine_failed',
+      phone_last4: phoneLast4(phone),
+      session_id: sessionId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return { cuts: [], closingText: REFINE_FAILED_TEXT };
+  }
+
+  if (!demo) await recordImageSpend(session.provider, REFINE_IMAGE_COUNT);
+
+  const profile = (await store.get(phone)) ?? newProfile(phone);
+  profile.lastStage = 'complete';
+  profile.revealArmedAt = null;
+  profile.updatedAt = new Date().toISOString();
+  await store.save(profile);
+
+  const refinedUrl = session.refinedVariation?.imageUrl;
+
+  logger.info({
+    event_type: 'sketchbot_sms.refine_delivered',
+    phone_last4: phoneLast4(phone),
+    session_id: session.id,
+    provider: session.provider,
+    has_image: !!refinedUrl,
+  });
+
+  return {
+    cuts: refinedUrl ? [{ caption: REFINED_CAPTION, mediaUrl: refinedUrl }] : [],
+    closingText: refinedClosingText(handoffUrl(base, session.id)),
+  };
+}
+
+/**
+ * The artist handoff link. `ds` is what /smart-match reads to load the
+ * brief, pre-select the style pills, and enrich the semantic query — and it
+ * threads onward to /swipe so the eventual booking records which design
+ * session it came from. Without it the texter restarts artist discovery
+ * from a blank form.
+ */
+function handoffUrl(base: string, sessionId: string, path = '/smart-match'): string {
+  return `${base}${path}?ds=${encodeURIComponent(sessionId)}`;
+}
+
 async function conversationTurn(
   profile: SmsProfile,
   store: ProfileStoreT,
@@ -627,8 +769,11 @@ async function conversationTurn(
   let text = renderSmsReply(response.reply);
   if (response.stage === 'handoff') {
     // The warm handoff closes the conversation (ADR-0021) — the CTA link
-    // rides after the reply so tightening can never drop it.
-    text = `${text} ${base}${response.handoffUrl ?? '/smart-match'}`;
+    // rides after the reply so tightening can never drop it. It carries the
+    // session id even though no design exists yet: /smart-match falls back
+    // silently when there is no brief, and the id still threads onward to
+    // /swipe so a booking records where it came from.
+    text = `${text} ${handoffUrl(base, response.sessionId, response.handoffUrl ?? '/smart-match')}`;
     profile.activeSessionId = null;
     profile.lastStage = null;
   }

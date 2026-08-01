@@ -48,6 +48,7 @@ vi.mock('@/lib/budget-tracker', () => ({
 }));
 vi.mock('@/app/api/v1/design-session/shared', () => ({
   recordImageSpend: vi.fn(async () => {}),
+  REFINE_IMAGE_COUNT: 1,
 }));
 vi.mock('@/lib/firebase-admin', () => ({ ensureAdminApp: () => null }));
 vi.mock('firebase-admin/auth', () => ({

@@ -31,13 +31,20 @@ export interface InboundSms {
  *             passed: reply with `text` (the ack) now, then run
  *             executeReveal() after the response — generation takes minutes,
  *             far beyond Twilio's webhook timeout.
+ * 'refine'  — the texter answered the refinement question and the budget
+ *             gate passed: ack now, then run executeRefine() after the
+ *             response. One render, same deferral reason as 'reveal'.
  */
 export type InboundOutcome =
   | { kind: 'silent' }
   | { kind: 'reply'; text: string }
-  | { kind: 'reveal'; text: string; sessionId: string; phone: string };
+  | { kind: 'reveal'; text: string; sessionId: string; phone: string }
+  | { kind: 'refine'; text: string; sessionId: string; phone: string; answer: string };
 
-/** What executeReveal() hands back for MMS delivery. */
+/**
+ * What executeReveal() and executeRefine() hand back for MMS delivery —
+ * four cuts for a reveal, one regen for a refinement.
+ */
 export interface RevealDelivery {
   /** One entry per cut, sent as sequential MMS (see route docs for why). */
   cuts: Array<{ caption: string; mediaUrl: string }>;

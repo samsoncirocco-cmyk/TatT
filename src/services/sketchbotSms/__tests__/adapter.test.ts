@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   handleInbound,
   executeReveal,
+  executeRefine,
   recordOptOut,
   isOptedOut,
 } from '../index';
@@ -15,12 +16,18 @@ import {
   clearMemoryProfiles,
   memoryProfileStore,
 } from '../internal/profileStore';
-import { REVEAL_ACK, BUDGET_EXHAUSTED_TEXT, REVEAL_FAILED_TEXT } from '../internal/render';
+import {
+  REVEAL_ACK,
+  BUDGET_EXHAUSTED_TEXT,
+  REVEAL_FAILED_TEXT,
+  REFINE_FAILED_TEXT,
+} from '../internal/render';
 import {
   converse,
   confirmProposal,
   getSession,
   recordPick,
+  refine,
   DesignSessionError,
 } from '@/services/designSession';
 import { checkBudget, recordConversationTurnSpend } from '@/lib/budget-tracker';
@@ -45,6 +52,7 @@ vi.mock('@/services/designSession', () => {
     attachReference: vi.fn(),
     getSession: vi.fn(),
     recordPick: vi.fn(),
+    refine: vi.fn(),
     DesignSessionError,
   };
 });
@@ -56,6 +64,7 @@ vi.mock('@/lib/budget-tracker', () => ({
 
 vi.mock('@/app/api/v1/design-session/shared', () => ({
   recordImageSpend: vi.fn(async () => {}),
+  REFINE_IMAGE_COUNT: 1,
 }));
 
 const shareSave = vi.fn(async () => {});
@@ -472,6 +481,117 @@ describe('the pick', () => {
     expect(profile?.lastStage).toBeNull();
     expect(profile?.activeSessionId).toBeNull();
     expect(profile?.pendingPickId).toBeNull();
+  });
+});
+
+describe('the refinement round', () => {
+  /** Walk a phone to 'refine-pending' — pick recorded, question asked. */
+  async function driveToRefinePending(phone = PHONE) {
+    await driveToProposal(phone);
+    await handleInbound({ phone, body: 'yes' });
+    vi.mocked(confirmProposal).mockResolvedValueOnce(
+      revealedSession() as unknown as Awaited<ReturnType<typeof confirmProposal>>
+    );
+    await executeReveal('s1', phone);
+    vi.mocked(getSession).mockResolvedValue(
+      revealedSession() as unknown as Awaited<ReturnType<typeof getSession>>
+    );
+    await handleInbound({ phone, body: '3' });
+    vi.mocked(recordPick).mockResolvedValueOnce({
+      ...revealedSession(),
+      phase: 'picked',
+      refinementQuestion: 'Bolder, or keep it fine?',
+    } as unknown as Awaited<ReturnType<typeof recordPick>>);
+    await handleInbound({ phone, body: '1' });
+  }
+
+  function completedSession() {
+    return {
+      ...revealedSession(),
+      phase: 'complete',
+      refinedVariation: {
+        id: 'v3-refined',
+        axisPosition: {},
+        prompt: 'prompt 3 bolder',
+        imageUrl: 'https://storage.example/refined.png',
+      },
+      brief: { placement: 'forearm', styleTags: ['Traditional'], meaning: 'resilience' },
+    };
+  }
+
+  it('treats the answer as free text and defers the render', async () => {
+    await driveToRefinePending();
+
+    const outcome = await handleInbound({ phone: PHONE, body: 'bolder, heavier lines' });
+
+    expect(outcome.kind).toBe('refine');
+    if (outcome.kind === 'refine') {
+      expect(outcome.answer).toBe('bolder, heavier lines');
+      expect(outcome.sessionId).toBe('s1');
+    }
+    const profile = await memoryProfileStore.get(PHONE);
+    expect(profile?.lastStage).toBe('refine-running');
+  });
+
+  it('delivers the regen and a handoff link carrying the session id', async () => {
+    await driveToRefinePending();
+    await handleInbound({ phone: PHONE, body: 'bolder' });
+    vi.mocked(refine).mockResolvedValueOnce(
+      completedSession() as unknown as Awaited<ReturnType<typeof refine>>
+    );
+
+    const delivery = await executeRefine('s1', PHONE, 'bolder');
+
+    expect(refine).toHaveBeenCalledWith('s1', { answer: 'bolder' });
+    expect(delivery.cuts).toEqual([
+      { caption: 'The tightened version', mediaUrl: 'https://storage.example/refined.png' },
+    ]);
+    // The whole point of reaching 'complete': /smart-match can now load the
+    // brief, and the id threads onward into the booking.
+    expect(delivery.closingText).toContain('https://tatttester.com/smart-match?ds=s1');
+    // One image on the session's pinned provider (ADR-0013).
+    expect(recordImageSpend).toHaveBeenLastCalledWith('vertex', 1);
+    const profile = await memoryProfileStore.get(PHONE);
+    expect(profile?.lastStage).toBe('complete');
+  });
+
+  it('never double-fires the render on an impatient second text', async () => {
+    await driveToRefinePending();
+    await handleInbound({ phone: PHONE, body: 'bolder' });
+
+    const again = await handleInbound({ phone: PHONE, body: 'bolder!!' });
+
+    expect(again.kind).toBe('reply');
+    if (again.kind === 'reply') expect(again.text).toContain('Still reworking');
+  });
+
+  it('re-arms for another answer when the regen fails', async () => {
+    await driveToRefinePending();
+    await handleInbound({ phone: PHONE, body: 'bolder' });
+    vi.mocked(refine).mockRejectedValueOnce(new Error('provider blew up'));
+
+    const delivery = await executeRefine('s1', PHONE, 'bolder');
+
+    expect(delivery.cuts).toHaveLength(0);
+    expect(delivery.closingText).toBe(REFINE_FAILED_TEXT);
+    const profile = await memoryProfileStore.get(PHONE);
+    expect(profile?.lastStage).toBe('refine-pending');
+    expect(recordImageSpend).not.toHaveBeenCalledWith('vertex', 1);
+  });
+
+  it('refuses the render when the global budget is gone', async () => {
+    await driveToRefinePending();
+    vi.mocked(checkBudget).mockResolvedValueOnce({
+      allowed: false,
+      spentCents: 50000,
+      remainingCents: 0,
+    });
+
+    const outcome = await handleInbound({ phone: PHONE, body: 'bolder' });
+
+    expect(outcome.kind).toBe('reply');
+    if (outcome.kind === 'reply') expect(outcome.text).toBe(BUDGET_EXHAUSTED_TEXT);
+    expect(refine).not.toHaveBeenCalled();
   });
 });
 

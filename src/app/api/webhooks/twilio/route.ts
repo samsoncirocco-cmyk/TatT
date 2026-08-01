@@ -47,6 +47,7 @@ import { rateLimit } from '@/lib/rate-limit';
 import {
   handleInbound,
   executeReveal,
+  executeRefine,
   recordOptOut,
   isOptedOut,
   parseInboundMedia,
@@ -260,6 +261,28 @@ export async function POST(req: NextRequest) {
         await sendSms(outcome.phone, delivery.closingText);
       });
       reqLogger.complete('twilio_webhook.reveal_armed', {
+        session_id: outcome.sessionId,
+      });
+      return twiml(outcome.text);
+    }
+
+    if (outcome.kind === 'refine') {
+      // Same deferral as a reveal — one render still outlives the webhook
+      // window. Delivers the regen plus the handoff link that carries the
+      // session id into artist matching.
+      after(async () => {
+        const delivery = await executeRefine(
+          outcome.sessionId,
+          outcome.phone,
+          outcome.answer
+        );
+        if (await isOptedOut(outcome.phone)) return;
+        for (const cut of delivery.cuts) {
+          await sendMms(outcome.phone, cut.caption, [cut.mediaUrl]);
+        }
+        await sendSms(outcome.phone, delivery.closingText);
+      });
+      reqLogger.complete('twilio_webhook.refine_armed', {
         session_id: outcome.sessionId,
       });
       return twiml(outcome.text);

@@ -8,6 +8,7 @@
 export {
   handleInbound,
   executeReveal,
+  executeRefine,
   recordOptOut,
   isOptedOut,
   revealsPerDay,

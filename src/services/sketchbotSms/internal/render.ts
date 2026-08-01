@@ -162,6 +162,29 @@ export function cutCaption(index: number, total: number): string {
   return `Cut ${index + 1} of ${total}`;
 }
 
+/** Ack sent the moment a refinement is armed — one render still takes time. */
+export const REFINE_ACK = "Got it. Reworking that one now — back in a moment.";
+
+/** Caption on the single regenerated design. */
+export const REFINED_CAPTION = 'The tightened version';
+
+/**
+ * Closing text once the session is complete. This is the only SMS exit that
+ * carries the session id, because it is the only point where a Brief exists
+ * — /smart-match?ds= reads it to pre-select styles and enrich the search,
+ * and threads the id onward so the booking records which design it came from.
+ */
+export function refinedClosingText(matchUrl: string): string {
+  return (
+    `That's the one an artist works from. Here are the artists whose work ` +
+    `actually fits it: ${matchUrl}`
+  );
+}
+
+/** The refinement render failed after the ack — own it, offer the retry. */
+export const REFINE_FAILED_TEXT =
+  "That rework didn't come together — my fault, not yours. Tell me again what you'd change and I'll take another run at it.";
+
 // ─── Reference images (TAT-50) ──────────────────────────────────────────
 
 /**
