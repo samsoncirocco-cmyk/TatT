@@ -4,14 +4,19 @@ const {
   existsMock,
   getMetadataMock,
   makePublicMock,
+  storageOptions,
 } = vi.hoisted(() => ({
   existsMock: vi.fn(),
   getMetadataMock: vi.fn(),
   makePublicMock: vi.fn(),
+  storageOptions: [] as unknown[],
 }));
 
 vi.mock('@google-cloud/storage', () => ({
   Storage: class {
+    constructor(options: unknown) {
+      storageOptions.push(options);
+    }
     bucket() {
       return {
         file: () => ({
@@ -35,10 +40,17 @@ describe('generated image recovery', () => {
     getMetadataMock.mockResolvedValue([
       { metadata: { actualImageCount: '3' } },
     ]);
+    vi.stubEnv('GOOGLE_APPLICATION_CREDENTIALS_JSON', JSON.stringify({
+      project_id: 'tatt-test',
+      client_email: 'storage-test@example.com',
+      private_key: 'test-key',
+    }));
+    vi.stubEnv('GCP_PROJECT_ID', 'tatt-test');
   });
 
   afterAll(() => {
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 
   it('repairs publication for an existing private object and returns staged metadata', async () => {
@@ -49,6 +61,14 @@ describe('generated image recovery', () => {
       imageUrl:
         'https://storage.googleapis.com/tatt-pro-assets/generated/user-1/design-1/version-1/design.png',
       actualImageCount: 3,
+    });
+    expect(storageOptions[0]).toEqual({
+      credentials: {
+        project_id: 'tatt-test',
+        client_email: 'storage-test@example.com',
+        private_key: 'test-key',
+      },
+      projectId: 'tatt-test',
     });
   });
 

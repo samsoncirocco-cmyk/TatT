@@ -12,6 +12,7 @@
  */
 
 import { Storage, type File } from '@google-cloud/storage';
+import { googleStorageAuthOptions } from '@/lib/gcp-storage-auth';
 
 function getBucketName(): string {
   return (
@@ -32,7 +33,7 @@ let _storage: Storage | null = null;
 function getStorageClient(): Storage {
   if (_storage) return _storage;
   _storage = new Storage({
-    keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+    ...googleStorageAuthOptions(),
     projectId: getProjectId(),
   });
   return _storage;
