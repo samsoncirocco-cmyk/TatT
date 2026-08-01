@@ -11,7 +11,7 @@ export type GoogleStorageAuthOptions =
 
 /** Resolve the credential shapes used by serverless and local GCS clients. */
 export function googleStorageAuthOptions(
-  env: NodeJS.ProcessEnv = process.env
+  env: Readonly<Record<string, string | undefined>> = process.env
 ): GoogleStorageAuthOptions {
   const json = env.GOOGLE_APPLICATION_CREDENTIALS_JSON || env.GCP_SERVICE_ACCOUNT_KEY;
   if (json) {

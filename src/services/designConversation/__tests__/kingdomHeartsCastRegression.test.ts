@@ -200,7 +200,7 @@ describe('Kingdom Hearts sleeve cast preservation', () => {
             styleTags: ['anime', 'color'],
             meaning: 'friendship and rivalry',
             subject:
-              'Roxas, Sora, Axel, Riku, each wielding their correct Keyblade, with swirling energy, a connected vertical composition',
+              'Roxas, Sora, Axel, and Riku sparring together, Epic Battle, dynamic poses, Keyblade clash, friendship rivalry',
             characters: [
               'Roxas',
               'Sora',
@@ -209,6 +209,11 @@ describe('Kingdom Hearts sleeve cast preservation', () => {
               'each wielding their correct Keyblade',
               'with swirling energy',
               'a connected vertical composition',
+              'Dynamic Poses',
+              'Keyblade Clash',
+              'Sparring Match',
+              'Friendship Rivalry',
+              'Epic Battle',
             ],
             characterIdentities: [{ name: 'Roxas', series: 'Kingdom Hearts' }],
             references: [],
@@ -223,7 +228,7 @@ describe('Kingdom Hearts sleeve cast preservation', () => {
         { role: 'bot', text: opener() },
         {
           role: 'user',
-          text: 'A Kingdom Hearts sleeve with Roxas, Sora, Axel, and Riku sparring together',
+          text: 'A Kingdom Hearts sleeve with Roxas, Sora, Axel, and Riku sparring together, an Epic Battle, dynamic poses, a Keyblade clash, and friendship rivalry',
         },
       ],
       userTurn: 1,
@@ -243,8 +248,8 @@ describe('Kingdom Hearts sleeve cast preservation', () => {
             placement: 'left arm',
             styleTags: ['color'],
             meaning: 'found family',
-            subject: 'Auren, Bex, Cyra, and Dovan',
-            characters: ['Auren'],
+            subject: 'Auren, Bex, Cyra and Dovan protecting the city, Epic Battle',
+            characters: ['Auren', 'Epic Battle'],
             characterIdentities: [],
             references: [],
             ambiguousAxes: [],
@@ -256,7 +261,7 @@ describe('Kingdom Hearts sleeve cast preservation', () => {
     const result = await runTurn({
       messages: [
         { role: 'bot', text: opener() },
-        { role: 'user', text: 'Auren, Bex, Cyra, and Dovan on my left arm for found family' },
+        { role: 'user', text: 'Auren, Bex, Cyra and Dovan protecting the city, an Epic Battle on my left arm for found family' },
       ],
       userTurn: 1,
     });
