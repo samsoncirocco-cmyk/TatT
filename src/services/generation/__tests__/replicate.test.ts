@@ -224,4 +224,99 @@ describe('generation module — replicate provider seam', () => {
     );
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  // Image-to-image. Verified against each model's published schema on
+  // 2026-08-01: flux-dev takes `image` + `prompt_strength`; flux-schnell has
+  // no image input; krea2 offers only style reference.
+  describe('image-to-image', () => {
+    it('passes the source image and strength through to flux-dev', async () => {
+      fetchMock.mockResolvedValueOnce(replicateResponse());
+
+      await generate({
+        prompt: 'clean line art',
+        modelId: 'flux-dev',
+        sourceImage: 'https://storage.example/picked.png',
+        sourceStrength: 0.6
+      });
+
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+      expect(body.input.image).toBe('https://storage.example/picked.png');
+      expect(body.input.prompt_strength).toBe(0.6);
+    });
+
+    // flux-dev derives the output ratio from the source image, so sending
+    // aspect_ratio too would silently disagree with what comes back.
+    it('drops aspect_ratio when a source image is set', async () => {
+      fetchMock.mockResolvedValueOnce(replicateResponse());
+
+      await generate({
+        prompt: 'clean line art',
+        modelId: 'flux-dev',
+        aspectRatio: '9:16',
+        sourceImage: 'https://storage.example/picked.png'
+      });
+
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+      expect(body.input.aspect_ratio).toBeUndefined();
+    });
+
+    it('clamps strength into 0..1', async () => {
+      fetchMock.mockResolvedValue(replicateResponse());
+
+      await generate({
+        prompt: 'x',
+        modelId: 'flux-dev',
+        sourceImage: 'https://img.example/s.png',
+        sourceStrength: 4
+      });
+
+      expect(JSON.parse(fetchMock.mock.calls[0][1].body).input.prompt_strength).toBe(1);
+    });
+
+    it('leaves prompt_strength unset when no strength is given', async () => {
+      fetchMock.mockResolvedValueOnce(replicateResponse());
+
+      await generate({
+        prompt: 'x',
+        modelId: 'flux-dev',
+        sourceImage: 'https://img.example/s.png'
+      });
+
+      expect(
+        JSON.parse(fetchMock.mock.calls[0][1].body).input.prompt_strength
+      ).toBeUndefined();
+    });
+
+    // The failure this refusal exists to prevent: silently rendering from
+    // the prompt alone returns a DIFFERENT design, and the caller — who
+    // asked to keep the source's composition — cannot tell.
+    it('refuses rather than silently dropping the source on flux-schnell', async () => {
+      await expect(
+        generate({
+          prompt: 'x',
+          modelId: 'flux-schnell',
+          sourceImage: 'https://img.example/s.png'
+        })
+      ).rejects.toThrow(/no image-to-image input/);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('refuses on krea2 — style reference is not composition preservation', async () => {
+      await expect(
+        generate({ prompt: 'x', modelId: 'krea2', sourceImage: 'https://img.example/s.png' })
+      ).rejects.toThrow(/no image-to-image input/);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('never sends an image input when sourceImage is absent', async () => {
+      fetchMock.mockResolvedValueOnce(replicateResponse());
+
+      await generate({ prompt: 'x', style: 'traditional' });
+
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+      expect(body.input.image).toBeUndefined();
+      expect(body.input.prompt_strength).toBeUndefined();
+      expect(body.input.aspect_ratio).toBeDefined();
+    });
+  });
 });

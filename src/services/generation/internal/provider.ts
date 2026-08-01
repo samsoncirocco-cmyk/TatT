@@ -16,6 +16,31 @@ export interface GenerationRequest {
   negativePrompt?: string;
   numImages?: number;
   aspectRatio?: AspectRatio;
+  /**
+   * Source image for image-to-image, as a URL the provider can fetch.
+   *
+   * Set this when the output must keep the SOURCE's composition and change
+   * only its rendering — deriving a line-art stencil from an approved
+   * colour design is the motivating case. Re-prompting from text instead
+   * produces a different tattoo, which is worse than none.
+   *
+   * Support is per-model and NOT universal: only `flux-dev` accepts it
+   * today (`flux-schnell` has no image input; `krea2` offers style
+   * reference, which transfers style rather than preserving layout).
+   * Providers reject a request they cannot honour rather than silently
+   * dropping the field — a silent drop is how you ship a "stencil" of a
+   * design the customer never approved.
+   *
+   * NOTE: on flux-dev the output's aspect ratio follows this image, so
+   * `aspectRatio` is ignored whenever it is set.
+   */
+  sourceImage?: string;
+  /**
+   * How far the prompt may pull away from `sourceImage`, 0–1. Higher keeps
+   * less of the source; 1.0 discards it entirely. Ignored without a
+   * `sourceImage`. Defaults to the model's own default when unset.
+   */
+  sourceStrength?: number;
   safetyFilterLevel?: SafetyFilterLevel;
   personGeneration?: string;
   outputFormat?: string;
