@@ -122,6 +122,17 @@ function buildResult(
 }
 
 async function generateWithRetry(request: GenerationRequest): Promise<GenerationResult> {
+  // Imagen 3's :predict body takes no source image, so an image-to-image
+  // request cannot be honored here. Refuse rather than render from the
+  // prompt alone: the caller asked for the source's composition, and a
+  // fresh text render silently returns a different design.
+  if (request.sourceImage) {
+    throw makeGenerationError(
+      'Vertex Imagen has no image-to-image input; sourceImage cannot be honored.',
+      { status: 400, code: 'SOURCE_IMAGE_UNSUPPORTED' }
+    );
+  }
+
   const startedAt = Date.now();
   // maxRetries means "retries after the first try": default 4 => 5 total
   // attempts, matching production-hardening expectations.
