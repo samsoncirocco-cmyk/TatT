@@ -555,6 +555,44 @@ describe('the refinement round', () => {
     expect(profile?.lastStage).toBe('complete');
   });
 
+  // The two-deliverable payoff: the texter approved a render, the artist
+  // needs line art, and both travel together.
+  it('sends the stencil alongside the design when one was derived', async () => {
+    await driveToRefinePending();
+    await handleInbound({ phone: PHONE, body: 'bolder' });
+    vi.mocked(refine).mockResolvedValueOnce({
+      ...completedSession(),
+      brief: {
+        placement: 'forearm',
+        styleTags: ['Traditional'],
+        meaning: 'resilience',
+        stencilUrl: 'https://gcs.example/stencil.png',
+      },
+    } as unknown as Awaited<ReturnType<typeof refine>>);
+
+    const delivery = await executeRefine('s1', PHONE, 'bolder');
+
+    expect(delivery.cuts).toHaveLength(2);
+    expect(delivery.cuts[1].mediaUrl).toBe('https://gcs.example/stencil.png');
+    expect(delivery.cuts[1].caption).toMatch(/stencil/i);
+    expect(delivery.closingText).toMatch(/two files/i);
+  });
+
+  // Derivation is off by default and can fail. Promising two files when one
+  // arrived reads as a broken send.
+  it('never promises a stencil that was not derived', async () => {
+    await driveToRefinePending();
+    await handleInbound({ phone: PHONE, body: 'bolder' });
+    vi.mocked(refine).mockResolvedValueOnce(
+      completedSession() as unknown as Awaited<ReturnType<typeof refine>>
+    );
+
+    const delivery = await executeRefine('s1', PHONE, 'bolder');
+
+    expect(delivery.cuts).toHaveLength(1);
+    expect(delivery.closingText).not.toMatch(/two files/i);
+  });
+
   it('never double-fires the render on an impatient second text', async () => {
     await driveToRefinePending();
     await handleInbound({ phone: PHONE, body: 'bolder' });

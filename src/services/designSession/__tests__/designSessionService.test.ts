@@ -24,7 +24,11 @@ import type { IntakeRecord } from '../../intake/types';
 
 vi.mock('../../intake', () => ({ extractIntake: vi.fn() }));
 vi.mock('../../council', () => ({ enhanceStructured: vi.fn() }));
-vi.mock('../../generation', () => ({ generate: vi.fn(), routeGeneration: vi.fn() }));
+vi.mock('../../generation', () => ({
+  generate: vi.fn(),
+  routeGeneration: vi.fn(),
+  STENCIL_SHIELD_TOKENS: 'shading, gradients, grey, messy lines',
+}));
 vi.mock('@/lib/firebase-admin', () => ({ ensureAdminApp: vi.fn(() => false) }));
 
 const mockExtractIntake = vi.mocked(extractIntake);

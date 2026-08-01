@@ -51,6 +51,7 @@ vi.mock('@/services/generation', () => ({
     fallbackChain: [],
     reasoning: 'test route',
   })),
+  STENCIL_SHIELD_TOKENS: 'shading, gradients, grey, messy lines',
 }));
 // No Firebase account lookups in this flow.
 vi.mock('firebase-admin/auth', () => ({

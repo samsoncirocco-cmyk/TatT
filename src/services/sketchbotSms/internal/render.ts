@@ -168,17 +168,25 @@ export const REFINE_ACK = "Got it. Reworking that one now — back in a moment."
 /** Caption on the single regenerated design. */
 export const REFINED_CAPTION = 'The tightened version';
 
+/** Caption on the derived black line art — the artist's working file. */
+export const STENCIL_CAPTION =
+  'The stencil — black line art your artist can resize and rearrange';
+
 /**
  * Closing text once the session is complete. This is the only SMS exit that
  * carries the session id, because it is the only point where a Brief exists
  * — /smart-match?ds= reads it to pre-select styles and enrich the search,
  * and threads the id onward so the booking records which design it came from.
+ *
+ * The copy only promises a stencil when one actually rendered: stencil
+ * derivation is off by default and can fail, and a text claiming two files
+ * when one arrived reads as a broken send.
  */
-export function refinedClosingText(matchUrl: string): string {
-  return (
-    `That's the one an artist works from. Here are the artists whose work ` +
-    `actually fits it: ${matchUrl}`
-  );
+export function refinedClosingText(matchUrl: string, hasStencil = false): string {
+  const lead = hasStencil
+    ? `Two files: the design you approved, and the stencil your artist inks from.`
+    : `That's the one an artist works from.`;
+  return `${lead} Here are the artists whose work actually fits it: ${matchUrl}`;
 }
 
 /** The refinement render failed after the ack — own it, offer the retry. */

@@ -23,6 +23,7 @@ import { resolveSessionStore } from './store';
 import type { SessionStore, StoredSession } from './store';
 import { deriveRefinementQuestion, adjustPromptForAnswer } from './refinement';
 import { derivePlacementNotes } from './placementNotes';
+import { deriveStencil } from './stencil';
 
 export type DesignSessionErrorCode =
   | 'SESSION_NOT_FOUND'
@@ -300,6 +301,13 @@ export async function refine(sessionId: string, request: RefineRequest): Promise
     negativePrompt: picked.negativePrompt,
     imageUrl,
   };
+
+  // The artist's half of the deliverable, derived from the image the
+  // customer just approved rather than re-prompted from text — see
+  // internal/stencil.ts. Never throws: a missing stencil costs the artist
+  // convenience, a failed refinement costs the customer their session.
+  const stencil = imageUrl ? await deriveStencil(session.id, imageUrl) : null;
+
   session.brief = {
     placement: session.intake.placement,
     styleTags: session.intake.styleTags,
@@ -307,6 +315,7 @@ export async function refine(sessionId: string, request: RefineRequest): Promise
     meaning: session.intake.meaning,
     references: session.intake.references,
     finalImageUrl: session.refinedVariation.imageUrl,
+    ...(stencil ? { stencilUrl: stencil.imageUrl } : {}),
     axisSelection: session.axisSelection,
     placementNotes: derivePlacementNotes(
       session.intake.placement,
