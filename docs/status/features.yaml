@@ -44,6 +44,38 @@ features:
       - src/app/api/v1/design-session/[id]/confirm/route.ts
       - src/app/api/v1/design-session/__tests__/demo-confirm-flow.test.ts
 
+  ensemble_generation_quality:
+    status: implemented_unverified
+    evidence:
+      - src/services/council/internal/structuredMode.ts
+      - src/services/council/__tests__/ensemblePromptContract.test.ts
+      - src/services/generation/internal/routing.ts
+      - src/services/generation/__tests__/routing.test.ts
+    limitations:
+      - Named multi-character briefs lock cast count, franchise context, interaction, and prop ownership in the prompt and use ensemble-safe compositional cuts.
+      - Production image-level character fidelity still depends on the pinned generation model and has not yet been measured against a scored render corpus.
+
+  durable_design_session_images:
+    status: implemented_unverified
+    evidence:
+      - src/services/designSession/internal/durableImage.ts
+      - src/services/designSession/__tests__/durability.test.ts
+      - src/services/storage/imageStorageService.ts
+    limitations:
+      - Design-session reveal, critique, and refinement images are copied to product-owned storage before persistence.
+      - Other generation entry points must be audited separately; this feature does not claim every provider URL product-wide is durable.
+
+  post_reveal_critique:
+    status: implemented_unverified
+    evidence:
+      - docs/adr/0039-post-reveal-critique-lane.md
+      - src/app/api/v1/design-session/[id]/critique/route.ts
+      - src/services/designSession/__tests__/critique.test.ts
+      - src/features/design-session/__tests__/DesignSessionFlow.test.tsx
+    limitations:
+      - The server-side allowance defaults to 25 re-cuts and remains bounded by the global generation budget.
+      - Production provider behavior has not yet been verified after deployment.
+
   bounded_refinement:
     status: implemented
     evidence:

@@ -197,9 +197,9 @@ describe('a failed durable copy is a failed generation', () => {
 
     await expect(startSession(startRequest)).rejects.toThrow('GCS unavailable');
 
-    // Replicate is billed flat per step; the money left when the provider
-    // answered, so a copy failure must not make the renders free.
-    expect(mockRecordSpend).toHaveBeenCalledWith(1);
+    // All four parallel Replicate renders answered before one durable copy
+    // failed, so all four purchases remain billable.
+    expect(mockRecordSpend).toHaveBeenCalledWith(4);
   });
 
   it('leaves the refined cut unset and the session refinable when the regen copy fails', async () => {

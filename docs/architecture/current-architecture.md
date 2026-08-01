@@ -56,6 +56,16 @@ normal and degraded behavior internally.
 Callers request tattoo directions without selecting Replicate or Vertex
 directly. Provider choice and fallback belong inside generation.
 
+The design-session orchestrator passes the full intake style set into routing,
+pins one resulting model for the session, and records each image actually
+purchased. Named multi-character briefs are treated as composition problems:
+Council locks the exact roster, shared source/franchise, requested interaction,
+and signature-prop ownership while varying four ensemble-safe layouts. Every
+design-session provider result is transport only; reveal, critique, and refine
+images are copied into product-owned Google Cloud Storage at deterministic,
+retry-safe paths before the session persists them. This durability guarantee
+is scoped to the design-session pipeline, not every legacy generation route.
+
 ### Booking and calendar
 
 Booking decides whether a request can reserve a real slot or must remain a

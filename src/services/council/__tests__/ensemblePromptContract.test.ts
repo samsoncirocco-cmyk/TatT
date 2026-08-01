@@ -33,6 +33,12 @@ const KINGDOM_HEARTS: IntakeRecord = {
   ambiguousAxes: [],
 };
 
+/** The exact unresolved axes carried by the failed production conversation. */
+const LIVE_KINGDOM_HEARTS: IntakeRecord = {
+  ...KINGDOM_HEARTS,
+  ambiguousAxes: ['bold-fine', 'minimal-ornate'],
+};
+
 /** Same session, one character and no sleeve — the unaffected control. */
 const SINGLE_SUBJECT: IntakeRecord = {
   ...KINGDOM_HEARTS,
@@ -47,6 +53,32 @@ const hasCartoonNegative = (negative: string) =>
   negative.split(',').some(entry => entry.trim() === 'cartoon');
 
 describe('ensemble prompt contract — the Kingdom Hearts session', () => {
+  it('puts a named ensemble into composition mode even when style axes remain open', async () => {
+    const result = await enhanceStructured(LIVE_KINGDOM_HEARTS);
+
+    expect(result.axisSelection.mode).toBe('compositional');
+    for (const variation of result.variations) {
+      expect(variation.axisPosition).toHaveProperty('composition');
+      expect(variation.axisPosition).not.toHaveProperty('bold-fine');
+      expect(variation.axisPosition).not.toHaveProperty('minimal-ornate');
+    }
+  });
+
+  it('states the cast, franchise, interaction, and weapon ownership as hard constraints', async () => {
+    const result = await enhanceStructured(LIVE_KINGDOM_HEARTS);
+
+    for (const variation of result.variations) {
+      const prompt = variation.prompts.detailed ?? variation.prompts.simple ?? '';
+      expect(prompt).toMatch(/exactly four distinct figures/i);
+      expect(prompt).toMatch(/one each of Roxas, Sora, Axel, and Riku/i);
+      expect(prompt).toMatch(/Kingdom Hearts/i);
+      expect(prompt).toMatch(/sparring|visibly interact/i);
+      expect(prompt).toMatch(/each named character.*distinct Keyblade/i);
+      expect(prompt).toMatch(/no duplicates or omissions/i);
+      expect(prompt).not.toMatch(/single clear focal element|one dominant subject|minimal composition/i);
+    }
+  });
+
   it('never forbids "multiple people" when the customer named a cast', async () => {
     const result = await enhanceStructured(KINGDOM_HEARTS);
 
@@ -126,9 +158,10 @@ describe('compositional treatments — an ensemble gets four cuts that can hold 
   });
 
   it('treats a brief with no roster as single-subject rather than guessing', async () => {
-    const { requestedCharacters: _roster, ...noRoster } = SINGLE_SUBJECT;
+    const noRoster = { ...SINGLE_SUBJECT };
+    delete noRoster.requestedCharacters;
 
-    expect(await compositionsOf(noRoster as IntakeRecord)).toContain('close crop');
+    expect(await compositionsOf(noRoster)).toContain('close crop');
   });
 });
 

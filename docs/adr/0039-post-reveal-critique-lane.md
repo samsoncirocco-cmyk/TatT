@@ -86,7 +86,7 @@ after.
 ## Bounded, metered, and spoken
 
 - The allowance is the **same knob** as the Studio's —
-  `resolveFixAllowance()` / `NEXT_PUBLIC_STUDIO_FIX_ALLOWANCE`, default 6 — but
+  `resolveFixAllowance()` / `NEXT_PUBLIC_STUDIO_FIX_ALLOWANCE`, default 25 — but
   counted **server-side on the session record** rather than in `localStorage`,
   because unlike the Studio this room has a server session to count on, and a
   fence in front of paid renders should not be a browser value.
@@ -98,9 +98,10 @@ after.
 - The ceiling is spoken in voice and ends in the artist, per ADR-0038. It is
   never a meter and never a purchase prompt (ADR-0030).
 
-Worst case a session now costs four reveal renders + six fixes + one refinement
-instead of five. That is the price of the sentence landing, and it is bounded,
-metered, and tunable to zero by env.
+Worst case a session now costs four reveal renders + 25 fixes + one refinement
+= 30 renders instead of five. That is the price of the sentence landing, and
+it is bounded, metered, and tunable to zero by env. ADR-0038 records Samson's
+2026-08-01 allowance decision and the global-budget rationale.
 
 ## Considered and rejected
 

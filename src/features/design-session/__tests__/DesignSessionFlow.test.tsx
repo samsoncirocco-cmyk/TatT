@@ -320,6 +320,54 @@ describe('DesignSessionFlow', () => {
       expect(screen.getByRole('button', { name: /^Pick design 2 / })).toBeTruthy();
       expect(screen.getByLabelText("Tell me what's wrong with it")).toBeTruthy();
     });
+
+    it('lets a customer take a re-cut forward after the first pick', async () => {
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse(baseSession))
+        .mockResolvedValueOnce(jsonResponse(pickedSession));
+      render(<DesignSessionFlow />);
+      await answerIntake();
+      await screen.findByText(REVEAL_NARRATION);
+      fireEvent.click(screen.getByRole('button', { name: /^Pick design 2 / }));
+      fireEvent.click(await screen.findByRole('button', { name: /^Design 3 feels most not me / }));
+      await screen.findByText(pickedSession.refinementQuestion!);
+
+      const recut = {
+        id: 'v1-fix1',
+        axisPosition: { 'bold-fine': 'bold' },
+        prompt: 'prompt 1 with Riku restored',
+        imageUrl: 'https://img.test/recut-after-pick.png',
+      };
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({
+          success: true,
+          session: { ...pickedSession, critiqueCuts: [recut], fixesUsed: 1 },
+          reply: 're-cut cut one with that.',
+          cut: recut,
+          fixesRemaining: 5,
+          exhausted: false,
+          generated: true,
+        }))
+        .mockResolvedValueOnce(jsonResponse({ ...pickedSession, pickId: recut.id }));
+
+      const box = screen.getByLabelText("Tell me what's wrong with it");
+      fireEvent.change(box, { target: { value: "riku's missing" } });
+      fireEvent.submit(box.closest('form')!);
+
+      const recutButton = await screen.findByRole('button', { name: /^Pick design 5 / });
+      expect(recutButton.hasAttribute('disabled')).toBe(false);
+      fireEvent.click(recutButton);
+
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
+      expect(fetchMock).toHaveBeenLastCalledWith(
+        '/api/v1/design-session/sess-1/pick',
+        expect.objectContaining({ method: 'POST' })
+      );
+      expect(JSON.parse(fetchMock.mock.calls[3][1].body)).toEqual({
+        pickId: recut.id,
+        mostNotYouId: 'v3',
+      });
+    });
   });
 
   it('shows a thinking line while the session starts, then the rationale', async () => {

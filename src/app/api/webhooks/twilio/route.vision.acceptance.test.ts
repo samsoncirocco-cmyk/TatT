@@ -224,7 +224,7 @@ describe('TAT-50 acceptance — MMS reference image end to end', () => {
     expect(prompt).toContain('anime');
     expect(prompt).toContain('yusuke');
     expect(vi.mocked(routeGeneration)).toHaveBeenCalledWith(
-      expect.objectContaining({ style: expect.any(String), bodyPart: 'forearm' })
+      expect.objectContaining({ style: expect.arrayContaining(['anime']), bodyPart: 'forearm' })
     );
   });
 });

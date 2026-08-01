@@ -54,8 +54,14 @@ const STYLE_MAPPING_BY_KEY: Record<string, StyleModelMapping> = Object.fromEntri
   )
 );
 
-const lookupStyleMapping = (style?: string): StyleModelMapping | undefined =>
-  STYLE_MAPPING_BY_KEY[styleKey(style || '')];
+const lookupStyleMapping = (style?: string | string[]): StyleModelMapping | undefined => {
+  const candidates = Array.isArray(style) ? style : [style];
+  for (const candidate of candidates) {
+    const mapping = STYLE_MAPPING_BY_KEY[styleKey(candidate || '')];
+    if (mapping) return mapping;
+  }
+  return undefined;
+};
 
 const resolveModelId = (modelId: string): string => MODEL_ID_MAP[modelId] || modelId;
 

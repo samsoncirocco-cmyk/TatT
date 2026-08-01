@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { DesignSession } from '@/services/designSession/types';
-import type { ConversationMessage } from '@/services/designConversation/types';
+import type { ConversationMessage } from '@/services/designConversation';
 import {
   startSession,
   submitCritique,
@@ -124,6 +124,21 @@ export function DesignSessionFlow({ initialSession }: { initialSession?: DesignS
       setStep('most-not-you');
     } else if (step === 'most-not-you' && session && pickId) {
       runAction({ kind: 'pick', sessionId: session.id, pickId, mostNotYouId: variationId });
+    } else if (
+      step === 'refine' &&
+      session?.mostNotYouId &&
+      variationId !== session.mostNotYouId
+    ) {
+      // A critique re-cut can land after the first pick. Taking it forward is
+      // a re-pick, not a second refinement: update the server-side selection
+      // and derive the one refinement question from the new cut.
+      setPickId(variationId);
+      runAction({
+        kind: 'pick',
+        sessionId: session.id,
+        pickId: variationId,
+        mostNotYouId: session.mostNotYouId,
+      });
     }
   };
 
@@ -154,6 +169,7 @@ export function DesignSessionFlow({ initialSession }: { initialSession?: DesignS
   };
 
   const gridMode: RevealMode = step === 'reveal' ? 'pick' : step === 'most-not-you' ? 'not-you' : 'locked';
+  const critiqueGridMode: RevealMode = step === 'refine' ? 'pick' : gridMode;
   const showGrid = session !== null && (step === 'reveal' || step === 'most-not-you' || step === 'picking');
   // Open from the reveal until the Brief exists — at 'complete' the ADR-0013
   // hard stop has fired and the handoff owns the screen.
@@ -243,7 +259,7 @@ export function DesignSessionFlow({ initialSession }: { initialSession?: DesignS
           {critiqueCuts.length > 0 && (
             <RevealGrid
               variations={critiqueCuts}
-              mode={gridMode}
+              mode={critiqueGridMode}
               pickId={pickId}
               onSelect={handleGridSelect}
               indexOffset={session.variations.length}

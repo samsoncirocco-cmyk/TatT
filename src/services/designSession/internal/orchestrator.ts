@@ -187,7 +187,10 @@ export async function startFromRecord(
   // model; the pin is persisted so the regen never re-routes.
   const route = routeGeneration({
     prompt: '',
-    style: intake.styleTags[0],
+    // Intake tags are ordered by conversation/extraction, not by routing
+    // importance. Passing the full set means ['color', 'anime'] still reaches
+    // the anime-capable model instead of falling through on the generic tag.
+    style: intake.styleTags,
     bodyPart: intake.placement,
   });
 
@@ -258,10 +261,10 @@ export async function recordPick(sessionId: string, request: PickRequest): Promi
   const store = resolveSessionStore();
   const session = await loadSession(store, sessionId);
 
-  if (session.phase !== 'revealed') {
+  if (session.phase !== 'revealed' && session.phase !== 'picked') {
     throw new DesignSessionError(
       'INVALID_PHASE',
-      `Cannot record a pick while the session is '${session.phase}' — a pick is only valid on a revealed session.`
+      `Cannot record a pick while the session is '${session.phase}' — a pick is only valid before the final refinement.`
     );
   }
 

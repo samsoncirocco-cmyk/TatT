@@ -97,6 +97,11 @@ describe('generation routing', () => {
     expect(routeGeneration({ prompt: 'x', style: 'anime' }).modelId).toBe('krea2');
   });
 
+  it('finds the meaningful mapped style anywhere in the intake tag list', () => {
+    expect(routeGeneration({ prompt: 'x', style: ['color', 'anime'] }).modelId).toBe('krea2');
+    expect(routeGeneration({ prompt: 'x', style: ['illustrative', 'new-school'] }).modelId).toBe('krea2');
+  });
+
   it('defaults to portrait, not square, when placement is unknown or absent', () => {
     expect(routeGeneration({ prompt: 'x' }).aspectRatio).toBe('9:16');
     expect(routeGeneration({ prompt: 'x', bodyPart: '' }).aspectRatio).toBe('9:16');

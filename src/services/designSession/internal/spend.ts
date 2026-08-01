@@ -35,7 +35,7 @@ export async function recordImageSpend(
   try {
     await recordSpend(
       provider === 'replicate'
-        ? REPLICATE_COST_CENTS
+        ? REPLICATE_COST_CENTS * imagesPurchased
         : VERTEX_IMAGEN_COST_CENTS * imagesPurchased
     );
   } catch (error) {

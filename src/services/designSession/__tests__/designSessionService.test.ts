@@ -196,7 +196,7 @@ describe('startSession', () => {
 
     expect(mockRouteGeneration).toHaveBeenCalledTimes(1);
     expect(mockRouteGeneration).toHaveBeenCalledWith(
-      expect.objectContaining({ style: 'fine-line', bodyPart: 'ribs' })
+      expect.objectContaining({ style: ['fine-line'], bodyPart: 'ribs' })
     );
     for (const [request] of mockGenerate.mock.calls) {
       expect(request.modelId).toBe('imagen3');
@@ -241,12 +241,14 @@ describe('recordPick', () => {
     );
   });
 
-  it('rejects a second pick', async () => {
+  it('allows a re-cut to replace the pick before the final refinement', async () => {
     const session = await startAndPick();
-    await expect(recordPick(session.id, { pickId: 'v1', mostNotYouId: 'v4' })).rejects.toMatchObject({
-      name: 'DesignSessionError',
-      code: 'INVALID_PHASE',
-    });
+    const repicked = await recordPick(session.id, { pickId: 'v1', mostNotYouId: 'v4' });
+
+    expect(repicked.phase).toBe('picked');
+    expect(repicked.pickId).toBe('v1');
+    expect(repicked.mostNotYouId).toBe('v4');
+    expect(repicked.refinementQuestion).toBe('Too colorful, or not colorful enough?');
   });
 
   it('rejects a pick before the reveal', async () => {

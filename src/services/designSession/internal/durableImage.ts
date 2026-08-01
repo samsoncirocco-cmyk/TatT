@@ -21,7 +21,7 @@ import {
   copyImageToPath,
   recoverImageAtPath,
   uploadImageToPath,
-} from '@/services/storage/imageStorageService';
+} from '@/services/storage';
 
 export interface RenderIdentity {
   sessionId: string;

@@ -326,6 +326,21 @@ function contradictedAxes(record: IntakeRecord): Set<VariationAxis> {
  * callback and included in the result.
  */
 export function selectAxes(record: IntakeRecord): AxisSelection {
+  // A named cast is a composition problem before it is a style questionnaire.
+  // Four bold/fine x minimal/ornate quadrants can all make the same fatal
+  // mistake: crop or visually demote part of the cast. Spend the four reveal
+  // slots on layouts that can prove every requested character fits instead.
+  if ((record.requestedCharacters?.length ?? 0) > 1) {
+    return {
+      mode: 'compositional',
+      axes: [],
+      rationale:
+        `Compositional mode: the customer named ${record.requestedCharacters!.length} distinct ` +
+        'characters, so the four cuts vary ensemble staging and framing while keeping the cast, ' +
+        'action, placement, and resolved style locked.',
+    };
+  }
+
   // Dedupe while walking priority order so the output is deterministic.
   const ambiguous = AXIS_PRIORITY.filter(axis => record.ambiguousAxes.includes(axis));
 
@@ -494,6 +509,8 @@ interface PromptContext {
    * falls back to catalog detection instead of asserting "no characters".
    */
   requestedCharacterCount?: number;
+  /** Exact roster extracted by intake, in the customer's order. */
+  requestedCharacters: string[];
 }
 
 function buildContext(record: IntakeRecord): PromptContext {
@@ -522,16 +539,24 @@ function buildContext(record: IntakeRecord): PromptContext {
   // placement "left arm" is a sleeve request, and the placement tag alone
   // loses the scale of it. Meaning cannot influence anything else.
   const guidance = resolvePlacement(placement, record.meaning);
+  const isEnsemble = (record.requestedCharacters?.length ?? 0) > 1;
+  const aspectGuidance = isEnsemble
+    ? guidance.composition.replace(
+        'a clear focal hierarchy with one dominant subject supported by secondary elements above and below it',
+        'a clear ensemble hierarchy with every named figure equally readable and none cropped, omitted, or reduced to background decoration'
+      )
+    : guidance.composition;
   return {
     styleDesc: record.styleTags.length > 0 ? record.styleTags.join(', ') : 'tattoo',
     placement,
     palette: resolvePalette(record.styleTags),
     subject: record.subject?.trim() || undefined,
     meaningShort: truncateWords(record.meaning, 60),
-    aspectGuidance: guidance.composition,
+    aspectGuidance,
     flowToken: guidance.flow,
     styleTags: record.styleTags,
     requestedCharacterCount: record.requestedCharacters?.length || undefined,
+    requestedCharacters: record.requestedCharacters ?? [],
   };
 }
 
@@ -573,10 +598,39 @@ export function stripChromaticWords(text: string): string {
  * paraphrase, which fights the output for recognizable IP. Without one,
  * meaning informs phrasing verbatim-ish, as before.
  */
+function naturalList(items: readonly string[]): string {
+  if (items.length < 2) return items[0] ?? '';
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(', ')}, and ${items.at(-1)}`;
+}
+
+function sourceLabel(meaning: string): string {
+  return meaning
+    .replace(/^\s*(?:a|an|the)\s+/i, '')
+    .replace(/\s+(?:full\s+)?(?:sleeve|tattoo|piece|design)\s*$/i, '')
+    .trim();
+}
+
 function subjectClause(ctx: PromptContext): string {
   if (ctx.subject) {
     const subject =
       ctx.palette === 'monochrome' ? stripChromaticWords(ctx.subject) : ctx.subject;
+    if (ctx.requestedCharacters.length > 1) {
+      const count = ctx.requestedCharacters.length;
+      const countWord = count === 4 ? 'four' : String(count);
+      const roster = naturalList(ctx.requestedCharacters);
+      const source = sourceLabel(ctx.meaningShort)
+        ? ` Source/franchise: ${sourceLabel(ctx.meaningShort)}.`
+        : '';
+      const weapon = /\bkeyblades?\b/i.test(subject)
+        ? ' Each named character holds a visually distinct Keyblade belonging to that character, never an ordinary sword.'
+        : '';
+      return (
+        `depicting exactly ${countWord} distinct figures, one each of ${roster}: ${subject}.` +
+        `${source} No duplicates or omissions; all ${countWord} figures are fully visible and ` +
+        `visibly interact in the requested action.${weapon}`
+      );
+    }
     return `depicting ${subject}`;
   }
   return ctx.meaningShort ? `expressing "${ctx.meaningShort}"` : 'as a personal design';
@@ -597,7 +651,7 @@ function buildQuadrantVariation(
   const details = specs.map(spec => spec.detail).join('; ');
 
   const lead = paletteClause(ctx.palette) + PRESENTATION_LEAD;
-  const simple = `${lead}A ${ctx.styleDesc} style tattoo design ${subjectClause(ctx)}, rendered with ${phrases}.`;
+  const simple = `${lead}A tattoo design in a ${ctx.styleDesc} style, ${subjectClause(ctx)} Rendered with ${phrases}.`;
   const detailed =
     `${simple} Treatment: ${details}. Composition follows ${ctx.aspectGuidance}.`;
   const ultra =
@@ -631,7 +685,7 @@ function buildCompositionalVariation(
   ctx: PromptContext
 ): StructuredVariation {
   const lead = paletteClause(ctx.palette) + PRESENTATION_LEAD;
-  const simple = `${lead}A ${ctx.styleDesc} style tattoo design ${subjectClause(ctx)}, in a ${treatment.phrase}.`;
+  const simple = `${lead}A tattoo design in a ${ctx.styleDesc} style, ${subjectClause(ctx)} Use a ${treatment.phrase}.`;
   const detailed =
     `${simple} Treatment: ${treatment.detail}. Composition follows ${ctx.aspectGuidance}.`;
   const ultra =
