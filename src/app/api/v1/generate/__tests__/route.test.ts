@@ -108,14 +108,19 @@ describe('/api/v1/generate route adapter', () => {
     // Vertex spend: cents-per-image * images generated.
     expect(recordSpendMock).toHaveBeenCalledWith(4 * 2);
 
-    // The route is a thin adapter: explicit model + retry/safety policy.
+    // The route is a thin adapter: it forwards the style and owns only the
+    // retry/safety policy. It must NOT pin a model — pinning 'imagen3' here
+    // is what kept this endpoint on Google after the routing table moved
+    // realism off it.
     expect(generateMock).toHaveBeenCalledWith(expect.objectContaining({
       prompt: 'dragon tattoo',
       numImages: 2,
-      modelId: 'imagen3',
+      style: 'realism',
+      bodyPart: 'forearm',
       retry: { maxRetries: 2, baseDelayMs: 400 },
       fallback: { safetyFilterLevel: 'block_only_high' }
     }));
+    expect(generateMock.mock.calls[0][0]).not.toHaveProperty('modelId');
   });
 
   it('reports outputFormat from the image data-URL mime type', async () => {
