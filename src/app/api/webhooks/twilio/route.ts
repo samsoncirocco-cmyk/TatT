@@ -47,6 +47,8 @@ import { rateLimit } from '@/lib/rate-limit';
 import {
   handleInbound,
   executeReveal,
+  executeCritique,
+  executeRefine,
   recordOptOut,
   isOptedOut,
   parseInboundMedia,
@@ -260,6 +262,27 @@ export async function POST(req: NextRequest) {
         await sendSms(outcome.phone, delivery.closingText);
       });
       reqLogger.complete('twilio_webhook.reveal_armed', {
+        session_id: outcome.sessionId,
+      });
+      return twiml(outcome.text);
+    }
+
+    // Critique and refinement defer for the same reason a reveal does: one
+    // render still outlives the webhook window. Both deliver whatever cuts
+    // they produced (possibly none) plus a closing text turn.
+    if (outcome.kind === 'critique' || outcome.kind === 'refine') {
+      after(async () => {
+        const delivery =
+          outcome.kind === 'critique'
+            ? await executeCritique(outcome.sessionId, outcome.phone, outcome.message)
+            : await executeRefine(outcome.sessionId, outcome.phone, outcome.answer);
+        if (await isOptedOut(outcome.phone)) return;
+        for (const cut of delivery.cuts) {
+          await sendMms(outcome.phone, cut.caption, [cut.mediaUrl]);
+        }
+        await sendSms(outcome.phone, delivery.closingText);
+      });
+      reqLogger.complete(`twilio_webhook.${outcome.kind}_armed`, {
         session_id: outcome.sessionId,
       });
       return twiml(outcome.text);
