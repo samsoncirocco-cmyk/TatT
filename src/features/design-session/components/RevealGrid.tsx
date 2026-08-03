@@ -23,15 +23,24 @@ export function RevealGrid({
   mode,
   pickId,
   onSelect,
+  indexOffset = 0,
 }: {
   variations: Variation[];
   mode: RevealMode;
   pickId?: string;
   onSelect?: (variationId: string) => void;
+  /**
+   * Where this grid's cuts start counting. The critique lane (ADR-0039)
+   * renders its re-cuts in a second grid below the reveal — without an offset
+   * both grids would announce a "Design 1", leaving two identically-labelled
+   * pick targets for anyone on a screen reader.
+   */
+  indexOffset?: number;
 }) {
   return (
     <div className="grid grid-cols-2 gap-3">
-      {variations.map((variation, i) => {
+      {variations.map((variation, position) => {
+        const i = position + indexOffset;
         const { name, caption } = cutIdentity(variation, i);
         const isPick = variation.id === pickId;
         const notYouCandidate = mode === 'not-you' && !isPick;
@@ -40,7 +49,7 @@ export function RevealGrid({
           ? `Design ${i + 1} feels most not me — ${name}`
           : `Pick design ${i + 1} — ${name}`;
         return (
-          <div key={variation.id} className={`reveal-cut reveal-cut-${i + 1}`}>
+          <div key={variation.id} className={`reveal-cut reveal-cut-${position + 1}`}>
             <button
               type="button"
               disabled={disabled}

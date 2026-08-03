@@ -18,7 +18,6 @@ import {
 import { REVEAL_ACK, BUDGET_EXHAUSTED_TEXT, REVEAL_FAILED_TEXT } from '../internal/render';
 import { converse, confirmProposal, DesignSessionError } from '@/services/designSession';
 import { checkBudget, recordConversationTurnSpend } from '@/lib/budget-tracker';
-import { recordImageSpend } from '@/app/api/v1/design-session/shared';
 import { resolveSharedDesignStore } from '@/lib/shared-design-store';
 import { getAuth } from 'firebase-admin/auth';
 
@@ -44,10 +43,6 @@ vi.mock('@/services/designSession', () => {
 vi.mock('@/lib/budget-tracker', () => ({
   checkBudget: vi.fn(async () => ({ allowed: true, spentCents: 0, remainingCents: 1000 })),
   recordConversationTurnSpend: vi.fn(async () => {}),
-}));
-
-vi.mock('@/app/api/v1/design-session/shared', () => ({
-  recordImageSpend: vi.fn(async () => {}),
 }));
 
 const shareSave = vi.fn(async () => {});
@@ -267,8 +262,6 @@ describe('reveal flow', () => {
       mediaUrl: 'https://storage.example/cut-1.png',
     });
     expect(delivery.closingText).toMatch(/https:\/\/tatttester\.com\/share\/[a-z0-9-]+/i);
-    // Same pool, same constants as the web reveal.
-    expect(recordImageSpend).toHaveBeenCalledWith('vertex', 4);
     // The share carries all four cuts and the intake context.
     expect(shareSave).toHaveBeenCalledTimes(1);
     const share = shareSave.mock.calls[0][0] as Record<string, unknown>;

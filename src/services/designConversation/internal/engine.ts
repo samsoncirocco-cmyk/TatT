@@ -25,14 +25,18 @@
  */
 
 import { logger } from '@/lib/logger';
-import type { IntakeRecord, VariationAxis } from '@/services/intake';
-import { VARIATION_AXIS_POOL } from '@/services/intake';
 import {
+  type IntakeRecord,
+  type VariationAxis,
+  VARIATION_AXIS_POOL,
   charactersIn,
   characterLabelFor,
   subjectPhraseFor,
+  characterIdentitiesFor,
   momentFrom,
-} from '@/services/intake/internal/characterSubject';
+  groundedCharacterIdentities,
+  mergeCharacterIdentities,
+} from '@/services/intake';
 import type {
   ConversationMessage,
   ConversationStage,
@@ -209,16 +213,100 @@ function compactCastParts(subject: string | undefined): string[] {
   const words = value.split(/\s+/).filter(Boolean);
   if (!hasListJoin || words.length > 28) return [];
 
-  const parts = value
+  // In a natural cast list the Oxford conjunction identifies the final
+  // person. Provider-added scene notes after that item are not roster data:
+  // "A, B, C, and D protecting the city, Epic Battle" ends at D's clause.
+  const finalJoin = [...value.matchAll(/\s+(?:and|&)\s+/gi)].find(
+    (match) => match.index !== undefined && /[,;]/.test(value.slice(0, match.index))
+  );
+  let listValue = value;
+  if (finalJoin?.index !== undefined) {
+    const finalItemStart = finalJoin.index + finalJoin[0].length;
+    const nextDelimiterOffset = value.slice(finalItemStart).search(/[,;]/);
+    if (nextDelimiterOffset >= 0) {
+      listValue = value.slice(0, finalItemStart + nextDelimiterOffset);
+    }
+  }
+
+  const parts = listValue
     .split(/\s*[,;]\s*|\s+(?:and|&)\s+/i)
-    .map((part) => part.trim().replace(/^(?:and|&)\s+/i, ''))
-    .filter(Boolean);
+    .map((part) => leadingDisplayName(part))
+    .filter(isLikelyCharacterName);
   // Three is intentional: two-character action phrases such as "Gohan and
   // Cell beam struggle" are better served by the database labels. Three or
   // more compact entries is the strong cast-list shape seen in the failure.
   if (parts.length < 3) return [];
   if (parts.some((part) => part.length > 60)) return [];
   return parts;
+}
+
+const LOWERCASE_NAME_CONNECTORS = new Set(['the', 'of', 'de', 'del', 'van', 'von']);
+
+const SCENE_DIRECTION_WORDS = new Set([
+  'action',
+  'background',
+  'clash',
+  'composition',
+  'energy',
+  'flow',
+  'friendship',
+  'match',
+  'pose',
+  'poses',
+  'rivalry',
+  'scene',
+  'style',
+  'weapon',
+  'weapons',
+]);
+
+/**
+ * Keep the name-shaped prefix of a list item and drop whatever action follows.
+ * This handles any verb ("Dovan protecting the city"), rather than a finite
+ * list of actions that will inevitably miss ordinary customer wording.
+ */
+function leadingDisplayName(value: string): string {
+  const words = value
+    .trim()
+    .replace(/^(?:and|&)\s+/i, '')
+    .split(/\s+/);
+  const kept: string[] = [];
+  for (const word of words) {
+    const normalized = word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+    if (!normalized) break;
+    const isConnector = kept.length > 0 && LOWERCASE_NAME_CONNECTORS.has(normalized.toLowerCase());
+    if (!isConnector && !/^[\p{Lu}\p{Lt}\p{N}]/u.test(normalized)) {
+      // Preserve a scene noun long enough for `isLikelyCharacterName` to
+      // reject the whole phrase ("Keyblade clash" must not become a person
+      // named "Keyblade"). Ordinary actions still leave the leading name.
+      if (SCENE_DIRECTION_WORDS.has(normalized.toLowerCase())) kept.push(normalized);
+      break;
+    }
+    kept.push(normalized);
+  }
+  return kept.join(' ');
+}
+
+/** Reject scene directions that providers occasionally put in `characters`. */
+function isLikelyCharacterName(value: string): boolean {
+  const cleaned = value.trim();
+  if (!cleaned) return false;
+  const words = cleaned.split(/\s+/);
+  if (words.length > 4) return false;
+  if (/^(?:with|each|using|wielding|holding|surrounded|amid|sparring|fighting|a connected|an interconnected)\b/i.test(
+    cleaned
+  ) || /\b(?:swirling energy|vertical composition|story flow)\b/i.test(cleaned)) {
+    return false;
+  }
+  if (words.some((word) => SCENE_DIRECTION_WORDS.has(
+    word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '').toLowerCase()
+  ))) return false;
+  return words.every((word, index) => {
+    const normalized = word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+    if (!normalized) return false;
+    if (index > 0 && LOWERCASE_NAME_CONNECTORS.has(normalized.toLowerCase())) return true;
+    return /^[\p{Lu}\p{Lt}\p{N}]/u.test(normalized);
+  });
 }
 
 function compactCastLabel(subject: string | undefined): string | undefined {
@@ -258,6 +346,7 @@ function uniqueNames(names: readonly string[]): string[] {
 function groundedCharacterNames(value: unknown, scanText: string): string[] {
   const normalizedTranscript = normalizeForCompare(scanText);
   return uniqueNames(asStringArray(value)).filter((name) => {
+    if (!isLikelyCharacterName(name)) return false;
     const normalizedName = normalizeForCompare(name);
     if (normalizedTranscript.includes(normalizedName)) return true;
     // Accept the common catalog form "Last, First" when the customer used
@@ -699,11 +788,23 @@ export async function runConversationTurn(
   const evocationAsked = evocationAskedIn(request.messages);
   const scene = evocationAnswerIn(request.messages);
   const extractedSubject = asTrimmedString(record.subject);
-  const providerCharacters = groundedCharacterNames(
-    payload.record?.characters,
+  const providerIdentities = groundedCharacterIdentities(
+    payload.record?.characterIdentities,
     scanText
   );
   const fallbackCast = compactCastParts(extractedSubject);
+  const fallbackKeys = new Set(fallbackCast.map(normalizeForCompare));
+  const structuredCharacters = groundedCharacterNames(payload.record?.characters, scanText);
+  // A verified identity pair is the strongest roster signal. When it exists,
+  // keep it. When the provider also supplied a strong natural-language cast
+  // list, structured names must belong to that bounded list; this prevents
+  // title-cased scene notes after the final "and Name" from inflating cast.
+  const providerCharacters = uniqueNames([
+    ...providerIdentities.map((identity) => identity.name),
+    ...structuredCharacters.filter(
+      (name) => fallbackKeys.size < 3 || fallbackKeys.has(normalizeForCompare(name))
+    ),
+  ]);
   const explicitCast = uniqueNames([
     ...providerCharacters,
     ...fallbackCast,
@@ -719,6 +820,14 @@ export async function runConversationTurn(
     explicitCast.length > 0 ? explicitCast : uniqueNames(detectedCast);
   if (requestedCharacters.length > 0) {
     record.requestedCharacters = requestedCharacters;
+  }
+  const characterIdentities = mergeCharacterIdentities(
+    providerIdentities,
+    characterIdentitiesFor(characters),
+    scanText
+  );
+  if (characterIdentities.length > 0) {
+    record.characterIdentities = characterIdentities;
   }
   const subjectBase = mergeExtractedSubject(
     subjectWithRequestedCast(extractedSubject, requestedCharacters),

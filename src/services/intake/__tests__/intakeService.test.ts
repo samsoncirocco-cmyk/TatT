@@ -116,6 +116,20 @@ describe('ontology', () => {
 });
 
 describe('extractIntake — heuristic fallback (no provider configured)', () => {
+  it('carries a recognized character source without an LLM', async () => {
+    stubFetchNever();
+
+    const record = await extractIntake({
+      placementAnswer: 'left forearm',
+      meaningAnswer: 'Goku from Dragon Ball charging a Kamehameha',
+    });
+
+    expect(record.characterIdentities).toContainEqual({
+      name: 'Goku',
+      series: 'Dragon Ball',
+    });
+  });
+
   it('extracts offline without any network call', async () => {
     const fetchMock = stubFetchNever();
 
@@ -170,6 +184,157 @@ describe('extractIntake — heuristic fallback (no provider configured)', () => 
 });
 
 describe('extractIntake — LLM path (providers mocked)', () => {
+  it('grounds a game character to the explicitly named source', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      openRouterResponse({
+        placement: 'left arm',
+        styleTags: ['color'],
+        subject: 'Sora holding his Keyblade',
+        characterIdentities: [
+          { name: 'Sora', series: 'Kingdom Hearts' },
+          { name: 'Sora', series: 'No Game No Life' },
+        ],
+        references: [],
+        ambiguousAxes: [],
+      })
+    ));
+
+    const record = await extractIntake({
+      placementAnswer: 'left arm',
+      meaningAnswer: 'Sora from Kingdom Hearts holding his Keyblade',
+    });
+
+    expect(record.characterIdentities).toEqual([
+      { name: 'Sora', series: 'Kingdom Hearts' },
+    ]);
+  });
+
+  it('accepts a canonical source when the customer used a known alias', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      openRouterResponse({
+        placement: 'left arm',
+        styleTags: ['color'],
+        subject: 'Sora holding his Keyblade',
+        characterIdentities: [{ name: 'Sora', series: 'Kingdom Hearts' }],
+        references: [],
+        ambiguousAxes: [],
+      })
+    ));
+
+    const record = await extractIntake({
+      placementAnswer: 'left arm',
+      meaningAnswer: 'KH Sora holding his Keyblade',
+    });
+
+    expect(record.characterIdentities).toEqual([
+      { name: 'Sora', series: 'Kingdom Hearts' },
+    ]);
+  });
+
+  it('rejects names that appear only inside unrelated words', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      openRouterResponse({
+        placement: 'face',
+        styleTags: ['color'],
+        subject: 'One Piece inspired spring scene',
+        characterIdentities: [
+          { name: 'Ace', series: 'One Piece' },
+          { name: 'Rin', series: 'One Piece' },
+        ],
+        references: [],
+        ambiguousAxes: [],
+      })
+    ));
+
+    const record = await extractIntake({
+      placementAnswer: 'face placement',
+      meaningAnswer: 'a spring scene inspired by One Piece',
+    });
+
+    expect(record.characterIdentities).toBeUndefined();
+  });
+
+  it('uses catalog evidence instead of a provider-swapped crossover mapping', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      openRouterResponse({
+        placement: 'left arm',
+        styleTags: ['color'],
+        subject: 'Gon and Yusuke fighting side by side',
+        characterIdentities: [
+          { name: 'Gon', series: 'Yu Yu Hakusho' },
+          { name: 'Yusuke', series: 'Hunter x Hunter' },
+        ],
+        references: [],
+        ambiguousAxes: [],
+      })
+    ));
+
+    const record = await extractIntake({
+      placementAnswer: 'left arm',
+      meaningAnswer: 'Gon from Hunter x Hunter and Yusuke from Yu Yu Hakusho',
+    });
+
+    expect(record.characterIdentities).toEqual([
+      { name: 'Gon', series: 'Hunter x Hunter' },
+      { name: 'Yusuke', series: 'Yu Yu Hakusho' },
+    ]);
+  });
+
+  it('repairs a provider that collapses a crossover into one source', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      openRouterResponse({
+        placement: 'left arm',
+        styleTags: ['color'],
+        subject: 'Gon and Yusuke fighting side by side',
+        characterIdentities: [
+          { name: 'Gon', series: 'Hunter x Hunter' },
+          { name: 'Yusuke', series: 'Hunter x Hunter' },
+        ],
+        references: [],
+        ambiguousAxes: [],
+      })
+    ));
+
+    const record = await extractIntake({
+      placementAnswer: 'left arm',
+      meaningAnswer: 'Gon from HxH and Yusuke from YYH',
+    });
+
+    expect(record.characterIdentities).toEqual([
+      { name: 'Gon', series: 'Hunter x Hunter' },
+      { name: 'Yusuke', series: 'Yu Yu Hakusho' },
+    ]);
+  });
+
+  it('omits an uncorroborated mapping in a multi-source request', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      openRouterResponse({
+        placement: 'left arm',
+        styleTags: ['color'],
+        subject: 'Aqua and Link fighting side by side',
+        characterIdentities: [
+          { name: 'Aqua', series: 'Kingdom Hearts' },
+          { name: 'Link', series: 'Kingdom Hearts' },
+        ],
+        references: [],
+        ambiguousAxes: [],
+      })
+    ));
+
+    const record = await extractIntake({
+      placementAnswer: 'left arm',
+      meaningAnswer: 'Aqua from Kingdom Hearts and Link from Legend of Zelda',
+    });
+
+    expect(record.characterIdentities).toBeUndefined();
+  });
+
   it('happy path: uses OpenRouter output, resolving aliases and rejecting unknown tags', async () => {
     process.env.OPENROUTER_API_KEY = 'test-key';
     const fetchMock = vi.fn().mockResolvedValue(

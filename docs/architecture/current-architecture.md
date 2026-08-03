@@ -56,6 +56,27 @@ normal and degraded behavior internally.
 Callers request tattoo directions without selecting Replicate or Vertex
 directly. Provider choice and fallback belong inside generation.
 
+The design-session orchestrator passes the full intake style set into routing,
+pins one resulting model for the session, and records each image actually
+purchased. Named multi-character briefs are treated as composition problems:
+Council locks the exact roster, verified character-to-source bindings,
+requested interaction, and signature-prop ownership while varying four
+ensemble-safe layouts. The same identity clause also accompanies a single IP
+character. Every brief receives the same contract from structured intake; no
+franchise has a generation-code branch. The generated character catalog
+enriches recognized names with series and visual context when available, while
+provider-extracted bindings are accepted only when both the character and its
+source are grounded in the customer's words. Multi-source requests additionally
+require catalog corroboration per character; an uncorroborated name stays in the
+cast without an invented or potentially swapped source binding. Every
+design-session provider result is transport only; reveal, critique, and refine
+images are copied into product-owned Google Cloud Storage at deterministic,
+retry-safe paths before the session persists them. This durability guarantee
+is scoped to the design-session pipeline, not every legacy generation route.
+Storage clients share one credential resolver: Vercel reads service-account
+JSON or split credentials from environment variables, while local development
+may continue to use a credential file.
+
 ### Booking and calendar
 
 Booking decides whether a request can reserve a real slot or must remain a

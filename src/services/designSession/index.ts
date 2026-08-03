@@ -12,6 +12,7 @@ import {
   startSession as runStart,
   recordPick as runPick,
   refine as runRefine,
+  critique as runCritique,
   getSession as loadById,
   attachPlacementPreview as runAttachPreview,
 } from './internal/orchestrator';
@@ -33,6 +34,8 @@ import type {
   StartSessionRequest,
   PickRequest,
   RefineRequest,
+  CritiqueRequest,
+  CritiqueResult,
 } from './types';
 import type { ConverseRequest, ConverseResponse } from '../designConversation/types';
 
@@ -46,6 +49,9 @@ export type {
   StartSessionRequest,
   PickRequest,
   RefineRequest,
+  CritiqueRequest,
+  CritiqueResult,
+  CritiqueTurn,
 } from './types';
 export type {
   ConverseRequest,
@@ -82,6 +88,28 @@ export async function recordPick(sessionId: string, request: PickRequest): Promi
  */
 export async function refine(sessionId: string, request: RefineRequest): Promise<DesignSession> {
   return toDesignSession(await runRefine(sessionId, request));
+}
+
+/**
+ * One post-reveal critique turn (ADR-0039): the chat stays open after the four
+ * cuts land, so plain criticism — "riku's missing", "too busy", "the third one
+ * but less color" — re-cuts the design instead of being discarded. Resolves
+ * which cut the critique is about, regenerates ONE image on the session's
+ * pinned model (ADR-0016), and returns the new cut alongside SketchBot's
+ * reply. Bounded by the same env-tunable fix allowance as the Studio
+ * (ADR-0038), counted server-side on the session.
+ *
+ * `generated` tells the route whether a paid render actually ran — a chatter
+ * turn, an unresolvable target, and a spent allowance all cost nothing. Throws
+ * DesignSessionError INVALID_PHASE outside phases 'revealed' and 'picked';
+ * once the Brief exists the ADR-0013 hard stop owns the session.
+ */
+export async function critique(
+  sessionId: string,
+  request: CritiqueRequest
+): Promise<CritiqueResult> {
+  const { session, ...rest } = await runCritique(sessionId, request);
+  return { session: toDesignSession(session), ...rest };
 }
 
 /** Fetch a session by id. Throws DesignSessionError (SESSION_NOT_FOUND) when absent. */

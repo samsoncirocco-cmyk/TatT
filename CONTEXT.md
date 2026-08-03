@@ -205,3 +205,11 @@ The single post-pick loop: pick → most-not-you tap → one refinement question
 → one regeneration. Exactly one round, hard stop (ADR-0013); the canvas and
 the artist consult own everything after.
 _Avoid_: iteration (implies unbounded)
+
+**Re-cut**:
+What plain criticism produces after the reveal (ADR-0039): the user says
+what's wrong — "riku's missing", "too busy", "the third one but less color"
+— and one cut is drawn again on the pinned model with their words folded in.
+Composition-level, which is what separates it from the Studio's point and
+say; bounded by the same fix allowance and closed once the Brief exists.
+_Avoid_: regenerate, retry, edit (that's the Studio)

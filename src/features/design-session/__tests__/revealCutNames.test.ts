@@ -62,6 +62,13 @@ describe('cutIdentity', () => {
       'dynamic flow': 'the mover',
       'negative space': 'the breather',
       'close crop': 'the close-up',
+      'ensemble emblem': 'the emblem',
+      'battle scene': 'the clash',
+      'stacked tiers': 'the totem',
+      'flowing procession': 'the procession',
+      'vertical story': 'the story',
+      'connected transitions': 'the run',
+      'focal hierarchy': 'the anchor',
     };
     for (const [composition, name] of Object.entries(expected)) {
       const cut = cutIdentity(variation({ composition }), 0);

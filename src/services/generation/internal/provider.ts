@@ -21,7 +21,8 @@ export interface GenerationRequest {
   outputFormat?: string;
   seed?: number | string;
   // Routing inputs — when modelId is not set explicitly, these decide the model.
-  style?: string;
+  /** One style or the full ordered intake tag set. Routing uses the first mapped style. */
+  style?: string | string[];
   mode?: GenerationMode;
   bodyPart?: string;
   isStencilMode?: boolean;

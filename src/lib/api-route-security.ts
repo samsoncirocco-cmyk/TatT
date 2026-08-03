@@ -77,6 +77,7 @@ export const API_ROUTE_SECURITY: Record<string, RouteSecurityEntry> = {
   'v1/design-session': { class: 'firebase-auth' },
   'v1/design-session/[id]': { class: 'firebase-auth' },
   'v1/design-session/[id]/confirm': { class: 'firebase-auth' },
+  'v1/design-session/[id]/critique': { class: 'firebase-auth' },
   'v1/design-session/[id]/pick': { class: 'firebase-auth' },
   'v1/design-session/[id]/placement-preview': { class: 'firebase-auth' },
   'v1/design-session/[id]/refine': { class: 'firebase-auth' },

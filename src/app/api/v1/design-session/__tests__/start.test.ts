@@ -83,20 +83,9 @@ describe('POST /api/v1/design-session route adapter', () => {
       meaningAnswer: 'for my grandmother'
     });
 
-    // Vertex spend: cents-per-image * 4 reveal images.
-    expect(recordSpendMock).toHaveBeenCalledWith(4 * 4);
-  });
-
-  it('records the flat replicate cost when the session locked onto replicate', async () => {
-    startSessionMock.mockResolvedValueOnce(makeSession({ provider: 'replicate' }));
-
-    const res = await POST(makeRequest(URL, {
-      placementAnswer: 'shoulder',
-      meaningAnswer: 'new beginnings'
-    }));
-
-    expect(res.status).toBe(200);
-    expect(recordSpendMock).toHaveBeenCalledWith(1);
+    // Spend belongs to the service, which alone knows how many renders it
+    // actually bought — the route must not add a second charge.
+    expect(recordSpendMock).not.toHaveBeenCalled();
   });
 
   it('rejects a missing placementAnswer with 400 before calling the service', async () => {

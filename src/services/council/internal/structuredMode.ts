@@ -9,10 +9,15 @@
  * provider fallbacks are untouched.
  */
 
-import type { IntakeRecord, AxisSelection, VariationAxis } from '../../intake/types';
+import type {
+  CharacterIdentity,
+  IntakeRecord,
+  AxisSelection,
+  VariationAxis,
+} from '../../intake/types';
 import { VARIATION_AXIS_POOL } from '../../intake/types';
-import { getAspectRatioGuidance, getBaseNegativePrompt, validatePromptLength } from './councilService';
-import { COUNCIL_SKILL_PACK } from '../../../config/councilSkillPack';
+import { getBaseNegativePrompt, validatePromptLength } from './councilService';
+import { resolvePlacement } from '@/lib/placement';
 
 export interface StructuredVariation {
   /** Which quadrant this variation occupies (questionnaire mode) or which compositional treatment it uses. */
@@ -117,8 +122,14 @@ const POLES: Record<string, PoleSpec> = {
   },
 };
 
+interface CompositionalTreatment {
+  composition: string;
+  phrase: string;
+  detail: string;
+}
+
 /** Compositional-mode treatments: style locks, the four slots vary pose/framing/negative space (ADR-0012). */
-const COMPOSITIONAL_TREATMENTS: { composition: string; phrase: string; detail: string }[] = [
+const COMPOSITIONAL_TREATMENTS: CompositionalTreatment[] = [
   {
     composition: 'centered emblem',
     phrase: 'centered emblematic composition',
@@ -146,6 +157,133 @@ const COMPOSITIONAL_TREATMENTS: { composition: string; phrase: string; detail: s
     detail: 'subject rendered large and close, held just inside a clean white margin',
   },
 ];
+
+/*
+ * The ensemble pool. Two of the default treatments cannot satisfy a
+ * multi-character brief by construction, not by bad luck: `close crop` asks
+ * for the subject "rendered large and close" — for a cast of four that is a
+ * cropped face, which is exactly what the Kingdom Hearts reveal returned —
+ * and `negative space` asks for a "small off-center subject", the opposite
+ * of a group. Burning two of four cuts on treatments that must fail leaves
+ * the customer two real options, not four.
+ *
+ * These four all hold multiple interacting figures and stay divergent from
+ * each other along the dimension that matters here — how the group is
+ * arranged: symmetric and static, interlocked and dense, stacked vertically,
+ * or strung along a diagonal.
+ */
+const ENSEMBLE_TREATMENTS: CompositionalTreatment[] = [
+  {
+    composition: 'ensemble emblem',
+    phrase: 'centered ensemble emblem composition',
+    detail:
+      'the full cast arranged symmetrically around a shared center, every figure whole and ' +
+      'individually readable, together forming one self-contained emblem',
+  },
+  {
+    composition: 'battle scene',
+    phrase: 'connected battle-scene composition',
+    detail:
+      'the cast interlocked mid-clash, weapons and eyelines linking figure to figure so the ' +
+      'group reads as one continuous scene rather than separate portraits',
+  },
+  {
+    composition: 'stacked tiers',
+    phrase: 'vertically tiered stacked composition',
+    detail:
+      'figures stacked in distinct tiers up the length of the design, largest at the base, ' +
+      'each face clear of the figures around it',
+  },
+  {
+    composition: 'flowing procession',
+    phrase: 'flowing procession composition',
+    detail:
+      'the cast strung along a sweeping diagonal in motion, staggered in depth from the lead ' +
+      'figure back through the trailing ones',
+  },
+];
+
+/*
+ * Sleeve substitutes. Placement guidance for a sleeve describes one
+ * continuous run down a limb, and three of the treatments above argue with
+ * that in the same prompt: an emblem is by definition self-contained, a
+ * close crop is the opposite of limb-length, and a small off-center subject
+ * abandons the run. Flux folds the whole prompt into one instruction, so a
+ * prompt that asks for an emblem and for "not a standalone emblem" is the
+ * same failure class as asking for four characters and forbidding multiple
+ * people.
+ *
+ * Each of these expresses what a sleeve actually needs — vertical story
+ * flow, connected transitions, focal hierarchy along the taper — and each
+ * substitutes 1:1, so the count stays at four and the four stay divergent.
+ */
+const VERTICAL_STORY: CompositionalTreatment = {
+  composition: 'vertical story',
+  phrase: 'vertical story-flow composition',
+  detail:
+    'distinct beats reading top to bottom along the limb, each one whole, the eye ' +
+    'travelling the full length in a single direction',
+};
+
+const CONNECTED_TRANSITIONS: CompositionalTreatment = {
+  composition: 'connected transitions',
+  phrase: 'connected transition composition',
+  detail:
+    'sections joined by continuous connective flow — smoke, water, cloud — so the run ' +
+    'never breaks into separate unrelated patches',
+};
+
+const FOCAL_HIERARCHY: CompositionalTreatment = {
+  composition: 'focal hierarchy',
+  phrase: 'anchored focal-hierarchy composition',
+  detail:
+    'one dominant anchor set at the widest point, supporting elements scaling down and ' +
+    'thinning along the taper',
+};
+
+/** Treatment → what replaces it when the brief is a sleeve. */
+const SLEEVE_SUBSTITUTIONS: Record<string, CompositionalTreatment> = {
+  'centered emblem': VERTICAL_STORY,
+  'negative space': CONNECTED_TRANSITIONS,
+  'close crop': FOCAL_HIERARCHY,
+  // The ensemble pool's only sleeve conflict; its other three already run
+  // along a limb happily.
+  'ensemble emblem': CONNECTED_TRANSITIONS,
+};
+
+/**
+ * Is this brief a sleeve? One place decides it, and that place is the shared
+ * placement resolver — the same call that produces the sleeve composition
+ * guidance these treatments have to agree with. Two independent readings of
+ * "is this a sleeve" is exactly how a prompt ends up asking for a limb-length
+ * run and a self-contained emblem in the same breath.
+ *
+ * The meaning is passed as the brief: the session that exposed this said
+ * `placement: 'left arm'` and put "sleeve" only in the meaning. The resolver
+ * also disqualifies the idiom ("wears his heart on his sleeve"), which a bare
+ * /\bsleeve\b/ over the meaning would have swallowed.
+ */
+function isSleeveBrief(record: IntakeRecord): boolean {
+  return resolvePlacement(record.placement, record.meaning).isSleeve;
+}
+
+/**
+ * Which four compositional cuts a brief gets: never a treatment that its own
+ * cast size or its own placement guidance contradicts.
+ *
+ * The cast size comes from the intake roster and nowhere else — re-deriving
+ * it from the character catalog is what scored this same Kingdom Hearts
+ * session as single-subject, since the catalog covers anime and Kingdom
+ * Hearts is a game.
+ */
+function compositionalTreatments(record: IntakeRecord): CompositionalTreatment[] {
+  const pool =
+    (record.requestedCharacters?.length ?? 0) > 1
+      ? ENSEMBLE_TREATMENTS
+      : COMPOSITIONAL_TREATMENTS;
+  if (!isSleeveBrief(record)) return pool;
+  return pool.map(treatment => SLEEVE_SUBSTITUTIONS[treatment.composition] ?? treatment);
+}
 
 /** Keep the freeform meaning bounded so embedded prose can't blow the token budget. */
 function truncateWords(text: string, maxWords: number): string {
@@ -193,6 +331,21 @@ function contradictedAxes(record: IntakeRecord): Set<VariationAxis> {
  * callback and included in the result.
  */
 export function selectAxes(record: IntakeRecord): AxisSelection {
+  // A named cast is a composition problem before it is a style questionnaire.
+  // Four bold/fine x minimal/ornate quadrants can all make the same fatal
+  // mistake: crop or visually demote part of the cast. Spend the four reveal
+  // slots on layouts that can prove every requested character fits instead.
+  if ((record.requestedCharacters?.length ?? 0) > 1) {
+    return {
+      mode: 'compositional',
+      axes: [],
+      rationale:
+        `Compositional mode: the customer named ${record.requestedCharacters!.length} distinct ` +
+        'characters, so the four cuts vary ensemble staging and framing while keeping the cast, ' +
+        'action, placement, and resolved style locked.',
+    };
+  }
+
   // Dedupe while walking priority order so the output is deterministic.
   const ambiguous = AXIS_PRIORITY.filter(axis => record.ambiguousAxes.includes(axis));
 
@@ -350,6 +503,20 @@ interface PromptContext {
   meaningShort: string;
   aspectGuidance: string;
   flowToken: string;
+  /** Closed style tags, verbatim — drives style-contradicting negatives. */
+  styleTags: string[];
+  /**
+   * Size of the cast the customer actually named. Authoritative: the intake
+   * already resolved this roster, so the negative-prompt builder must not
+   * re-guess it from a catalog that only covers anime.
+   *
+   * Undefined — never 0 — when the record carries no roster, so the builder
+   * falls back to catalog detection instead of asserting "no characters".
+   */
+  requestedCharacterCount?: number;
+  /** Exact roster extracted by intake, in the customer's order. */
+  requestedCharacters: string[];
+  characterIdentities: CharacterIdentity[];
 }
 
 function buildContext(record: IntakeRecord): PromptContext {
@@ -368,15 +535,35 @@ function buildContext(record: IntakeRecord): PromptContext {
         'body part; every intake lane must resolve placement before enhancement.'
     );
   }
-  const anatomicalFlow = COUNCIL_SKILL_PACK.anatomicalFlow as Record<string, string>;
+  // One resolver for composition and flow (and, elsewhere, the render aspect
+  // ratio). Both fields used to come from exact-match lookups that answered
+  // only for a bare "forearm"; a "left arm" session got 'balanced
+  // composition' and 'body-part appropriate flow' — a tautology that told the
+  // model nothing while occupying the slot where placement should have spoken.
+  //
+  // The meaning goes in as the sleeve signal: "a kingdom hearts sleeve" with
+  // placement "left arm" is a sleeve request, and the placement tag alone
+  // loses the scale of it. Meaning cannot influence anything else.
+  const guidance = resolvePlacement(placement, record.meaning);
+  const isEnsemble = (record.requestedCharacters?.length ?? 0) > 1;
+  const aspectGuidance = isEnsemble
+    ? guidance.composition.replace(
+        'a clear focal hierarchy with one dominant subject supported by secondary elements above and below it',
+        'a clear ensemble hierarchy with every named figure equally readable and none cropped, omitted, or reduced to background decoration'
+      )
+    : guidance.composition;
   return {
     styleDesc: record.styleTags.length > 0 ? record.styleTags.join(', ') : 'tattoo',
     placement,
     palette: resolvePalette(record.styleTags),
     subject: record.subject?.trim() || undefined,
     meaningShort: truncateWords(record.meaning, 60),
-    aspectGuidance: getAspectRatioGuidance(placement),
-    flowToken: anatomicalFlow[placement.toLowerCase().trim()] || 'body-part appropriate flow',
+    aspectGuidance,
+    flowToken: guidance.flow,
+    styleTags: record.styleTags,
+    requestedCharacterCount: record.requestedCharacters?.length || undefined,
+    requestedCharacters: record.requestedCharacters ?? [],
+    characterIdentities: record.characterIdentities ?? [],
   };
 }
 
@@ -418,11 +605,44 @@ export function stripChromaticWords(text: string): string {
  * paraphrase, which fights the output for recognizable IP. Without one,
  * meaning informs phrasing verbatim-ish, as before.
  */
+function naturalList(items: readonly string[]): string {
+  if (items.length < 2) return items[0] ?? '';
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(', ')}, and ${items.at(-1)}`;
+}
+
+function characterIdentityClause(
+  identities: readonly CharacterIdentity[]
+): string {
+  if (identities.length === 0) return '';
+  return `Character identities: ${identities
+    .map((identity) => `${identity.name} — ${identity.series}`)
+    .join('; ')}.`;
+}
+
 function subjectClause(ctx: PromptContext): string {
+  const identityClause = characterIdentityClause(ctx.characterIdentities);
   if (ctx.subject) {
-    const subject =
-      ctx.palette === 'monochrome' ? stripChromaticWords(ctx.subject) : ctx.subject;
-    return `depicting ${subject}`;
+    const subject = (
+      ctx.palette === 'monochrome' ? stripChromaticWords(ctx.subject) : ctx.subject
+    ).replace(/[.\s]+$/, '');
+    if (ctx.requestedCharacters.length > 1) {
+      const count = ctx.requestedCharacters.length;
+      const countWord = count === 4 ? 'four' : String(count);
+      const roster = naturalList(ctx.requestedCharacters);
+      const identityPrefix = identityClause ? `${identityClause} ` : '';
+      return (
+        `depicting exactly ${countWord} distinct figures, one each of ${roster}: ${subject}.` +
+        ` ${identityPrefix}No duplicates or omissions; all ${countWord} figures are fully visible and ` +
+        'visibly interact in the requested action. Keep every character’s canonical costume, ' +
+        'face, silhouette, powers, weapon, and signature props distinct and attached only to ' +
+        'that named character; never swap, merge, or homogenize them.'
+      );
+    }
+    return `depicting ${subject}.${identityClause ? ` ${identityClause}` : ''}`;
+  }
+  if (ctx.characterIdentities.length > 0) {
+    return `depicting ${naturalList(ctx.characterIdentities.map((identity) => identity.name))}. ${identityClause}`;
   }
   return ctx.meaningShort ? `expressing "${ctx.meaningShort}"` : 'as a personal design';
 }
@@ -442,7 +662,7 @@ function buildQuadrantVariation(
   const details = specs.map(spec => spec.detail).join('; ');
 
   const lead = paletteClause(ctx.palette) + PRESENTATION_LEAD;
-  const simple = `${lead}A ${ctx.styleDesc} style tattoo design ${subjectClause(ctx)}, rendered with ${phrases}.`;
+  const simple = `${lead}A tattoo design in a ${ctx.styleDesc} style, ${subjectClause(ctx)} Rendered with ${phrases}.`;
   const detailed =
     `${simple} Treatment: ${details}. Composition follows ${ctx.aspectGuidance}.`;
   const ultra =
@@ -451,7 +671,10 @@ function buildQuadrantVariation(
     'and remain legible as it ages — suitable for professional tattooing.';
 
   const negativePrompt = [
-    getBaseNegativePrompt(ctx.subject ?? ''),
+    getBaseNegativePrompt(ctx.subject ?? '', {
+        requestedCharacterCount: ctx.requestedCharacterCount,
+        styleTags: ctx.styleTags,
+      }),
     ...specs.map(spec => spec.negative),
     ...paletteNegatives(ctx.palette),
     PRESENTATION_NEGATIVES,
@@ -469,11 +692,11 @@ function buildQuadrantVariation(
 }
 
 function buildCompositionalVariation(
-  treatment: (typeof COMPOSITIONAL_TREATMENTS)[number],
+  treatment: CompositionalTreatment,
   ctx: PromptContext
 ): StructuredVariation {
   const lead = paletteClause(ctx.palette) + PRESENTATION_LEAD;
-  const simple = `${lead}A ${ctx.styleDesc} style tattoo design ${subjectClause(ctx)}, in a ${treatment.phrase}.`;
+  const simple = `${lead}A tattoo design in a ${ctx.styleDesc} style, ${subjectClause(ctx)} Use a ${treatment.phrase}.`;
   const detailed =
     `${simple} Treatment: ${treatment.detail}. Composition follows ${ctx.aspectGuidance}.`;
   const ultra =
@@ -489,7 +712,10 @@ function buildCompositionalVariation(
       ultra: keepIfValid(ultra),
     },
     negativePrompt: [
-      getBaseNegativePrompt(ctx.subject ?? ''),
+      getBaseNegativePrompt(ctx.subject ?? '', {
+        requestedCharacterCount: ctx.requestedCharacterCount,
+        styleTags: ctx.styleTags,
+      }),
       ...paletteNegatives(ctx.palette),
       PRESENTATION_NEGATIVES,
     ].join(', '),
@@ -524,7 +750,7 @@ export async function enhanceStructured(
       buildQuadrantVariation([axisA, axisB], [a1, b1], ctx),
     ];
   } else {
-    variations = COMPOSITIONAL_TREATMENTS.map(treatment =>
+    variations = compositionalTreatments(record).map(treatment =>
       buildCompositionalVariation(treatment, ctx)
     );
   }

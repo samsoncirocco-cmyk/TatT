@@ -89,17 +89,9 @@ describe('POST /api/v1/design-session/[id]/confirm route adapter', () => {
     expect(confirmProposalMock).toHaveBeenCalledWith('sess-1');
     // Generation-tier rate bucket — the confirm fires 4 paid renders.
     expect(rateLimitMock).toHaveBeenCalledWith(expect.anything(), 'generation');
-    // Vertex spend: cents-per-image * 4 reveal images.
-    expect(recordSpendMock).toHaveBeenCalledWith(4 * 4);
-  });
-
-  it('records the flat replicate cost when the session locked onto replicate', async () => {
-    confirmProposalMock.mockResolvedValueOnce(makeSession({ provider: 'replicate' }));
-
-    const res = await POST(makeRequest(URL, {}), routeParams('sess-1'));
-
-    expect(res.status).toBe(200);
-    expect(recordSpendMock).toHaveBeenCalledWith(1);
+    // Spend belongs to the service, which alone knows how many renders it
+    // actually bought — the route must not add a second charge.
+    expect(recordSpendMock).not.toHaveBeenCalled();
   });
 
   it('returns the auth failure untouched and never reaches the service', async () => {

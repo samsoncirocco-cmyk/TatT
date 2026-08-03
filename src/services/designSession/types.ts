@@ -22,6 +22,19 @@ export interface Variation {
   imageUrl?: string;
 }
 
+/** One post-reveal critique turn and what it produced (ADR-0039). */
+export interface CritiqueTurn {
+  /** The user's own words, verbatim. */
+  message: string;
+  /** SketchBot's reply. */
+  reply: string;
+  /** Variation the critique was read as being about; absent when none resolved. */
+  targetId?: string;
+  /** The cut this turn produced; absent when the turn spent nothing. */
+  cutId?: string;
+  at: string;
+}
+
 export interface DesignSession {
   id: string;
   phase: SessionPhase;
@@ -31,6 +44,17 @@ export interface DesignSession {
   provider: string;
   /** Exactly 4 after reveal. */
   variations: Variation[];
+  /**
+   * Extra cuts produced by post-reveal critique (ADR-0039). Kept out of
+   * `variations` so the reveal stays the four axis-divergent takes the pick
+   * signal is read against — but pickable all the same, so a critique that
+   * lands can be chosen.
+   */
+  critiqueCuts?: Variation[];
+  /** Post-reveal critique turns, oldest first (ADR-0039). */
+  critiqueTurns?: CritiqueTurn[];
+  /** Fixes spent in the critique lane — the server-side allowance ledger. */
+  fixesUsed?: number;
   /** Variation id the user chose. */
   pickId?: string;
   /** Variation id from the most-not-you tap — the one clean negative signal. */
@@ -84,4 +108,27 @@ export interface PickRequest {
 /** POST /api/v1/design-session/[id]/refine — allowed exactly once. */
 export interface RefineRequest {
   answer: string;
+}
+
+/** POST /api/v1/design-session/[id]/critique — one post-reveal turn (ADR-0039). */
+export interface CritiqueRequest {
+  message: string;
+}
+
+/**
+ * What one critique turn hands back. `generated` is what the route meters on
+ * — a chatter turn or a refused turn costs nothing and records no spend.
+ */
+export interface CritiqueResult {
+  session: DesignSession;
+  /** SketchBot's reply, always present. */
+  reply: string;
+  /** The cut this turn produced, when it produced one. */
+  cut?: Variation;
+  /** Fixes left in this session's allowance. */
+  fixesRemaining: number;
+  /** True once the allowance is spent — the reply is the artist handoff. */
+  exhausted: boolean;
+  /** True when a paid render actually ran. */
+  generated: boolean;
 }

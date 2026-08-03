@@ -2,9 +2,10 @@
  * Conversational-intake integration tests (ADR-0019–0022).
  *
  * Every module boundary is mocked: the conversation engine at its public
- * entry ('@/services/designConversation'), intake/council/generation, and
- * the Firebase Admin bootstrap (forced off, so persistence runs on the
- * in-memory store). No live LLM, provider, or Firestore call is ever made.
+ * entry ('@/services/designConversation'), intake/council/generation,
+ * durable image storage, the budget ledger, and the Firebase Admin bootstrap
+ * (forced off, so persistence runs on the in-memory store). No live LLM,
+ * provider, GCS, or Firestore call is ever made.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
@@ -43,6 +44,19 @@ vi.mock('../../intake', () => ({ extractIntake: vi.fn() }));
 vi.mock('../../council', () => ({ enhanceStructured: vi.fn() }));
 vi.mock('../../generation', () => ({ generate: vi.fn(), routeGeneration: vi.fn() }));
 vi.mock('@/lib/firebase-admin', () => ({ ensureAdminApp: vi.fn(() => false) }));
+vi.mock('@/services/storage/imageStorageService', () => ({
+  recoverImageAtPath: vi.fn(async () => null),
+  copyImageToPath: vi.fn(
+    async (objectPath: string) => `https://storage.googleapis.com/tatt-pro-assets/${objectPath}`
+  ),
+  uploadImageToPath: vi.fn(
+    async (objectPath: string) => `https://storage.googleapis.com/tatt-pro-assets/${objectPath}`
+  ),
+}));
+vi.mock('@/lib/budget-tracker', () => ({
+  recordSpend: vi.fn(),
+  VERTEX_IMAGEN_COST_CENTS: 4,
+}));
 vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
   createRequestLogger: vi.fn(),
@@ -119,7 +133,7 @@ beforeEach(() => {
   mockEnhanceStructured.mockResolvedValue(questionnaireEnhance);
   mockRouteGeneration.mockReturnValue(vertexRoute);
   mockGenerate.mockImplementation(async () => ({
-    images: [`https://img.test/${++imageCounter}.png`],
+    images: [`https://replicate.delivery/pbxt/${++imageCounter}/out.png`],
     metadata: {
       model: 'imagen3',
       provider: 'vertex-ai' as const,

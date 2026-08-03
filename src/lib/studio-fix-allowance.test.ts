@@ -18,10 +18,14 @@ afterEach(() => {
 });
 
 describe('resolveFixAllowance — bounded fixes, env-tunable (ADR-0038)', () => {
-  it('defaults to six, inside the ADR band of five to eight', () => {
+  it('defaults to the number ADR-0038 currently names', () => {
+    // 25 as of the 2026-08-01 amendment, up from the original 5–8 band. The
+    // guard is kept — an allowance is a fence, and a fence with no upper
+    // bound is not one — but it now tracks the amended ceiling. The real
+    // spend stop is BUDGET_MAX_SPEND_CENTS, not this.
     expect(resolveFixAllowance()).toBe(DEFAULT_STUDIO_FIX_ALLOWANCE);
-    expect(DEFAULT_STUDIO_FIX_ALLOWANCE).toBeGreaterThanOrEqual(5);
-    expect(DEFAULT_STUDIO_FIX_ALLOWANCE).toBeLessThanOrEqual(8);
+    expect(DEFAULT_STUDIO_FIX_ALLOWANCE).toBe(25);
+    expect(DEFAULT_STUDIO_FIX_ALLOWANCE).toBeLessThanOrEqual(50);
   });
 
   it('honours the public knob that actually reaches the browser bundle', () => {

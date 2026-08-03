@@ -159,9 +159,21 @@ describe('getAspectRatioGuidance', () => {
     expect(result).toContain('1:1');
   });
 
-  it('returns fallback for unknown body part', () => {
+  // The old fallback was the literal string 'balanced composition' — a
+  // tautology that filled the prompt's composition slot without saying
+  // anything. The fallback still has to exist; it just has to be guidance.
+  it('returns non-tautological guidance for an unknown body part', () => {
     const result = getAspectRatioGuidance('earlobes');
-    expect(result).toBe('balanced composition');
+    expect(result).not.toBe('balanced composition');
+    expect(result).toContain('taller than wide');
+  });
+
+  it('resolves conversational placements instead of falling through', () => {
+    // Every one of these missed the old exact-match lookup.
+    for (const placement of ['left arm', 'left forearm', 'inner forearm', 'half sleeve']) {
+      expect(getAspectRatioGuidance(placement)).not.toBe('balanced composition');
+    }
+    expect(getAspectRatioGuidance('half sleeve')).toContain('vertical story');
   });
 
   it('is case-insensitive', () => {
@@ -175,12 +187,13 @@ describe('getAspectRatioGuidance', () => {
     expect(result).toContain('4:5');
   });
 
-  it('returns fallback for empty string', () => {
-    expect(getAspectRatioGuidance('')).toBe('balanced composition');
+  it('returns the fallback for empty string', () => {
+    expect(getAspectRatioGuidance('')).toBe(getAspectRatioGuidance('earlobes'));
   });
 
   it('handles undefined/null gracefully', () => {
-    expect(getAspectRatioGuidance(undefined)).toBe('balanced composition');
-    expect(getAspectRatioGuidance(null)).toBe('balanced composition');
+    const fallback = getAspectRatioGuidance('earlobes');
+    expect(getAspectRatioGuidance(undefined)).toBe(fallback);
+    expect(getAspectRatioGuidance(null)).toBe(fallback);
   });
 });

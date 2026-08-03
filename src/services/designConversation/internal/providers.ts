@@ -62,6 +62,8 @@ export interface RawTurnPayload {
     subject?: unknown;
     /** Lossless named roster; visual subject prose must never replace it. */
     characters?: unknown;
+    /** Verified candidate name-to-source bindings; the engine grounds both. */
+    characterIdentities?: unknown;
     references?: unknown;
     ambiguousAxes?: unknown;
   };

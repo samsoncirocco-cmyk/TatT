@@ -8,6 +8,8 @@ import type {
   StartSessionRequest,
   PickRequest,
   RefineRequest,
+  CritiqueRequest,
+  CritiqueResult,
 } from '@/services/designSession/types';
 import type {
   ConverseRequest,
@@ -21,6 +23,12 @@ const BASE_PATH = '/api/v1/design-session';
  * this to degrade seamlessly to the scripted two-question intake (ADR-0019).
  */
 export class ConversationUnavailableError extends Error {}
+
+/**
+ * The opening chat call is the product's front door. A network request that
+ * never settles must not leave every way to start a design disabled forever.
+ */
+export class ConversationTimeoutError extends Error {}
 
 /**
  * A failed design-session request, carrying what the route told us rather
@@ -52,8 +60,29 @@ export class DesignSessionRequestError extends Error {
 const MAX_CONFIRM_ATTEMPTS = 3;
 /** Cap so a hostile/absent hint can never hang the UI. */
 const MAX_RETRY_WAIT_MS = 30_000;
+/** A stalled opener should recover to the retry affordance, not a dead page. */
+const CONVERSATION_TIMEOUT_MS = 10_000;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function settleWithin<T>(operation: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(
+      () => reject(new ConversationTimeoutError(message)),
+      timeoutMs
+    );
+    operation.then(
+      (value) => {
+        clearTimeout(timeout);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timeout);
+        reject(error);
+      }
+    );
+  });
+}
 
 async function postAuthed(path: string, body: unknown): Promise<Response> {
   const authHeaders = await getApiAuthHeaders();
@@ -116,6 +145,47 @@ export function submitRefinement(sessionId: string, request: RefineRequest): Pro
 }
 
 /**
+ * POST /api/v1/design-session/[id]/critique — one post-reveal critique turn
+ * (ADR-0039). Unlike the other calls this returns more than the session: the
+ * bot's reply, the new cut when one was rendered, and what's left of the fix
+ * allowance, all of which the reveal lane renders.
+ */
+export async function submitCritique(
+  sessionId: string,
+  request: CritiqueRequest
+): Promise<CritiqueResult> {
+  const res = await postAuthed(`${BASE_PATH}/${sessionId}/critique`, request);
+
+  let data: unknown = null;
+  try {
+    data = await res.json();
+  } catch {
+    // Non-JSON body — fall through to the status error below.
+  }
+
+  if (!res.ok) {
+    const payload = (data ?? {}) as {
+      error?: string;
+      code?: string;
+      retryable?: boolean;
+      retryAfterMs?: number;
+    };
+    throw new DesignSessionRequestError(
+      payload.error ?? `Design session request failed (${res.status})`,
+      {
+        code: payload.code ?? 'DESIGN_SESSION_FAILED',
+        status: res.status,
+        retryable: payload.retryable === true,
+        retryAfterMs: payload.retryAfterMs,
+      }
+    );
+  }
+
+  if (!data) throw new Error('Design session response was empty');
+  return data as CritiqueResult;
+}
+
+/**
  * POST /api/v1/design-session/[id]/placement-preview — persist the flattened
  * placement-preview screenshot (PNG data URL) onto the completed session's
  * Brief so it attaches to the booking record.
@@ -166,7 +236,11 @@ export async function sharePlacementPreview(share: {
  * fall back to the scripted intake.
  */
 export async function converse(request: ConverseRequest): Promise<ConverseResponse> {
-  const res = await postAuthed(`${BASE_PATH}/converse`, request);
+  const res = await settleWithin(
+    postAuthed(`${BASE_PATH}/converse`, request),
+    CONVERSATION_TIMEOUT_MS,
+    'SketchBot is taking longer than expected — try again.'
+  );
 
   let data: unknown = null;
   try {
