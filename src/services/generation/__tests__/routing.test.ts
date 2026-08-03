@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { routeGeneration } from '../internal/routing';
+import { STYLE_MODEL_MAPPING } from '@/config/modelRoutingRules.js';
 
 describe('generation routing', () => {
   it('routes traditional styles to Flux Dev on Replicate', () => {
@@ -8,10 +9,23 @@ describe('generation routing', () => {
     expect(route.provider).toBe('replicate');
   });
 
-  it('routes realism styles to Imagen on Vertex', () => {
-    const route = routeGeneration({ prompt: 'portrait', style: 'realism' });
-    expect(route.modelId).toBe('imagen3');
-    expect(route.provider).toBe('vertex-ai');
+  // Realism moved off Google: measured through the real prompt path, Gemini
+  // baked banner text into 2 of 2 designs. No style may route to Vertex.
+  it.each(['realism', 'portrait', 'photorealistic'])(
+    'routes %s to Flux Dev on Replicate, not Vertex',
+    (style) => {
+      const route = routeGeneration({ prompt: 'portrait', style });
+      expect(route.modelId).toBe('flux-dev');
+      expect(route.provider).toBe('replicate');
+    }
+  );
+
+  it('leaves no style mapped to a Vertex model', () => {
+    const styles = Object.keys(STYLE_MODEL_MAPPING);
+    const vertexStyles = styles.filter(
+      (style) => routeGeneration({ prompt: 'x', style }).provider === 'vertex-ai'
+    );
+    expect(vertexStyles).toEqual([]);
   });
 
   it('falls back to the default mapping (Flux Dev) for unknown styles', () => {
