@@ -67,6 +67,7 @@ npm run security:secrets # Scan tracked files for committed secrets
 | Generation | `src/services/generation/index.ts` |
 | Council | `src/services/council/index.ts` |
 | Storage | `src/services/storage/index.ts` |
+| AR mirror | `src/features/ar/` and `src/app/visualize/page.tsx` |
 | Matching | `src/app/api/v1/match/` and matching feature modules |
 | Booking | booking routes, `src/lib/scheduling-engine.ts`, and checkout |
 | Artist calendar | `src/lib/artist-calendar.ts` |

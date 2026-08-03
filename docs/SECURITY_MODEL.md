@@ -1,3 +1,13 @@
+> **⚠️ Not a current entry point.** This file is not listed in
+> `docs/status/document-classification.md`'s "Current entry points" and may be
+> stale. Last touched 2026-07-17, the same day as a security-hardening
+> commit ("Harden TatT authentication and secret handling"), with a follow-up
+> security commit (#44: route classification test, 401 sign-in modal, Cloud
+> Tasks kill switch) landing after this file was last edited — so it may
+> already have diverged. Cross-check auth/security claims against
+> `docs/status/features.yaml` and `docs/architecture/current-architecture.md`
+> before relying on this document.
+
 # TatT Security Model
 
 ## Authentication

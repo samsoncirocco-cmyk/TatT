@@ -1,3 +1,11 @@
+> **This is a live working document (a running task queue agents edit as they
+> go), not a source of product or architecture truth.** It is not on the
+> entry-point list in `docs/status/document-classification.md` and it goes
+> stale between edits — "DONE" markers here reflect the state at the time an
+> agent wrote them, not a verified current state. For current product/system
+> facts, use `docs/product/current-product.md` and
+> `docs/architecture/current-architecture.md`.
+
 # TatT — Shared TODO
 
 Single source of truth for what needs doing next, across all sessions and

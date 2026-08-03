@@ -1,3 +1,10 @@
+> **This is a live working task list (module-deepening/cleanup backlog), not
+> a source of current architecture truth despite the title.** It is not on
+> the entry-point list in `docs/status/document-classification.md`, and items
+> marked done here reflect the state when an agent last edited the entry, not
+> a verified current state. For the actual current module map, use
+> `docs/architecture/current-architecture.md`.
+
 # Architecture Deepening Todolist
 
 Working list of module areas to deepen (clear interface, strong tests, hidden

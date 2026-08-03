@@ -87,6 +87,8 @@ verification gaps are tracked in `docs/status/features.yaml`.
 - `src/app/smart-match/page.tsx`
 - `src/app/swipe/page.tsx`
 - `src/app/matches/page.tsx`
+- `src/app/visualize/page.tsx`
+- `src/features/ar/`
 - `src/app/pricing/page.tsx`
 - `src/app/console/page.tsx`
 - `src/app/api/checkout/route.ts`

@@ -1,3 +1,10 @@
+> **⚠️ Not a current entry point.** This file is not listed in
+> `docs/status/document-classification.md`'s "Current entry points" and may be
+> stale. The file self-dates its audit to 2026-02-27, but its most recent
+> commit is 2026-07-17 (a narrower auth/secrets-hardening change) — treat
+> most of the map as reflecting February 2026, not July. For current,
+> maintained architecture truth see `docs/architecture/current-architecture.md`.
+
 # TatT Architecture Map — February 2026
 **Prepared by @architect subagent | Audit Date: 2026-02-27**
 

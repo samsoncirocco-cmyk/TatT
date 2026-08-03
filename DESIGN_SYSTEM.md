@@ -1,3 +1,11 @@
+> **status: current (not yet added to `docs/status/document-classification.md`'s
+> entry-point list).** This is the actively-maintained visual/component
+> reference for the "punk" UI (tokens, patterns, do/don't rules); it was last
+> touched more recently than every other file in the repo. It does not
+> establish product or system architecture — cross-check anything about
+> product modules or data flow against `docs/architecture/current-architecture.md`
+> instead, since the two don't currently overlap and neither cites the other.
+
 # TatT Design System — Punk Edition
 
 Direction: Machine Gun Kelly *Tickets to My Downfall*. Hot pink on pitch black, Anton crashing through Space Mono, hard edges, halftone screenprint dots, diagonal slashes, sharpie marks, sticker-tape pricetags. Loud, deliberate, monochromatic with one screaming accent. **This is not goth, not web3, not gradient-y.** If it feels safe or rounded, it's wrong.
