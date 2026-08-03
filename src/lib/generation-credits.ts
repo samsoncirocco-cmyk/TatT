@@ -97,8 +97,10 @@ export async function releaseGenerationCredit(
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     const data = (snap.data() as Record<string, unknown> | undefined) ?? {};
-    const freeRemaining = nonNegativeNumber(data.freeRemaining, LIFETIME_FREE_GENERATIONS);
-    const paidRemaining = nonNegativeNumber(data.paidRemaining, 0);
+    // Fall back to the reservation's post-debit balances — never invent a full
+    // free allowance here, or a missing/invalid doc would mint credits on release.
+    const freeRemaining = nonNegativeNumber(data.freeRemaining, reservation.freeRemaining);
+    const paidRemaining = nonNegativeNumber(data.paidRemaining, reservation.paidRemaining);
     tx.set(
       ref,
       {

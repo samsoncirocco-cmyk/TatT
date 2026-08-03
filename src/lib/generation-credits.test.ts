@@ -24,6 +24,7 @@ import {
   GenerationCreditsExhaustedError,
   LIFETIME_FREE_GENERATIONS,
   grantPurchasedGenerationCredits,
+  releaseGenerationCredit,
   reserveGenerationCredit,
 } from './generation-credits';
 
@@ -107,5 +108,21 @@ describe('generation credits', () => {
       'Firebase Admin not configured for generation credits'
     );
     expect(runTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it('releases against the reservation balances when the ledger doc is missing', async () => {
+    givenTransaction(null);
+
+    await releaseGenerationCredit('uid_1', {
+      source: 'paid',
+      freeRemaining: 0,
+      paidRemaining: 2,
+    });
+
+    expect(txSetMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ freeRemaining: 0, paidRemaining: 3 }),
+      { merge: true }
+    );
   });
 });

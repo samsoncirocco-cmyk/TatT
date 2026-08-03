@@ -386,6 +386,71 @@ describe('Stripe webhook — held-deposit relay', () => {
   });
 });
 
+// ── Consumer credit pack fulfillment ────────────────────────────────────────
+function makeCreditEvent(
+  id: string,
+  type: 'checkout.session.completed' | 'checkout.session.async_payment_succeeded',
+  paymentStatus: 'paid' | 'unpaid'
+) {
+  return {
+    id,
+    type,
+    created: CREATED_EPOCH,
+    data: {
+      object: {
+        id: 'cs_credits_1',
+        mode: 'payment',
+        payment_status: paymentStatus,
+        amount_total: 1000,
+        payment_intent: 'pi_credits_1',
+        metadata: {
+          kind: 'consumer_generation_credits',
+          uid: 'uid_buyer_1',
+        },
+      },
+    },
+  };
+}
+
+describe('Stripe webhook — consumer generation credits', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    docStore.clear();
+    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test_dummy';
+  });
+
+  it('grants credits on checkout.session.completed when already paid', async () => {
+    const event = makeCreditEvent('evt_credits_1', 'checkout.session.completed', 'paid');
+    constructEventMock.mockReturnValueOnce(event);
+
+    const res = await POST(makeRequest(event));
+    expect(res.status).toBe(200);
+    expect(grantPurchasedGenerationCreditsMock).toHaveBeenCalledWith('uid_buyer_1', 'cs_credits_1');
+  });
+
+  it('skips grant on completed while async payment is still unpaid', async () => {
+    const event = makeCreditEvent('evt_credits_2', 'checkout.session.completed', 'unpaid');
+    constructEventMock.mockReturnValueOnce(event);
+
+    const res = await POST(makeRequest(event));
+    expect(res.status).toBe(200);
+    expect(grantPurchasedGenerationCreditsMock).not.toHaveBeenCalled();
+  });
+
+  it('grants credits on checkout.session.async_payment_succeeded', async () => {
+    const event = makeCreditEvent(
+      'evt_credits_3',
+      'checkout.session.async_payment_succeeded',
+      'paid'
+    );
+    constructEventMock.mockReturnValueOnce(event);
+
+    const res = await POST(makeRequest(event));
+    expect(res.status).toBe(200);
+    expect(grantPurchasedGenerationCreditsMock).toHaveBeenCalledWith('uid_buyer_1', 'cs_credits_1');
+  });
+});
+
 // ── account.updated → release held deposits ─────────────────────────────────
 // The other half of the money path: a relay recorded above only pays out if
 // this event actually reaches transferHeldDeposits. Nothing covered this, so
