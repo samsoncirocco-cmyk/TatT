@@ -356,6 +356,102 @@ describe('enhanceStructured - compositional fallback (empty ambiguousAxes)', () 
   });
 });
 
+describe('enhanceStructured - sleeve requests get sleeve treatments', () => {
+  /*
+   * Regression: the placement resolver emits sleeve guidance ("a sleeve
+   * composition rather than a standalone emblem…") into every compositional
+   * prompt, but two of the four poster treatments asked for the exact
+   * opposite — "a self-contained emblem" and a subject "held just inside a
+   * clean white margin". Flux folds the whole prompt into one instruction, so
+   * a prompt carrying both halves is the same failure class as the
+   * contradictory cast negatives fixed in 2b7a65f.
+   *
+   * The verified repro, verbatim from the intake that produced it.
+   */
+  const sleeveRecord: IntakeRecord = {
+    placement: 'left arm',
+    styleTags: ['neo-traditional'],
+    meaning: 'a kingdom hearts sleeve',
+    subject: 'Roxas, Sora, Axel, and Riku sparring with their unique Keyblades',
+    references: [],
+    ambiguousAxes: [],
+  };
+
+  const allPrompts = (variations: { prompts: Record<string, string | undefined> }[]) =>
+    variations.flatMap(v => Object.values(v.prompts).filter(Boolean) as string[]);
+
+  it('never asks a sleeve for a self-contained emblem', async () => {
+    const result = await enhanceStructured(sleeveRecord);
+
+    expect(result.axisSelection.mode).toBe('compositional');
+    const prompts = allPrompts(result.variations);
+    expect(prompts.length).toBeGreaterThan(0);
+
+    for (const prompt of prompts) {
+      expect(prompt).not.toContain('self-contained emblem');
+    }
+  });
+
+  it('carries the sleeve guidance without contradicting it', async () => {
+    const result = await enhanceStructured(sleeveRecord);
+
+    // The guidance the resolver injects is still there…
+    const detailed = result.variations.map(v => v.prompts.detailed);
+    for (const prompt of detailed) {
+      expect(prompt).toContain('a sleeve composition rather than a standalone emblem');
+    }
+
+    // …and neither poster treatment that contradicts it survives. Both are
+    // asserted verbatim: these exact strings are what shipped in the repro.
+    for (const prompt of allPrompts(result.variations)) {
+      expect(prompt).not.toContain(
+        'symmetrical framing, subject presented head-on as a self-contained emblem'
+      );
+      expect(prompt).not.toContain(
+        'subject rendered large and close, held just inside a clean white margin'
+      );
+    }
+  });
+
+  it('keeps the four-variation contract intact (ADR-0012)', async () => {
+    const result = await enhanceStructured(sleeveRecord);
+
+    expect(result.variations).toHaveLength(4);
+    const compositions = result.variations.map(
+      v => (v.axisPosition as { composition: string }).composition
+    );
+    expect(compositions.every(Boolean)).toBe(true);
+    expect(new Set(compositions).size).toBe(4);
+
+    // Style still locks across all four; only the treatment differs.
+    for (const variation of result.variations) {
+      expect(variation.prompts.simple).toContain('neo-traditional');
+      expect(variation.prompts.simple).toContain(FLASH_ART_LEAD);
+    }
+    expect(new Set(result.variations.map(v => v.prompts.detailed)).size).toBe(4);
+  });
+
+  it('leaves non-sleeve requests on the poster treatments', async () => {
+    // Guard against swapping the set unconditionally: `forearm` + a phoenix
+    // meaning is not sleeve-scale work, and the emblem treatment is correct
+    // there.
+    const result = await enhanceStructured(baseRecord);
+
+    const prompts = allPrompts(result.variations);
+    expect(prompts.some(p => p.includes('self-contained emblem'))).toBe(true);
+  });
+
+  it('does not treat the "heart on his sleeve" idiom as sleeve-scale', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      meaning: 'he wears his heart on his sleeve',
+    });
+
+    const prompts = allPrompts(result.variations);
+    expect(prompts.some(p => p.includes('self-contained emblem'))).toBe(true);
+  });
+});
+
 describe('enhanceStructured - rationale is logged, never silent (ADR-0012)', () => {
   it('always returns a non-empty rationale and emits it via onDiscussionUpdate', async () => {
     for (const ambiguousAxes of [

@@ -117,8 +117,21 @@ const POLES: Record<string, PoleSpec> = {
   },
 };
 
-/** Compositional-mode treatments: style locks, the four slots vary pose/framing/negative space (ADR-0012). */
-const COMPOSITIONAL_TREATMENTS: { composition: string; phrase: string; detail: string }[] = [
+interface CompositionalTreatment {
+  composition: string;
+  phrase: string;
+  detail: string;
+}
+
+/**
+ * Compositional-mode treatments: style locks, the four slots vary
+ * pose/framing/negative space (ADR-0012).
+ *
+ * These describe a piece that sits inside a single frame — a poster. That is
+ * the right vocabulary for every placement EXCEPT a sleeve, which is why
+ * `SLEEVE_TREATMENTS` exists; see the note there.
+ */
+const COMPOSITIONAL_TREATMENTS: readonly CompositionalTreatment[] = [
   {
     composition: 'centered emblem',
     phrase: 'centered emblematic composition',
@@ -146,6 +159,76 @@ const COMPOSITIONAL_TREATMENTS: { composition: string; phrase: string; detail: s
     detail: 'subject rendered large and close, held just inside a clean white margin',
   },
 ];
+
+/**
+ * The same four slots for a sleeve-scale request.
+ *
+ * `resolvePlacement` already injects sleeve guidance into `Composition
+ * follows …` — "a sleeve composition rather than a standalone emblem: one
+ * continuous vertical story running the length of the limb …". Two of the
+ * poster treatments asked for the exact opposite in the same prompt:
+ * "presented head-on as a self-contained emblem" and a subject "held just
+ * inside a clean white margin". Flux folds the whole prompt into one
+ * instruction rather than resolving it, so a prompt carrying both halves is
+ * the same failure class as the contradictory cast negatives fixed in
+ * 2b7a65f — the model splits the difference and neither half lands.
+ *
+ * So the vocabulary is swapped, not the contract: still exactly four
+ * treatments (ADR-0012), still style-locked, still varying only layout. They
+ * diverge along the same underlying dimensions as the poster set — density,
+ * motion, sparseness, structure — expressed as sleeve layouts instead of
+ * poster framings.
+ *
+ * Two constraints every entry respects:
+ *   - Nothing may re-frame the piece as self-contained, cropped, or
+ *     head-on; that is the contradiction being fixed.
+ *   - Nothing may ask for an edge-to-edge bleed. Presentation is pinned to
+ *     flash art with clean white margins and `assessBackdrop` measures the
+ *     BORDER, so "runs off the edges" fails the guard exactly as hard as a
+ *     photograph does. The piece is described as a tall column of artwork,
+ *     which is what a sleeve is once it is laid flat on the sheet.
+ */
+const SLEEVE_TREATMENTS: readonly CompositionalTreatment[] = [
+  {
+    composition: 'full wrap',
+    phrase: 'full-limb wrap composition',
+    detail:
+      'elements packed tightly and overlapping, passing behind one another into one ' +
+      'unbroken column with no gaps or seams between them',
+  },
+  {
+    composition: 'spiral flow',
+    phrase: 'spiralling wrap composition',
+    detail:
+      'the design winding around the column on a continuous diagonal axis, elements ' +
+      'carried along the spiral so the eye travels the full length of the piece',
+  },
+  {
+    composition: 'open flow',
+    // Consonant-initial deliberately: the shared template hardcodes "in a
+    // ${phrase}", so a vowel-initial phrase renders "in a open …".
+    phrase: 'sparse open-flow sleeve composition',
+    detail:
+      'elements spaced generously along the column with open white space between ' +
+      'them, joined by sparse connective detail so nothing floats free',
+  },
+  {
+    composition: 'banded tiers',
+    phrase: 'banded tiered sleeve composition',
+    detail:
+      'distinct tiers stacked along the column, each joined to the next by connective ' +
+      'filler texture so the tiers read as one continuous piece rather than separate panels',
+  },
+];
+
+/**
+ * A sleeve is not a poster, so it does not get the poster vocabulary. This is
+ * the only thing the sleeve signal changes here — mode selection, style lock,
+ * palette, and the four-slot contract are all untouched.
+ */
+function treatmentsFor(ctx: PromptContext): readonly CompositionalTreatment[] {
+  return ctx.isSleeve ? SLEEVE_TREATMENTS : COMPOSITIONAL_TREATMENTS;
+}
 
 /** Keep the freeform meaning bounded so embedded prose can't blow the token budget. */
 function truncateWords(text: string, maxWords: number): string {
@@ -350,6 +433,12 @@ interface PromptContext {
   meaningShort: string;
   aspectGuidance: string;
   flowToken: string;
+  /**
+   * True when the request reads as sleeve-scale work. Selects the treatment
+   * vocabulary (see `treatmentsFor`) so the compositional slots cannot ask
+   * for a self-contained emblem in a prompt whose guidance forbids one.
+   */
+  isSleeve: boolean;
   /** Closed style tags, verbatim — drives style-contradicting negatives. */
   styleTags: string[];
   /**
@@ -397,6 +486,7 @@ function buildContext(record: IntakeRecord): PromptContext {
     meaningShort: truncateWords(record.meaning, 60),
     aspectGuidance: guidance.composition,
     flowToken: guidance.flow,
+    isSleeve: guidance.isSleeve,
     styleTags: record.styleTags,
     requestedCharacterCount: record.requestedCharacters?.length || undefined,
   };
@@ -494,7 +584,7 @@ function buildQuadrantVariation(
 }
 
 function buildCompositionalVariation(
-  treatment: (typeof COMPOSITIONAL_TREATMENTS)[number],
+  treatment: CompositionalTreatment,
   ctx: PromptContext
 ): StructuredVariation {
   const lead = paletteClause(ctx.palette) + PRESENTATION_LEAD;
@@ -552,7 +642,7 @@ export async function enhanceStructured(
       buildQuadrantVariation([axisA, axisB], [a1, b1], ctx),
     ];
   } else {
-    variations = COMPOSITIONAL_TREATMENTS.map(treatment =>
+    variations = treatmentsFor(ctx).map(treatment =>
       buildCompositionalVariation(treatment, ctx)
     );
   }
