@@ -10,7 +10,7 @@ import { getAnatomicalAspectRatio } from '@/lib/placement';
 // Plain-language exclusion list — no SDXL "(…: 1.5)" weight dialect, since
 // these tokens now reach Imagen's negativePrompt or get folded into a Flux
 // prompt as an "Avoid:" clause, and neither speaks that syntax.
-const STENCIL_SHIELD_TOKENS = 'shading, gradients, shadows, blur, 3d, realistic, photorealistic, low contrast, grey, messy lines, sketch';
+export const STENCIL_SHIELD_TOKENS = 'shading, gradients, shadows, blur, 3d, realistic, photorealistic, low contrast, grey, messy lines, sketch';
 
 const MODEL_ID_MAP: Record<string, string> = {
   flux_dev: 'flux-dev',

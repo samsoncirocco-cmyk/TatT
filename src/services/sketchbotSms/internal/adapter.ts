@@ -43,6 +43,7 @@ import {
   critique,
   allCuts,
   isFixRequest,
+  attachPlacementPreview,
   DesignSessionError,
 } from '@/services/designSession';
 import {
@@ -63,9 +64,16 @@ import {
   parsePickOrdinals,
   isBarePickReference,
 } from '@/features/design-session/services/pickIntent';
-import type { InboundSms, InboundOutcome, RevealDelivery, SmsProfile } from '../types';
+import type {
+  InboundSms,
+  InboundOutcome,
+  InboundMediaItem,
+  RevealDelivery,
+  SmsProfile,
+} from '../types';
 import { resolveProfileStore, newProfile } from './profileStore';
-import { analyzeInboundMedia, type MediaIngest } from './media';
+import { analyzeInboundMedia, fetchTwilioMedia, type MediaIngest } from './media';
+import { compositeOnBody, widthFractionFor } from './placement';
 import {
   renderSmsReply,
   REVEAL_ACK,
@@ -88,6 +96,13 @@ import {
   REFINED_CAPTION,
   STENCIL_CAPTION,
   refinedClosingText,
+  PLACEMENT_ACK,
+  PLACEMENT_CAPTION,
+  PLACEMENT_DONE_TEXT,
+  PLACEMENT_FAILED_TEXT,
+  PLACEMENT_UNREADABLE_TEXT,
+  PLACEMENT_UNUSABLE_DESIGN_TEXT,
+  PLACEMENT_NO_DESIGN_TEXT,
 } from './render';
 
 /** After this long, an unreported in-flight render is presumed dead. */
@@ -244,6 +259,19 @@ export async function handleInbound(inbound: InboundSms): Promise<InboundOutcome
     profile.lastStage = inFlight.recoverTo;
     profile.revealArmedAt = null;
     await store.save(profile);
+  }
+
+  // ── A photo AFTER the reveal is the texter's own body ────────────────
+  // Before the reveal a picture is inspiration; after it, the only picture
+  // worth sending is where the tattoo would go. Checked before the vision
+  // analyzer so a body photo never spends analysis budget being read as a
+  // reference — and never lands in the Brief as one.
+  if (
+    media.length > 0 &&
+    profile.activeSessionId &&
+    PLACEMENT_STAGES.has(profile.lastStage ?? '')
+  ) {
+    return armPlacement(profile, store, media[0], body);
   }
 
   // ── Reference photos (TAT-50): fetch → vision → attach, before routing ──
@@ -406,6 +434,19 @@ type ProfileStoreT = ReturnType<typeof resolveProfileStore>;
  * describing a new tattoo.
  */
 const POST_REVEAL_STAGES = new Set(['revealed', 'pick-pending']);
+
+/**
+ * Stages where an inbound photo means "here is where it would go" rather
+ * than "here is what I like". Once cuts exist, a reference image has nowhere
+ * useful to attach — intake is over — and the placement read is both the
+ * more likely intent and the cheaper one.
+ */
+const PLACEMENT_STAGES = new Set([
+  'revealed',
+  'pick-pending',
+  'refine-pending',
+  'complete',
+]);
 
 /**
  * The way out of a delivered reveal into a brand-new design.
@@ -682,6 +723,132 @@ export async function executeRefine(
  */
 function handoffUrl(base: string, sessionId: string, path = '/smart-match'): string {
   return `${base}${path}?ds=${encodeURIComponent(sessionId)}`;
+}
+
+/**
+ * Arm the placement composite. No paid render and no vision call — this is
+ * local pixel work — so there is no budget gate. It still defers, because
+ * fetching two images and compositing them can outlast Twilio's window.
+ */
+async function armPlacement(
+  profile: SmsProfile,
+  store: ProfileStoreT,
+  photo: InboundMediaItem,
+  message: string
+): Promise<InboundOutcome> {
+  logger.info({
+    event_type: 'sketchbot_sms.placement_armed',
+    phone_last4: phoneLast4(profile.phone),
+    session_id: profile.activeSessionId,
+  });
+  // Deliberately no stage change: compositing spends nothing, so there is
+  // nothing to double-fire, and leaving the stage alone means the texter can
+  // keep critiquing or pick while the preview is on its way.
+  await store.save({ ...profile, updatedAt: new Date().toISOString() });
+
+  return {
+    kind: 'placement',
+    text: PLACEMENT_ACK,
+    sessionId: profile.activeSessionId!,
+    phone: profile.phone,
+    mediaUrl: photo.url,
+    contentType: photo.contentType,
+    message,
+  };
+}
+
+/**
+ * The deferred half of a placement preview: fetch the design and the photo,
+ * composite, and hand back one MMS.
+ *
+ * The body photo is never persisted — see internal/placement.ts. Only the
+ * flattened composite is stored, and only because the Brief carries it to
+ * the artist, exactly as the web preview does.
+ */
+export async function executePlacement(
+  sessionId: string,
+  phone: string,
+  photo: InboundMediaItem,
+  message: string
+): Promise<RevealDelivery> {
+  try {
+    const session = await getSession(sessionId);
+    const designUrl = placementSourceUrl(session);
+    if (!designUrl) {
+      return { cuts: [], closingText: PLACEMENT_NO_DESIGN_TEXT };
+    }
+
+    const [photoImage, designResponse] = await Promise.all([
+      fetchTwilioMedia(photo),
+      fetch(designUrl),
+    ]);
+    if (!photoImage) return { cuts: [], closingText: PLACEMENT_UNREADABLE_TEXT };
+    if (!designResponse.ok) throw new Error(`design fetch ${designResponse.status}`);
+
+    const composite = await compositeOnBody(
+      Buffer.from(await designResponse.arrayBuffer()),
+      // fetchTwilioMedia hands back base64 (it exists to feed the vision
+      // model); sharp wants bytes.
+      Buffer.from(photoImage.data, 'base64'),
+      widthFractionFor(message)
+    );
+    if (composite === 'unusable-design') {
+      return { cuts: [], closingText: PLACEMENT_UNUSABLE_DESIGN_TEXT };
+    }
+
+    // The composite has to be reachable by Twilio and by the artist, so it
+    // goes to the same product-owned bucket as every other session image.
+    const { uploadToGCS } = await import('@/services/gcs-service');
+    const upload = await uploadToGCS(
+      composite.buffer,
+      `design-sessions/${sessionId}/placement-${Date.now()}.png`
+    );
+
+    // Same Brief field the web preview writes, so a booking made from an
+    // SMS session carries the placement exactly as a web one does.
+    await attachPlacementPreview(sessionId, upload.url).catch((error) => {
+      // Persisting is a bonus; the texter still gets to see it.
+      logger.warn({
+        event_type: 'sketchbot_sms.placement_attach_failed',
+        session_id: sessionId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+
+    logger.info({
+      event_type: 'sketchbot_sms.placement_delivered',
+      phone_last4: phoneLast4(phone),
+      session_id: sessionId,
+    });
+
+    return {
+      cuts: [{ caption: PLACEMENT_CAPTION, mediaUrl: upload.url }],
+      closingText: PLACEMENT_DONE_TEXT,
+    };
+  } catch (error) {
+    logger.error({
+      event_type: 'sketchbot_sms.placement_failed',
+      phone_last4: phoneLast4(phone),
+      session_id: sessionId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return { cuts: [], closingText: PLACEMENT_FAILED_TEXT };
+  }
+}
+
+/**
+ * Which design to lay on the body: the finished one when the session has a
+ * Brief, otherwise whatever they last committed to. Deliberately falls back
+ * to the newest cut so a texter can try a placement before picking — that is
+ * how people actually decide which one they want.
+ */
+function placementSourceUrl(
+  session: Awaited<ReturnType<typeof getSession>>
+): string | undefined {
+  if (session.brief?.finalImageUrl) return session.brief.finalImageUrl;
+  const cuts = allCuts(session);
+  const picked = cuts.find((cut) => cut.id === session.pickId);
+  return picked?.imageUrl ?? cuts[cuts.length - 1]?.imageUrl;
 }
 
 /** First tap: hold the choice, ask for its opposite (ADR-0012). */
