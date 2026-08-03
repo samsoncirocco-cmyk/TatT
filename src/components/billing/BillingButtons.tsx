@@ -63,6 +63,51 @@ export function ArtistSubscribeButton({
   );
 }
 
+/** Starts the one-time $10 / 25-generation consumer credit checkout. */
+export function BuyGenerationCreditsButton({
+  className,
+  children,
+}: {
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function buyCredits() {
+    setError(null);
+    setLoading(true);
+    try {
+      const headers = await getApiAuthHeaders();
+      const res = await fetch("/api/v1/billing/credits", {
+        method: "POST",
+        headers,
+      });
+      const data = (await res.json()) as { sessionUrl?: string; error?: string };
+      if (!res.ok || !data.sessionUrl) {
+        throw new Error(data.error || "Unable to start credit checkout.");
+      }
+      window.location.href = data.sessionUrl;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong.");
+      setLoading(false);
+    }
+  }
+
+  return (
+    <>
+      <button type="button" onClick={buyCredits} disabled={loading} className={className}>
+        {loading ? "Starting…" : children}
+      </button>
+      {error && (
+        <p className="mt-3 text-[11px] uppercase tracking-[0.2em] text-pink font-body">
+          {error}
+        </p>
+      )}
+    </>
+  );
+}
+
 /**
  * Opens the Stripe customer portal so an artist can manage their subscription.
  * Requires the artist's Stripe customer id (`cus_...`), which the billing
