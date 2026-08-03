@@ -229,8 +229,9 @@ async function callGeminiImage(
  * decisions depended on race timing. Pick a representative error by fixed
  * priority instead (call order within each tier):
  *   1. hard non-retryable (e.g. 400) — fail closed, no paid recovery
- *   2. VERTEX_IMAGE_NO_OUTPUT — loosened-safety fallback can help
- *   3. anything else (retryable 429/5xx, unknown)
+ *   2. retryable (429/5xx) — backoff before safety fallback or cross-provider
+ *   3. VERTEX_IMAGE_NO_OUTPUT — loosened-safety fallback can help
+ *   4. anything else
  */
 function pickFanOutError(errors: GenerationError[]): GenerationError {
   const hard = errors.find(
@@ -240,6 +241,11 @@ function pickFanOutError(errors: GenerationError[]): GenerationError {
       e.code !== 'VERTEX_IMAGE_NO_OUTPUT'
   );
   if (hard) return hard;
+
+  const retryable = errors.find(
+    (e) => typeof e.status === 'number' && RETRYABLE_STATUS.has(e.status)
+  );
+  if (retryable) return retryable;
 
   const noOutput = errors.find((e) => e.code === 'VERTEX_IMAGE_NO_OUTPUT');
   if (noOutput) return noOutput;

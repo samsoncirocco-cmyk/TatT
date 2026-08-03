@@ -269,6 +269,27 @@ describe('generation module seam — vertex provider', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it('prefers a retryable error over a safety block when parallel calls fail', async () => {
+    // SAFETY (NO_OUTPUT, status 200) must not mask a 429 — otherwise
+    // generateWithRetry treats the fan-out as non-retryable and skips backoff.
+    fetchMock
+      .mockResolvedValueOnce(blockedResponse('SAFETY'))
+      .mockResolvedValueOnce(errorResponse(429))
+      .mockResolvedValueOnce(imageResponse())
+      .mockResolvedValueOnce(imageResponse());
+
+    const result = await generate({
+      prompt: 'skull',
+      style: 'realism',
+      numImages: 2,
+      retry: { maxRetries: 2, baseDelayMs: 1 }
+    });
+
+    expect(result.images).toHaveLength(2);
+    expect(result.metadata.attempts).toBe(2);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
   it('emits request and result telemetry', async () => {
     fetchMock.mockResolvedValueOnce(imageResponse());
 
