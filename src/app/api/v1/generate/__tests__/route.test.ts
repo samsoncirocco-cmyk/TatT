@@ -118,6 +118,18 @@ describe('/api/v1/generate route adapter', () => {
     }));
   });
 
+  it('reports outputFormat from the image data-URL mime type', async () => {
+    generateMock.mockResolvedValueOnce({
+      ...vertexResult(1),
+      images: ['data:image/jpeg;base64,jpg0']
+    });
+
+    const res = await POST(makeRequest({ prompt: 'dragon tattoo' }));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.metadata.outputFormat).toBe('jpeg');
+  });
+
   it('returns the replicate fallback shape and records flat fallback spend', async () => {
     generateMock.mockResolvedValueOnce({
       images: ['https://replicate.delivery/out.png'],

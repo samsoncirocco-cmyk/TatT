@@ -17,8 +17,8 @@
  *     calls and merge in order, mirroring replicate.ts's fan-out.
  *   - seed           → not accepted; kept in metadata so stored routes and
  *     telemetry still round-trip, but it no longer pins the output.
- * `personGeneration` likewise has no counterpart; it is echoed back in metadata
- * only. Callers that relied on any of these for *determinism* no longer get it.
+ * `personGeneration` maps onto `imageConfig.personGeneration` (Gemini's enum).
+ * Callers that relied on seed for *determinism* no longer get it.
  */
 import { getGcpAccessToken } from '@/lib/google-auth-edge';
 import { logEvent } from '@/lib/observability';
@@ -82,6 +82,24 @@ function resolvePersonGeneration(personGeneration?: string) {
   return normalized;
 }
 
+/*
+ * Imagen took lowercase `allow_adult` / `dont_allow` / `allow_all`. Gemini's
+ * imageConfig expects the PersonGeneration enum (ALLOW_ADULT / ALLOW_NONE /
+ * ALLOW_ALL). Metadata still echoes the Imagen-shaped value callers send.
+ */
+function toGeminiPersonGeneration(personGeneration?: string): string {
+  switch (resolvePersonGeneration(personGeneration)) {
+    case 'allow_all':
+      return 'ALLOW_ALL';
+    case 'dont_allow':
+    case 'allow_none':
+      return 'ALLOW_NONE';
+    case 'allow_adult':
+    default:
+      return 'ALLOW_ADULT';
+  }
+}
+
 function resolveThreshold(safetySetting: string): string {
   return SAFETY_THRESHOLDS[safetySetting] || 'BLOCK_ONLY_HIGH';
 }
@@ -109,7 +127,8 @@ function imageEndpoint(): string {
 function withAvoidClause(prompt: string, negativePrompt?: string): string {
   const negatives = (negativePrompt || '').trim();
   if (!negatives) return prompt;
-  const base = prompt.replace(/[.\s]+$/, '');
+  // Keep identical to replicate.ts so Vertex↔Flux fallback sees the same text.
+  const base = prompt.trim().replace(/\.$/, '');
   return `${base}. Avoid: ${negatives}.`;
 }
 
@@ -138,7 +157,10 @@ async function callGeminiImage(
       ],
       generationConfig: {
         responseModalities: ['IMAGE'],
-        imageConfig: { aspectRatio: request.aspectRatio || '1:1' }
+        imageConfig: {
+          aspectRatio: request.aspectRatio || '1:1',
+          personGeneration: toGeminiPersonGeneration(request.personGeneration)
+        }
       },
       safetySettings: HARM_CATEGORIES.map((category) => ({
         category,

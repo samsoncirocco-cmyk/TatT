@@ -18,6 +18,12 @@ export const dynamic = 'force-dynamic';
 // route's flat fallback cost.
 const REPLICATE_FALLBACK_COST_CENTS = 1;
 
+/** Derive outputFormat from a data-URL mime type (Gemini may return jpeg/png/…). */
+function outputFormatFromImages(images: string[] | undefined): string {
+    const match = images?.[0]?.match(/^data:image\/([^;]+);/i);
+    return match?.[1]?.toLowerCase() || 'png';
+}
+
 export async function POST(req: NextRequest) {
     const reqLogger = createRequestLogger('generate');
 
@@ -144,7 +150,7 @@ export async function POST(req: NextRequest) {
                 bodyPart: bodyPart || null,
                 size: size || null,
                 aspectRatio: aspectRatio || '1:1',
-                outputFormat: 'png',
+                outputFormat: outputFormatFromImages(result.images),
                 durationMs: result.metadata.durationMs,
                 attempts: result.metadata.attempts,
                 safetyFilterLevel: result.metadata.safetyFilterLevel,

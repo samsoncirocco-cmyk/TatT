@@ -114,9 +114,22 @@ describe('generation module seam — vertex provider', () => {
     ]);
     expect(body.generationConfig).toMatchObject({
       responseModalities: ['IMAGE'],
-      imageConfig: { aspectRatio: '3:4' }
+      imageConfig: { aspectRatio: '3:4', personGeneration: 'ALLOW_ADULT' }
     });
     expect(init.headers.Authorization).toBe('Bearer test-token');
+  });
+
+  it('maps personGeneration onto Gemini imageConfig', async () => {
+    fetchMock.mockResolvedValueOnce(imageResponse());
+
+    await generate({
+      prompt: 'portrait',
+      style: 'realism',
+      personGeneration: 'dont_allow'
+    });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.generationConfig.imageConfig.personGeneration).toBe('ALLOW_NONE');
   });
 
   it('folds the negative prompt into an Avoid clause (no negative_prompt input exists)', async () => {
@@ -128,6 +141,19 @@ describe('generation module seam — vertex provider', () => {
     expect(body.contents[0].parts[0].text).toBe('koi fish. Avoid: blurry, text.');
     // The shield tokens must not vanish into a field the model ignores.
     expect(JSON.stringify(body)).not.toContain('negativePrompt');
+  });
+
+  it('trims the prompt before folding Avoid (parity with replicate.ts)', async () => {
+    fetchMock.mockResolvedValueOnce(imageResponse());
+
+    await generate({
+      prompt: '  koi fish.  ',
+      style: 'realism',
+      negativePrompt: 'blurry'
+    });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.contents[0].parts[0].text).toBe('koi fish. Avoid: blurry.');
   });
 
   it('maps our safety vocabulary onto Gemini harm thresholds', async () => {
