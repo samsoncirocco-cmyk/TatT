@@ -281,10 +281,12 @@ async function grantConsumerCreditsIfPaid(session: Stripe.Checkout.Session): Pro
     return;
   }
   if (!metadata.uid) {
+    // Fail the webhook so Stripe retries and the Dashboard surfaces the miss —
+    // acknowledging 200 would permanently drop fulfillment for a paid session.
     console.error('[Stripe] consumer credit checkout missing uid — cannot grant credits', {
       sessionId: session.id,
     });
-    return;
+    throw new Error(`consumer credit checkout ${session.id} missing metadata.uid`);
   }
   await grantPurchasedGenerationCredits(metadata.uid, session.id);
 }

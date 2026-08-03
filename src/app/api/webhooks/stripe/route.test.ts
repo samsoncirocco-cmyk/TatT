@@ -449,6 +449,16 @@ describe('Stripe webhook — consumer generation credits', () => {
     expect(res.status).toBe(200);
     expect(grantPurchasedGenerationCreditsMock).toHaveBeenCalledWith('uid_buyer_1', 'cs_credits_1');
   });
+
+  it('returns 500 when a paid credit checkout is missing uid so Stripe retries', async () => {
+    const event = makeCreditEvent('evt_credits_4', 'checkout.session.completed', 'paid');
+    delete (event.data.object.metadata as { uid?: string }).uid;
+    constructEventMock.mockReturnValueOnce(event);
+
+    const res = await POST(makeRequest(event));
+    expect(res.status).toBe(500);
+    expect(grantPurchasedGenerationCreditsMock).not.toHaveBeenCalled();
+  });
 });
 
 // ── account.updated → release held deposits ─────────────────────────────────
