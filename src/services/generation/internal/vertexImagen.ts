@@ -106,7 +106,10 @@ function resolveThreshold(safetySetting: string): string {
 
 /** Gemini fans out one call per image; clamp to the same 1–4 range Imagen sampleCount used. */
 function resolveNumImages(numImages?: number): number {
-  return Math.min(Math.max(numImages ?? 1, 1), 4);
+  // NaN/Infinity must not reach Array.from({ length }) — NaN yields [], Infinity throws.
+  // Prefer the old Imagen `numImages || 1` default over silently scheduling zero calls.
+  const n = typeof numImages === 'number' && Number.isFinite(numImages) ? numImages : 1;
+  return Math.min(Math.max(n, 1), 4);
 }
 
 function imageEndpoint(): string {
@@ -290,6 +293,7 @@ async function generateWithRetry(request: GenerationRequest): Promise<Generation
   let lastErrorRetryable = false;
 
   const numImages = resolveNumImages(request.numImages);
+  const primarySafety = resolveSafetySetting(request.safetyFilterLevel);
   const requestId = `gen_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   logEvent('generation.request', {
     requestId,
@@ -303,10 +307,7 @@ async function generateWithRetry(request: GenerationRequest): Promise<Generation
   while (attempts <= maxRetries) {
     try {
       attempts += 1;
-      const result = await generateImages(
-        request,
-        resolveSafetySetting(request.safetyFilterLevel)
-      );
+      const result = await generateImages(request, primarySafety);
       return buildResult(request, requestId, startedAt, attempts, false, result);
     } catch (error) {
       lastError = asGenerationError(error);
@@ -328,12 +329,22 @@ async function generateWithRetry(request: GenerationRequest): Promise<Generation
   // fail identically on the paid fallback call. Declared behavior fix (spec:
   // generation-module), extended for Gemini's 200-with-no-image safety blocks.
   const fallback = request.fallback;
-  if (fallback && (lastErrorRetryable || lastError?.code === 'VERTEX_IMAGE_NO_OUTPUT')) {
+  const fallbackSafety = fallback
+    ? resolveSafetySetting(fallback.safetyFilterLevel || 'block_only_high')
+    : null;
+  // A hard safety refusal cannot recover under identical Gemini thresholds —
+  // skip that paid fan-out and let the cross-provider chain run instead.
+  const safetyLoosened =
+    fallbackSafety !== null &&
+    resolveThreshold(fallbackSafety) !== resolveThreshold(primarySafety);
+  const shouldTryFallback =
+    Boolean(fallback) &&
+    (lastErrorRetryable ||
+      (lastError?.code === 'VERTEX_IMAGE_NO_OUTPUT' && safetyLoosened));
+
+  if (shouldTryFallback && fallbackSafety) {
     try {
-      const result = await generateImages(
-        { ...request, numImages },
-        resolveSafetySetting(fallback.safetyFilterLevel || 'block_only_high')
-      );
+      const result = await generateImages({ ...request, numImages }, fallbackSafety);
       return buildResult(request, requestId, startedAt, attempts + 1, true, result);
     } catch (fallbackError) {
       lastError = asGenerationError(fallbackError);
