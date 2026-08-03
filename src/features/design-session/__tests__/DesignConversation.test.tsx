@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { act, render, screen, fireEvent } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { createElement } from 'react';
 import type { DesignSession } from '@/services/designSession/types';
@@ -155,6 +155,25 @@ async function reachProposal() {
 }
 
 describe('DesignConversation', () => {
+  it('releases the first reply line when SketchBot never answers the opening request', async () => {
+    vi.useFakeTimers();
+    try {
+      fetchMock.mockReturnValueOnce(new Promise<Response>(() => {}));
+
+      render(<DesignConversation />);
+      await act(async () => {
+        await Promise.resolve();
+        await vi.advanceTimersByTimeAsync(10_001);
+      });
+
+      expect(screen.getByText(/taking longer than expected/i)).toBeTruthy();
+      expect(screen.getByRole('button', { name: /retry/i })).toBeTruthy();
+      expect((screen.getByLabelText('Your reply') as HTMLInputElement).disabled).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('opens the conversation on mount with the bot speaking first', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(converseResponse()));
 
