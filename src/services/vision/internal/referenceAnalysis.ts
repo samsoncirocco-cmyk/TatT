@@ -19,6 +19,7 @@
 
 import { logger } from '@/lib/logger';
 import { getGcpAccessToken } from '@/lib/google-auth-edge';
+import { buildVertexEndpoint } from '@/lib/vertex-endpoint';
 import {
   checkBudget,
   recordSpend,
@@ -45,7 +46,16 @@ export const MAX_REFERENCE_IMAGE_BYTES = 5 * 1024 * 1024;
 /** Reference images analyzed per message/upload batch. */
 export const MAX_REFERENCE_IMAGES_PER_MESSAGE = 3;
 
-export const DEFAULT_VISION_MODEL = 'gemini-2.5-flash';
+/**
+ * Reference-image reader (TAT-56).
+ *
+ * Same model SketchBot converses with (gemini-3.1-flash-lite) — it reads
+ * images natively, so the pipeline no longer runs a second, pricier model
+ * just to look at what the customer sent. Kept as its own constant because
+ * VISION_MODEL must stay independently overridable when a reference batch
+ * needs a stronger reader than the conversation does.
+ */
+export const DEFAULT_VISION_MODEL = 'gemini-3.1-flash-lite';
 
 function visionModel(): string {
   return process.env.VISION_MODEL || DEFAULT_VISION_MODEL;
@@ -190,10 +200,9 @@ const DEMO_ANALYSIS: ReferenceAnalysis = {
 
 async function callVertexVision(image: ReferenceImage): Promise<unknown> {
   const projectId = vertexProjectId();
-  const region = process.env.GCP_REGION || 'us-central1';
   const model = visionModel();
   const accessToken = await getGcpAccessToken();
-  const endpoint = `https://${region}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${region}/publishers/google/models/${model}:generateContent`;
+  const endpoint = buildVertexEndpoint(projectId, model);
 
   const response = await fetch(endpoint, {
     method: 'POST',
