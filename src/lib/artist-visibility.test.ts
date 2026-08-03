@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  KNOWN_NON_TATTOO_BUSINESS_NAMES,
   LOOKS_BOOKABLE_CLAUSE,
+  NOT_KNOWN_NON_TATTOO_BUSINESS_CLAUSE,
   NOT_STALE_CLAUSE,
   PUBLIC_ARTIST_CLAUSE,
 } from "@/lib/artist-visibility";
@@ -12,5 +14,18 @@ describe("PUBLIC_ARTIST_CLAUSE", () => {
     expect(NOT_STALE_CLAUSE).toContain("coalesce(a.stale, false)");
     expect(PUBLIC_ARTIST_CLAUSE).toContain(LOOKS_BOOKABLE_CLAUSE);
     expect(LOOKS_BOOKABLE_CLAUSE).toContain("coalesce(a.looksBookable, true)");
+  });
+
+  it("suppresses only the evidence-backed non-tattoo chains while the data audit catches up", () => {
+    expect(KNOWN_NON_TATTOO_BUSINESS_NAMES).toEqual([
+      "orangetheory",
+      "panerabread",
+      "thedrybar",
+      "visionworks eyewear",
+    ]);
+    expect(NOT_KNOWN_NON_TATTOO_BUSINESS_CLAUSE).toContain(
+      "toLower(trim(coalesce(a.name, ''))) NOT IN",
+    );
+    expect(PUBLIC_ARTIST_CLAUSE).toContain(NOT_KNOWN_NON_TATTOO_BUSINESS_CLAUSE);
   });
 });
