@@ -632,7 +632,7 @@ describe('parity with the web after the reveal', () => {
         },
       } as unknown as Awaited<ReturnType<typeof refine>>);
 
-      const delivery = await executeRefine('s1', PHONE, 'bolder');
+      const delivery = await executeRefine('s1', PHONE, 'bolder', await currentArmedAt());
 
       expect(delivery.cuts).toHaveLength(2);
       expect(delivery.cuts[1].mediaUrl).toBe('https://storage.googleapis.com/tatt/stencil.png');
@@ -651,7 +651,7 @@ describe('parity with the web after the reveal', () => {
         refinedVariation: { id: 'r', axisPosition: {}, prompt: 'p', imageUrl: 'https://s/r.png' },
       } as unknown as Awaited<ReturnType<typeof refine>>);
 
-      const delivery = await executeRefine('s1', PHONE, 'bolder');
+      const delivery = await executeRefine('s1', PHONE, 'bolder', await currentArmedAt());
 
       expect(delivery.cuts).toHaveLength(1);
       expect(delivery.closingText).not.toMatch(/two files/i);
