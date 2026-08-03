@@ -8,6 +8,14 @@ issue: TAT-13
 
 # Phoenix soft-launch runbook
 
+> **Amendment (2026-08-03, ADR-0042):** recruited, identity-checked artists
+> are an **upgrade lane, not a launch gate**. The soft launch runs end-to-end
+> on scraped, unclaimed profiles via the booking relay (ADR-0005–0008), with
+> bookability gated by ADR-0043 (real tattoo evidence + working contact
+> channel). The recruiting phases below stand and continue in parallel
+> (starting with Sailor Zac), but the "five launch-ready artists" supply gate
+> no longer blocks launch.
+
 ## Outcome
 
 Launch TattTester to a deliberately small Phoenix-metro cohort only after the

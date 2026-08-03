@@ -1,5 +1,12 @@
 # Hold deposits for unclaimed artists on the platform
 
+> **Amendment (2026-08-03, ADR-0043):** not every scraped profile enters this
+> lane. A scraped profile is publicly bookable (deposit button → held-deposit
+> relay) only with BOTH real tattoo evidence AND a working contact channel
+> (Instagram, email, or phone); other junk-filtered profiles stay browsable
+> with a "request intro" action instead. The held/transfer/refund mechanics
+> below are unchanged for profiles that qualify.
+
 ## Context
 
 Most artists in the graph are scraped, not onboarded — they have no Stripe

@@ -86,6 +86,23 @@ consent remain separate gates.
 - Old pitch scripts and design specs retain the dead copy as history with
   superseded notices; do not reuse it.
 
+## Launch supply: recruited artists vs scraped profiles — RESOLVED 2026-08-03
+
+- The Phoenix soft-launch runbook (`docs/operations/phoenix-soft-launch.md`)
+  made consented, identity-checked recruited artists the first supply and a
+  launch gate ("five launch-ready artists"). The relay lane (ADR-0005–0008)
+  was built so unclaimed scraped artists are bookable — two supply models with
+  no decision about which one gates launch.
+- ADR-0042 (2026-08-03 grill) is authoritative: the soft launch runs
+  end-to-end on scraped, UNCLAIMED profiles via the booking relay; recruited/
+  claimed artists are an upgrade lane that continues in parallel, not a launch
+  gate. ADR-0043 gates which scraped profiles may take a deposit (real tattoo
+  evidence + working contact channel; everything else browsable with "request
+  intro" only). The runbook is annotated, not rewritten; its recruiting phases
+  stand.
+- Scraped profiles are still never labeled "verified" (ADR-0032; artist
+  verification entry above).
+
 ## ADR numbering — RESOLVED 2026-07-30
 
 Two files used the `0026` prefix. `0026-reinstatement-self-signup.md` has 11
