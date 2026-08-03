@@ -1,14 +1,74 @@
+/*
+ * The Vertex image provider.
+ *
+ * Despite the file name, this no longer calls Imagen. Google is retiring every
+ * `imagen-*` endpoint (announced for 2026-08-17) and directs all of them to the
+ * Gemini image models, so this talks to `gemini-3.1-flash-image` through the
+ * same `:generateContent` shape the rest of our Vertex callers use
+ * (designConversation/providers.ts, vision/referenceAnalysis.ts). The file and
+ * the exported provider keep their names so the migration stays a one-file
+ * diff; `provider: 'vertex-ai'` is unchanged and callers are untouched.
+ *
+ * Three request fields Imagen accepted have no equivalent on the Gemini image
+ * models, and each is handled rather than silently dropped:
+ *   - negativePrompt → folded into the prompt as an "Avoid:" clause, the same
+ *     convention replicate.ts already uses for Flux/Krea.
+ *   - numImages      → one image per call, so N images fan out into N parallel
+ *     calls and merge in order, mirroring replicate.ts's fan-out.
+ *   - seed           → not accepted; kept in metadata so stored routes and
+ *     telemetry still round-trip, but it no longer pins the output.
+ * `personGeneration` likewise has no counterpart; it is echoed back in metadata
+ * only. Callers that relied on any of these for *determinism* no longer get it.
+ */
 import { getGcpAccessToken } from '@/lib/google-auth-edge';
 import { logEvent } from '@/lib/observability';
 import type { GenerationError, GenerationRequest, GenerationResult, Provider } from './provider';
 import { asGenerationError, makeGenerationError } from './provider';
 
 const PROJECT_ID = process.env.GCP_PROJECT_ID || 'tatt-pro';
-const REGION = process.env.GCP_REGION || 'us-central1';
-const IMAGEN_MODEL = 'imagen-3.0-generate-001';
-const IMAGEN_COST_PER_IMAGE = 0.02;
+
+/*
+ * The Gemini image models are published globally rather than per-region, and
+ * the global publisher endpoint drops the region prefix from the host. Both
+ * are env-overridable so a region rollout (or a model bump) is a config change
+ * rather than a deploy of this file.
+ */
+const IMAGE_MODEL = process.env.VERTEX_IMAGE_MODEL || 'gemini-3.1-flash-image';
+const IMAGE_LOCATION = process.env.VERTEX_IMAGE_LOCATION || 'global';
+
+/*
+ * Flash Image list price at time of migration. Imagen 3 was $0.02; this only
+ * feeds the cost telemetry, so a stale figure skews the spend dashboard rather
+ * than any billing path.
+ */
+const IMAGE_COST_PER_IMAGE = Number(process.env.VERTEX_IMAGE_COST_USD || 0.039);
 
 const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
+
+/** Every category Vertex accepts a threshold for; we set them uniformly. */
+const HARM_CATEGORIES = [
+  'HARM_CATEGORY_HATE_SPEECH',
+  'HARM_CATEGORY_DANGEROUS_CONTENT',
+  'HARM_CATEGORY_HARASSMENT',
+  'HARM_CATEGORY_SEXUALLY_EXPLICIT'
+] as const;
+
+/*
+ * Imagen's filter vocabulary → Gemini's HarmBlockThreshold. Imagen carried two
+ * generations of names (`block_only_high` and the later `block_few`), and both
+ * appear in stored routes, so both spellings map. Anything unrecognized falls
+ * through to the Imagen default we have always sent.
+ */
+const SAFETY_THRESHOLDS: Record<string, string> = {
+  block_none: 'BLOCK_NONE',
+  block_fewest: 'BLOCK_NONE',
+  block_only_high: 'BLOCK_ONLY_HIGH',
+  block_few: 'BLOCK_ONLY_HIGH',
+  block_medium_and_above: 'BLOCK_MEDIUM_AND_ABOVE',
+  block_some: 'BLOCK_MEDIUM_AND_ABOVE',
+  block_low_and_above: 'BLOCK_LOW_AND_ABOVE',
+  block_most: 'BLOCK_LOW_AND_ABOVE'
+};
 
 function resolveSafetySetting(safetyFilterLevel?: string) {
   const normalized = (safetyFilterLevel || '').toLowerCase().trim();
@@ -22,66 +82,133 @@ function resolvePersonGeneration(personGeneration?: string) {
   return normalized;
 }
 
+function resolveThreshold(safetySetting: string): string {
+  return SAFETY_THRESHOLDS[safetySetting] || 'BLOCK_ONLY_HIGH';
+}
+
+function imageEndpoint(): string {
+  const host =
+    IMAGE_LOCATION === 'global'
+      ? 'https://aiplatform.googleapis.com'
+      : `https://${IMAGE_LOCATION}-aiplatform.googleapis.com`;
+  return (
+    `${host}/v1/projects/${PROJECT_ID}/locations/${IMAGE_LOCATION}` +
+    `/publishers/google/models/${IMAGE_MODEL}:generateContent`
+  );
+}
+
+/*
+ * Gemini has no negative_prompt input. Same convention as replicate.ts: fold
+ * the negatives into the prompt so the shield tokens still reach the model.
+ */
+function withAvoidClause(prompt: string, negativePrompt?: string): string {
+  const negatives = (negativePrompt || '').trim();
+  if (!negatives) return prompt;
+  const base = prompt.replace(/[.\s]+$/, '');
+  return `${base}. Avoid: ${negatives}.`;
+}
+
 async function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function callImagen(request: GenerationRequest) {
-  const accessToken = await getGcpAccessToken();
-  const endpoint = `https://${REGION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/publishers/google/models/${IMAGEN_MODEL}:predict`;
-
-  const safetySetting = resolveSafetySetting(request.safetyFilterLevel);
-  const personGeneration = resolvePersonGeneration(request.personGeneration);
-
-  const parameters: Record<string, unknown> = {
-    sampleCount: request.numImages || 1,
-    aspectRatio: request.aspectRatio || '1:1',
-    negativePrompt: request.negativePrompt,
-    safetySetting,
-    personGeneration
-  };
-
-  if (request.seed !== undefined && request.seed !== null && request.seed !== '') {
-    const parsedSeed = typeof request.seed === 'string' ? Number(request.seed) : request.seed;
-    if (Number.isFinite(parsedSeed)) {
-      parameters.seed = parsedSeed;
-    }
-  }
-
-  if (request.outputFormat) {
-    parameters.outputFormat = request.outputFormat;
-  }
-
-  const response = await fetch(endpoint, {
+/** One call → at most one image. Callers wanting more fan out over this. */
+async function callGeminiImage(
+  request: GenerationRequest,
+  accessToken: string,
+  safetySetting: string
+): Promise<string[]> {
+  const response = await fetch(imageEndpoint(), {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      instances: [{ prompt: request.prompt }],
-      parameters
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: withAvoidClause(request.prompt, request.negativePrompt) }]
+        }
+      ],
+      generationConfig: {
+        responseModalities: ['IMAGE'],
+        imageConfig: { aspectRatio: request.aspectRatio || '1:1' }
+      },
+      safetySettings: HARM_CATEGORIES.map((category) => ({
+        category,
+        threshold: resolveThreshold(safetySetting)
+      }))
     })
   });
 
   if (!response.ok) {
     const errText = await response.text();
-    throw makeGenerationError(`Imagen API error: ${response.status} - ${errText}`, {
+    throw makeGenerationError(`Vertex image API error: ${response.status} - ${errText}`, {
       status: response.status,
       details: errText,
-      code: response.status === 429 ? 'VERTEX_QUOTA_EXCEEDED' : 'VERTEX_IMAGEN_ERROR'
+      code: response.status === 429 ? 'VERTEX_QUOTA_EXCEEDED' : 'VERTEX_IMAGE_ERROR'
     });
   }
 
-  const data: { predictions?: Array<{ bytesBase64Encoded?: string }> } = await response.json();
-  const images = data.predictions?.map((pred) =>
-    `data:image/png;base64,${pred.bytesBase64Encoded}`
-  ) || [];
+  const data: {
+    candidates?: Array<{
+      finishReason?: string;
+      content?: { parts?: Array<{ inlineData?: { mimeType?: string; data?: string } }> };
+    }>;
+    promptFeedback?: { blockReason?: string };
+  } = await response.json();
+
+  /*
+   * A safety block is a 200 with no image, not an HTTP error. Imagen surfaced
+   * the same case as an empty predictions array and the caller's fallback chain
+   * treated it as a failure; keep that behavior but say why, since "no image"
+   * and "blocked" are very different things to debug.
+   */
+  const blockReason =
+    data.promptFeedback?.blockReason || data.candidates?.[0]?.finishReason;
+
+  const images = (data.candidates || []).flatMap((candidate) =>
+    (candidate.content?.parts || [])
+      .filter((part) => part.inlineData?.data)
+      .map(
+        (part) =>
+          `data:${part.inlineData!.mimeType || 'image/png'};base64,${part.inlineData!.data}`
+      )
+  );
+
+  if (images.length === 0) {
+    throw makeGenerationError(
+      `Vertex image API returned no image${blockReason ? ` (${blockReason})` : ''}`,
+      {
+        status: response.status,
+        details: blockReason,
+        code: 'VERTEX_IMAGE_NO_OUTPUT'
+      }
+    );
+  }
+
+  return images;
+}
+
+/** N images = N parallel calls, merged in order (replicate.ts does the same). */
+async function generateImages(
+  request: GenerationRequest,
+  safetySetting: string
+): Promise<{ images: string[]; safetySetting: string; personGeneration: string }> {
+  const accessToken = await getGcpAccessToken();
+  const numImages = Math.min(Math.max(request.numImages ?? 1, 1), 4);
+
+  const runs = await Promise.all(
+    Array.from({ length: numImages }, () =>
+      callGeminiImage(request, accessToken, safetySetting)
+    )
+  );
 
   return {
-    images,
+    images: runs.flat(),
     safetySetting,
-    personGeneration
+    personGeneration: resolvePersonGeneration(request.personGeneration)
   };
 }
 
@@ -102,19 +229,20 @@ function buildResult(
     attempts,
     safetyFilterLevel: result.safetySetting,
     ...(fallbackUsed ? { fallbackUsed: true } : {}),
-    estimatedCostUsd: IMAGEN_COST_PER_IMAGE * (request.numImages || 1)
+    estimatedCostUsd: IMAGE_COST_PER_IMAGE * (request.numImages || 1)
   });
 
   return {
     images: result.images,
     metadata: {
-      model: IMAGEN_MODEL,
+      model: IMAGE_MODEL,
       provider: 'vertex-ai',
       generatedAt: new Date().toISOString(),
       durationMs,
       attempts,
       safetyFilterLevel: result.safetySetting,
       personGeneration: result.personGeneration,
+      // Echoed, not honored — the Gemini image models take no seed.
       seed: request.seed,
       fallbackUsed
     }
@@ -139,13 +267,16 @@ async function generateWithRetry(request: GenerationRequest): Promise<Generation
     aspectRatio: request.aspectRatio || '1:1',
     safetyFilterLevel: request.safetyFilterLevel || 'block_only_high',
     seed: request.seed,
-    estimatedCostUsd: IMAGEN_COST_PER_IMAGE * (request.numImages || 1)
+    estimatedCostUsd: IMAGE_COST_PER_IMAGE * (request.numImages || 1)
   });
 
   while (attempts <= maxRetries) {
     try {
       attempts += 1;
-      const result = await callImagen(request);
+      const result = await generateImages(
+        request,
+        resolveSafetySetting(request.safetyFilterLevel)
+      );
       return buildResult(request, requestId, startedAt, attempts, false, result);
     } catch (error) {
       lastError = asGenerationError(error);
@@ -166,12 +297,10 @@ async function generateWithRetry(request: GenerationRequest): Promise<Generation
   // fallback call. Declared behavior fix (spec: generation-module).
   if (request.fallback && lastErrorRetryable) {
     try {
-      const fallbackRequest: GenerationRequest = {
-        ...request,
-        safetyFilterLevel: request.fallback.safetyFilterLevel || 'block_only_high',
-        numImages: request.numImages || 1
-      };
-      const result = await callImagen(fallbackRequest);
+      const result = await generateImages(
+        { ...request, numImages: request.numImages || 1 },
+        resolveSafetySetting(request.fallback.safetyFilterLevel || 'block_only_high')
+      );
       return buildResult(request, requestId, startedAt, attempts + 1, true, result);
     } catch (fallbackError) {
       lastError = asGenerationError(fallbackError);

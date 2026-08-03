@@ -155,9 +155,12 @@ export async function POST(req: NextRequest) {
         });
 
     } catch (error: any) {
-        // Log generation failure
+        // Log generation failure. The routing key, not a Google model name —
+        // the generation module owns which model 'imagen3' resolves to, and a
+        // literal here goes stale the moment that changes (as it did when
+        // Imagen 3 was retired).
         reqLogger.error('generation.failed', error, {
-            model: 'imagen-3.0-generate-001',
+            model: 'imagen3',
             error_code: error.code || 'GENERATION_FAILED',
         });
 
