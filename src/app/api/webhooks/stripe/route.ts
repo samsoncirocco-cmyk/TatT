@@ -24,6 +24,7 @@ import { notifyArtistOfBooking } from '@/lib/notify';
 import { ensureAdminApp } from '@/lib/firebase-admin';
 import { canTransition, appendStatus } from '@/lib/booking';
 import type { BookingStatus, BookingStatusEvent } from '@/lib/booking';
+import { grantPurchasedGenerationCredits } from '@/lib/generation-credits';
 
 export const runtime = 'nodejs';
 
@@ -314,6 +315,23 @@ async function handleEvent(event: Stripe.Event): Promise<void> {
           stripeCustomerId,
           subscriptionStatus: 'active',
         });
+      }
+
+      // One-time consumer credit pack. Only a paid Checkout Session can add
+      // credits; the ledger makes a retried Stripe event a no-op by session id.
+      if (session.mode === 'payment' && metadata.kind === 'consumer_generation_credits') {
+        if (session.payment_status !== 'paid') {
+          console.warn('[Stripe] consumer credit checkout is not paid — skipping', {
+            sessionId: session.id,
+            paymentStatus: session.payment_status,
+          });
+        } else if (!metadata.uid) {
+          console.error('[Stripe] consumer credit checkout missing uid — cannot grant credits', {
+            sessionId: session.id,
+          });
+        } else {
+          await grantPurchasedGenerationCredits(metadata.uid, session.id);
+        }
       }
 
       // Reconcile the booking document (Task 1.3): move pending → deposit_paid.

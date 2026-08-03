@@ -102,6 +102,13 @@ vi.mock('@/lib/notify', () => ({
   notifyArtistOfBooking: vi.fn().mockResolvedValue(undefined),
 }));
 
+const { grantPurchasedGenerationCreditsMock } = vi.hoisted(() => ({
+  grantPurchasedGenerationCreditsMock: vi.fn().mockResolvedValue({ granted: true, paidRemaining: 25 }),
+}));
+vi.mock('@/lib/generation-credits', () => ({
+  grantPurchasedGenerationCredits: grantPurchasedGenerationCreditsMock,
+}));
+
 // The account.updated fallback resolves the artist from the graph by
 // connected-account id; rows are staged per-test via `cypherRows`.
 const { cypherRows } = vi.hoisted(() => ({ cypherRows: [] as Array<Record<string, unknown>> }));
