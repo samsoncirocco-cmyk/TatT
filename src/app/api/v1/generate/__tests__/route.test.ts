@@ -4,12 +4,24 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
-const { generateMock, recordSpendMock, checkBudgetMock, rateLimitMock, verifyApiAuthMock } = vi.hoisted(() => ({
+const {
+  generateMock,
+  recordSpendMock,
+  checkBudgetMock,
+  rateLimitMock,
+  verifyApiAuthMock,
+  verifyFirebaseTokenMock,
+  reserveGenerationCreditMock,
+  releaseGenerationCreditMock,
+} = vi.hoisted(() => ({
   generateMock: vi.fn(),
   recordSpendMock: vi.fn(),
   checkBudgetMock: vi.fn(),
   rateLimitMock: vi.fn(),
-  verifyApiAuthMock: vi.fn()
+  verifyApiAuthMock: vi.fn(),
+  verifyFirebaseTokenMock: vi.fn(),
+  reserveGenerationCreditMock: vi.fn(),
+  releaseGenerationCreditMock: vi.fn(),
 }));
 
 // routeGeneration is real, not mocked: the route calls it to label a failure
@@ -22,6 +34,14 @@ vi.mock('@/services/generation', async (importOriginal) => ({
 
 vi.mock('@/lib/api-auth', () => ({
   verifyApiAuth: verifyApiAuthMock
+}));
+
+vi.mock('@/lib/auth-dal', () => ({ verifyFirebaseToken: verifyFirebaseTokenMock }));
+
+vi.mock('@/lib/generation-credits', () => ({
+  reserveGenerationCredit: reserveGenerationCreditMock,
+  releaseGenerationCredit: releaseGenerationCreditMock,
+  GenerationCreditsExhaustedError: class GenerationCreditsExhaustedError extends Error {},
 }));
 
 vi.mock('@/lib/rate-limit', () => ({
@@ -74,6 +94,9 @@ describe('/api/v1/generate route adapter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     verifyApiAuthMock.mockResolvedValue(null);
+    verifyFirebaseTokenMock.mockResolvedValue({ uid: 'uid_customer' });
+    reserveGenerationCreditMock.mockResolvedValue({ source: 'free', freeRemaining: 24, paidRemaining: 0 });
+    releaseGenerationCreditMock.mockResolvedValue(undefined);
     rateLimitMock.mockResolvedValue({ allowed: true });
     checkBudgetMock.mockResolvedValue({ allowed: true });
     recordSpendMock.mockResolvedValue(undefined);
@@ -137,6 +160,16 @@ describe('/api/v1/generate route adapter', () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.metadata.outputFormat).toBe('jpeg');
+  });
+
+  it('stops before generation when the lifetime and paid credits are exhausted', async () => {
+    const exhausted = Object.assign(new Error('No cuts left'), { code: 'GENERATION_CREDITS_EXHAUSTED' });
+    reserveGenerationCreditMock.mockRejectedValueOnce(exhausted);
+
+    const res = await POST(makeRequest({ prompt: 'dragon tattoo' }));
+
+    expect(res.status).toBe(402);
+    expect(generateMock).not.toHaveBeenCalled();
   });
 
   it('returns the replicate fallback shape and records flat fallback spend', async () => {
