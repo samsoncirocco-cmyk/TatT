@@ -26,9 +26,14 @@
  * write a second copy that drifts from this one.
  */
 
-/** The shape of a `CanvasRenderingContext2D.getImageData()` result. */
+/**
+ * The shape of a `CanvasRenderingContext2D.getImageData()` result — and of
+ * a raw decode from sharp, so the server-side placement composite can share
+ * this module rather than fork it. Buffer is a Uint8Array; indexing and the
+ * 0..255 channel semantics are identical.
+ */
 export interface PixelBuffer {
-  data: Uint8ClampedArray | number[];
+  data: Uint8ClampedArray | Uint8Array | number[];
   width: number;
   height: number;
 }

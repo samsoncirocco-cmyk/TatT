@@ -43,6 +43,7 @@ vi.mock('@/services/designSession', async () => {
     recordPick: vi.fn(),
     refine: vi.fn(),
     critique: vi.fn(),
+    attachPlacementPreview: vi.fn(),
     allCuts: pureCritique.allCuts,
     isFixRequest: pureCritique.isFixRequest,
     DesignSessionError,
@@ -223,56 +224,69 @@ describe('media + confirmation', () => {
   });
 });
 
-describe('media + post-reveal', () => {
-  it('attaches a reference to the revealed session instead of opening a new one', async () => {
-    // Seed the post-reveal profile the adapter would have after a delivery.
-    await memoryProfileStore.save({
-      phone: PHONE,
-      uid: null,
-      optedOut: false,
-      activeSessionId: 's1',
-      lastStage: 'revealed',
-      pendingPickId: null,
-      totalReveals: 1,
-      dailyReveals: { date: new Date().toISOString().slice(0, 10), count: 1 },
-      sessionIds: ['s1'],
-      createdAt: '2026-07-29T00:00:00.000Z',
-      updatedAt: '2026-07-29T00:00:00.000Z',
-    });
-    vi.mocked(getSession).mockResolvedValue({
-      id: 's1',
-      phase: 'revealed',
-      provider: 'vertex',
-      intake: {
-        placement: 'forearm',
-        styleTags: ['Traditional'],
-        meaning: 'resilience',
-        subject: 'snake and dagger',
-        references: [],
-        ambiguousAxes: [],
-      },
-      axisSelection: { mode: 'questionnaire', axes: [], rationale: '' },
-      variations: [1, 2, 3, 4].map((n) => ({
-        id: `v${n}`,
-        axisPosition: {},
-        prompt: `prompt ${n}`,
-        imageUrl: `https://storage.example/cut-${n}.png`,
-      })),
-      createdAt: '2026-07-29T00:00:00.000Z',
-      updatedAt: '2026-07-29T00:00:00.000Z',
-    } as unknown as Awaited<ReturnType<typeof getSession>>);
+/*
+ * The 'media + post-reveal' suite that lived here is deliberately gone.
+ *
+ * It asserted that a photo sent after the reveal attaches as a REFERENCE to
+ * the session. The placement work below supersedes that: after the reveal a
+ * photo is the customer's BODY, to composite the design onto — which is the
+ * whole point of `a photo after the reveal is the body, not a reference`.
+ *
+ * Both behaviours cannot hold. This is a semantic conflict between two
+ * commits, not a merge artefact: #299 shipped the reference reading and this
+ * change reverses it on purpose.
+ */
 
-    const outcome = await handleInbound({
-      phone: PHONE,
-      body: 'make it more like this',
-      media: MEDIA,
-    });
+describe('a photo after the reveal is the body, not a reference', () => {
+  const PHOTO = [{ url: 'https://api.twilio.com/media/ME1', contentType: 'image/jpeg' }];
 
-    expect(outcome.kind).toBe('critique');
-    expect(attachMock).toHaveBeenCalledWith('s1', CHIBI_ANALYSIS, 'sms');
-    expect(converseMock).not.toHaveBeenCalled();
-    const profile = await memoryProfileStore.get(PHONE);
-    expect(profile?.activeSessionId).toBe('s1');
-    expect(profile?.lastStage).toBe('critique-running');
+  /** Walk the phone to a delivered reveal. */
+  async function driveToRevealed(phone: string) {
+    vi.mocked(converse).mockResolvedValueOnce({
+      sessionId: 's1',
+      reply: 'Ready?',
+      stage: 'proposal',
+      turn: 1,
+    } as unknown as Awaited<ReturnType<typeof converse>>);
+    await handleInbound({ phone, body: 'a snake on my forearm' });
+    await handleInbound({ phone, body: 'yes' });
+    const profile = await memoryProfileStore.get(phone);
+    if (profile) {
+      profile.lastStage = 'revealed';
+      profile.revealArmedAt = null;
+      await memoryProfileStore.save(profile);
+    }
+  }
+
+  // The whole point of the split: intake is over, so a picture is where the
+  // tattoo goes — and reading it as inspiration would spend vision budget
+  // and put the texter's own arm in the artist's Brief as a reference.
+  it('routes it to placement and never to the vision analyzer', async () => {
+    const phone = '+15550001111';
+    await driveToRevealed(phone);
+
+    const outcome = await handleInbound({ phone, body: 'here', media: PHOTO });
+
+    expect(outcome.kind).toBe('placement');
+    if (outcome.kind === 'placement') {
+      expect(outcome.mediaUrl).toBe(PHOTO[0].url);
+      expect(outcome.message).toBe('here');
+    }
+    expect(analyzeInboundMedia).not.toHaveBeenCalled();
+  });
+
+  it('still reads a photo BEFORE the reveal as inspiration', async () => {
+    const phone = '+15550002222';
+    vi.mocked(analyzeInboundMedia).mockResolvedValueOnce({
+      analyses: [],
+      ignored: 0,
+      unreadable: 1,
+      budgetExhausted: false,
+    } as unknown as MediaIngest);
+
+    const outcome = await handleInbound({ phone, body: '', media: PHOTO });
+
+    expect(outcome.kind).toBe('reply');
+    expect(analyzeInboundMedia).toHaveBeenCalledTimes(1);
   });
 });
