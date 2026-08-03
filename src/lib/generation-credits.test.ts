@@ -51,7 +51,12 @@ describe('generation credits', () => {
 
     const reservation = await reserveGenerationCredit('uid_1');
 
-    expect(reservation).toEqual({ source: 'free', freeRemaining: 24, paidRemaining: 0 });
+    expect(reservation).toEqual({
+      id: expect.any(String),
+      source: 'free',
+      freeRemaining: 24,
+      paidRemaining: 0,
+    });
     expect(txSetMock).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ freeRemaining: LIFETIME_FREE_GENERATIONS - 1, paidRemaining: 0 }),
@@ -63,6 +68,7 @@ describe('generation credits', () => {
     givenTransaction({ freeRemaining: 0, paidRemaining: 3 });
 
     await expect(reserveGenerationCredit('uid_1')).resolves.toEqual({
+      id: expect.any(String),
       source: 'paid',
       freeRemaining: 0,
       paidRemaining: 2,
@@ -114,6 +120,7 @@ describe('generation credits', () => {
     givenTransaction(null);
 
     await releaseGenerationCredit('uid_1', {
+      id: 'res_1',
       source: 'paid',
       freeRemaining: 0,
       paidRemaining: 2,
@@ -121,8 +128,29 @@ describe('generation credits', () => {
 
     expect(txSetMock).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ freeRemaining: 0, paidRemaining: 3 }),
+      expect.objectContaining({
+        freeRemaining: 0,
+        paidRemaining: 3,
+        releasedReservationIds: { __arrayUnion: 'res_1' },
+      }),
       { merge: true }
     );
+  });
+
+  it('does not restore a credit twice for the same reservation', async () => {
+    givenTransaction({
+      freeRemaining: 25,
+      paidRemaining: 0,
+      releasedReservationIds: ['res_1'],
+    });
+
+    await releaseGenerationCredit('uid_1', {
+      id: 'res_1',
+      source: 'free',
+      freeRemaining: 24,
+      paidRemaining: 0,
+    });
+
+    expect(txSetMock).not.toHaveBeenCalled();
   });
 });

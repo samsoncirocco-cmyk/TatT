@@ -5,6 +5,7 @@
  * owns one Firestore document, and every debit or Stripe grant is a
  * transaction so concurrent requests cannot spend the same cut twice.
  */
+import { randomUUID } from 'crypto';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { ensureAdminApp } from './firebase-admin';
 
@@ -16,6 +17,7 @@ const COLLECTION = 'generation_credits';
 export type CreditSource = 'free' | 'paid';
 
 export type GenerationCreditReservation = {
+  id: string;
   source: CreditSource;
   freeRemaining: number;
   paidRemaining: number;
@@ -53,9 +55,15 @@ export async function reserveGenerationCredit(uid: string): Promise<GenerationCr
     const data = (snap.data() as Record<string, unknown> | undefined) ?? {};
     const freeRemaining = nonNegativeNumber(data.freeRemaining, LIFETIME_FREE_GENERATIONS);
     const paidRemaining = nonNegativeNumber(data.paidRemaining, 0);
+    const id = randomUUID();
 
     if (freeRemaining > 0) {
-      const next = { source: 'free' as const, freeRemaining: freeRemaining - 1, paidRemaining };
+      const next = {
+        id,
+        source: 'free' as const,
+        freeRemaining: freeRemaining - 1,
+        paidRemaining,
+      };
       tx.set(
         ref,
         {
@@ -69,7 +77,12 @@ export async function reserveGenerationCredit(uid: string): Promise<GenerationCr
     }
 
     if (paidRemaining > 0) {
-      const next = { source: 'paid' as const, freeRemaining, paidRemaining: paidRemaining - 1 };
+      const next = {
+        id,
+        source: 'paid' as const,
+        freeRemaining,
+        paidRemaining: paidRemaining - 1,
+      };
       tx.set(
         ref,
         {
@@ -97,6 +110,13 @@ export async function releaseGenerationCredit(
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     const data = (snap.data() as Record<string, unknown> | undefined) ?? {};
+    const released = Array.isArray(data.releasedReservationIds)
+      ? data.releasedReservationIds.filter((value): value is string => typeof value === 'string')
+      : [];
+    // At-most-once: retries / duplicate failure handlers must not mint credits.
+    if (!reservation.id || released.includes(reservation.id)) {
+      return;
+    }
     // Fall back to the reservation's post-debit balances — never invent a full
     // free allowance here, or a missing/invalid doc would mint credits on release.
     const freeRemaining = nonNegativeNumber(data.freeRemaining, reservation.freeRemaining);
@@ -106,6 +126,7 @@ export async function releaseGenerationCredit(
       {
         freeRemaining: reservation.source === 'free' ? freeRemaining + 1 : freeRemaining,
         paidRemaining: reservation.source === 'paid' ? paidRemaining + 1 : paidRemaining,
+        releasedReservationIds: FieldValue.arrayUnion(reservation.id),
         updatedAt: FieldValue.serverTimestamp(),
       },
       { merge: true }
