@@ -92,7 +92,15 @@ export async function POST(req: NextRequest) {
             personGeneration,
             outputFormat,
             seed,
-            modelId: 'imagen3',
+            // Route by style rather than pinning Vertex. This used to hardcode
+            // modelId 'imagen3', which made every call here go to Google no
+            // matter what modelRoutingRules.js said — so taking realism off
+            // Google in the routing table did not cover this endpoint. Passing
+            // the style lets the one routing table decide, here and everywhere
+            // else, and the replicate-result branch below already handles a
+            // non-Vertex outcome.
+            style,
+            bodyPart,
             retry: {
                 maxRetries: 2,
                 baseDelayMs: 400
