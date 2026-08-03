@@ -37,6 +37,12 @@ import {
   converse,
   confirmProposal,
   attachReference,
+  getSession,
+  recordPick,
+  refine,
+  critique,
+  allCuts,
+  isFixRequest,
   DesignSessionError,
 } from '@/services/designSession';
 import {
@@ -50,6 +56,13 @@ import {
 // copy of this list is a real bug class — a phrase that reveals on the web
 // but argues over SMS.
 import { isConfirmationIntent } from '@/features/design-session/services/confirmationIntent';
+// The pick vocabulary. `isBarePickReference` is the SMS-only half: the web
+// never needs it because there a pick is a click, not a sentence.
+import {
+  parsePickIntent,
+  parsePickOrdinals,
+  isBarePickReference,
+} from '@/features/design-session/services/pickIntent';
 import type { InboundSms, InboundOutcome, RevealDelivery, SmsProfile } from '../types';
 import { resolveProfileStore, newProfile } from './profileStore';
 import { analyzeInboundMedia, type MediaIngest } from './media';
@@ -64,10 +77,40 @@ import {
   revealClosingText,
   cutCaption,
   referenceAckText,
+  pickRetryText,
+  mostNotYouQuestion,
+  pickCollisionText,
+  chatterAckText,
+  CRITIQUE_ACK,
+  CRITIQUE_FAILED_TEXT,
+  REFINE_ACK,
+  REFINE_FAILED_TEXT,
+  REFINED_CAPTION,
+  refinedClosingText,
 } from './render';
 
-/** After this long, an unreported in-flight reveal is presumed dead. */
+/** After this long, an unreported in-flight render is presumed dead. */
 const REVEAL_PENDING_STALE_MS = 10 * 60 * 1000;
+
+/**
+ * Stages where a paid render is already running. A second text must never
+ * re-fire one; it waits, or — past the stale window — falls back to the
+ * stage that armed it so the texter can try again.
+ */
+const IN_FLIGHT_STAGES: Record<string, { waiting: string; recoverTo: string }> = {
+  'reveal-pending': {
+    waiting: 'Still sketching — your four cuts land here in a minute or two.',
+    recoverTo: 'proposal',
+  },
+  'critique-running': {
+    waiting: "On it — the new cut lands here shortly.",
+    recoverTo: 'revealed',
+  },
+  'refine-running': {
+    waiting: 'Still reworking it — the new one lands here shortly.',
+    recoverTo: 'refine-pending',
+  },
+};
 
 /** Per-phone reveal cap per UTC day. REQUIRED guardrail, env-tunable. */
 export function revealsPerDay(): number {
@@ -188,18 +231,16 @@ export async function handleInbound(inbound: InboundSms): Promise<InboundOutcome
   // ── Renders in flight: never double-fire on an impatient second yes ──
   // Media sent mid-render is deliberately NOT analyzed: no vision spend on
   // a message that cannot attach to anything yet.
-  if (profile.lastStage === 'reveal-pending') {
+  const inFlight = IN_FLIGHT_STAGES[profile.lastStage ?? ''];
+  if (inFlight) {
     const armedAtMs = Date.parse(profile.revealArmedAt ?? '') || 0;
     if (Date.now() - armedAtMs < REVEAL_PENDING_STALE_MS) {
-      return {
-        kind: 'reply',
-        text: 'Still sketching — your four cuts land here in a minute or two.',
-      };
+      return { kind: 'reply', text: inFlight.waiting };
     }
-    // The in-flight reveal died without reporting (crashed instance). The
-    // slot was refunded only if the failure path ran, so recover to
-    // 'proposal': a fresh "yes" re-arms through every guardrail again.
-    profile.lastStage = 'proposal';
+    // The in-flight render died without reporting (crashed instance). Any
+    // reserved slot was refunded only if the failure path ran, so recover to
+    // the stage that armed it: a fresh answer re-runs every guardrail.
+    profile.lastStage = inFlight.recoverTo;
     profile.revealArmedAt = null;
     await store.save(profile);
   }
@@ -237,6 +278,18 @@ export async function handleInbound(inbound: InboundSms): Promise<InboundOutcome
     isConfirmationIntent(body)
   ) {
     return withReferenceAck(await armReveal(profile, store), ackText);
+  }
+
+  // ── The refinement answer: the last paid step, and the only one that
+  // reaches phase 'complete' — where the Brief an artist reads is built.
+  // Free text, not an ordinal: whatever they'd change IS the answer.
+  if (profile.activeSessionId && profile.lastStage === 'refine-pending') {
+    return withReferenceAck(await armRefine(profile, store, body), ackText);
+  }
+
+  // ── Life after the reveal: critique, then the pick ───────────────────
+  if (profile.activeSessionId && POST_REVEAL_STAGES.has(profile.lastStage ?? '')) {
+    return withReferenceAck(await postRevealTurn(profile, store, body), ackText);
   }
 
   // ── A regular conversation turn on the shared engine ─────────────────
@@ -347,6 +400,93 @@ function withReferenceAck(outcome: InboundOutcome, ackText: string): InboundOutc
 
 type ProfileStoreT = ReturnType<typeof resolveProfileStore>;
 
+/**
+ * Stages where the texter is talking ABOUT a delivered reveal rather than
+ * describing a new tattoo.
+ */
+const POST_REVEAL_STAGES = new Set(['revealed', 'pick-pending']);
+
+/**
+ * The way out of a delivered reveal into a brand-new design.
+ *
+ * The web does not need one: a user who wants to start again navigates back
+ * to /design. SMS has no navigation — every message lands in the same
+ * thread — so without an explicit escape a texter would be stuck critiquing
+ * the same four cuts forever, because `isFixRequest` reads any sentence as
+ * a fix. Deterministic rather than model-judged: mistaking "start over" for
+ * a critique spends a render on a design they have already abandoned.
+ */
+const RESTART_INTENT =
+  /\b(?:start (?:over|again|fresh)|from scratch|new (?:design|tattoo|idea|one)|different (?:design|tattoo|idea)|something else|scrap (?:it|that|this)|forget (?:it|that|this))\b/i;
+
+/**
+ * Everything the web offers after the four cuts land, over SMS.
+ *
+ * The web can tell a critique from a pick by which affordance was used —
+ * typing versus clicking. SMS has only text, so the split is explicit:
+ *
+ *   a choice and nothing else ("3", "I'll take cut 2")  → the pick
+ *   an instruction ("make 2 bolder", "riku's missing")  → a critique re-cut
+ *   pure chatter ("these are sick")                     → acknowledged, free
+ *
+ * Order matters. `isFixRequest` deliberately treats almost everything as a
+ * fix, so the bare-choice test has to run first — otherwise a texter who
+ * answers "2" spends a render re-cutting cut 2 against the instruction "2".
+ */
+async function postRevealTurn(
+  profile: SmsProfile,
+  store: ProfileStoreT,
+  body: string
+): Promise<InboundOutcome> {
+  const sessionId = profile.activeSessionId!;
+
+  let session;
+  try {
+    session = await getSession(sessionId);
+  } catch {
+    // The session expired out from under the profile. Drop the post-reveal
+    // state and let the message open a fresh design rather than dead-end.
+    profile.activeSessionId = null;
+    profile.lastStage = null;
+    profile.pendingPickId = null;
+    profile.updatedAt = new Date().toISOString();
+    await store.save(profile);
+    return conversationTurn(profile, store, body);
+  }
+
+  // The escape hatch, checked before anything that could spend: a texter
+  // asking for a fresh design must not be charged for a re-cut of the old one.
+  if (RESTART_INTENT.test(body)) {
+    profile.pendingPickId = null;
+    profile.activeSessionId = null;
+    profile.lastStage = null;
+    profile.updatedAt = new Date().toISOString();
+    await store.save(profile);
+    return conversationTurn(profile, store, body);
+  }
+
+  // Critique cuts are pickable too (ADR-0039), and SMS numbers the whole
+  // list so a number means the same cut the web shows in that position.
+  const cuts = allCuts(session);
+  const stage = profile.lastStage;
+
+  // ── The most-not-you tap: an ordinal answer to a direct question ─────
+  if (stage === 'pick-pending') {
+    return mostNotYouTurn(profile, store, session, cuts, body);
+  }
+
+  if (isBarePickReference(body, cuts.length)) {
+    return firstPickTurn(profile, store, cuts, body);
+  }
+
+  if (!isFixRequest(body)) {
+    // Chatter costs nothing and gets a real answer, not silence.
+    return { kind: 'reply', text: chatterAckText(cuts.length) };
+  }
+
+  return armCritique(profile, store, body);
+}
+
 async function armReveal(
   profile: SmsProfile,
   store: ProfileStoreT
@@ -416,6 +556,315 @@ async function armReveal(
     text: REVEAL_ACK,
     sessionId: profile.activeSessionId!,
     phone,
+  };
+}
+
+/**
+ * Arm the one refinement round (ADR-0013 hard stop). The global budget gate
+ * applies, but NOT the daily reveal cap — that counts reveals, this session
+ * already spent its slot, and charging it twice would strand a texter
+ * mid-flow with a design they cannot finish.
+ */
+async function armRefine(
+  profile: SmsProfile,
+  store: ProfileStoreT,
+  answer: string
+): Promise<InboundOutcome> {
+  if (!isDemoMode()) {
+    const budget = await checkBudget();
+    if (!budget.allowed) {
+      logger.warn({
+        event_type: 'sketchbot_sms.refine_budget_exhausted',
+        phone_last4: phoneLast4(profile.phone),
+        spent_cents: budget.spentCents,
+      });
+      return { kind: 'reply', text: BUDGET_EXHAUSTED_TEXT };
+    }
+  }
+
+  profile.lastStage = 'refine-running';
+  profile.revealArmedAt = new Date().toISOString();
+  profile.updatedAt = profile.revealArmedAt;
+  await store.save(profile);
+
+  logger.info({
+    event_type: 'sketchbot_sms.refine_armed',
+    phone_last4: phoneLast4(profile.phone),
+    session_id: profile.activeSessionId,
+  });
+
+  return {
+    kind: 'refine',
+    text: REFINE_ACK,
+    sessionId: profile.activeSessionId!,
+    phone: profile.phone,
+    answer,
+  };
+}
+
+/**
+ * The deferred half of a refinement. Reaching phase 'complete' is what
+ * assembles the Brief — until this runs, an SMS session has nothing an
+ * artist can be handed.
+ *
+ * Spend is NOT recorded here: the designSession service records it, exactly
+ * as it does for the reveal. A second charge in this channel would bill the
+ * same render twice against the shared cap.
+ */
+export async function executeRefine(
+  sessionId: string,
+  phone: string,
+  answer: string
+): Promise<RevealDelivery> {
+  const store = resolveProfileStore();
+  const base = appBaseUrl();
+
+  let session;
+  try {
+    session = await refine(sessionId, { answer });
+  } catch (error) {
+    // Re-arm so a fresh answer can retry — the failure text promises it.
+    // No cap slot to refund: refinement never consumed one.
+    const profile = await store.get(phone);
+    if (profile) {
+      profile.lastStage = 'refine-pending';
+      profile.revealArmedAt = null;
+      profile.updatedAt = new Date().toISOString();
+      await store.save(profile);
+    }
+    logger.error({
+      event_type: 'sketchbot_sms.refine_failed',
+      phone_last4: phoneLast4(phone),
+      session_id: sessionId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return { cuts: [], closingText: REFINE_FAILED_TEXT };
+  }
+
+  const profile = (await store.get(phone)) ?? newProfile(phone);
+  profile.lastStage = 'complete';
+  profile.revealArmedAt = null;
+  profile.updatedAt = new Date().toISOString();
+  await store.save(profile);
+
+  const refinedUrl = session.refinedVariation?.imageUrl;
+
+  logger.info({
+    event_type: 'sketchbot_sms.refine_delivered',
+    phone_last4: phoneLast4(phone),
+    session_id: session.id,
+    provider: session.provider,
+    has_image: !!refinedUrl,
+  });
+
+  return {
+    cuts: refinedUrl ? [{ caption: REFINED_CAPTION, mediaUrl: refinedUrl }] : [],
+    closingText: refinedClosingText(handoffUrl(base, session.id)),
+  };
+}
+
+/**
+ * The artist handoff link. `ds` is what /smart-match reads to load the
+ * brief, pre-select the style pills, and enrich the semantic query — and it
+ * threads onward to /swipe so the eventual booking records which design
+ * session it came from. Without it the texter restarts artist discovery
+ * from a blank form.
+ */
+function handoffUrl(base: string, sessionId: string, path = '/smart-match'): string {
+  return `${base}${path}?ds=${encodeURIComponent(sessionId)}`;
+}
+
+/** First tap: hold the choice, ask for its opposite (ADR-0012). */
+async function firstPickTurn(
+  profile: SmsProfile,
+  store: ProfileStoreT,
+  cuts: Awaited<ReturnType<typeof allCuts>>,
+  body: string
+): Promise<InboundOutcome> {
+  const ordinal = parsePickIntent(body, cuts.length)!;
+  profile.pendingPickId = cuts[ordinal - 1].id;
+  profile.lastStage = 'pick-pending';
+  profile.updatedAt = new Date().toISOString();
+  await store.save(profile);
+  return { kind: 'reply', text: mostNotYouQuestion(ordinal) };
+}
+
+/**
+ * Second tap: both ids in hand. recordPick needs them together and refuses a
+ * pair naming the same cut, which is why this is a second turn rather than a
+ * fabricated default — inventing a most-not-you writes a dislike the texter
+ * never expressed into the artist's Brief.
+ */
+async function mostNotYouTurn(
+  profile: SmsProfile,
+  store: ProfileStoreT,
+  session: Awaited<ReturnType<typeof getSession>>,
+  cuts: Awaited<ReturnType<typeof allCuts>>,
+  body: string
+): Promise<InboundOutcome> {
+  const ordinals = parsePickOrdinals(body, cuts.length);
+
+  if (ordinals.length !== 1) {
+    return { kind: 'reply', text: pickRetryText(cuts.length) };
+  }
+
+  const namedId = cuts[ordinals[0] - 1].id;
+  if (namedId === profile.pendingPickId) {
+    return { kind: 'reply', text: pickCollisionText(cuts.length) };
+  }
+
+  let picked;
+  try {
+    picked = await recordPick(session.id, {
+      pickId: profile.pendingPickId!,
+      mostNotYouId: namedId,
+    });
+  } catch (error) {
+    // The session moved on without this channel — most likely the same
+    // person picked on the web. Clear the state so the next text opens a
+    // new design instead of re-asking a dead question.
+    if (error instanceof DesignSessionError) {
+      profile.pendingPickId = null;
+      profile.lastStage = null;
+      profile.activeSessionId = null;
+      profile.updatedAt = new Date().toISOString();
+      await store.save(profile);
+      logger.warn({
+        event_type: 'sketchbot_sms.pick_rejected',
+        phone_last4: phoneLast4(profile.phone),
+        session_id: session.id,
+        code: error.code,
+      });
+      return {
+        kind: 'reply',
+        text: "Looks like that set already moved on without me. Tell me what you're after and I'll start a fresh one.",
+      };
+    }
+    throw error;
+  }
+
+  profile.pendingPickId = null;
+  profile.lastStage = 'refine-pending';
+  profile.updatedAt = new Date().toISOString();
+  await store.save(profile);
+
+  logger.info({
+    event_type: 'sketchbot_sms.pick_recorded',
+    phone_last4: phoneLast4(profile.phone),
+    session_id: session.id,
+  });
+
+  return {
+    kind: 'reply',
+    text: renderSmsReply(
+      picked.refinementQuestion ??
+        "Locked in. One last thing — what would you change about it?"
+    ),
+  };
+}
+
+/**
+ * Arm one critique re-cut (ADR-0039). The allowance ledger and the spend
+ * both live inside the designSession service, so this channel only checks
+ * the global pool before committing to the wait — charging here as well
+ * would bill the same render twice.
+ */
+async function armCritique(
+  profile: SmsProfile,
+  store: ProfileStoreT,
+  message: string
+): Promise<InboundOutcome> {
+  if (!isDemoMode()) {
+    const budget = await checkBudget();
+    if (!budget.allowed) {
+      logger.warn({
+        event_type: 'sketchbot_sms.critique_budget_exhausted',
+        phone_last4: phoneLast4(profile.phone),
+        spent_cents: budget.spentCents,
+      });
+      return { kind: 'reply', text: BUDGET_EXHAUSTED_TEXT };
+    }
+  }
+
+  profile.lastStage = 'critique-running';
+  profile.revealArmedAt = new Date().toISOString();
+  profile.updatedAt = profile.revealArmedAt;
+  await store.save(profile);
+
+  logger.info({
+    event_type: 'sketchbot_sms.critique_armed',
+    phone_last4: phoneLast4(profile.phone),
+    session_id: profile.activeSessionId,
+  });
+
+  return {
+    kind: 'critique',
+    text: CRITIQUE_ACK,
+    sessionId: profile.activeSessionId!,
+    phone: profile.phone,
+    message,
+  };
+}
+
+/**
+ * The deferred half of a critique. Mirrors executeReveal: the render
+ * outlives Twilio's webhook window, so the ack already went out and the new
+ * cut arrives by MMS.
+ *
+ * A turn that spends nothing — chatter the service filtered, an unresolvable
+ * target, a spent allowance — still returns its reply. The service decides;
+ * this channel only delivers.
+ */
+export async function executeCritique(
+  sessionId: string,
+  phone: string,
+  message: string
+): Promise<RevealDelivery> {
+  const store = resolveProfileStore();
+
+  let result;
+  try {
+    result = await critique(sessionId, { message });
+  } catch (error) {
+    const profile = await store.get(phone);
+    if (profile) {
+      profile.lastStage = 'revealed';
+      profile.revealArmedAt = null;
+      profile.updatedAt = new Date().toISOString();
+      await store.save(profile);
+    }
+    logger.error({
+      event_type: 'sketchbot_sms.critique_failed',
+      phone_last4: phoneLast4(phone),
+      session_id: sessionId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return { cuts: [], closingText: CRITIQUE_FAILED_TEXT };
+  }
+
+  const profile = (await store.get(phone)) ?? newProfile(phone);
+  profile.lastStage = 'revealed';
+  profile.revealArmedAt = null;
+  profile.updatedAt = new Date().toISOString();
+  await store.save(profile);
+
+  logger.info({
+    event_type: 'sketchbot_sms.critique_delivered',
+    phone_last4: phoneLast4(phone),
+    session_id: sessionId,
+    generated: result.generated,
+    fixes_remaining: result.fixesRemaining,
+  });
+
+  // The new cut takes the next number in the session's running order, so
+  // "5" means to the texter exactly what the fifth tile means on the web.
+  const position = allCuts(result.session).length;
+  return {
+    cuts:
+      result.cut?.imageUrl
+        ? [{ caption: cutCaption(position - 1, position), mediaUrl: result.cut.imageUrl }]
+        : [],
+    closingText: renderSmsReply(result.reply),
   };
 }
 

@@ -122,10 +122,76 @@ export function unavailableText(webUrl: string): string {
 export const INTERNAL_ERROR_TEXT =
   "Something went sideways on my end — that's mine to fix, not yours. Text me again in a minute and I'll pick this straight back up.";
 
-/** Closing text of a reveal MMS sequence — the bridge into the web session. */
+/**
+ * Closing text of a reveal MMS sequence — the bridge into the web session,
+ * and the invitation that opens everything after it.
+ *
+ * It names both moves the channel now understands, because a texter who is
+ * told only "here are four" has no way to know they can talk back to them.
+ */
 export function revealClosingText(shareUrl: string): string {
-  return `Four takes, four directions. See them big, try them on your skin in AR, and book the artist who can ink it: ${shareUrl}`;
+  return (
+    'Four takes, four directions. Tell me what to change on any of them, text ' +
+    `a number to lock one in, or say "start over" for a fresh idea. See them ` +
+    `big here: ${shareUrl}`
+  );
 }
+
+/** The reply named no single cut — ask again without scolding. */
+export function pickRetryText(cutCount: number): string {
+  return `Just the number — 1 to ${cutCount} — whichever one you'd actually put on your body.`;
+}
+
+/** The pick landed; now the one clean negative signal (ADR-0012). */
+export function mostNotYouQuestion(pickedNumber: number): string {
+  return `Cut ${pickedNumber} it is. Now the opposite: which one is the least you? That tells me what to steer away from.`;
+}
+
+/** The most-not-you tap named the cut they already picked. */
+export function pickCollisionText(cutCount: number): string {
+  return (
+    `That's the one you're keeping — I need a different number for the one ` +
+    `that's least you. Any of the other ${Math.max(cutCount - 1, 1)}.`
+  );
+}
+
+/** Praise with no instruction in it — answered, never silently ignored. */
+export function chatterAckText(cutCount: number): string {
+  return (
+    `Glad they landed. Tell me what to change on any of them, or text a ` +
+    `number 1 to ${cutCount} to lock one in.`
+  );
+}
+
+/** Ack sent the moment a critique re-cut is armed. */
+export const CRITIQUE_ACK = "On it — reworking that now. Back in a moment.";
+
+/** The critique render failed after the ack — own it, invite the retry. */
+export const CRITIQUE_FAILED_TEXT =
+  "That re-cut didn't come together — my fault, not yours. Say it again and I'll take another run at it.";
+
+/** Ack sent the moment a refinement is armed — one render still takes time. */
+export const REFINE_ACK = "Got it. Reworking that one now — back in a moment.";
+
+/** Caption on the single regenerated design. */
+export const REFINED_CAPTION = 'The tightened version';
+
+/**
+ * Closing text once the session is complete. This is the only SMS exit that
+ * carries the session id, because it is the only point where a Brief exists
+ * — /smart-match?ds= reads it to pre-select styles and enrich the search,
+ * and threads the id onward so the booking records which design it came from.
+ */
+export function refinedClosingText(matchUrl: string): string {
+  return (
+    `That's the one an artist works from. Here are the artists whose work ` +
+    `actually fits it: ${matchUrl}`
+  );
+}
+
+/** The refinement render failed after the ack — own it, offer the retry. */
+export const REFINE_FAILED_TEXT =
+  "That rework didn't come together — my fault, not yours. Tell me again what you'd change and I'll take another run at it.";
 
 /** Caption for cut n of 4 in the sequential MMS delivery. */
 export function cutCaption(index: number, total: number): string {

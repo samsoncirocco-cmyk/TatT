@@ -8,6 +8,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   handleInbound,
   executeReveal,
+  executeCritique,
+  executeRefine,
   recordOptOut,
   isOptedOut,
 } from '../index';
@@ -15,13 +17,28 @@ import {
   clearMemoryProfiles,
   memoryProfileStore,
 } from '../internal/profileStore';
-import { REVEAL_ACK, BUDGET_EXHAUSTED_TEXT, REVEAL_FAILED_TEXT } from '../internal/render';
-import { converse, confirmProposal, DesignSessionError } from '@/services/designSession';
+import {
+  REVEAL_ACK,
+  BUDGET_EXHAUSTED_TEXT,
+  REVEAL_FAILED_TEXT,
+  CRITIQUE_FAILED_TEXT,
+  REFINE_FAILED_TEXT,
+} from '../internal/render';
+import {
+  converse,
+  confirmProposal,
+  getSession,
+  recordPick,
+  refine,
+  critique,
+  DesignSessionError,
+} from '@/services/designSession';
 import { checkBudget, recordConversationTurnSpend } from '@/lib/budget-tracker';
 import { resolveSharedDesignStore } from '@/lib/shared-design-store';
 import { getAuth } from 'firebase-admin/auth';
 
-vi.mock('@/services/designSession', () => {
+vi.mock('@/services/designSession', async () => {
+  const pureCritique = await import('@/services/designSession/internal/critique');
   class DesignSessionError extends Error {
     readonly code: string;
     readonly status: number;
@@ -36,6 +53,16 @@ vi.mock('@/services/designSession', () => {
     converse: vi.fn(),
     confirmProposal: vi.fn(),
     attachReference: vi.fn(),
+    getSession: vi.fn(),
+    recordPick: vi.fn(),
+    refine: vi.fn(),
+    critique: vi.fn(),
+    // The REAL pure helpers. They decide whether a message is a fix request
+    // or chatter, which is precisely the routing under test — a stubbed copy
+    // would drift from the web's behaviour and hide that drift. Safe to
+    // import: internal/critique has no I/O, only type imports.
+    allCuts: pureCritique.allCuts,
+    isFixRequest: pureCritique.isFixRequest,
     DesignSessionError,
   };
 });
@@ -121,6 +148,18 @@ async function driveToProposal(phone = PHONE) {
     turn('proposal', { playback: 'a traditional snake and dagger on your forearm' })
   );
   await handleInbound({ phone, body: 'a snake and dagger on my forearm' });
+}
+
+/**
+ * Start a SECOND design after a reveal already landed. SMS has no "back to
+ * /design" navigation, so the channel needs the explicit restart the web
+ * gets for free — without it the message reads as a critique of the cuts
+ * already on the texter's phone.
+ */
+async function restartAndDriveToProposal(phone = PHONE) {
+  vi.mocked(converse).mockResolvedValueOnce(turn('chatting'));
+  await handleInbound({ phone, body: 'start over' });
+  await driveToProposal(phone);
 }
 
 beforeEach(() => {
@@ -315,6 +354,239 @@ describe('reveal flow', () => {
   });
 });
 
+describe('parity with the web after the reveal', () => {
+  /** Walk a phone to delivered cuts, with the session readable. */
+  async function driveToRevealed(phone = PHONE) {
+    await driveToProposal(phone);
+    await handleInbound({ phone, body: 'yes' });
+    vi.mocked(confirmProposal).mockResolvedValueOnce(
+      revealedSession() as unknown as Awaited<ReturnType<typeof confirmProposal>>
+    );
+    await executeReveal('s1', phone);
+    vi.mocked(getSession).mockResolvedValue(
+      revealedSession() as unknown as Awaited<ReturnType<typeof getSession>>
+    );
+  }
+
+  describe('critique', () => {
+    it('treats an instruction as a fix and defers the re-cut', async () => {
+      await driveToRevealed();
+
+      const outcome = await handleInbound({ phone: PHONE, body: 'make 2 bolder' });
+
+      expect(outcome.kind).toBe('critique');
+      if (outcome.kind === 'critique') expect(outcome.message).toBe('make 2 bolder');
+      const profile = await memoryProfileStore.get(PHONE);
+      expect(profile?.lastStage).toBe('critique-running');
+    });
+
+    it('delivers the new cut numbered after the reveal four', async () => {
+      await driveToRevealed();
+      await handleInbound({ phone: PHONE, body: 'riku is missing' });
+      vi.mocked(critique).mockResolvedValueOnce({
+        session: {
+          ...revealedSession(),
+          critiqueCuts: [{ id: 'c1', axisPosition: {}, prompt: 'p', imageUrl: 'https://s/c1.png' }],
+        },
+        reply: 'Added Riku — here it is.',
+        cut: { id: 'c1', axisPosition: {}, prompt: 'p', imageUrl: 'https://s/c1.png' },
+        fixesRemaining: 24,
+        exhausted: false,
+        generated: true,
+      } as unknown as Awaited<ReturnType<typeof critique>>);
+
+      const delivery = await executeCritique('s1', PHONE, 'riku is missing');
+
+      // Five cuts exist now, so the new one is "Cut 5 of 5" — the same
+      // position the web shows it in.
+      expect(delivery.cuts).toEqual([
+        { caption: 'Cut 5 of 5', mediaUrl: 'https://s/c1.png' },
+      ]);
+      expect(delivery.closingText).toContain('Added Riku');
+      const profile = await memoryProfileStore.get(PHONE);
+      expect(profile?.lastStage).toBe('revealed');
+    });
+
+    it('passes a turn that spent nothing straight through', async () => {
+      await driveToRevealed();
+      vi.mocked(critique).mockResolvedValueOnce({
+        session: revealedSession(),
+        reply: "You're out of fixes on this one — let's get it in front of an artist.",
+        fixesRemaining: 0,
+        exhausted: true,
+        generated: false,
+      } as unknown as Awaited<ReturnType<typeof critique>>);
+
+      const delivery = await executeCritique('s1', PHONE, 'again but bolder');
+
+      expect(delivery.cuts).toHaveLength(0);
+      expect(delivery.closingText).toContain('out of fixes');
+    });
+
+    it('re-arms for another try when the re-cut fails', async () => {
+      await driveToRevealed();
+      await handleInbound({ phone: PHONE, body: 'bolder' });
+      vi.mocked(critique).mockRejectedValueOnce(new Error('provider blew up'));
+
+      const delivery = await executeCritique('s1', PHONE, 'bolder');
+
+      expect(delivery.closingText).toBe(CRITIQUE_FAILED_TEXT);
+      const profile = await memoryProfileStore.get(PHONE);
+      expect(profile?.lastStage).toBe('revealed');
+    });
+
+    it('never double-fires on an impatient second text', async () => {
+      await driveToRevealed();
+      await handleInbound({ phone: PHONE, body: 'make it bolder' });
+
+      const again = await handleInbound({ phone: PHONE, body: 'bolder!!' });
+
+      expect(again.kind).toBe('reply');
+      if (again.kind === 'reply') expect(again.text).toContain('new cut lands here');
+    });
+
+    // The chatter list is deliberately tight (ADR-0039): only messages that
+    // are ENTIRELY praise cost nothing. "these are sick" is a fix request on
+    // the web too, because a classifier that shrugs at "riku's missing" is
+    // the failure that lane exists to end — SMS matches it exactly.
+    it('answers pure praise without spending anything', async () => {
+      await driveToRevealed();
+
+      const outcome = await handleInbound({ phone: PHONE, body: 'love these' });
+
+      expect(outcome.kind).toBe('reply');
+      if (outcome.kind === 'reply') expect(outcome.text).toContain('lock one in');
+      expect(critique).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('the pick', () => {
+    // The discrimination that keeps a choice from spending a render.
+    it('reads a bare number as a choice, not a fix', async () => {
+      await driveToRevealed();
+
+      const outcome = await handleInbound({ phone: PHONE, body: '3' });
+
+      expect(outcome.kind).toBe('reply');
+      if (outcome.kind === 'reply') expect(outcome.text).toContain('least you');
+      expect(critique).not.toHaveBeenCalled();
+      const profile = await memoryProfileStore.get(PHONE);
+      expect(profile?.pendingPickId).toBe('v3');
+      expect(profile?.lastStage).toBe('pick-pending');
+    });
+
+    it('records the pair on the second tap and asks the refinement question', async () => {
+      await driveToRevealed();
+      await handleInbound({ phone: PHONE, body: 'the third one' });
+      vi.mocked(recordPick).mockResolvedValueOnce({
+        ...revealedSession(),
+        phase: 'picked',
+        refinementQuestion: 'Bolder, or keep it fine?',
+      } as unknown as Awaited<ReturnType<typeof recordPick>>);
+
+      const outcome = await handleInbound({ phone: PHONE, body: '1' });
+
+      expect(recordPick).toHaveBeenCalledWith('s1', { pickId: 'v3', mostNotYouId: 'v1' });
+      if (outcome.kind === 'reply') expect(outcome.text).toBe('Bolder, or keep it fine?');
+      const profile = await memoryProfileStore.get(PHONE);
+      expect(profile?.lastStage).toBe('refine-pending');
+    });
+
+    it('refuses a most-not-you that names the kept cut', async () => {
+      await driveToRevealed();
+      await handleInbound({ phone: PHONE, body: '2' });
+
+      const outcome = await handleInbound({ phone: PHONE, body: '2' });
+
+      expect(recordPick).not.toHaveBeenCalled();
+      if (outcome.kind === 'reply') expect(outcome.text).toContain('different number');
+    });
+
+    // Critique cuts are pickable on the web (ADR-0039), so a number over SMS
+    // has to reach them too.
+    it('can pick a cut that critique produced', async () => {
+      await driveToRevealed();
+      vi.mocked(getSession).mockResolvedValue({
+        ...revealedSession(),
+        critiqueCuts: [{ id: 'c1', axisPosition: {}, prompt: 'p', imageUrl: 'https://s/c1.png' }],
+      } as unknown as Awaited<ReturnType<typeof getSession>>);
+
+      await handleInbound({ phone: PHONE, body: '5' });
+
+      const profile = await memoryProfileStore.get(PHONE);
+      expect(profile?.pendingPickId).toBe('c1');
+    });
+  });
+
+  describe('the refinement round', () => {
+    async function driveToRefinePending(phone = PHONE) {
+      await driveToRevealed(phone);
+      await handleInbound({ phone, body: '3' });
+      vi.mocked(recordPick).mockResolvedValueOnce({
+        ...revealedSession(),
+        phase: 'picked',
+        refinementQuestion: 'Bolder, or keep it fine?',
+      } as unknown as Awaited<ReturnType<typeof recordPick>>);
+      await handleInbound({ phone, body: '1' });
+    }
+
+    it('treats the whole answer as free text and defers the render', async () => {
+      await driveToRefinePending();
+
+      const outcome = await handleInbound({ phone: PHONE, body: 'bolder, heavier lines' });
+
+      expect(outcome.kind).toBe('refine');
+      if (outcome.kind === 'refine') expect(outcome.answer).toBe('bolder, heavier lines');
+    });
+
+    it('delivers the regen and a handoff link carrying the session id', async () => {
+      await driveToRefinePending();
+      await handleInbound({ phone: PHONE, body: 'bolder' });
+      vi.mocked(refine).mockResolvedValueOnce({
+        ...revealedSession(),
+        phase: 'complete',
+        refinedVariation: { id: 'v3-refined', axisPosition: {}, prompt: 'p', imageUrl: 'https://s/r.png' },
+        brief: { placement: 'forearm', styleTags: [], meaning: 'x' },
+      } as unknown as Awaited<ReturnType<typeof refine>>);
+
+      const delivery = await executeRefine('s1', PHONE, 'bolder');
+
+      expect(delivery.cuts[0].mediaUrl).toBe('https://s/r.png');
+      // The whole point of reaching 'complete': /smart-match can load the
+      // brief, and the id threads onward into the booking.
+      expect(delivery.closingText).toContain('https://tatttester.com/smart-match?ds=s1');
+      const profile = await memoryProfileStore.get(PHONE);
+      expect(profile?.lastStage).toBe('complete');
+    });
+
+    it('re-arms for another answer when the regen fails', async () => {
+      await driveToRefinePending();
+      await handleInbound({ phone: PHONE, body: 'bolder' });
+      vi.mocked(refine).mockRejectedValueOnce(new Error('provider blew up'));
+
+      const delivery = await executeRefine('s1', PHONE, 'bolder');
+
+      expect(delivery.closingText).toBe(REFINE_FAILED_TEXT);
+      const profile = await memoryProfileStore.get(PHONE);
+      expect(profile?.lastStage).toBe('refine-pending');
+    });
+
+    it('refuses the render when the global budget is gone', async () => {
+      await driveToRefinePending();
+      vi.mocked(checkBudget).mockResolvedValueOnce({
+        allowed: false,
+        spentCents: 50000,
+        remainingCents: 0,
+      });
+
+      const outcome = await handleInbound({ phone: PHONE, body: 'bolder' });
+
+      if (outcome.kind === 'reply') expect(outcome.text).toBe(BUDGET_EXHAUSTED_TEXT);
+      expect(refine).not.toHaveBeenCalled();
+    });
+  });
+});
+
 describe('spend guardrails', () => {
   async function completeReveal(sessionId = 's1') {
     vi.mocked(confirmProposal).mockResolvedValueOnce(
@@ -327,13 +599,14 @@ describe('spend guardrails', () => {
     mockLinked('user-1'); // linked, so the daily cap is the binding guardrail
 
     for (let i = 0; i < 2; i++) {
-      await driveToProposal();
+      if (i > 0) await restartAndDriveToProposal();
+      else await driveToProposal();
       const armed = await handleInbound({ phone: PHONE, body: 'yes' });
       expect(armed.kind).toBe('reveal');
       await completeReveal();
     }
 
-    await driveToProposal();
+    await restartAndDriveToProposal();
     const third = await handleInbound({ phone: PHONE, body: 'yes' });
     expect(third.kind).toBe('reply');
     if (third.kind === 'reply') {
@@ -351,7 +624,7 @@ describe('spend guardrails', () => {
     expect((await handleInbound({ phone: PHONE, body: 'yes' })).kind).toBe('reveal');
     await completeReveal();
 
-    await driveToProposal();
+    await restartAndDriveToProposal();
     expect((await handleInbound({ phone: PHONE, body: 'yes' })).kind).toBe('reply');
   });
 
@@ -359,12 +632,13 @@ describe('spend guardrails', () => {
     vi.stubEnv('SKETCHBOT_SMS_REVEALS_PER_DAY', '10'); // daily cap out of the way
 
     for (let i = 0; i < 2; i++) {
-      await driveToProposal();
+      if (i > 0) await restartAndDriveToProposal();
+      else await driveToProposal();
       expect((await handleInbound({ phone: PHONE, body: 'yes' })).kind).toBe('reveal');
       await completeReveal();
     }
 
-    await driveToProposal();
+    await restartAndDriveToProposal();
     const gated = await handleInbound({ phone: PHONE, body: 'yes' });
     expect(gated.kind).toBe('reply');
     if (gated.kind === 'reply') {
@@ -376,7 +650,8 @@ describe('spend guardrails', () => {
     vi.stubEnv('SKETCHBOT_SMS_REVEALS_PER_DAY', '10');
 
     for (let i = 0; i < 2; i++) {
-      await driveToProposal();
+      if (i > 0) await restartAndDriveToProposal();
+      else await driveToProposal();
       await handleInbound({ phone: PHONE, body: 'yes' });
       await completeReveal();
     }
@@ -384,7 +659,7 @@ describe('spend guardrails', () => {
     // The texter signs up with this verified phone; the next yes re-checks
     // and links the guest profile in place — history intact, gate lifted.
     mockLinked('user-42');
-    await driveToProposal();
+    await restartAndDriveToProposal();
     const outcome = await handleInbound({ phone: PHONE, body: 'yes' });
 
     expect(outcome.kind).toBe('reveal');
