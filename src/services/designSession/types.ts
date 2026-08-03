@@ -81,6 +81,14 @@ export interface Brief {
   references: string[];
   finalImageUrl?: string;
   /**
+   * Black line art derived from finalImageUrl — the artist's working file,
+   * where finalImageUrl is the customer's approved intent. Product-owned
+   * like every other session image, because this is the one asset opened at
+   * a consult days later. Absent when stencil derivation is off or its
+   * render failed; a session without one is diminished, not broken.
+   */
+  stencilUrl?: string;
+  /**
    * Flattened placement-preview screenshot (design composited onto the
    * user's own photo on the /design canvas). Same durability class as
    * finalImageUrl — a signed/CDN URL, not a permanent asset reference.
