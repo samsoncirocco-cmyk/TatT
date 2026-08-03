@@ -37,7 +37,16 @@ export type InboundOutcome =
   | { kind: 'reply'; text: string }
   | { kind: 'reveal'; text: string; sessionId: string; phone: string }
   | { kind: 'critique'; text: string; sessionId: string; phone: string; message: string }
-  | { kind: 'refine'; text: string; sessionId: string; phone: string; answer: string };
+  | { kind: 'refine'; text: string; sessionId: string; phone: string; answer: string }
+  | {
+      kind: 'placement';
+      text: string;
+      sessionId: string;
+      phone: string;
+      mediaUrl: string;
+      contentType: string;
+      message: string;
+    };
 
 /** What executeReveal() hands back for MMS delivery. */
 export interface RevealDelivery {
