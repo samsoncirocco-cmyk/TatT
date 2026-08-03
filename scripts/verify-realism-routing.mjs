@@ -11,7 +11,7 @@
  *   routeGeneration(intake)    → the model under test
  *   generate(...)              → the real provider, incl. the Avoid: fold
  *
- * Run:  node --env-file=.env.local scripts/verify-realism-routing.mjs
+ * Run:  node --env-file=.env.local node_modules/.bin/vite-node scripts/verify-realism-routing.mjs
  */
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { enhanceStructured } from '../src/services/council/internal/structuredMode.ts';
