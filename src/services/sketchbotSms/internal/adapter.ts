@@ -86,6 +86,7 @@ import {
   REFINE_ACK,
   REFINE_FAILED_TEXT,
   REFINED_CAPTION,
+  STENCIL_CAPTION,
   refinedClosingText,
 } from './render';
 
@@ -648,6 +649,10 @@ export async function executeRefine(
   await store.save(profile);
 
   const refinedUrl = session.refinedVariation?.imageUrl;
+  // Two artifacts for two readers: the render the texter approved, and the
+  // black line art their artist actually works from. Only present when
+  // stencil derivation is on and its render landed.
+  const stencilUrl = session.brief?.stencilUrl;
 
   logger.info({
     event_type: 'sketchbot_sms.refine_delivered',
@@ -655,11 +660,16 @@ export async function executeRefine(
     session_id: session.id,
     provider: session.provider,
     has_image: !!refinedUrl,
+    has_stencil: !!stencilUrl,
   });
 
+  const cuts: RevealDelivery['cuts'] = [];
+  if (refinedUrl) cuts.push({ caption: REFINED_CAPTION, mediaUrl: refinedUrl });
+  if (stencilUrl) cuts.push({ caption: STENCIL_CAPTION, mediaUrl: stencilUrl });
+
   return {
-    cuts: refinedUrl ? [{ caption: REFINED_CAPTION, mediaUrl: refinedUrl }] : [],
-    closingText: refinedClosingText(handoffUrl(base, session.id)),
+    cuts,
+    closingText: refinedClosingText(handoffUrl(base, session.id), !!stencilUrl),
   };
 }
 

@@ -559,6 +559,48 @@ describe('parity with the web after the reveal', () => {
       expect(profile?.lastStage).toBe('complete');
     });
 
+    // The two-deliverable payoff: the texter approved a render, the artist
+    // needs line art, and both travel together.
+    it('sends the stencil alongside the design when one was derived', async () => {
+      await driveToRefinePending();
+      await handleInbound({ phone: PHONE, body: 'bolder' });
+      vi.mocked(refine).mockResolvedValueOnce({
+        ...revealedSession(),
+        phase: 'complete',
+        refinedVariation: { id: 'r', axisPosition: {}, prompt: 'p', imageUrl: 'https://s/r.png' },
+        brief: {
+          placement: 'forearm',
+          styleTags: [],
+          meaning: 'x',
+          stencilUrl: 'https://storage.googleapis.com/tatt/stencil.png',
+        },
+      } as unknown as Awaited<ReturnType<typeof refine>>);
+
+      const delivery = await executeRefine('s1', PHONE, 'bolder');
+
+      expect(delivery.cuts).toHaveLength(2);
+      expect(delivery.cuts[1].mediaUrl).toBe('https://storage.googleapis.com/tatt/stencil.png');
+      expect(delivery.cuts[1].caption).toMatch(/stencil/i);
+      expect(delivery.closingText).toMatch(/two files/i);
+    });
+
+    // Derivation is off by default and can fail. Promising two files when
+    // one arrived reads as a broken send.
+    it('never promises a stencil that was not derived', async () => {
+      await driveToRefinePending();
+      await handleInbound({ phone: PHONE, body: 'bolder' });
+      vi.mocked(refine).mockResolvedValueOnce({
+        ...revealedSession(),
+        phase: 'complete',
+        refinedVariation: { id: 'r', axisPosition: {}, prompt: 'p', imageUrl: 'https://s/r.png' },
+      } as unknown as Awaited<ReturnType<typeof refine>>);
+
+      const delivery = await executeRefine('s1', PHONE, 'bolder');
+
+      expect(delivery.cuts).toHaveLength(1);
+      expect(delivery.closingText).not.toMatch(/two files/i);
+    });
+
     it('re-arms for another answer when the regen fails', async () => {
       await driveToRefinePending();
       await handleInbound({ phone: PHONE, body: 'bolder' });
