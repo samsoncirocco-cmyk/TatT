@@ -35,13 +35,15 @@ const STENCIL_MODEL_ID = 'flux-dev';
  * more of the source composition; flux-dev's own default is 0.8, tuned for
  * reinterpreting an image rather than restyling one.
  *
- * UNVALIDATED: this value has not been measured against real output. It is a
- * starting point chosen to favour composition fidelity over stylistic
- * obedience, on the reasoning that a faithful-but-grey stencil is fixable and
- * a clean stencil of the wrong composition is not. Tune it against actual
- * renders before treating it as settled.
+ * Measured, not reasoned. The original 0.65 was a guess favouring composition
+ * fidelity, and rendered output showed it is unusable: at 0.65 the pass returns
+ * the approved design lightly desaturated, not a stencil — no closed contours,
+ * no flat black on white, nothing an artist could trace. The usable band sits
+ * between 0.85 (composition safest, linework still soft in places) and 0.95
+ * (cleanest lines, occasional drift in small elements). 0.9 is the midpoint and
+ * the default until a tattoo artist picks the end of that band they prefer.
  */
-const DEFAULT_PROMPT_STRENGTH = 0.65;
+const DEFAULT_PROMPT_STRENGTH = 0.9;
 
 export function stencilPromptStrength(): number {
   const raw = Number(process.env.STENCIL_PROMPT_STRENGTH);

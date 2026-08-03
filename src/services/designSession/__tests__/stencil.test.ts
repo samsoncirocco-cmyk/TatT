@@ -118,9 +118,12 @@ describe('deriveStencil', () => {
 });
 
 describe('stencilPromptStrength', () => {
-  it("favours composition fidelity over flux-dev's own 0.8 default", () => {
+  // Pinned to the exact measured value rather than a range. 0.65 rendered an
+  // unusable stencil, and a loose assertion is how that number quietly comes
+  // back; this test fails if it does.
+  it('defaults to the measured 0.9, not the unusable 0.65', () => {
     vi.stubEnv('STENCIL_PROMPT_STRENGTH', '');
-    expect(stencilPromptStrength()).toBeLessThan(0.8);
+    expect(stencilPromptStrength()).toBe(0.9);
   });
 
   it('is env-tunable within 0..1 and ignores nonsense', () => {
@@ -128,9 +131,9 @@ describe('stencilPromptStrength', () => {
     expect(stencilPromptStrength()).toBe(0.4);
 
     vi.stubEnv('STENCIL_PROMPT_STRENGTH', '7');
-    expect(stencilPromptStrength()).toBeLessThan(0.8);
+    expect(stencilPromptStrength()).toBe(0.9);
 
     vi.stubEnv('STENCIL_PROMPT_STRENGTH', 'banana');
-    expect(stencilPromptStrength()).toBeLessThan(0.8);
+    expect(stencilPromptStrength()).toBe(0.9);
   });
 });
