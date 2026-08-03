@@ -86,6 +86,11 @@ function resolveThreshold(safetySetting: string): string {
   return SAFETY_THRESHOLDS[safetySetting] || 'BLOCK_ONLY_HIGH';
 }
 
+/** Gemini fans out one call per image; clamp to the same 1–4 range Imagen sampleCount used. */
+function resolveNumImages(numImages?: number): number {
+  return Math.min(Math.max(numImages ?? 1, 1), 4);
+}
+
 function imageEndpoint(): string {
   const host =
     IMAGE_LOCATION === 'global'
@@ -188,7 +193,9 @@ async function callGeminiImage(
     );
   }
 
-  return images;
+  // Contract: one call → one image. Extra inlineData parts are discarded so
+  // fan-out cannot overshoot the caller's requested count.
+  return images.slice(0, 1);
 }
 
 /** N images = N parallel calls, merged in order (replicate.ts does the same). */
@@ -197,7 +204,7 @@ async function generateImages(
   safetySetting: string
 ): Promise<{ images: string[]; safetySetting: string; personGeneration: string }> {
   const accessToken = await getGcpAccessToken();
-  const numImages = Math.min(Math.max(request.numImages ?? 1, 1), 4);
+  const numImages = resolveNumImages(request.numImages);
 
   const runs = await Promise.all(
     Array.from({ length: numImages }, () =>
@@ -206,7 +213,7 @@ async function generateImages(
   );
 
   return {
-    images: runs.flat(),
+    images: runs.flat().slice(0, numImages),
     safetySetting,
     personGeneration: resolvePersonGeneration(request.personGeneration)
   };
@@ -229,7 +236,7 @@ function buildResult(
     attempts,
     safetyFilterLevel: result.safetySetting,
     ...(fallbackUsed ? { fallbackUsed: true } : {}),
-    estimatedCostUsd: IMAGE_COST_PER_IMAGE * (request.numImages || 1)
+    estimatedCostUsd: IMAGE_COST_PER_IMAGE * resolveNumImages(request.numImages)
   });
 
   return {
@@ -260,14 +267,15 @@ async function generateWithRetry(request: GenerationRequest): Promise<Generation
   let lastError: GenerationError | null = null;
   let lastErrorRetryable = false;
 
+  const numImages = resolveNumImages(request.numImages);
   const requestId = `gen_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   logEvent('generation.request', {
     requestId,
-    numImages: request.numImages || 1,
+    numImages,
     aspectRatio: request.aspectRatio || '1:1',
     safetyFilterLevel: request.safetyFilterLevel || 'block_only_high',
     seed: request.seed,
-    estimatedCostUsd: IMAGE_COST_PER_IMAGE * (request.numImages || 1)
+    estimatedCostUsd: IMAGE_COST_PER_IMAGE * numImages
   });
 
   while (attempts <= maxRetries) {
@@ -292,14 +300,17 @@ async function generateWithRetry(request: GenerationRequest): Promise<Generation
     }
   }
 
-  // Relaxed-safety fallback only after retryable failures — a non-retryable
-  // error (e.g. 400 malformed request) would fail identically on the paid
-  // fallback call. Declared behavior fix (spec: generation-module).
-  if (request.fallback && lastErrorRetryable) {
+  // Relaxed-safety fallback after retryable failures, or after a safety/empty
+  // image response (VERTEX_IMAGE_NO_OUTPUT) where looser thresholds are the
+  // recovery. Skip for other non-retryable errors (e.g. 400 malformed) — those
+  // fail identically on the paid fallback call. Declared behavior fix (spec:
+  // generation-module), extended for Gemini's 200-with-no-image safety blocks.
+  const fallback = request.fallback;
+  if (fallback && (lastErrorRetryable || lastError?.code === 'VERTEX_IMAGE_NO_OUTPUT')) {
     try {
       const result = await generateImages(
-        { ...request, numImages: request.numImages || 1 },
-        resolveSafetySetting(request.fallback.safetyFilterLevel || 'block_only_high')
+        { ...request, numImages },
+        resolveSafetySetting(fallback.safetyFilterLevel || 'block_only_high')
       );
       return buildResult(request, requestId, startedAt, attempts + 1, true, result);
     } catch (fallbackError) {
