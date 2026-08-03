@@ -208,6 +208,10 @@ Current characters:
 
 **Daily Limit:** 3 generations per user (free tier)
 
+> **Superseded (2026-08-03):** the free tier is 25 generations *lifetime*
+> (web + SMS, server-side), then a $10/25 credit pack — see
+> `docs/adr/0041-consumer-credits-25-lifetime-then-pack.md`.
+
 ---
 
 ### 4. Design Library

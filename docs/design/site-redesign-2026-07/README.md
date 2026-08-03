@@ -62,7 +62,7 @@ Each screen has a stable badge id in the prototype (`#home`, `#forge`, etc.). Ex
 ### 9. Book Flow (`/book` — `src/app/book/`) — *NEW step-indicator, fills gap*
 - **Purpose:** design → artist & time → confirm/deposit.
 - **NEW — Step indicator:** full-width 3-cell bar under nav; active cell = `bg-pink/6` + 4px pink top bar + `text-pink` number; done cell shows `✓ <design name>`; future cell dimmed.
-- **Layout:** main (artist options as selectable rows — selected = `border-pink` + `PICKED` sticker; time-slot chip grid, selected slot = `bg-pink text-black`) + right summary rail (line items, `$80` deposit in big Anton, `Confirm & pay` tape).
+- **Layout:** main (artist options as selectable rows — selected = `border-pink` + `PICKED` sticker; time-slot chip grid, selected slot = `bg-pink text-black`) + right summary rail (line items, `$80` deposit in big Anton, `Confirm & pay` tape). *(The `$80` is placeholder mock copy — real deposits are size-tiered $75/$150/$300/$500 per ADR-0040; render `depositDollarsForSize`.)*
 
 ### 10. Matches / Swipe (`/matches` — `src/app/matches/page.tsx`) — *revise existing*
 - **Purpose:** Tinder-style artist matching (uses `react-tinder-card`).
@@ -71,7 +71,7 @@ Each screen has a stable badge id in the prototype (`#home`, `#forge`, etc.). Ex
 
 ### 11. Settings (`/settings` — `src/app/settings/page.tsx`) — *revise existing*
 - **Layout:** two-col — left `220px` section nav (active item = `bg-pink text-black`, Danger zone = `text-pink`), right content.
-- **Components:** profile fields (2-col, same input pattern as Sign Up); current-plan card (`border-pink` + `bg-pink/6`, `Pro $19/mo`, ghost `Manage`); **toggle switches** (`52×26` hard rectangle, ON = `bg-pink` with knob pushed right, OFF = `bg-white/15`); danger-zone card (`border-pink`, solid `bg-pink` Delete button).
+- **Components:** profile fields (2-col, same input pattern as Sign Up); current-plan card (`border-pink` + `bg-pink/6`, `Pro $19/mo`, ghost `Manage`) — *the `Pro $19/mo` mock is dead copy: there is no consumer subscription (ADR-0041); a plan card, if kept, shows free-generation/credit balance instead*; **toggle switches** (`52×26` hard rectangle, ON = `bg-pink` with knob pushed right, OFF = `bg-white/15`); danger-zone card (`border-pink`, solid `bg-pink` Delete button).
 
 ## Interactions & Behavior
 - **Nav active state:** current route link = `text-pink`, others `text-white/70 hover:text-pink` (see `StudioShell`).

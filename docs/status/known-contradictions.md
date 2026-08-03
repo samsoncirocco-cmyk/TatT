@@ -64,6 +64,28 @@ Resolution: do not reuse a `verified` value produced by the retired pipeline.
 Future verification must include its evidence and method; identity and media
 consent remain separate gates.
 
+## Deposit amount — RESOLVED 2026-08-03
+
+- The 2026-07-20 grill recorded a flat ~$25 booking deposit; the shipped code
+  (`DEPOSIT_CENTS_BY_SIZE` in `src/lib/booking.ts`) charges $75/$150/$300/$500
+  by tattoo size.
+- ADR-0040 (2026-08-03 grill) is authoritative: deposits are tiered by size,
+  exactly as shipped. The flat-$25 decision is struck and must not be
+  repeated.
+
+## Consumer free tier and subscription copy — RESOLVED 2026-08-03
+
+- Older copy and design artifacts describe "5 generations / month free" (or 3
+  designs/month) plus a "$19 Pro" (or $12 Pro) consumer subscription. No code
+  ever backed these.
+- ADR-0041 (2026-08-03 grill) is authoritative: 25 free generations lifetime
+  per user, identical across web and SMS and enforced server-side, then a
+  single $10/25-generation credit pack via one-off Stripe Checkout. There is
+  no consumer subscription; that lane is parked. Enforcement build work is
+  tracked in GitHub issue #80.
+- Old pitch scripts and design specs retain the dead copy as history with
+  superseded notices; do not reuse it.
+
 ## ADR numbering — RESOLVED 2026-07-30
 
 Two files used the `0026` prefix. `0026-reinstatement-self-signup.md` has 11
