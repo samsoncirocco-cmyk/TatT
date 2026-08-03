@@ -247,6 +247,28 @@ describe('generation module seam — vertex provider', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it('prefers a hard non-retryable error over a safety block when parallel calls fail', async () => {
+    // Safety settles first, 400 second. Promise.all race could surface SAFETY
+    // and burn a paid loosened-safety fan-out; fixed priority must pick 400.
+    fetchMock
+      .mockResolvedValueOnce(blockedResponse('SAFETY'))
+      .mockResolvedValueOnce(errorResponse(400));
+
+    await expect(
+      generate({
+        prompt: 'skull',
+        style: 'realism',
+        numImages: 2,
+        safetyFilterLevel: 'block_most',
+        retry: { maxRetries: 2, baseDelayMs: 1 },
+        fallback: { safetyFilterLevel: 'block_only_high' }
+      })
+    ).rejects.toThrow('Vertex image API error: 400');
+
+    // Primary fan-out only — no retries, no safety fallback.
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it('emits request and result telemetry', async () => {
     fetchMock.mockResolvedValueOnce(imageResponse());
 

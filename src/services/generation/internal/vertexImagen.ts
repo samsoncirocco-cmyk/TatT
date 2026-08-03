@@ -223,6 +223,30 @@ async function callGeminiImage(
   return images.slice(0, 1);
 }
 
+/*
+ * When parallel Gemini calls fail for different reasons, Promise.all would
+ * surface whichever rejection settles first — so retry / safety-fallback
+ * decisions depended on race timing. Pick a representative error by fixed
+ * priority instead (call order within each tier):
+ *   1. hard non-retryable (e.g. 400) — fail closed, no paid recovery
+ *   2. VERTEX_IMAGE_NO_OUTPUT — loosened-safety fallback can help
+ *   3. anything else (retryable 429/5xx, unknown)
+ */
+function pickFanOutError(errors: GenerationError[]): GenerationError {
+  const hard = errors.find(
+    (e) =>
+      typeof e.status === 'number' &&
+      !RETRYABLE_STATUS.has(e.status) &&
+      e.code !== 'VERTEX_IMAGE_NO_OUTPUT'
+  );
+  if (hard) return hard;
+
+  const noOutput = errors.find((e) => e.code === 'VERTEX_IMAGE_NO_OUTPUT');
+  if (noOutput) return noOutput;
+
+  return errors[0];
+}
+
 /** N images = N parallel calls, merged in order (replicate.ts does the same). */
 async function generateImages(
   request: GenerationRequest,
@@ -231,14 +255,27 @@ async function generateImages(
   const accessToken = await getGcpAccessToken();
   const numImages = resolveNumImages(request.numImages);
 
-  const runs = await Promise.all(
+  const settled = await Promise.allSettled(
     Array.from({ length: numImages }, () =>
       callGeminiImage(request, accessToken, safetySetting)
     )
   );
 
+  const images: string[] = [];
+  const errors: GenerationError[] = [];
+  for (const outcome of settled) {
+    if (outcome.status === 'fulfilled') {
+      images.push(...outcome.value);
+    } else {
+      errors.push(asGenerationError(outcome.reason));
+    }
+  }
+  if (errors.length > 0) {
+    throw pickFanOutError(errors);
+  }
+
   return {
-    images: runs.flat().slice(0, numImages),
+    images: images.slice(0, numImages),
     safetySetting,
     personGeneration: resolvePersonGeneration(request.personGeneration)
   };
