@@ -15,6 +15,7 @@
 
 import { logger } from '@/lib/logger';
 import { getGcpAccessToken } from '@/lib/google-auth-edge';
+import { buildVertexEndpoint } from '@/lib/vertex-endpoint';
 import type { ConversationMessage } from '../types';
 
 /**
@@ -30,7 +31,18 @@ import type { ConversationMessage } from '../types';
 export const PROVIDER_FAILOVER_EVENT = 'design_conversation.provider.failover';
 export const CONVERSATION_DEGRADED_EVENT = 'design_conversation.degraded';
 
-export const DEFAULT_VERTEX_MODEL = 'gemini-2.5-flash-lite';
+/**
+ * SketchBot's listener (TAT-56).
+ *
+ * Gemini 3.1 Flash Lite replaced the 2.5 Flash Lite that shipped with
+ * ADR-0019. It is one generation newer for ~2¢ per session against ~0.7¢,
+ * which is noise next to the images the same session buys — and unlike the
+ * cheaper tier it reads reference images natively, so a session that opens
+ * with a screenshot no longer needs a second model to understand it.
+ *
+ * Served only from the Vertex `global` location; buildVertexEndpoint routes it.
+ */
+export const DEFAULT_VERTEX_MODEL = 'gemini-3.1-flash-lite';
 export const OPENROUTER_FALLBACK_MODEL = 'z-ai/glm-5.2';
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
@@ -187,9 +199,8 @@ async function callVertex(
   model: string
 ): Promise<RawTurnPayload | null> {
   const projectId = vertexProjectId();
-  const region = process.env.GCP_REGION || 'us-central1';
   const accessToken = await getGcpAccessToken();
-  const endpoint = `https://${region}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${region}/publishers/google/models/${model}:generateContent`;
+  const endpoint = buildVertexEndpoint(projectId, model);
 
   const response = await fetch(endpoint, {
     method: 'POST',
