@@ -24,8 +24,10 @@ describe("PUBLIC_ARTIST_CLAUSE", () => {
       "visionworks eyewear",
     ]);
     expect(NOT_KNOWN_NON_TATTOO_BUSINESS_CLAUSE).toContain(
-      "toLower(trim(coalesce(a.name, ''))) NOT IN",
+      "NOT toLower(trim(coalesce(a.name, ''))) IN",
     );
-    expect(PUBLIC_ARTIST_CLAUSE).toContain(NOT_KNOWN_NON_TATTOO_BUSINESS_CLAUSE);
+    expect(PUBLIC_ARTIST_CLAUSE).toContain(
+      NOT_KNOWN_NON_TATTOO_BUSINESS_CLAUSE,
+    );
   });
 });

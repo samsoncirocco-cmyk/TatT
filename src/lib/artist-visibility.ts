@@ -30,14 +30,12 @@ export const KNOWN_NON_TATTOO_BUSINESS_NAMES = [
   "visionworks eyewear",
 ] as const;
 
-const KNOWN_NON_TATTOO_BUSINESS_VALUES = KNOWN_NON_TATTOO_BUSINESS_NAMES
-  .map((name) => `'${name}'`)
-  .join(", ");
+const KNOWN_NON_TATTOO_BUSINESS_VALUES = KNOWN_NON_TATTOO_BUSINESS_NAMES.map(
+  (name) => `'${name}'`,
+).join(", ");
 
 /** Explicitly known bad legacy rows never belong in public discovery. */
-export const NOT_KNOWN_NON_TATTOO_BUSINESS_CLAUSE =
-  `toLower(trim(coalesce(a.name, ''))) NOT IN [${KNOWN_NON_TATTOO_BUSINESS_VALUES}]`;
+export const NOT_KNOWN_NON_TATTOO_BUSINESS_CLAUSE = `NOT toLower(trim(coalesce(a.name, ''))) IN [${KNOWN_NON_TATTOO_BUSINESS_VALUES}]`;
 
 /** The shared predicate for roster, profile, homepage, and match reads. */
-export const PUBLIC_ARTIST_CLAUSE =
-  `(${NOT_REMOVED_CLAUSE}) AND (${NOT_STALE_CLAUSE}) AND (${LOOKS_BOOKABLE_CLAUSE}) AND (${NOT_KNOWN_NON_TATTOO_BUSINESS_CLAUSE})`;
+export const PUBLIC_ARTIST_CLAUSE = `(${NOT_REMOVED_CLAUSE}) AND (${NOT_STALE_CLAUSE}) AND (${LOOKS_BOOKABLE_CLAUSE}) AND (${NOT_KNOWN_NON_TATTOO_BUSINESS_CLAUSE})`;
