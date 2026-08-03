@@ -1,7 +1,7 @@
 ---
 status: current
-verified_against: 8db5d3e
-verified_on: 2026-07-27
+verified_against: 86e1c18
+verified_on: 2026-07-30
 ---
 
 # Known contradictions
@@ -9,15 +9,20 @@ verified_on: 2026-07-27
 These conflicts are visible rather than “resolved” through whichever document
 an author happened to open first.
 
-## Brand
+## Brand — RESOLVED 2026-07-27
 
-- Current UI: TatT, “Think it. Ink it.”
-- ADR-0004: TattTester is the accepted primary mark.
-- Old pitch deck: TatT is a working name.
-
-Required decision: reaffirm and implement ADR-0004, or supersede it and retain
-TatT. Until then, current-state documentation names the implemented UI and
-links the accepted but unimplemented brand decision.
+- Commits `6cb6dd4` ("flip every user-facing TatT to TattTester", TAT-43) and
+  `d5c0d7c` (canonical URL tags point at tatttester.com) implemented
+  ADR-0004/ADR-0033: `src/app/layout.tsx` now titles the app "TattTester —
+  Think it. Ink it.", `TattTesterWordmark.tsx` renders the TattTester mark,
+  and the marketing copy across the app follows the same law.
+- `TatT` survives only as internal/code-identifier usage (`package.json` name
+  `tatt-app`, code comments, route/module names) — the commit message
+  explicitly scopes that carve-out.
+- This section previously described the brand as unresolved based on a
+  verification snapshot from `8db5d3e` (2026-07-27, same day as the fix but
+  apparently just before it landed). No further decision is required unless
+  the carve-out itself needs revisiting.
 
 ## Fundraising ask
 
@@ -59,12 +64,11 @@ Resolution: do not reuse a `verified` value produced by the retired pipeline.
 Future verification must include its evidence and method; identity and media
 consent remain separate gates.
 
-## ADR numbering
+## ADR numbering — RESOLVED 2026-07-30
 
-Two files currently use the `0026` prefix:
-
-- `0026-money-in-cents-reject-out-of-range.md`
-- `0026-reinstatement-self-signup.md`
-
-Required decision: renumber one ADR without changing its substantive history,
-then update inbound references.
+Two files used the `0026` prefix. `0026-reinstatement-self-signup.md` has 11
+inbound references across code and docs and kept its number.
+`0026-money-in-cents-reject-out-of-range.md` had no inbound references beyond
+this file, so it was renamed to `0038-money-in-cents-reject-out-of-range.md`
+(the next free number; ADRs run through `0037`). No other file required a
+reference update.

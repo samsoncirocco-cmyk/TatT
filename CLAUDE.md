@@ -4,7 +4,7 @@
 
 **TatT** is an AI-powered tattoo design platform that combines:
 - **AI Tattoo Design Generation** — Council-enhanced prompts → SDXL/Vertex Imagen → multi-layer RGBA output
-- **AR Preview** — Real-time body overlay with depth mapping for realistic placement visualization
+- **AR Preview** — Live camera compositing of a saved design onto a user-positioned overlay (drag/scale/rotate); no body tracking or depth estimation (ADR-0024)
 - **Artist Matching** — Semantic search via Supabase vectors + Neo4j graph relationships + Firebase real-time updates
 
 ## Status: pre-launch, stealth
@@ -103,7 +103,7 @@ npm run start              # Start production server
 npm run lint               # Run ESLint
 
 # Testing
-npm test                   # Run vitest (~400 tests across 39 files)
+npm test                   # Run vitest (~2100 tests across ~195 files)
 npm run test:watch         # Watch mode
 
 # Database Setup
@@ -341,7 +341,7 @@ lapsed reservation.
 
 ---
 
-**Last Updated:** 2026-07-24
+**Last Updated:** 2026-07-30
 **Maintained by:** Samson via Hermes
 
 ---

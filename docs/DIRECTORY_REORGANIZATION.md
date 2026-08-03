@@ -1,3 +1,10 @@
+> **⚠️ Not a current entry point.** This file is not listed in
+> `docs/status/document-classification.md`'s "Current entry points" and may be
+> stale. Last touched 2026-01-31. It documents a completed one-time
+> reorganization; the directory structure has likely evolved further since.
+> For the current directory/module layout see
+> `docs/architecture/current-architecture.md`.
+
 # Directory Reorganization Summary
 
 ## Completed: Feature-Based Architecture Implementation

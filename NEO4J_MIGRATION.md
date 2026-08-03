@@ -1,3 +1,14 @@
+> **Status: point-in-time technical record (migration handoff dated
+> 2026-07-15), not a current-state doc.** It is not on the entry-point list in
+> `docs/status/document-classification.md`. Treat the schema/connection detail
+> here as evidence of what changed *at that migration*, not as the definitive
+> description of Neo4j's role today — for that, see the "Neo4j" row and
+> "Artist lifecycle" / "Artist freshness" sections of
+> `docs/architecture/current-architecture.md`, which document graph state
+> (claims, takedown, reinstatement, refresh suppression) added after this
+> migration. Still useful as a reference for the node/relationship model and
+> `.env` wiring if those haven't changed since.
+
 # Neo4j Migration — Artist Data Backend + New Graph Model
 
 **Date:** 2026-07-15

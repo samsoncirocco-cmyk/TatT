@@ -22,6 +22,7 @@ those module interfaces, not through the repository's historical
 | Council | `src/services/council/index.ts` | Improve or structure generation intent |
 | Storage | `src/services/storage/index.ts` | Store and retrieve design assets through storage adapters |
 | Matching | API and feature modules under `match`, `smart-match`, and `match-pulse` | Combine semantic, graph, and interaction evidence into artist results |
+| AR mirror | `src/features/ar/` and `src/app/visualize/page.tsx` | Composite a saved design onto a live camera feed, user-positioned only, with capture and group-chat share |
 | Booking | `src/lib/scheduling-engine.ts`, booking routes, and checkout | Resolve booking mode, reserve inventory, collect deposits, and track state |
 | Artist calendar | `src/lib/artist-calendar.ts` and connection adapter | Authorize Google Calendar, read conflicts, and write TatT booking events |
 | Artist lifecycle | claim, takedown, reinstatement, and Connect routes | Move scraped profiles through ownership, suppression, return, and payout readiness |
@@ -144,5 +145,8 @@ Focused infrastructure evidence:
   `src/app/api/checkout/route.test.ts`
 - Calendar: `src/lib/artist-calendar.ts` and
   `src/lib/artist-calendar.test.ts`
+- AR mirror: `src/app/visualize/page.tsx`, `src/features/ar/`, and
+  `src/services/ar/arService.js`, honestly scoped by
+  [ADR 0024](../adr/0024-live-ar-is-untracked.md)
 - Vercel cron: `vercel.json` and
   `src/app/api/cron/expire-deposits/route.ts`
