@@ -4,6 +4,12 @@ status: accepted
 
 # Launch monetization: honest pricing page, no consumer tiers at launch
 
+> **Amendment (2026-08-03):** the consumer quota/pricing left "explicitly TBD"
+> below is now decided in ADR-0041 — 25 lifetime free generations (web + SMS,
+> enforced server-side), then a $10/25-generation credit pack via one-off
+> Stripe Checkout; consumer subscriptions stay parked. "$19 Pro" copy is dead
+> wherever it survives.
+
 Launch-scope triage grill, 2026-07-27, after re-reading the original pitch
 deck. `/pricing` advertised Free/Pro/Studio consumer tiers ($19/$79) backed by
 no code — no user-tier concept, no quota enforcement, no watermarking (TAT-21).
