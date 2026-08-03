@@ -25,6 +25,12 @@ const BASE_PATH = '/api/v1/design-session';
 export class ConversationUnavailableError extends Error {}
 
 /**
+ * The opening chat call is the product's front door. A network request that
+ * never settles must not leave every way to start a design disabled forever.
+ */
+export class ConversationTimeoutError extends Error {}
+
+/**
  * A failed design-session request, carrying what the route told us rather
  * than just a sentence. Callers (and the UI) need `retryable` to know
  * whether retrying is meaningful at all and `retryAfterMs` to know how long
@@ -54,8 +60,29 @@ export class DesignSessionRequestError extends Error {
 const MAX_CONFIRM_ATTEMPTS = 3;
 /** Cap so a hostile/absent hint can never hang the UI. */
 const MAX_RETRY_WAIT_MS = 30_000;
+/** A stalled opener should recover to the retry affordance, not a dead page. */
+const CONVERSATION_TIMEOUT_MS = 10_000;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function settleWithin<T>(operation: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(
+      () => reject(new ConversationTimeoutError(message)),
+      timeoutMs
+    );
+    operation.then(
+      (value) => {
+        clearTimeout(timeout);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timeout);
+        reject(error);
+      }
+    );
+  });
+}
 
 async function postAuthed(path: string, body: unknown): Promise<Response> {
   const authHeaders = await getApiAuthHeaders();
@@ -209,7 +236,11 @@ export async function sharePlacementPreview(share: {
  * fall back to the scripted intake.
  */
 export async function converse(request: ConverseRequest): Promise<ConverseResponse> {
-  const res = await postAuthed(`${BASE_PATH}/converse`, request);
+  const res = await settleWithin(
+    postAuthed(`${BASE_PATH}/converse`, request),
+    CONVERSATION_TIMEOUT_MS,
+    'SketchBot is taking longer than expected — try again.'
+  );
 
   let data: unknown = null;
   try {

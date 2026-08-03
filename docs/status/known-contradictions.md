@@ -1,7 +1,7 @@
 ---
 status: current
-verified_against: 8db5d3e
-verified_on: 2026-07-27
+verified_against: 86e1c18
+verified_on: 2026-07-30
 ---
 
 # Known contradictions
@@ -9,15 +9,20 @@ verified_on: 2026-07-27
 These conflicts are visible rather than “resolved” through whichever document
 an author happened to open first.
 
-## Brand
+## Brand — RESOLVED 2026-07-27
 
-- Current UI: TatT, “Think it. Ink it.”
-- ADR-0004: TattTester is the accepted primary mark.
-- Old pitch deck: TatT is a working name.
-
-Required decision: reaffirm and implement ADR-0004, or supersede it and retain
-TatT. Until then, current-state documentation names the implemented UI and
-links the accepted but unimplemented brand decision.
+- Commits `6cb6dd4` ("flip every user-facing TatT to TattTester", TAT-43) and
+  `d5c0d7c` (canonical URL tags point at tatttester.com) implemented
+  ADR-0004/ADR-0033: `src/app/layout.tsx` now titles the app "TattTester —
+  Think it. Ink it.", `TattTesterWordmark.tsx` renders the TattTester mark,
+  and the marketing copy across the app follows the same law.
+- `TatT` survives only as internal/code-identifier usage (`package.json` name
+  `tatt-app`, code comments, route/module names) — the commit message
+  explicitly scopes that carve-out.
+- This section previously described the brand as unresolved based on a
+  verification snapshot from `8db5d3e` (2026-07-27, same day as the fix but
+  apparently just before it landed). No further decision is required unless
+  the carve-out itself needs revisiting.
 
 ## Fundraising ask
 
@@ -59,12 +64,50 @@ Resolution: do not reuse a `verified` value produced by the retired pipeline.
 Future verification must include its evidence and method; identity and media
 consent remain separate gates.
 
-## ADR numbering
+## Deposit amount — RESOLVED 2026-08-03
 
-Two files currently use the `0026` prefix:
+- The 2026-07-20 grill recorded a flat ~$25 booking deposit; the shipped code
+  (`DEPOSIT_CENTS_BY_SIZE` in `src/lib/booking.ts`) charges $75/$150/$300/$500
+  by tattoo size.
+- ADR-0040 (2026-08-03 grill) is authoritative: deposits are tiered by size,
+  exactly as shipped. The flat-$25 decision is struck and must not be
+  repeated.
 
-- `0026-money-in-cents-reject-out-of-range.md`
-- `0026-reinstatement-self-signup.md`
+## Consumer free tier and subscription copy — RESOLVED 2026-08-03
 
-Required decision: renumber one ADR without changing its substantive history,
-then update inbound references.
+- Older copy and design artifacts describe "5 generations / month free" (or 3
+  designs/month) plus a "$19 Pro" (or $12 Pro) consumer subscription. No code
+  ever backed these.
+- ADR-0041 (2026-08-03 grill) is authoritative: 25 free generations lifetime
+  per user, identical across web and SMS and enforced server-side, then a
+  single $10/25-generation credit pack via one-off Stripe Checkout. There is
+  no consumer subscription; that lane is parked. Enforcement build work is
+  tracked in GitHub issue #80.
+- Old pitch scripts and design specs retain the dead copy as history with
+  superseded notices; do not reuse it.
+
+## Launch supply: recruited artists vs scraped profiles — RESOLVED 2026-08-03
+
+- The Phoenix soft-launch runbook (`docs/operations/phoenix-soft-launch.md`)
+  made consented, identity-checked recruited artists the first supply and a
+  launch gate ("five launch-ready artists"). The relay lane (ADR-0005–0008)
+  was built so unclaimed scraped artists are bookable — two supply models with
+  no decision about which one gates launch.
+- ADR-0042 (2026-08-03 grill) is authoritative: the soft launch runs
+  end-to-end on scraped, UNCLAIMED profiles via the booking relay; recruited/
+  claimed artists are an upgrade lane that continues in parallel, not a launch
+  gate. ADR-0043 gates which scraped profiles may take a deposit (real tattoo
+  evidence + working contact channel; everything else browsable with "request
+  intro" only). The runbook is annotated, not rewritten; its recruiting phases
+  stand.
+- Scraped profiles are still never labeled "verified" (ADR-0032; artist
+  verification entry above).
+
+## ADR numbering — RESOLVED 2026-07-30
+
+Two files used the `0026` prefix. `0026-reinstatement-self-signup.md` has 11
+inbound references across code and docs and kept its number.
+`0026-money-in-cents-reject-out-of-range.md` had no inbound references beyond
+this file, so it was renamed to `0038-money-in-cents-reject-out-of-range.md`
+(the next free number; ADRs run through `0037`). No other file required a
+reference update.

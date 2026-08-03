@@ -1,3 +1,14 @@
+> **Status: superseded by `docs/architecture/current-architecture.md`.** This
+> file is not on the entry-point list in
+> `docs/status/document-classification.md` and predates several product
+> modules that current-architecture.md documents (design conversation/session,
+> intake, artist lifecycle — claim/takedown/reinstatement, Stripe Connect,
+> artist calendar, sharing). Its description of Generate/Match/Forge/AR is
+> historically useful but should not be treated as the current system map.
+> Read `docs/architecture/current-architecture.md` first; use this only for
+> lower-level detail (data files, model routing) it doesn't repeat, and
+> cross-check anything load-bearing.
+
 # Architecture — TatT
 
 > How the system connects, from user input to generated tattoo.

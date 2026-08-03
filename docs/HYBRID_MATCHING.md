@@ -1,3 +1,14 @@
+> **⚠️ Not a current entry point.** This file is not listed in
+> `docs/status/document-classification.md`'s "Current entry points" and may be
+> stale. Last touched 2026-01-15. Matching has since broadened beyond a
+> single hybrid vector-graph engine — per
+> `docs/architecture/current-architecture.md`, matching now spans `match`,
+> `smart-match`, and `match-pulse` modules combining semantic, graph, and
+> interaction evidence, and doc notes "does not yet present one small, stable
+> module interface." Treat this file as historical background on the
+> original design, not current truth — check
+> `docs/architecture/current-architecture.md` for what's live now.
+
 # Hybrid Vector-Graph Tattoo Design Discovery
 
 ## Overview

@@ -1,3 +1,11 @@
+> **⚠️ Not a current entry point.** This file is not listed in
+> `docs/status/document-classification.md`'s "Current entry points" and may be
+> stale. Last touched 2026-02-06 — env vars, setup steps, and model lists
+> below may have drifted. The Council feature still exists per
+> `docs/architecture/current-architecture.md` (`src/services/council/`), so
+> cross-check any setup instructions here against that file and the actual
+> source before following them.
+
 # 🚀 LLM Council Integration - Quick Start
 
 ## Try It Right Now (5 Minutes)

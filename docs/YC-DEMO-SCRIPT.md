@@ -56,6 +56,12 @@
 >
 > **Unit economics work at scale:** AI generation costs $0.02/design. Consumer LTV at $12/month with 8-month retention = $96. CAC target: under $15 via organic + artist network effects."
 
+> **⚠️ Superseded (2026-08-03).** The consumer model above (monthly free tier
+> + Pro subscription) was never built and is struck by ADR-0041: 25 lifetime
+> free generations (web + SMS), then a $10/25-generation credit pack; no
+> consumer subscription. Deposits are size-tiered per ADR-0040. Kept here as
+> pitch history only — do not reuse.
+
 ### THE ASK (1:35 – 1:50)
 
 > "We're raising $500K to:

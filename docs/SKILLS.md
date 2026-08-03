@@ -1,3 +1,9 @@
+> **⚠️ Not a current entry point.** This file is not listed in
+> `docs/status/document-classification.md`'s "Current entry points" and may be
+> stale. Last touched 2026-01-12 — verify the skill list below still matches
+> the actual contents of `.claude/skills/` and `~/.claude/skills/` before
+> relying on it; skills are added/removed independently of this doc.
+
 # TatT Skills Configuration
 
 This project uses a hybrid skill management approach:

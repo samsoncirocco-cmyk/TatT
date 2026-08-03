@@ -1,3 +1,10 @@
+> **⚠️ Not a current entry point.** This file is not listed in
+> `docs/status/document-classification.md`'s "Current entry points" and may be
+> stale. Last touched 2026-07-24, this is a design spec (self-dated
+> 2026-07-22), not a record of what's implemented. For current scheduling/
+> booking feature status see `docs/status/features.yaml` and
+> `docs/architecture/current-architecture.md`.
+
 # TatT Scheduling Engine — Custom Cal.com Primitive Spec
 
 > **Date:** 2026-07-22

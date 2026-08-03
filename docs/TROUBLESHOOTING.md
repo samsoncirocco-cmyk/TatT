@@ -1,3 +1,11 @@
+> **⚠️ Not a current entry point.** This file is not listed in
+> `docs/status/document-classification.md`'s "Current entry points" and may be
+> stale. Last touched 2026-02-06 — it covers Council UI issues specifically,
+> not general troubleshooting. For current, broader troubleshooting guidance
+> see CLAUDE.md's Troubleshooting section (covers Council, vector search,
+> Neo4j, and layer-upload failures) and verify any Council-specific claims
+> below against `docs/architecture/current-architecture.md`.
+
 # 🔧 Troubleshooting Council UI Issues
 
 ## Issue: "Some models aren't visible"

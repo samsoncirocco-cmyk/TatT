@@ -25,6 +25,7 @@ Every page below is judged by whether it moves someone along this line.
 | Route | Verdict | Why / where it went |
 |---|---|---|
 | `/` | core funnel | Needs real example designs (TAT-36 condition) |
+| `/image2ink` | **marketing door — feeds the funnel** | TAT-46; served at image2ink.com via middleware rewrite (`src/proxy.ts`); not a second brand or a separate signup — every CTA hands off to TattTester (`/signup`, `/design`, `/claim`) |
 | `/design` | **core funnel — the one door** | ADR-0028; all CTAs point here (TAT-34) |
 | `/generate/stencil` (Forge) | **redirects → `/design` fast lane** | Implemented in PR #214; preserves the prompt |
 | `/studio` (Studio) | keep — **the refinery** | ADR-0038; entered from a picked design (`?design=<id>`), never cold; not in nav or footer (ADR-0017) — `/designs` is its door; renamed from `/generate` in TAT-54 |
@@ -37,8 +38,8 @@ Every page below is judged by whether it moves someone along this line.
 | `/smart-match` → `/swipe` | **core funnel — the Match step** | ADR-0029; threads designSessionId into booking; swipes feed the taste algo |
 | `/matches` | **redirects → `/artists`** | Implemented in PR #212 with filter mapping |
 | `/artists`, `/artists/[slug]` | keep | The one browse/compare list + profiles |
-| `/book`, `/book/[artistId]`, `/book/success`, `/bookings` | core funnel | Deposit + booking fee (ADR-0005–0008, 0027) |
-| `/pricing` | **honest launch pricing** | Implemented in PR #210: free consumer design, booking fee, later artist subscription |
+| `/book`, `/book/[artistId]`, `/book/success`, `/bookings` | core funnel | Size-tiered deposit ($75/$150/$300/$500, ADR-0040) + booking fee (ADR-0005–0008, 0027) |
+| `/pricing` | **honest launch pricing** | Implemented in PR #210: free consumer design, booking fee, later artist subscription. Consumer model decided 2026-08-03 (ADR-0041): 25 lifetime free generations, then $10/25 credit pack — enforcement build tracked in issue #80 |
 | `/dashboard` | consumer compatibility redirect | Redirects to the consumer design library |
 | `/console` | **artist console** | Implemented in PR #213: bookings/history, availability, payout state |
 | `/claim`, `/claim/[artistId]` | verified request flow | Pending human review before ownership, Connect, or funds (ADR-0033) |
