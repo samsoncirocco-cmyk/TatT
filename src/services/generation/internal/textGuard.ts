@@ -108,10 +108,17 @@ function escapeRegExp(value: string): string {
 
 /**
  * Negations that strip lettering needles so "no text" / "without lettering"
- * do not disable the intrusion gate. Whole-word only — "no texture" stays.
+ * / "no text or lettering" do not disable the intrusion gate. Whole-word
+ * only — "no texture" stays. The trailing (or|and|nor|…) chain is required
+ * so a second disjunct cannot survive the first replace and rematch a needle.
  */
-const LETTERING_NEGATED =
-  /\b(?:no|without|sans|avoid|excluding)\s+(?:any\s+)?(?:lettering|letters|text|script|calligraphy|typography|font|banner|scroll|ribbon|quote|inscription|inscribed|written|writing|words?|cursive)\b/g;
+const LETTERING_TERM =
+  'lettering|letters|text|script|calligraphy|typography|font|banner|scroll|ribbon|quote|inscription|inscribed|written|writing|words?|cursive';
+
+const LETTERING_NEGATED = new RegExp(
+  `\\b(?:no|without|sans|avoid|excluding)\\s+(?:any\\s+)?(?:${LETTERING_TERM})(?:(?:\\s*(?:,|/|and|or|nor)\\s*)+(?:any\\s+)?(?:${LETTERING_TERM}))*\\b`,
+  'g'
+);
 
 /**
  * Style-tag embeddings are not lettering requests. structuredMode builds

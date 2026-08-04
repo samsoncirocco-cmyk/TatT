@@ -55,6 +55,11 @@ describe('requestsLettering — the half that is deliberately not a model call',
     'Goku and Vegeta, no text',
     'a wolf head without lettering',
     'portrait, avoid words',
+    // Compound refusals: stripping only the first negated term must not leave
+    // "or lettering" / "or words" to rematch a needle.
+    'Goku and Vegeta, no text or lettering',
+    'a wolf head without text or words',
+    'portrait, avoid any writing or script',
     // structuredMode embeds styleTags as "in a ${styleDesc} style". The
     // lettering ontology id and its aliases must not clear the intrusion gate
     // for figure-only designs that merely named a style.
