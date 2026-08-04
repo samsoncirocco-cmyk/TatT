@@ -428,6 +428,16 @@ describe("toRosterArtist booking tier (ADR-0043)", () => {
     ).toBe("browse-only");
   });
 
+  it("treats a claimed profile as bookable without scrape-tier evidence", () => {
+    expect(
+      toRosterArtist({
+        id: "artist_claimed",
+        name: "C",
+        claimedByUid: "uid_9",
+      }).bookingTier,
+    ).toBe("bookable");
+  });
+
   it("requires a non-empty URL as well as a live-probe flag in the artist lookup", async () => {
     mockedQuery.mockClear();
     mockedQuery.mockResolvedValueOnce([]);

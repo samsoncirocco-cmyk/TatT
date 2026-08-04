@@ -228,6 +228,8 @@ export function toRosterArtist(record: Record<string, unknown>): RosterArtist {
       portfolioImages: record.portfolioImages,
       portfolioPermalinks: record.portfolioPermalinks,
       shopWebsiteLive: record.shopWebsiteLive,
+      // ADR-0043 escape hatch: claim clears the scrape-tier deposit gate.
+      claimedByUid: record.claimedByUid,
     }),
   };
 }

@@ -29,7 +29,9 @@ describe("booking money copy", () => {
     // the booking fee as the only thing TattTester keeps.
     expect(checkoutFeeMoneyCopy(true)).toMatch(/keeps 100% of the deposit/i);
     expect(checkoutFeeMoneyCopy(true)).toMatch(/only part we keep/i);
-    expect(bookingSuccessMoneyCopy(true)).toMatch(/whole deposit goes to your artist/i);
+    expect(bookingSuccessMoneyCopy(true)).toMatch(
+      /whole deposit goes to your artist/i,
+    );
     expect(bookingSuccessMoneyCopy(true)).toMatch(/only part we keep/i);
     // Claimed is the default, matching bookingReviewMoneyCopy.
     expect(checkoutFeeMoneyCopy()).toBe(checkoutFeeMoneyCopy(true));
@@ -54,7 +56,9 @@ describe("booking money copy", () => {
     process.env.DEPOSIT_HOLD_DAYS = "3";
     expect(checkoutFeeMoneyCopy(false)).toMatch(/within 3 days/i);
     expect(bookingSuccessMoneyCopy(false)).toMatch(/within 3 days/i);
-    expect(bookingReviewMoneyCopy("Nadia", 10, false)).toMatch(/within 3 days/i);
+    expect(bookingReviewMoneyCopy("Nadia", 10, false)).toMatch(
+      /within 3 days/i,
+    );
     expect(checkoutFeeMoneyCopy(false)).not.toMatch(/within 7 days/i);
   });
 
@@ -64,11 +68,20 @@ describe("booking money copy", () => {
   });
 
   it("states both the rule and the unclaimed exception on the bookings list", () => {
-    expect(bookingMoneyCopy.bookingsList).toMatch(/deposit goes to your artist in full/i);
+    expect(bookingMoneyCopy.bookingsList).toMatch(
+      /deposit goes to your artist in full/i,
+    );
     expect(bookingMoneyCopy.bookingsList).toMatch(/only part we keep/i);
     expect(bookingMoneyCopy.bookingsList).toMatch(/unclaimed profile/i);
-    expect(bookingMoneyCopy.bookingsList).toMatch(/held during verification/i);
-    expect(bookingMoneyCopy.bookingsList).toMatch(/refunded in full/i);
+    expect(bookingMoneyCopy.bookingsList).toMatch(/relay/i);
+    expect(bookingMoneyCopy.bookingsList).toMatch(
+      /automatically refunded in full/i,
+    );
+    expect(bookingMoneyCopy.bookingsList).toMatch(/hold window/i);
+    expect(bookingMoneyCopy.bookingsList).not.toMatch(
+      /held during verification/i,
+    );
+    expect(bookingMoneyCopy.bookingsList).not.toMatch(/claim window closes/i);
   });
 
   it("renders the live artist and fee percentage on booking review", () => {
@@ -82,8 +95,12 @@ describe("booking money copy", () => {
     expect(bookingReviewMoneyCopy("Nadia", 10, false)).toMatch(
       /relay your request to Nadia/i,
     );
-    expect(bookingReviewMoneyCopy("Nadia", 10, false)).toMatch(/within 7 days/i);
-    expect(bookingReviewMoneyCopy("Nadia", 10, false)).toMatch(/10% booking fee/i);
+    expect(bookingReviewMoneyCopy("Nadia", 10, false)).toMatch(
+      /within 7 days/i,
+    );
+    expect(bookingReviewMoneyCopy("Nadia", 10, false)).toMatch(
+      /10% booking fee/i,
+    );
   });
 
   it("tells the notified artist who paid and what they keep", () => {
