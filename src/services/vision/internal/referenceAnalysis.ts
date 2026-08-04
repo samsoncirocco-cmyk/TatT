@@ -79,7 +79,13 @@ function isDemoMode(): boolean {
  * caption ("a picture of some cartoon characters") is useless to the
  * intake record; the fields below mirror what the record can carry.
  */
-const ANALYSIS_PROMPT = `You are analyzing a reference image a client sent to a tattoo design consultant. Describe it as tattoo-brief signal, not a generic caption.
+/**
+ * Exported so measurement harnesses can score generated designs with the
+ * SAME question production asks of reference photos ("which recognizable
+ * characters are actually in this image, never guess"). A second prompt
+ * written for the harness would drift from the one that ships.
+ */
+export const ANALYSIS_PROMPT = `You are analyzing a reference image a client sent to a tattoo design consultant. Describe it as tattoo-brief signal, not a generic caption.
 
 Respond with ONLY a JSON object:
 {
