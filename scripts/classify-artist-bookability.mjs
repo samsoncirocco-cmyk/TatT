@@ -178,7 +178,7 @@ async function main() {
        WITH a,
          ((a.portfolioImages IS :: LIST<ANY> AND size(a.portfolioImages) > 0) OR
           (a.portfolioPermalinks IS :: LIST<ANY> AND size(a.portfolioPermalinks) > 0)) AS evidence,
-         EXISTS { MATCH (a)-[:WORKS_AT|HAS_SHOP]->(sh:Shop) WHERE sh.websiteLive = true } AS reachable
+         EXISTS { MATCH (a)-[:WORKS_AT|HAS_SHOP]->(sh:Shop) WHERE sh.websiteLive = true AND trim(coalesce(sh.website,'')) <> '' } AS reachable
        RETURN count(*) AS total,
               sum(CASE WHEN evidence THEN 1 ELSE 0 END) AS withEvidence,
               sum(CASE WHEN reachable THEN 1 ELSE 0 END) AS withContact,

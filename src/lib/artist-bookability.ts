@@ -50,10 +50,12 @@ export const HAS_TATTOO_EVIDENCE_CLAUSE =
 /**
  * A contact channel confirmed reachable: a shop whose website answered an HTTP
  * request at the last check. `= true` rather than `coalesce(..., true)` — an
- * unprobed shop must not qualify.
+ * unprobed shop must not qualify. Also require a non-empty `website`: national
+ * shop import can clear the URL without resetting `websiteLive`, and a live
+ * flag with no URL is not a contact channel.
  */
 export const HAS_REACHABLE_CONTACT_CLAUSE =
-  "EXISTS { MATCH (a)-[:WORKS_AT|HAS_SHOP]->(sh:Shop) WHERE sh.websiteLive = true }";
+  "EXISTS { MATCH (a)-[:WORKS_AT|HAS_SHOP]->(sh:Shop) WHERE sh.websiteLive = true AND trim(coalesce(sh.website,'')) <> '' }";
 
 /**
  * The bookable tier. Compose with PUBLIC_ARTIST_CLAUSE (artist-visibility) —
