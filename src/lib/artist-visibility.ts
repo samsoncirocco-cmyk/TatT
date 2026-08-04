@@ -39,7 +39,7 @@ export const KNOWN_NON_ARTIST_NAMES = [
 ] as const;
 
 const KNOWN_NON_ARTIST_VALUES = KNOWN_NON_ARTIST_NAMES.map(
-  (name) => `'${name}'`,
+  (name) => `'${name.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`,
 ).join(", ");
 
 /** Explicitly known bad rows never belong in public discovery. */
