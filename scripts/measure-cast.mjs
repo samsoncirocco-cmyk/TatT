@@ -16,11 +16,16 @@ import { enhanceStructured } from '../src/services/council/index.ts';
 import { resolveLane, adcToken } from './renderLanes.mjs';
 import { CAST_RECORDS, scoreCastDir, summarizeCast } from './castCorpus.mjs';
 
-const [outDir, lane = 'flux', jsonOut] = process.argv.slice(2).filter((a) => a !== '--');
+const args = process.argv.slice(2).filter((a) => a !== '--');
+const outDir = args[0];
 if (!outDir) {
   console.error('usage: measure-cast.mjs <outDir> [imagen|flux|gemini|replicate-imagen] [jsonOut]');
   process.exit(1);
 }
+// Allow `<outDir> <jsonOut>` (default lane), matching measure-backdrop's shape.
+// A bare second token that ends in .json is jsonOut, not a lane name.
+const lane = args[1]?.endsWith('.json') ? 'flux' : (args[1] ?? 'flux');
+const jsonOut = args[1]?.endsWith('.json') ? args[1] : args[2];
 
 await mkdir(outDir, { recursive: true });
 const { render, token, costUsd } = resolveLane(lane);
