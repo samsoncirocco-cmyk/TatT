@@ -108,8 +108,22 @@ export const AI_MODELS = {
   }
 };
 
-// Default model
-const DEFAULT_MODEL = 'imagen3';
+/*
+ * Default model.
+ *
+ * This is the Studio page's only model selection — `imagen3` is not offered
+ * anywhere in the UI, so DEFAULT_MODEL was the single live path from /studio
+ * to Vertex. It bypassed `modelRoutingRules.js` entirely, which is why the
+ * routing-table change that took realism off Google did not cover it.
+ *
+ * flux_dev for the same reason the routing table now says so: the Gemini image
+ * models that replace the retired Imagen endpoints have no negative-prompt
+ * input, so the "no text" instruction is only prose in the prompt and the
+ * model wrote banner lettering into 2 of 2 measured designs. Permanent
+ * lettering in skin is not a risk worth a marginal quality delta, and Flux was
+ * already the shipped fallback for these styles.
+ */
+const DEFAULT_MODEL = 'flux-dev';
 const PREVIEW_MODEL = 'flux-schnell';
 
 // Ids from the retired SDXL catalog must keep resolving — stored model picks
@@ -525,8 +539,10 @@ export async function generateTattooDesign(userInput, modelId = null, signal = n
       ].includes(error.code);
 
       if (shouldFallback) {
+        // DEFAULT_MODEL is a Replicate model now, so it needs no imagen3
+        // guard here — falling back to it can no longer re-enter Vertex.
         console.warn('[Replicate] Vertex generation failed, falling back to Replicate');
-        return generateTattooDesign(userInput, DEFAULT_MODEL === 'imagen3' ? 'flux-dev' : DEFAULT_MODEL, signal, {
+        return generateTattooDesign(userInput, DEFAULT_MODEL, signal, {
           ...options,
           allowFallback: false
         });

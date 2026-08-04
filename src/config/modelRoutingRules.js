@@ -116,21 +116,27 @@ export const STYLE_MODEL_MAPPING = {
         reasoning: 'Flux Dev leads on linework, prompt adherence, and tattoo-specific detail'
     },
 
-    // Realism
+    // Realism — moved off the Google models. Measured through the real
+    // prompt path, Gemini baked banner text into the artwork on 2 of 2
+    // designs ("WILDERNESS", "OLD MAN OF THE SEA") despite the standard
+    // "avoid text, watermark, signature" instruction; the retiring Imagen
+    // endpoint produced none. A customer approving a design with a word in
+    // it is a customer wearing that word permanently, so realism joins the
+    // rest of the catalog on Flux until a Google route is proven clean.
     realism: {
-        primary: 'imagen3',
-        fallback: 'flux_dev',
-        reasoning: 'Imagen 3 excels at photorealistic detail and natural lighting'
+        primary: 'flux_dev',
+        fallback: 'flux_schnell',
+        reasoning: 'Flux Dev holds photorealistic detail without baking text into the artwork'
     },
     portrait: {
-        primary: 'imagen3',
-        fallback: 'flux_dev',
-        reasoning: 'Best photorealistic rendering for portrait accuracy'
+        primary: 'flux_dev',
+        fallback: 'flux_schnell',
+        reasoning: 'Flux Dev holds portrait accuracy without baking text into the artwork'
     },
     photorealistic: {
-        primary: 'imagen3',
-        fallback: 'flux_dev',
-        reasoning: 'Highest quality photorealistic generation available'
+        primary: 'flux_dev',
+        fallback: 'flux_schnell',
+        reasoning: 'Flux Dev holds photorealistic rendering without baking text into the artwork'
     },
 
     // Anime/Illustrative
@@ -266,9 +272,13 @@ export const COMPLEXITY_ADJUSTMENTS = {
         modelPreference: null // Use style-based selection
     },
     complex: {
-        // Complex designs may benefit from higher quality models
+        // Complex designs may benefit from higher quality models.
+        // imagen3 is deliberately absent: it is the one entry whose bestFor
+        // list matches realism/portrait/photorealistic, so leaving it here
+        // would let a "complex" request re-select Google for exactly the
+        // styles moved off it above.
         preferFast: false,
-        modelPreference: ['imagen3', 'flux_dev', 'krea_2']
+        modelPreference: ['flux_dev', 'krea_2']
     }
 };
 
