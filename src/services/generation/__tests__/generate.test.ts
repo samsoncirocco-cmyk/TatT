@@ -11,13 +11,30 @@ vi.mock('@/lib/observability', () => ({
 import { generate } from '../index';
 import { logEvent } from '@/lib/observability';
 
-function imagenResponse(count = 1) {
+/*
+ * One Gemini call returns at most one image — unlike Imagen's sampleCount,
+ * which returned N from a single call. Multi-image requests fan out, so a test
+ * asking for N images queues N of these.
+ */
+function imageResponse(id = 'img0', mimeType = 'image/png') {
   return {
     ok: true,
     json: async () => ({
-      predictions: Array.from({ length: count }, (_, i) => ({
-        bytesBase64Encoded: `img${i}`
-      }))
+      candidates: [
+        {
+          content: { parts: [{ inlineData: { mimeType, data: id } }] }
+        }
+      ]
+    })
+  };
+}
+
+/** A safety block: HTTP 200, no image, a reason in finishReason. */
+function blockedResponse(reason = 'SAFETY') {
+  return {
+    ok: true,
+    json: async () => ({
+      candidates: [{ finishReason: reason, content: { parts: [] } }]
     })
   };
 }
@@ -30,6 +47,13 @@ function errorResponse(status: number) {
   };
 }
 
+/**
+ * Every case here pins the provider with `modelId: 'imagen3'` rather than a
+ * style. These used to say `style: 'realism'`, which worked only while realism
+ * routed to Vertex; #281 moved realism/portrait/photorealistic to Flux Dev, so
+ * a style-selected case now lands on Replicate and tests nothing about this
+ * provider. Pinning the model is what this suite actually means.
+ */
 describe('generation module seam — vertex provider', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 
@@ -47,7 +71,9 @@ describe('generation module seam — vertex provider', () => {
   });
 
   it('returns images and metadata for a successful generation', async () => {
-    fetchMock.mockResolvedValueOnce(imagenResponse(2));
+    fetchMock
+      .mockResolvedValueOnce(imageResponse('img0'))
+      .mockResolvedValueOnce(imageResponse('img1'));
 
     const result = await generate({ prompt: 'dragon tattoo', modelId: 'imagen3', numImages: 2 });
 
@@ -56,7 +82,7 @@ describe('generation module seam — vertex provider', () => {
       'data:image/png;base64,img1'
     ]);
     expect(result.metadata).toMatchObject({
-      model: 'imagen-3.0-generate-001',
+      model: 'gemini-3.1-flash-image',
       provider: 'vertex-ai',
       attempts: 1,
       safetyFilterLevel: 'block_only_high',
@@ -65,34 +91,127 @@ describe('generation module seam — vertex provider', () => {
     });
   });
 
-  it('sends prompt and parameters to the Vertex predict endpoint', async () => {
-    fetchMock.mockResolvedValueOnce(imagenResponse());
+  it('fans out one call per requested image', async () => {
+    fetchMock
+      .mockResolvedValueOnce(imageResponse('a'))
+      .mockResolvedValueOnce(imageResponse('b'))
+      .mockResolvedValueOnce(imageResponse('c'));
+
+    const result = await generate({ prompt: 'wolf', modelId: 'imagen3', numImages: 3 });
+
+    // Imagen took sampleCount:3 in one call; Gemini needs three.
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(result.images).toHaveLength(3);
+  });
+
+  it('sends the prompt and config to the Vertex generateContent endpoint', async () => {
+    fetchMock.mockResolvedValueOnce(imageResponse());
 
     await generate({
       prompt: 'koi fish',
       modelId: 'imagen3',
-      negativePrompt: 'blurry',
-      aspectRatio: '3:4',
-      seed: '42'
+      aspectRatio: '3:4'
     });
 
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toContain('imagen-3.0-generate-001:predict');
+    expect(url).toContain('gemini-3.1-flash-image:generateContent');
     const body = JSON.parse(init.body);
-    expect(body.instances).toEqual([{ prompt: 'koi fish' }]);
-    expect(body.parameters).toMatchObject({
-      sampleCount: 1,
-      aspectRatio: '3:4',
-      negativePrompt: 'blurry',
-      seed: 42
+    expect(body.contents).toEqual([
+      { role: 'user', parts: [{ text: 'koi fish' }] }
+    ]);
+    expect(body.generationConfig).toMatchObject({
+      responseModalities: ['IMAGE'],
+      imageConfig: { aspectRatio: '3:4', personGeneration: 'ALLOW_ADULT' }
     });
     expect(init.headers.Authorization).toBe('Bearer test-token');
+  });
+
+  it('maps personGeneration onto Gemini imageConfig', async () => {
+    fetchMock.mockResolvedValueOnce(imageResponse());
+
+    await generate({
+      prompt: 'portrait',
+      modelId: 'imagen3',
+      personGeneration: 'dont_allow'
+    });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.generationConfig.imageConfig.personGeneration).toBe('ALLOW_NONE');
+  });
+
+  it('maps outputFormat onto Gemini imageOutputOptions.mimeType', async () => {
+    fetchMock.mockResolvedValueOnce(imageResponse());
+
+    await generate({
+      prompt: 'portrait',
+      modelId: 'imagen3',
+      outputFormat: 'jpeg'
+    });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.generationConfig.imageConfig.imageOutputOptions).toEqual({
+      mimeType: 'image/jpeg'
+    });
+  });
+
+  it('folds the negative prompt into an Avoid clause (no negative_prompt input exists)', async () => {
+    fetchMock.mockResolvedValueOnce(imageResponse());
+
+    await generate({ prompt: 'koi fish', modelId: 'imagen3', negativePrompt: 'blurry, text' });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.contents[0].parts[0].text).toBe('koi fish. Avoid: blurry, text.');
+    // The shield tokens must not vanish into a field the model ignores.
+    expect(JSON.stringify(body)).not.toContain('negativePrompt');
+  });
+
+  it('trims the prompt before folding Avoid (parity with replicate.ts)', async () => {
+    fetchMock.mockResolvedValueOnce(imageResponse());
+
+    await generate({
+      prompt: '  koi fish.  ',
+      modelId: 'imagen3',
+      negativePrompt: 'blurry'
+    });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.contents[0].parts[0].text).toBe('koi fish. Avoid: blurry.');
+  });
+
+  it('maps our safety vocabulary onto Gemini harm thresholds', async () => {
+    fetchMock.mockResolvedValueOnce(imageResponse());
+
+    await generate({ prompt: 'skull', modelId: 'imagen3', safetyFilterLevel: 'block_most' });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.safetySettings).toHaveLength(4);
+    for (const setting of body.safetySettings) {
+      expect(setting.threshold).toBe('BLOCK_LOW_AND_ABOVE');
+    }
+  });
+
+  it('preserves the mime type the model reports', async () => {
+    fetchMock.mockResolvedValueOnce(imageResponse('jpg0', 'image/jpeg'));
+
+    const result = await generate({ prompt: 'anchor', modelId: 'imagen3' });
+
+    expect(result.images[0]).toBe('data:image/jpeg;base64,jpg0');
+  });
+
+  it('treats a 200-with-no-image safety block as a failure, naming the reason', async () => {
+    // The most important new failure mode: Imagen refused with an HTTP error,
+    // Gemini refuses with a successful response and an empty parts array.
+    fetchMock.mockResolvedValue(blockedResponse('SAFETY'));
+
+    await expect(generate({ prompt: 'skull', modelId: 'imagen3' })).rejects.toThrow(
+      /returned no image \(SAFETY\)/
+    );
   });
 
   it('retries on 429 and succeeds on a later attempt', async () => {
     fetchMock
       .mockResolvedValueOnce(errorResponse(429))
-      .mockResolvedValueOnce(imagenResponse());
+      .mockResolvedValueOnce(imageResponse());
 
     const result = await generate({
       prompt: 'rose',
@@ -109,7 +228,7 @@ describe('generation module seam — vertex provider', () => {
 
     await expect(
       generate({ prompt: 'rose', modelId: 'imagen3', retry: { maxRetries: 3, baseDelayMs: 1 } })
-    ).rejects.toThrow('Imagen API error: 400');
+    ).rejects.toThrow('Vertex image API error: 400');
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -117,7 +236,7 @@ describe('generation module seam — vertex provider', () => {
     fetchMock
       .mockResolvedValueOnce(errorResponse(500))
       .mockResolvedValueOnce(errorResponse(500))
-      .mockResolvedValueOnce(imagenResponse());
+      .mockResolvedValueOnce(imageResponse());
 
     const result = await generate({
       prompt: 'skull',
@@ -130,7 +249,7 @@ describe('generation module seam — vertex provider', () => {
     expect(result.metadata.fallbackUsed).toBe(true);
     expect(result.metadata.safetyFilterLevel).toBe('block_only_high');
     const fallbackBody = JSON.parse(fetchMock.mock.calls[2][1].body);
-    expect(fallbackBody.parameters.safetySetting).toBe('block_only_high');
+    expect(fallbackBody.safetySettings[0].threshold).toBe('BLOCK_ONLY_HIGH');
   });
 
   it('does NOT run the paid safety fallback after a non-retryable error (declared fix)', async () => {
@@ -144,14 +263,94 @@ describe('generation module seam — vertex provider', () => {
         retry: { maxRetries: 2, baseDelayMs: 1 },
         fallback: { safetyFilterLevel: 'block_only_high' }
       })
-    ).rejects.toThrow('Imagen API error: 400');
+    ).rejects.toThrow('Vertex image API error: 400');
 
     // Exactly one paid call — the fallback must not fire for a hopeless request.
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it('does NOT run VERTEX_IMAGE_NO_OUTPUT fallback when fallback safety is stricter', async () => {
+    // Permissive primary + usual block_only_high fallback: thresholds differ,
+    // but the fallback is stricter — another paid fan-out cannot recover.
+    fetchMock.mockResolvedValue(blockedResponse('SAFETY'));
+
+    await expect(
+      generate({
+        prompt: 'skull',
+        modelId: 'imagen3',
+        safetyFilterLevel: 'block_none',
+        retry: { maxRetries: 0, baseDelayMs: 1 },
+        fallback: { safetyFilterLevel: 'block_only_high' }
+      })
+    ).rejects.toThrow(/returned no image \(SAFETY\)/);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('runs VERTEX_IMAGE_NO_OUTPUT fallback only when fallback safety is looser', async () => {
+    fetchMock
+      .mockResolvedValueOnce(blockedResponse('SAFETY'))
+      .mockResolvedValueOnce(imageResponse());
+
+    const result = await generate({
+      prompt: 'skull',
+      modelId: 'imagen3',
+      safetyFilterLevel: 'block_most',
+      retry: { maxRetries: 0, baseDelayMs: 1 },
+      fallback: { safetyFilterLevel: 'block_only_high' }
+    });
+
+    expect(result.metadata.fallbackUsed).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const fallbackBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(fallbackBody.safetySettings[0].threshold).toBe('BLOCK_ONLY_HIGH');
+  });
+
+  it('prefers a hard non-retryable error over a safety block when parallel calls fail', async () => {
+    // Safety settles first, 400 second. Promise.all race could surface SAFETY
+    // and burn a paid loosened-safety fan-out; fixed priority must pick 400.
+    fetchMock
+      .mockResolvedValueOnce(blockedResponse('SAFETY'))
+      .mockResolvedValueOnce(errorResponse(400));
+
+    await expect(
+      generate({
+        prompt: 'skull',
+        modelId: 'imagen3',
+        numImages: 2,
+        safetyFilterLevel: 'block_most',
+        retry: { maxRetries: 2, baseDelayMs: 1 },
+        fallback: { safetyFilterLevel: 'block_only_high' }
+      })
+    ).rejects.toThrow('Vertex image API error: 400');
+
+    // Primary fan-out only — no retries, no safety fallback.
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('prefers a retryable error over a safety block when parallel calls fail', async () => {
+    // SAFETY (NO_OUTPUT, status 200) must not mask a 429 — otherwise
+    // generateWithRetry treats the fan-out as non-retryable and skips backoff.
+    fetchMock
+      .mockResolvedValueOnce(blockedResponse('SAFETY'))
+      .mockResolvedValueOnce(errorResponse(429))
+      .mockResolvedValueOnce(imageResponse())
+      .mockResolvedValueOnce(imageResponse());
+
+    const result = await generate({
+      prompt: 'skull',
+      modelId: 'imagen3',
+      numImages: 2,
+      retry: { maxRetries: 2, baseDelayMs: 1 }
+    });
+
+    expect(result.images).toHaveLength(2);
+    expect(result.metadata.attempts).toBe(2);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
   it('emits request and result telemetry', async () => {
-    fetchMock.mockResolvedValueOnce(imagenResponse());
+    fetchMock.mockResolvedValueOnce(imageResponse());
 
     await generate({ prompt: 'anchor', modelId: 'imagen3' });
 

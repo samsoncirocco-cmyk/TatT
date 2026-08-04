@@ -12,7 +12,11 @@ const { generateMock, recordSpendMock, checkBudgetMock, rateLimitMock, verifyApi
   verifyApiAuthMock: vi.fn()
 }));
 
-vi.mock('@/services/generation', () => ({
+// routeGeneration is real, not mocked: the route calls it to label a failure
+// with the model that was actually attempted, and a stubbed router would let
+// that label drift from the routing table it is supposed to report.
+vi.mock('@/services/generation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/generation')>()),
   generate: generateMock
 }));
 
@@ -123,6 +127,18 @@ describe('/api/v1/generate route adapter', () => {
     expect(generateMock.mock.calls[0][0]).not.toHaveProperty('modelId');
   });
 
+  it('reports outputFormat from the image data-URL mime type', async () => {
+    generateMock.mockResolvedValueOnce({
+      ...vertexResult(1),
+      images: ['data:image/jpeg;base64,jpg0']
+    });
+
+    const res = await POST(makeRequest({ prompt: 'dragon tattoo' }));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.metadata.outputFormat).toBe('jpeg');
+  });
+
   it('returns the replicate fallback shape and records flat fallback spend', async () => {
     generateMock.mockResolvedValueOnce({
       images: ['https://replicate.delivery/out.png'],
@@ -153,6 +169,71 @@ describe('/api/v1/generate route adapter', () => {
 
     // Flat ~1 cent for a replicate fallback result.
     expect(recordSpendMock).toHaveBeenCalledWith(1);
+  });
+
+  // #287 took this route off the retiring Imagen endpoint by deleting the
+  // hardcoded modelId and letting the routing table decide. A caller-supplied
+  // modelId must not reopen that door: forwarding it would let a client pin
+  // Vertex for a style #281 deliberately moved to Flux, which is the
+  // text-in-tattoo defect arriving by a different road.
+  it('ignores a caller-supplied modelId — the routing table decides', async () => {
+    generateMock.mockResolvedValueOnce(vertexResult(1));
+
+    const res = await POST(makeRequest({
+      prompt: 'dragon tattoo',
+      modelId: 'imagen3',
+      style: 'anime'
+    }));
+
+    expect(res.status).toBe(200);
+    expect(generateMock).toHaveBeenCalledWith(
+      expect.not.objectContaining({ modelId: expect.anything() })
+    );
+    expect(generateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ prompt: 'dragon tattoo', style: 'anime' })
+    );
+  });
+
+  it('treats primary Replicate success as full success, not a fallback', async () => {
+    generateMock.mockResolvedValueOnce({
+      images: [
+        'https://replicate.delivery/a.png',
+        'https://replicate.delivery/b.png'
+      ],
+      metadata: {
+        model: 'flux-dev',
+        provider: 'replicate',
+        generatedAt: '2026-07-20T00:00:00.000Z',
+        durationMs: 1800,
+        attempts: 1,
+        safetyFilterLevel: 'block_only_high',
+        personGeneration: 'allow_adult',
+        seed: null,
+        fallbackUsed: false
+      }
+    });
+
+    const res = await POST(makeRequest({
+      prompt: 'koi fish tattoo',
+      style: 'traditional',
+      sampleCount: 2
+    }));
+
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.success).toBe(true);
+    expect(json.metadata).toMatchObject({
+      prompt: 'koi fish tattoo',
+      model: 'flux-dev',
+      provider: 'replicate',
+      style: 'traditional',
+      fallbackUsed: false,
+      durationMs: 1800,
+      attempts: 1
+    });
+    expect(json.metadata.fallback).toBeUndefined();
+    // Per-image Replicate spend on the primary path (not the flat fallback 1¢).
+    expect(recordSpendMock).toHaveBeenCalledWith(2);
   });
 
   it('maps VERTEX_QUOTA_EXCEEDED module errors to a 429', async () => {
