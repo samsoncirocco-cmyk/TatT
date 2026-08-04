@@ -88,21 +88,31 @@ async function screenAndReroll(
   let rerolls = 0;
 
   for (;;) {
-    const verdicts = await Promise.all(
-      result.images.map((image) => screenForText(image, prompt))
-    );
-
-    const unscreened = verdicts.find((v) => !v.screened);
-    if (unscreened) {
-      // Could not check. Say so rather than let "no intrusion found" stand in
-      // for "did not look" — those are different facts to debug.
-      result.metadata.textGuardSkipped = unscreened.skipReason;
+    // Nothing to screen: do not claim a clean pass. Absent textIntrusion means
+    // the guard did not run; false would mean screened and clean.
+    if (result.images.length === 0) {
       if (rerolls) result.metadata.textGuardRerolls = rerolls;
       return result;
     }
 
+    const verdicts = await Promise.all(
+      result.images.map((image) => screenForText(image, prompt))
+    );
+
+    // Known intrusion wins over a sibling skip. A mixed batch (one OCR hit,
+    // one budget/provider failure) still has enough signal to re-roll or flag;
+    // treating the whole result as "could not check" would deliver lettering.
     const offending = verdicts.filter((v) => v.intruded);
     if (offending.length === 0) {
+      const unscreened = verdicts.find((v) => !v.screened);
+      if (unscreened) {
+        // Could not check. Say so rather than let "no intrusion found" stand in
+        // for "did not look" — those are different facts to debug.
+        result.metadata.textGuardSkipped = unscreened.skipReason;
+        if (rerolls) result.metadata.textGuardRerolls = rerolls;
+        return result;
+      }
+
       result.metadata.textIntrusion = false;
       if (rerolls) result.metadata.textGuardRerolls = rerolls;
       return result;

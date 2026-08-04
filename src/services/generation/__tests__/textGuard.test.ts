@@ -245,4 +245,44 @@ describe('generation seam — unrequested-lettering guard', () => {
     expect(result.images).toHaveLength(1);
     expect(result.metadata.textGuardSkipped).toBe('budget');
   });
+
+  it('re-rolls when one image is lettered even if a sibling screen fails', async () => {
+    // Mixed batch: OCR finds lettering on one image, the other vision call
+    // fails. Known intrusion must win over the skip — otherwise lettered
+    // images ship with only textGuardSkipped set.
+    wire([['GOKU'], 'fail', [], []]);
+
+    const result = await generate({
+      prompt: 'Goku and Vegeta',
+      style: 'anime',
+      modelId: 'imagen3',
+      numImages: 2,
+      screenText: {},
+    });
+
+    expect(renderCalls).toBe(4);
+    expect(result.metadata.textIntrusion).toBe(false);
+    expect(result.metadata.textGuardRerolls).toBe(1);
+    expect(result.metadata.textGuardSkipped).toBeUndefined();
+  });
+
+  it('does not mark an empty image batch as screened clean', async () => {
+    // Replicate can succeed with output: []. That is not a clean pass.
+    vi.stubEnv('REPLICATE_API_TOKEN', 'r8_test');
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ id: 'pred_1', status: 'succeeded', output: [] }),
+    });
+
+    const result = await generate({
+      prompt: 'a fox',
+      style: 'realism',
+      modelId: 'flux-dev',
+      screenText: {},
+    });
+
+    expect(result.images).toEqual([]);
+    expect(guardCalls).toBe(0);
+    expect(result.metadata.textIntrusion).toBeUndefined();
+  });
 });
