@@ -29,6 +29,7 @@ export function newProfile(phone: string): SmsProfile {
     optedOut: false,
     activeSessionId: null,
     lastStage: null,
+    pendingPickId: null,
     totalReveals: 0,
     dailyReveals: { date: utcToday(), count: 0 },
     sessionIds: [],

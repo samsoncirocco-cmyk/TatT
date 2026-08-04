@@ -63,3 +63,32 @@ the profile surfaces.
   (ADR-0005 through ADR-0008) are untouched for profiles that qualify.
 - Neither tier is ever labeled "verified" (ADR-0032). Bookable means
   reachable with real work shown — nothing more.
+
+## Amendment (2026-08-04): the contact channel is a live shop website
+
+The "Instagram, email, or phone" contact list above did not survive contact
+with the data. Measured against the live graph (19,634 artists, Fizz,
+PR #288):
+
+- **Email and phone are absent** — no property, no relationship, nowhere in
+  the graph. Artist email exists only after Stripe onboarding
+  (`notifyArtistOfBooking` otherwise falls back to an ops inbox), so there is
+  no automated channel to an unclaimed artist; relay outreach to them is a
+  human step.
+- **Instagram is present on 100% of profiles**, so it separates nothing —
+  and it cannot be verified from outside (the login wall is identical for
+  real and fabricated handles).
+- **Shop websites are real and checkable**: 96.6% coverage nationally, and a
+  plain HTTP probe answers before any money is taken.
+
+**The bookable gate is therefore: real tattoo evidence AND a live shop
+website** (`(:Shop).websiteLive = true`, probed and stamped by
+`scripts/classify-artist-bookability.mjs`). The gate requires a *positive*
+signal — unlike `artist-visibility.ts`, which coalesces missing data to
+visible, an unprobed shop is an unknown shop and takes no deposits.
+Visibility forgives missing data; money does not. Two tests in
+`src/lib/artist-bookability.test.ts` pin this default.
+
+Measured outcome at amendment time: Phoenix metro 164/318 bookable (51.6%),
+Arizona 249/493 (50.5%) — above the ~30% recruiting-urgency line. Only AZ is
+probed; all other states are browse-only until the probe runs for them.
