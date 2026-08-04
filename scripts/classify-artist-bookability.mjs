@@ -143,25 +143,35 @@ async function main() {
 
     if (!apply) {
       console.log('\nDRY RUN — nothing written. Re-run with --apply.');
-      return;
+    } else {
+      const checkedAt = new Date().toISOString();
+      await session.executeWrite(async (tx) => {
+        await tx.run(
+          `UNWIND $rows AS row
+           MATCH (sh:Shop {placeId: row.placeId})
+           SET sh.websiteLive = row.live, sh.websiteCheckedAt = $checkedAt`,
+          {
+            rows: results.map(({ placeId, live }) => ({ placeId, live })),
+            checkedAt,
+          },
+        );
+        // Cleared websites are skipped by the probe query, so reset any leftover
+        // websiteLive — otherwise a prior true keeps the artist bookable.
+        await tx.run(
+          `MATCH (a:Artist)-[:WORKS_AT|HAS_SHOP]->(sh:Shop)
+           WHERE ${stateFilter(state)}
+             AND trim(coalesce(sh.website,'')) = ''
+             AND sh.websiteLive IS NOT NULL
+           SET sh.websiteLive = false, sh.websiteCheckedAt = $checkedAt`,
+          { ...params, checkedAt },
+        );
+      });
+      console.log(`\nWrote websiteLive + websiteCheckedAt=${checkedAt} to ${results.length} shops.`);
     }
 
-    const checkedAt = new Date().toISOString();
-    await session.executeWrite((tx) =>
-      tx.run(
-        `UNWIND $rows AS row
-         MATCH (sh:Shop {placeId: row.placeId})
-         SET sh.websiteLive = row.live, sh.websiteCheckedAt = $checkedAt`,
-        {
-          rows: results.map(({ placeId, live }) => ({ placeId, live })),
-          checkedAt,
-        },
-      ),
-    );
-    console.log(`\nWrote websiteLive + websiteCheckedAt=${checkedAt} to ${results.length} shops.`);
-
-    // Report the resulting tier split from the graph rather than from the
-    // in-memory results, so the number quoted is the number the app will read.
+    // Report the tier split from the graph rather than from the in-memory
+    // results, so the number quoted is the number the app will read. Runs on
+    // dry run too (current graph state) so operators can preview cohorts.
     const tiers = await session.run(
       `MATCH (a:Artist) WHERE ${stateFilter(state)}
        WITH a,
