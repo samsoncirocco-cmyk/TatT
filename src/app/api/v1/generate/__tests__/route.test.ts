@@ -167,6 +167,65 @@ describe('/api/v1/generate route adapter', () => {
     expect(recordSpendMock).toHaveBeenCalledWith(1);
   });
 
+  it('forwards an explicit modelId so Hyper-Realism is not style-routed away', async () => {
+    generateMock.mockResolvedValueOnce(vertexResult(1));
+
+    const res = await POST(makeRequest({
+      prompt: 'dragon tattoo',
+      modelId: 'imagen3',
+      style: 'anime'
+    }));
+
+    expect(res.status).toBe(200);
+    expect(generateMock).toHaveBeenCalledWith(expect.objectContaining({
+      prompt: 'dragon tattoo',
+      modelId: 'imagen3',
+      style: 'anime'
+    }));
+  });
+
+  it('treats primary Replicate success as full success, not a fallback', async () => {
+    generateMock.mockResolvedValueOnce({
+      images: [
+        'https://replicate.delivery/a.png',
+        'https://replicate.delivery/b.png'
+      ],
+      metadata: {
+        model: 'flux-dev',
+        provider: 'replicate',
+        generatedAt: '2026-07-20T00:00:00.000Z',
+        durationMs: 1800,
+        attempts: 1,
+        safetyFilterLevel: 'block_only_high',
+        personGeneration: 'allow_adult',
+        seed: null,
+        fallbackUsed: false
+      }
+    });
+
+    const res = await POST(makeRequest({
+      prompt: 'koi fish tattoo',
+      style: 'traditional',
+      sampleCount: 2
+    }));
+
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.success).toBe(true);
+    expect(json.metadata).toMatchObject({
+      prompt: 'koi fish tattoo',
+      model: 'flux-dev',
+      provider: 'replicate',
+      style: 'traditional',
+      fallbackUsed: false,
+      durationMs: 1800,
+      attempts: 1
+    });
+    expect(json.metadata.fallback).toBeUndefined();
+    // Per-image Replicate spend on the primary path (not the flat fallback 1¢).
+    expect(recordSpendMock).toHaveBeenCalledWith(2);
+  });
+
   it('maps VERTEX_QUOTA_EXCEEDED module errors to a 429', async () => {
     const quotaError = Object.assign(new Error('Vertex AI daily request quota exceeded'), {
       code: 'VERTEX_QUOTA_EXCEEDED',
