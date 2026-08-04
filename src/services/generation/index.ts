@@ -1,7 +1,7 @@
 // Public entry point of the generation module (ADR-0001).
 // Everything under internal/ is implementation detail — import only from here.
 import { vertexImagenProvider } from './internal/vertexImagen';
-import { replicateProvider } from './internal/replicate';
+import { replicateProvider, modelSupportsSourceImage } from './internal/replicate';
 import { routeGeneration, inferProvider } from './internal/routing';
 import type { GenerationRequest, GenerationResult, ProviderName } from './internal/provider';
 import { asGenerationError } from './internal/provider';
@@ -75,12 +75,19 @@ export async function generate(request: GenerationRequest): Promise<GenerationRe
 
     // Vertex → Replicate SDXL (when a token exists); Replicate → its routed
     // fallback chain. Vertex never appears as a fallback target.
-    const fallbackModels =
+    const routedFallbacks =
       route.provider === 'vertex-ai'
         ? process.env.REPLICATE_API_TOKEN
           ? ['sdxl']
           : []
         : route.fallbackChain.filter((id) => id !== 'imagen3');
+
+    // An image-to-image request can only fall back to a model that also
+    // takes a source image. Letting the others through would replace the
+    // primary model's real failure with a uniform SOURCE_IMAGE_UNSUPPORTED.
+    const fallbackModels = resolved.sourceImage
+      ? routedFallbacks.filter(modelSupportsSourceImage)
+      : routedFallbacks;
 
     let lastError: Error = error;
     for (const modelId of fallbackModels) {
