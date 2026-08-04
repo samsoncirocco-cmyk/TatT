@@ -119,6 +119,23 @@ function resolveThreshold(safetySetting: string): string {
   return SAFETY_THRESHOLDS[safetySetting] || 'BLOCK_ONLY_HIGH';
 }
 
+/*
+ * Higher = more content blocked. Used to decide whether a fallback safety
+ * setting is actually looser than the primary (not merely different).
+ */
+const THRESHOLD_STRICTNESS: Record<string, number> = {
+  BLOCK_NONE: 0,
+  BLOCK_ONLY_HIGH: 1,
+  BLOCK_MEDIUM_AND_ABOVE: 2,
+  BLOCK_LOW_AND_ABOVE: 3
+};
+
+function isLooserThreshold(fallbackSafety: string, primarySafety: string): boolean {
+  const fallbackRank = THRESHOLD_STRICTNESS[resolveThreshold(fallbackSafety)] ?? 1;
+  const primaryRank = THRESHOLD_STRICTNESS[resolveThreshold(primarySafety)] ?? 1;
+  return fallbackRank < primaryRank;
+}
+
 /** Gemini fans out one call per image; clamp to the same 1–4 range Imagen sampleCount used. */
 function resolveNumImages(numImages?: number): number {
   // NaN/Infinity must not reach Array.from({ length }) — NaN yields [], Infinity throws.
@@ -387,11 +404,13 @@ async function generateWithRetry(request: GenerationRequest): Promise<Generation
   const fallbackSafety = fallback
     ? resolveSafetySetting(fallback.safetyFilterLevel || 'block_only_high')
     : null;
-  // A hard safety refusal cannot recover under identical Gemini thresholds —
-  // skip that paid fan-out and let the cross-provider chain run instead.
+  // A hard safety refusal cannot recover under identical or stricter Gemini
+  // thresholds — skip that paid fan-out and let the cross-provider chain run
+  // instead. Only a genuinely looser fallback (e.g. block_most → block_only_high)
+  // is worth another fan-out; a permissive primary with a stricter fallback
+  // (block_none → block_only_high) must not schedule one.
   const safetyLoosened =
-    fallbackSafety !== null &&
-    resolveThreshold(fallbackSafety) !== resolveThreshold(primarySafety);
+    fallbackSafety !== null && isLooserThreshold(fallbackSafety, primarySafety);
   const shouldTryFallback =
     Boolean(fallback) &&
     (lastErrorRetryable ||

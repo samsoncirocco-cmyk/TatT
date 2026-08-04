@@ -269,6 +269,43 @@ describe('generation module seam — vertex provider', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it('does NOT run VERTEX_IMAGE_NO_OUTPUT fallback when fallback safety is stricter', async () => {
+    // Permissive primary + usual block_only_high fallback: thresholds differ,
+    // but the fallback is stricter — another paid fan-out cannot recover.
+    fetchMock.mockResolvedValue(blockedResponse('SAFETY'));
+
+    await expect(
+      generate({
+        prompt: 'skull',
+        modelId: 'imagen3',
+        safetyFilterLevel: 'block_none',
+        retry: { maxRetries: 0, baseDelayMs: 1 },
+        fallback: { safetyFilterLevel: 'block_only_high' }
+      })
+    ).rejects.toThrow(/returned no image \(SAFETY\)/);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('runs VERTEX_IMAGE_NO_OUTPUT fallback only when fallback safety is looser', async () => {
+    fetchMock
+      .mockResolvedValueOnce(blockedResponse('SAFETY'))
+      .mockResolvedValueOnce(imageResponse());
+
+    const result = await generate({
+      prompt: 'skull',
+      modelId: 'imagen3',
+      safetyFilterLevel: 'block_most',
+      retry: { maxRetries: 0, baseDelayMs: 1 },
+      fallback: { safetyFilterLevel: 'block_only_high' }
+    });
+
+    expect(result.metadata.fallbackUsed).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const fallbackBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(fallbackBody.safetySettings[0].threshold).toBe('BLOCK_ONLY_HIGH');
+  });
+
   it('prefers a hard non-retryable error over a safety block when parallel calls fail', async () => {
     // Safety settles first, 400 second. Promise.all race could surface SAFETY
     // and burn a paid loosened-safety fan-out; fixed priority must pick 400.
