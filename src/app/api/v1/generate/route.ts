@@ -5,6 +5,13 @@ import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { checkBudget, recordSpend, VERTEX_IMAGEN_COST_CENTS } from '@/lib/budget-tracker';
 import { createRequestLogger } from '@/lib/logger';
 import { DEMO_MOCK_IMAGES } from '@/lib/demo-images';
+import { verifyFirebaseToken } from '@/lib/auth-dal';
+import {
+    GenerationCreditsExhaustedError,
+    releaseGenerationCredit,
+    reserveGenerationCredit,
+    type GenerationCreditReservation,
+} from '@/lib/generation-credits';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -33,6 +40,11 @@ export async function POST(req: NextRequest) {
     // Auth check
     const authError = await verifyApiAuth(req);
     if (authError) return authError;
+
+    const user = await verifyFirebaseToken(req);
+    if (!user) {
+        return NextResponse.json({ error: 'Authentication required', code: 'AUTH_REQUIRED' }, { status: 401 });
+    }
 
     // ─── DEMO MODE ─────────────────────────────────────────────────────────
     if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
@@ -67,6 +79,8 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json().catch(() => ({}));
 
+    let creditReservation: GenerationCreditReservation | null = null;
+    let generationSucceeded = false;
     try {
         const {
             prompt,
@@ -95,6 +109,8 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'sampleCount must be between 1 and 4', code: 'INVALID_SAMPLE_COUNT' }, { status: 400 });
         }
 
+        creditReservation = await reserveGenerationCredit(user.uid);
+
         const result = await generate({
             prompt: prompt.trim(),
             negativePrompt: negativePrompt?.trim(),
@@ -121,6 +137,7 @@ export async function POST(req: NextRequest) {
                 safetyFilterLevel: 'block_only_high'
             }
         });
+        generationSucceeded = true;
 
         // ─── Cross-provider fallback result ───────────────────────────────
         // The module fell back to Replicate after a Vertex failure.
@@ -145,7 +162,8 @@ export async function POST(req: NextRequest) {
                     provider: 'replicate',
                     fallback: true,
                     fallbackReason: result.metadata.fallbackReason || 'VERTEX_FAILED',
-                }
+                },
+                credits: creditReservation,
             });
         }
 
@@ -177,10 +195,17 @@ export async function POST(req: NextRequest) {
                 personGeneration: result.metadata.personGeneration,
                 seed: result.metadata.seed ?? null,
                 fallbackUsed: result.metadata.fallbackUsed
-            }
+            },
+            credits: creditReservation,
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+        if (creditReservation && !generationSucceeded) {
+            await releaseGenerationCredit(user.uid, creditReservation).catch((releaseError) => {
+                console.error('[Generation] failed to return unused generation credit:', releaseError);
+            });
+        }
+        const generationError = error as { code?: string; message?: string; details?: { retry_after?: number } };
         // Log the model that was actually attempted. This used to be a
         // hardcoded 'imagen-3.0-generate-001', which mislabels every request
         // now that the route style-routes instead of pinning Vertex (#287) —
@@ -192,38 +217,45 @@ export async function POST(req: NextRequest) {
             style: body.style,
             bodyPart: body.bodyPart
         }).modelId;
-        reqLogger.error('generation.failed', error, {
+        reqLogger.error('generation.failed', error instanceof Error ? error : new Error('Generation failed'), {
             model: modelForLog,
-            error_code: error.code || 'GENERATION_FAILED',
+            error_code: generationError.code || 'GENERATION_FAILED',
         });
 
-        if (error.code === 'VERTEX_QUOTA_EXCEEDED') {
+        if (error instanceof GenerationCreditsExhaustedError || generationError.code === 'GENERATION_CREDITS_EXHAUSTED') {
+            return NextResponse.json({
+                error: 'You have used your free generations. Buy 25 more cuts to keep designing.',
+                code: 'GENERATION_CREDITS_EXHAUSTED',
+            }, { status: 402 });
+        }
+
+        if (generationError.code === 'VERTEX_QUOTA_EXCEEDED') {
             return NextResponse.json({
                 error: 'Vertex AI quota exceeded',
                 code: 'VERTEX_QUOTA_EXCEEDED',
-                details: error.details || null
+                details: generationError.details || null
             }, { status: 429 });
         }
 
-        if (error.code === 'VERTEX_NOT_CONFIGURED' || error.code === 'GCS_NOT_CONFIGURED') {
+        if (generationError.code === 'VERTEX_NOT_CONFIGURED' || generationError.code === 'GCS_NOT_CONFIGURED') {
             return NextResponse.json({
                 error: 'Generation service not configured',
-                code: error.code,
-                message: error.message
+                code: generationError.code,
+                message: generationError.message
             }, { status: 500 });
         }
 
-        if (error.code === 'INVALID_PROMPT') {
+        if (generationError.code === 'INVALID_PROMPT') {
             return NextResponse.json({
-                error: error.message,
-                code: error.code
+                error: generationError.message,
+                code: generationError.code
             }, { status: 400 });
         }
 
         return NextResponse.json({
             error: 'Generation failed',
-            code: error.code || 'GENERATION_FAILED',
-            message: error.message
+            code: generationError.code || 'GENERATION_FAILED',
+            message: generationError.message
         }, { status: 500 });
     }
 }

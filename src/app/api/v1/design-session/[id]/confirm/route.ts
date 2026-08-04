@@ -5,6 +5,13 @@ import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { checkBudget } from '@/lib/budget-tracker';
 import { createRequestLogger } from '@/lib/logger';
 import { designSessionErrorResponse } from '../../shared';
+import { verifyFirebaseToken } from '@/lib/auth-dal';
+import {
+    GenerationCreditsExhaustedError,
+    releaseGenerationCredit,
+    reserveGenerationCredit,
+    type GenerationCreditReservation,
+} from '@/lib/generation-credits';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -35,10 +42,19 @@ export async function POST(
     // Seeded before the try so a setup failure — including one thrown by
     // `await params` itself — still logs a session_id.
     let sessionId = 'unknown';
+    let uid: string | null = null;
+    let creditReservation: GenerationCreditReservation | null = null;
+    let generationSucceeded = false;
 
     try {
         const authError = await verifyApiAuth(req);
         if (authError) return authError;
+
+        const user = await verifyFirebaseToken(req);
+        if (!user) {
+            return NextResponse.json({ error: 'Authentication required', code: 'AUTH_REQUIRED' }, { status: 401 });
+        }
+        uid = user.uid;
 
         const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
@@ -61,7 +77,12 @@ export async function POST(
 
         if (demoMode) await new Promise(r => setTimeout(r, 1500));
 
+        if (!demoMode) {
+            creditReservation = await reserveGenerationCredit(user.uid);
+        }
+
         const session = await confirmProposal(sessionId);
+        generationSucceeded = true;
 
         reqLogger.complete('design_session.confirm.success', {
             session_id: session.id,
@@ -69,8 +90,19 @@ export async function POST(
             axis_mode: session.axisSelection.mode,
         });
 
-        return NextResponse.json({ success: true, session });
+        return NextResponse.json({ success: true, session, credits: creditReservation });
     } catch (error) {
+        if (uid && creditReservation && !generationSucceeded) {
+            await releaseGenerationCredit(uid, creditReservation).catch((releaseError) => {
+                console.error('[Design session] failed to return unused generation credit:', releaseError);
+            });
+        }
+        if (error instanceof GenerationCreditsExhaustedError || (error as { code?: string }).code === 'GENERATION_CREDITS_EXHAUSTED') {
+            return NextResponse.json(
+                { error: 'You have used your free generations. Buy 25 more cuts to keep designing.', code: 'GENERATION_CREDITS_EXHAUSTED' },
+                { status: 402 }
+            );
+        }
         reqLogger.error('design_session.confirm.failed', error as Error, {
             session_id: sessionId,
             error_code: (error as { code?: string }).code || 'DESIGN_SESSION_FAILED',

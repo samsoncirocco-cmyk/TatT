@@ -1,7 +1,7 @@
 import StudioShell from "@/components/studio/StudioShell";
 import QuietHeadline from "@/components/quiet/QuietHeadline";
 import QuietCTA from "@/components/quiet/QuietCTA";
-import { ArtistSubscribeButton } from "@/components/billing/BillingButtons";
+import { ArtistSubscribeButton, BuyGenerationCreditsButton } from "@/components/billing/BillingButtons";
 // Server component — safe to read the platform take rate from the shared
 // Stripe config (never imported into client components). Rendering the fee
 // from PLATFORM_FEE_BPS keeps this page honest if the rate ever changes.
@@ -10,29 +10,28 @@ import { PLATFORM_FEE_BPS } from "@/lib/stripe";
 const FEE_PERCENT = PLATFORM_FEE_BPS / 100; // 1000 bps → 10
 
 /**
- * Honest pricing (ADR-0030): no consumer tiers exist, so none are sold here.
- * Designing is free; the only customer charge is the booking fee added on top
- * of the deposit at booking, and the artist keeps 100% of the deposit
- * (ADR-0007). Consumer credits/tiers are explicitly deferred post-launch.
+ * Consumer pricing (ADR-0041): each account gets 25 lifetime free designs.
+ * Afterwards, there is one simple one-time pack: $10 for 25 more designs.
+ * There is no consumer subscription.
  */
 const STEPS = [
   {
     step: "01",
     name: "Design",
-    price: "Free",
-    body: "Generate designs, preview them on your body in AR, and browse artists. No monthly fee, no credit card.",
+    price: "25 free designs",
+    body: "Every account starts with 25 lifetime designs. No monthly fee and no credit card to start.",
   },
   {
     step: "02",
-    name: "Book",
-    price: `Deposit + ${FEE_PERCENT}%`,
-    body: `When you book an artist, you pay their deposit plus a ${FEE_PERCENT}% booking fee. That fee is the only thing TattTester ever charges you.`,
+    name: "Keep designing",
+    price: "$10 / 25 designs",
+    body: "When you use your free designs, buy one simple credit pack. It is a one-time purchase, never a subscription.",
   },
   {
     step: "03",
-    name: "Ink",
-    price: "100% to the artist",
-    body: "Your entire deposit goes to the artist — TattTester takes nothing out of it. The booking fee is how we keep the lights on.",
+    name: "Book",
+    price: `Deposit + ${FEE_PERCENT}%`,
+    body: `When you book, you pay the artist's deposit plus a ${FEE_PERCENT}% booking fee. Your deposit goes to the artist.`,
   },
 ];
 
@@ -42,16 +41,16 @@ export default function PricingPage() {
       <div className="px-6 md:px-12 pt-8 pb-6 border-b hairline-quiet-soft">
         <div className="max-w-6xl mx-auto flex items-center justify-between text-[12px] text-quiet-dim tabular-nums font-body">
           <span>Pricing</span>
-          <span>USD / pay per booking</span>
+          <span>USD / design credits and booking</span>
         </div>
       </div>
 
       <div className="px-6 md:px-12 py-24 md:py-32">
         <div className="max-w-6xl mx-auto">
-          <QuietHeadline>Free to design</QuietHeadline>
+          <QuietHeadline>Start free. Keep it simple.</QuietHeadline>
           <p className="mt-8 text-[15px] text-quiet-dim font-body max-w-xl leading-[1.7]">
-            No tiers. No subscriptions. You only pay when you book an artist.
-            No tricks.
+            You get 25 lifetime tattoo designs free. After that, it is $10 for
+            25 more. No tiers. No consumer subscription. No tricks.
           </p>
 
           <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10">
@@ -79,8 +78,11 @@ export default function PricingPage() {
 
           <div className="mt-14 flex flex-col sm:flex-row sm:items-center gap-6">
             <QuietCTA href="/design" size="md">Start designing</QuietCTA>
+            <BuyGenerationCreditsButton className="press inline-flex items-center justify-center whitespace-nowrap px-8 py-4 font-body text-[14px] leading-none border hairline-quiet text-quiet hover:bg-quiet hover:text-black disabled:opacity-60">
+              Buy 25 designs for $10
+            </BuyGenerationCreditsButton>
             <p className="text-[13px] text-quiet-dim font-body">
-              Deposits are set by the artist, not by us.
+              Booking deposits are tiered by tattoo size.
             </p>
           </div>
 

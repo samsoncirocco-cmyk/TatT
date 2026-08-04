@@ -13,6 +13,9 @@ const {
   rateLimitMock,
   rateLimitResponseMock,
   verifyApiAuthMock,
+  verifyFirebaseTokenMock,
+  reserveGenerationCreditMock,
+  releaseGenerationCreditMock,
   loggerErrorMock,
 } = vi.hoisted(() => ({
   confirmProposalMock: vi.fn(),
@@ -21,6 +24,9 @@ const {
   rateLimitMock: vi.fn(),
   rateLimitResponseMock: vi.fn(),
   verifyApiAuthMock: vi.fn(),
+  verifyFirebaseTokenMock: vi.fn(),
+  reserveGenerationCreditMock: vi.fn(),
+  releaseGenerationCreditMock: vi.fn(),
   loggerErrorMock: vi.fn(),
 }));
 
@@ -35,6 +41,13 @@ vi.mock('@/services/designSession', () => ({
 
 vi.mock('@/lib/api-auth', () => ({
   verifyApiAuth: verifyApiAuthMock,
+}));
+
+vi.mock('@/lib/auth-dal', () => ({ verifyFirebaseToken: verifyFirebaseTokenMock }));
+vi.mock('@/lib/generation-credits', () => ({
+  reserveGenerationCredit: reserveGenerationCreditMock,
+  releaseGenerationCredit: releaseGenerationCreditMock,
+  GenerationCreditsExhaustedError: class GenerationCreditsExhaustedError extends Error {},
 }));
 
 vi.mock('@/lib/rate-limit', () => ({
@@ -64,6 +77,9 @@ describe('POST /api/v1/design-session/[id]/confirm route adapter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     verifyApiAuthMock.mockResolvedValue(null);
+    verifyFirebaseTokenMock.mockResolvedValue({ uid: 'uid_customer' });
+    reserveGenerationCreditMock.mockResolvedValue({ source: 'free', freeRemaining: 24, paidRemaining: 0 });
+    releaseGenerationCreditMock.mockResolvedValue(undefined);
     rateLimitMock.mockResolvedValue({ allowed: true });
     checkBudgetMock.mockResolvedValue({ allowed: true });
     recordSpendMock.mockResolvedValue(undefined);
@@ -113,6 +129,28 @@ describe('POST /api/v1/design-session/[id]/confirm route adapter', () => {
     const json = await res.json();
     expect(json).toMatchObject({ error: 'Budget limit reached', spentCents: 50_000 });
     expect(confirmProposalMock).not.toHaveBeenCalled();
+  });
+
+  it('does not fire the four-image reveal when the account has no cuts left', async () => {
+    reserveGenerationCreditMock.mockRejectedValueOnce(
+      Object.assign(new Error('No cuts left'), { code: 'GENERATION_CREDITS_EXHAUSTED' })
+    );
+
+    const res = await POST(makeRequest(URL, {}), routeParams('sess-1'));
+
+    expect(res.status).toBe(402);
+    expect(confirmProposalMock).not.toHaveBeenCalled();
+  });
+
+  it('returns the reserved cut if the reveal fails before it produces a design', async () => {
+    confirmProposalMock.mockRejectedValueOnce(new Error('provider unavailable'));
+
+    await POST(makeRequest(URL, {}), routeParams('sess-1'));
+
+    expect(releaseGenerationCreditMock).toHaveBeenCalledWith(
+      'uid_customer',
+      { source: 'free', freeRemaining: 24, paidRemaining: 0 }
+    );
   });
 
   it('returns the rate-limit response when the limiter denies', async () => {
