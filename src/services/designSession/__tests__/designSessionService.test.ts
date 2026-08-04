@@ -225,6 +225,40 @@ describe('startSession', () => {
       expect(request.allowProviderFallback).toBe(false);
     }
   });
+
+  // #293: the cast roster must reach routing, or the 3+ character rule can
+  // never fire and every ensemble stays on the identity-dropping lane.
+  it('passes the requested cast size to routing', async () => {
+    mockExtractIntake.mockResolvedValue({
+      ...intakeRecord,
+      requestedCharacters: ['Goku', 'Vegeta', 'Piccolo'],
+    });
+
+    await startSession(startRequest);
+
+    expect(mockRouteGeneration).toHaveBeenCalledWith(
+      expect.objectContaining({ castSize: 3 })
+    );
+  });
+
+  // Scripted extractIntake fills characterIdentities and omits
+  // requestedCharacters — routing must still see the cast size.
+  it('passes cast size from characterIdentities when requestedCharacters is absent', async () => {
+    mockExtractIntake.mockResolvedValue({
+      ...intakeRecord,
+      characterIdentities: [
+        { name: 'Goku', series: 'Dragon Ball' },
+        { name: 'Vegeta', series: 'Dragon Ball' },
+        { name: 'Piccolo', series: 'Dragon Ball' },
+      ],
+    });
+
+    await startSession(startRequest);
+
+    expect(mockRouteGeneration).toHaveBeenCalledWith(
+      expect.objectContaining({ castSize: 3 })
+    );
+  });
 });
 
 describe('recordPick', () => {

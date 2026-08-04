@@ -28,6 +28,27 @@ describe('generation routing', () => {
     expect(vertexStyles).toEqual([]);
   });
 
+  // #293: Flux held 39–49% cast completeness on 3+ character requests while
+  // the Gemini lane held 100%. The text risk that kept styles off Google is
+  // the render text guard's job now, so cast size may route to Vertex even
+  // though no style does.
+  it('routes 3+ named characters to the Gemini lane regardless of style', () => {
+    const route = routeGeneration({ prompt: 'x', style: 'anime', castSize: 3 });
+    expect(route.modelId).toBe('imagen3');
+    expect(route.provider).toBe('vertex-ai');
+    expect(route.reasoning).toContain('cast completeness');
+  });
+
+  it('keeps one- and two-character requests on the style route', () => {
+    expect(routeGeneration({ prompt: 'x', style: 'anime', castSize: 2 }).provider).toBe('replicate');
+    expect(routeGeneration({ prompt: 'x', style: 'traditional', castSize: 1 }).modelId).toBe('flux-dev');
+  });
+
+  it('lets preview and stencil overrides beat the cast route', () => {
+    expect(routeGeneration({ prompt: 'x', castSize: 4, mode: 'preview' }).modelId).toBe('flux-schnell');
+    expect(routeGeneration({ prompt: 'x', castSize: 4, isStencilMode: true }).modelId).toBe('flux-dev');
+  });
+
   it('falls back to the default mapping (Flux Dev) for unknown styles', () => {
     const route = routeGeneration({ prompt: 'x', style: 'no-such-style' });
     expect(route.modelId).toBe('flux-dev');

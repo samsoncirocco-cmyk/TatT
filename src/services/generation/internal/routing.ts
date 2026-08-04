@@ -97,6 +97,18 @@ export function routeGeneration(request: GenerationRequest): GenerationRoute {
   const styleMapping: StyleModelMapping | undefined =
     lookupStyleMapping(request.style) || lookupStyleMapping('default');
   let modelKey = styleMapping?.primary || 'flux_dev';
+  let reasoning = styleMapping?.reasoning || 'Default model routing';
+
+  // 3+ named characters route to the Gemini lane (#293): Flux holds 39–49%
+  // cast completeness on those requests while gemini-3.1-flash-image held
+  // 100%. Gemini's text-intrusion habit is the render text guard's job
+  // (#297/#305) — every lane shares that risk and the gate screens them all.
+  // Preview and stencil below still win: previews are cheap drafts, and
+  // stencil derivation needs flux-dev's image input.
+  if ((request.castSize ?? 0) >= 3) {
+    modelKey = 'imagen3';
+    reasoning = 'Gemini holds full cast completeness on 3+ character requests (#293); Flux drops identities';
+  }
 
   if (mode === 'preview') {
     modelKey = 'flux_schnell';
@@ -115,6 +127,6 @@ export function routeGeneration(request: GenerationRequest): GenerationRoute {
     aspectRatio: getAnatomicalAspectRatio(request.bodyPart),
     negativePrompt: buildNegativePrompt(request.negativePrompt, request.isStencilMode),
     fallbackChain,
-    reasoning: styleMapping?.reasoning || 'Default model routing'
+    reasoning
   };
 }
