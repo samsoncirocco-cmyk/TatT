@@ -28,7 +28,6 @@ export interface RouteSecurityEntry {
 export const API_ROUTE_SECURITY: Record<string, RouteSecurityEntry> = {
   'checkout': { class: 'firebase-auth' },
   'debug': { class: 'firebase-auth' },
-  'generate': { class: 'firebase-auth' },
   'health': {
     class: 'public',
     reason: 'Liveness probe for load balancers; returns static status, touches no paid services or user data.',
@@ -119,7 +118,6 @@ export const API_ROUTE_SECURITY: Record<string, RouteSecurityEntry> = {
   'v1/stencil/export': { class: 'firebase-auth' },
   'v1/storage/get-signed-url': { class: 'firebase-auth' },
   'v1/storage/upload': { class: 'firebase-auth' },
-  'v1/tasks/generate': { class: 'cloud-tasks-oidc' },
   'v1/upload-layer': { class: 'firebase-auth' },
   // Stripe Connect (marketplace) — artist onboarding & payouts
   'v1/connect/accounts': { class: 'firebase-auth' },
