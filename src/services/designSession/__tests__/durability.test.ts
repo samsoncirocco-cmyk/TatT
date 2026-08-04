@@ -202,6 +202,34 @@ describe('a failed durable copy is a failed generation', () => {
     expect(mockRecordSpend).toHaveBeenCalledWith(4);
   });
 
+  it('bills every render a text-guard re-roll bought, not just the one returned', async () => {
+    /*
+     * The re-roll happens INSIDE generate() (#297), so one call can cost two
+     * paid renders while handing back one image. onPurchase reports the count
+     * from the result rather than assuming one, or a lettered first attempt
+     * would be silently free — a mystery invoice a month later.
+     */
+    let call = 0;
+    mockGenerate.mockImplementation(async () => ({
+      images: [`https://replicate.delivery/pbxt/${++renderCounter}/out.png`],
+      metadata: {
+        model: 'sdxl',
+        provider: 'replicate' as const,
+        generatedAt: new Date().toISOString(),
+        durationMs: 1,
+        attempts: 1,
+        fallbackUsed: false,
+        // One of the four cuts came back lettered and was re-rolled once.
+        ...(++call === 2 ? { textGuardRerolls: 1 } : {}),
+      },
+    }));
+
+    await startSession(startRequest);
+
+    // Four cuts, one of which cost two renders.
+    expect(mockRecordSpend).toHaveBeenCalledWith(5);
+  });
+
   it('leaves the refined cut unset and the session refinable when the regen copy fails', async () => {
     const started = await startSession(startRequest);
     await recordPick(started.id, { pickId: 'v3', mostNotYouId: 'v2' });

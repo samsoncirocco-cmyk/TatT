@@ -99,6 +99,18 @@ export async function loadSession(store: SessionStore, sessionId: string): Promi
  * a failed render must surface, never silently cross providers mid-session
  * and poison the pick signal.
  */
+/**
+ * Screen every customer-facing render for lettering nobody asked for (#297).
+ *
+ * OFF by default and in every environment. Enabling it is a spend decision,
+ * not a code one: one vision call per render, plus up to one extra paid render
+ * when the guard re-rolls. It ships ON only alongside the routing choice it is
+ * a prerequisite for.
+ */
+function textGuardEnabled(): boolean {
+  return process.env.RENDER_TEXT_GUARD === 'true';
+}
+
 function pinnedRequest(
   pin: { modelId: string; aspectRatio?: AspectRatio },
   prompt: string,
@@ -111,6 +123,7 @@ function pinnedRequest(
     modelId: pin.modelId,
     aspectRatio: pin.aspectRatio,
     allowProviderFallback: false,
+    ...(textGuardEnabled() ? { screenText: {} } : {}),
   };
 }
 
@@ -142,12 +155,20 @@ export async function startSession(request: StartSessionRequest): Promise<Stored
  * copy — because that is when the money is gone. A copy that then fails must
  * still be billed (see ./spend); a render reused from a previous attempt must
  * not be.
+ *
+ * It reports HOW MANY renders were bought, not merely that a purchase
+ * happened, because one generate() call is no longer one render: the text
+ * guard re-rolls inside it (#297), so a lettered first attempt costs two. The
+ * count comes from the result's own `textGuardRerolls` rather than from a
+ * guess here — spend.ts's comment that the orchestrator is the only thing
+ * that knows how many renders were bought stopped being true when the
+ * re-roll moved into the generation module, and this is how it stays honest.
  */
 async function renderDurably(
   session: { id: string },
   tag: string,
   request: GenerationRequest,
-  onPurchase: () => void
+  onPurchase: (renders: number) => void
 ): Promise<string> {
   return durableRender(
     {
@@ -159,7 +180,11 @@ async function renderDurably(
     },
     async () => {
       const result = await generate(request);
-      onPurchase();
+      // Optional-chained on purpose: this is a BILLING read, and spend.ts's
+      // rule is that the ledger must never break a render. A provider always
+      // returns metadata, so the fallback is for malformed results only —
+      // undercounting a re-roll is a cheaper failure than a failed reveal.
+      onPurchase(1 + (result.metadata?.textGuardRerolls ?? 0));
       return result.images[0];
     }
   );
@@ -219,7 +244,7 @@ export async function startFromRecord(
             shell,
             id,
             pinnedRequest(route, prompt, structured.negativePrompt),
-            () => { imagesPurchased += 1; }
+            (renders) => { imagesPurchased += renders; }
           );
         }
         return {
@@ -351,7 +376,7 @@ export async function refine(sessionId: string, request: RefineRequest): Promise
           adjustedPrompt,
           picked.negativePrompt
         ),
-        () => { imagesPurchased = 1; }
+        (renders) => { imagesPurchased = renders; }
       );
     } finally {
       await recordImageSpend(session.provider, imagesPurchased);
@@ -487,8 +512,8 @@ export async function critique(
           adjustedPrompt,
           target.negativePrompt
         ),
-        () => {
-          purchased += 1;
+        (renders) => {
+          purchased += renders;
         }
       );
     } finally {
