@@ -175,7 +175,7 @@ describe("BookingSuccessPage — no dead ends", () => {
     expect(screen.queryByText(/held during verification/i)).toBeNull();
   });
 
-  it("paid, unclaimed artist (artistClaimed=0): the held-deposit money sentence", async () => {
+  it("paid, unclaimed artist (artistClaimed=0): the relay and 7-day auto-refund truth", async () => {
     searchParams = new URLSearchParams(
       "artist=Nadia&deposit=100&session_id=cs_test_123&bookingId=book_123&artistClaimed=0"
     );
@@ -184,8 +184,10 @@ describe("BookingSuccessPage — no dead ends", () => {
     render(<BookingSuccessPage />);
     await flushInitialRead();
 
-    expect(screen.getByText(/held during verification/i)).toBeTruthy();
-    expect(screen.getByText(/refunded to you if the claim window closes/i)).toBeTruthy();
+    expect(screen.getAllByText(/has not joined TatT yet/i)).toHaveLength(2);
+    expect(screen.getByText(/relay the request/i)).toBeTruthy();
+    expect(screen.getAllByText(/within 7 days/i)).toHaveLength(2);
+    expect(screen.getAllByText(/automatically refunds your deposit/i)).toHaveLength(2);
     expect(screen.queryByText(/whole deposit goes to your artist/i)).toBeNull();
   });
 

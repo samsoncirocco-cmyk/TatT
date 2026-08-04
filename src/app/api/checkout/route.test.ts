@@ -11,9 +11,10 @@
 // test is the shipping math.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { createSessionMock, getArtistStripeMock } = vi.hoisted(() => ({
+const { createSessionMock, getArtistStripeMock, getRosterArtistByIdMock } = vi.hoisted(() => ({
   createSessionMock: vi.fn(),
   getArtistStripeMock: vi.fn(),
+  getRosterArtistByIdMock: vi.fn(),
 }));
 
 vi.mock('@/lib/api-auth', () => ({
@@ -32,6 +33,8 @@ vi.mock('@/lib/firebase-admin', () => ({
 vi.mock('@/lib/artist-stripe', () => ({
   getArtistStripe: getArtistStripeMock,
 }));
+
+vi.mock('@/lib/artists-graph', () => ({ getRosterArtistById: getRosterArtistByIdMock }));
 
 vi.mock('@/lib/stripe', async () => {
   const actual = await vi.importActual<typeof import('@/lib/stripe')>('@/lib/stripe');
@@ -87,6 +90,7 @@ describe('POST /api/checkout — claimed artist (destination charge)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     createSessionMock.mockResolvedValue({ id: 'cs_1', url: 'https://checkout.stripe.com/c/cs_1' });
+    getRosterArtistByIdMock.mockResolvedValue({ id: 'artist_1', bookingTier: 'bookable' });
     getArtistStripeMock.mockResolvedValue({
       id: 'artist_1',
       name: 'Nadia Ink',
@@ -168,6 +172,7 @@ describe('POST /api/checkout — unclaimed artist (held deposit)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     createSessionMock.mockResolvedValue({ id: 'cs_2', url: 'https://checkout.stripe.com/c/cs_2' });
+    getRosterArtistByIdMock.mockResolvedValue({ id: 'artist_1', bookingTier: 'bookable' });
   });
 
   it('holds on the platform — no transfer_data, no application_fee_amount', async () => {
@@ -254,6 +259,7 @@ describe('POST /api/checkout — guards', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     createSessionMock.mockResolvedValue({ id: 'cs_3', url: 'https://x' });
+    getRosterArtistByIdMock.mockResolvedValue({ id: 'artist_1', bookingTier: 'bookable' });
   });
 
   it('400s without an artistId — a deposit with no payee must never be charged', async () => {
@@ -263,7 +269,7 @@ describe('POST /api/checkout — guards', () => {
   });
 
   it('404s for an unknown artist', async () => {
-    getArtistStripeMock.mockResolvedValue(null);
+    getRosterArtistByIdMock.mockResolvedValue(null);
     const res = await POST(makeRequest());
     expect(res.status).toBe(404);
     expect(createSessionMock).not.toHaveBeenCalled();

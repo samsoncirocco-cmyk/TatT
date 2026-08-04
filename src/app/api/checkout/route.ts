@@ -31,6 +31,7 @@ import { stripe, stripeConfigured, platformFeeCents, CURRENCY } from '@/lib/stri
 import { getArtistStripe } from '@/lib/artist-stripe';
 import { depositCentsForSize, type TattooSize } from '@/lib/booking';
 import { checkoutFeeMoneyCopy } from '@/lib/money-copy';
+import { getRosterArtistById } from '@/lib/artists-graph';
 
 export const runtime = 'nodejs';
 
@@ -84,6 +85,27 @@ export async function POST(req: NextRequest) {
 
   if (!artistName || !size || !placement || !date || !time || !budget || !clientName || !clientEmail) {
     return NextResponse.json({ error: 'Missing required booking details.' }, { status: 400 });
+  }
+
+  // This is the money boundary, so it independently enforces the same
+  // bookable tier as /book. A caller can skip the booking capture endpoint;
+  // they cannot skip the positive evidence required before TatT takes money.
+  if (!artistId) {
+    return NextResponse.json({ error: 'artistId is required to route the deposit to an artist.' }, { status: 400 });
+  }
+  try {
+    const rosterArtist = await getRosterArtistById(artistId);
+    if (!rosterArtist) return NextResponse.json({ error: 'Artist not found.' }, { status: 404 });
+    if (rosterArtist.bookingTier !== 'bookable') {
+      return NextResponse.json({
+        error: 'This artist is available through an introduction request, not a deposit.',
+        code: 'ARTIST_INTRO_REQUIRED',
+        introUrl: `/intro?artistId=${encodeURIComponent(rosterArtist.id)}`,
+      }, { status: 409 });
+    }
+  } catch (err) {
+    console.warn('[checkout] bookability check failed — refusing deposit:', err instanceof Error ? err.message : err);
+    return NextResponse.json({ error: 'We could not verify that this artist can receive booking requests. Please try again shortly.' }, { status: 503 });
   }
 
   // Ownership guard: a client-supplied bookingId must belong to the caller (the
@@ -185,9 +207,6 @@ export async function POST(req: NextRequest) {
   }
 
   // ---- Resolve the artist and decide which money flow applies. ----
-  if (!artistId) {
-    return NextResponse.json({ error: 'artistId is required to route the deposit to an artist.' }, { status: 400 });
-  }
   const artist = await getArtistStripe(artistId);
   if (!artist) {
     return NextResponse.json({ error: 'Artist not found.' }, { status: 404 });

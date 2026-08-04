@@ -260,14 +260,18 @@ export default async function ArtistProfilePage({
                 showcase above stays loud, the commitment affordance is quiet. */}
             <div className="mt-12 border hairline-quiet p-6 md:p-8 max-w-md">
               <div className="text-[12px] text-quiet-dim font-body">
-                Booking
+                {artist.bookingTier === "bookable" ? "Booking" : "Artist introduction"}
               </div>
               <div className="mt-5 flex flex-col sm:flex-row sm:items-center gap-5">
                 <QuietCTA
-                  href={`/book?artistId=${encodeURIComponent(artist.id)}`}
+                  href={
+                    artist.bookingTier === "bookable"
+                      ? `/book?artistId=${encodeURIComponent(artist.id)}`
+                      : `/intro?artistId=${encodeURIComponent(artist.id)}`
+                  }
                   size="md"
                 >
-                  Book the chair
+                  {artist.bookingTier === "bookable" ? "Book the chair" : "Request an intro"}
                 </QuietCTA>
                 {igUrl && (
                   <a
@@ -291,7 +295,9 @@ export default async function ArtistProfilePage({
                 )}
               </div>
               <p className="mt-5 text-[12px] text-quiet-dim font-body leading-[1.7]">
-                A deposit holds your request — the artist confirms the time.
+                {artist.bookingTier === "bookable"
+                  ? "A deposit holds your request — the artist confirms the time."
+                  : "TatT will relay your request to the artist’s shop. No deposit is taken."}
               </p>
             </div>
 
@@ -396,10 +402,14 @@ export default async function ArtistProfilePage({
       <div className="sticky bottom-6 z-30 px-6 md:px-12 pb-10 pointer-events-none">
         <div className="max-w-6xl mx-auto flex justify-end">
           <Link
-            href={`/book?artistId=${encodeURIComponent(artist.id)}`}
+            href={
+              artist.bookingTier === "bookable"
+                ? `/book?artistId=${encodeURIComponent(artist.id)}`
+                : `/intro?artistId=${encodeURIComponent(artist.id)}`
+            }
             className="press inline-flex items-center justify-center px-8 py-4 font-body text-[14px] leading-none bg-quiet text-black hover:bg-white pointer-events-auto"
           >
-            Book consultation
+            {artist.bookingTier === "bookable" ? "Book consultation" : "Request an intro"}
           </Link>
         </div>
       </div>

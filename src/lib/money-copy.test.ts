@@ -30,12 +30,16 @@ describe("booking money copy", () => {
   });
 
   it("keeps the held-deposit truth on the unclaimed variants (ADR-0006/0008)", () => {
-    for (const sentence of [checkoutFeeMoneyCopy(false), bookingSuccessMoneyCopy(false)]) {
+    for (const sentence of [checkoutFeeMoneyCopy(false)]) {
       expect(sentence).toMatch(/held during verification/i);
       expect(sentence).toMatch(/in full/i);
       expect(sentence).toMatch(/refunded/i);
       expect(sentence).toMatch(/claim window closes/i);
     }
+    expect(bookingSuccessMoneyCopy(false)).toMatch(/has not joined TatT yet/i);
+    expect(bookingSuccessMoneyCopy(false)).toMatch(/relay/i);
+    expect(bookingSuccessMoneyCopy(false)).toMatch(/within 7 days/i);
+    expect(bookingSuccessMoneyCopy(false)).toMatch(/automatically refunds/i);
   });
 
   it("states both the rule and the unclaimed exception on the bookings list", () => {

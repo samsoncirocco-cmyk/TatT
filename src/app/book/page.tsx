@@ -1,4 +1,5 @@
 import BookClient, { type BookArtist, type BookOffer } from "./BookClient";
+import { redirect } from "next/navigation";
 import { getRosterArtistById } from "@/lib/artists-graph";
 import { getArtistAvailability } from "@/lib/availability";
 import { availabilityLabel } from "@/lib/booking";
@@ -43,6 +44,11 @@ export default async function BookPage({
     try {
       const found = await getRosterArtistById(artistId);
       if (found) {
+        if (found.bookingTier !== "bookable") {
+          const intro = new URLSearchParams({ artistId: found.id });
+          if (designSessionId) intro.set("ds", designSessionId);
+          redirect(`/intro?${intro.toString()}`);
+        }
         const availability = await getArtistAvailability(found.id);
         artist = {
           id: found.id,

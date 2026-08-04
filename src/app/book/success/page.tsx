@@ -396,12 +396,16 @@ function SuccessContent() {
     : [
         {
           title: "Request sent",
-          detail: `Your design, dates and details are with ${artistLabel}.`,
+          detail: artistClaimed
+            ? `Your design, dates and details are with ${artistLabel}.`
+            : `TatT is relaying your design, dates and details to ${artistLabel}, who has not joined TatT yet.`,
         },
         {
           title: "Deposit",
           detail: isPaid
-            ? "Paid — and held against your session. If the booking doesn't go ahead, your deposit comes back in full."
+            ? artistClaimed
+              ? "Paid — and held against your session. If the booking doesn't go ahead, your deposit comes back in full."
+              : "Paid — TatT holds the deposit while it relays your request. If the artist has not claimed and completed setup within 7 days, TatT automatically refunds your deposit in full."
             : "Confirming with Stripe. This page updates once it clears.",
         },
         {

@@ -34,7 +34,7 @@ export function checkoutFeeMoneyCopy(artistClaimed = true): string {
 export function bookingSuccessMoneyCopy(artistClaimed = true): string {
   return artistClaimed
     ? "Your whole deposit goes to your artist — the booking fee you paid is the only part we keep."
-    : "Your artist deposit and TattTester booking fee are separate. This profile is unclaimed, so the deposit is held during verification — released to the artist in full, or refunded to you if the claim window closes. The fee is the only part we keep.";
+    : "Your artist deposit and TattTester booking fee are separate. This profile has not joined TatT yet, so we relay the request while the deposit is held. If they do not claim and complete setup within 7 days, TatT automatically refunds your deposit in full. The fee is the only part we keep.";
 }
 
 export function bookingReviewMoneyCopy(

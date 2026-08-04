@@ -12,6 +12,7 @@ import type { BookingRelay } from '@/lib/booking-relay';
 import type { TakedownRequest } from '@/lib/takedown';
 import type { ReinstatementRequest } from '@/lib/reinstatement';
 import type { PendingArtistClaim } from '@/lib/artist-claim';
+import type { ArtistIntroRequest } from '@/lib/artist-intro';
 import { getArtistStripe } from '@/lib/artist-stripe';
 import { artistDepositNotificationMoneyCopy } from '@/lib/money-copy';
 import { sendTransactionalEmail } from '@/services/emailQueueService';
@@ -70,6 +71,38 @@ export async function notifyArtistOfBooking(relay: BookingRelay): Promise<void> 
 
 /** Outcome of a notification that the caller is expected to act on. */
 export type NotifyResult = { delivered: true } | { delivered: false; reason: string };
+
+/**
+ * Send the human relay queue a browse-only introduction request. This is not a
+ * best-effort notification: browse-only exists precisely because TatT must not
+ * claim a delivery path it cannot prove. Callers surface an undelivered result.
+ */
+export async function notifyOpsOfArtistIntroRequest(
+  request: ArtistIntroRequest,
+  requestId: string,
+  artistName: string,
+): Promise<NotifyResult> {
+  const to = process.env.OPS_NOTIFY_EMAIL;
+  if (!to) {
+    return { delivered: false, reason: 'OPS_NOTIFY_EMAIL is not configured — an intro request would reach nobody.' };
+  }
+  const subject = `[Artist intro] ${artistName} — relay requested`;
+  const text =
+    `A customer asked TatT to introduce them to a browse-only artist.\n\n` +
+    `Request id:   ${requestId}\nArtist id:    ${request.artistId}\nArtist:       ${artistName}\n` +
+    `Customer:     ${request.clientName}\nEmail:        ${request.clientEmail}\n\n` +
+    `Note:\n${request.message || '(none)'}\n\n` +
+    `--- NO DEPOSIT WAS TAKEN ---\n` +
+    `This profile is not in the bookable tier. Contact the artist through the verified shop channel, then reply to the customer with the outcome. Do not promise availability or a booking.`;
+  try {
+    const result = await sendTransactionalEmail({ to, subject, text, replyTo: request.clientEmail });
+    return result?.sent
+      ? { delivered: true }
+      : { delivered: false, reason: result?.reason || 'email provider reported the send as unsent' };
+  } catch (err) {
+    return { delivered: false, reason: err instanceof Error ? err.message : String(err) };
+  }
+}
 
 /**
  * Tell ops that a signed-in account asked to own a scraped artist profile.
