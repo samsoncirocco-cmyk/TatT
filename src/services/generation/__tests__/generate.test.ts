@@ -132,6 +132,21 @@ describe('generation module seam — vertex provider', () => {
     expect(body.generationConfig.imageConfig.personGeneration).toBe('ALLOW_NONE');
   });
 
+  it('maps outputFormat onto Gemini imageOutputOptions.mimeType', async () => {
+    fetchMock.mockResolvedValueOnce(imageResponse());
+
+    await generate({
+      prompt: 'portrait',
+      style: 'realism',
+      outputFormat: 'jpeg'
+    });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.generationConfig.imageConfig.imageOutputOptions).toEqual({
+      mimeType: 'image/jpeg'
+    });
+  });
+
   it('folds the negative prompt into an Avoid clause (no negative_prompt input exists)', async () => {
     fetchMock.mockResolvedValueOnce(imageResponse());
 

@@ -17,6 +17,9 @@ export const dynamic = 'force-dynamic';
 // Spend on a replicate-sdxl fallback result (~1 cent), matching the old
 // route's flat fallback cost.
 const REPLICATE_FALLBACK_COST_CENTS = 1;
+// Primary Replicate (style-routed Flux/Krea) — per image, same rate the
+// design-session ledger uses for Replicate purchases.
+const REPLICATE_COST_CENTS = 1;
 
 /** Derive outputFormat from a data-URL mime type (Gemini may return jpeg/png/…). */
 function outputFormatFromImages(images: string[] | undefined): string {
@@ -77,7 +80,8 @@ export async function POST(req: NextRequest) {
             safetyFilterLevel,
             personGeneration,
             outputFormat,
-            seed
+            seed,
+            modelId
         } = body;
 
         if (!prompt || typeof prompt !== 'string' || prompt.trim().length < 3) {
@@ -98,13 +102,12 @@ export async function POST(req: NextRequest) {
             personGeneration,
             outputFormat,
             seed,
-            // Route by style rather than pinning Vertex. This used to hardcode
-            // modelId 'imagen3', which made every call here go to Google no
-            // matter what modelRoutingRules.js said — so taking realism off
-            // Google in the routing table did not cover this endpoint. Passing
-            // the style lets the one routing table decide, here and everywhere
-            // else, and the replicate-result branch below already handles a
-            // non-Vertex outcome.
+            // Route by style when the caller does not pin a model. This used
+            // to hardcode modelId 'imagen3', which made every call here go to
+            // Google no matter what modelRoutingRules.js said. Explicit picks
+            // (Studio Hyper-Realism → imagen3) still forward modelId so the
+            // user's choice is not overwritten by style routing.
+            ...(typeof modelId === 'string' && modelId.trim() ? { modelId: modelId.trim() } : {}),
             style,
             bodyPart,
             retry: {
@@ -116,10 +119,12 @@ export async function POST(req: NextRequest) {
             }
         });
 
-        // ─── Replicate fallback result ────────────────────────────────────
-        // The module fell back to Replicate SDXL after a Vertex failure.
-        // Flat ~1 cent spend and the fallback response shape, as before.
-        if (result.metadata.provider === 'replicate') {
+        // ─── Cross-provider fallback result ───────────────────────────────
+        // The module fell back to Replicate after a Vertex failure.
+        // Primary Replicate (style-routed Flux/Krea) also has
+        // provider === 'replicate' but fallbackUsed === false — that path
+        // must keep the full success shape and per-image spend below.
+        if (result.metadata.provider === 'replicate' && result.metadata.fallbackUsed) {
             await recordSpend(REPLICATE_FALLBACK_COST_CENTS);
 
             reqLogger.complete('generation.fallback.replicate.success', {
@@ -141,9 +146,13 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        // Record actual Vertex AI spend on the primary success path.
+        // Primary success — Vertex or style-routed Replicate.
         const imagesGenerated = result.images?.length || requestedCount;
-        await recordSpend(VERTEX_IMAGEN_COST_CENTS * imagesGenerated);
+        const spendCents =
+            result.metadata.provider === 'replicate'
+                ? REPLICATE_COST_CENTS * imagesGenerated
+                : VERTEX_IMAGEN_COST_CENTS * imagesGenerated;
+        await recordSpend(spendCents);
 
         return NextResponse.json({
             success: true,

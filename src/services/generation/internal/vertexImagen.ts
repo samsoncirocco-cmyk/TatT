@@ -18,6 +18,8 @@
  *   - seed           → not accepted; kept in metadata so stored routes and
  *     telemetry still round-trip, but it no longer pins the output.
  * `personGeneration` maps onto `imageConfig.personGeneration` (Gemini's enum).
+ * `outputFormat` maps onto `imageConfig.imageOutputOptions.mimeType`
+ * (`png`/`jpeg` → `image/png`/`image/jpeg`); when omitted, the model picks.
  * Callers that relied on seed for *determinism* no longer get it.
  */
 import { getGcpAccessToken } from '@/lib/google-auth-edge';
@@ -100,6 +102,20 @@ function toGeminiPersonGeneration(personGeneration?: string): string {
   }
 }
 
+/*
+ * Imagen took bare format names (`png`, `jpeg`). Gemini's imageOutputOptions
+ * wants a MIME type. Accept either shape so callers that already send
+ * `image/png` keep working.
+ */
+function toGeminiOutputMimeType(outputFormat?: string): string | undefined {
+  const raw = (outputFormat || '').toLowerCase().trim();
+  if (!raw) return undefined;
+  if (raw.startsWith('image/')) return raw;
+  if (raw === 'jpg') return 'image/jpeg';
+  if (raw === 'png' || raw === 'jpeg' || raw === 'webp') return `image/${raw}`;
+  return undefined;
+}
+
 function resolveThreshold(safetySetting: string): string {
   return SAFETY_THRESHOLDS[safetySetting] || 'BLOCK_ONLY_HIGH';
 }
@@ -145,6 +161,7 @@ async function callGeminiImage(
   accessToken: string,
   safetySetting: string
 ): Promise<string[]> {
+  const outputMimeType = toGeminiOutputMimeType(request.outputFormat);
   const response = await fetch(imageEndpoint(), {
     method: 'POST',
     headers: {
@@ -162,7 +179,10 @@ async function callGeminiImage(
         responseModalities: ['IMAGE'],
         imageConfig: {
           aspectRatio: request.aspectRatio || '1:1',
-          personGeneration: toGeminiPersonGeneration(request.personGeneration)
+          personGeneration: toGeminiPersonGeneration(request.personGeneration),
+          ...(outputMimeType
+            ? { imageOutputOptions: { mimeType: outputMimeType } }
+            : {})
         }
       },
       safetySettings: HARM_CATEGORIES.map((category) => ({
