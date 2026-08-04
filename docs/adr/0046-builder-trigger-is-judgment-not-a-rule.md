@@ -4,7 +4,7 @@ status: accepted
 
 # The builder fires on SketchBot's judgment, not a cast-size rule
 
-Grill session, 2026-08-03. Given ADR-0040 (SketchBot picks the tool), the
+Grill session, 2026-08-03. Given ADR-0044 (SketchBot picks the tool), the
 remaining question was what signal sends a request down the piece-by-piece
 path instead of a single render. The measured backdrop: Imagen returns a
 complete 3+ cast 92% of the time, so a single render is *usually* right even

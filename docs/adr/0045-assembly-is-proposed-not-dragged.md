@@ -22,7 +22,7 @@ enhancement.
 
 - **Web-canvas-only assembly**, with SMS texters handed a link when it is
   time to arrange. Breaks channel parity at the exact moment the customer is
-  most engaged, and contradicts ADR-0040.
+  most engaged, and contradicts ADR-0044.
 - **Fully automatic assembly** with no customer input. The arrangement of a
   sleeve is a preference-laden decision the customer is best placed to make,
   and the artist consult still owns final placement — over-building
@@ -36,4 +36,4 @@ onto a placement-shaped canvas), and the word-level adjustment vocabulary
 critique vocabularies before it. Known boundary, inherited from the builder
 itself: separately generated pieces can be arranged but cannot interact —
 crossing keyblades still requires a single render, and SketchBot's tool
-choice (ADR-0040) must know that.
+choice (ADR-0044) must know that.

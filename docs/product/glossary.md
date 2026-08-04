@@ -26,20 +26,20 @@ an image provider is called.
 **Toolkit** — The set of tools SketchBot selects between per request:
 one-shot render, piece-by-piece builder, critique re-cut, stencil,
 placement preview. Selection is SketchBot's judgment, never a
-customer-facing mode (ADR-0040, ADR-0042).
+customer-facing mode (ADR-0044, ADR-0046).
 
 **One-shot render** — A design generated as a single image in one provider
 call. The default tool; also the only tool that can make characters
 *interact* (an action scene needs one render).
 
 **Builder** — The piece-by-piece path for larger tattoos: each element
-generated and approved individually, then assembled. Decided (ADR-0040–0042)
+generated and approved individually, then assembled. Decided (ADR-0044–0046)
 but not yet built; the layer machinery behind Studio gear 3 is its
 foundation.
 
 **Assembly** — The builder's final step: SketchBot proposes a composed
 layout and the customer adjusts it in words on any channel; the web canvas
-additionally allows dragging (ADR-0041).
+additionally allows dragging (ADR-0045).
 
 **Placement preview** — Static photo compositing or a manually positioned
 camera overlay. It does not imply anatomical tracking, depth mapping, or
