@@ -19,7 +19,9 @@ import {
   getUserErrorMessage,
   isErrorCode
 } from '@/services/fetchWithAbort';
-import { routeGeneration } from '@/services/generation';
+// Client-safe entry: importing from the barrel pulls the providers, the
+// text guard and node:crypto into the browser bundle. See ./routing.
+import { routeGeneration } from '@/services/generation/routing';
 import { getApiAuthHeaders } from '@/lib/client-api-auth';
 import { DEMO_MOCK_IMAGES } from '@/lib/demo-images';
 
