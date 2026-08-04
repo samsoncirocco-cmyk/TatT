@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
-import { generate } from '@/services/generation';
+import { generate, routeGeneration } from '@/services/generation';
 import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { checkBudget, recordSpend, VERTEX_IMAGEN_COST_CENTS } from '@/lib/budget-tracker';
 import { createRequestLogger } from '@/lib/logger';
@@ -178,12 +178,22 @@ export async function POST(req: NextRequest) {
         });
 
     } catch (error: any) {
-        // Log generation failure. The routing key, not a Google model name —
-        // the generation module owns which model 'imagen3' resolves to, and a
-        // literal here goes stale the moment that changes (as it did when
-        // Imagen 3 was retired).
+        // Log the routing key that was attempted — explicit modelId when the
+        // caller pinned one, otherwise the style-routed primary (Flux/Krea/
+        // imagen3). A hardcoded 'imagen3' mislabels the Replicate path.
+        const explicitModel =
+            typeof body.modelId === 'string' && body.modelId.trim()
+                ? body.modelId.trim()
+                : null;
+        const modelForLog =
+            explicitModel ||
+            routeGeneration({
+                prompt: typeof body.prompt === 'string' ? body.prompt : '',
+                style: body.style,
+                bodyPart: body.bodyPart
+            }).modelId;
         reqLogger.error('generation.failed', error, {
-            model: 'imagen3',
+            model: modelForLog,
             error_code: error.code || 'GENERATION_FAILED',
         });
 

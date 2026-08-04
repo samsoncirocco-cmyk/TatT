@@ -24,19 +24,18 @@
  */
 import { getGcpAccessToken } from '@/lib/google-auth-edge';
 import { logEvent } from '@/lib/observability';
+import { buildVertexEndpoint } from '@/lib/vertex-endpoint';
 import type { GenerationError, GenerationRequest, GenerationResult, Provider } from './provider';
 import { asGenerationError, makeGenerationError } from './provider';
 
 const PROJECT_ID = process.env.GCP_PROJECT_ID || 'tatt-pro';
 
 /*
- * The Gemini image models are published globally rather than per-region, and
- * the global publisher endpoint drops the region prefix from the host. Both
- * are env-overridable so a region rollout (or a model bump) is a config change
- * rather than a deploy of this file.
+ * Model id is env-overridable so a bump is a config change rather than a
+ * deploy of this file. Host/location come from buildVertexEndpoint — Gemini
+ * 3.x is global-only and must not follow VERTEX_IMAGE_LOCATION / GCP_REGION.
  */
 const IMAGE_MODEL = process.env.VERTEX_IMAGE_MODEL || 'gemini-3.1-flash-image';
-const IMAGE_LOCATION = process.env.VERTEX_IMAGE_LOCATION || 'global';
 
 /*
  * Flash Image list price at time of migration. Imagen 3 was $0.02; this only
@@ -129,14 +128,7 @@ function resolveNumImages(numImages?: number): number {
 }
 
 function imageEndpoint(): string {
-  const host =
-    IMAGE_LOCATION === 'global'
-      ? 'https://aiplatform.googleapis.com'
-      : `https://${IMAGE_LOCATION}-aiplatform.googleapis.com`;
-  return (
-    `${host}/v1/projects/${PROJECT_ID}/locations/${IMAGE_LOCATION}` +
-    `/publishers/google/models/${IMAGE_MODEL}:generateContent`
-  );
+  return buildVertexEndpoint(PROJECT_ID, IMAGE_MODEL);
 }
 
 /*
