@@ -45,6 +45,12 @@ export async function recordArtistIntroRequest(
        status: 'pending_relay',
        createdAtEpochMs: timestamp()
      }
+     ON MATCH SET
+       r.clientName = CASE WHEN r.status = 'pending_relay' THEN $clientName ELSE r.clientName END,
+       r.clientEmail = CASE WHEN r.status = 'pending_relay' THEN $clientEmail ELSE r.clientEmail END,
+       r.message = CASE WHEN r.status = 'pending_relay' THEN $message ELSE r.message END,
+       r.designSessionId = CASE WHEN r.status = 'pending_relay' AND $designSessionId IS NOT NULL THEN $designSessionId ELSE r.designSessionId END,
+       r.briefJson = CASE WHEN r.status = 'pending_relay' AND $briefJson IS NOT NULL THEN $briefJson ELSE r.briefJson END
      WITH a, r
      WHERE r.artistId = a.id AND r.clientEmail = $clientEmail
      RETURN a.name AS artistName`,

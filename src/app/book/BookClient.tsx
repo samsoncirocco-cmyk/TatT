@@ -265,6 +265,15 @@ export default function BookClient({
         }),
       });
       const bookData = await bookRes.json().catch(() => null);
+      // Tier flipped while the form was open — follow the same intro relay
+      // path checkout uses rather than surfacing a generic booking error.
+      if (
+        bookData?.code === "ARTIST_INTRO_REQUIRED" &&
+        typeof bookData?.introUrl === "string"
+      ) {
+        window.location.href = bookData.introUrl;
+        return;
+      }
       if (!bookRes.ok || !bookData?.success) {
         throw new Error(bookData?.error || "Couldn't save your booking request.");
       }
@@ -340,6 +349,8 @@ export default function BookClient({
           // Present only on the reservation path. It ties this payment to the
           // held slot and caps the Stripe session at the hold's expiry.
           holdId,
+          // So a browse-only redirect from checkout can keep the Brief thread.
+          designSessionId: designSessionId || undefined,
         }),
       });
       const payData = await payRes.json().catch(() => null);
@@ -350,7 +361,8 @@ export default function BookClient({
       }
 
       // Tier flipped (or checkout raced) after capture — send the client to
-      // /intro instead of claiming payments aren't configured.
+      // /intro instead of claiming payments aren't configured. The checkout
+      // route releases any hold before returning this code.
       if (
         payData?.code === "ARTIST_INTRO_REQUIRED" &&
         typeof payData?.introUrl === "string"

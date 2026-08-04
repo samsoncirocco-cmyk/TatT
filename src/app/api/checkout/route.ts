@@ -52,6 +52,8 @@ interface CheckoutPayload {
    * for; absent means the request model, where nothing is reserved.
    */
   holdId?: string;
+  /** Design-session id — preserved on the browse-only intro redirect. */
+  designSessionId?: string;
 }
 
 function getBaseUrl(req: NextRequest): string {
@@ -83,6 +85,10 @@ export async function POST(req: NextRequest) {
   }
 
   const { artistId, artistName, size, placement, date, time, budget, clientName, clientEmail, bookingId, holdId } = body;
+  const designSessionId =
+    typeof body.designSessionId === 'string' && body.designSessionId.trim()
+      ? body.designSessionId.trim()
+      : undefined;
 
   if (!artistName || !size || !placement || !date || !time || !budget || !clientName || !clientEmail) {
     return NextResponse.json({ error: 'Missing required booking details.' }, { status: 400 });
@@ -98,10 +104,27 @@ export async function POST(req: NextRequest) {
     const rosterArtist = await getRosterArtistById(artistId);
     if (!rosterArtist) return NextResponse.json({ error: 'Artist not found.' }, { status: 404 });
     if (rosterArtist.bookingTier !== 'bookable') {
+      // Capture+hold may already have succeeded; free the slot before the
+      // client leaves for /intro so it is not blocked for the hold window.
+      if (holdId) {
+        try {
+          const { releaseHoldById } = await import('@/lib/booking-holds-persistence');
+          await releaseHoldById(holdId);
+        } catch (err) {
+          console.warn(
+            '[checkout] failed to release hold on intro redirect:',
+            err instanceof Error ? err.message : err,
+          );
+        }
+      }
+      // Preserve ds parity with /book and /api/v1/book so the intro path keeps
+      // the design-session Brief.
+      const intro = new URLSearchParams({ artistId: rosterArtist.id });
+      if (designSessionId) intro.set('ds', designSessionId);
       return NextResponse.json({
         error: 'This artist is available through an introduction request, not a deposit.',
         code: 'ARTIST_INTRO_REQUIRED',
-        introUrl: `/intro?artistId=${encodeURIComponent(rosterArtist.id)}`,
+        introUrl: `/intro?${intro.toString()}`,
       }, { status: 409 });
     }
   } catch (err) {

@@ -11,10 +11,11 @@
 // test is the shipping math.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { createSessionMock, getArtistStripeMock, getRosterArtistByIdMock } = vi.hoisted(() => ({
+const { createSessionMock, getArtistStripeMock, getRosterArtistByIdMock, releaseHoldByIdMock } = vi.hoisted(() => ({
   createSessionMock: vi.fn(),
   getArtistStripeMock: vi.fn(),
   getRosterArtistByIdMock: vi.fn(),
+  releaseHoldByIdMock: vi.fn(),
 }));
 
 vi.mock('@/lib/api-auth', () => ({
@@ -35,6 +36,12 @@ vi.mock('@/lib/artist-stripe', () => ({
 }));
 
 vi.mock('@/lib/artists-graph', () => ({ getRosterArtistById: getRosterArtistByIdMock }));
+
+vi.mock('@/lib/booking-holds-persistence', () => ({
+  releaseHoldById: releaseHoldByIdMock,
+  getHold: vi.fn(),
+  placeHold: vi.fn(),
+}));
 
 vi.mock('@/lib/stripe', async () => {
   const actual = await vi.importActual<typeof import('@/lib/stripe')>('@/lib/stripe');
@@ -281,6 +288,28 @@ describe('POST /api/checkout — guards', () => {
     getRosterArtistByIdMock.mockResolvedValue(null);
     const res = await POST(makeRequest());
     expect(res.status).toBe(404);
+    expect(createSessionMock).not.toHaveBeenCalled();
+  });
+
+  it('409s browse-only artists with introUrl that preserves ds and releases any hold', async () => {
+    getRosterArtistByIdMock.mockResolvedValue({ id: 'artist_intro_only', bookingTier: 'browse_only' });
+    releaseHoldByIdMock.mockResolvedValue(true);
+
+    const res = await POST(
+      makeRequest({
+        artistId: 'artist_intro_only',
+        designSessionId: 'sess-1',
+        holdId: 'hold_abc',
+      }),
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(409);
+    expect(body).toMatchObject({
+      code: 'ARTIST_INTRO_REQUIRED',
+      introUrl: '/intro?artistId=artist_intro_only&ds=sess-1',
+    });
+    expect(releaseHoldByIdMock).toHaveBeenCalledWith('hold_abc');
     expect(createSessionMock).not.toHaveBeenCalled();
   });
 });
