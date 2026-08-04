@@ -369,7 +369,12 @@ describe('generation module seam — vertex provider', () => {
         modelId: 'imagen3',
         sourceImage: 'https://storage.example/picked.png'
       })
-    ).rejects.toThrow(/no image-to-image input/);
+      // The refusal describes THIS provider, not a model limitation. It used
+      // to read "Vertex Imagen has no image-to-image input" — true of Imagen 3,
+      // false of the Gemini model the provider calls after #277, and pinning
+      // that wording here is what would have carried the stale claim through
+      // the rebase unnoticed.
+    ).rejects.toThrow(/does not implement image-to-image/);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
