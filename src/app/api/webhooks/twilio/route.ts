@@ -252,10 +252,17 @@ export async function POST(req: NextRequest) {
       // REST sender once the renders exist. after() keeps the function
       // alive post-response (Fluid compute, maxDuration above).
       after(async () => {
-        const delivery = await executeReveal(outcome.sessionId, outcome.phone);
+        const delivery = await executeReveal(
+          outcome.sessionId,
+          outcome.phone,
+          outcome.armedAt
+        );
         // Re-check STOP between ack and delivery — never message an
         // opted-out number (Twilio would refuse too; we don't even try).
         if (await isOptedOut(outcome.phone)) return;
+        // Empty delivery = this arm was superseded (stale recovery / newer
+        // arm). Sending nothing is correct; an empty SMS is not.
+        if (delivery.cuts.length === 0 && !delivery.closingText) return;
         for (const cut of delivery.cuts) {
           await sendMms(outcome.phone, cut.caption, [cut.mediaUrl]);
         }
@@ -274,9 +281,20 @@ export async function POST(req: NextRequest) {
       after(async () => {
         const delivery =
           outcome.kind === 'critique'
-            ? await executeCritique(outcome.sessionId, outcome.phone, outcome.message)
-            : await executeRefine(outcome.sessionId, outcome.phone, outcome.answer);
+            ? await executeCritique(
+                outcome.sessionId,
+                outcome.phone,
+                outcome.message,
+                outcome.armedAt
+              )
+            : await executeRefine(
+                outcome.sessionId,
+                outcome.phone,
+                outcome.answer,
+                outcome.armedAt
+              );
         if (await isOptedOut(outcome.phone)) return;
+        if (delivery.cuts.length === 0 && !delivery.closingText) return;
         for (const cut of delivery.cuts) {
           await sendMms(outcome.phone, cut.caption, [cut.mediaUrl]);
         }

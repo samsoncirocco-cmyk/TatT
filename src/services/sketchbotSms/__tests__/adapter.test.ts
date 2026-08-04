@@ -150,6 +150,13 @@ async function driveToProposal(phone = PHONE) {
   await handleInbound({ phone, body: 'a snake and dagger on my forearm' });
 }
 
+/** The arm token the deferred execute* callbacks must carry. */
+async function currentArmedAt(phone = PHONE): Promise<string> {
+  const profile = await memoryProfileStore.get(phone);
+  if (!profile?.revealArmedAt) throw new Error('expected an armed render');
+  return profile.revealArmedAt;
+}
+
 /**
  * Start a SECOND design after a reveal already landed. SMS has no "back to
  * /design" navigation, so the channel needs the explicit restart the web
@@ -263,12 +270,14 @@ describe('reveal flow', () => {
   it('arms the reveal on a yes at the proposal', async () => {
     await driveToProposal();
     const outcome = await handleInbound({ phone: PHONE, body: 'yes' });
+    const armedAt = await currentArmedAt();
 
     expect(outcome).toEqual({
       kind: 'reveal',
       text: REVEAL_ACK,
       sessionId: 's1',
       phone: PHONE,
+      armedAt,
     });
     // Generation is NOT fired synchronously — the route defers it.
     expect(confirmProposal).not.toHaveBeenCalled();
@@ -293,7 +302,7 @@ describe('reveal flow', () => {
       revealedSession() as unknown as Awaited<ReturnType<typeof confirmProposal>>
     );
 
-    const delivery = await executeReveal('s1', PHONE);
+    const delivery = await executeReveal('s1', PHONE, await currentArmedAt());
 
     expect(delivery.cuts).toHaveLength(4);
     expect(delivery.cuts[0]).toEqual({
@@ -326,7 +335,7 @@ describe('reveal flow', () => {
     await handleInbound({ phone: PHONE, body: 'yes' });
     vi.mocked(confirmProposal).mockRejectedValueOnce(new Error('provider blew up'));
 
-    const delivery = await executeReveal('s1', PHONE);
+    const delivery = await executeReveal('s1', PHONE, await currentArmedAt());
     expect(delivery.cuts).toHaveLength(0);
     expect(delivery.closingText).toBe(REVEAL_FAILED_TEXT);
 
@@ -349,7 +358,7 @@ describe('reveal flow', () => {
       revealedSession() as unknown as Awaited<ReturnType<typeof confirmProposal>>
     );
 
-    const delivery = await executeReveal('s1', PHONE);
+    const delivery = await executeReveal('s1', PHONE, await currentArmedAt());
     expect(delivery.closingText).toContain('https://tatttester.com/design');
   });
 });
@@ -362,7 +371,7 @@ describe('parity with the web after the reveal', () => {
     vi.mocked(confirmProposal).mockResolvedValueOnce(
       revealedSession() as unknown as Awaited<ReturnType<typeof confirmProposal>>
     );
-    await executeReveal('s1', phone);
+    await executeReveal('s1', phone, await currentArmedAt(phone));
     vi.mocked(getSession).mockResolvedValue(
       revealedSession() as unknown as Awaited<ReturnType<typeof getSession>>
     );
@@ -395,7 +404,12 @@ describe('parity with the web after the reveal', () => {
         generated: true,
       } as unknown as Awaited<ReturnType<typeof critique>>);
 
-      const delivery = await executeCritique('s1', PHONE, 'riku is missing');
+      const delivery = await executeCritique(
+        's1',
+        PHONE,
+        'riku is missing',
+        await currentArmedAt()
+      );
 
       // Five cuts exist now, so the new one is "Cut 5 of 5" — the same
       // position the web shows it in.
@@ -409,6 +423,7 @@ describe('parity with the web after the reveal', () => {
 
     it('passes a turn that spent nothing straight through', async () => {
       await driveToRevealed();
+      await handleInbound({ phone: PHONE, body: 'again but bolder' });
       vi.mocked(critique).mockResolvedValueOnce({
         session: revealedSession(),
         reply: "You're out of fixes on this one — let's get it in front of an artist.",
@@ -417,7 +432,12 @@ describe('parity with the web after the reveal', () => {
         generated: false,
       } as unknown as Awaited<ReturnType<typeof critique>>);
 
-      const delivery = await executeCritique('s1', PHONE, 'again but bolder');
+      const delivery = await executeCritique(
+        's1',
+        PHONE,
+        'again but bolder',
+        await currentArmedAt()
+      );
 
       expect(delivery.cuts).toHaveLength(0);
       expect(delivery.closingText).toContain('out of fixes');
@@ -428,7 +448,12 @@ describe('parity with the web after the reveal', () => {
       await handleInbound({ phone: PHONE, body: 'bolder' });
       vi.mocked(critique).mockRejectedValueOnce(new Error('provider blew up'));
 
-      const delivery = await executeCritique('s1', PHONE, 'bolder');
+      const delivery = await executeCritique(
+        's1',
+        PHONE,
+        'bolder',
+        await currentArmedAt()
+      );
 
       expect(delivery.closingText).toBe(CRITIQUE_FAILED_TEXT);
       const profile = await memoryProfileStore.get(PHONE);
@@ -502,6 +527,22 @@ describe('parity with the web after the reveal', () => {
       if (outcome.kind === 'reply') expect(outcome.text).toContain('different number');
     });
 
+    // Same bare-choice split as the first tap: leftover words are a fix, not
+    // a dislike. Recording "make 2 bolder" as most-not-you would pollute the Brief.
+    it('does not treat a fix request as the most-not-you pick', async () => {
+      await driveToRevealed();
+      await handleInbound({ phone: PHONE, body: '3' });
+
+      const outcome = await handleInbound({ phone: PHONE, body: 'make 2 bolder' });
+
+      expect(recordPick).not.toHaveBeenCalled();
+      expect(outcome.kind).toBe('reply');
+      if (outcome.kind === 'reply') expect(outcome.text).toContain('Just the number');
+      const profile = await memoryProfileStore.get(PHONE);
+      expect(profile?.lastStage).toBe('pick-pending');
+      expect(profile?.pendingPickId).toBe('v3');
+    });
+
     // Critique cuts are pickable on the web (ADR-0039), so a number over SMS
     // has to reach them too.
     it('can pick a cut that critique produced', async () => {
@@ -549,7 +590,7 @@ describe('parity with the web after the reveal', () => {
         brief: { placement: 'forearm', styleTags: [], meaning: 'x' },
       } as unknown as Awaited<ReturnType<typeof refine>>);
 
-      const delivery = await executeRefine('s1', PHONE, 'bolder');
+      const delivery = await executeRefine('s1', PHONE, 'bolder', await currentArmedAt());
 
       expect(delivery.cuts[0].mediaUrl).toBe('https://s/r.png');
       // The whole point of reaching 'complete': /smart-match can load the
@@ -564,7 +605,7 @@ describe('parity with the web after the reveal', () => {
       await handleInbound({ phone: PHONE, body: 'bolder' });
       vi.mocked(refine).mockRejectedValueOnce(new Error('provider blew up'));
 
-      const delivery = await executeRefine('s1', PHONE, 'bolder');
+      const delivery = await executeRefine('s1', PHONE, 'bolder', await currentArmedAt());
 
       expect(delivery.closingText).toBe(REFINE_FAILED_TEXT);
       const profile = await memoryProfileStore.get(PHONE);
@@ -584,6 +625,46 @@ describe('parity with the web after the reveal', () => {
       if (outcome.kind === 'reply') expect(outcome.text).toBe(BUDGET_EXHAUSTED_TEXT);
       expect(refine).not.toHaveBeenCalled();
     });
+
+    // The reveal closing copy invites "start over"; that escape must work
+    // here too, or the phrase arms a paid refine of a design they abandoned.
+    it('starts fresh on restart intent instead of arming refine', async () => {
+      await driveToRefinePending();
+      vi.mocked(converse).mockResolvedValueOnce(turn('chatting'));
+
+      const outcome = await handleInbound({ phone: PHONE, body: 'start over' });
+
+      expect(outcome.kind).toBe('reply');
+      expect(refine).not.toHaveBeenCalled();
+      expect(converse).toHaveBeenCalledWith({ message: 'start over' });
+      const profile = await memoryProfileStore.get(PHONE);
+      expect(profile?.lastStage).toBe('chatting');
+      expect(profile?.activeSessionId).toBe('s1');
+    });
+  });
+
+  describe('stale in-flight recovery', () => {
+    it('does not let a superseded critique callback spend after recovery', async () => {
+      await driveToRevealed();
+      await handleInbound({ phone: PHONE, body: 'make it bolder' });
+      const staleArmedAt = await currentArmedAt();
+
+      // Stale recovery (or a newer arm) clears/replaces the token — the
+      // deferred after() job from the first arm must not call critique().
+      const profile = await memoryProfileStore.get(PHONE);
+      profile!.lastStage = 'revealed';
+      profile!.revealArmedAt = null;
+      await memoryProfileStore.save(profile!);
+
+      const delivery = await executeCritique(
+        's1',
+        PHONE,
+        'make it bolder',
+        staleArmedAt
+      );
+      expect(delivery).toEqual({ cuts: [], closingText: '' });
+      expect(critique).not.toHaveBeenCalled();
+    });
   });
 });
 
@@ -592,7 +673,7 @@ describe('spend guardrails', () => {
     vi.mocked(confirmProposal).mockResolvedValueOnce(
       revealedSession() as unknown as Awaited<ReturnType<typeof confirmProposal>>
     );
-    await executeReveal(sessionId, PHONE);
+    await executeReveal(sessionId, PHONE, await currentArmedAt());
   }
 
   it('refuses the third reveal of the day in-voice (default cap 2)', async () => {

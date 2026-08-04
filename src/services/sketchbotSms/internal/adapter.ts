@@ -60,7 +60,6 @@ import { isConfirmationIntent } from '@/features/design-session/services/confirm
 // never needs it because there a pick is a click, not a sentence.
 import {
   parsePickIntent,
-  parsePickOrdinals,
   isBarePickReference,
 } from '@/features/design-session/services/pickIntent';
 import type { InboundSms, InboundOutcome, RevealDelivery, SmsProfile } from '../types';
@@ -283,7 +282,12 @@ export async function handleInbound(inbound: InboundSms): Promise<InboundOutcome
   // ── The refinement answer: the last paid step, and the only one that
   // reaches phase 'complete' — where the Brief an artist reads is built.
   // Free text, not an ordinal: whatever they'd change IS the answer.
+  // Restart still wins first — the closing reveal copy invites "start over",
+  // and charging a refine on an abandoned design is real spend.
   if (profile.activeSessionId && profile.lastStage === 'refine-pending') {
+    if (RESTART_INTENT.test(body)) {
+      return withReferenceAck(await restartDesign(profile, store, body), ackText);
+    }
     return withReferenceAck(await armRefine(profile, store, body), ackText);
   }
 
@@ -419,6 +423,20 @@ const POST_REVEAL_STAGES = new Set(['revealed', 'pick-pending']);
 const RESTART_INTENT =
   /\b(?:start (?:over|again|fresh)|from scratch|new (?:design|tattoo|idea|one)|different (?:design|tattoo|idea)|something else|scrap (?:it|that|this)|forget (?:it|that|this))\b/i;
 
+/** Drop the active design and open a fresh intake with the same message. */
+async function restartDesign(
+  profile: SmsProfile,
+  store: ProfileStoreT,
+  body: string
+): Promise<InboundOutcome> {
+  profile.pendingPickId = null;
+  profile.activeSessionId = null;
+  profile.lastStage = null;
+  profile.updatedAt = new Date().toISOString();
+  await store.save(profile);
+  return conversationTurn(profile, store, body);
+}
+
 /**
  * Everything the web offers after the four cuts land, over SMS.
  *
@@ -457,12 +475,7 @@ async function postRevealTurn(
   // The escape hatch, checked before anything that could spend: a texter
   // asking for a fresh design must not be charged for a re-cut of the old one.
   if (RESTART_INTENT.test(body)) {
-    profile.pendingPickId = null;
-    profile.activeSessionId = null;
-    profile.lastStage = null;
-    profile.updatedAt = new Date().toISOString();
-    await store.save(profile);
-    return conversationTurn(profile, store, body);
+    return restartDesign(profile, store, body);
   }
 
   // Critique cuts are pickable too (ADR-0039), and SMS numbers the whole
@@ -556,6 +569,7 @@ async function armReveal(
     text: REVEAL_ACK,
     sessionId: profile.activeSessionId!,
     phone,
+    armedAt: fresh.revealArmedAt!,
   };
 }
 
@@ -599,6 +613,7 @@ async function armRefine(
     sessionId: profile.activeSessionId!,
     phone: profile.phone,
     answer,
+    armedAt: profile.revealArmedAt!,
   };
 }
 
@@ -610,14 +625,28 @@ async function armRefine(
  * Spend is NOT recorded here: the designSession service records it, exactly
  * as it does for the reveal. A second charge in this channel would bill the
  * same render twice against the shared cap.
+ *
+ * `armedAt` is the token from armRefine. Stale recovery clears it (and a
+ * newer arm replaces it), so a deferred job that outlived the wait window
+ * must not call refine() after the channel already invited a retry.
  */
 export async function executeRefine(
   sessionId: string,
   phone: string,
-  answer: string
+  answer: string,
+  armedAt: string
 ): Promise<RevealDelivery> {
   const store = resolveProfileStore();
   const base = appBaseUrl();
+
+  if (!(await stillArmed(store, phone, 'refine-running', armedAt))) {
+    logger.info({
+      event_type: 'sketchbot_sms.refine_superseded',
+      phone_last4: phoneLast4(phone),
+      session_id: sessionId,
+    });
+    return { cuts: [], closingText: '' };
+  }
 
   let session;
   try {
@@ -626,7 +655,7 @@ export async function executeRefine(
     // Re-arm so a fresh answer can retry — the failure text promises it.
     // No cap slot to refund: refinement never consumed one.
     const profile = await store.get(phone);
-    if (profile) {
+    if (profile && profile.revealArmedAt === armedAt) {
       profile.lastStage = 'refine-pending';
       profile.revealArmedAt = null;
       profile.updatedAt = new Date().toISOString();
@@ -642,6 +671,15 @@ export async function executeRefine(
   }
 
   const profile = (await store.get(phone)) ?? newProfile(phone);
+  // A newer arm (or stale recovery) won while we rendered — do not clobber it.
+  if (profile.revealArmedAt !== armedAt) {
+    logger.info({
+      event_type: 'sketchbot_sms.refine_superseded',
+      phone_last4: phoneLast4(phone),
+      session_id: sessionId,
+    });
+    return { cuts: [], closingText: '' };
+  }
   profile.lastStage = 'complete';
   profile.revealArmedAt = null;
   profile.updatedAt = new Date().toISOString();
@@ -694,6 +732,10 @@ async function firstPickTurn(
  * pair naming the same cut, which is why this is a second turn rather than a
  * fabricated default — inventing a most-not-you writes a dislike the texter
  * never expressed into the artist's Brief.
+ *
+ * Same bare-choice gate as the first tap: "make 2 bolder" names an ordinal
+ * but is an instruction, not a most-not-you. parsePickOrdinals alone would
+ * record it as a dislike and pollute the Brief.
  */
 async function mostNotYouTurn(
   profile: SmsProfile,
@@ -702,13 +744,12 @@ async function mostNotYouTurn(
   cuts: Awaited<ReturnType<typeof allCuts>>,
   body: string
 ): Promise<InboundOutcome> {
-  const ordinals = parsePickOrdinals(body, cuts.length);
-
-  if (ordinals.length !== 1) {
+  if (!isBarePickReference(body, cuts.length)) {
     return { kind: 'reply', text: pickRetryText(cuts.length) };
   }
 
-  const namedId = cuts[ordinals[0] - 1].id;
+  const ordinal = parsePickIntent(body, cuts.length)!;
+  const namedId = cuts[ordinal - 1].id;
   if (namedId === profile.pendingPickId) {
     return { kind: 'reply', text: pickCollisionText(cuts.length) };
   }
@@ -803,7 +844,27 @@ async function armCritique(
     sessionId: profile.activeSessionId!,
     phone: profile.phone,
     message,
+    armedAt: profile.revealArmedAt!,
   };
+}
+
+/**
+ * True when this deferred job is still the one the profile is waiting on.
+ * Stale recovery clears revealArmedAt; a newer arm replaces it — either way
+ * the after() callback must not spend.
+ */
+async function stillArmed(
+  store: ProfileStoreT,
+  phone: string,
+  stage: string,
+  armedAt: string
+): Promise<boolean> {
+  const profile = await store.get(phone);
+  return (
+    !!profile &&
+    profile.lastStage === stage &&
+    profile.revealArmedAt === armedAt
+  );
 }
 
 /**
@@ -814,20 +875,33 @@ async function armCritique(
  * A turn that spends nothing — chatter the service filtered, an unresolvable
  * target, a spent allowance — still returns its reply. The service decides;
  * this channel only delivers.
+ *
+ * `armedAt` dedupes against stale recovery: if the wait window expired and
+ * the texter armed again, this callback must not call critique() a second time.
  */
 export async function executeCritique(
   sessionId: string,
   phone: string,
-  message: string
+  message: string,
+  armedAt: string
 ): Promise<RevealDelivery> {
   const store = resolveProfileStore();
+
+  if (!(await stillArmed(store, phone, 'critique-running', armedAt))) {
+    logger.info({
+      event_type: 'sketchbot_sms.critique_superseded',
+      phone_last4: phoneLast4(phone),
+      session_id: sessionId,
+    });
+    return { cuts: [], closingText: '' };
+  }
 
   let result;
   try {
     result = await critique(sessionId, { message });
   } catch (error) {
     const profile = await store.get(phone);
-    if (profile) {
+    if (profile && profile.revealArmedAt === armedAt) {
       profile.lastStage = 'revealed';
       profile.revealArmedAt = null;
       profile.updatedAt = new Date().toISOString();
@@ -843,6 +917,14 @@ export async function executeCritique(
   }
 
   const profile = (await store.get(phone)) ?? newProfile(phone);
+  if (profile.revealArmedAt !== armedAt) {
+    logger.info({
+      event_type: 'sketchbot_sms.critique_superseded',
+      phone_last4: phoneLast4(phone),
+      session_id: sessionId,
+    });
+    return { cuts: [], closingText: '' };
+  }
   profile.lastStage = 'revealed';
   profile.revealArmedAt = null;
   profile.updatedAt = new Date().toISOString();
@@ -950,9 +1032,25 @@ async function conversationTurn(
  * (four renders take minutes; Twilio gives webhooks seconds). The daily-cap
  * slot was reserved in armReveal — a failure here refunds it, tells the
  * user honestly, and never leaves them waiting on nothing.
+ *
+ * `armedAt` is the same token pattern as critique/refine: after stale
+ * recovery a second yes may arm again, and this callback must not also run.
  */
-export async function executeReveal(sessionId: string, phone: string): Promise<RevealDelivery> {
+export async function executeReveal(
+  sessionId: string,
+  phone: string,
+  armedAt: string
+): Promise<RevealDelivery> {
   const store = resolveProfileStore();
+
+  if (!(await stillArmed(store, phone, 'reveal-pending', armedAt))) {
+    logger.info({
+      event_type: 'sketchbot_sms.reveal_superseded',
+      phone_last4: phoneLast4(phone),
+      session_id: sessionId,
+    });
+    return { cuts: [], closingText: '' };
+  }
 
   let session;
   try {
@@ -960,9 +1058,13 @@ export async function executeReveal(sessionId: string, phone: string): Promise<R
   } catch (error) {
     // Refund the reserved cap slot and re-arm the proposal so a fresh
     // "yes" can retry — the failure text promises exactly that.
-    await store.releaseReveal(phone);
-    const profile = await store.get(phone);
-    if (profile) {
+    // Only refund/re-arm when this job is still the armed one; a newer arm
+    // owns the reserved slot now. releaseReveal first, then re-read — saving
+    // a pre-release clone would clobber the refunded counters.
+    const armed = await store.get(phone);
+    if (armed && armed.revealArmedAt === armedAt) {
+      await store.releaseReveal(phone);
+      const profile = (await store.get(phone)) ?? armed;
       profile.lastStage = 'proposal';
       profile.revealArmedAt = null;
       profile.updatedAt = new Date().toISOString();
@@ -978,6 +1080,14 @@ export async function executeReveal(sessionId: string, phone: string): Promise<R
   }
 
   const profile = (await store.get(phone)) ?? newProfile(phone);
+  if (profile.revealArmedAt !== armedAt) {
+    logger.info({
+      event_type: 'sketchbot_sms.reveal_superseded',
+      phone_last4: phoneLast4(phone),
+      session_id: sessionId,
+    });
+    return { cuts: [], closingText: '' };
+  }
   profile.lastStage = 'revealed';
   profile.revealArmedAt = null;
   profile.updatedAt = new Date().toISOString();

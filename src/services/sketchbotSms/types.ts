@@ -35,9 +35,32 @@ export interface InboundSms {
 export type InboundOutcome =
   | { kind: 'silent' }
   | { kind: 'reply'; text: string }
-  | { kind: 'reveal'; text: string; sessionId: string; phone: string }
-  | { kind: 'critique'; text: string; sessionId: string; phone: string; message: string }
-  | { kind: 'refine'; text: string; sessionId: string; phone: string; answer: string };
+  | {
+      kind: 'reveal';
+      text: string;
+      sessionId: string;
+      phone: string;
+      /** Matches profile.revealArmedAt — executeReveal aborts if superseded. */
+      armedAt: string;
+    }
+  | {
+      kind: 'critique';
+      text: string;
+      sessionId: string;
+      phone: string;
+      message: string;
+      /** Matches profile.revealArmedAt — executeCritique aborts if superseded. */
+      armedAt: string;
+    }
+  | {
+      kind: 'refine';
+      text: string;
+      sessionId: string;
+      phone: string;
+      answer: string;
+      /** Matches profile.revealArmedAt — executeRefine aborts if superseded. */
+      armedAt: string;
+    };
 
 /** What executeReveal() hands back for MMS delivery. */
 export interface RevealDelivery {
