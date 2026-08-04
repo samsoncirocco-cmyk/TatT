@@ -129,6 +129,7 @@ export const API_ROUTE_SECURITY: Record<string, RouteSecurityEntry> = {
   // SaaS Billing (artist subscriptions) + Invoicing
   'v1/billing/subscribe': { class: 'firebase-auth' },
   'v1/billing/portal': { class: 'firebase-auth' },
+  'v1/billing/credits': { class: 'firebase-auth' },
   'v1/invoices': { class: 'firebase-auth' },
   'webhooks/stripe': { class: 'webhook-signature' },
   // SketchBot SMS inbound (TAT-49): X-Twilio-Signature verified against
