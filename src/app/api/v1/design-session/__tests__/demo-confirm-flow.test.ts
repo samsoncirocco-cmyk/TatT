@@ -9,6 +9,10 @@ vi.mock('@/lib/api-auth', () => ({
   verifyApiAuth: vi.fn(async () => null),
 }));
 
+vi.mock('@/lib/auth-dal', () => ({
+  verifyFirebaseToken: vi.fn(async () => ({ uid: 'demo-user' })),
+}));
+
 vi.mock('@/lib/logger', () => ({
   logger: {
     info: vi.fn(),
