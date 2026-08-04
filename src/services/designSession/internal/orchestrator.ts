@@ -26,6 +26,7 @@ import { resolveSessionStore } from './store';
 import type { SessionStore, StoredSession } from './store';
 import { deriveRefinementQuestion, adjustPromptForAnswer } from './refinement';
 import { derivePlacementNotes } from './placementNotes';
+import { deriveStencil } from './stencil';
 import { durableRender } from './durableImage';
 import { recordImageSpend } from './spend';
 import {
@@ -365,6 +366,15 @@ export async function refine(sessionId: string, request: RefineRequest): Promise
     negativePrompt: picked.negativePrompt,
     imageUrl,
   };
+  // The artist's half of the deliverable, derived from the image the
+  // customer just approved rather than re-prompted from text — see
+  // internal/stencil.ts. Never throws: a missing stencil costs the artist
+  // convenience, a raised error would cost the customer the refinement they
+  // already paid for.
+  const stencilUrl = imageUrl
+    ? await deriveStencil(session.id, session.refinedVariation.id, imageUrl)
+    : null;
+
   session.brief = {
     placement: session.intake.placement,
     styleTags: session.intake.styleTags,
@@ -372,6 +382,7 @@ export async function refine(sessionId: string, request: RefineRequest): Promise
     meaning: session.intake.meaning,
     references: session.intake.references,
     finalImageUrl: session.refinedVariation.imageUrl,
+    ...(stencilUrl ? { stencilUrl } : {}),
     axisSelection: session.axisSelection,
     placementNotes: derivePlacementNotes(
       session.intake.placement,
