@@ -158,7 +158,26 @@ async function screenAndReroll(
     lastFlagged = result;
     lastFlaggedWords = words;
     rerolls += 1;
-    result = await render();
+
+    /*
+     * A re-roll that throws must not escape. `generate()` calls this inside
+     * the try that guards the PRIMARY dispatch, so an error here would be
+     * read as "the first render failed" — triggering provider fallback, or
+     * throwing — and the batch the customer already paid for would be
+     * discarded because the free second opinion on it failed.
+     *
+     * The first batch is lettered, not lost. Returning it flagged is the same
+     * answer as exhausting the re-roll budget, which is the contract: showing
+     * a flagged design beats showing nothing.
+     */
+    try {
+      result = await render();
+    } catch {
+      lastFlagged.metadata.textIntrusion = true;
+      lastFlagged.metadata.textIntrusionWords = lastFlaggedWords;
+      lastFlagged.metadata.textGuardRerolls = rerolls;
+      return lastFlagged;
+    }
   }
 }
 

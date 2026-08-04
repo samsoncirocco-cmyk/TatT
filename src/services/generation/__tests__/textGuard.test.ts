@@ -287,6 +287,40 @@ describe('generation seam — unrequested-lettering guard', () => {
     expect(result.metadata.textGuardRerolls).toBe(1);
   });
 
+  it('returns the lettered first batch when the re-roll itself fails', async () => {
+    /*
+     * The re-roll runs inside generate()'s primary-dispatch try, so an
+     * unguarded throw here would be read as "the first render failed" and
+     * trigger provider fallback — discarding a batch the customer already paid
+     * for because the free second opinion on it errored.
+     */
+    let renders = 0;
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).includes('flash-lite')) {
+        guardCalls += 1;
+        return ocrResponse(['GOKU']);
+      }
+      renders += 1;
+      renderCalls += 1;
+      if (renders === 2) return { ok: false, status: 500, text: async () => 'boom' };
+      return renderResponse();
+    });
+
+    const result = await generate({
+      prompt: 'Goku and Vegeta',
+      style: 'anime',
+      modelId: 'imagen3',
+      screenText: {},
+      retry: { maxRetries: 0, baseDelayMs: 1 },
+    });
+
+    expect(result.images).toHaveLength(1);
+    expect(result.metadata.textIntrusion).toBe(true);
+    expect(result.metadata.textIntrusionWords).toEqual(['GOKU']);
+    // Not a fallback: the primary batch is what came back.
+    expect(result.metadata.fallbackUsed).toBe(false);
+  });
+
   it('honours a larger re-roll budget', async () => {
     wire([['A'], ['B'], []]);
 
