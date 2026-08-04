@@ -194,7 +194,12 @@ the effectively-inert RGBA-separation branch (live
 `multiLayerService.ts:194` gates on `rgbaReady`, which is meaningless while
 Flux PNGs carry no alpha), and the absence of any tests on `useForgeStore`
 and `canvasService` — the compose step itself is untested, and phase 1 must
-not build on it without adding them.
+not build on it without adding them. Review escalation (#296): the RGBA
+finding is load-bearing, not incidental — if piece separation is
+unmeasured, opaque boxes behind pieces make every assembly look broken in a
+way no unit test catches. Before phase 1 leans on multi-piece composition,
+run a small measured check of piece separation on real Flux output, in the
+bake-off spirit.
 
 ## 5. Phased build plan
 
@@ -207,10 +212,17 @@ Wire persistence (§4.1), delete the duplicate and re-point its tests
 (§4.2), add first tests on `useForgeStore` layer CRUD and
 `compositeLayers`.
 
-**Exit criterion:** an automated test signs in, creates two layers, and
-reads the same two layers back through the Firestore storage path (proving
-the `:417` branch is reachable); the re-pointed `multiLayerService` tests
-pass against the live copy; `src/services/multiLayerService.ts` is gone.
+**Exit criterion:** the test environment can produce a real 2D canvas
+context and a Firestore emulator is configured in CI (today jsdom throws
+`Not implemented: getContext` — the same root cause as the 32-file failure
+baseline, which phase 0 therefore clears as a side effect — and
+`firebase.json` has an empty `emulators` block); an automated test signs
+in, creates two layers, and reads the same two layers back through the
+Firestore storage path (proving the `:417` branch is reachable); the
+re-pointed `multiLayerService` tests pass against the live copy;
+`src/services/multiLayerService.ts` is gone. Review note (#296): a plain
+`npm install canvas` did not satisfy vitest's jsdom — budget harness work,
+not a dependency add.
 
 ### Phase 1 — conversation skeleton on web
 
@@ -240,7 +252,13 @@ persisted (established rule).
 three-piece build over simulated SMS — every proposal arriving as an MMS
 image, every adjustment as a text — and a pixel-level comparison shows the
 server composite matches the browser composite for the same layer state
-within an agreed tolerance.
+within an agreed tolerance. **Stated fallback** if the CI canvas
+environment resists: compare the server composite against a committed
+reference PNG for a fixed layer state — weaker (it catches executor drift
+against the reference, not against the live browser), but honest and
+available. The two executors are two implementations of one contract; this
+comparison is the only thing enforcing it, so it may be weakened but never
+dropped.
 
 ### Phase 3 — polish
 
