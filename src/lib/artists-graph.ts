@@ -12,6 +12,7 @@
  * module stays importable in tests without touching Neo4j.
  */
 import { artistSlug } from "@/lib/artist-slug";
+import { bookingTier, type BookingTier } from "@/lib/artist-bookability";
 import { PUBLIC_ARTIST_CLAUSE } from "@/lib/artist-visibility";
 import {
   IG_PERMALINK_CYPHER,
@@ -63,6 +64,8 @@ export type RosterArtist = {
    *  The uid itself stays server-side; public surfaces use this boolean to
    *  hide both the claim door and the unclaimed-profile provenance label. */
   claimed: boolean;
+  /** Whether this profile may take a deposit or must use the no-money intro path. */
+  bookingTier: BookingTier;
 };
 
 export type RosterPage = {
@@ -217,6 +220,11 @@ export function toRosterArtist(record: Record<string, unknown>): RosterArtist {
     portfolioPermalinks: filterPermalinksForDisplay(record),
     authorizedPortfolioPermalinks,
     claimed: isClaimed(record),
+    bookingTier: bookingTier({
+      portfolioImages: record.portfolioImages,
+      portfolioPermalinks: record.portfolioPermalinks,
+      shopWebsiteLive: record.shopWebsiteLive,
+    }),
   };
 }
 
@@ -269,7 +277,11 @@ export async function browseArtists(
           AND coalesce(post.active, false) = true
         | {permalink: post.permalink, displayOrder: show.displayOrder}
       ] AS authorizedPortfolioPosts,
-      a.claimedByUid AS claimedByUid
+      a.claimedByUid AS claimedByUid,
+      EXISTS {
+        MATCH (a)-[:WORKS_AT|HAS_SHOP]->(sh:Shop)
+        WHERE sh.websiteLive = true
+      } AS shopWebsiteLive
     ORDER BY coalesce(a.reviewCount, 0) DESC, a.name ASC, a.id ASC
     SKIP toInteger($skip) LIMIT toInteger($limit)
   `;
@@ -321,7 +333,11 @@ export async function getRosterArtistById(
           AND coalesce(post.active, false) = true
         | {permalink: post.permalink, displayOrder: show.displayOrder}
       ] AS authorizedPortfolioPosts,
-      a.claimedByUid AS claimedByUid
+      a.claimedByUid AS claimedByUid,
+      EXISTS {
+        MATCH (a)-[:WORKS_AT|HAS_SHOP]->(sh:Shop)
+        WHERE sh.websiteLive = true
+      } AS shopWebsiteLive
     LIMIT 1
   `;
   const records = await runServerQuery(query, { id });

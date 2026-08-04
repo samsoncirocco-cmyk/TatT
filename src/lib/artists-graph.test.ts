@@ -389,3 +389,24 @@ describe("toRosterArtist claimed flag (TAT-16)", () => {
     expect("claimedByUid" in row).toBe(false);
   });
 });
+
+describe("toRosterArtist booking tier (ADR-0043)", () => {
+  it("permits deposits only with tattoo evidence and a positively live shop website", () => {
+    expect(
+      toRosterArtist({
+        id: "artist_1",
+        name: "A",
+        portfolioImages: ["https://example.com/work.jpg"],
+        shopWebsiteLive: true,
+      }).bookingTier,
+    ).toBe("bookable");
+
+    expect(
+      toRosterArtist({
+        id: "artist_2",
+        name: "B",
+        portfolioImages: ["https://example.com/work.jpg"],
+      }).bookingTier,
+    ).toBe("browse-only");
+  });
+});
