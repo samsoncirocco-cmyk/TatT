@@ -108,7 +108,7 @@ export function parsePickIntent(message: string, cutCount: number): number | nul
 
 /** Words that carry no instruction — politeness and grammar around a choice. */
 const PICK_FILLER =
-  /\b(?:the|a|an|one|ones|cut|cuts|design|number|num|option|pick|picking|take|taking|go|going|going with|with|want|wanted|choose|choosing|lock|locking|in|that|this|it|is|am|ill|lets|for|me|my|i|id|please|pls|plz|thanks|thank|you|ty|thx|yeah|yep|def|definitely|probably|think|like|love)\b/g;
+  /\b(?:the|a|an|one|ones|cut|cuts|design|number|num|option|pick|picking|take|taking|go|going|going with|with|want|wanted|choose|choosing|lock|locking|in|that|this|it|is|am|ill|lets|for|me|my|i|id|please|pls|plz|thanks|thank|you|ty|thx|yeah|yep|def|definitely|probably|think|like|love|most|best|favorite|favourite|fav|fave|prefer|preferred)\b/g;
 
 /** Ordinal tokens themselves, removed before judging what is left over. */
 const PICK_ORDINAL_TOKENS =

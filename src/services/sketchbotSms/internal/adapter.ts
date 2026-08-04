@@ -1060,9 +1060,20 @@ export async function executeReveal(
   const store = resolveProfileStore();
 
   if (!(await stillArmed(store, phone, 'reveal-pending', armedAt))) {
-    // Slot was reserved in armReveal; this job never generated, so refund.
-    // releaseReveal decrements by one — a newer arm's own consume stays.
-    await store.releaseReveal(phone);
+    // Refund only when this arm never delivered: stale recovery left
+    // proposal, or a newer reveal arm replaced the token. A completed
+    // reveal (revealed / pick / restart / …) already used the slot —
+    // releasing here would hand back a free daily reveal.
+    const profile = await store.get(phone);
+    const abandonedBeforeGenerate =
+      !!profile &&
+      (profile.lastStage === 'proposal' ||
+        (profile.lastStage === 'reveal-pending' &&
+          profile.revealArmedAt != null &&
+          profile.revealArmedAt !== armedAt));
+    if (abandonedBeforeGenerate) {
+      await store.releaseReveal(phone);
+    }
     logger.info({
       event_type: 'sketchbot_sms.reveal_superseded',
       phone_last4: phoneLast4(phone),

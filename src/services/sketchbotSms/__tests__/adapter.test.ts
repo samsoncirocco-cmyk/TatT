@@ -500,6 +500,21 @@ describe('parity with the web after the reveal', () => {
       expect(profile?.lastStage).toBe('pick-pending');
     });
 
+    // Preference phrasing still names one cut — must not fall through to
+    // isFixRequest and spend a paid critique.
+    it('reads preference phrasing as a choice, not a fix', async () => {
+      await driveToRevealed();
+
+      const outcome = await handleInbound({ phone: PHONE, body: 'I like 2 the most' });
+
+      expect(outcome.kind).toBe('reply');
+      if (outcome.kind === 'reply') expect(outcome.text).toContain('least you');
+      expect(critique).not.toHaveBeenCalled();
+      const profile = await memoryProfileStore.get(PHONE);
+      expect(profile?.pendingPickId).toBe('v2');
+      expect(profile?.lastStage).toBe('pick-pending');
+    });
+
     it('records the pair on the second tap and asks the refinement question', async () => {
       await driveToRevealed();
       await handleInbound({ phone: PHONE, body: 'the third one' });
@@ -707,6 +722,29 @@ describe('parity with the web after the reveal', () => {
       const after = await memoryProfileStore.get(PHONE);
       expect(after?.dailyReveals.count).toBe(0);
       expect(after?.totalReveals).toBe(0);
+    });
+
+    // A late/duplicate after() for an arm that already delivered must not
+    // releaseReveal — that would refund a slot the texter already used.
+    it('does not refund the reveal slot after a successful delivery', async () => {
+      await driveToProposal();
+      await handleInbound({ phone: PHONE, body: 'yes' });
+      const armedAt = await currentArmedAt();
+      vi.mocked(confirmProposal).mockResolvedValueOnce(
+        revealedSession() as unknown as Awaited<ReturnType<typeof confirmProposal>>
+      );
+      await executeReveal('s1', PHONE, armedAt);
+
+      const mid = await memoryProfileStore.get(PHONE);
+      expect(mid?.lastStage).toBe('revealed');
+      expect(mid?.dailyReveals.count).toBe(1);
+
+      const delivery = await executeReveal('s1', PHONE, armedAt);
+
+      expect(delivery).toEqual({ cuts: [], closingText: '' });
+      const after = await memoryProfileStore.get(PHONE);
+      expect(after?.dailyReveals.count).toBe(1);
+      expect(after?.totalReveals).toBe(1);
     });
 
     // Once confirmProposal has spent, a token cleared mid-render must not

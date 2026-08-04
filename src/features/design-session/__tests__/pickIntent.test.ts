@@ -96,6 +96,10 @@ describe('isBarePickReference', () => {
     expect(isBarePickReference('go with number 4 please', CUTS)).toBe(true);
     expect(isBarePickReference('the last one', CUTS)).toBe(true);
     expect(isBarePickReference('2!', CUTS)).toBe(true);
+    // Preference intensifiers are filler, not instructions — otherwise
+    // "I like 2 the most" falls through to a paid critique.
+    expect(isBarePickReference('I like 2 the most', CUTS)).toBe(true);
+    expect(isBarePickReference('2 is my favorite', CUTS)).toBe(true);
   });
 
   // The distinction that keeps a pick from spending a render: an instruction
