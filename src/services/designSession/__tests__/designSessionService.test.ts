@@ -240,6 +240,25 @@ describe('startSession', () => {
       expect.objectContaining({ castSize: 3 })
     );
   });
+
+  // Scripted extractIntake fills characterIdentities and omits
+  // requestedCharacters — routing must still see the cast size.
+  it('passes cast size from characterIdentities when requestedCharacters is absent', async () => {
+    mockExtractIntake.mockResolvedValue({
+      ...intakeRecord,
+      characterIdentities: [
+        { name: 'Goku', series: 'Dragon Ball' },
+        { name: 'Vegeta', series: 'Dragon Ball' },
+        { name: 'Piccolo', series: 'Dragon Ball' },
+      ],
+    });
+
+    await startSession(startRequest);
+
+    expect(mockRouteGeneration).toHaveBeenCalledWith(
+      expect.objectContaining({ castSize: 3 })
+    );
+  });
 });
 
 describe('recordPick', () => {

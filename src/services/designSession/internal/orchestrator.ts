@@ -218,7 +218,11 @@ export async function startFromRecord(
     // the anime-capable model instead of falling through on the generic tag.
     style: intake.styleTags,
     bodyPart: intake.placement,
-    castSize: intake.requestedCharacters?.length,
+    // Conversation intake fills requestedCharacters; scripted extractIntake
+    // only fills characterIdentities. Fall back so 3+ catalog casts still
+    // pin to the Gemini lane (#293) on the ADR-0019 degraded path.
+    castSize:
+      intake.requestedCharacters?.length ?? intake.characterIdentities?.length,
   });
 
   const demo = isDemoMode();
