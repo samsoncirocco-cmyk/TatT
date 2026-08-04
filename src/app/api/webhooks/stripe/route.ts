@@ -288,6 +288,33 @@ async function grantConsumerCreditsIfPaid(session: Stripe.Checkout.Session): Pro
     });
     throw new Error(`consumer credit checkout ${session.id} missing metadata.uid`);
   }
+
+  // Fulfillment is a separate trust boundary from checkout creation: a signed
+  // webhook attests to whatever session was paid (Dashboard/API spoofable
+  // metadata included). Only grant when the session charged the configured pack.
+  const expectedPriceId = process.env.STRIPE_PRICE_CONSUMER_CREDITS;
+  if (!expectedPriceId) {
+    console.error('[Stripe] consumer credit pack price is not configured — cannot grant credits', {
+      sessionId: session.id,
+    });
+    throw new Error(`consumer credit checkout ${session.id}: STRIPE_PRICE_CONSUMER_CREDITS unset`);
+  }
+  const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 10 });
+  const paidForPack = lineItems.data.some(
+    (item) => typeof item.price === 'object' && item.price?.id === expectedPriceId
+  );
+  if (!paidForPack) {
+    // Permanent mismatch — ack without granting so Stripe does not retry forever.
+    console.error('[Stripe] consumer credit checkout price mismatch — refusing grant', {
+      sessionId: session.id,
+      expectedPriceId,
+      lineItemPriceIds: lineItems.data.map((item) =>
+        typeof item.price === 'object' ? item.price?.id : item.price
+      ),
+    });
+    return;
+  }
+
   await grantPurchasedGenerationCredits(metadata.uid, session.id);
 }
 
