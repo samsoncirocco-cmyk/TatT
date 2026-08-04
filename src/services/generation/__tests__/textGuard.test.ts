@@ -55,6 +55,12 @@ describe('requestsLettering — the half that is deliberately not a model call',
     'Goku and Vegeta, no text',
     'a wolf head without lettering',
     'portrait, avoid words',
+    // Removal phrasing (common in critique re-cuts) is a refusal, not a
+    // lettering request — "remove all text" still contains \btext\b.
+    'Goku and Vegeta, remove all text',
+    'p1 Requested change: "remove all text".',
+    'p1 Requested change: "remove the name labels".',
+    'portrait, drop the words',
     // Compound refusals: stripping only the first negated term must not leave
     // "or lettering" / "or words" to rematch a needle.
     'Goku and Vegeta, no text or lettering',

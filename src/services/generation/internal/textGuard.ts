@@ -108,15 +108,19 @@ function escapeRegExp(value: string): string {
 
 /**
  * Negations that strip lettering needles so "no text" / "without lettering"
- * / "no text or lettering" do not disable the intrusion gate. Whole-word
- * only — "no texture" stays. The trailing (or|and|nor|…) chain is required
- * so a second disjunct cannot survive the first replace and rematch a needle.
+ * / "no text or lettering" / "remove all text" do not disable the intrusion
+ * gate. Whole-word only — "no texture" stays. Removal verbs matter because
+ * critique re-cuts append `Requested change: "…"` verbatim, and customers
+ * ask to drop accidental labels with "remove"/"drop", not only "no"/"without".
+ * `names?`/`dates?` cover the "the name"/"the date" needles the same way.
+ * The trailing (or|and|nor|…) chain is required so a second disjunct cannot
+ * survive the first replace and rematch a needle.
  */
 const LETTERING_TERM =
-  'lettering|letters|text|script|calligraphy|typography|font|banner|scroll|ribbon|quote|inscription|inscribed|written|writing|words?|cursive';
+  'lettering|letters|text|script|calligraphy|typography|font|banner|scroll|ribbon|quote|inscription|inscribed|written|writing|words?|cursive|names?|dates?';
 
 const LETTERING_NEGATED = new RegExp(
-  `\\b(?:no|without|sans|avoid|excluding)\\s+(?:any\\s+)?(?:${LETTERING_TERM})(?:(?:\\s*(?:,|/|and|or|nor)\\s*)+(?:any\\s+)?(?:${LETTERING_TERM}))*\\b`,
+  `\\b(?:no|without|sans|avoid|excluding|remove|drop|eliminate|delete|erase)\\s+(?:(?:any|all|the)\\s+)?(?:${LETTERING_TERM})(?:(?:\\s*(?:,|/|and|or|nor)\\s*)+(?:(?:any|all|the)\\s+)?(?:${LETTERING_TERM}))*\\b`,
   'g'
 );
 
