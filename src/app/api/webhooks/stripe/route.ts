@@ -7,7 +7,8 @@
  * flag is set.
  *
  * Handles both money flows:
- *  - Marketplace/payments: checkout.session.completed, payment_intent.succeeded
+ *  - Marketplace/payments: checkout.session.completed,
+ *    checkout.session.async_payment_succeeded, payment_intent.succeeded
  *  - Connect account status: account.updated (caches charges_enabled on the artist)
  *  - SaaS billing: customer.subscription.*, invoice.paid/payment_failed
  *
@@ -24,6 +25,7 @@ import { notifyArtistOfBooking } from '@/lib/notify';
 import { ensureAdminApp } from '@/lib/firebase-admin';
 import { canTransition, appendStatus } from '@/lib/booking';
 import type { BookingStatus, BookingStatusEvent } from '@/lib/booking';
+import { grantPurchasedGenerationCredits } from '@/lib/generation-credits';
 
 export const runtime = 'nodejs';
 
@@ -259,6 +261,64 @@ async function resolveHoldForPaidBooking(
   }
 }
 
+/**
+ * Grant a paid consumer credit-pack Checkout Session.
+ *
+ * checkout.session.completed can arrive while payment_status is still unpaid for
+ * delayed methods; fulfillment then waits for async_payment_succeeded (where
+ * status is paid). The ledger is idempotent on session id either way.
+ */
+async function grantConsumerCreditsIfPaid(session: Stripe.Checkout.Session): Promise<void> {
+  const metadata = session.metadata || {};
+  if (session.mode !== 'payment' || metadata.kind !== 'consumer_generation_credits') {
+    return;
+  }
+  if (session.payment_status !== 'paid') {
+    console.warn('[Stripe] consumer credit checkout is not paid — skipping', {
+      sessionId: session.id,
+      paymentStatus: session.payment_status,
+    });
+    return;
+  }
+  if (!metadata.uid) {
+    // Fail the webhook so Stripe retries and the Dashboard surfaces the miss —
+    // acknowledging 200 would permanently drop fulfillment for a paid session.
+    console.error('[Stripe] consumer credit checkout missing uid — cannot grant credits', {
+      sessionId: session.id,
+    });
+    throw new Error(`consumer credit checkout ${session.id} missing metadata.uid`);
+  }
+
+  // Fulfillment is a separate trust boundary from checkout creation: a signed
+  // webhook attests to whatever session was paid (Dashboard/API spoofable
+  // metadata included). Only grant when the session charged the configured pack.
+  const expectedPriceId = process.env.STRIPE_PRICE_CONSUMER_CREDITS;
+  if (!expectedPriceId) {
+    console.error('[Stripe] consumer credit pack price is not configured — cannot grant credits', {
+      sessionId: session.id,
+    });
+    throw new Error(`consumer credit checkout ${session.id}: STRIPE_PRICE_CONSUMER_CREDITS unset`);
+  }
+  const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 10 });
+  const paidForPack = lineItems.data.some(
+    (item) =>
+      (typeof item.price === 'object' ? item.price?.id : item.price) === expectedPriceId
+  );
+  if (!paidForPack) {
+    // Permanent mismatch — ack without granting so Stripe does not retry forever.
+    console.error('[Stripe] consumer credit checkout price mismatch — refusing grant', {
+      sessionId: session.id,
+      expectedPriceId,
+      lineItemPriceIds: lineItems.data.map((item) =>
+        typeof item.price === 'object' ? item.price?.id : item.price
+      ),
+    });
+    return;
+  }
+
+  await grantPurchasedGenerationCredits(metadata.uid, session.id);
+}
+
 async function handleEvent(event: Stripe.Event): Promise<void> {
   switch (event.type) {
     case 'checkout.session.completed': {
@@ -316,12 +376,25 @@ async function handleEvent(event: Stripe.Event): Promise<void> {
         });
       }
 
+      await grantConsumerCreditsIfPaid(session);
+
       // Reconcile the booking document (Task 1.3): move pending → deposit_paid.
       // Best-effort and IDEMPOTENT — Stripe retries webhooks, so a replay of the
       // same event must be a no-op. Wrapped in its own try/catch so a Firestore
       // failure never breaks relay creation or the 200 response above. A lost
       // reconciliation is real money, so failures are logged loudly.
       await reconcileBookingDeposit(session, event);
+      break;
+    }
+
+    case 'checkout.session.async_payment_succeeded': {
+      // Delayed methods: completed may have arrived unpaid; fulfill once paid.
+      const session = event.data.object as Stripe.Checkout.Session;
+      console.log('[Stripe] checkout async_payment_succeeded', {
+        id: session.id,
+        paymentStatus: session.payment_status,
+      });
+      await grantConsumerCreditsIfPaid(session);
       break;
     }
 

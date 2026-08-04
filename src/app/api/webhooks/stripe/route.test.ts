@@ -75,15 +75,17 @@ vi.mock('@/lib/firebase-admin', () => ({
 // ── Stripe fake ─────────────────────────────────────────────────────────────
 // constructEvent returns whatever event we stashed; the payment-intent retrieve
 // is only touched by the held-deposit relay path (unused here) but stubbed safe.
-const { constructEventMock, retrievePiMock } = vi.hoisted(() => ({
+const { constructEventMock, retrievePiMock, listLineItemsMock } = vi.hoisted(() => ({
   constructEventMock: vi.fn(),
   retrievePiMock: vi.fn(),
+  listLineItemsMock: vi.fn(),
 }));
 
 vi.mock('@/lib/stripe', () => ({
   stripe: {
     webhooks: { constructEvent: constructEventMock },
     paymentIntents: { retrieve: retrievePiMock },
+    checkout: { sessions: { listLineItems: listLineItemsMock } },
   },
 }));
 
@@ -100,6 +102,13 @@ vi.mock('@/lib/artist-stripe', () => ({
 
 vi.mock('@/lib/notify', () => ({
   notifyArtistOfBooking: vi.fn().mockResolvedValue(undefined),
+}));
+
+const { grantPurchasedGenerationCreditsMock } = vi.hoisted(() => ({
+  grantPurchasedGenerationCreditsMock: vi.fn().mockResolvedValue({ granted: true, paidRemaining: 25 }),
+}));
+vi.mock('@/lib/generation-credits', () => ({
+  grantPurchasedGenerationCredits: grantPurchasedGenerationCreditsMock,
 }));
 
 // The account.updated fallback resolves the artist from the graph by
@@ -376,6 +385,100 @@ describe('Stripe webhook — held-deposit relay', () => {
 
     expect(createRelay).not.toHaveBeenCalled();
     expect(notifyArtistOfBooking).not.toHaveBeenCalled();
+  });
+});
+
+// ── Consumer credit pack fulfillment ────────────────────────────────────────
+function makeCreditEvent(
+  id: string,
+  type: 'checkout.session.completed' | 'checkout.session.async_payment_succeeded',
+  paymentStatus: 'paid' | 'unpaid'
+) {
+  return {
+    id,
+    type,
+    created: CREATED_EPOCH,
+    data: {
+      object: {
+        id: 'cs_credits_1',
+        mode: 'payment',
+        payment_status: paymentStatus,
+        amount_total: 1000,
+        payment_intent: 'pi_credits_1',
+        metadata: {
+          kind: 'consumer_generation_credits',
+          uid: 'uid_buyer_1',
+        },
+      },
+    },
+  };
+}
+
+describe('Stripe webhook — consumer generation credits', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    docStore.clear();
+    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test_dummy';
+    process.env.STRIPE_PRICE_CONSUMER_CREDITS = 'price_credit_pack';
+    listLineItemsMock.mockResolvedValue({
+      data: [{ price: { id: 'price_credit_pack' }, quantity: 1 }],
+    });
+  });
+
+  it('grants credits on checkout.session.completed when already paid', async () => {
+    const event = makeCreditEvent('evt_credits_1', 'checkout.session.completed', 'paid');
+    constructEventMock.mockReturnValueOnce(event);
+
+    const res = await POST(makeRequest(event));
+    expect(res.status).toBe(200);
+    expect(listLineItemsMock).toHaveBeenCalledWith('cs_credits_1', { limit: 10 });
+    expect(grantPurchasedGenerationCreditsMock).toHaveBeenCalledWith('uid_buyer_1', 'cs_credits_1');
+  });
+
+  it('skips grant on completed while async payment is still unpaid', async () => {
+    const event = makeCreditEvent('evt_credits_2', 'checkout.session.completed', 'unpaid');
+    constructEventMock.mockReturnValueOnce(event);
+
+    const res = await POST(makeRequest(event));
+    expect(res.status).toBe(200);
+    expect(listLineItemsMock).not.toHaveBeenCalled();
+    expect(grantPurchasedGenerationCreditsMock).not.toHaveBeenCalled();
+  });
+
+  it('grants credits on checkout.session.async_payment_succeeded', async () => {
+    const event = makeCreditEvent(
+      'evt_credits_3',
+      'checkout.session.async_payment_succeeded',
+      'paid'
+    );
+    constructEventMock.mockReturnValueOnce(event);
+
+    const res = await POST(makeRequest(event));
+    expect(res.status).toBe(200);
+    expect(grantPurchasedGenerationCreditsMock).toHaveBeenCalledWith('uid_buyer_1', 'cs_credits_1');
+  });
+
+  it('returns 500 when a paid credit checkout is missing uid so Stripe retries', async () => {
+    const event = makeCreditEvent('evt_credits_4', 'checkout.session.completed', 'paid');
+    delete (event.data.object.metadata as { uid?: string }).uid;
+    constructEventMock.mockReturnValueOnce(event);
+
+    const res = await POST(makeRequest(event));
+    expect(res.status).toBe(500);
+    expect(listLineItemsMock).not.toHaveBeenCalled();
+    expect(grantPurchasedGenerationCreditsMock).not.toHaveBeenCalled();
+  });
+
+  it('refuses grant when the session charged a different price than the configured pack', async () => {
+    listLineItemsMock.mockResolvedValueOnce({
+      data: [{ price: { id: 'price_cheap_spoof' }, quantity: 1 }],
+    });
+    const event = makeCreditEvent('evt_credits_5', 'checkout.session.completed', 'paid');
+    constructEventMock.mockReturnValueOnce(event);
+
+    const res = await POST(makeRequest(event));
+    expect(res.status).toBe(200);
+    expect(grantPurchasedGenerationCreditsMock).not.toHaveBeenCalled();
   });
 });
 
