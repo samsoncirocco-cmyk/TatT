@@ -66,6 +66,16 @@ function dispatch(provider: ProviderName, request: GenerationRequest): Promise<G
 }
 
 /**
+ * Re-rolls AFTER the first render. Default 1. Non-finite / negative values
+ * from bad JSON coercion must not reach `rerolls >= maxRerolls` — NaN and
+ * Infinity never compare true, which would unbounded-loop the paid render.
+ */
+function resolveMaxRerolls(maxRerolls?: number): number {
+  if (typeof maxRerolls !== 'number' || !Number.isFinite(maxRerolls)) return 1;
+  return Math.max(0, Math.floor(maxRerolls));
+}
+
+/**
  * Screen a result and re-roll while it carries unrequested lettering (#297).
  *
  * The re-roll lives here rather than in a caller for the same reason the
@@ -86,11 +96,21 @@ async function screenAndReroll(
 ): Promise<GenerationResult> {
   let result = first;
   let rerolls = 0;
+  // Prior lettered batch kept so an empty re-roll can fall back to a flagged
+  // design instead of dropping the only images the customer paid for.
+  let lastFlagged: GenerationResult | null = null;
+  let lastFlaggedWords: string[] = [];
 
   for (;;) {
     // Nothing to screen: do not claim a clean pass. Absent textIntrusion means
     // the guard did not run; false would mean screened and clean.
     if (result.images.length === 0) {
+      if (lastFlagged) {
+        lastFlagged.metadata.textIntrusion = true;
+        lastFlagged.metadata.textIntrusionWords = lastFlaggedWords;
+        lastFlagged.metadata.textGuardRerolls = rerolls;
+        return lastFlagged;
+      }
       if (rerolls) result.metadata.textGuardRerolls = rerolls;
       return result;
     }
@@ -118,15 +138,17 @@ async function screenAndReroll(
       return result;
     }
 
+    const words = [...new Set(offending.flatMap((v) => v.words))];
+
     if (rerolls >= maxRerolls) {
       result.metadata.textIntrusion = true;
-      result.metadata.textIntrusionWords = [
-        ...new Set(offending.flatMap((v) => v.words)),
-      ];
+      result.metadata.textIntrusionWords = words;
       result.metadata.textGuardRerolls = rerolls;
       return result;
     }
 
+    lastFlagged = result;
+    lastFlaggedWords = words;
     rerolls += 1;
     result = await render();
   }
@@ -141,7 +163,7 @@ export async function generate(request: GenerationRequest): Promise<GenerationRe
       result,
       () => dispatch(route.provider, resolved),
       resolved.prompt,
-      request.screenText.maxRerolls ?? 1
+      resolveMaxRerolls(request.screenText.maxRerolls)
     );
   };
 
@@ -185,7 +207,7 @@ export async function generate(request: GenerationRequest): Promise<GenerationRe
                 return retry;
               },
               resolved.prompt,
-              request.screenText.maxRerolls ?? 1
+              resolveMaxRerolls(request.screenText.maxRerolls)
             )
           : result;
       } catch (fallbackError) {

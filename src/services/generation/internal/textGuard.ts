@@ -106,8 +106,16 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/**
+ * Negations that strip lettering needles so "no text" / "without lettering"
+ * do not disable the intrusion gate. Whole-word only — "no texture" stays.
+ */
+const LETTERING_NEGATED =
+  /\b(?:no|without|sans|avoid|excluding)\s+(?:any\s+)?(?:lettering|letters|text|script|calligraphy|typography|font|banner|scroll|ribbon|quote|inscription|inscribed|written|writing|words?|cursive)\b/g;
+
 export function requestsLettering(prompt: string): boolean {
-  const haystack = prompt.toLowerCase();
+  // Drop negated phrases first so declining lettering cannot match a needle.
+  const haystack = prompt.toLowerCase().replace(LETTERING_NEGATED, ' ');
   return LETTERING_REQUESTED.some((needle) => {
     // Quote-anchored needles are phrase prefixes ("reading \"…"), not words.
     if (needle.includes('"') || needle.includes("'")) {

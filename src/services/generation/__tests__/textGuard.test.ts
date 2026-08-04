@@ -50,6 +50,11 @@ describe('requestsLettering — the half that is deliberately not a model call',
     // ordinary English, or the intrusion gate disables itself.
     'a sword with weathered texture, high contrast',
     'password lock icon with fine description lines',
+    // Explicit refusals must not match lettering needles, or unrequested OCR
+    // words (character labels) would pass the gate as "requested".
+    'Goku and Vegeta, no text',
+    'a wolf head without lettering',
+    'portrait, avoid words',
   ])('does not treat a named subject as a request for writing: %s', (prompt) => {
     // The failure this whole split exists to prevent: a character named in the
     // request is a figure to draw, not a name to letter across the artwork.
@@ -272,6 +277,38 @@ describe('generation seam — unrequested-lettering guard', () => {
     expect(result.metadata.textGuardRerolls).toBe(2);
   });
 
+  it('treats non-finite maxRerolls as the default bound of one', async () => {
+    // NaN/Infinity never satisfy `rerolls >= maxRerolls`; without a finite
+    // default this would unbounded-loop paid renders.
+    wire([['A'], ['B'], ['C'], ['D']]);
+
+    const result = await generate({
+      prompt: 'a fox',
+      style: 'realism',
+      modelId: 'imagen3',
+      screenText: { maxRerolls: Number.POSITIVE_INFINITY },
+    });
+
+    expect(renderCalls).toBe(2);
+    expect(result.metadata.textIntrusion).toBe(true);
+    expect(result.metadata.textGuardRerolls).toBe(1);
+  });
+
+  it('re-rolls when lettering appears despite a "no text" prompt', async () => {
+    wire([['GOKU'], []]);
+
+    const result = await generate({
+      prompt: 'Goku and Vegeta, no text',
+      style: 'anime',
+      modelId: 'imagen3',
+      screenText: {},
+    });
+
+    expect(renderCalls).toBe(2);
+    expect(result.metadata.textIntrusion).toBe(false);
+    expect(result.metadata.textGuardRerolls).toBe(1);
+  });
+
   it('does not re-roll lettering the customer asked for', async () => {
     // OCR still reads "Margaret" — the request asked for script lettering, so
     // requestsLettering() clears it. A gate that rejected memorial names would
@@ -359,5 +396,55 @@ describe('generation seam — unrequested-lettering guard', () => {
     expect(result.images).toEqual([]);
     expect(guardCalls).toBe(0);
     expect(result.metadata.textIntrusion).toBeUndefined();
+  });
+
+  it('keeps the flagged lettered render when a re-roll returns empty', async () => {
+    // A paid re-roll that comes back with output: [] must not drop the prior
+    // lettered batch — flagged images beat showing nothing.
+    vi.stubEnv('REPLICATE_API_TOKEN', 'r8_test');
+    let predictions = 0;
+    fetchMock.mockImplementation(async (url: string) => {
+      const u = String(url);
+      if (u.includes('flash-lite')) {
+        guardCalls += 1;
+        return ocrResponse(['GOKU']);
+      }
+      if (u.includes('img.example')) {
+        return {
+          ok: true,
+          headers: { get: () => 'image/png' },
+          arrayBuffer: async () => Uint8Array.from([1, 2, 3]).buffer,
+        };
+      }
+      renderCalls += 1;
+      predictions += 1;
+      if (predictions === 1) {
+        return {
+          ok: true,
+          json: async () => ({
+            id: 'pred_1',
+            status: 'succeeded',
+            output: ['https://img.example/1.png'],
+          }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({ id: 'pred_2', status: 'succeeded', output: [] }),
+      };
+    });
+
+    const result = await generate({
+      prompt: 'a fox',
+      style: 'realism',
+      modelId: 'flux-dev',
+      screenText: {},
+    });
+
+    expect(renderCalls).toBe(2);
+    expect(result.images).toEqual(['https://img.example/1.png']);
+    expect(result.metadata.textIntrusion).toBe(true);
+    expect(result.metadata.textIntrusionWords).toEqual(['GOKU']);
+    expect(result.metadata.textGuardRerolls).toBe(1);
   });
 });
