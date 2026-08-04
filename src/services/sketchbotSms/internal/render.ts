@@ -234,3 +234,36 @@ export function referenceAckText(
   if (ignored > 0) parts.push(referenceOverflowText(analyses.length));
   return parts.join(' ');
 }
+
+// ─── Placement preview ──────────────────────────────────────────────────
+
+/** Caption on the composite — the design laid on the texter's own photo. */
+export const PLACEMENT_CAPTION = 'On you';
+
+/** Ack the moment a body photo arrives; compositing takes a few seconds. */
+export const PLACEMENT_ACK =
+  "Let me put it on you — one sec.";
+
+/** The composite landed. Names the one adjustment the channel understands. */
+export const PLACEMENT_DONE_TEXT =
+  "That's it at roughly life size. Send the photo again with \"bigger\" or \"smaller\" if the scale is off.";
+
+/** No design exists yet to lay on a body. */
+export const PLACEMENT_NO_DESIGN_TEXT =
+  "I don't have a design to put on you yet — tell me what you're after and I'll draw some first.";
+
+/** The photo could not be read (too large, wrong type, fetch failed). */
+export const PLACEMENT_UNREADABLE_TEXT =
+  "I couldn't open that photo. A regular JPEG or PNG straight from your camera works best.";
+
+/**
+ * The design is an opaque scene rather than flash art on white, so
+ * compositing it would lay someone else's body over the texter's own — the
+ * failure `designBackdrop` exists to prevent. Said honestly, never silently.
+ */
+export const PLACEMENT_UNUSABLE_DESIGN_TEXT =
+  "That render came out as a photo rather than clean flash art, so I can't lay it on your skin properly. Ask me to redo it and I'll get you a clean one.";
+
+/** Compositing failed for an unexpected reason — own it. */
+export const PLACEMENT_FAILED_TEXT =
+  "That didn't come together on my end — send the photo again and I'll have another go.";
