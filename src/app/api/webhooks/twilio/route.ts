@@ -47,6 +47,9 @@ import { rateLimit } from '@/lib/rate-limit';
 import {
   handleInbound,
   executeReveal,
+  executeCritique,
+  executeRefine,
+  executePlacement,
   recordOptOut,
   isOptedOut,
   parseInboundMedia,
@@ -250,16 +253,66 @@ export async function POST(req: NextRequest) {
       // REST sender once the renders exist. after() keeps the function
       // alive post-response (Fluid compute, maxDuration above).
       after(async () => {
-        const delivery = await executeReveal(outcome.sessionId, outcome.phone);
+        const delivery = await executeReveal(
+          outcome.sessionId,
+          outcome.phone,
+          outcome.armedAt
+        );
         // Re-check STOP between ack and delivery — never message an
         // opted-out number (Twilio would refuse too; we don't even try).
         if (await isOptedOut(outcome.phone)) return;
+        // Empty delivery = this arm was superseded (stale recovery / newer
+        // arm). Sending nothing is correct; an empty SMS is not.
+        if (delivery.cuts.length === 0 && !delivery.closingText) return;
         for (const cut of delivery.cuts) {
           await sendMms(outcome.phone, cut.caption, [cut.mediaUrl]);
         }
         await sendSms(outcome.phone, delivery.closingText);
       });
       reqLogger.complete('twilio_webhook.reveal_armed', {
+        session_id: outcome.sessionId,
+      });
+      return twiml(outcome.text);
+    }
+
+    // Critique and refinement defer for the same reason a reveal does: one
+    // render still outlives the webhook window. Both deliver whatever cuts
+    // they produced (possibly none) plus a closing text turn.
+    if (
+      outcome.kind === 'critique' ||
+      outcome.kind === 'refine' ||
+      outcome.kind === 'placement'
+    ) {
+      after(async () => {
+        const delivery =
+          outcome.kind === 'critique'
+            ? await executeCritique(
+                outcome.sessionId,
+                outcome.phone,
+                outcome.message,
+                outcome.armedAt
+              )
+            : outcome.kind === 'placement'
+              ? await executePlacement(
+                  outcome.sessionId,
+                  outcome.phone,
+                  { url: outcome.mediaUrl, contentType: outcome.contentType },
+                  outcome.message
+                )
+              : await executeRefine(
+                  outcome.sessionId,
+                  outcome.phone,
+                  outcome.answer,
+                  outcome.armedAt
+                );
+        if (await isOptedOut(outcome.phone)) return;
+        if (delivery.cuts.length === 0 && !delivery.closingText) return;
+        for (const cut of delivery.cuts) {
+          await sendMms(outcome.phone, cut.caption, [cut.mediaUrl]);
+        }
+        await sendSms(outcome.phone, delivery.closingText);
+      });
+      reqLogger.complete(`twilio_webhook.${outcome.kind}_armed`, {
         session_id: outcome.sessionId,
       });
       return twiml(outcome.text);

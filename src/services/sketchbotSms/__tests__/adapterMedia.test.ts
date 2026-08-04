@@ -10,7 +10,12 @@ import { handleInbound } from '../index';
 import { clearMemoryProfiles, memoryProfileStore } from '../internal/profileStore';
 import { REVEAL_ACK } from '../internal/render';
 import { analyzeInboundMedia, type MediaIngest } from '../internal/media';
-import { converse, confirmProposal, attachReference } from '@/services/designSession';
+import {
+  converse,
+  confirmProposal,
+  attachReference,
+  getSession,
+} from '@/services/designSession';
 import {
   REFERENCE_BUDGET_TEXT,
   REFERENCE_UNREADABLE_TEXT,
@@ -18,7 +23,8 @@ import {
 } from '@/services/vision';
 import { checkBudget } from '@/lib/budget-tracker';
 
-vi.mock('@/services/designSession', () => {
+vi.mock('@/services/designSession', async () => {
+  const pureCritique = await import('@/services/designSession/internal/critique');
   class DesignSessionError extends Error {
     readonly code: string;
     readonly status: number;
@@ -33,6 +39,13 @@ vi.mock('@/services/designSession', () => {
     converse: vi.fn(),
     confirmProposal: vi.fn(),
     attachReference: vi.fn(async () => ({ sessionId: 's1', summary: '', notes: {} })),
+    getSession: vi.fn(),
+    recordPick: vi.fn(),
+    refine: vi.fn(),
+    critique: vi.fn(),
+    attachPlacementPreview: vi.fn(),
+    allCuts: pureCritique.allCuts,
+    isFixRequest: pureCritique.isFixRequest,
     DesignSessionError,
   };
 });
@@ -208,5 +221,72 @@ describe('media + confirmation', () => {
     expect(outcome.text).toContain('five chibi anime characters');
     expect(outcome.text).toContain(REVEAL_ACK);
     expect(attachMock).toHaveBeenCalledWith('s1', CHIBI_ANALYSIS, 'sms');
+  });
+});
+
+/*
+ * The 'media + post-reveal' suite that lived here is deliberately gone.
+ *
+ * It asserted that a photo sent after the reveal attaches as a REFERENCE to
+ * the session. The placement work below supersedes that: after the reveal a
+ * photo is the customer's BODY, to composite the design onto — which is the
+ * whole point of `a photo after the reveal is the body, not a reference`.
+ *
+ * Both behaviours cannot hold. This is a semantic conflict between two
+ * commits, not a merge artefact: #299 shipped the reference reading and this
+ * change reverses it on purpose.
+ */
+
+describe('a photo after the reveal is the body, not a reference', () => {
+  const PHOTO = [{ url: 'https://api.twilio.com/media/ME1', contentType: 'image/jpeg' }];
+
+  /** Walk the phone to a delivered reveal. */
+  async function driveToRevealed(phone: string) {
+    vi.mocked(converse).mockResolvedValueOnce({
+      sessionId: 's1',
+      reply: 'Ready?',
+      stage: 'proposal',
+      turn: 1,
+    } as unknown as Awaited<ReturnType<typeof converse>>);
+    await handleInbound({ phone, body: 'a snake on my forearm' });
+    await handleInbound({ phone, body: 'yes' });
+    const profile = await memoryProfileStore.get(phone);
+    if (profile) {
+      profile.lastStage = 'revealed';
+      profile.revealArmedAt = null;
+      await memoryProfileStore.save(profile);
+    }
+  }
+
+  // The whole point of the split: intake is over, so a picture is where the
+  // tattoo goes — and reading it as inspiration would spend vision budget
+  // and put the texter's own arm in the artist's Brief as a reference.
+  it('routes it to placement and never to the vision analyzer', async () => {
+    const phone = '+15550001111';
+    await driveToRevealed(phone);
+
+    const outcome = await handleInbound({ phone, body: 'here', media: PHOTO });
+
+    expect(outcome.kind).toBe('placement');
+    if (outcome.kind === 'placement') {
+      expect(outcome.mediaUrl).toBe(PHOTO[0].url);
+      expect(outcome.message).toBe('here');
+    }
+    expect(analyzeInboundMedia).not.toHaveBeenCalled();
+  });
+
+  it('still reads a photo BEFORE the reveal as inspiration', async () => {
+    const phone = '+15550002222';
+    vi.mocked(analyzeInboundMedia).mockResolvedValueOnce({
+      analyses: [],
+      ignored: 0,
+      unreadable: 1,
+      budgetExhausted: false,
+    } as unknown as MediaIngest);
+
+    const outcome = await handleInbound({ phone, body: '', media: PHOTO });
+
+    expect(outcome.kind).toBe('reply');
+    expect(analyzeInboundMedia).toHaveBeenCalledTimes(1);
   });
 });

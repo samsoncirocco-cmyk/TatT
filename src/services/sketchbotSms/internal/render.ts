@@ -122,10 +122,84 @@ export function unavailableText(webUrl: string): string {
 export const INTERNAL_ERROR_TEXT =
   "Something went sideways on my end — that's mine to fix, not yours. Text me again in a minute and I'll pick this straight back up.";
 
-/** Closing text of a reveal MMS sequence — the bridge into the web session. */
+/**
+ * Closing text of a reveal MMS sequence — the bridge into the web session,
+ * and the invitation that opens everything after it.
+ *
+ * It names both moves the channel now understands, because a texter who is
+ * told only "here are four" has no way to know they can talk back to them.
+ */
 export function revealClosingText(shareUrl: string): string {
-  return `Four takes, four directions. See them big, try them on your skin in AR, and book the artist who can ink it: ${shareUrl}`;
+  return (
+    'Four takes, four directions. Tell me what to change on any of them, text ' +
+    `a number to lock one in, or say "start over" for a fresh idea. See them ` +
+    `big here: ${shareUrl}`
+  );
 }
+
+/** The reply named no single cut — ask again without scolding. */
+export function pickRetryText(cutCount: number): string {
+  return `Just the number — 1 to ${cutCount} — whichever one you'd actually put on your body.`;
+}
+
+/** The pick landed; now the one clean negative signal (ADR-0012). */
+export function mostNotYouQuestion(pickedNumber: number): string {
+  return `Cut ${pickedNumber} it is. Now the opposite: which one is the least you? That tells me what to steer away from.`;
+}
+
+/** The most-not-you tap named the cut they already picked. */
+export function pickCollisionText(cutCount: number): string {
+  return (
+    `That's the one you're keeping — I need a different number for the one ` +
+    `that's least you. Any of the other ${Math.max(cutCount - 1, 1)}.`
+  );
+}
+
+/** Praise with no instruction in it — answered, never silently ignored. */
+export function chatterAckText(cutCount: number): string {
+  return (
+    `Glad they landed. Tell me what to change on any of them, or text a ` +
+    `number 1 to ${cutCount} to lock one in.`
+  );
+}
+
+/** Ack sent the moment a critique re-cut is armed. */
+export const CRITIQUE_ACK = "On it — reworking that now. Back in a moment.";
+
+/** The critique render failed after the ack — own it, invite the retry. */
+export const CRITIQUE_FAILED_TEXT =
+  "That re-cut didn't come together — my fault, not yours. Say it again and I'll take another run at it.";
+
+/** Ack sent the moment a refinement is armed — one render still takes time. */
+export const REFINE_ACK = "Got it. Reworking that one now — back in a moment.";
+
+/** Caption on the single regenerated design. */
+export const REFINED_CAPTION = 'The tightened version';
+
+/** Caption on the derived black line art — the artist's working file. */
+export const STENCIL_CAPTION =
+  'The stencil — black line art your artist can resize and rearrange';
+
+/**
+ * Closing text once the session is complete. This is the only SMS exit that
+ * carries the session id, because it is the only point where a Brief exists
+ * — /smart-match?ds= reads it to pre-select styles and enrich the search,
+ * and threads the id onward so the booking records which design it came from.
+ *
+ * The copy only promises a stencil when one actually rendered: derivation is
+ * off by default and can fail, and a text claiming two files when one
+ * arrived reads as a broken send.
+ */
+export function refinedClosingText(matchUrl: string, hasStencil = false): string {
+  const lead = hasStencil
+    ? 'Two files: the design you approved, and the stencil your artist inks from.'
+    : "That's the one an artist works from.";
+  return `${lead} Here are the artists whose work actually fits it: ${matchUrl}`;
+}
+
+/** The refinement render failed after the ack — own it, offer the retry. */
+export const REFINE_FAILED_TEXT =
+  "That rework didn't come together — my fault, not yours. Tell me again what you'd change and I'll take another run at it.";
 
 /** Caption for cut n of 4 in the sequential MMS delivery. */
 export function cutCaption(index: number, total: number): string {
@@ -160,3 +234,36 @@ export function referenceAckText(
   if (ignored > 0) parts.push(referenceOverflowText(analyses.length));
   return parts.join(' ');
 }
+
+// ─── Placement preview ──────────────────────────────────────────────────
+
+/** Caption on the composite — the design laid on the texter's own photo. */
+export const PLACEMENT_CAPTION = 'On you';
+
+/** Ack the moment a body photo arrives; compositing takes a few seconds. */
+export const PLACEMENT_ACK =
+  "Let me put it on you — one sec.";
+
+/** The composite landed. Names the one adjustment the channel understands. */
+export const PLACEMENT_DONE_TEXT =
+  "That's it at roughly life size. Send the photo again with \"bigger\" or \"smaller\" if the scale is off.";
+
+/** No design exists yet to lay on a body. */
+export const PLACEMENT_NO_DESIGN_TEXT =
+  "I don't have a design to put on you yet — tell me what you're after and I'll draw some first.";
+
+/** The photo could not be read (too large, wrong type, fetch failed). */
+export const PLACEMENT_UNREADABLE_TEXT =
+  "I couldn't open that photo. A regular JPEG or PNG straight from your camera works best.";
+
+/**
+ * The design is an opaque scene rather than flash art on white, so
+ * compositing it would lay someone else's body over the texter's own — the
+ * failure `designBackdrop` exists to prevent. Said honestly, never silently.
+ */
+export const PLACEMENT_UNUSABLE_DESIGN_TEXT =
+  "That render came out as a photo rather than clean flash art, so I can't lay it on your skin properly. Ask me to redo it and I'll get you a clean one.";
+
+/** Compositing failed for an unexpected reason — own it. */
+export const PLACEMENT_FAILED_TEXT =
+  "That didn't come together on my end — send the photo again and I'll have another go.";
