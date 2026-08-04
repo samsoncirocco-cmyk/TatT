@@ -273,6 +273,18 @@ describe('POST /api/v1/book — taken-down artists are not bookable', () => {
     expect(firestoreSetMock).not.toHaveBeenCalled();
   });
 
+  it('returns 503, not unknown-artist, when the graph lookup is unavailable', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    getRosterArtistByIdMock.mockRejectedValueOnce(new Error('neo4j unavailable'));
+
+    const res = await POST(makeRequest({ ...VALID_BODY, artistId: 'artist_10021' }));
+
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ success: false });
+    expect(firestoreSetMock).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
   it('uses the public roster accessor for the canonical artist id', async () => {
     getRosterArtistByIdMock.mockResolvedValue({ id: 'artist_10021', bookingTier: 'bookable' });
 

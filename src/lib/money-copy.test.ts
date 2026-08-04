@@ -58,6 +58,11 @@ describe("booking money copy", () => {
     expect(checkoutFeeMoneyCopy(false)).not.toMatch(/within 7 days/i);
   });
 
+  it("uses the configured hold duration in the held-deposit success copy", () => {
+    expect(bookingSuccessMoneyCopy(false, 3)).toMatch(/within 3 days/i);
+    expect(bookingSuccessMoneyCopy(false, 3)).not.toMatch(/within 7 days/i);
+  });
+
   it("states both the rule and the unclaimed exception on the bookings list", () => {
     expect(bookingMoneyCopy.bookingsList).toMatch(/deposit goes to your artist in full/i);
     expect(bookingMoneyCopy.bookingsList).toMatch(/only part we keep/i);

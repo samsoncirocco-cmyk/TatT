@@ -193,6 +193,19 @@ describe("BookingSuccessPage — no dead ends", () => {
     expect(screen.queryByText(/whole deposit goes to your artist/i)).toBeNull();
   });
 
+  it("uses the checkout-pinned hold window in both unclaimed deposit promises", async () => {
+    searchParams = new URLSearchParams(
+      "artist=Nadia&deposit=100&session_id=cs_test_123&bookingId=book_123&artistClaimed=0&holdDays=3"
+    );
+    bookingFetchMock.mockResolvedValueOnce(bookingResponse("deposit_paid"));
+
+    render(<BookingSuccessPage />);
+    await flushInitialRead();
+
+    expect(screen.getAllByText(/within 3 days/i)).toHaveLength(2);
+    expect(screen.queryByText(/within 7 days/i)).toBeNull();
+  });
+
   it("stops after a bounded reconciliation window without falling back to Deposit due", async () => {
     render(<BookingSuccessPage />);
     await flushInitialRead();
