@@ -22,6 +22,10 @@ export type {
 // src/services/generationRouter.ts.
 export { routeGeneration } from './internal/routing';
 export type { GenerationRoute } from './internal/routing';
+// The exclusion vocabulary that keeps a render readable as linework. Shared
+// so a caller building its own stencil prompt uses the same words the
+// stencil route already folds in, instead of a drifting second list.
+export { STENCIL_SHIELD_TOKENS } from './internal/routing';
 
 interface ResolvedRoute {
   modelId: string;

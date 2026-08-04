@@ -49,6 +49,7 @@ import {
   executeReveal,
   executeCritique,
   executeRefine,
+  executePlacement,
   recordOptOut,
   isOptedOut,
   parseInboundMedia,
@@ -277,7 +278,11 @@ export async function POST(req: NextRequest) {
     // Critique and refinement defer for the same reason a reveal does: one
     // render still outlives the webhook window. Both deliver whatever cuts
     // they produced (possibly none) plus a closing text turn.
-    if (outcome.kind === 'critique' || outcome.kind === 'refine') {
+    if (
+      outcome.kind === 'critique' ||
+      outcome.kind === 'refine' ||
+      outcome.kind === 'placement'
+    ) {
       after(async () => {
         const delivery =
           outcome.kind === 'critique'
@@ -287,12 +292,19 @@ export async function POST(req: NextRequest) {
                 outcome.message,
                 outcome.armedAt
               )
-            : await executeRefine(
-                outcome.sessionId,
-                outcome.phone,
-                outcome.answer,
-                outcome.armedAt
-              );
+            : outcome.kind === 'placement'
+              ? await executePlacement(
+                  outcome.sessionId,
+                  outcome.phone,
+                  { url: outcome.mediaUrl, contentType: outcome.contentType },
+                  outcome.message
+                )
+              : await executeRefine(
+                  outcome.sessionId,
+                  outcome.phone,
+                  outcome.answer,
+                  outcome.armedAt
+                );
         if (await isOptedOut(outcome.phone)) return;
         if (delivery.cuts.length === 0 && !delivery.closingText) return;
         for (const cut of delivery.cuts) {
