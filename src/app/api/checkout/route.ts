@@ -31,6 +31,7 @@ import { stripe, stripeConfigured, platformFeeCents, CURRENCY } from '@/lib/stri
 import { getArtistStripe } from '@/lib/artist-stripe';
 import { depositCentsForSize, type TattooSize } from '@/lib/booking';
 import { checkoutFeeMoneyCopy } from '@/lib/money-copy';
+import { depositHoldDays } from '@/lib/deposit-hold';
 import { getRosterArtistById } from '@/lib/artists-graph';
 
 export const runtime = 'nodejs';
@@ -229,8 +230,12 @@ export async function POST(req: NextRequest) {
   });
   // Tell /book/success which money-sentence variant applies (ADR-0036
   // amendment): the held-deposit sentence for an unclaimed artist. Display
-  // copy only — payment truth still comes from reconciliation.
-  if (!artistReady) successParams.set('artistClaimed', '0');
+  // copy only — payment truth still comes from reconciliation. holdDays
+  // stamps the window that applied at checkout (ADR-0006) onto the return URL.
+  if (!artistReady) {
+    successParams.set('artistClaimed', '0');
+    successParams.set('holdDays', String(depositHoldDays()));
+  }
   // Carry the bookingId so /book/success can reconcile against the exact
   // booking record (server truth) rather than the caller's most-recent one.
   if (bookingId) successParams.set('bookingId', bookingId);

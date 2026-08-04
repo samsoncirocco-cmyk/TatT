@@ -14,6 +14,7 @@ import { IG_PERMALINK_CYPHER } from "./portfolio-display";
 const mockedQuery = vi.hoisted(() => vi.fn(async () => [] as unknown[]));
 vi.mock("@/features/match-pulse/services/neo4jService", () => ({
   executeServerCypherQuery: mockedQuery,
+  executeServerCypherQueryOrThrow: mockedQuery,
 }));
 
 describe("buildRosterFilter", () => {
@@ -387,6 +388,23 @@ describe("toRosterArtist claimed flag (TAT-16)", () => {
     });
     expect(row.claimed).toBe(true);
     expect("claimedByUid" in row).toBe(false);
+  });
+});
+
+describe("getRosterArtistById outage vs absence", () => {
+  afterEach(() => {
+    mockedQuery.mockReset();
+    mockedQuery.mockResolvedValue([]);
+  });
+
+  it("returns null when the graph answers with no rows", async () => {
+    mockedQuery.mockResolvedValueOnce([]);
+    await expect(getRosterArtistById("artist_missing")).resolves.toBeNull();
+  });
+
+  it("throws when the graph read fails so callers can return 503", async () => {
+    mockedQuery.mockRejectedValueOnce(new Error("Neo4j down"));
+    await expect(getRosterArtistById("artist_1")).rejects.toThrow(/Neo4j down/);
   });
 });
 

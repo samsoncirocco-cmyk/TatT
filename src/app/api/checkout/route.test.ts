@@ -192,12 +192,17 @@ describe('POST /api/checkout — unclaimed artist (held deposit)', () => {
     expect(args.payment_intent_data.application_fee_amount).toBeUndefined();
     expect(args.metadata.depositState).toBe('held');
 
-    // The unclaimed-artist money sentence (ADR-0036 amendment): held-deposit
-    // truth on the Stripe summary, and the success URL carries the variant.
+    // The unclaimed-artist money sentence (ADR-0036 amendment): relay +
+    // auto-refund truth on the Stripe summary, and the success URL carries
+    // the variant plus the hold window stamped at checkout.
     expect(args.line_items[1].price_data.product_data.description).toMatch(
-      /held during verification/i,
+      /has not joined TatT yet/i,
+    );
+    expect(args.line_items[1].price_data.product_data.description).toMatch(
+      /automatically refunds/i,
     );
     expect(args.success_url).toContain('artistClaimed=0');
+    expect(args.success_url).toMatch(/holdDays=\d+/);
   });
 
   it("records the artist's share as the DEPOSIT ONLY, never the booking fee", async () => {

@@ -8,6 +8,7 @@ import { getBookingOffer } from "@/lib/booking-offer";
 // Stripe config (never imported into client components). The money sentence
 // on the review step renders from this so the copy can't drift from the rate.
 import { PLATFORM_FEE_BPS } from "@/lib/stripe";
+import { depositHoldDays } from "@/lib/deposit-hold";
 
 // The artist comes from the live graph and availability from Firestore
 // on every request — never statically rendered.
@@ -96,6 +97,7 @@ export default async function BookPage({
       designSessionId={designSessionId}
       offer={offer}
       feePercent={PLATFORM_FEE_BPS / 100}
+      holdDays={depositHoldDays()}
     />
   );
 }

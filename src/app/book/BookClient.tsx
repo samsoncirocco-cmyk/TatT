@@ -147,6 +147,7 @@ export default function BookClient({
   designSessionId = "",
   offer,
   feePercent,
+  holdDays,
 }: {
   artist: BookArtist | null;
   requestedArtistId: string;
@@ -157,6 +158,8 @@ export default function BookClient({
   offer: BookOffer;
   /** Platform booking fee as a percentage (from PLATFORM_FEE_BPS, server-read). */
   feePercent: number;
+  /** Held-deposit refund window (from DEPOSIT_HOLD_DAYS, server-read). */
+  holdDays: number;
 }) {
   const { addBooking } = useBookings();
   const { designs } = useDesigns();
@@ -904,7 +907,7 @@ export default function BookClient({
                   />
                   <p className="mt-5 pt-5 border-t border-black/15 text-[13px] font-body text-black/80 leading-[1.7]">
                     {/* The money sentence (ADR-0036): who pays what, who keeps what. */}
-                    {bookingReviewMoneyCopy(artist.name, feePercent, artist.claimed)}
+                    {bookingReviewMoneyCopy(artist.name, feePercent, artist.claimed, holdDays)}
                   </p>
                   <p className="mt-3 text-[12px] font-body text-black/60 leading-[1.7]">
                     {reserving

@@ -16,6 +16,7 @@ const { mockedQuery } = vi.hoisted(() => ({
 }));
 vi.mock("@/features/match-pulse/services/neo4jService", () => ({
   executeServerCypherQuery: mockedQuery,
+  executeServerCypherQueryOrThrow: mockedQuery,
 }));
 
 import ArtistProfilePage from "./page";

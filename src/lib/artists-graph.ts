@@ -238,6 +238,16 @@ async function runServerQuery(query: string, params: Record<string, unknown>) {
   return executeServerCypherQuery(query, params);
 }
 
+/** Throws when Neo4j is down — null must mean "absent", not "outage". */
+async function runServerQueryOrThrow(
+  query: string,
+  params: Record<string, unknown>,
+) {
+  const { executeServerCypherQueryOrThrow } =
+    await import("@/features/match-pulse/services/neo4jService");
+  return executeServerCypherQueryOrThrow(query, params);
+}
+
 /**
  * One page of the roster, ordered by review volume (shop-level) then
  * name for deterministic pagination.
@@ -302,7 +312,9 @@ export async function browseArtists(
 }
 
 /**
- * Single artist by graph id (`artist_*`); null when absent or graph is down.
+ * Single artist by graph id (`artist_*`); null when absent.
+ * Throws when the graph is unreachable so money/intro callers can return 503
+ * instead of treating an outage as an unknown artist.
  *
  * A taken-down artist reads as absent — this backs the public profile page and
  * /book, so it must not resolve for someone who asked to be removed.
@@ -338,7 +350,7 @@ export async function getRosterArtistById(
       ${HAS_REACHABLE_CONTACT_CLAUSE} AS shopWebsiteLive
     LIMIT 1
   `;
-  const records = await runServerQuery(query, { id });
+  const records = await runServerQueryOrThrow(query, { id });
   return records.length ? toRosterArtist(records[0]) : null;
 }
 

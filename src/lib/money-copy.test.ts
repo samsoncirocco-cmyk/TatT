@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   artistDepositNotificationMoneyCopy,
   bookingMoneyCopy,
@@ -8,6 +8,13 @@ import {
 } from "./money-copy";
 
 describe("booking money copy", () => {
+  const originalHoldDays = process.env.DEPOSIT_HOLD_DAYS;
+
+  afterEach(() => {
+    if (originalHoldDays === undefined) delete process.env.DEPOSIT_HOLD_DAYS;
+    else process.env.DEPOSIT_HOLD_DAYS = originalHoldDays;
+  });
+
   it("keeps every static surface on the same fee/deposit policy", () => {
     for (const sentence of Object.values(bookingMoneyCopy)) {
       expect(sentence).toMatch(/fee/i);
@@ -30,16 +37,25 @@ describe("booking money copy", () => {
   });
 
   it("keeps the held-deposit truth on the unclaimed variants (ADR-0006/0008)", () => {
-    for (const sentence of [checkoutFeeMoneyCopy(false)]) {
-      expect(sentence).toMatch(/held during verification/i);
-      expect(sentence).toMatch(/in full/i);
-      expect(sentence).toMatch(/refunded/i);
-      expect(sentence).toMatch(/claim window closes/i);
+    delete process.env.DEPOSIT_HOLD_DAYS;
+    for (const sentence of [
+      checkoutFeeMoneyCopy(false),
+      bookingSuccessMoneyCopy(false),
+      bookingReviewMoneyCopy("Nadia", 10, false),
+    ]) {
+      expect(sentence).toMatch(/has not joined TatT yet/i);
+      expect(sentence).toMatch(/relay/i);
+      expect(sentence).toMatch(/within 7 days/i);
+      expect(sentence).toMatch(/automatically refunds/i);
     }
-    expect(bookingSuccessMoneyCopy(false)).toMatch(/has not joined TatT yet/i);
-    expect(bookingSuccessMoneyCopy(false)).toMatch(/relay/i);
-    expect(bookingSuccessMoneyCopy(false)).toMatch(/within 7 days/i);
-    expect(bookingSuccessMoneyCopy(false)).toMatch(/automatically refunds/i);
+  });
+
+  it("reads DEPOSIT_HOLD_DAYS for the unclaimed refund window", () => {
+    process.env.DEPOSIT_HOLD_DAYS = "3";
+    expect(checkoutFeeMoneyCopy(false)).toMatch(/within 3 days/i);
+    expect(bookingSuccessMoneyCopy(false)).toMatch(/within 3 days/i);
+    expect(bookingReviewMoneyCopy("Nadia", 10, false)).toMatch(/within 3 days/i);
+    expect(checkoutFeeMoneyCopy(false)).not.toMatch(/within 7 days/i);
   });
 
   it("states both the rule and the unclaimed exception on the bookings list", () => {
@@ -56,11 +72,12 @@ describe("booking money copy", () => {
     );
   });
 
-  it("describes custody and refund truth for an unclaimed profile", () => {
+  it("describes relay custody and refund truth for an unclaimed profile", () => {
+    delete process.env.DEPOSIT_HOLD_DAYS;
     expect(bookingReviewMoneyCopy("Nadia", 10, false)).toMatch(
-      /holds the artist deposit while Nadia claims and verifies/i,
+      /relay your request to Nadia/i,
     );
-    expect(bookingReviewMoneyCopy("Nadia", 10, false)).toMatch(/refunded/i);
+    expect(bookingReviewMoneyCopy("Nadia", 10, false)).toMatch(/within 7 days/i);
     expect(bookingReviewMoneyCopy("Nadia", 10, false)).toMatch(/10% booking fee/i);
   });
 

@@ -290,4 +290,14 @@ describe('POST /api/v1/book — taken-down artists are not bookable', () => {
     expect(await res.json()).toMatchObject({ code: 'ARTIST_INTRO_REQUIRED' });
     expect(firestoreSetMock).not.toHaveBeenCalled();
   });
+
+  it('returns 503 when the roster lookup throws (graph outage)', async () => {
+    getRosterArtistByIdMock.mockRejectedValueOnce(new Error('Neo4j driver not configured server-side'));
+
+    const res = await POST(makeRequest({ ...VALID_BODY, artistId: 'artist_10021' }));
+
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ success: false });
+    expect(firestoreSetMock).not.toHaveBeenCalled();
+  });
 });

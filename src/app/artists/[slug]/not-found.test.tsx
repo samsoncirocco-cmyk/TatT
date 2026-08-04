@@ -16,14 +16,16 @@ import path from 'node:path';
 
 const { queryLog } = vi.hoisted(() => ({ queryLog: [] as { query: string; params: any }[] }));
 
+const runQuery = vi.fn(async (query: string, params: any) => {
+  queryLog.push({ query, params });
+  // What the graph returns for a removed artist AND for a never-existed
+  // one: nothing. NOT_REMOVED_CLAUSE makes the removed case identical to
+  // the absent case at the data layer.
+  return [];
+});
 vi.mock('@/features/match-pulse/services/neo4jService', () => ({
-  executeServerCypherQuery: vi.fn(async (query: string, params: any) => {
-    queryLog.push({ query, params });
-    // What the graph returns for a removed artist AND for a never-existed
-    // one: nothing. NOT_REMOVED_CLAUSE makes the removed case identical to
-    // the absent case at the data layer.
-    return [];
-  }),
+  executeServerCypherQuery: runQuery,
+  executeServerCypherQueryOrThrow: runQuery,
 }));
 
 import { getRosterArtistById } from '@/lib/artists-graph';

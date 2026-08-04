@@ -175,9 +175,9 @@ describe("BookingSuccessPage — no dead ends", () => {
     expect(screen.queryByText(/held during verification/i)).toBeNull();
   });
 
-  it("paid, unclaimed artist (artistClaimed=0): the relay and 7-day auto-refund truth", async () => {
+  it("paid, unclaimed artist (artistClaimed=0): the relay and auto-refund truth", async () => {
     searchParams = new URLSearchParams(
-      "artist=Nadia&deposit=100&session_id=cs_test_123&bookingId=book_123&artistClaimed=0"
+      "artist=Nadia&deposit=100&session_id=cs_test_123&bookingId=book_123&artistClaimed=0&holdDays=3"
     );
     bookingFetchMock.mockResolvedValueOnce(bookingResponse("deposit_paid"));
 
@@ -186,8 +186,10 @@ describe("BookingSuccessPage — no dead ends", () => {
 
     expect(screen.getAllByText(/has not joined TatT yet/i)).toHaveLength(2);
     expect(screen.getByText(/relay the request/i)).toBeTruthy();
-    expect(screen.getAllByText(/within 7 days/i)).toHaveLength(2);
+    expect(screen.getAllByText(/within 3 days/i)).toHaveLength(2);
     expect(screen.getAllByText(/automatically refunds your deposit/i)).toHaveLength(2);
+    expect(screen.getByText(/follows up with Nadia outside the booking product/i)).toBeTruthy();
+    expect(screen.queryByText(/Nadia confirms your time/i)).toBeNull();
     expect(screen.queryByText(/whole deposit goes to your artist/i)).toBeNull();
   });
 

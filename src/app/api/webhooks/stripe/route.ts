@@ -26,6 +26,7 @@ import { ensureAdminApp } from '@/lib/firebase-admin';
 import { canTransition, appendStatus } from '@/lib/booking';
 import type { BookingStatus, BookingStatusEvent } from '@/lib/booking';
 import { grantPurchasedGenerationCredits } from '@/lib/generation-credits';
+import { depositHoldDays } from '@/lib/deposit-hold';
 
 export const runtime = 'nodejs';
 
@@ -345,7 +346,7 @@ async function handleEvent(event: Stripe.Event): Promise<void> {
           const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
           const chargeId =
             typeof pi.latest_charge === 'string' ? pi.latest_charge : pi.latest_charge?.id || '';
-          const holdDays = Number(process.env.DEPOSIT_HOLD_DAYS) || 7;
+          const holdDays = depositHoldDays();
           const expiresAtEpoch = event.created + holdDays * 86400;
           // The artist's share is the DEPOSIT only (metadata.depositCents) — the
           // client also paid a booking fee on top (session.amount_total), which
