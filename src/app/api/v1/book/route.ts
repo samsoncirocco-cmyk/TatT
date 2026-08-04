@@ -63,11 +63,17 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: 'Unknown artist.' }, { status: 400 });
       }
       if (artist.bookingTier !== 'bookable') {
+        // Preserve ds parity with /book's browse-only redirect so callers that
+        // follow introUrl keep the design-session Brief on the intro path.
+        const intro = new URLSearchParams({ artistId: artist.id });
+        if (parsed.value.designSessionId) {
+          intro.set('ds', parsed.value.designSessionId);
+        }
         return NextResponse.json({
           success: false,
           error: 'This artist is available through an introduction request, not a deposit.',
           code: 'ARTIST_INTRO_REQUIRED',
-          introUrl: `/intro?artistId=${encodeURIComponent(artist.id)}`,
+          introUrl: `/intro?${intro.toString()}`,
         }, { status: 409 });
       }
     } catch (err) {

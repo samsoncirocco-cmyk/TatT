@@ -231,10 +231,13 @@ export async function POST(req: NextRequest) {
   // Tell /book/success which money-sentence variant applies (ADR-0036
   // amendment): the held-deposit sentence for an unclaimed artist. Display
   // copy only — payment truth still comes from reconciliation. holdDays
-  // stamps the window that applied at checkout (ADR-0006) onto the return URL.
-  if (!artistReady) {
+  // stamps the window that applied at checkout (ADR-0006) onto the return URL
+  // and into Stripe metadata so the webhook expires the same window even if
+  // DEPOSIT_HOLD_DAYS changes before payment completes.
+  const holdDaysAtCheckout = artistReady ? null : depositHoldDays();
+  if (holdDaysAtCheckout != null) {
     successParams.set('artistClaimed', '0');
-    successParams.set('holdDays', String(depositHoldDays()));
+    successParams.set('holdDays', String(holdDaysAtCheckout));
   }
   // Carry the bookingId so /book/success can reconcile against the exact
   // booking record (server truth) rather than the caller's most-recent one.
@@ -261,6 +264,9 @@ export async function POST(req: NextRequest) {
     // routed booking. Overwritten to a real flag only on the held path below.
     depositState: artistReady ? 'routed' : 'held',
   };
+  if (holdDaysAtCheckout != null) {
+    metadata.holdDays = String(holdDaysAtCheckout);
+  }
   // Tie the Stripe session back to the booking_requests/{bookingId} record so
   // the webhook can reconcile a paid deposit. Only set when present — metadata
   // is Record<string,string> and must never carry undefined/empty values.

@@ -203,6 +203,10 @@ describe('POST /api/checkout — unclaimed artist (held deposit)', () => {
     );
     expect(args.success_url).toContain('artistClaimed=0');
     expect(args.success_url).toMatch(/holdDays=\d+/);
+    // Lock the same window into Stripe metadata so the webhook does not
+    // re-read a live DEPOSIT_HOLD_DAYS that may have changed since checkout.
+    expect(args.metadata.holdDays).toMatch(/^\d+$/);
+    expect(Number(args.metadata.holdDays)).toBeGreaterThan(0);
   });
 
   it("records the artist's share as the DEPOSIT ONLY, never the booking fee", async () => {

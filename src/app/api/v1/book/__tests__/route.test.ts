@@ -287,7 +287,29 @@ describe('POST /api/v1/book — taken-down artists are not bookable', () => {
     const res = await POST(makeRequest({ ...VALID_BODY, artistId: 'artist_intro_only' }));
 
     expect(res.status).toBe(409);
-    expect(await res.json()).toMatchObject({ code: 'ARTIST_INTRO_REQUIRED' });
+    expect(await res.json()).toMatchObject({
+      code: 'ARTIST_INTRO_REQUIRED',
+      introUrl: '/intro?artistId=artist_intro_only',
+    });
+    expect(firestoreSetMock).not.toHaveBeenCalled();
+  });
+
+  it('preserves designSessionId on the browse-only introUrl', async () => {
+    getRosterArtistByIdMock.mockResolvedValue({ id: 'artist_intro_only', bookingTier: 'browse-only' });
+
+    const res = await POST(
+      makeRequest({
+        ...VALID_BODY,
+        artistId: 'artist_intro_only',
+        designSessionId: 'sess-1',
+      }),
+    );
+
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({
+      code: 'ARTIST_INTRO_REQUIRED',
+      introUrl: '/intro?artistId=artist_intro_only&ds=sess-1',
+    });
     expect(firestoreSetMock).not.toHaveBeenCalled();
   });
 

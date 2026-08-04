@@ -349,6 +349,29 @@ export default function BookClient({
         return;
       }
 
+      // Tier flipped (or checkout raced) after capture — send the client to
+      // /intro instead of claiming payments aren't configured.
+      if (
+        payData?.code === "ARTIST_INTRO_REQUIRED" &&
+        typeof payData?.introUrl === "string"
+      ) {
+        window.location.href = payData.introUrl;
+        return;
+      }
+
+      // Graph/bookability 503 and other hard checkout failures must not share
+      // the "Payments aren't configured yet" captured copy — the booking may
+      // already be saved, but the reason is not missing Stripe config.
+      if (
+        !payRes.ok &&
+        typeof payData?.error === "string" &&
+        payData.error !== "Payments are not configured."
+      ) {
+        setError(payData.error);
+        setPhase("form");
+        return;
+      }
+
       setPaymentsUnavailable(true);
       setPhase("captured");
     } catch (err) {

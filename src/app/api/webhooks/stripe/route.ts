@@ -346,7 +346,14 @@ async function handleEvent(event: Stripe.Event): Promise<void> {
           const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
           const chargeId =
             typeof pi.latest_charge === 'string' ? pi.latest_charge : pi.latest_charge?.id || '';
-          const holdDays = depositHoldDays();
+          // Prefer the checkout-stamped window so a DEPOSIT_HOLD_DAYS change
+          // between session creation and payment cannot drift refund timing
+          // away from the holdDays shown on /book/success.
+          const holdDaysMeta = Number(metadata.holdDays);
+          const holdDays =
+            Number.isFinite(holdDaysMeta) && holdDaysMeta > 0
+              ? Math.trunc(holdDaysMeta)
+              : depositHoldDays();
           const expiresAtEpoch = event.created + holdDays * 86400;
           // The artist's share is the DEPOSIT only (metadata.depositCents) — the
           // client also paid a booking fee on top (session.amount_total), which

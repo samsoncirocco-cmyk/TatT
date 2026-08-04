@@ -22,7 +22,40 @@ export default async function ArtistProfilePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const artist = await getRosterArtistById(artistIdFromSlug(slug));
+  // Graph outage is not "artist missing" — match /book and /intro's
+  // retry-oriented copy instead of letting the throw become a 500.
+  let artist: Awaited<ReturnType<typeof getRosterArtistById>>;
+  try {
+    artist = await getRosterArtistById(artistIdFromSlug(slug));
+  } catch {
+    return (
+      <StudioShell>
+        <div className="px-6 md:px-12 pt-6 pb-4 border-b hairline">
+          <div className="max-w-6xl mx-auto flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/50 tabular-nums font-body">
+            <Link href="/artists" className="hover:text-pink">
+              ←&nbsp;Roster
+            </Link>
+            <span>Profile&nbsp;/&nbsp;Unavailable</span>
+          </div>
+        </div>
+        <div className="px-6 md:px-12 py-24 md:py-32">
+          <div className="max-w-md mx-auto text-center">
+            <p className="font-display text-white text-[28px] md:text-[36px] leading-none">
+              Couldn&apos;t reach the artist graph.
+            </p>
+            <p className="mt-6 text-[13px] text-white/60 font-body leading-[1.9]">
+              The live roster is unreachable right now — try again in a minute.
+            </p>
+            <p className="mt-10">
+              <Link href="/artists" className="underline text-sm font-body text-white/80 hover:text-pink">
+                Browse the roster
+              </Link>
+            </p>
+          </div>
+        </div>
+      </StudioShell>
+    );
+  }
   if (!artist) notFound();
 
   const nameParts = artist.name.split(" ");
