@@ -41,6 +41,11 @@ import type { ConverseRequest, ConverseResponse } from '../designConversation/ty
 
 export { DesignSessionError } from './internal/orchestrator';
 export type { DesignSessionErrorCode } from './internal/orchestrator';
+// Cut identity, for channels that must name cuts back to the user rather
+// than render a clickable grid. `allCuts` is the canonical order — the four
+// reveal takes followed by anything critique produced — so a number spoken
+// over SMS means the same cut the web shows in that position.
+export { allCuts, isFixRequest, cutLabel } from './internal/critique';
 export type {
   DesignSession,
   SessionPhase,

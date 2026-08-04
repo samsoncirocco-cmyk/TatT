@@ -35,7 +35,32 @@ export interface InboundSms {
 export type InboundOutcome =
   | { kind: 'silent' }
   | { kind: 'reply'; text: string }
-  | { kind: 'reveal'; text: string; sessionId: string; phone: string };
+  | {
+      kind: 'reveal';
+      text: string;
+      sessionId: string;
+      phone: string;
+      /** Matches profile.revealArmedAt — executeReveal aborts if superseded. */
+      armedAt: string;
+    }
+  | {
+      kind: 'critique';
+      text: string;
+      sessionId: string;
+      phone: string;
+      message: string;
+      /** Matches profile.revealArmedAt — executeCritique aborts if superseded. */
+      armedAt: string;
+    }
+  | {
+      kind: 'refine';
+      text: string;
+      sessionId: string;
+      phone: string;
+      answer: string;
+      /** Matches profile.revealArmedAt — executeRefine aborts if superseded. */
+      armedAt: string;
+    };
 
 /** What executeReveal() hands back for MMS delivery. */
 export interface RevealDelivery {
@@ -61,13 +86,25 @@ export interface SmsProfile {
   activeSessionId?: string | null;
   /**
    * Conversation stage after the last turn. Engine stages ('chatting',
-   * 'proposal', 'handoff') plus two channel-owned ones: 'reveal-pending'
-   * (renders in flight — a second "yes" must not double-fire) and
-   * 'revealed' (delivered; the next text starts a new design).
+   * 'proposal', 'handoff') plus the channel-owned ones:
+   *
+   *   'reveal-pending'   — four renders in flight; a second yes must not re-fire
+   *   'revealed'         — cuts delivered; critique and the pick are both live
+   *   'critique-running' — one re-cut in flight
+   *   'pick-pending'     — pick captured, awaiting the most-not-you tap
+   *   'refine-pending'   — pick recorded, awaiting the refinement answer
+   *   'refine-running'   — the final regen in flight
+   *   'complete'         — Brief exists; the session is closed (ADR-0013)
    */
   lastStage?: string | null;
-  /** When the in-flight reveal was armed — stale-recovery for 'reveal-pending'. */
+  /** When the in-flight render was armed — stale-recovery for the *-running stages. */
   revealArmedAt?: string | null;
+  /**
+   * Variation id chosen at 'revealed', held until the most-not-you tap
+   * arrives — recordPick needs both ids at once and refuses a pair that
+   * names the same cut twice.
+   */
+  pendingPickId?: string | null;
   /** Lifetime reveals — drives the account-link gate. */
   totalReveals: number;
   /** Rolling per-day reveal counter (UTC date), reset on date change. */

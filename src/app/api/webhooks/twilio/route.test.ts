@@ -285,6 +285,7 @@ describe('reveal delivery', () => {
       text: 'On it — four takes coming.',
       sessionId: 's1',
       phone: PHONE,
+      armedAt: '2026-08-04T00:00:00.000Z',
     });
   });
 
@@ -300,7 +301,11 @@ describe('reveal delivery', () => {
     await POST(webhookRequest({ From: PHONE, Body: 'yes' }));
     await afterCallbacks[0]();
 
-    expect(executeReveal).toHaveBeenCalledWith('s1', PHONE);
+    expect(executeReveal).toHaveBeenCalledWith(
+      's1',
+      PHONE,
+      '2026-08-04T00:00:00.000Z'
+    );
     expect(sendMms).toHaveBeenCalledTimes(2);
     expect(sendMms).toHaveBeenNthCalledWith(1, PHONE, 'Cut 1 of 2', ['https://img/1.png']);
     expect(sendMms).toHaveBeenNthCalledWith(2, PHONE, 'Cut 2 of 2', ['https://img/2.png']);

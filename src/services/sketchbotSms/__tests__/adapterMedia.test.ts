@@ -10,7 +10,12 @@ import { handleInbound } from '../index';
 import { clearMemoryProfiles, memoryProfileStore } from '../internal/profileStore';
 import { REVEAL_ACK } from '../internal/render';
 import { analyzeInboundMedia, type MediaIngest } from '../internal/media';
-import { converse, confirmProposal, attachReference } from '@/services/designSession';
+import {
+  converse,
+  confirmProposal,
+  attachReference,
+  getSession,
+} from '@/services/designSession';
 import {
   REFERENCE_BUDGET_TEXT,
   REFERENCE_UNREADABLE_TEXT,
@@ -18,7 +23,8 @@ import {
 } from '@/services/vision';
 import { checkBudget } from '@/lib/budget-tracker';
 
-vi.mock('@/services/designSession', () => {
+vi.mock('@/services/designSession', async () => {
+  const pureCritique = await import('@/services/designSession/internal/critique');
   class DesignSessionError extends Error {
     readonly code: string;
     readonly status: number;
@@ -33,6 +39,12 @@ vi.mock('@/services/designSession', () => {
     converse: vi.fn(),
     confirmProposal: vi.fn(),
     attachReference: vi.fn(async () => ({ sessionId: 's1', summary: '', notes: {} })),
+    getSession: vi.fn(),
+    recordPick: vi.fn(),
+    refine: vi.fn(),
+    critique: vi.fn(),
+    allCuts: pureCritique.allCuts,
+    isFixRequest: pureCritique.isFixRequest,
     DesignSessionError,
   };
 });
@@ -208,5 +220,59 @@ describe('media + confirmation', () => {
     expect(outcome.text).toContain('five chibi anime characters');
     expect(outcome.text).toContain(REVEAL_ACK);
     expect(attachMock).toHaveBeenCalledWith('s1', CHIBI_ANALYSIS, 'sms');
+  });
+});
+
+describe('media + post-reveal', () => {
+  it('attaches a reference to the revealed session instead of opening a new one', async () => {
+    // Seed the post-reveal profile the adapter would have after a delivery.
+    await memoryProfileStore.save({
+      phone: PHONE,
+      uid: null,
+      optedOut: false,
+      activeSessionId: 's1',
+      lastStage: 'revealed',
+      pendingPickId: null,
+      totalReveals: 1,
+      dailyReveals: { date: new Date().toISOString().slice(0, 10), count: 1 },
+      sessionIds: ['s1'],
+      createdAt: '2026-07-29T00:00:00.000Z',
+      updatedAt: '2026-07-29T00:00:00.000Z',
+    });
+    vi.mocked(getSession).mockResolvedValue({
+      id: 's1',
+      phase: 'revealed',
+      provider: 'vertex',
+      intake: {
+        placement: 'forearm',
+        styleTags: ['Traditional'],
+        meaning: 'resilience',
+        subject: 'snake and dagger',
+        references: [],
+        ambiguousAxes: [],
+      },
+      axisSelection: { mode: 'questionnaire', axes: [], rationale: '' },
+      variations: [1, 2, 3, 4].map((n) => ({
+        id: `v${n}`,
+        axisPosition: {},
+        prompt: `prompt ${n}`,
+        imageUrl: `https://storage.example/cut-${n}.png`,
+      })),
+      createdAt: '2026-07-29T00:00:00.000Z',
+      updatedAt: '2026-07-29T00:00:00.000Z',
+    } as unknown as Awaited<ReturnType<typeof getSession>>);
+
+    const outcome = await handleInbound({
+      phone: PHONE,
+      body: 'make it more like this',
+      media: MEDIA,
+    });
+
+    expect(outcome.kind).toBe('critique');
+    expect(attachMock).toHaveBeenCalledWith('s1', CHIBI_ANALYSIS, 'sms');
+    expect(converseMock).not.toHaveBeenCalled();
+    const profile = await memoryProfileStore.get(PHONE);
+    expect(profile?.activeSessionId).toBe('s1');
+    expect(profile?.lastStage).toBe('critique-running');
   });
 });
