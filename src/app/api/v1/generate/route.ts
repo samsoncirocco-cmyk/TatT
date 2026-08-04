@@ -80,8 +80,10 @@ export async function POST(req: NextRequest) {
             safetyFilterLevel,
             personGeneration,
             outputFormat,
-            seed,
-            modelId
+            seed
+            // modelId is deliberately not destructured: a caller cannot pin the
+            // provider here (#287). Pulling it out again is the first step back
+            // toward forwarding it.
         } = body;
 
         if (!prompt || typeof prompt !== 'string' || prompt.trim().length < 3) {
