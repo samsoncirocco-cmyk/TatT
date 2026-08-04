@@ -55,10 +55,24 @@ describe('requestsLettering — the half that is deliberately not a model call',
     'Goku and Vegeta, no text',
     'a wolf head without lettering',
     'portrait, avoid words',
+    // structuredMode embeds styleTags as "in a ${styleDesc} style". The
+    // lettering ontology id and its aliases must not clear the intrusion gate
+    // for figure-only designs that merely named a style.
+    'A tattoo design in a script style, depicting Goku from Dragon Ball Z.',
+    'A tattoo design in a lettering, anime style, depicting Vegeta.',
+    'Compositional mode: style locks to calligraphy, blackwork depicting a wolf.',
   ])('does not treat a named subject as a request for writing: %s', (prompt) => {
     // The failure this whole split exists to prevent: a character named in the
     // request is a figure to draw, not a name to letter across the artwork.
     expect(requestsLettering(prompt)).toBe(false);
+  });
+
+  it('still recognises lettering asked for beside a style-descriptor shell', () => {
+    expect(
+      requestsLettering(
+        'A tattoo design in a script style, script lettering reading Margaret'
+      )
+    ).toBe(true);
   });
 });
 
@@ -355,6 +369,33 @@ describe('generation seam — unrequested-lettering guard', () => {
 
     expect(guardCalls).toBe(0);
     expect(result.images).toHaveLength(1);
+    expect(result.metadata.textGuardSkipped).toBe('budget');
+  });
+
+  it('does not let sibling screens race past a one-call budget remainder', async () => {
+    // Near-limit: only one vision call fits. Sequential screening must see
+    // the first recordSpend before the second checkBudget; parallel checks
+    // would both observe remaining=1 and both call Vertex.
+    let remaining = 1;
+    checkBudgetMock.mockImplementation(async () =>
+      remaining > 0
+        ? { allowed: true, spentCents: 0, remainingCents: remaining }
+        : { allowed: false, spentCents: 0, remainingCents: 0 }
+    );
+    recordSpendMock.mockImplementation(async () => {
+      remaining -= 1;
+    });
+    wire([[], []]);
+
+    const result = await generate({
+      prompt: 'a fox',
+      style: 'realism',
+      modelId: 'imagen3',
+      numImages: 2,
+      screenText: {},
+    });
+
+    expect(guardCalls).toBe(1);
     expect(result.metadata.textGuardSkipped).toBe('budget');
   });
 

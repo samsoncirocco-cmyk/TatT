@@ -113,9 +113,23 @@ function escapeRegExp(value: string): string {
 const LETTERING_NEGATED =
   /\b(?:no|without|sans|avoid|excluding)\s+(?:any\s+)?(?:lettering|letters|text|script|calligraphy|typography|font|banner|scroll|ribbon|quote|inscription|inscribed|written|writing|words?|cursive)\b/g;
 
+/**
+ * Style-tag embeddings are not lettering requests. structuredMode builds
+ * "in a ${styleDesc} style" / "style locks to ${styleDesc}" from intake
+ * tags, and the lettering ontology id (aliases: script, calligraphy,
+ * typography) is a real styleTag — matching those would disable the guard
+ * for figure-only designs that merely named a style.
+ */
+const STYLE_DESCRIPTOR =
+  /\bin an?\s+[\w][\w\s,/&+-]*?\s+styles?\b|\bstyle locks to\s+[\w+-]+(?:,\s*[\w+-]+)*/g;
+
 export function requestsLettering(prompt: string): boolean {
-  // Drop negated phrases first so declining lettering cannot match a needle.
-  const haystack = prompt.toLowerCase().replace(LETTERING_NEGATED, ' ');
+  // Drop negated phrases and style-descriptor shells so declining lettering
+  // or naming a style cannot match a needle.
+  const haystack = prompt
+    .toLowerCase()
+    .replace(LETTERING_NEGATED, ' ')
+    .replace(STYLE_DESCRIPTOR, ' ');
   return LETTERING_REQUESTED.some((needle) => {
     // Quote-anchored needles are phrase prefixes ("reading \"…"), not words.
     if (needle.includes('"') || needle.includes("'")) {

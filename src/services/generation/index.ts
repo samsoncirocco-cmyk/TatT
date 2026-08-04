@@ -119,9 +119,13 @@ async function screenAndReroll(
       return result;
     }
 
-    const verdicts = await Promise.all(
-      result.images.map((image) => screenForText(image, prompt))
-    );
+    // Screen sequentially so each checkBudget sees prior recordSpend from
+    // siblings in this batch. Promise.all raced N near-limit checks to
+    // allowed:true before any spend landed, exceeding the global cap.
+    const verdicts = [];
+    for (const image of result.images) {
+      verdicts.push(await screenForText(image, prompt));
+    }
 
     // Known intrusion wins over a sibling skip. A mixed batch (one OCR hit,
     // one budget/provider failure) still has enough signal to re-roll or flag;
