@@ -36,7 +36,14 @@ const USER_AGENT =
 export function parseArgs(argv) {
   const apply = argv.includes('--apply');
   const stateIndex = argv.indexOf('--state');
-  const state = stateIndex >= 0 ? argv[stateIndex + 1]?.toLowerCase() ?? null : null;
+  let state = null;
+  if (stateIndex >= 0) {
+    const value = argv[stateIndex + 1];
+    if (!value || value.startsWith('--')) {
+      throw new Error('--state requires a value');
+    }
+    state = value.toLowerCase();
+  }
   return { apply, state };
 }
 
@@ -48,6 +55,9 @@ export function parseArgs(argv) {
 export function isLiveStatus(status) {
   return status >= 200 && status < 400;
 }
+
+/** Percent for console summaries; empty cohorts print 0.0% instead of NaN%. */
+const pct = (num, den) => (den === 0 ? 0 : (num / den) * 100);
 
 const toNumber = (value) =>
   value && typeof value.toNumber === 'function' ? value.toNumber() : value;
@@ -73,8 +83,12 @@ const stateFilter = (state) =>
     ? `toLower(trim(coalesce(a.state,''))) IN $stateVariants`
     : 'true';
 
-const stateVariants = (state) =>
-  state === 'az' ? ['az', 'arizona'] : state ? [state] : [];
+const stateVariants = (state) => {
+  if (!state) return [];
+  // Operators pass either the postal code or the full name; graph rows use both.
+  if (state === 'az' || state === 'arizona') return ['az', 'arizona'];
+  return [state];
+};
 
 async function main() {
   const { apply, state } = parseArgs(process.argv.slice(2));
@@ -121,7 +135,7 @@ async function main() {
     const live = results.filter((row) => row.live);
     console.log(
       `\nreachable ${live.length}/${results.length} ` +
-        `(${((live.length / results.length) * 100).toFixed(1)}%)`,
+        `(${pct(live.length, results.length).toFixed(1)}%)`,
     );
     for (const row of results.filter((r) => !r.live)) {
       console.log(`  unreachable [${row.detail}] ${row.website} — ${row.name}`);
@@ -129,30 +143,41 @@ async function main() {
 
     if (!apply) {
       console.log('\nDRY RUN — nothing written. Re-run with --apply.');
-      return;
+    } else {
+      const checkedAt = new Date().toISOString();
+      await session.executeWrite(async (tx) => {
+        await tx.run(
+          `UNWIND $rows AS row
+           MATCH (sh:Shop {placeId: row.placeId})
+           SET sh.websiteLive = row.live, sh.websiteCheckedAt = $checkedAt`,
+          {
+            rows: results.map(({ placeId, live }) => ({ placeId, live })),
+            checkedAt,
+          },
+        );
+        // Cleared websites are skipped by the probe query, so reset any leftover
+        // websiteLive — otherwise a prior true keeps the artist bookable.
+        // Unscoped by --state: Shop.website is cleared nationally, and a shop
+        // linked only to out-of-filter artists would otherwise keep a stale true.
+        await tx.run(
+          `MATCH (sh:Shop)
+           WHERE trim(coalesce(sh.website,'')) = ''
+             AND sh.websiteLive IS NOT NULL
+           SET sh.websiteLive = false, sh.websiteCheckedAt = $checkedAt`,
+          { checkedAt },
+        );
+      });
+      console.log(`\nWrote websiteLive + websiteCheckedAt=${checkedAt} to ${results.length} shops.`);
     }
 
-    const checkedAt = new Date().toISOString();
-    await session.executeWrite((tx) =>
-      tx.run(
-        `UNWIND $rows AS row
-         MATCH (sh:Shop {placeId: row.placeId})
-         SET sh.websiteLive = row.live, sh.websiteCheckedAt = $checkedAt`,
-        {
-          rows: results.map(({ placeId, live }) => ({ placeId, live })),
-          checkedAt,
-        },
-      ),
-    );
-    console.log(`\nWrote websiteLive + websiteCheckedAt=${checkedAt} to ${results.length} shops.`);
-
-    // Report the resulting tier split from the graph rather than from the
-    // in-memory results, so the number quoted is the number the app will read.
+    // Report the tier split from the graph rather than from the in-memory
+    // results, so the number quoted is the number the app will read. Runs on
+    // dry run too (current graph state) so operators can preview cohorts.
     const tiers = await session.run(
       `MATCH (a:Artist) WHERE ${stateFilter(state)}
        WITH a,
-         ((a.portfolioImages IS NOT NULL AND size(a.portfolioImages) > 0) OR
-          (a.portfolioPermalinks IS NOT NULL AND size(a.portfolioPermalinks) > 0)) AS evidence,
+         ((a.portfolioImages IS :: LIST<ANY> AND size(a.portfolioImages) > 0) OR
+          (a.portfolioPermalinks IS :: LIST<ANY> AND size(a.portfolioPermalinks) > 0)) AS evidence,
          EXISTS { MATCH (a)-[:WORKS_AT|HAS_SHOP]->(sh:Shop) WHERE sh.websiteLive = true } AS reachable
        RETURN count(*) AS total,
               sum(CASE WHEN evidence THEN 1 ELSE 0 END) AS withEvidence,
@@ -166,7 +191,7 @@ async function main() {
     console.log(
       `\ntotal ${total} | evidence ${toNumber(record.get('withEvidence'))} | ` +
         `reachable ${toNumber(record.get('withContact'))} | ` +
-        `BOOKABLE ${bookable} (${((bookable / total) * 100).toFixed(1)}%) | ` +
+        `BOOKABLE ${bookable} (${pct(bookable, total).toFixed(1)}%) | ` +
         `browse-only ${total - bookable}`,
     );
   } finally {

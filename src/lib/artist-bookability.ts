@@ -44,8 +44,8 @@
  * says nothing about whether this person tattoos.
  */
 export const HAS_TATTOO_EVIDENCE_CLAUSE =
-  "((a.portfolioImages IS NOT NULL AND size(a.portfolioImages) > 0) OR " +
-  "(a.portfolioPermalinks IS NOT NULL AND size(a.portfolioPermalinks) > 0))";
+  "((a.portfolioImages IS :: LIST<ANY> AND size(a.portfolioImages) > 0) OR " +
+  "(a.portfolioPermalinks IS :: LIST<ANY> AND size(a.portfolioPermalinks) > 0))";
 
 /**
  * A contact channel confirmed reachable: a shop whose website answered an HTTP
