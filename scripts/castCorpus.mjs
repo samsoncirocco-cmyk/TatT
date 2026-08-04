@@ -32,12 +32,23 @@ const VISION_MODEL = process.env.VISION_MODEL || 'gemini-2.5-flash';
  *
  * `cast` is the ground truth the render is scored against — the names the
  * customer actually asked for.
+ *
+ * IMPORTANT: `requestedCharacters` and `characterIdentities` must be filled
+ * in, exactly as the conversation engine fills them from a real session. The
+ * ensemble prompt in structuredMode only fires when requestedCharacters has
+ * more than one entry — it is what adds "exactly N distinct figures", the
+ * per-character "Name — Series" identity clause, and the instruction never to
+ * merge or homogenize them. A record carrying only a free-text subject falls
+ * back to a much weaker prompt, which is NOT what production sends. The first
+ * run of this corpus made that mistake and measured the degraded path.
  */
 export const CAST_RECORDS = [
   {
     id: 'kingdom-hearts-4',
     cast: ['Sora', 'Riku', 'Kairi', 'Roxas'],
     record: {
+      requestedCharacters: ['Sora', 'Riku', 'Kairi', 'Roxas'],
+      characterIdentities: [{ name: 'Sora', series: 'Kingdom Hearts' }, { name: 'Riku', series: 'Kingdom Hearts' }, { name: 'Kairi', series: 'Kingdom Hearts' }, { name: 'Roxas', series: 'Kingdom Hearts' }],
       placement: 'left forearm, elbow to wrist',
       styleTags: ['anime', 'color'],
       meaning: 'the friends who got me through my teens',
@@ -50,6 +61,8 @@ export const CAST_RECORDS = [
     id: 'dragon-ball-3',
     cast: ['Goku', 'Vegeta', 'Piccolo'],
     record: {
+      requestedCharacters: ['Goku', 'Vegeta', 'Piccolo'],
+      characterIdentities: [{ name: 'Goku', series: 'Dragon Ball Z' }, { name: 'Vegeta', series: 'Dragon Ball Z' }, { name: 'Piccolo', series: 'Dragon Ball Z' }],
       placement: 'upper arm',
       styleTags: ['anime', 'color'],
       meaning: 'rivalry that makes you better',
@@ -62,6 +75,8 @@ export const CAST_RECORDS = [
     id: 'naruto-2',
     cast: ['Naruto', 'Sasuke'],
     record: {
+      requestedCharacters: ['Naruto', 'Sasuke'],
+      characterIdentities: [{ name: 'Naruto', series: 'Naruto' }, { name: 'Sasuke', series: 'Naruto' }],
       placement: 'calf',
       styleTags: ['anime', 'blackwork'],
       meaning: 'the friend who was also my rival',
@@ -74,6 +89,8 @@ export const CAST_RECORDS = [
     id: 'mha-5',
     cast: ['Deku', 'Bakugo', 'Todoroki', 'Uraraka', 'All Might'],
     record: {
+      requestedCharacters: ['Deku', 'Bakugo', 'Todoroki', 'Uraraka', 'All Might'],
+      characterIdentities: [{ name: 'Deku', series: 'My Hero Academia' }, { name: 'Bakugo', series: 'My Hero Academia' }, { name: 'Todoroki', series: 'My Hero Academia' }, { name: 'Uraraka', series: 'My Hero Academia' }, { name: 'All Might', series: 'My Hero Academia' }],
       placement: 'back',
       styleTags: ['anime', 'color'],
       meaning: 'the class that became a family',
@@ -89,6 +106,8 @@ export const CAST_RECORDS = [
     id: 'batman-2',
     cast: ['Batman', 'Joker'],
     record: {
+      requestedCharacters: ['Batman', 'Joker'],
+      characterIdentities: [{ name: 'Batman', series: 'DC Comics' }, { name: 'Joker', series: 'DC Comics' }],
       placement: 'thigh',
       styleTags: ['neo-traditional', 'blackwork'],
       meaning: 'two sides of the same person',
