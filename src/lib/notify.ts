@@ -81,18 +81,27 @@ export async function notifyOpsOfArtistIntroRequest(
   request: ArtistIntroRequest,
   requestId: string,
   artistName: string,
+  brief?: Record<string, unknown>,
 ): Promise<NotifyResult> {
   const to = process.env.OPS_NOTIFY_EMAIL;
   if (!to) {
     return { delivered: false, reason: 'OPS_NOTIFY_EMAIL is not configured — an intro request would reach nobody.' };
   }
   const subject = `[Artist intro] ${artistName} — relay requested`;
+  const sessionBlock = request.designSessionId
+    ? `Design session: ${request.designSessionId}\n`
+    : '';
+  const briefBlock = brief
+    ? `\nBrief:\n${JSON.stringify(brief, null, 2)}\n`
+    : '';
   const text =
     `A customer asked TatT to introduce them to a browse-only artist.\n\n` +
     `Request id:   ${requestId}\nArtist id:    ${request.artistId}\nArtist:       ${artistName}\n` +
-    `Customer:     ${request.clientName}\nEmail:        ${request.clientEmail}\n\n` +
-    `Note:\n${request.message || '(none)'}\n\n` +
-    `--- NO DEPOSIT WAS TAKEN ---\n` +
+    `Customer:     ${request.clientName}\nEmail:        ${request.clientEmail}\n` +
+    sessionBlock +
+    `\nNote:\n${request.message || '(none)'}\n` +
+    briefBlock +
+    `\n--- NO DEPOSIT WAS TAKEN ---\n` +
     `This profile is not in the bookable tier. Contact the artist through the verified shop channel, then reply to the customer with the outcome. Do not promise availability or a booking.`;
   try {
     const result = await sendTransactionalEmail({ to, subject, text, replyTo: request.clientEmail });

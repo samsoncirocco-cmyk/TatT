@@ -73,7 +73,8 @@ export type BookabilitySubject = {
   portfolioImages?: unknown;
   portfolioPermalinks?: unknown;
   /**
-   * Whether any shop this artist works at answered its last website probe.
+   * Whether any shop this artist works at has a reachable contact: websiteLive
+   * true AND a non-empty website URL (mirrors HAS_REACHABLE_CONTACT_CLAUSE).
    * Undefined means never probed, which is browse-only — see the module note.
    */
   shopWebsiteLive?: unknown;

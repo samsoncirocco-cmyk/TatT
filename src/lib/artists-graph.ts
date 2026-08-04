@@ -12,7 +12,11 @@
  * module stays importable in tests without touching Neo4j.
  */
 import { artistSlug } from "@/lib/artist-slug";
-import { bookingTier, type BookingTier } from "@/lib/artist-bookability";
+import {
+  bookingTier,
+  HAS_REACHABLE_CONTACT_CLAUSE,
+  type BookingTier,
+} from "@/lib/artist-bookability";
 import { PUBLIC_ARTIST_CLAUSE } from "@/lib/artist-visibility";
 import {
   IG_PERMALINK_CYPHER,
@@ -278,10 +282,7 @@ export async function browseArtists(
         | {permalink: post.permalink, displayOrder: show.displayOrder}
       ] AS authorizedPortfolioPosts,
       a.claimedByUid AS claimedByUid,
-      EXISTS {
-        MATCH (a)-[:WORKS_AT|HAS_SHOP]->(sh:Shop)
-        WHERE sh.websiteLive = true
-      } AS shopWebsiteLive
+      ${HAS_REACHABLE_CONTACT_CLAUSE} AS shopWebsiteLive
     ORDER BY coalesce(a.reviewCount, 0) DESC, a.name ASC, a.id ASC
     SKIP toInteger($skip) LIMIT toInteger($limit)
   `;
@@ -334,10 +335,7 @@ export async function getRosterArtistById(
         | {permalink: post.permalink, displayOrder: show.displayOrder}
       ] AS authorizedPortfolioPosts,
       a.claimedByUid AS claimedByUid,
-      EXISTS {
-        MATCH (a)-[:WORKS_AT|HAS_SHOP]->(sh:Shop)
-        WHERE sh.websiteLive = true
-      } AS shopWebsiteLive
+      ${HAS_REACHABLE_CONTACT_CLAUSE} AS shopWebsiteLive
     LIMIT 1
   `;
   const records = await runServerQuery(query, { id });

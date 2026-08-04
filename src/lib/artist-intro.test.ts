@@ -8,6 +8,19 @@ describe('validateArtistIntroRequest', () => {
     expect(validateArtistIntroRequest(valid)).toEqual({ ok: true, value: valid });
   });
 
+  it('accepts and trims an optional designSessionId', () => {
+    expect(
+      validateArtistIntroRequest({ ...valid, designSessionId: '  sess-abc123  ' }),
+    ).toEqual({ ok: true, value: { ...valid, designSessionId: 'sess-abc123' } });
+  });
+
+  it('omits a blank designSessionId instead of failing', () => {
+    expect(validateArtistIntroRequest({ ...valid, designSessionId: '   ' })).toEqual({
+      ok: true,
+      value: valid,
+    });
+  });
+
   it.each([
     [{ ...valid, artistId: '../../artist_1' }],
     [{ ...valid, clientName: '' }],

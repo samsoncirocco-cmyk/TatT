@@ -7,7 +7,15 @@ export const dynamic = 'force-dynamic';
 export default async function IntroPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
   const artistId = typeof params.artistId === 'string' ? params.artistId : '';
+  // Design-session id threaded from /book?ds=… (browse-only redirect) so the
+  // relay request can carry the same Brief as the deposit path.
+  const designSessionId = typeof params.ds === 'string' ? params.ds : '';
   const artist = artistId ? await getRosterArtistById(artistId) : null;
   if (!artist || artist.bookingTier === 'bookable') notFound();
-  return <IntroClient artist={{ id: artist.id, name: artist.name, slug: artist.slug }} />;
+  return (
+    <IntroClient
+      artist={{ id: artist.id, name: artist.name, slug: artist.slug }}
+      designSessionId={designSessionId}
+    />
+  );
 }

@@ -28,6 +28,7 @@ async function runWriteReturning(query: string, params: Record<string, unknown>)
 export async function recordArtistIntroRequest(
   request: ArtistIntroRequest,
   requestId: string,
+  brief?: Record<string, unknown>,
 ): Promise<{ artistName: string } | null> {
   const rows = await runWriteReturning(
     `MATCH (a:Artist {id: $artistId})
@@ -38,11 +39,21 @@ export async function recordArtistIntroRequest(
        clientName: $clientName,
        clientEmail: $clientEmail,
        message: $message,
+       designSessionId: $designSessionId,
+       briefJson: $briefJson,
        status: 'pending_relay',
        createdAtEpochMs: timestamp()
      })
      RETURN a.name AS artistName`,
-    { requestId, ...request },
+    {
+      requestId,
+      artistId: request.artistId,
+      clientName: request.clientName,
+      clientEmail: request.clientEmail,
+      message: request.message,
+      designSessionId: request.designSessionId ?? null,
+      briefJson: brief ? JSON.stringify(brief) : null,
+    },
   );
   return rows.length ? { artistName: String(rows[0].artistName || request.artistId) } : null;
 }

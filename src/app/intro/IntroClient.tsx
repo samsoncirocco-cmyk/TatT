@@ -7,12 +7,25 @@ import QuietCTA from '@/components/quiet/QuietCTA';
 
 type Phase = 'form' | 'submitting' | 'received' | 'error';
 
-export default function IntroClient({ artist }: { artist: { id: string; name: string; slug: string } }) {
+export default function IntroClient({
+  artist,
+  designSessionId = '',
+}: {
+  artist: { id: string; name: string; slug: string };
+  /** Design-session id from the "ds" query param — rides on the intro POST. */
+  designSessionId?: string;
+}) {
   const [phase, setPhase] = useState<Phase>('form');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
-  const [result, setResult] = useState<{ requestId?: string; error?: string; fallbackEmail?: string } | null>(null);
+  const [result, setResult] = useState<{
+    requestId?: string;
+    error?: string;
+    fallbackEmail?: string;
+    status?: string;
+    delivered?: boolean;
+  } | null>(null);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -21,10 +34,25 @@ export default function IntroClient({ artist }: { artist: { id: string; name: st
       const response = await fetch('/api/v1/artist-intros', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ artistId: artist.id, clientName: name, clientEmail: email, message }),
+        body: JSON.stringify({
+          artistId: artist.id,
+          clientName: name,
+          clientEmail: email,
+          message,
+          ...(designSessionId ? { designSessionId } : {}),
+        }),
       });
-      const data = (await response.json().catch(() => ({}))) as { requestId?: string; error?: string; fallbackEmail?: string; received?: boolean };
+      const data = (await response.json().catch(() => ({}))) as {
+        requestId?: string;
+        error?: string;
+        fallbackEmail?: string;
+        received?: boolean;
+        status?: string;
+        delivered?: boolean;
+      };
       setResult(data);
+      // received:true means the graph write landed — do not leave the form
+      // open for a retry that would mint a duplicate intro request.
       setPhase(response.ok && data.received ? 'received' : 'error');
     } catch (error) {
       setResult({ error: error instanceof Error ? error.message : 'Network error.' });
@@ -75,8 +103,17 @@ export default function IntroClient({ artist }: { artist: { id: string; name: st
           {phase === 'received' && result && (
             <section className="mt-12 border hairline-quiet p-7 max-w-xl">
               <h2 className="font-display-quiet text-[26px] text-quiet">Request received.</h2>
-              <p className="mt-4 text-[13px] text-quiet-dim font-body leading-[1.7]">TatT will relay your request to {artist.name}&apos;s shop. No deposit was taken and the artist has not confirmed a booking.</p>
+              <p className="mt-4 text-[13px] text-quiet-dim font-body leading-[1.7]">
+                {result.delivered === false
+                  ? (result.status || 'TatT recorded your request. Please also email us with the reference below so the relay team can follow up.')
+                  : `TatT will relay your request to ${artist.name}'s shop. No deposit was taken and the artist has not confirmed a booking.`}
+              </p>
               {result.requestId && <p className="mt-4 text-[12px] text-quiet-dim font-body">Reference: {result.requestId}</p>}
+              {result.fallbackEmail && (
+                <p className="mt-3 text-[12px] text-quiet-dim font-body">
+                  Email us directly at {result.fallbackEmail} and quote that reference.
+                </p>
+              )}
               <QuietCTA href={`/artists/${artist.slug}`} variant="ghost" size="sm" className="mt-7">Back to profile</QuietCTA>
             </section>
           )}

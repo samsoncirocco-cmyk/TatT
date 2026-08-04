@@ -5,9 +5,17 @@ export type ArtistIntroRequest = {
   clientName: string;
   clientEmail: string;
   message: string | null;
+  /** Design-session id ("ds" query param) — links the intro to its Brief. */
+  designSessionId?: string;
 };
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function optionalString(value: unknown, max: number): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed ? trimmed.slice(0, max) : undefined;
+}
 
 export function validateArtistIntroRequest(
   body: unknown,
@@ -20,6 +28,7 @@ export function validateArtistIntroRequest(
   const clientName = typeof input.clientName === 'string' ? input.clientName.trim() : '';
   const clientEmail = typeof input.clientEmail === 'string' ? input.clientEmail.trim() : '';
   const rawMessage = typeof input.message === 'string' ? input.message.trim() : '';
+  const designSessionId = optionalString(input.designSessionId, 120);
 
   if (!artistId || !/^artist_[A-Za-z0-9._-]+$/.test(artistId)) {
     return { ok: false, error: 'A valid artistId is required.' };
@@ -35,6 +44,12 @@ export function validateArtistIntroRequest(
   }
   return {
     ok: true,
-    value: { artistId, clientName, clientEmail, message: rawMessage || null },
+    value: {
+      artistId,
+      clientName,
+      clientEmail,
+      message: rawMessage || null,
+      ...(designSessionId ? { designSessionId } : {}),
+    },
   };
 }

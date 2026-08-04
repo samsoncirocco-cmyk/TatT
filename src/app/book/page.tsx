@@ -1,5 +1,5 @@
 import BookClient, { type BookArtist, type BookOffer } from "./BookClient";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import { getRosterArtistById } from "@/lib/artists-graph";
 import { getArtistAvailability } from "@/lib/availability";
 import { availabilityLabel } from "@/lib/booking";
@@ -79,7 +79,10 @@ export default async function BookPage({
           ...(resolved.timezone ? { timezone: resolved.timezone } : {}),
         };
       }
-    } catch {
+    } catch (error) {
+      // redirect() throws a special control-flow error; rethrow it so browse-only
+      // artists reach /intro instead of the graph-failure empty state.
+      unstable_rethrow(error);
       // Graph unreachable — be honest about it instead of faking an artist.
       artistLoadFailed = true;
     }
