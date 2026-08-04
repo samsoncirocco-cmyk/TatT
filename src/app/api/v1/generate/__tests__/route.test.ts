@@ -12,9 +12,13 @@ const { generateMock, recordSpendMock, checkBudgetMock, rateLimitMock, verifyApi
   verifyApiAuthMock: vi.fn()
 }));
 
-vi.mock('@/services/generation', () => ({
-  generate: generateMock
-}));
+vi.mock('@/services/generation', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/services/generation')>();
+  return {
+    ...actual,
+    generate: generateMock
+  };
+});
 
 vi.mock('@/lib/api-auth', () => ({
   verifyApiAuth: verifyApiAuthMock
