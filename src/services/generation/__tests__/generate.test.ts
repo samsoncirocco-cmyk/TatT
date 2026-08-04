@@ -47,6 +47,13 @@ function errorResponse(status: number) {
   };
 }
 
+/**
+ * Every case here pins the provider with `modelId: 'imagen3'` rather than a
+ * style. These used to say `style: 'realism'`, which worked only while realism
+ * routed to Vertex; #281 moved realism/portrait/photorealistic to Flux Dev, so
+ * a style-selected case now lands on Replicate and tests nothing about this
+ * provider. Pinning the model is what this suite actually means.
+ */
 describe('generation module seam — vertex provider', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 
@@ -68,7 +75,7 @@ describe('generation module seam — vertex provider', () => {
       .mockResolvedValueOnce(imageResponse('img0'))
       .mockResolvedValueOnce(imageResponse('img1'));
 
-    const result = await generate({ prompt: 'dragon tattoo', style: 'realism', numImages: 2 });
+    const result = await generate({ prompt: 'dragon tattoo', modelId: 'imagen3', numImages: 2 });
 
     expect(result.images).toEqual([
       'data:image/png;base64,img0',
@@ -90,7 +97,7 @@ describe('generation module seam — vertex provider', () => {
       .mockResolvedValueOnce(imageResponse('b'))
       .mockResolvedValueOnce(imageResponse('c'));
 
-    const result = await generate({ prompt: 'wolf', style: 'realism', numImages: 3 });
+    const result = await generate({ prompt: 'wolf', modelId: 'imagen3', numImages: 3 });
 
     // Imagen took sampleCount:3 in one call; Gemini needs three.
     expect(fetchMock).toHaveBeenCalledTimes(3);
@@ -102,7 +109,7 @@ describe('generation module seam — vertex provider', () => {
 
     await generate({
       prompt: 'koi fish',
-      style: 'realism',
+      modelId: 'imagen3',
       aspectRatio: '3:4'
     });
 
@@ -124,7 +131,7 @@ describe('generation module seam — vertex provider', () => {
 
     await generate({
       prompt: 'portrait',
-      style: 'realism',
+      modelId: 'imagen3',
       personGeneration: 'dont_allow'
     });
 
@@ -135,7 +142,7 @@ describe('generation module seam — vertex provider', () => {
   it('folds the negative prompt into an Avoid clause (no negative_prompt input exists)', async () => {
     fetchMock.mockResolvedValueOnce(imageResponse());
 
-    await generate({ prompt: 'koi fish', style: 'realism', negativePrompt: 'blurry, text' });
+    await generate({ prompt: 'koi fish', modelId: 'imagen3', negativePrompt: 'blurry, text' });
 
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(body.contents[0].parts[0].text).toBe('koi fish. Avoid: blurry, text.');
@@ -148,7 +155,7 @@ describe('generation module seam — vertex provider', () => {
 
     await generate({
       prompt: '  koi fish.  ',
-      style: 'realism',
+      modelId: 'imagen3',
       negativePrompt: 'blurry'
     });
 
@@ -159,7 +166,7 @@ describe('generation module seam — vertex provider', () => {
   it('maps our safety vocabulary onto Gemini harm thresholds', async () => {
     fetchMock.mockResolvedValueOnce(imageResponse());
 
-    await generate({ prompt: 'skull', style: 'realism', safetyFilterLevel: 'block_most' });
+    await generate({ prompt: 'skull', modelId: 'imagen3', safetyFilterLevel: 'block_most' });
 
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(body.safetySettings).toHaveLength(4);
@@ -171,7 +178,7 @@ describe('generation module seam — vertex provider', () => {
   it('preserves the mime type the model reports', async () => {
     fetchMock.mockResolvedValueOnce(imageResponse('jpg0', 'image/jpeg'));
 
-    const result = await generate({ prompt: 'anchor', style: 'realism' });
+    const result = await generate({ prompt: 'anchor', modelId: 'imagen3' });
 
     expect(result.images[0]).toBe('data:image/jpeg;base64,jpg0');
   });
@@ -181,7 +188,7 @@ describe('generation module seam — vertex provider', () => {
     // Gemini refuses with a successful response and an empty parts array.
     fetchMock.mockResolvedValue(blockedResponse('SAFETY'));
 
-    await expect(generate({ prompt: 'skull', style: 'realism' })).rejects.toThrow(
+    await expect(generate({ prompt: 'skull', modelId: 'imagen3' })).rejects.toThrow(
       /returned no image \(SAFETY\)/
     );
   });
@@ -193,7 +200,7 @@ describe('generation module seam — vertex provider', () => {
 
     const result = await generate({
       prompt: 'rose',
-      style: 'realism',
+      modelId: 'imagen3',
       retry: { maxRetries: 2, baseDelayMs: 1 }
     });
 
@@ -205,7 +212,7 @@ describe('generation module seam — vertex provider', () => {
     fetchMock.mockResolvedValueOnce(errorResponse(400));
 
     await expect(
-      generate({ prompt: 'rose', style: 'realism', retry: { maxRetries: 3, baseDelayMs: 1 } })
+      generate({ prompt: 'rose', modelId: 'imagen3', retry: { maxRetries: 3, baseDelayMs: 1 } })
     ).rejects.toThrow('Vertex image API error: 400');
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
@@ -218,7 +225,7 @@ describe('generation module seam — vertex provider', () => {
 
     const result = await generate({
       prompt: 'skull',
-      style: 'realism',
+      modelId: 'imagen3',
       safetyFilterLevel: 'block_most',
       retry: { maxRetries: 1, baseDelayMs: 1 },
       fallback: { safetyFilterLevel: 'block_only_high' }
@@ -236,7 +243,7 @@ describe('generation module seam — vertex provider', () => {
     await expect(
       generate({
         prompt: 'skull',
-        style: 'realism',
+        modelId: 'imagen3',
         safetyFilterLevel: 'block_most',
         retry: { maxRetries: 2, baseDelayMs: 1 },
         fallback: { safetyFilterLevel: 'block_only_high' }
@@ -257,7 +264,7 @@ describe('generation module seam — vertex provider', () => {
     await expect(
       generate({
         prompt: 'skull',
-        style: 'realism',
+        modelId: 'imagen3',
         numImages: 2,
         safetyFilterLevel: 'block_most',
         retry: { maxRetries: 2, baseDelayMs: 1 },
@@ -280,7 +287,7 @@ describe('generation module seam — vertex provider', () => {
 
     const result = await generate({
       prompt: 'skull',
-      style: 'realism',
+      modelId: 'imagen3',
       numImages: 2,
       retry: { maxRetries: 2, baseDelayMs: 1 }
     });
@@ -293,7 +300,7 @@ describe('generation module seam — vertex provider', () => {
   it('emits request and result telemetry', async () => {
     fetchMock.mockResolvedValueOnce(imageResponse());
 
-    await generate({ prompt: 'anchor', style: 'realism' });
+    await generate({ prompt: 'anchor', modelId: 'imagen3' });
 
     const events = (logEvent as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);
     expect(events).toContain('generation.request');
@@ -303,7 +310,7 @@ describe('generation module seam — vertex provider', () => {
   it('emits an error-level result event when generation fails outright', async () => {
     fetchMock.mockResolvedValue(errorResponse(400));
 
-    await expect(generate({ prompt: 'anchor', style: 'realism' })).rejects.toThrow();
+    await expect(generate({ prompt: 'anchor', modelId: 'imagen3' })).rejects.toThrow();
 
     const errorCall = (logEvent as ReturnType<typeof vi.fn>).mock.calls.find(
       (c) => c[0] === 'generation.result' && c[2] === 'error'

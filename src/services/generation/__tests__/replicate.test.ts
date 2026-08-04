@@ -119,9 +119,11 @@ describe('generation module — replicate provider seam', () => {
       return replicateResponse(['https://img.example/fallback.png']);
     });
 
+    // Pinned explicitly: no style routes to Vertex any more, so reaching the
+    // Vertex seam now takes an explicit modelId.
     const result = await generate({
       prompt: 'photo portrait',
-      style: 'realism',
+      modelId: 'imagen3',
       retry: { maxRetries: 0, baseDelayMs: 1 }
     });
 
