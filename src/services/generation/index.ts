@@ -157,7 +157,6 @@ async function screenAndReroll(
 
     lastFlagged = result;
     lastFlaggedWords = words;
-    rerolls += 1;
 
     /*
      * A re-roll that throws must not escape. `generate()` calls this inside
@@ -169,13 +168,18 @@ async function screenAndReroll(
      * The first batch is lettered, not lost. Returning it flagged is the same
      * answer as exhausting the re-roll budget, which is the contract: showing
      * a flagged design beats showing nothing.
+     *
+     * Count only completed re-rolls. Billing reads textGuardRerolls as paid
+     * extras (1 + N); incrementing before render() would overbill when the
+     * provider call throws and we hand back the first batch.
      */
     try {
       result = await render();
+      rerolls += 1;
     } catch {
       lastFlagged.metadata.textIntrusion = true;
       lastFlagged.metadata.textIntrusionWords = lastFlaggedWords;
-      lastFlagged.metadata.textGuardRerolls = rerolls;
+      if (rerolls) lastFlagged.metadata.textGuardRerolls = rerolls;
       return lastFlagged;
     }
   }
