@@ -144,7 +144,7 @@ describe('generation module seam — vertex provider', () => {
 
     await generate({
       prompt: 'portrait',
-      style: 'realism',
+      modelId: 'imagen3',
       outputFormat: 'jpeg'
     });
 
