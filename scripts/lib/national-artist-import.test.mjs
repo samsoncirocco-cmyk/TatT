@@ -3,6 +3,7 @@ import { makeTombstoneGate } from './takedown-tombstone.mjs';
 import {
   DEFAULT_NATIONAL_ARTIST_INPUT,
   NATIONAL_ARTIST_IMPORT_CYPHER,
+  NATIONAL_SHOP_IMPORT_CYPHER,
   instagramProfileUrl,
   parseNationalImportArgs,
   partitionProtectedNationalArtists,
@@ -125,5 +126,18 @@ describe('national artist protection', () => {
       't.key IN row.tombstoneKeys',
     );
     expect(NATIONAL_ARTIST_IMPORT_CYPHER).not.toContain('DETACH DELETE');
+  });
+});
+
+describe('national shop import', () => {
+  // websiteLive reflects the last probed URL. Re-import can swap one non-empty
+  // website for another; without invalidation the old true keeps the artist
+  // bookable against a URL that was never checked (ADR-0043).
+  it('clears websiteLive when the shop website URL changes', () => {
+    expect(NATIONAL_SHOP_IMPORT_CYPHER).toContain('s.websiteLive = CASE');
+    expect(NATIONAL_SHOP_IMPORT_CYPHER).toContain(
+      "trim(coalesce(s.website, '')) = trim(coalesce(row.website, ''))",
+    );
+    expect(NATIONAL_SHOP_IMPORT_CYPHER).toContain('s.website = row.website');
   });
 });

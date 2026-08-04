@@ -122,7 +122,16 @@ export const NATIONAL_SHOP_IMPORT_CYPHER = `
   MERGE (s:Shop {placeId: row.place_id})
   SET s.name = row.shopName, s.address = row.address, s.city = row.city,
       s.state = row.state, s.lat = row.lat, s.lng = row.lng,
-      s.rating = row.rating, s.reviewCount = row.reviewCount, s.website = row.website
+      s.rating = row.rating, s.reviewCount = row.reviewCount,
+      s.websiteLive = CASE
+        WHEN trim(coalesce(s.website, '')) = trim(coalesce(row.website, ''))
+        THEN s.websiteLive
+      END,
+      s.websiteCheckedAt = CASE
+        WHEN trim(coalesce(s.website, '')) = trim(coalesce(row.website, ''))
+        THEN s.websiteCheckedAt
+      END,
+      s.website = row.website
   MERGE (c:City {name: row.city, state: row.state})
   MERGE (s)-[:LOCATED_IN]->(c)
   RETURN count(s) AS written
