@@ -157,13 +157,14 @@ async function main() {
         );
         // Cleared websites are skipped by the probe query, so reset any leftover
         // websiteLive — otherwise a prior true keeps the artist bookable.
+        // Unscoped by --state: Shop.website is cleared nationally, and a shop
+        // linked only to out-of-filter artists would otherwise keep a stale true.
         await tx.run(
-          `MATCH (a:Artist)-[:WORKS_AT|HAS_SHOP]->(sh:Shop)
-           WHERE ${stateFilter(state)}
-             AND trim(coalesce(sh.website,'')) = ''
+          `MATCH (sh:Shop)
+           WHERE trim(coalesce(sh.website,'')) = ''
              AND sh.websiteLive IS NOT NULL
            SET sh.websiteLive = false, sh.websiteCheckedAt = $checkedAt`,
-          { ...params, checkedAt },
+          { checkedAt },
         );
       });
       console.log(`\nWrote websiteLive + websiteCheckedAt=${checkedAt} to ${results.length} shops.`);
