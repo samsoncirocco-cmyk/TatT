@@ -19,6 +19,8 @@ export default function IntroClient({
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
+  // Stays stable for a retry after a network interruption or relay failure.
+  const [clientRequestId] = useState(() => crypto.randomUUID());
   const [result, setResult] = useState<{
     requestId?: string;
     error?: string;
@@ -35,6 +37,7 @@ export default function IntroClient({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          clientRequestId,
           artistId: artist.id,
           clientName: name,
           clientEmail: email,

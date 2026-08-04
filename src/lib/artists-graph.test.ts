@@ -11,7 +11,7 @@ import {
 } from "./artists-graph";
 import { IG_PERMALINK_CYPHER } from "./portfolio-display";
 
-const mockedQuery = vi.hoisted(() => vi.fn(async () => [] as any[]));
+const mockedQuery = vi.hoisted(() => vi.fn(async () => [] as unknown[]));
 vi.mock("@/features/match-pulse/services/neo4jService", () => ({
   executeServerCypherQuery: mockedQuery,
 }));
@@ -408,5 +408,14 @@ describe("toRosterArtist booking tier (ADR-0043)", () => {
         portfolioImages: ["https://example.com/work.jpg"],
       }).bookingTier,
     ).toBe("browse-only");
+  });
+
+  it("requires a non-empty URL as well as a live-probe flag in the artist lookup", async () => {
+    mockedQuery.mockClear();
+    mockedQuery.mockResolvedValueOnce([]);
+    await getRosterArtistById("artist_1");
+    expect(mockedQuery.mock.calls[0][0]).toContain(
+      "sh.websiteLive = true AND trim(coalesce(sh.website,'')) <> ''",
+    );
   });
 });

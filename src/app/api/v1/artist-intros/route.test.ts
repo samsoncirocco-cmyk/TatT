@@ -18,7 +18,13 @@ function request(body: unknown) {
   });
 }
 
-const body = { artistId: 'artist_nadia.ink', clientName: 'Maya', clientEmail: 'maya@example.com', message: 'Fine-line botanical piece' };
+const body = {
+  clientRequestId: '0d1c8c04-8c5b-4a27-91f9-50d513b2b5d1',
+  artistId: 'artist_nadia.ink',
+  clientName: 'Maya',
+  clientEmail: 'maya@example.com',
+  message: 'Fine-line botanical piece',
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -32,8 +38,15 @@ describe('POST /api/v1/artist-intros', () => {
     const response = await POST(request(body));
     expect(response.status).toBe(202);
     expect(await response.json()).toMatchObject({ received: true, artistName: 'Nadia Ink' });
-    expect(recordMock).toHaveBeenCalledWith(body, expect.stringMatching(/^IN-/), undefined);
-    expect(notifyMock).toHaveBeenCalledWith(body, expect.stringMatching(/^IN-/), 'Nadia Ink', undefined);
+    expect(recordMock).toHaveBeenCalledWith(body, 'IN-0d1c8c04-8c5b-4a27-91f9-50d513b2b5d1', undefined);
+    expect(notifyMock).toHaveBeenCalledWith(body, 'IN-0d1c8c04-8c5b-4a27-91f9-50d513b2b5d1', 'Nadia Ink', undefined);
+  });
+
+  it('uses the same graph key if the client retries the same form', async () => {
+    await POST(request(body));
+    await POST(request(body));
+    expect(recordMock).toHaveBeenNthCalledWith(1, body, 'IN-0d1c8c04-8c5b-4a27-91f9-50d513b2b5d1', undefined);
+    expect(recordMock).toHaveBeenNthCalledWith(2, body, 'IN-0d1c8c04-8c5b-4a27-91f9-50d513b2b5d1', undefined);
   });
 
   it('returns 202 when stored even if the ops relay fails, so clients do not retry', async () => {
@@ -60,7 +73,7 @@ describe('POST /api/v1/artist-intros', () => {
     const withSession = { ...body, designSessionId: 'sess-1' };
     const response = await POST(request(withSession));
     expect(response.status).toBe(202);
-    expect(recordMock).toHaveBeenCalledWith(withSession, expect.stringMatching(/^IN-/), brief);
-    expect(notifyMock).toHaveBeenCalledWith(withSession, expect.stringMatching(/^IN-/), 'Nadia Ink', brief);
+    expect(recordMock).toHaveBeenCalledWith(withSession, 'IN-0d1c8c04-8c5b-4a27-91f9-50d513b2b5d1', brief);
+    expect(notifyMock).toHaveBeenCalledWith(withSession, 'IN-0d1c8c04-8c5b-4a27-91f9-50d513b2b5d1', 'Nadia Ink', brief);
   });
 });

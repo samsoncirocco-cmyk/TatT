@@ -33,7 +33,8 @@ export async function recordArtistIntroRequest(
   const rows = await runWriteReturning(
     `MATCH (a:Artist {id: $artistId})
      WHERE ${PUBLIC_ARTIST_CLAUSE} AND NOT (${BOOKABLE_TIER_CLAUSE})
-     CREATE (r:ArtistIntroRequest {
+     MERGE (r:ArtistIntroRequest { id: $requestId })
+     ON CREATE SET r += {
        id: $requestId,
        artistId: a.id,
        clientName: $clientName,
@@ -43,10 +44,13 @@ export async function recordArtistIntroRequest(
        briefJson: $briefJson,
        status: 'pending_relay',
        createdAtEpochMs: timestamp()
-     })
+     }
+     WITH a, r
+     WHERE r.artistId = a.id AND r.clientEmail = $clientEmail
      RETURN a.name AS artistName`,
     {
       requestId,
+      clientRequestId: request.clientRequestId,
       artistId: request.artistId,
       clientName: request.clientName,
       clientEmail: request.clientEmail,

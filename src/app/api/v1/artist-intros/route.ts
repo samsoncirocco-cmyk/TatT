@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { recordArtistIntroRequest } from '@/lib/artist-intro-graph';
 import { validateArtistIntroRequest } from '@/lib/artist-intro';
@@ -58,7 +57,9 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const requestId = `IN-${randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+  // Kept stable by the mounted browser form. A retry reuses this graph record
+  // rather than minting another introduction while re-attempting the relay.
+  const requestId = `IN-${parsed.value.clientRequestId}`;
   let recorded: { artistName: string } | null;
   try {
     recorded = await recordArtistIntroRequest(parsed.value, requestId, brief);
