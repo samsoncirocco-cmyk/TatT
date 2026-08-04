@@ -317,6 +317,8 @@ describe('generation seam — unrequested-lettering guard', () => {
     expect(result.images).toHaveLength(1);
     expect(result.metadata.textIntrusion).toBe(true);
     expect(result.metadata.textIntrusionWords).toEqual(['GOKU']);
+    // Failed attempt is not a paid render — billing uses 1 + textGuardRerolls.
+    expect(result.metadata.textGuardRerolls).toBeUndefined();
     // Not a fallback: the primary batch is what came back.
     expect(result.metadata.fallbackUsed).toBe(false);
   });
