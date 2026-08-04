@@ -60,6 +60,7 @@ export type InboundOutcome =
       answer: string;
       /** Matches profile.revealArmedAt — executeRefine aborts if superseded. */
       armedAt: string;
+    }
   | {
       kind: 'placement';
       text: string;
