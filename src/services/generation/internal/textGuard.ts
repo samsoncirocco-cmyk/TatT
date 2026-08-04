@@ -37,12 +37,13 @@ import { getGcpAccessToken } from '@/lib/google-auth-edge';
 import { buildVertexEndpoint } from '@/lib/vertex-endpoint';
 import { checkBudget, recordSpend, VISION_ANALYSIS_COST_CENTS } from '@/lib/budget-tracker';
 
-/** Same resolution order the vision module uses. */
-function vertexProjectId(): string | undefined {
+/** Same env chain as vision, with the render provider's `tatt-pro` default. */
+function vertexProjectId(): string {
   return (
     process.env.NEXT_PUBLIC_VERTEX_AI_PROJECT_ID ||
     process.env.GCP_PROJECT_ID ||
-    process.env.VERTEX_PROJECT_ID
+    process.env.VERTEX_PROJECT_ID ||
+    'tatt-pro'
   );
 }
 
@@ -101,9 +102,21 @@ const LETTERING_REQUESTED = [
   'the name', 'the date', 'spelled', 'spelling', 'cursive',
 ];
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export function requestsLettering(prompt: string): boolean {
   const haystack = prompt.toLowerCase();
-  return LETTERING_REQUESTED.some((needle) => haystack.includes(needle));
+  return LETTERING_REQUESTED.some((needle) => {
+    // Quote-anchored needles are phrase prefixes ("reading \"…"), not words.
+    if (needle.includes('"') || needle.includes("'")) {
+      return haystack.includes(needle);
+    }
+    // Whole-word match so "texture"/"sword"/"description" do not count as
+    // requesting lettering via the needles "text"/"word"/"script".
+    return new RegExp(`\\b${escapeRegExp(needle)}\\b`).test(haystack);
+  });
 }
 
 /**
@@ -126,22 +139,57 @@ function buildPrompt(): string {
 }
 
 /**
+ * Resolve a provider image into Vertex inlineData.
+ *
+ * Vertex/Gemini render paths return data URLs (sometimes JPEG); Replicate
+ * returns HTTPS URLs. Bare base64 also appears. Fetch remote URLs so the
+ * vision call always gets real image bytes.
+ */
+async function resolveImagePayload(
+  image: string
+): Promise<{ data: string; mimeType: string } | null> {
+  if (image.startsWith('data:')) {
+    const comma = image.indexOf(',');
+    if (comma < 0) return null;
+    const header = image.slice('data:'.length, comma);
+    const data = image.slice(comma + 1);
+    if (!data) return null;
+    const mimeType = header.split(';')[0]?.trim() || 'image/png';
+    return { data, mimeType };
+  }
+
+  if (/^https?:\/\//i.test(image)) {
+    const response = await fetch(image);
+    if (!response.ok) return null;
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (!bytes.byteLength) return null;
+    const contentType = response.headers.get('content-type')?.split(';')[0]?.trim();
+    const mimeType =
+      contentType && contentType.startsWith('image/') ? contentType : 'image/png';
+    return { data: bytes.toString('base64'), mimeType };
+  }
+
+  // Bare base64 — providers that omit the data-URL wrapper.
+  if (!image) return null;
+  return { data: image, mimeType: 'image/png' };
+}
+
+/**
  * Screen one render. Never throws.
  *
- * `image` is a data URL or bare base64 — both appear in results depending on
- * provider, and the caller should not have to know which.
+ * `image` may be a data URL, bare base64, or an HTTPS URL (Replicate).
  */
 export async function screenForText(
   image: string,
   requestPrompt: string
 ): Promise<TextVerdict> {
-  const base64 = image.startsWith('data:') ? image.split(',')[1] : image;
-  if (!base64) return skipped('parse');
-
   const budget = await checkBudget().catch(() => ({ allowed: false }));
   if (!budget.allowed) return skipped('budget');
 
   try {
+    const payload = await resolveImagePayload(image);
+    if (!payload) return skipped('parse');
+
     const model = guardModel();
     const response = await fetch(buildVertexEndpoint(vertexProjectId(), model), {
       method: 'POST',
@@ -154,7 +202,7 @@ export async function screenForText(
           {
             role: 'user',
             parts: [
-              { inlineData: { mimeType: 'image/png', data: base64 } },
+              { inlineData: { mimeType: payload.mimeType, data: payload.data } },
               { text: buildPrompt() },
             ],
           },
@@ -198,9 +246,9 @@ export async function screenForText(
   }
 }
 
-/** A result is clean when every image in it screened clean. */
+/** A result is clean when every image screened clean (unknown skips are not). */
 export function isClean(verdicts: TextVerdict[]): boolean {
-  return verdicts.every((v) => !v.intruded);
+  return verdicts.every((v) => v.screened && !v.intruded);
 }
 
 export { CLEAN as CLEAN_VERDICT };

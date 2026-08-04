@@ -30,7 +30,7 @@ vi.mock('@/lib/budget-tracker', () => ({
 }));
 
 import { generate } from '../index';
-import { requestsLettering } from '../internal/textGuard';
+import { isClean, requestsLettering, screenForText } from '../internal/textGuard';
 
 describe('requestsLettering — the half that is deliberately not a model call', () => {
   it.each([
@@ -46,10 +46,85 @@ describe('requestsLettering — the half that is deliberately not a model call',
     'Goku, Vegeta and Piccolo from Dragon Ball Z standing together',
     'a wolf head in profile, fine detail, high contrast',
     'Batman and the Joker facing each other',
+    // Substring traps: needles "text"/"word"/"script" must not fire inside
+    // ordinary English, or the intrusion gate disables itself.
+    'a sword with weathered texture, high contrast',
+    'password lock icon with fine description lines',
   ])('does not treat a named subject as a request for writing: %s', (prompt) => {
     // The failure this whole split exists to prevent: a character named in the
     // request is a figure to draw, not a name to letter across the artwork.
     expect(requestsLettering(prompt)).toBe(false);
+  });
+});
+
+describe('screenForText — image payload resolution', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    vi.stubEnv('GCP_PROJECT_ID', 'tatt-test');
+    vi.stubEnv('TEXT_GUARD_MODEL', 'gemini-3.1-flash-lite');
+    checkBudgetMock.mockResolvedValue({ allowed: true });
+    recordSpendMock.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+    vi.clearAllMocks();
+  });
+
+  it('fetches HTTPS Replicate URLs before calling Vertex', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: { get: () => 'image/png' },
+        arrayBuffer: async () => Uint8Array.from([1, 2, 3]).buffer,
+      })
+      .mockResolvedValueOnce(ocrResponse(['GOKU']));
+
+    const verdict = await screenForText('https://img.example/1.png', 'a fox');
+
+    expect(verdict).toEqual({ intruded: true, words: ['GOKU'], screened: true });
+    expect(fetchMock).toHaveBeenNthCalledWith(1, 'https://img.example/1.png');
+    const visionBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(visionBody.contents[0].parts[0].inlineData).toEqual({
+      mimeType: 'image/png',
+      data: Buffer.from([1, 2, 3]).toString('base64'),
+    });
+  });
+
+  it('preserves JPEG mime type from data URLs', async () => {
+    fetchMock.mockResolvedValueOnce(ocrResponse([]));
+
+    await screenForText('data:image/jpeg;base64,jpgbytes', 'a fox');
+
+    const visionBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(visionBody.contents[0].parts[0].inlineData).toEqual({
+      mimeType: 'image/jpeg',
+      data: 'jpgbytes',
+    });
+  });
+
+  it('defaults the Vertex project id when env is unset', async () => {
+    vi.stubEnv('GCP_PROJECT_ID', '');
+    vi.stubEnv('NEXT_PUBLIC_VERTEX_AI_PROJECT_ID', '');
+    vi.stubEnv('VERTEX_PROJECT_ID', '');
+    fetchMock.mockResolvedValueOnce(ocrResponse([]));
+
+    await screenForText('data:image/png;base64,IMG', 'a fox');
+
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/projects/tatt-pro/');
+  });
+});
+
+describe('isClean', () => {
+  it('does not treat skipped verdicts as clean', () => {
+    expect(
+      isClean([{ intruded: false, words: [], screened: false, skipReason: 'budget' }])
+    ).toBe(false);
+    expect(isClean([{ intruded: false, words: [], screened: true }])).toBe(true);
   });
 });
 
