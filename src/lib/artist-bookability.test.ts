@@ -93,10 +93,14 @@ describe("Cypher clauses", () => {
   // Mirrors the pure predicate above. A `coalesce(sh.websiteLive, true)` here
   // would make every unprobed shop bookable in Cypher while the TypeScript
   // said otherwise — the two halves of the gate disagreeing is worse than
-  // either being wrong.
-  it("requires websiteLive to be explicitly true", () => {
+  // either being wrong. `coalesce` on `sh.website` is fine (and required):
+  // import can clear the URL while leaving a stale websiteLive=true.
+  it("requires websiteLive to be explicitly true and a non-empty website", () => {
     expect(HAS_REACHABLE_CONTACT_CLAUSE).toContain("sh.websiteLive = true");
-    expect(HAS_REACHABLE_CONTACT_CLAUSE).not.toContain("coalesce");
+    expect(HAS_REACHABLE_CONTACT_CLAUSE).toContain(
+      "trim(coalesce(sh.website,'')) <> ''",
+    );
+    expect(HAS_REACHABLE_CONTACT_CLAUSE).not.toContain("coalesce(sh.websiteLive");
   });
 
   it("does not count a bio as evidence", () => {
