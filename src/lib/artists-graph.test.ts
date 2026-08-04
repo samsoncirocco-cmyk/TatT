@@ -11,9 +11,10 @@ import {
 } from "./artists-graph";
 import { IG_PERMALINK_CYPHER } from "./portfolio-display";
 
-const mockedQuery = vi.hoisted(() => vi.fn(async () => [] as any[]));
+const mockedQuery = vi.hoisted(() => vi.fn(async () => [] as unknown[]));
 vi.mock("@/features/match-pulse/services/neo4jService", () => ({
   executeServerCypherQuery: mockedQuery,
+  executeServerCypherQueryOrThrow: mockedQuery,
 }));
 
 describe("buildRosterFilter", () => {
@@ -387,5 +388,62 @@ describe("toRosterArtist claimed flag (TAT-16)", () => {
     });
     expect(row.claimed).toBe(true);
     expect("claimedByUid" in row).toBe(false);
+  });
+});
+
+describe("getRosterArtistById outage vs absence", () => {
+  afterEach(() => {
+    mockedQuery.mockReset();
+    mockedQuery.mockResolvedValue([]);
+  });
+
+  it("returns null when the graph answers with no rows", async () => {
+    mockedQuery.mockResolvedValueOnce([]);
+    await expect(getRosterArtistById("artist_missing")).resolves.toBeNull();
+  });
+
+  it("throws when the graph read fails so callers can return 503", async () => {
+    mockedQuery.mockRejectedValueOnce(new Error("Neo4j down"));
+    await expect(getRosterArtistById("artist_1")).rejects.toThrow(/Neo4j down/);
+  });
+});
+
+describe("toRosterArtist booking tier (ADR-0043)", () => {
+  it("permits deposits only with tattoo evidence and a positively live shop website", () => {
+    expect(
+      toRosterArtist({
+        id: "artist_1",
+        name: "A",
+        portfolioImages: ["https://example.com/work.jpg"],
+        shopWebsiteLive: true,
+      }).bookingTier,
+    ).toBe("bookable");
+
+    expect(
+      toRosterArtist({
+        id: "artist_2",
+        name: "B",
+        portfolioImages: ["https://example.com/work.jpg"],
+      }).bookingTier,
+    ).toBe("browse-only");
+  });
+
+  it("treats a claimed profile as bookable without scrape-tier evidence", () => {
+    expect(
+      toRosterArtist({
+        id: "artist_claimed",
+        name: "C",
+        claimedByUid: "uid_9",
+      }).bookingTier,
+    ).toBe("bookable");
+  });
+
+  it("requires a non-empty URL as well as a live-probe flag in the artist lookup", async () => {
+    mockedQuery.mockClear();
+    mockedQuery.mockResolvedValueOnce([]);
+    await getRosterArtistById("artist_1");
+    expect(mockedQuery.mock.calls[0][0]).toContain(
+      "sh.websiteLive = true AND trim(coalesce(sh.website,'')) <> ''",
+    );
   });
 });

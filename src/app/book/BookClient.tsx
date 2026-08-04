@@ -147,6 +147,7 @@ export default function BookClient({
   designSessionId = "",
   offer,
   feePercent,
+  holdDays,
 }: {
   artist: BookArtist | null;
   requestedArtistId: string;
@@ -157,6 +158,8 @@ export default function BookClient({
   offer: BookOffer;
   /** Platform booking fee as a percentage (from PLATFORM_FEE_BPS, server-read). */
   feePercent: number;
+  /** Held-deposit refund window (from DEPOSIT_HOLD_DAYS, server-read). */
+  holdDays: number;
 }) {
   const { addBooking } = useBookings();
   const { designs } = useDesigns();
@@ -262,6 +265,15 @@ export default function BookClient({
         }),
       });
       const bookData = await bookRes.json().catch(() => null);
+      // Tier flipped while the form was open — follow the same intro relay
+      // path checkout uses rather than surfacing a generic booking error.
+      if (
+        bookData?.code === "ARTIST_INTRO_REQUIRED" &&
+        typeof bookData?.introUrl === "string"
+      ) {
+        window.location.href = bookData.introUrl;
+        return;
+      }
       if (!bookRes.ok || !bookData?.success) {
         throw new Error(bookData?.error || "Couldn't save your booking request.");
       }
@@ -337,12 +349,38 @@ export default function BookClient({
           // Present only on the reservation path. It ties this payment to the
           // held slot and caps the Stripe session at the hold's expiry.
           holdId,
+          // So a browse-only redirect from checkout can keep the Brief thread.
+          designSessionId: designSessionId || undefined,
         }),
       });
       const payData = await payRes.json().catch(() => null);
 
       if (payRes.ok && typeof payData?.sessionUrl === "string") {
         window.location.href = payData.sessionUrl;
+        return;
+      }
+
+      // Tier flipped (or checkout raced) after capture — send the client to
+      // /intro instead of claiming payments aren't configured. The checkout
+      // route releases any hold before returning this code.
+      if (
+        payData?.code === "ARTIST_INTRO_REQUIRED" &&
+        typeof payData?.introUrl === "string"
+      ) {
+        window.location.href = payData.introUrl;
+        return;
+      }
+
+      // Graph/bookability 503 and other hard checkout failures must not share
+      // the "Payments aren't configured yet" captured copy — the booking may
+      // already be saved, but the reason is not missing Stripe config.
+      if (
+        !payRes.ok &&
+        typeof payData?.error === "string" &&
+        payData.error !== "Payments are not configured."
+      ) {
+        setError(payData.error);
+        setPhase("form");
         return;
       }
 
@@ -904,7 +942,7 @@ export default function BookClient({
                   />
                   <p className="mt-5 pt-5 border-t border-black/15 text-[13px] font-body text-black/80 leading-[1.7]">
                     {/* The money sentence (ADR-0036): who pays what, who keeps what. */}
-                    {bookingReviewMoneyCopy(artist.name, feePercent, artist.claimed)}
+                    {bookingReviewMoneyCopy(artist.name, feePercent, artist.claimed, holdDays)}
                   </p>
                   <p className="mt-3 text-[12px] font-body text-black/60 leading-[1.7]">
                     {reserving

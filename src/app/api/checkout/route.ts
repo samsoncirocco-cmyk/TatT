@@ -22,17 +22,24 @@
  * payment because the platform is merchant of record. We always return the
  * session url.
  */
-import { NextRequest, NextResponse } from 'next/server';
-import type Stripe from 'stripe';
-import { verifyApiAuth } from '@/lib/api-auth';
-import { verifyFirebaseToken } from '@/lib/auth-dal';
-import { ensureAdminApp } from '@/lib/firebase-admin';
-import { stripe, stripeConfigured, platformFeeCents, CURRENCY } from '@/lib/stripe';
-import { getArtistStripe } from '@/lib/artist-stripe';
-import { depositCentsForSize, type TattooSize } from '@/lib/booking';
-import { checkoutFeeMoneyCopy } from '@/lib/money-copy';
+import { NextRequest, NextResponse } from "next/server";
+import type Stripe from "stripe";
+import { verifyApiAuth } from "@/lib/api-auth";
+import { verifyFirebaseToken } from "@/lib/auth-dal";
+import { ensureAdminApp } from "@/lib/firebase-admin";
+import {
+  stripe,
+  stripeConfigured,
+  platformFeeCents,
+  CURRENCY,
+} from "@/lib/stripe";
+import { getArtistStripe } from "@/lib/artist-stripe";
+import { depositCentsForSize, type TattooSize } from "@/lib/booking";
+import { checkoutFeeMoneyCopy } from "@/lib/money-copy";
+import { depositHoldDays } from "@/lib/deposit-hold";
+import { getRosterArtistById } from "@/lib/artists-graph";
 
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
 interface CheckoutPayload {
   artistId?: string;
@@ -50,18 +57,37 @@ interface CheckoutPayload {
    * for; absent means the request model, where nothing is reserved.
    */
   holdId?: string;
+  /** Design-session id — preserved on the browse-only intro redirect. */
+  designSessionId?: string;
 }
 
 function getBaseUrl(req: NextRequest): string {
   const fromEnv = process.env.NEXT_PUBLIC_APP_URL;
   if (fromEnv && fromEnv.trim().length > 0) {
-    return fromEnv.replace(/\/$/, '');
+    return fromEnv.replace(/\/$/, "");
   }
-  const origin = req.headers.get('origin');
+  const origin = req.headers.get("origin");
   if (origin) {
-    return origin.replace(/\/$/, '');
+    return origin.replace(/\/$/, "");
   }
-  return 'http://localhost:3000';
+  return "http://localhost:3000";
+}
+
+/** Free a reservation hold when checkout refuses before Stripe. Best-effort. */
+async function releaseHoldQuietly(
+  holdId: string | undefined,
+  reason: string,
+): Promise<void> {
+  if (!holdId) return;
+  try {
+    const { releaseHoldById } = await import("@/lib/booking-holds-persistence");
+    await releaseHoldById(holdId);
+  } catch (err) {
+    console.warn(
+      `[checkout] failed to release hold on ${reason}:`,
+      err instanceof Error ? err.message : err,
+    );
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -77,13 +103,93 @@ export async function POST(req: NextRequest) {
   try {
     body = (await req.json()) as Partial<CheckoutPayload>;
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const { artistId, artistName, size, placement, date, time, budget, clientName, clientEmail, bookingId, holdId } = body;
+  const {
+    artistId,
+    artistName,
+    size,
+    placement,
+    date,
+    time,
+    budget,
+    clientName,
+    clientEmail,
+    bookingId,
+    holdId,
+  } = body;
+  const designSessionId =
+    typeof body.designSessionId === "string" && body.designSessionId.trim()
+      ? body.designSessionId.trim()
+      : undefined;
 
-  if (!artistName || !size || !placement || !date || !time || !budget || !clientName || !clientEmail) {
-    return NextResponse.json({ error: 'Missing required booking details.' }, { status: 400 });
+  if (
+    !artistName ||
+    !size ||
+    !placement ||
+    !date ||
+    !time ||
+    !budget ||
+    !clientName ||
+    !clientEmail
+  ) {
+    return NextResponse.json(
+      { error: "Missing required booking details." },
+      { status: 400 },
+    );
+  }
+
+  // This is the money boundary, so it independently enforces the same
+  // bookable tier as /book. A caller can skip the booking capture endpoint;
+  // they cannot skip the positive evidence required before TatT takes money.
+  if (!artistId) {
+    return NextResponse.json(
+      { error: "artistId is required to route the deposit to an artist." },
+      { status: 400 },
+    );
+  }
+  try {
+    const rosterArtist = await getRosterArtistById(artistId);
+    if (!rosterArtist) {
+      // Capture+hold may already have succeeded; free the slot so a missing
+      // roster row does not block the time for the rest of the hold window.
+      await releaseHoldQuietly(holdId, "artist not found");
+      return NextResponse.json({ error: "Artist not found." }, { status: 404 });
+    }
+    if (rosterArtist.bookingTier !== "bookable") {
+      // Capture+hold may already have succeeded; free the slot before the
+      // client leaves for /intro so it is not blocked for the hold window.
+      await releaseHoldQuietly(holdId, "intro redirect");
+      // Preserve ds parity with /book and /api/v1/book so the intro path keeps
+      // the design-session Brief.
+      const intro = new URLSearchParams({ artistId: rosterArtist.id });
+      if (designSessionId) intro.set("ds", designSessionId);
+      return NextResponse.json(
+        {
+          error:
+            "This artist is available through an introduction request, not a deposit.",
+          code: "ARTIST_INTRO_REQUIRED",
+          introUrl: `/intro?${intro.toString()}`,
+        },
+        { status: 409 },
+      );
+    }
+  } catch (err) {
+    console.warn(
+      "[checkout] bookability check failed — refusing deposit:",
+      err instanceof Error ? err.message : err,
+    );
+    // Same hold cleanup as the intro/404 paths: the client only sees a retry
+    // message, so leaving an exclusive hold active would strand the slot.
+    await releaseHoldQuietly(holdId, "bookability check failure");
+    return NextResponse.json(
+      {
+        error:
+          "We could not verify that this artist can receive booking requests. Please try again shortly.",
+      },
+      { status: 503 },
+    );
   }
 
   // Ownership guard: a client-supplied bookingId must belong to the caller (the
@@ -96,18 +202,28 @@ export async function POST(req: NextRequest) {
     const cred = ensureAdminApp();
     if (cred) {
       try {
-        const { getFirestore } = await import('firebase-admin/firestore');
-        const snap = await getFirestore().collection('booking_requests').doc(bookingId).get();
+        const { getFirestore } = await import("firebase-admin/firestore");
+        const snap = await getFirestore()
+          .collection("booking_requests")
+          .doc(bookingId)
+          .get();
         if (snap.exists) {
-          const ownerUid = (snap.data() as Record<string, unknown> | undefined)?.uid ?? null;
+          const ownerUid =
+            (snap.data() as Record<string, unknown> | undefined)?.uid ?? null;
           if (ownerUid && ownerUid !== callerUid) {
-            return NextResponse.json({ error: 'Booking does not belong to you.' }, { status: 403 });
+            return NextResponse.json(
+              { error: "Booking does not belong to you." },
+              { status: 403 },
+            );
           }
         }
       } catch (err) {
         // Fail-open on infra error — never block a legitimate checkout because
         // the ownership lookup itself failed. The webhook's own guards still apply.
-        console.warn('[checkout] bookingId ownership check failed — allowing:', err instanceof Error ? err.message : err);
+        console.warn(
+          "[checkout] bookingId ownership check failed — allowing:",
+          err instanceof Error ? err.message : err,
+        );
       }
     }
   }
@@ -123,18 +239,25 @@ export async function POST(req: NextRequest) {
   let holdExpiresAtMs: number | null = null;
   let activeHoldId = holdId;
   if (holdId) {
-    const { getHold, placeHold } = await import('@/lib/booking-holds-persistence');
+    const { getHold, placeHold } =
+      await import("@/lib/booking-holds-persistence");
     const hold = await getHold(holdId);
-    if (!hold || hold.status !== 'active') {
+    if (!hold || hold.status !== "active") {
       return NextResponse.json(
-        { error: 'That time is no longer held. Pick another.', code: 'HOLD_LOST' },
-        { status: 409 }
+        {
+          error: "That time is no longer held. Pick another.",
+          code: "HOLD_LOST",
+        },
+        { status: 409 },
       );
     }
     // A hold belongs to exactly one booking. Paying against someone else's is
     // how one client's deposit confirms another client's slot.
     if (bookingId && hold.bookingId !== bookingId) {
-      return NextResponse.json({ error: 'That hold is not for this booking.' }, { status: 403 });
+      return NextResponse.json(
+        { error: "That hold is not for this booking." },
+        { status: 403 },
+      );
     }
     const refreshed = await placeHold({
       artistId: hold.artistId,
@@ -148,8 +271,8 @@ export async function POST(req: NextRequest) {
     });
     if (!refreshed.ok) {
       return NextResponse.json(
-        { error: 'That time is no longer available.', code: 'HOLD_LOST' },
-        { status: 409 }
+        { error: "That time is no longer available.", code: "HOLD_LOST" },
+        { status: 409 },
       );
     }
     activeHoldId = refreshed.hold.holdId;
@@ -166,11 +289,14 @@ export async function POST(req: NextRequest) {
 
   // ---- Demo mode: no real charge, fake success page (unchanged behavior). ----
   if (!stripeConfigured) {
-    if (process.env.NEXT_PUBLIC_DEMO_MODE !== 'true') {
-      return NextResponse.json({ error: 'Payments are not configured.' }, { status: 503 });
+    if (process.env.NEXT_PUBLIC_DEMO_MODE !== "true") {
+      return NextResponse.json(
+        { error: "Payments are not configured." },
+        { status: 503 },
+      );
     }
     const demoParams = new URLSearchParams({
-      demo: 'true',
+      demo: "true",
       artist: artistName,
       size,
       placement,
@@ -180,17 +306,17 @@ export async function POST(req: NextRequest) {
     });
     // Carry bookingId here too so /book/success reconciles the exact booking in
     // demo mode (mirrors the live Stripe success_url path).
-    if (bookingId) demoParams.set('bookingId', bookingId);
-    return NextResponse.json({ demoMode: true, sessionUrl: `/book/success?${demoParams.toString()}` });
+    if (bookingId) demoParams.set("bookingId", bookingId);
+    return NextResponse.json({
+      demoMode: true,
+      sessionUrl: `/book/success?${demoParams.toString()}`,
+    });
   }
 
   // ---- Resolve the artist and decide which money flow applies. ----
-  if (!artistId) {
-    return NextResponse.json({ error: 'artistId is required to route the deposit to an artist.' }, { status: 400 });
-  }
   const artist = await getArtistStripe(artistId);
   if (!artist) {
-    return NextResponse.json({ error: 'Artist not found.' }, { status: 404 });
+    return NextResponse.json({ error: "Artist not found." }, { status: 404 });
   }
   // A "claimed" artist can receive funds directly (destination charge).
   // Otherwise we HOLD the deposit on the platform (held path below).
@@ -200,7 +326,7 @@ export async function POST(req: NextRequest) {
 
   const baseUrl = getBaseUrl(req);
   const successParams = new URLSearchParams({
-    session_id: '{CHECKOUT_SESSION_ID}',
+    session_id: "{CHECKOUT_SESSION_ID}",
     artist: artistName,
     size,
     placement,
@@ -210,12 +336,21 @@ export async function POST(req: NextRequest) {
   });
   // Tell /book/success which money-sentence variant applies (ADR-0036
   // amendment): the held-deposit sentence for an unclaimed artist. Display
-  // copy only — payment truth still comes from reconciliation.
-  if (!artistReady) successParams.set('artistClaimed', '0');
+  // copy only — payment truth still comes from reconciliation. holdDays
+  // stamps the window that applied at checkout (ADR-0006) onto the return URL
+  // and into Stripe metadata so the webhook expires the same window even if
+  // DEPOSIT_HOLD_DAYS changes before payment completes.
+  const holdDaysAtCheckout = artistReady ? null : depositHoldDays();
+  if (holdDaysAtCheckout != null) {
+    successParams.set("artistClaimed", "0");
+    successParams.set("holdDays", String(holdDaysAtCheckout));
+  }
   // Carry the bookingId so /book/success can reconcile against the exact
   // booking record (server truth) rather than the caller's most-recent one.
-  if (bookingId) successParams.set('bookingId', bookingId);
-  const cancelUrl = artistId ? `${baseUrl}/book?artistId=${encodeURIComponent(artistId)}` : `${baseUrl}/book`;
+  if (bookingId) successParams.set("bookingId", bookingId);
+  const cancelUrl = artistId
+    ? `${baseUrl}/book?artistId=${encodeURIComponent(artistId)}`
+    : `${baseUrl}/book`;
 
   const metadata: Record<string, string> = {
     artistId,
@@ -235,8 +370,11 @@ export async function POST(req: NextRequest) {
     bookingFeeCents: String(bookingFeeInCents),
     // 'held' tells the webhook to record a :BookingRelay instead of confirming a
     // routed booking. Overwritten to a real flag only on the held path below.
-    depositState: artistReady ? 'routed' : 'held',
+    depositState: artistReady ? "routed" : "held",
   };
+  if (holdDaysAtCheckout != null) {
+    metadata.holdDays = String(holdDaysAtCheckout);
+  }
   // Tie the Stripe session back to the booking_requests/{bookingId} record so
   // the webhook can reconcile a paid deposit. Only set when present — metadata
   // is Record<string,string> and must never carry undefined/empty values.
@@ -258,18 +396,19 @@ export async function POST(req: NextRequest) {
     //    whole charge sits on the platform; transferHeldDeposits() later moves
     //    the full deposit (metadata.depositCents) to the artist and TatT keeps
     //    the fee, or refundRelay() returns everything on expiry.
-    const payment_intent_data: Stripe.Checkout.SessionCreateParams.PaymentIntentData = artistReady
-      ? {
-          application_fee_amount: bookingFeeInCents,
-          transfer_data: { destination: artist.stripeAccountId as string },
-          metadata,
-        }
-      : {
-          metadata,
-        };
+    const payment_intent_data: Stripe.Checkout.SessionCreateParams.PaymentIntentData =
+      artistReady
+        ? {
+            application_fee_amount: bookingFeeInCents,
+            transfer_data: { destination: artist.stripeAccountId as string },
+            metadata,
+          }
+        : {
+            metadata,
+          };
 
     const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
+      mode: "payment",
       success_url: `${baseUrl}/book/success?${successParams.toString()}`,
       cancel_url: cancelUrl,
       customer_email: clientEmail,
@@ -285,7 +424,7 @@ export async function POST(req: NextRequest) {
               description: `${size} tattoo on ${placement}, ${date} at ${time}`,
             },
             // tax_behavior lets Stripe Tax reason about inclusive/exclusive pricing.
-            tax_behavior: 'exclusive',
+            tax_behavior: "exclusive",
           },
         },
         {
@@ -294,14 +433,14 @@ export async function POST(req: NextRequest) {
             currency: CURRENCY,
             unit_amount: bookingFeeInCents,
             product_data: {
-              name: 'TattTester booking fee',
+              name: "TattTester booking fee",
               // The money sentence (ADR-0036) on the Stripe-hosted summary:
               // who pays what, who keeps what — claimed-artist strength or
               // the held-deposit truth, decided by the same flag that shapes
               // the charge itself.
               description: checkoutFeeMoneyCopy(artistReady),
             },
-            tax_behavior: 'exclusive',
+            tax_behavior: "exclusive",
           },
         },
       ],
@@ -316,12 +455,18 @@ export async function POST(req: NextRequest) {
     });
 
     if (!session.url) {
-      return NextResponse.json({ error: 'Stripe did not return a checkout URL.' }, { status: 502 });
+      return NextResponse.json(
+        { error: "Stripe did not return a checkout URL." },
+        { status: 502 },
+      );
     }
     return NextResponse.json({ sessionUrl: session.url });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unable to create checkout session.';
-    console.error('Checkout session creation failed:', message);
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Unable to create checkout session.";
+    console.error("Checkout session creation failed:", message);
     return NextResponse.json({ error: message }, { status: 502 });
   }
 }

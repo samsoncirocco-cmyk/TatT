@@ -6,6 +6,7 @@ import { verifyApiAuth } from '@/lib/api-auth';
 import { verifyFirebaseToken } from '@/lib/auth-dal';
 import { ensureAdminApp } from '@/lib/firebase-admin';
 import { validateBookingRequest } from '@/lib/booking';
+import { getRosterArtistById } from '@/lib/artists-graph';
 
 // In-memory rate limiter: ip -> list of timestamps
 const rateLimitMap = new Map<string, number[]>();
@@ -51,31 +52,40 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: parsed.error }, { status: 400 });
   }
 
-  // Validate the canonical artist id against the Neo4j graph (Artist.id is the
-  // platform's canonical artist id). Fail-CLOSED on a definitive "not found"
-  // (return 400) but fail-OPEN on infra error — a Neo4j outage must never drop
-  // real bookings. artistId is optional; absent means allow (some flows omit it).
+  // A deposit is allowed only for the positive-evidence bookable tier. This
+  // repeats the server component's redirect because a client can call this API
+  // directly. Unlike ordinary browsing, money fails closed when the graph is
+  // unavailable: an unknown contact channel must never receive a deposit.
   if (parsed.value.artistId) {
     try {
-      const { executeServerCypherQuery } = await import(
-        '@/features/match-pulse/services/neo4jService'
-      );
-      // The removedAt guard makes a taken-down artist read as "not found", so
-      // the fail-closed branch below refuses the booking (docs/adr/0025). An
-      // artist who asked us to stop using their work must not keep receiving
-      // booking requests through us.
-      const records = await executeServerCypherQuery(
-        'MATCH (a:Artist {id: $id}) WHERE a.removedAt IS NULL RETURN a.id LIMIT 1',
-        { id: parsed.value.artistId }
-      );
-      if (!records.length) {
+      const artist = await getRosterArtistById(parsed.value.artistId);
+      if (!artist) {
         return NextResponse.json({ success: false, error: 'Unknown artist.' }, { status: 400 });
       }
+      if (artist.bookingTier !== 'bookable') {
+        // Preserve ds parity with /book's browse-only redirect so callers that
+        // follow introUrl keep the design-session Brief on the intro path.
+        const intro = new URLSearchParams({ artistId: artist.id });
+        if (parsed.value.designSessionId) {
+          intro.set('ds', parsed.value.designSessionId);
+        }
+        return NextResponse.json({
+          success: false,
+          error: 'This artist is available through an introduction request, not a deposit.',
+          code: 'ARTIST_INTRO_REQUIRED',
+          introUrl: `/intro?${intro.toString()}`,
+        }, { status: 409 });
+      }
     } catch (err) {
-      // Lookup itself failed (graph unreachable) — log and fall through to allow.
+      // A deposit against an unverified relay is the exact failure the tier
+      // prevents, so graph trouble is an honest retry rather than fail-open.
       console.warn(
-        `[book] artist existence check failed for ${parsed.value.artistId} — allowing booking (fail-open):`,
+        `[book] bookability check failed for ${parsed.value.artistId} — refusing deposit:`,
         err instanceof Error ? err.message : err
+      );
+      return NextResponse.json(
+        { success: false, error: 'We could not verify that this artist can receive booking requests. Please try again shortly.' },
+        { status: 503 },
       );
     }
   }

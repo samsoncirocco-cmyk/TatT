@@ -12,6 +12,11 @@
  * module stays importable in tests without touching Neo4j.
  */
 import { artistSlug } from "@/lib/artist-slug";
+import {
+  bookingTier,
+  HAS_REACHABLE_CONTACT_CLAUSE,
+  type BookingTier,
+} from "@/lib/artist-bookability";
 import { PUBLIC_ARTIST_CLAUSE } from "@/lib/artist-visibility";
 import {
   IG_PERMALINK_CYPHER,
@@ -63,6 +68,8 @@ export type RosterArtist = {
    *  The uid itself stays server-side; public surfaces use this boolean to
    *  hide both the claim door and the unclaimed-profile provenance label. */
   claimed: boolean;
+  /** Whether this profile may take a deposit or must use the no-money intro path. */
+  bookingTier: BookingTier;
 };
 
 export type RosterPage = {
@@ -217,6 +224,13 @@ export function toRosterArtist(record: Record<string, unknown>): RosterArtist {
     portfolioPermalinks: filterPermalinksForDisplay(record),
     authorizedPortfolioPermalinks,
     claimed: isClaimed(record),
+    bookingTier: bookingTier({
+      portfolioImages: record.portfolioImages,
+      portfolioPermalinks: record.portfolioPermalinks,
+      shopWebsiteLive: record.shopWebsiteLive,
+      // ADR-0043 escape hatch: claim clears the scrape-tier deposit gate.
+      claimedByUid: record.claimedByUid,
+    }),
   };
 }
 
@@ -224,6 +238,16 @@ async function runServerQuery(query: string, params: Record<string, unknown>) {
   const { executeServerCypherQuery } =
     await import("@/features/match-pulse/services/neo4jService");
   return executeServerCypherQuery(query, params);
+}
+
+/** Throws when Neo4j is down — null must mean "absent", not "outage". */
+async function runServerQueryOrThrow(
+  query: string,
+  params: Record<string, unknown>,
+) {
+  const { executeServerCypherQueryOrThrow } =
+    await import("@/features/match-pulse/services/neo4jService");
+  return executeServerCypherQueryOrThrow(query, params);
 }
 
 /**
@@ -269,7 +293,8 @@ export async function browseArtists(
           AND coalesce(post.active, false) = true
         | {permalink: post.permalink, displayOrder: show.displayOrder}
       ] AS authorizedPortfolioPosts,
-      a.claimedByUid AS claimedByUid
+      a.claimedByUid AS claimedByUid,
+      ${HAS_REACHABLE_CONTACT_CLAUSE} AS shopWebsiteLive
     ORDER BY coalesce(a.reviewCount, 0) DESC, a.name ASC, a.id ASC
     SKIP toInteger($skip) LIMIT toInteger($limit)
   `;
@@ -289,7 +314,9 @@ export async function browseArtists(
 }
 
 /**
- * Single artist by graph id (`artist_*`); null when absent or graph is down.
+ * Single artist by graph id (`artist_*`); null when absent.
+ * Throws when the graph is unreachable so money/intro callers can return 503
+ * instead of treating an outage as an unknown artist.
  *
  * A taken-down artist reads as absent — this backs the public profile page and
  * /book, so it must not resolve for someone who asked to be removed.
@@ -321,10 +348,11 @@ export async function getRosterArtistById(
           AND coalesce(post.active, false) = true
         | {permalink: post.permalink, displayOrder: show.displayOrder}
       ] AS authorizedPortfolioPosts,
-      a.claimedByUid AS claimedByUid
+      a.claimedByUid AS claimedByUid,
+      ${HAS_REACHABLE_CONTACT_CLAUSE} AS shopWebsiteLive
     LIMIT 1
   `;
-  const records = await runServerQuery(query, { id });
+  const records = await runServerQueryOrThrow(query, { id });
   return records.length ? toRosterArtist(records[0]) : null;
 }
 

@@ -9,32 +9,50 @@
 // Stripe, auth, firebase-admin and the artist lookup are mocked; the REAL
 // platformFeeCents/CURRENCY are kept (via importActual) so the fee math under
 // test is the shipping math.
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createSessionMock, getArtistStripeMock } = vi.hoisted(() => ({
+const {
+  createSessionMock,
+  getArtistStripeMock,
+  getRosterArtistByIdMock,
+  releaseHoldByIdMock,
+} = vi.hoisted(() => ({
   createSessionMock: vi.fn(),
   getArtistStripeMock: vi.fn(),
+  getRosterArtistByIdMock: vi.fn(),
+  releaseHoldByIdMock: vi.fn(),
 }));
 
-vi.mock('@/lib/api-auth', () => ({
+vi.mock("@/lib/api-auth", () => ({
   verifyApiAuth: vi.fn().mockResolvedValue(null),
 }));
 
-vi.mock('@/lib/auth-dal', () => ({
-  verifyFirebaseToken: vi.fn().mockResolvedValue({ uid: 'uid-client-1' }),
+vi.mock("@/lib/auth-dal", () => ({
+  verifyFirebaseToken: vi.fn().mockResolvedValue({ uid: "uid-client-1" }),
 }));
 
 // No admin credential → the bookingId ownership lookup short-circuits.
-vi.mock('@/lib/firebase-admin', () => ({
+vi.mock("@/lib/firebase-admin", () => ({
   ensureAdminApp: () => null,
 }));
 
-vi.mock('@/lib/artist-stripe', () => ({
+vi.mock("@/lib/artist-stripe", () => ({
   getArtistStripe: getArtistStripeMock,
 }));
 
-vi.mock('@/lib/stripe', async () => {
-  const actual = await vi.importActual<typeof import('@/lib/stripe')>('@/lib/stripe');
+vi.mock("@/lib/artists-graph", () => ({
+  getRosterArtistById: getRosterArtistByIdMock,
+}));
+
+vi.mock("@/lib/booking-holds-persistence", () => ({
+  releaseHoldById: releaseHoldByIdMock,
+  getHold: vi.fn(),
+  placeHold: vi.fn(),
+}));
+
+vi.mock("@/lib/stripe", async () => {
+  const actual =
+    await vi.importActual<typeof import("@/lib/stripe")>("@/lib/stripe");
   return {
     ...actual,
     stripeConfigured: true,
@@ -42,7 +60,7 @@ vi.mock('@/lib/stripe', async () => {
   };
 });
 
-import { POST } from './route';
+import { POST } from "./route";
 
 // A medium tattoo → $150 deposit, 10% (1000 bps) booking fee → $15.
 const DEPOSIT_CENTS = 15_000;
@@ -50,20 +68,20 @@ const FEE_CENTS = 1_500;
 
 function makeRequest(overrides: Record<string, unknown> = {}) {
   const body = {
-    artistId: 'artist_1',
-    artistName: 'Nadia Ink',
-    size: 'medium',
-    placement: 'forearm',
-    date: '2026-08-01',
-    time: '14:00',
-    budget: '500',
-    clientName: 'Sam Client',
-    clientEmail: 'client@example.com',
+    artistId: "artist_1",
+    artistName: "Nadia Ink",
+    size: "medium",
+    placement: "forearm",
+    date: "2026-08-01",
+    time: "14:00",
+    budget: "500",
+    clientName: "Sam Client",
+    clientEmail: "client@example.com",
     ...overrides,
   };
-  return new Request('http://localhost/api/checkout', {
-    method: 'POST',
-    headers: { authorization: 'Bearer fake', origin: 'http://localhost:3000' },
+  return new Request("http://localhost/api/checkout", {
+    method: "POST",
+    headers: { authorization: "Bearer fake", origin: "http://localhost:3000" },
     body: JSON.stringify(body),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   }) as any;
@@ -80,24 +98,34 @@ function sessionArgs(): any {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function chargedCents(args: any): number {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return args.line_items.reduce((sum: number, li: any) => sum + li.price_data.unit_amount * li.quantity, 0);
+  return args.line_items.reduce(
+    (sum: number, li: any) => sum + li.price_data.unit_amount * li.quantity,
+    0,
+  );
 }
 
-describe('POST /api/checkout — claimed artist (destination charge)', () => {
+describe("POST /api/checkout — claimed artist (destination charge)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    createSessionMock.mockResolvedValue({ id: 'cs_1', url: 'https://checkout.stripe.com/c/cs_1' });
+    createSessionMock.mockResolvedValue({
+      id: "cs_1",
+      url: "https://checkout.stripe.com/c/cs_1",
+    });
+    getRosterArtistByIdMock.mockResolvedValue({
+      id: "artist_1",
+      bookingTier: "bookable",
+    });
     getArtistStripeMock.mockResolvedValue({
-      id: 'artist_1',
-      name: 'Nadia Ink',
-      email: 'nadia@example.com',
-      stripeAccountId: 'acct_artist_1',
+      id: "artist_1",
+      name: "Nadia Ink",
+      email: "nadia@example.com",
+      stripeAccountId: "acct_artist_1",
       chargesEnabled: true,
       claimVerified: true,
     });
   });
 
-  it('charges the client deposit + fee as two line items', async () => {
+  it("charges the client deposit + fee as two line items", async () => {
     const res = await POST(makeRequest());
     expect(res.status).toBe(200);
 
@@ -117,27 +145,31 @@ describe('POST /api/checkout — claimed artist (destination charge)', () => {
     expect(args.line_items[1].price_data.product_data.description).toMatch(
       /only part we keep/i,
     );
-    expect(args.success_url).not.toContain('artistClaimed=0');
+    expect(args.success_url).not.toContain("artistClaimed=0");
   });
 
-  it('ADR-0007: application_fee_amount is the fee, so the artist nets 100% of the deposit', async () => {
+  it("ADR-0007: application_fee_amount is the fee, so the artist nets 100% of the deposit", async () => {
     await POST(makeRequest());
     const args = sessionArgs();
 
     expect(args.payment_intent_data.application_fee_amount).toBe(FEE_CENTS);
-    expect(args.payment_intent_data.transfer_data).toEqual({ destination: 'acct_artist_1' });
+    expect(args.payment_intent_data.transfer_data).toEqual({
+      destination: "acct_artist_1",
+    });
 
     // THE invariant. total − application_fee is what lands on the connected
     // account. It must equal the full deposit, not deposit − fee.
-    const artistNet = chargedCents(args) - args.payment_intent_data.application_fee_amount;
+    const artistNet =
+      chargedCents(args) - args.payment_intent_data.application_fee_amount;
     expect(artistNet).toBe(DEPOSIT_CENTS);
   });
 
-  it('does NOT deduct the fee from the deposit (wrong-direction split guard)', async () => {
+  it("does NOT deduct the fee from the deposit (wrong-direction split guard)", async () => {
     await POST(makeRequest());
     const args = sessionArgs();
 
-    const artistNet = chargedCents(args) - args.payment_intent_data.application_fee_amount;
+    const artistNet =
+      chargedCents(args) - args.payment_intent_data.application_fee_amount;
     // The inverted model — artist receives deposit − fee — would land here.
     expect(artistNet).not.toBe(DEPOSIT_CENTS - FEE_CENTS);
     expect(artistNet).toBeGreaterThan(DEPOSIT_CENTS - FEE_CENTS);
@@ -147,33 +179,42 @@ describe('POST /api/checkout — claimed artist (destination charge)', () => {
     await POST(makeRequest());
     const args = sessionArgs();
 
-    expect(args.metadata.depositState).toBe('routed');
+    expect(args.metadata.depositState).toBe("routed");
     expect(args.metadata.depositCents).toBe(String(DEPOSIT_CENTS));
     expect(args.metadata.bookingFeeCents).toBe(String(FEE_CENTS));
     // Same metadata rides on the PaymentIntent so the webhook sees it either way.
-    expect(args.payment_intent_data.metadata.depositState).toBe('routed');
+    expect(args.payment_intent_data.metadata.depositState).toBe("routed");
   });
 
-  it('scales the fee with the deposit (sleeve → $500 deposit, $50 fee)', async () => {
-    await POST(makeRequest({ size: 'sleeve' }));
+  it("scales the fee with the deposit (sleeve → $500 deposit, $50 fee)", async () => {
+    await POST(makeRequest({ size: "sleeve" }));
     const args = sessionArgs();
 
     expect(args.line_items[0].price_data.unit_amount).toBe(50_000);
     expect(args.payment_intent_data.application_fee_amount).toBe(5_000);
-    expect(chargedCents(args) - args.payment_intent_data.application_fee_amount).toBe(50_000);
+    expect(
+      chargedCents(args) - args.payment_intent_data.application_fee_amount,
+    ).toBe(50_000);
   });
 });
 
-describe('POST /api/checkout — unclaimed artist (held deposit)', () => {
+describe("POST /api/checkout — unclaimed artist (held deposit)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    createSessionMock.mockResolvedValue({ id: 'cs_2', url: 'https://checkout.stripe.com/c/cs_2' });
+    createSessionMock.mockResolvedValue({
+      id: "cs_2",
+      url: "https://checkout.stripe.com/c/cs_2",
+    });
+    getRosterArtistByIdMock.mockResolvedValue({
+      id: "artist_1",
+      bookingTier: "bookable",
+    });
   });
 
-  it('holds on the platform — no transfer_data, no application_fee_amount', async () => {
+  it("holds on the platform — no transfer_data, no application_fee_amount", async () => {
     getArtistStripeMock.mockResolvedValue({
-      id: 'artist_1',
-      name: 'Nadia Ink',
+      id: "artist_1",
+      name: "Nadia Ink",
       email: null,
       stripeAccountId: null,
       chargesEnabled: false,
@@ -185,20 +226,29 @@ describe('POST /api/checkout — unclaimed artist (held deposit)', () => {
     const args = sessionArgs();
     expect(args.payment_intent_data.transfer_data).toBeUndefined();
     expect(args.payment_intent_data.application_fee_amount).toBeUndefined();
-    expect(args.metadata.depositState).toBe('held');
+    expect(args.metadata.depositState).toBe("held");
 
-    // The unclaimed-artist money sentence (ADR-0036 amendment): held-deposit
-    // truth on the Stripe summary, and the success URL carries the variant.
+    // The unclaimed-artist money sentence (ADR-0036 amendment): relay +
+    // auto-refund truth on the Stripe summary, and the success URL carries
+    // the variant plus the hold window stamped at checkout.
     expect(args.line_items[1].price_data.product_data.description).toMatch(
-      /held during verification/i,
+      /has not joined TatT yet/i,
     );
-    expect(args.success_url).toContain('artistClaimed=0');
+    expect(args.line_items[1].price_data.product_data.description).toMatch(
+      /automatically refunds/i,
+    );
+    expect(args.success_url).toContain("artistClaimed=0");
+    expect(args.success_url).toMatch(/holdDays=\d+/);
+    // Lock the same window into Stripe metadata so the webhook does not
+    // re-read a live DEPOSIT_HOLD_DAYS that may have changed since checkout.
+    expect(args.metadata.holdDays).toMatch(/^\d+$/);
+    expect(Number(args.metadata.holdDays)).toBeGreaterThan(0);
   });
 
   it("records the artist's share as the DEPOSIT ONLY, never the booking fee", async () => {
     getArtistStripeMock.mockResolvedValue({
-      id: 'artist_1',
-      name: 'Nadia Ink',
+      id: "artist_1",
+      name: "Nadia Ink",
       email: null,
       stripeAccountId: null,
       chargesEnabled: false,
@@ -212,15 +262,17 @@ describe('POST /api/checkout — unclaimed artist (held deposit)', () => {
     // into the relay amount.
     expect(args.metadata.depositCents).toBe(String(DEPOSIT_CENTS));
     expect(Number(args.metadata.depositCents)).toBeLessThan(chargedCents(args));
-    expect(chargedCents(args) - Number(args.metadata.depositCents)).toBe(FEE_CENTS);
+    expect(chargedCents(args) - Number(args.metadata.depositCents)).toBe(
+      FEE_CENTS,
+    );
   });
 
-  it('holds when an account exists but charges are not enabled yet (mid-onboarding)', async () => {
+  it("holds when an account exists but charges are not enabled yet (mid-onboarding)", async () => {
     getArtistStripeMock.mockResolvedValue({
-      id: 'artist_1',
-      name: 'Nadia Ink',
+      id: "artist_1",
+      name: "Nadia Ink",
       email: null,
-      stripeAccountId: 'acct_pending',
+      stripeAccountId: "acct_pending",
       chargesEnabled: false,
     });
 
@@ -229,43 +281,92 @@ describe('POST /api/checkout — unclaimed artist (held deposit)', () => {
 
     // Routing to a not-yet-enabled account would fail the charge outright.
     expect(args.payment_intent_data.transfer_data).toBeUndefined();
-    expect(args.metadata.depositState).toBe('held');
+    expect(args.metadata.depositState).toBe("held");
   });
 
-  it('holds when Stripe is ready but the ownership claim was never verified', async () => {
+  it("holds when Stripe is ready but the ownership claim was never verified", async () => {
     getArtistStripeMock.mockResolvedValue({
-      id: 'artist_1',
-      name: 'Nadia Ink',
+      id: "artist_1",
+      name: "Nadia Ink",
       email: null,
-      stripeAccountId: 'acct_attacker',
+      stripeAccountId: "acct_attacker",
       chargesEnabled: true,
-      claimedByUid: 'uid_first_finder',
+      claimedByUid: "uid_first_finder",
       claimVerified: false,
     });
 
     await POST(makeRequest());
     const args = sessionArgs();
     expect(args.payment_intent_data.transfer_data).toBeUndefined();
-    expect(args.metadata.depositState).toBe('held');
+    expect(args.metadata.depositState).toBe("held");
   });
 });
 
-describe('POST /api/checkout — guards', () => {
+describe("POST /api/checkout — guards", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    createSessionMock.mockResolvedValue({ id: 'cs_3', url: 'https://x' });
+    createSessionMock.mockResolvedValue({ id: "cs_3", url: "https://x" });
+    getRosterArtistByIdMock.mockResolvedValue({
+      id: "artist_1",
+      bookingTier: "bookable",
+    });
   });
 
-  it('400s without an artistId — a deposit with no payee must never be charged', async () => {
+  it("400s without an artistId — a deposit with no payee must never be charged", async () => {
     const res = await POST(makeRequest({ artistId: undefined }));
     expect(res.status).toBe(400);
     expect(createSessionMock).not.toHaveBeenCalled();
   });
 
-  it('404s for an unknown artist', async () => {
-    getArtistStripeMock.mockResolvedValue(null);
+  it("404s for an unknown artist", async () => {
+    getRosterArtistByIdMock.mockResolvedValue(null);
     const res = await POST(makeRequest());
     expect(res.status).toBe(404);
+    expect(createSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("404 releases any hold so a missing roster row cannot strand a slot", async () => {
+    getRosterArtistByIdMock.mockResolvedValue(null);
+    releaseHoldByIdMock.mockResolvedValue(true);
+
+    const res = await POST(makeRequest({ holdId: "hold_missing" }));
+    expect(res.status).toBe(404);
+    expect(releaseHoldByIdMock).toHaveBeenCalledWith("hold_missing");
+    expect(createSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("503 on bookability outage releases any hold so the slot is not stranded", async () => {
+    getRosterArtistByIdMock.mockRejectedValue(new Error("Neo4j down"));
+    releaseHoldByIdMock.mockResolvedValue(true);
+
+    const res = await POST(makeRequest({ holdId: "hold_outage" }));
+    expect(res.status).toBe(503);
+    expect(releaseHoldByIdMock).toHaveBeenCalledWith("hold_outage");
+    expect(createSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("409s browse-only artists with introUrl that preserves ds and releases any hold", async () => {
+    getRosterArtistByIdMock.mockResolvedValue({
+      id: "artist_intro_only",
+      bookingTier: "browse-only",
+    });
+    releaseHoldByIdMock.mockResolvedValue(true);
+
+    const res = await POST(
+      makeRequest({
+        artistId: "artist_intro_only",
+        designSessionId: "sess-1",
+        holdId: "hold_abc",
+      }),
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(409);
+    expect(body).toMatchObject({
+      code: "ARTIST_INTRO_REQUIRED",
+      introUrl: "/intro?artistId=artist_intro_only&ds=sess-1",
+    });
+    expect(releaseHoldByIdMock).toHaveBeenCalledWith("hold_abc");
     expect(createSessionMock).not.toHaveBeenCalled();
   });
 });

@@ -104,6 +104,11 @@ export const API_ROUTE_SECURITY: Record<string, RouteSecurityEntry> = {
       'records a :TakedownRequest and emails ops, with no write path to GCS, Supabase, ' +
       'or the :Artist node. Removal is a human-run CLI (docs/adr/0025). IP rate-limited.',
   },
+  'v1/artist-intros': {
+    class: 'public',
+    reason:
+      'A customer may ask for an introduction before creating a TatT account. The route cannot take a deposit, confirm a booking, or modify an artist; it records a relay request and sends it to ops, with a per-IP limit.',
+  },
   // The counterpart to takedown, and deliberately the opposite class. Asking to
   // be removed must need no account; asking to be re-added must, because the
   // account is part of the identity proof and is what the profile binds to.

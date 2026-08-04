@@ -20,6 +20,7 @@ import QuietCTA from "@/components/quiet/QuietCTA";
 import ReceiptCard from "@/components/quiet/ReceiptCard";
 import { getApiAuthHeaders } from "@/lib/client-api-auth";
 import type { BookingStatus } from "@/lib/booking";
+import { depositHoldDays } from "@/lib/deposit-hold";
 import { bookingSuccessMoneyCopy } from "@/lib/money-copy";
 import { TattooPrepPlan } from "../BookingConfidence";
 
@@ -156,6 +157,12 @@ function SuccessContent() {
   // artistClaimed=0 on the held-deposit path; absent means claimed. Display
   // copy only — never used to infer payment.
   const artistClaimed = sp.get("artistClaimed") !== "0";
+  // Hold window stamped at checkout (ADR-0006); fall back to live config.
+  const holdDaysParam = Number(sp.get("holdDays"));
+  const holdDays =
+    Number.isFinite(holdDaysParam) && holdDaysParam > 0
+      ? Math.trunc(holdDaysParam)
+      : depositHoldDays();
   // A display-only amount is not a payment identifier. Reconcile only when
   // the return URL can name an exact booking or Stripe session.
   const hasPaymentReturnContext = Boolean(bookingId || sessionId);
@@ -322,7 +329,7 @@ function SuccessContent() {
 
   const paymentStatusCopy = isPaid ? (
     <>
-      {bookingSuccessMoneyCopy(artistClaimed)}
+      {bookingSuccessMoneyCopy(artistClaimed, holdDays)}
       <br />
       {appointmentConfirmed
         ? "Your appointment is confirmed. Check Your bookings for the latest details."
@@ -396,17 +403,23 @@ function SuccessContent() {
     : [
         {
           title: "Request sent",
-          detail: `Your design, dates and details are with ${artistLabel}.`,
+          detail: artistClaimed
+            ? `Your design, dates and details are with ${artistLabel}.`
+            : `TatT is relaying your design, dates and details to ${artistLabel}, who has not joined TatT yet.`,
         },
         {
           title: "Deposit",
           detail: isPaid
-            ? "Paid — and held against your session. If the booking doesn't go ahead, your deposit comes back in full."
+            ? artistClaimed
+              ? "Paid — and held against your session. If the booking doesn't go ahead, your deposit comes back in full."
+              : `Paid — TatT holds the deposit while it relays your request. If the artist has not claimed and completed setup within ${holdDays} days, TatT automatically refunds your deposit in full.`
             : "Confirming with Stripe. This page updates once it clears.",
         },
         {
           title: "Artist review",
-          detail: `${artistLabel} confirms your time or suggests another. Response times vary — there's no set window.`,
+          detail: artistClaimed
+            ? `${artistLabel} confirms your time or suggests another. Response times vary — there's no set window.`
+            : `TatT follows up with ${artistLabel} outside the booking product and relays any reply. Response times vary — there's no set window.`,
         },
         {
           title: "Your session",

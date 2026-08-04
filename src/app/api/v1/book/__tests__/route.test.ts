@@ -12,14 +12,14 @@ const {
   verifyFirebaseTokenMock,
   ensureAdminAppMock,
   firestoreSetMock,
-  cypherMock,
+  getRosterArtistByIdMock,
 } = vi.hoisted(() => ({
   getSessionMock: vi.fn(),
   verifyApiAuthMock: vi.fn(),
   verifyFirebaseTokenMock: vi.fn(),
   ensureAdminAppMock: vi.fn(),
   firestoreSetMock: vi.fn(),
-  cypherMock: vi.fn(),
+  getRosterArtistByIdMock: vi.fn(),
 }));
 
 vi.mock('@/services/designSession', () => ({
@@ -46,9 +46,7 @@ vi.mock('firebase-admin/firestore', () => ({
   }),
 }));
 
-vi.mock('@/features/match-pulse/services/neo4jService', () => ({
-  executeServerCypherQuery: cypherMock,
-}));
+vi.mock('@/lib/artists-graph', () => ({ getRosterArtistById: getRosterArtistByIdMock }));
 
 import { POST } from '../route';
 
@@ -144,7 +142,7 @@ describe('POST /api/v1/book — design-session Brief attach', () => {
     verifyFirebaseTokenMock.mockResolvedValue({ uid: 'user-1' });
     ensureAdminAppMock.mockReturnValue('env');
     firestoreSetMock.mockResolvedValue(undefined);
-    cypherMock.mockResolvedValue([{}]);
+    getRosterArtistByIdMock.mockResolvedValue({ id: 'artist_10021', bookingTier: 'bookable' });
   });
 
   it('embeds the brief and designSessionId when the session is complete', async () => {
@@ -266,9 +264,8 @@ describe('POST /api/v1/book — taken-down artists are not bookable', () => {
   });
 
   it('refuses the booking and writes nothing when the artist lookup returns no rows', async () => {
-    // What a removed artist now looks like: the id-scoped query is gated on
-    // removedAt IS NULL, so it comes back empty.
-    cypherMock.mockResolvedValue([]);
+    // A removed artist is absent from the public roster accessor.
+    getRosterArtistByIdMock.mockResolvedValue(null);
 
     const res = await POST(makeRequest({ ...VALID_BODY, artistId: 'artist_removed' }));
 
@@ -276,13 +273,65 @@ describe('POST /api/v1/book — taken-down artists are not bookable', () => {
     expect(firestoreSetMock).not.toHaveBeenCalled();
   });
 
-  it('asks the graph for the artist with a removedAt guard', async () => {
-    cypherMock.mockResolvedValue([{}]);
+  it('returns 503, not unknown-artist, when the graph lookup is unavailable', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    getRosterArtistByIdMock.mockRejectedValueOnce(new Error('neo4j unavailable'));
+
+    const res = await POST(makeRequest({ ...VALID_BODY, artistId: 'artist_10021' }));
+
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ success: false });
+    expect(firestoreSetMock).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('uses the public roster accessor for the canonical artist id', async () => {
+    getRosterArtistByIdMock.mockResolvedValue({ id: 'artist_10021', bookingTier: 'bookable' });
 
     await POST(makeRequest({ ...VALID_BODY, artistId: 'artist_10021' }));
 
-    expect(cypherMock).toHaveBeenCalledTimes(1);
-    const [cypher] = cypherMock.mock.calls[0];
-    expect(cypher).toContain('a.removedAt IS NULL');
+    expect(getRosterArtistByIdMock).toHaveBeenCalledWith('artist_10021');
+  });
+
+  it('refuses a browse-only artist before writing a booking', async () => {
+    getRosterArtistByIdMock.mockResolvedValue({ id: 'artist_intro_only', bookingTier: 'browse-only' });
+
+    const res = await POST(makeRequest({ ...VALID_BODY, artistId: 'artist_intro_only' }));
+
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({
+      code: 'ARTIST_INTRO_REQUIRED',
+      introUrl: '/intro?artistId=artist_intro_only',
+    });
+    expect(firestoreSetMock).not.toHaveBeenCalled();
+  });
+
+  it('preserves designSessionId on the browse-only introUrl', async () => {
+    getRosterArtistByIdMock.mockResolvedValue({ id: 'artist_intro_only', bookingTier: 'browse-only' });
+
+    const res = await POST(
+      makeRequest({
+        ...VALID_BODY,
+        artistId: 'artist_intro_only',
+        designSessionId: 'sess-1',
+      }),
+    );
+
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({
+      code: 'ARTIST_INTRO_REQUIRED',
+      introUrl: '/intro?artistId=artist_intro_only&ds=sess-1',
+    });
+    expect(firestoreSetMock).not.toHaveBeenCalled();
+  });
+
+  it('returns 503 when the roster lookup throws (graph outage)', async () => {
+    getRosterArtistByIdMock.mockRejectedValueOnce(new Error('Neo4j driver not configured server-side'));
+
+    const res = await POST(makeRequest({ ...VALID_BODY, artistId: 'artist_10021' }));
+
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ success: false });
+    expect(firestoreSetMock).not.toHaveBeenCalled();
   });
 });

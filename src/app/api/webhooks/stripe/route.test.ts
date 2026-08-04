@@ -362,6 +362,16 @@ describe('Stripe webhook — held-deposit relay', () => {
     expect(vi.mocked(createRelay).mock.calls[0][0].expiresAtEpoch).toBe(HELD_EPOCH + 3 * 86_400);
   });
 
+  it('prefers checkout-stamped metadata.holdDays over a live DEPOSIT_HOLD_DAYS change', async () => {
+    process.env.DEPOSIT_HOLD_DAYS = '3';
+    const event = makeHeldEvent('evt_held_meta', { holdDays: '14' });
+    constructEventMock.mockReturnValueOnce(event);
+
+    await POST(makeRequest(event));
+
+    expect(vi.mocked(createRelay).mock.calls[0][0].expiresAtEpoch).toBe(HELD_EPOCH + 14 * 86_400);
+  });
+
   it('notifies the artist so they can claim and release the funds', async () => {
     const event = makeHeldEvent('evt_held_5');
     constructEventMock.mockReturnValueOnce(event);

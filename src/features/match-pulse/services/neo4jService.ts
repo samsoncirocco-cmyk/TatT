@@ -187,34 +187,44 @@ function normalizeNeo4jValue(value: any): any {
 
 /**
  * Execute a read-only Cypher query directly against the driver.
+ * Throws when the driver is missing or the query fails — use this on
+ * money / bookability paths that must distinguish "absent" from "down".
+ *
  * Server-only path: API routes cannot use the relative-URL proxy fetch or
  * the Firebase *client* auth that the browser path relies on.
  */
+export async function executeServerCypherQueryOrThrow(query: string, params: Record<string, any> = {}): Promise<any[]> {
+    const neo4j = (await import('neo4j-driver')).default;
+    const { getNeo4jDriver, NEO4J_DATABASE, NEO4J_QUERY_TIMEOUT } = await import('@/lib/neo4j');
+    const driver = getNeo4jDriver();
+    if (!driver) {
+        throw new Error('Neo4j driver not configured server-side');
+    }
+
+    const session = driver.session(NEO4J_DATABASE ? { database: NEO4J_DATABASE } : undefined);
+    try {
+        // Cypher LIMIT rejects floats — coerce the shared limit param.
+        const coerced = { ...params };
+        if (typeof coerced.limit === 'number') {
+            coerced.limit = neo4j.int(Math.trunc(coerced.limit));
+        }
+        const result = await session.executeRead(
+            (tx: any) => tx.run(query, coerced),
+            { timeout: neo4j.int(NEO4J_QUERY_TIMEOUT) }
+        );
+        return result.records.map((record: any) => normalizeNeo4jValue(record.toObject()));
+    } finally {
+        await session.close();
+    }
+}
+
+/**
+ * Soft-fail read helper for browse/list surfaces: swallows driver errors and
+ * returns no records so callers can fail closed without throwing.
+ */
 export async function executeServerCypherQuery(query: string, params: Record<string, any> = {}): Promise<any[]> {
     try {
-        const neo4j = (await import('neo4j-driver')).default;
-        const { getNeo4jDriver, NEO4J_DATABASE, NEO4J_QUERY_TIMEOUT } = await import('@/lib/neo4j');
-        const driver = getNeo4jDriver();
-        if (!driver) {
-            console.warn('[Neo4j] Driver not configured server-side, returning no records');
-            return [];
-        }
-
-        const session = driver.session(NEO4J_DATABASE ? { database: NEO4J_DATABASE } : undefined);
-        try {
-            // Cypher LIMIT rejects floats — coerce the shared limit param.
-            const coerced = { ...params };
-            if (typeof coerced.limit === 'number') {
-                coerced.limit = neo4j.int(Math.trunc(coerced.limit));
-            }
-            const result = await session.executeRead(
-                (tx: any) => tx.run(query, coerced),
-                { timeout: neo4j.int(NEO4J_QUERY_TIMEOUT) }
-            );
-            return result.records.map((record: any) => normalizeNeo4jValue(record.toObject()));
-        } finally {
-            await session.close();
-        }
+        return await executeServerCypherQueryOrThrow(query, params);
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         console.warn('[Neo4j] Server-side query error, returning no records:', message);

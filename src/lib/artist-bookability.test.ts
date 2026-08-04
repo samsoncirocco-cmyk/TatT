@@ -3,28 +3,34 @@ import {
   BOOKABLE_TIER_CLAUSE,
   HAS_REACHABLE_CONTACT_CLAUSE,
   HAS_TATTOO_EVIDENCE_CLAUSE,
+  IS_CLAIMED_CLAUSE,
   bookingTier,
   hasReachableContact,
   hasTattooEvidence,
   isBookable,
+  isClaimedForBookability,
 } from "@/lib/artist-bookability";
 
 describe("hasTattooEvidence", () => {
   it("accepts hosted portfolio images", () => {
-    expect(hasTattooEvidence({ portfolioImages: ["https://x/1.jpg"] })).toBe(true);
+    expect(hasTattooEvidence({ portfolioImages: ["https://x/1.jpg"] })).toBe(
+      true,
+    );
   });
 
   it("accepts Instagram post permalinks", () => {
     expect(
-      hasTattooEvidence({ portfolioPermalinks: ["https://instagram.com/p/abc"] }),
+      hasTattooEvidence({
+        portfolioPermalinks: ["https://instagram.com/p/abc"],
+      }),
     ).toBe(true);
   });
 
   it("rejects empty arrays and missing fields", () => {
     expect(hasTattooEvidence({})).toBe(false);
-    expect(hasTattooEvidence({ portfolioImages: [], portfolioPermalinks: [] })).toBe(
-      false,
-    );
+    expect(
+      hasTattooEvidence({ portfolioImages: [], portfolioPermalinks: [] }),
+    ).toBe(false);
   });
 
   it("rejects non-array junk rather than trusting truthiness", () => {
@@ -61,12 +67,17 @@ describe("hasReachableContact", () => {
 describe("bookingTier", () => {
   it("is bookable only with both halves", () => {
     expect(
-      bookingTier({ portfolioImages: ["https://x/1.jpg"], shopWebsiteLive: true }),
+      bookingTier({
+        portfolioImages: ["https://x/1.jpg"],
+        shopWebsiteLive: true,
+      }),
     ).toBe("bookable");
   });
 
   it("is browse-only with evidence but no reachable contact", () => {
-    expect(bookingTier({ portfolioImages: ["https://x/1.jpg"] })).toBe("browse-only");
+    expect(bookingTier({ portfolioImages: ["https://x/1.jpg"] })).toBe(
+      "browse-only",
+    );
   });
 
   it("is browse-only with a reachable contact but no evidence", () => {
@@ -77,6 +88,26 @@ describe("bookingTier", () => {
     expect(bookingTier({})).toBe("browse-only");
   });
 
+  // ADR-0043: claim clears the scrape gate so onboarded artists are not
+  // stuck on /intro when portfolio lives only in SHOWCASES or the shop is
+  // unprobed.
+  it("is bookable for a claimed profile without scrape evidence", () => {
+    expect(bookingTier({ claimedByUid: "uid_9" })).toBe("bookable");
+    expect(
+      bookingTier({
+        claimedByUid: "uid_9",
+        portfolioImages: [],
+        shopWebsiteLive: false,
+      }),
+    ).toBe("bookable");
+  });
+
+  it("does not treat an empty claimedByUid as a claim", () => {
+    expect(bookingTier({ claimedByUid: "" })).toBe("browse-only");
+    expect(isClaimedForBookability({ claimedByUid: "" })).toBe(false);
+    expect(isClaimedForBookability({ claimedByUid: "uid_9" })).toBe(true);
+  });
+
   it("isBookable agrees with bookingTier", () => {
     const subject = { portfolioPermalinks: ["p"], shopWebsiteLive: true };
     expect(isBookable(subject)).toBe(bookingTier(subject) === "bookable");
@@ -85,9 +116,10 @@ describe("bookingTier", () => {
 });
 
 describe("Cypher clauses", () => {
-  it("composes the tier from both halves", () => {
+  it("composes the tier from both halves plus the claim escape hatch", () => {
     expect(BOOKABLE_TIER_CLAUSE).toContain(HAS_TATTOO_EVIDENCE_CLAUSE);
     expect(BOOKABLE_TIER_CLAUSE).toContain(HAS_REACHABLE_CONTACT_CLAUSE);
+    expect(BOOKABLE_TIER_CLAUSE).toContain(IS_CLAIMED_CLAUSE);
   });
 
   // Mirrors the pure predicate above. A `coalesce(sh.websiteLive, true)` here
@@ -100,7 +132,9 @@ describe("Cypher clauses", () => {
     expect(HAS_REACHABLE_CONTACT_CLAUSE).toContain(
       "trim(coalesce(sh.website,'')) <> ''",
     );
-    expect(HAS_REACHABLE_CONTACT_CLAUSE).not.toContain("coalesce(sh.websiteLive");
+    expect(HAS_REACHABLE_CONTACT_CLAUSE).not.toContain(
+      "coalesce(sh.websiteLive",
+    );
   });
 
   it("does not count a bio as evidence", () => {

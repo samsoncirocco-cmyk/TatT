@@ -1,4 +1,5 @@
 import BookClient, { type BookArtist, type BookOffer } from "./BookClient";
+import { redirect, unstable_rethrow } from "next/navigation";
 import { getRosterArtistById } from "@/lib/artists-graph";
 import { getArtistAvailability } from "@/lib/availability";
 import { availabilityLabel } from "@/lib/booking";
@@ -7,6 +8,7 @@ import { getBookingOffer } from "@/lib/booking-offer";
 // Stripe config (never imported into client components). The money sentence
 // on the review step renders from this so the copy can't drift from the rate.
 import { PLATFORM_FEE_BPS } from "@/lib/stripe";
+import { depositHoldDays } from "@/lib/deposit-hold";
 
 // The artist comes from the live graph and availability from Firestore
 // on every request — never statically rendered.
@@ -43,6 +45,11 @@ export default async function BookPage({
     try {
       const found = await getRosterArtistById(artistId);
       if (found) {
+        if (found.bookingTier !== "bookable") {
+          const intro = new URLSearchParams({ artistId: found.id });
+          if (designSessionId) intro.set("ds", designSessionId);
+          redirect(`/intro?${intro.toString()}`);
+        }
         const availability = await getArtistAvailability(found.id);
         artist = {
           id: found.id,
@@ -73,7 +80,10 @@ export default async function BookPage({
           ...(resolved.timezone ? { timezone: resolved.timezone } : {}),
         };
       }
-    } catch {
+    } catch (error) {
+      // redirect() throws a special control-flow error; rethrow it so browse-only
+      // artists reach /intro instead of the graph-failure empty state.
+      unstable_rethrow(error);
       // Graph unreachable — be honest about it instead of faking an artist.
       artistLoadFailed = true;
     }
@@ -87,6 +97,7 @@ export default async function BookPage({
       designSessionId={designSessionId}
       offer={offer}
       feePercent={PLATFORM_FEE_BPS / 100}
+      holdDays={depositHoldDays()}
     />
   );
 }

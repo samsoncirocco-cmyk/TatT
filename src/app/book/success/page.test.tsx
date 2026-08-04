@@ -175,18 +175,35 @@ describe("BookingSuccessPage — no dead ends", () => {
     expect(screen.queryByText(/held during verification/i)).toBeNull();
   });
 
-  it("paid, unclaimed artist (artistClaimed=0): the held-deposit money sentence", async () => {
+  it("paid, unclaimed artist (artistClaimed=0): the relay and auto-refund truth", async () => {
     searchParams = new URLSearchParams(
-      "artist=Nadia&deposit=100&session_id=cs_test_123&bookingId=book_123&artistClaimed=0"
+      "artist=Nadia&deposit=100&session_id=cs_test_123&bookingId=book_123&artistClaimed=0&holdDays=3"
     );
     bookingFetchMock.mockResolvedValueOnce(bookingResponse("deposit_paid"));
 
     render(<BookingSuccessPage />);
     await flushInitialRead();
 
-    expect(screen.getByText(/held during verification/i)).toBeTruthy();
-    expect(screen.getByText(/refunded to you if the claim window closes/i)).toBeTruthy();
+    expect(screen.getAllByText(/has not joined TatT yet/i)).toHaveLength(2);
+    expect(screen.getByText(/relay the request/i)).toBeTruthy();
+    expect(screen.getAllByText(/within 3 days/i)).toHaveLength(2);
+    expect(screen.getAllByText(/automatically refunds your deposit/i)).toHaveLength(2);
+    expect(screen.getByText(/follows up with Nadia outside the booking product/i)).toBeTruthy();
+    expect(screen.queryByText(/Nadia confirms your time/i)).toBeNull();
     expect(screen.queryByText(/whole deposit goes to your artist/i)).toBeNull();
+  });
+
+  it("uses the checkout-pinned hold window in both unclaimed deposit promises", async () => {
+    searchParams = new URLSearchParams(
+      "artist=Nadia&deposit=100&session_id=cs_test_123&bookingId=book_123&artistClaimed=0&holdDays=3"
+    );
+    bookingFetchMock.mockResolvedValueOnce(bookingResponse("deposit_paid"));
+
+    render(<BookingSuccessPage />);
+    await flushInitialRead();
+
+    expect(screen.getAllByText(/within 3 days/i)).toHaveLength(2);
+    expect(screen.queryByText(/within 7 days/i)).toBeNull();
   });
 
   it("stops after a bounded reconciliation window without falling back to Deposit due", async () => {

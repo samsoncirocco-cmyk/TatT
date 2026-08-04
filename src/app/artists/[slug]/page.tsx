@@ -22,7 +22,40 @@ export default async function ArtistProfilePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const artist = await getRosterArtistById(artistIdFromSlug(slug));
+  // Graph outage is not "artist missing" — match /book and /intro's
+  // retry-oriented copy instead of letting the throw become a 500.
+  let artist: Awaited<ReturnType<typeof getRosterArtistById>>;
+  try {
+    artist = await getRosterArtistById(artistIdFromSlug(slug));
+  } catch {
+    return (
+      <StudioShell>
+        <div className="px-6 md:px-12 pt-6 pb-4 border-b hairline">
+          <div className="max-w-6xl mx-auto flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/50 tabular-nums font-body">
+            <Link href="/artists" className="hover:text-pink">
+              ←&nbsp;Roster
+            </Link>
+            <span>Profile&nbsp;/&nbsp;Unavailable</span>
+          </div>
+        </div>
+        <div className="px-6 md:px-12 py-24 md:py-32">
+          <div className="max-w-md mx-auto text-center">
+            <p className="font-display text-white text-[28px] md:text-[36px] leading-none">
+              Couldn&apos;t reach the artist graph.
+            </p>
+            <p className="mt-6 text-[13px] text-white/60 font-body leading-[1.9]">
+              The live roster is unreachable right now — try again in a minute.
+            </p>
+            <p className="mt-10">
+              <Link href="/artists" className="underline text-sm font-body text-white/80 hover:text-pink">
+                Browse the roster
+              </Link>
+            </p>
+          </div>
+        </div>
+      </StudioShell>
+    );
+  }
   if (!artist) notFound();
 
   const nameParts = artist.name.split(" ");
@@ -260,14 +293,18 @@ export default async function ArtistProfilePage({
                 showcase above stays loud, the commitment affordance is quiet. */}
             <div className="mt-12 border hairline-quiet p-6 md:p-8 max-w-md">
               <div className="text-[12px] text-quiet-dim font-body">
-                Booking
+                {artist.bookingTier === "bookable" ? "Booking" : "Artist introduction"}
               </div>
               <div className="mt-5 flex flex-col sm:flex-row sm:items-center gap-5">
                 <QuietCTA
-                  href={`/book?artistId=${encodeURIComponent(artist.id)}`}
+                  href={
+                    artist.bookingTier === "bookable"
+                      ? `/book?artistId=${encodeURIComponent(artist.id)}`
+                      : `/intro?artistId=${encodeURIComponent(artist.id)}`
+                  }
                   size="md"
                 >
-                  Book the chair
+                  {artist.bookingTier === "bookable" ? "Book the chair" : "Request an intro"}
                 </QuietCTA>
                 {igUrl && (
                   <a
@@ -291,7 +328,9 @@ export default async function ArtistProfilePage({
                 )}
               </div>
               <p className="mt-5 text-[12px] text-quiet-dim font-body leading-[1.7]">
-                A deposit holds your request — the artist confirms the time.
+                {artist.bookingTier === "bookable"
+                  ? "A deposit holds your request — the artist confirms the time."
+                  : "TatT will relay your request to the artist’s shop. No deposit is taken."}
               </p>
             </div>
 
@@ -396,10 +435,14 @@ export default async function ArtistProfilePage({
       <div className="sticky bottom-6 z-30 px-6 md:px-12 pb-10 pointer-events-none">
         <div className="max-w-6xl mx-auto flex justify-end">
           <Link
-            href={`/book?artistId=${encodeURIComponent(artist.id)}`}
+            href={
+              artist.bookingTier === "bookable"
+                ? `/book?artistId=${encodeURIComponent(artist.id)}`
+                : `/intro?artistId=${encodeURIComponent(artist.id)}`
+            }
             className="press inline-flex items-center justify-center px-8 py-4 font-body text-[14px] leading-none bg-quiet text-black hover:bg-white pointer-events-auto"
           >
-            Book consultation
+            {artist.bookingTier === "bookable" ? "Book consultation" : "Request an intro"}
           </Link>
         </div>
       </div>

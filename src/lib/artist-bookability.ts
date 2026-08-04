@@ -5,6 +5,10 @@
  * channel we have actually reached. Everything else stays visible for browsing
  * and matching but offers "request intro" instead of a deposit button.
  *
+ * Claimed profiles are the escape hatch in ADR-0043: once an artist has bound
+ * `claimedByUid`, scrape-tier evidence no longer gates deposits. Stripe
+ * readiness still decides held vs destination charge downstream.
+ *
  * The default is browse-only, and that direction matters. Absence of a check is
  * not evidence of reachability — an unprobed shop is an unknown one, and taking
  * a deposit against an unknown is exactly the silent 7-day-refund failure
@@ -58,13 +62,23 @@ export const HAS_REACHABLE_CONTACT_CLAUSE =
   "EXISTS { MATCH (a)-[:WORKS_AT|HAS_SHOP]->(sh:Shop) WHERE sh.websiteLive = true AND trim(coalesce(sh.website,'')) <> '' }";
 
 /**
+ * Claim escape hatch (ADR-0043): a bound claimedByUid clears the scrape gate.
+ * Same shape as portfolio-display.isClaimed / roster PUBLIC claim checks.
+ */
+export const IS_CLAIMED_CLAUSE =
+  "(a.claimedByUid IS NOT NULL AND a.claimedByUid <> '')";
+
+/**
  * The bookable tier. Compose with PUBLIC_ARTIST_CLAUSE (artist-visibility) —
  * this gate decides deposit-vs-intro, not whether a profile is public at all.
  * A hidden artist is not bookable because they are not listed; that is
  * visibility's job, and duplicating it here would let the two drift.
+ *
+ * Scraped rows need both evidence halves; a claimed profile is bookable even
+ * when scrape evidence is missing (authorized SHOWCASES-only work, unprobed
+ * shop outside AZ, etc.).
  */
-export const BOOKABLE_TIER_CLAUSE =
-  `(${HAS_TATTOO_EVIDENCE_CLAUSE}) AND (${HAS_REACHABLE_CONTACT_CLAUSE})`;
+export const BOOKABLE_TIER_CLAUSE = `((${HAS_TATTOO_EVIDENCE_CLAUSE}) AND (${HAS_REACHABLE_CONTACT_CLAUSE})) OR ${IS_CLAIMED_CLAUSE}`;
 
 /** Which action a profile surfaces. */
 export type BookingTier = "bookable" | "browse-only";
@@ -73,10 +87,16 @@ export type BookabilitySubject = {
   portfolioImages?: unknown;
   portfolioPermalinks?: unknown;
   /**
-   * Whether any shop this artist works at answered its last website probe.
+   * Whether any shop this artist works at has a reachable contact: websiteLive
+   * true AND a non-empty website URL (mirrors HAS_REACHABLE_CONTACT_CLAUSE).
    * Undefined means never probed, which is browse-only — see the module note.
    */
   shopWebsiteLive?: unknown;
+  /**
+   * Profile claim binding. When set (non-empty string), the artist has claimed
+   * the listing and may take deposits without scrape-tier evidence.
+   */
+  claimedByUid?: unknown;
 };
 
 const nonEmptyArray = (value: unknown): boolean =>
@@ -95,11 +115,19 @@ export function hasReachableContact(subject: BookabilitySubject): boolean {
   return subject.shopWebsiteLive === true;
 }
 
+/** Pure row-level mirror of {@link IS_CLAIMED_CLAUSE}. */
+export function isClaimedForBookability(subject: BookabilitySubject): boolean {
+  return (
+    typeof subject.claimedByUid === "string" && subject.claimedByUid.length > 0
+  );
+}
+
 /**
  * The tier for one artist row. Pure, so the roster, the profile page, and the
  * booking route can all ask the same question without another graph round trip.
  */
 export function bookingTier(subject: BookabilitySubject): BookingTier {
+  if (isClaimedForBookability(subject)) return "bookable";
   return hasTattooEvidence(subject) && hasReachableContact(subject)
     ? "bookable"
     : "browse-only";

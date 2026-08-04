@@ -16,6 +16,7 @@ const { mockedQuery } = vi.hoisted(() => ({
 }));
 vi.mock("@/features/match-pulse/services/neo4jService", () => ({
   executeServerCypherQuery: mockedQuery,
+  executeServerCypherQueryOrThrow: mockedQuery,
 }));
 
 import ArtistProfilePage from "./page";
@@ -197,5 +198,15 @@ describe("artist profile — Instagram embed tier (TAT-40)", () => {
       second.container.querySelector('[data-testid="artist-monogram"]')
         ?.textContent,
     ).toBe("SI");
+  });
+
+  it("renders a retry-oriented unavailable state when the graph throws", async () => {
+    mockedQuery.mockRejectedValue(new Error("Neo4j down"));
+    const jsx = await ArtistProfilePage({
+      params: Promise.resolve({ slug: "sam-ink-artist_1" }),
+    });
+    const { container } = render(jsx);
+    expect(container.textContent).toMatch(/Couldn.t reach the artist graph/i);
+    expect(container.textContent).toMatch(/try again in a minute/i);
   });
 });
