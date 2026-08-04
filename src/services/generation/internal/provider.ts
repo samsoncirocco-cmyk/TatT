@@ -61,6 +61,16 @@ export interface GenerationRequest {
   fallback?: {
     safetyFilterLevel?: SafetyFilterLevel;
   };
+  /**
+   * Screen the render for lettering the request did not ask for (#297), and
+   * re-roll a bounded number of times if found. Opt-in: it costs one vision
+   * call per image, so paths that never reach a customer (stencil derivation,
+   * internal previews) should leave it off.
+   */
+  screenText?: {
+    /** Re-rolls AFTER the first render. Default 1 — two paid renders at most. */
+    maxRerolls?: number;
+  };
 }
 
 export interface GenerationResult {
@@ -76,6 +86,17 @@ export interface GenerationResult {
     seed?: number | string;
     fallbackUsed: boolean;
     fallbackReason?: string;
+    /**
+     * Set when the text guard ran. `false` means screened and clean; `true`
+     * means the re-roll budget was spent and lettering is STILL present — the
+     * caller decides whether to show it, and the words say what it says.
+     * Absent means the guard did not run at all.
+     */
+    textIntrusion?: boolean;
+    textIntrusionWords?: string[];
+    textGuardRerolls?: number;
+    /** Present when the guard was asked for but could not run. */
+    textGuardSkipped?: string;
   };
 }
 

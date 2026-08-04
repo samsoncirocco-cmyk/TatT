@@ -5,6 +5,7 @@ import { replicateProvider, modelSupportsSourceImage } from './internal/replicat
 import { routeGeneration, inferProvider } from './internal/routing';
 import type { GenerationRequest, GenerationResult, ProviderName } from './internal/provider';
 import { asGenerationError } from './internal/provider';
+import { screenForText } from './internal/textGuard';
 
 export type {
   GenerationRequest,
@@ -22,6 +23,10 @@ export type {
 // src/services/generationRouter.ts.
 export { routeGeneration } from './internal/routing';
 export type { GenerationRoute } from './internal/routing';
+// The exclusion vocabulary that keeps a render readable as linework. Shared
+// so a caller building its own stencil prompt uses the same words the
+// stencil route already folds in, instead of a drifting second list.
+export { STENCIL_SHIELD_TOKENS } from './internal/routing';
 
 interface ResolvedRoute {
   modelId: string;
@@ -64,11 +69,133 @@ function dispatch(provider: ProviderName, request: GenerationRequest): Promise<G
     : replicateProvider.generate(request);
 }
 
+/**
+ * Re-rolls AFTER the first render. Default 1. Non-finite / negative values
+ * from bad JSON coercion must not reach `rerolls >= maxRerolls` — NaN and
+ * Infinity never compare true, which would unbounded-loop the paid render.
+ */
+function resolveMaxRerolls(maxRerolls?: number): number {
+  if (typeof maxRerolls !== 'number' || !Number.isFinite(maxRerolls)) return 1;
+  return Math.max(0, Math.floor(maxRerolls));
+}
+
+/**
+ * Screen a result and re-roll while it carries unrequested lettering (#297).
+ *
+ * The re-roll lives here rather than in a caller for the same reason the
+ * retry and the provider fallback do (ADR-0001): this module owns "try again"
+ * policy, and a second copy in the design-session orchestrator would drift
+ * from this one.
+ *
+ * Bounded by construction. Each re-roll is a real paid render, so the default
+ * is one — two renders at most — and a result that is still lettered after the
+ * budget is spent is RETURNED, flagged, not thrown. The customer seeing a
+ * design with a word in it is the defect; the customer seeing nothing is worse.
+ */
+async function screenAndReroll(
+  first: GenerationResult,
+  render: () => Promise<GenerationResult>,
+  prompt: string,
+  maxRerolls: number
+): Promise<GenerationResult> {
+  let result = first;
+  let rerolls = 0;
+  // Prior lettered batch kept so an empty re-roll can fall back to a flagged
+  // design instead of dropping the only images the customer paid for.
+  let lastFlagged: GenerationResult | null = null;
+  let lastFlaggedWords: string[] = [];
+
+  for (;;) {
+    // Nothing to screen: do not claim a clean pass. Absent textIntrusion means
+    // the guard did not run; false would mean screened and clean.
+    if (result.images.length === 0) {
+      if (lastFlagged) {
+        lastFlagged.metadata.textIntrusion = true;
+        lastFlagged.metadata.textIntrusionWords = lastFlaggedWords;
+        lastFlagged.metadata.textGuardRerolls = rerolls;
+        return lastFlagged;
+      }
+      if (rerolls) result.metadata.textGuardRerolls = rerolls;
+      return result;
+    }
+
+    // Screen sequentially so each checkBudget sees prior recordSpend from
+    // siblings in this batch. Promise.all raced N near-limit checks to
+    // allowed:true before any spend landed, exceeding the global cap.
+    const verdicts = [];
+    for (const image of result.images) {
+      verdicts.push(await screenForText(image, prompt));
+    }
+
+    // Known intrusion wins over a sibling skip. A mixed batch (one OCR hit,
+    // one budget/provider failure) still has enough signal to re-roll or flag;
+    // treating the whole result as "could not check" would deliver lettering.
+    const offending = verdicts.filter((v) => v.intruded);
+    if (offending.length === 0) {
+      const unscreened = verdicts.find((v) => !v.screened);
+      if (unscreened) {
+        // Could not check. Say so rather than let "no intrusion found" stand in
+        // for "did not look" — those are different facts to debug.
+        result.metadata.textGuardSkipped = unscreened.skipReason;
+        if (rerolls) result.metadata.textGuardRerolls = rerolls;
+        return result;
+      }
+
+      result.metadata.textIntrusion = false;
+      if (rerolls) result.metadata.textGuardRerolls = rerolls;
+      return result;
+    }
+
+    const words = [...new Set(offending.flatMap((v) => v.words))];
+
+    if (rerolls >= maxRerolls) {
+      result.metadata.textIntrusion = true;
+      result.metadata.textIntrusionWords = words;
+      result.metadata.textGuardRerolls = rerolls;
+      return result;
+    }
+
+    lastFlagged = result;
+    lastFlaggedWords = words;
+    rerolls += 1;
+
+    /*
+     * A re-roll that throws must not escape. `generate()` calls this inside
+     * the try that guards the PRIMARY dispatch, so an error here would be
+     * read as "the first render failed" — triggering provider fallback, or
+     * throwing — and the batch the customer already paid for would be
+     * discarded because the free second opinion on it failed.
+     *
+     * The first batch is lettered, not lost. Returning it flagged is the same
+     * answer as exhausting the re-roll budget, which is the contract: showing
+     * a flagged design beats showing nothing.
+     */
+    try {
+      result = await render();
+    } catch {
+      lastFlagged.metadata.textIntrusion = true;
+      lastFlagged.metadata.textIntrusionWords = lastFlaggedWords;
+      lastFlagged.metadata.textGuardRerolls = rerolls;
+      return lastFlagged;
+    }
+  }
+}
+
 export async function generate(request: GenerationRequest): Promise<GenerationResult> {
   const { route, request: resolved } = resolveRoute(request);
 
+  const withScreening = async (result: GenerationResult): Promise<GenerationResult> => {
+    if (!request.screenText) return result;
+    return screenAndReroll(
+      result,
+      () => dispatch(route.provider, resolved),
+      resolved.prompt,
+      resolveMaxRerolls(request.screenText.maxRerolls)
+    );
+  };
+
   try {
-    return await dispatch(route.provider, resolved);
+    return await withScreening(await dispatch(route.provider, resolved));
   } catch (thrown) {
     const error = asGenerationError(thrown);
     if (resolved.allowProviderFallback === false) throw error;
@@ -95,7 +222,21 @@ export async function generate(request: GenerationRequest): Promise<GenerationRe
         const result = await replicateProvider.generate({ ...resolved, modelId });
         result.metadata.fallbackUsed = true;
         result.metadata.fallbackReason = error.code || error.message || 'PRIMARY_FAILED';
-        return result;
+        // A fallback render reaches the customer exactly like a primary one,
+        // so it gets the same gate — re-rolling on the fallback model.
+        return request.screenText
+          ? await screenAndReroll(
+              result,
+              async () => {
+                const retry = await replicateProvider.generate({ ...resolved, modelId });
+                retry.metadata.fallbackUsed = true;
+                retry.metadata.fallbackReason = result.metadata.fallbackReason;
+                return retry;
+              },
+              resolved.prompt,
+              resolveMaxRerolls(request.screenText.maxRerolls)
+            )
+          : result;
       } catch (fallbackError) {
         lastError = asGenerationError(fallbackError);
       }

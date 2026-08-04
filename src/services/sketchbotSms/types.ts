@@ -60,6 +60,14 @@ export type InboundOutcome =
       answer: string;
       /** Matches profile.revealArmedAt — executeRefine aborts if superseded. */
       armedAt: string;
+  | {
+      kind: 'placement';
+      text: string;
+      sessionId: string;
+      phone: string;
+      mediaUrl: string;
+      contentType: string;
+      message: string;
     };
 
 /** What executeReveal() hands back for MMS delivery. */

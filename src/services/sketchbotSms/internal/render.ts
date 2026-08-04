@@ -176,17 +176,25 @@ export const REFINE_ACK = "Got it. Reworking that one now — back in a moment."
 /** Caption on the single regenerated design. */
 export const REFINED_CAPTION = 'The tightened version';
 
+/** Caption on the derived black line art — the artist's working file. */
+export const STENCIL_CAPTION =
+  'The stencil — black line art your artist can resize and rearrange';
+
 /**
  * Closing text once the session is complete. This is the only SMS exit that
  * carries the session id, because it is the only point where a Brief exists
  * — /smart-match?ds= reads it to pre-select styles and enrich the search,
  * and threads the id onward so the booking records which design it came from.
+ *
+ * The copy only promises a stencil when one actually rendered: derivation is
+ * off by default and can fail, and a text claiming two files when one
+ * arrived reads as a broken send.
  */
-export function refinedClosingText(matchUrl: string): string {
-  return (
-    `That's the one an artist works from. Here are the artists whose work ` +
-    `actually fits it: ${matchUrl}`
-  );
+export function refinedClosingText(matchUrl: string, hasStencil = false): string {
+  const lead = hasStencil
+    ? 'Two files: the design you approved, and the stencil your artist inks from.'
+    : "That's the one an artist works from.";
+  return `${lead} Here are the artists whose work actually fits it: ${matchUrl}`;
 }
 
 /** The refinement render failed after the ack — own it, offer the retry. */
@@ -226,3 +234,36 @@ export function referenceAckText(
   if (ignored > 0) parts.push(referenceOverflowText(analyses.length));
   return parts.join(' ');
 }
+
+// ─── Placement preview ──────────────────────────────────────────────────
+
+/** Caption on the composite — the design laid on the texter's own photo. */
+export const PLACEMENT_CAPTION = 'On you';
+
+/** Ack the moment a body photo arrives; compositing takes a few seconds. */
+export const PLACEMENT_ACK =
+  "Let me put it on you — one sec.";
+
+/** The composite landed. Names the one adjustment the channel understands. */
+export const PLACEMENT_DONE_TEXT =
+  "That's it at roughly life size. Send the photo again with \"bigger\" or \"smaller\" if the scale is off.";
+
+/** No design exists yet to lay on a body. */
+export const PLACEMENT_NO_DESIGN_TEXT =
+  "I don't have a design to put on you yet — tell me what you're after and I'll draw some first.";
+
+/** The photo could not be read (too large, wrong type, fetch failed). */
+export const PLACEMENT_UNREADABLE_TEXT =
+  "I couldn't open that photo. A regular JPEG or PNG straight from your camera works best.";
+
+/**
+ * The design is an opaque scene rather than flash art on white, so
+ * compositing it would lay someone else's body over the texter's own — the
+ * failure `designBackdrop` exists to prevent. Said honestly, never silently.
+ */
+export const PLACEMENT_UNUSABLE_DESIGN_TEXT =
+  "That render came out as a photo rather than clean flash art, so I can't lay it on your skin properly. Ask me to redo it and I'll get you a clean one.";
+
+/** Compositing failed for an unexpected reason — own it. */
+export const PLACEMENT_FAILED_TEXT =
+  "That didn't come together on my end — send the photo again and I'll have another go.";
