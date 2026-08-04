@@ -28,6 +28,8 @@ describe("PUBLIC_ARTIST_CLAUSE", () => {
       "apprentice",
       "ad tools",
       "htc studios tempe campus",
+      "faq's",
+      "shea blades and beauty is now",
     ]);
     expect(NOT_KNOWN_NON_ARTIST_CLAUSE).toContain(
       "NOT toLower(trim(coalesce(a.name, ''))) IN",
