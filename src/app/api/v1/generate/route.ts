@@ -102,12 +102,13 @@ export async function POST(req: NextRequest) {
             personGeneration,
             outputFormat,
             seed,
-            // Route by style when the caller does not pin a model. This used
-            // to hardcode modelId 'imagen3', which made every call here go to
-            // Google no matter what modelRoutingRules.js said. Explicit picks
-            // (Studio Hyper-Realism → imagen3) still forward modelId so the
-            // user's choice is not overwritten by style routing.
-            ...(typeof modelId === 'string' && modelId.trim() ? { modelId: modelId.trim() } : {}),
+            // Route by style rather than pinning Vertex. This used to hardcode
+            // modelId 'imagen3', which made every call here go to Google no
+            // matter what modelRoutingRules.js said — so taking realism off
+            // Google in the routing table did not cover this endpoint. Passing
+            // the style lets the one routing table decide, here and everywhere
+            // else, and the replicate-result branch below already handles a
+            // non-Vertex outcome.
             style,
             bodyPart,
             retry: {
@@ -178,20 +179,17 @@ export async function POST(req: NextRequest) {
         });
 
     } catch (error: any) {
-        // Log the routing key that was attempted — explicit modelId when the
-        // caller pinned one, otherwise the style-routed primary (Flux/Krea/
-        // imagen3). A hardcoded 'imagen3' mislabels the Replicate path.
-        const explicitModel =
-            typeof body.modelId === 'string' && body.modelId.trim()
-                ? body.modelId.trim()
-                : null;
-        const modelForLog =
-            explicitModel ||
-            routeGeneration({
-                prompt: typeof body.prompt === 'string' ? body.prompt : '',
-                style: body.style,
-                bodyPart: body.bodyPart
-            }).modelId;
+        // Log the model that was actually attempted. This used to be a
+        // hardcoded 'imagen-3.0-generate-001', which mislabels every request
+        // now that the route style-routes instead of pinning Vertex (#287) —
+        // a Flux failure logged as an Imagen failure sends you debugging the
+        // wrong provider. The caller cannot pin a modelId here, so the
+        // style-routed primary is the whole answer.
+        const modelForLog = routeGeneration({
+            prompt: typeof body.prompt === 'string' ? body.prompt : '',
+            style: body.style,
+            bodyPart: body.bodyPart
+        }).modelId;
         reqLogger.error('generation.failed', error, {
             model: modelForLog,
             error_code: error.code || 'GENERATION_FAILED',

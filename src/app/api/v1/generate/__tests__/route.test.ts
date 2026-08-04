@@ -12,7 +12,11 @@ const { generateMock, recordSpendMock, checkBudgetMock, rateLimitMock, verifyApi
   verifyApiAuthMock: vi.fn()
 }));
 
-vi.mock('@/services/generation', () => ({
+// routeGeneration is real, not mocked: the route calls it to label a failure
+// with the model that was actually attempted, and a stubbed router would let
+// that label drift from the routing table it is supposed to report.
+vi.mock('@/services/generation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/generation')>()),
   generate: generateMock
 }));
 
@@ -167,7 +171,12 @@ describe('/api/v1/generate route adapter', () => {
     expect(recordSpendMock).toHaveBeenCalledWith(1);
   });
 
-  it('forwards an explicit modelId so Hyper-Realism is not style-routed away', async () => {
+  // #287 took this route off the retiring Imagen endpoint by deleting the
+  // hardcoded modelId and letting the routing table decide. A caller-supplied
+  // modelId must not reopen that door: forwarding it would let a client pin
+  // Vertex for a style #281 deliberately moved to Flux, which is the
+  // text-in-tattoo defect arriving by a different road.
+  it('ignores a caller-supplied modelId — the routing table decides', async () => {
     generateMock.mockResolvedValueOnce(vertexResult(1));
 
     const res = await POST(makeRequest({
@@ -177,11 +186,12 @@ describe('/api/v1/generate route adapter', () => {
     }));
 
     expect(res.status).toBe(200);
-    expect(generateMock).toHaveBeenCalledWith(expect.objectContaining({
-      prompt: 'dragon tattoo',
-      modelId: 'imagen3',
-      style: 'anime'
-    }));
+    expect(generateMock).toHaveBeenCalledWith(
+      expect.not.objectContaining({ modelId: expect.anything() })
+    );
+    expect(generateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ prompt: 'dragon tattoo', style: 'anime' })
+    );
   });
 
   it('treats primary Replicate success as full success, not a fallback', async () => {
