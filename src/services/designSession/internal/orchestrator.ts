@@ -218,6 +218,7 @@ export async function startFromRecord(
     // the anime-capable model instead of falling through on the generic tag.
     style: intake.styleTags,
     bodyPart: intake.placement,
+    castSize: intake.requestedCharacters?.length,
   });
 
   const demo = isDemoMode();

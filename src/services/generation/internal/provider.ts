@@ -48,6 +48,12 @@ export interface GenerationRequest {
   // Routing inputs — when modelId is not set explicitly, these decide the model.
   /** One style or the full ordered intake tag set. Routing uses the first mapped style. */
   style?: string | string[];
+  /**
+   * Number of distinct characters the customer named
+   * (`IntakeRecord.requestedCharacters`). 3+ routes to the Gemini lane,
+   * which held full cast completeness where Flux dropped identities (#293).
+   */
+  castSize?: number;
   mode?: GenerationMode;
   bodyPart?: string;
   isStencilMode?: boolean;
