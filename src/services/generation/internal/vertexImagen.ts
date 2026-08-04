@@ -354,13 +354,28 @@ function buildResult(
 }
 
 async function generateWithRetry(request: GenerationRequest): Promise<GenerationResult> {
-  // Imagen 3's :predict body takes no source image, so an image-to-image
-  // request cannot be honored here. Refuse rather than render from the
-  // prompt alone: the caller asked for the source's composition, and a
-  // fresh text render silently returns a different design.
+  /*
+   * This provider does not implement image-to-image, so refuse rather than
+   * render from the prompt alone: the caller asked for the source's
+   * composition, and a fresh text render silently returns a different design.
+   *
+   * The refusal is deliberately a statement about THIS CODE, not about the
+   * model. It was written when the provider called Imagen 3, whose `:predict`
+   * body genuinely has no source-image field — but the provider now calls
+   * `gemini-3.1-flash-image`, whose `:generateContent` body does take image
+   * parts. Rebasing this branch onto that migration produced no git conflict
+   * (the two changes touch different lines) and would have left a guard
+   * asserting a limitation of a model we no longer call.
+   *
+   * Whether the Gemini lane can serve image-to-image well enough for the
+   * stencil pass is UNVERIFIED — the check was blocked on Vertex quota. It is
+   * not urgent: stencil derivation runs on flux-dev (STENCIL_MODEL_ID), so
+   * nothing reaches this path today. Implementing it belongs in its own
+   * change with its own measurement, not inside a rebase.
+   */
   if (request.sourceImage) {
     throw makeGenerationError(
-      'Vertex Imagen has no image-to-image input; sourceImage cannot be honored.',
+      'The Vertex provider does not implement image-to-image; sourceImage cannot be honored.',
       { status: 400, code: 'SOURCE_IMAGE_UNSUPPORTED' }
     );
   }
