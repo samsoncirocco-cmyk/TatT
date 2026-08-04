@@ -412,6 +412,11 @@ export async function generateTattooDesign(userInput, modelId = null, signal = n
       const vertexPayload = {
         prompt: finalPrompt,
         negativePrompt,
+        // Explicit Hyper-Realism (imagen3) must pin the model — /api/v1/generate
+        // routes by style when modelId is absent, so omitting it would send a
+        // non-realism Studio pick to Flux/Krea while the client still labels
+        // the run as Vertex.
+        modelId: model.id,
         style: userInput.style,
         bodyPart: userInput.bodyPart,
         size: userInput.size,
