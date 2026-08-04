@@ -301,7 +301,8 @@ async function grantConsumerCreditsIfPaid(session: Stripe.Checkout.Session): Pro
   }
   const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 10 });
   const paidForPack = lineItems.data.some(
-    (item) => typeof item.price === 'object' && item.price?.id === expectedPriceId
+    (item) =>
+      (typeof item.price === 'object' ? item.price?.id : item.price) === expectedPriceId
   );
   if (!paidForPack) {
     // Permanent mismatch — ack without granting so Stripe does not retry forever.
