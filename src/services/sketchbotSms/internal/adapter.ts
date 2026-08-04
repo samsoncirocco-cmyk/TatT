@@ -340,8 +340,10 @@ async function attachAnalyses(
 }
 
 /**
- * The session a reference can attach to: the active conversational-intake
+ * The session a reference can attach to: the active intake or post-reveal
  * session, or a fresh one opened via the deterministic (free) opener call.
+ * Post-reveal stages must keep the delivered session — opening a new one
+ * would retarget critique/pick/refine away from the cuts the texter sees.
  */
 async function ensureAttachableSession(
   profile: SmsProfile,
@@ -349,7 +351,11 @@ async function ensureAttachableSession(
 ): Promise<string | null> {
   const continuable =
     profile.activeSessionId &&
-    (profile.lastStage === 'chatting' || profile.lastStage === 'proposal');
+    (profile.lastStage === 'chatting' ||
+      profile.lastStage === 'proposal' ||
+      profile.lastStage === 'revealed' ||
+      profile.lastStage === 'pick-pending' ||
+      profile.lastStage === 'refine-pending');
   if (continuable) return profile.activeSessionId!;
 
   try {
@@ -420,8 +426,11 @@ const POST_REVEAL_STAGES = new Set(['revealed', 'pick-pending']);
  * a fix. Deterministic rather than model-judged: mistaking "start over" for
  * a critique spends a render on a design they have already abandoned.
  */
+// Whole-message only: refinement is free text ("add something else around
+// the dagger", "don't forget it needs contrast") and must not match as a
+// substring. The reveal closing copy invites the bare phrase "start over".
 const RESTART_INTENT =
-  /\b(?:start (?:over|again|fresh)|from scratch|new (?:design|tattoo|idea|one)|different (?:design|tattoo|idea)|something else|scrap (?:it|that|this)|forget (?:it|that|this))\b/i;
+  /^\s*(?:start (?:over|again|fresh)|from scratch|new (?:design|tattoo|idea|one)|different (?:design|tattoo|idea)|something else|scrap (?:it|that|this)|forget (?:it|that|this))\s*[.!]?\s*$/i;
 
 /** Drop the active design and open a fresh intake with the same message. */
 async function restartDesign(
@@ -671,19 +680,24 @@ export async function executeRefine(
   }
 
   const profile = (await store.get(phone)) ?? newProfile(phone);
-  // A newer arm (or stale recovery) won while we rendered — do not clobber it.
-  if (profile.revealArmedAt !== armedAt) {
+  // Paid refine already ran — always deliver. Only claim profile state when
+  // this job is still the armed one (or stale recovery left refine-pending).
+  if (profile.revealArmedAt === armedAt) {
+    profile.lastStage = 'complete';
+    profile.revealArmedAt = null;
+    profile.updatedAt = new Date().toISOString();
+    await store.save(profile);
+  } else if (profile.revealArmedAt == null && profile.lastStage === 'refine-pending') {
+    profile.lastStage = 'complete';
+    profile.updatedAt = new Date().toISOString();
+    await store.save(profile);
+  } else if (profile.revealArmedAt != null) {
     logger.info({
       event_type: 'sketchbot_sms.refine_superseded',
       phone_last4: phoneLast4(phone),
       session_id: sessionId,
     });
-    return { cuts: [], closingText: '' };
   }
-  profile.lastStage = 'complete';
-  profile.revealArmedAt = null;
-  profile.updatedAt = new Date().toISOString();
-  await store.save(profile);
 
   const refinedUrl = session.refinedVariation?.imageUrl;
 
@@ -917,18 +931,20 @@ export async function executeCritique(
   }
 
   const profile = (await store.get(phone)) ?? newProfile(phone);
-  if (profile.revealArmedAt !== armedAt) {
+  // Paid critique already ran — always deliver. Only claim profile state when
+  // this job is still the armed one; do not clobber a newer arm.
+  if (profile.revealArmedAt === armedAt) {
+    profile.lastStage = 'revealed';
+    profile.revealArmedAt = null;
+    profile.updatedAt = new Date().toISOString();
+    await store.save(profile);
+  } else if (profile.revealArmedAt != null) {
     logger.info({
       event_type: 'sketchbot_sms.critique_superseded',
       phone_last4: phoneLast4(phone),
       session_id: sessionId,
     });
-    return { cuts: [], closingText: '' };
   }
-  profile.lastStage = 'revealed';
-  profile.revealArmedAt = null;
-  profile.updatedAt = new Date().toISOString();
-  await store.save(profile);
 
   logger.info({
     event_type: 'sketchbot_sms.critique_delivered',
@@ -1044,6 +1060,9 @@ export async function executeReveal(
   const store = resolveProfileStore();
 
   if (!(await stillArmed(store, phone, 'reveal-pending', armedAt))) {
+    // Slot was reserved in armReveal; this job never generated, so refund.
+    // releaseReveal decrements by one — a newer arm's own consume stays.
+    await store.releaseReveal(phone);
     logger.info({
       event_type: 'sketchbot_sms.reveal_superseded',
       phone_last4: phoneLast4(phone),
@@ -1056,14 +1075,14 @@ export async function executeReveal(
   try {
     session = await confirmProposal(sessionId);
   } catch (error) {
-    // Refund the reserved cap slot and re-arm the proposal so a fresh
-    // "yes" can retry — the failure text promises exactly that.
-    // Only refund/re-arm when this job is still the armed one; a newer arm
-    // owns the reserved slot now. releaseReveal first, then re-read — saving
-    // a pre-release clone would clobber the refunded counters.
+    // Refund the reserved cap slot. Always — this attempt failed. A newer
+    // arm consumed a separate increment; one release leaves that intact.
+    // Re-arm the proposal only when this job is still the armed one.
+    // releaseReveal first, then re-read — saving a pre-release clone would
+    // clobber the refunded counters.
+    await store.releaseReveal(phone);
     const armed = await store.get(phone);
     if (armed && armed.revealArmedAt === armedAt) {
-      await store.releaseReveal(phone);
       const profile = (await store.get(phone)) ?? armed;
       profile.lastStage = 'proposal';
       profile.revealArmedAt = null;
@@ -1080,18 +1099,24 @@ export async function executeReveal(
   }
 
   const profile = (await store.get(phone)) ?? newProfile(phone);
-  if (profile.revealArmedAt !== armedAt) {
+  // Paid render already ran — always deliver. Only claim profile state when
+  // this job is still the armed one (or stale recovery left proposal).
+  if (profile.revealArmedAt === armedAt) {
+    profile.lastStage = 'revealed';
+    profile.revealArmedAt = null;
+    profile.updatedAt = new Date().toISOString();
+    await store.save(profile);
+  } else if (profile.revealArmedAt == null && profile.lastStage === 'proposal') {
+    profile.lastStage = 'revealed';
+    profile.updatedAt = new Date().toISOString();
+    await store.save(profile);
+  } else if (profile.revealArmedAt != null) {
     logger.info({
       event_type: 'sketchbot_sms.reveal_superseded',
       phone_last4: phoneLast4(phone),
       session_id: sessionId,
     });
-    return { cuts: [], closingText: '' };
   }
-  profile.lastStage = 'revealed';
-  profile.revealArmedAt = null;
-  profile.updatedAt = new Date().toISOString();
-  await store.save(profile);
 
   const cutUrls = session.variations
     .map((variation) => variation.imageUrl)

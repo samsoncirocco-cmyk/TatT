@@ -641,6 +641,27 @@ describe('parity with the web after the reveal', () => {
       expect(profile?.lastStage).toBe('chatting');
       expect(profile?.activeSessionId).toBe('s1');
     });
+
+    // Refinement is free text — substring matches like "something else" inside
+    // real feedback must arm refine, not abandon the design.
+    it('arms refine for feedback that only mentions restart-like words mid-sentence', async () => {
+      await driveToRefinePending();
+      vi.mocked(converse).mockClear();
+
+      const outcome = await handleInbound({
+        phone: PHONE,
+        body: 'add something else around the dagger',
+      });
+
+      expect(outcome.kind).toBe('refine');
+      if (outcome.kind === 'refine') {
+        expect(outcome.answer).toBe('add something else around the dagger');
+      }
+      expect(converse).not.toHaveBeenCalled();
+      const profile = await memoryProfileStore.get(PHONE);
+      expect(profile?.lastStage).toBe('refine-running');
+      expect(profile?.activeSessionId).toBe('s1');
+    });
   });
 
   describe('stale in-flight recovery', () => {
@@ -664,6 +685,85 @@ describe('parity with the web after the reveal', () => {
       );
       expect(delivery).toEqual({ cuts: [], closingText: '' });
       expect(critique).not.toHaveBeenCalled();
+    });
+
+    // Entry stillArmed abort must refund the reserved slot — otherwise a
+    // texter loses a daily cap without ever receiving cuts.
+    it('refunds the reveal slot when a stale-superseded callback never generates', async () => {
+      await driveToProposal();
+      await handleInbound({ phone: PHONE, body: 'yes' });
+      const staleArmedAt = await currentArmedAt();
+
+      const profile = await memoryProfileStore.get(PHONE);
+      expect(profile?.dailyReveals.count).toBe(1);
+      profile!.lastStage = 'proposal';
+      profile!.revealArmedAt = null;
+      await memoryProfileStore.save(profile!);
+
+      const delivery = await executeReveal('s1', PHONE, staleArmedAt);
+
+      expect(delivery).toEqual({ cuts: [], closingText: '' });
+      expect(confirmProposal).not.toHaveBeenCalled();
+      const after = await memoryProfileStore.get(PHONE);
+      expect(after?.dailyReveals.count).toBe(0);
+      expect(after?.totalReveals).toBe(0);
+    });
+
+    // Once confirmProposal has spent, a token cleared mid-render must not
+    // drop the MMS — the user already paid for those cuts.
+    it('still delivers a reveal that finished after stale recovery cleared the token', async () => {
+      await driveToProposal();
+      await handleInbound({ phone: PHONE, body: 'yes' });
+      const armedAt = await currentArmedAt();
+
+      vi.mocked(confirmProposal).mockImplementationOnce(async () => {
+        const profile = await memoryProfileStore.get(PHONE);
+        profile!.lastStage = 'proposal';
+        profile!.revealArmedAt = null;
+        await memoryProfileStore.save(profile!);
+        return revealedSession() as unknown as Awaited<ReturnType<typeof confirmProposal>>;
+      });
+
+      const delivery = await executeReveal('s1', PHONE, armedAt);
+
+      expect(delivery.cuts).toHaveLength(4);
+      expect(delivery.closingText).toMatch(/share|design/i);
+      const after = await memoryProfileStore.get(PHONE);
+      expect(after?.lastStage).toBe('revealed');
+      expect(after?.dailyReveals.count).toBe(1);
+    });
+
+    it('still delivers a critique that finished after the token was cleared', async () => {
+      await driveToRevealed();
+      await handleInbound({ phone: PHONE, body: 'make it bolder' });
+      const armedAt = await currentArmedAt();
+
+      vi.mocked(critique).mockImplementationOnce(async () => {
+        const profile = await memoryProfileStore.get(PHONE);
+        profile!.lastStage = 'revealed';
+        profile!.revealArmedAt = null;
+        await memoryProfileStore.save(profile!);
+        return {
+          session: {
+            ...revealedSession(),
+            critiqueCuts: [
+              { id: 'c1', axisPosition: {}, prompt: 'p', imageUrl: 'https://s/c1.png' },
+            ],
+          },
+          reply: 'Bolder — here it is.',
+          cut: { id: 'c1', axisPosition: {}, prompt: 'p', imageUrl: 'https://s/c1.png' },
+          fixesRemaining: 24,
+          exhausted: false,
+          generated: true,
+        } as unknown as Awaited<ReturnType<typeof critique>>;
+      });
+
+      const delivery = await executeCritique('s1', PHONE, 'make it bolder', armedAt);
+
+      expect(delivery.cuts).toEqual([
+        { caption: 'Cut 5 of 5', mediaUrl: 'https://s/c1.png' },
+      ]);
+      expect(delivery.closingText).toContain('Bolder');
     });
   });
 });
