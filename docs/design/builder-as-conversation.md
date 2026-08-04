@@ -213,16 +213,14 @@ Wire persistence (§4.1), delete the duplicate and re-point its tests
 `compositeLayers`.
 
 **Exit criterion:** the test environment can produce a real 2D canvas
-context and a Firestore emulator is configured in CI (today jsdom throws
-`Not implemented: getContext` — the same root cause as the 32-file failure
-baseline, which phase 0 therefore clears as a side effect — and
-`firebase.json` has an empty `emulators` block); an automated test signs
-in, creates two layers, and reads the same two layers back through the
-Firestore storage path (proving the `:417` branch is reachable); the
-re-pointed `multiLayerService` tests pass against the live copy;
-`src/services/multiLayerService.ts` is gone. Review note (#296): a plain
-`npm install canvas` did not satisfy vitest's jsdom — budget harness work,
-not a dependency add.
+context (resolved by adding the `canvas` devDependency — PR #309, which
+also cleared the long-standing 32-test failure baseline to zero) and a
+Firestore emulator is configured in CI (`firebase.json` currently has an
+empty `emulators` block — this half is real harness work); an automated
+test signs in, creates two layers, and reads the same two layers back
+through the Firestore storage path (proving the `:417` branch is
+reachable); the re-pointed `multiLayerService` tests pass against the live
+copy; `src/services/multiLayerService.ts` is gone.
 
 ### Phase 1 — conversation skeleton on web
 
@@ -252,13 +250,12 @@ persisted (established rule).
 three-piece build over simulated SMS — every proposal arriving as an MMS
 image, every adjustment as a text — and a pixel-level comparison shows the
 server composite matches the browser composite for the same layer state
-within an agreed tolerance. **Stated fallback** if the CI canvas
-environment resists: compare the server composite against a committed
-reference PNG for a fixed layer state — weaker (it catches executor drift
-against the reference, not against the live browser), but honest and
-available. The two executors are two implementations of one contract; this
-comparison is the only thing enforcing it, so it may be weakened but never
-dropped.
+within an agreed tolerance (writable as stated now that CI has a real
+canvas via #309). **Documented fallback**, kept in reserve rather than
+expected: compare the server composite against a committed reference PNG
+for a fixed layer state. The two executors are two implementations of one
+contract; this comparison is the only thing enforcing it, so it may be
+weakened but never dropped.
 
 ### Phase 3 — polish
 
