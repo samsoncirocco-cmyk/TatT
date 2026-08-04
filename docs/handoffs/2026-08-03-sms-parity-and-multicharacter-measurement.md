@@ -1,8 +1,18 @@
 # Handoff — SMS/web parity, the stencil chain, and the first multi-character measurement
 
 Date: 2026-08-03
-Branch: `worktree-sketchbot-stencil-chain` (9 commits ahead of `main` @ `1bfd18a`)
+Branch: `worktree-sketchbot-stencil-chain` (9 commits ahead of `main` @ `1bfd18a`) — since merged as #298–#302; the branch is deleted.
 Classification: historical evidence (`docs/handoffs/**`) — does not establish current product truth.
+
+> **Superseded in one part, 2026-08-04.** Every cast-completeness number
+> below measured `imagen-3.0-generate-001`. Google is retiring every
+> `imagen-*` endpoint (announced 2026-08-17), the Vertex provider moved to
+> `gemini-3.1-flash-image` (#277), and the re-measurement on the live lanes
+> (#293) found **Flux 39–49%** and **gemini-3.1-flash-image 100%** on 3+
+> character requests. Cast size now routes to the Gemini lane (#314). Cite
+> #293 for cast completeness, not this document. Everything else here —
+> the presentation measurement, the "shpler" finding, the identity-clause
+> regression on Flux, and the shipped work — still stands.
 
 ---
 
@@ -202,6 +212,10 @@ cast into per-character sessions and assembling approved characters.
 ---
 
 ## 4. Open decisions
+
+*Resolution status, 2026-08-04: (1) is decided — ADR-0045. (3) is decided
+and shipped — the Vertex lane IS a Gemini image model now (#277) and 3+
+casts route to it (#314). (2) remains open.*
 
 1. **Assembly: human or automated?** The May plan assumed the human
    composes (no auto-layout code). The founder's iPad comment suggests the
