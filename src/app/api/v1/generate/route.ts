@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
-import { generate } from '@/services/generation';
+import { generate, routeGeneration } from '@/services/generation';
 import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { checkBudget, recordSpend, VERTEX_IMAGEN_COST_CENTS } from '@/lib/budget-tracker';
 import { createRequestLogger } from '@/lib/logger';
@@ -17,6 +17,15 @@ export const dynamic = 'force-dynamic';
 // Spend on a replicate-sdxl fallback result (~1 cent), matching the old
 // route's flat fallback cost.
 const REPLICATE_FALLBACK_COST_CENTS = 1;
+// Primary Replicate (style-routed Flux/Krea) — per image, same rate the
+// design-session ledger uses for Replicate purchases.
+const REPLICATE_COST_CENTS = 1;
+
+/** Derive outputFormat from a data-URL mime type (Gemini may return jpeg/png/…). */
+function outputFormatFromImages(images: string[] | undefined): string {
+    const match = images?.[0]?.match(/^data:image\/([^;]+);/i);
+    return match?.[1]?.toLowerCase() || 'png';
+}
 
 export async function POST(req: NextRequest) {
     const reqLogger = createRequestLogger('generate');
@@ -72,6 +81,9 @@ export async function POST(req: NextRequest) {
             personGeneration,
             outputFormat,
             seed
+            // modelId is deliberately not destructured: a caller cannot pin the
+            // provider here (#287). Pulling it out again is the first step back
+            // toward forwarding it.
         } = body;
 
         if (!prompt || typeof prompt !== 'string' || prompt.trim().length < 3) {
@@ -110,10 +122,12 @@ export async function POST(req: NextRequest) {
             }
         });
 
-        // ─── Replicate fallback result ────────────────────────────────────
-        // The module fell back to Replicate SDXL after a Vertex failure.
-        // Flat ~1 cent spend and the fallback response shape, as before.
-        if (result.metadata.provider === 'replicate') {
+        // ─── Cross-provider fallback result ───────────────────────────────
+        // The module fell back to Replicate after a Vertex failure.
+        // Primary Replicate (style-routed Flux/Krea) also has
+        // provider === 'replicate' but fallbackUsed === false — that path
+        // must keep the full success shape and per-image spend below.
+        if (result.metadata.provider === 'replicate' && result.metadata.fallbackUsed) {
             await recordSpend(REPLICATE_FALLBACK_COST_CENTS);
 
             reqLogger.complete('generation.fallback.replicate.success', {
@@ -135,9 +149,13 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        // Record actual Vertex AI spend on the primary success path.
+        // Primary success — Vertex or style-routed Replicate.
         const imagesGenerated = result.images?.length || requestedCount;
-        await recordSpend(VERTEX_IMAGEN_COST_CENTS * imagesGenerated);
+        const spendCents =
+            result.metadata.provider === 'replicate'
+                ? REPLICATE_COST_CENTS * imagesGenerated
+                : VERTEX_IMAGEN_COST_CENTS * imagesGenerated;
+        await recordSpend(spendCents);
 
         return NextResponse.json({
             success: true,
@@ -152,7 +170,7 @@ export async function POST(req: NextRequest) {
                 bodyPart: bodyPart || null,
                 size: size || null,
                 aspectRatio: aspectRatio || '1:1',
-                outputFormat: 'png',
+                outputFormat: outputFormatFromImages(result.images),
                 durationMs: result.metadata.durationMs,
                 attempts: result.metadata.attempts,
                 safetyFilterLevel: result.metadata.safetyFilterLevel,
@@ -163,9 +181,19 @@ export async function POST(req: NextRequest) {
         });
 
     } catch (error: any) {
-        // Log generation failure
+        // Log the model that was actually attempted. This used to be a
+        // hardcoded 'imagen-3.0-generate-001', which mislabels every request
+        // now that the route style-routes instead of pinning Vertex (#287) —
+        // a Flux failure logged as an Imagen failure sends you debugging the
+        // wrong provider. The caller cannot pin a modelId here, so the
+        // style-routed primary is the whole answer.
+        const modelForLog = routeGeneration({
+            prompt: typeof body.prompt === 'string' ? body.prompt : '',
+            style: body.style,
+            bodyPart: body.bodyPart
+        }).modelId;
         reqLogger.error('generation.failed', error, {
-            model: 'imagen-3.0-generate-001',
+            model: modelForLog,
             error_code: error.code || 'GENERATION_FAILED',
         });
 
