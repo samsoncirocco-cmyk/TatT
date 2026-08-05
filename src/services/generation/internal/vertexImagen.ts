@@ -380,6 +380,16 @@ async function generateWithRetry(request: GenerationRequest): Promise<Generation
       { status: 400, code: 'SOURCE_IMAGE_UNSUPPORTED' }
     );
   }
+  // Same contract as sourceImage (ADR-0050): a caller promising a customer
+  // their photo informs the render must not silently get a photo-less
+  // render back. Only reachable from a session pinned to imagen3 before
+  // the photo lane existed — and such a session cannot carry photos.
+  if (request.referenceImages?.length) {
+    throw makeGenerationError(
+      'The Vertex provider has no reference-image input; referenceImages cannot be honored.',
+      { status: 400, code: 'REFERENCE_IMAGES_UNSUPPORTED' }
+    );
+  }
 
   const startedAt = Date.now();
   // maxRetries means "retries after the first try": default 4 => 5 total

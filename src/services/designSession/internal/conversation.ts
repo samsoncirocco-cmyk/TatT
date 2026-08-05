@@ -292,7 +292,8 @@ export interface AttachReferenceResult {
 export async function attachReference(
   sessionId: string,
   analysis: ReferenceAnalysis,
-  source: StoredReference['source']
+  source: StoredReference['source'],
+  imagePath?: string
 ): Promise<AttachReferenceResult> {
   const store = resolveSessionStore();
   const session = await loadSession(store, sessionId);
@@ -310,7 +311,7 @@ export async function attachReference(
     );
   }
 
-  const reference = await buildStoredReference(analysis, source);
+  const reference = await buildStoredReference(analysis, source, imagePath);
   // Newest-first eviction bound: a brief, not a photo album.
   const references = [...(session.conversation.references ?? []), reference].slice(
     -MAX_SESSION_REFERENCES

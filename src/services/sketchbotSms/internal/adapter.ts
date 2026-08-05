@@ -37,6 +37,7 @@ import {
   converse,
   confirmProposal,
   attachReference,
+  storeReferencePhoto,
   getSession,
   recordPick,
   refine,
@@ -289,7 +290,7 @@ export async function handleInbound(inbound: InboundSms): Promise<InboundOutcome
     // plus the one most useful follow-up when something was read.
     const followUp =
       ingest && ingest.analyses.length > 0
-        ? referenceFollowUpText(ingest.analyses[0])
+        ? referenceFollowUpText(ingest.analyses[0].analysis)
         : '';
     return {
       kind: 'reply',
@@ -351,9 +352,12 @@ async function attachAnalyses(
 
   const sessionId = await ensureAttachableSession(profile, store);
   if (sessionId) {
-    for (const analysis of ingest.analyses) {
+    for (const { analysis, image } of ingest.analyses) {
       try {
-        await attachReference(sessionId, analysis, 'sms');
+        // Keep the pixels too (ADR-0050): stored privately, fail-soft — a
+        // reference whose photo upload failed still attaches its analysis.
+        const imagePath = await storeReferencePhoto(sessionId, image);
+        await attachReference(sessionId, analysis, 'sms', imagePath);
       } catch (error) {
         logger.warn({
           event_type: 'sketchbot_sms.reference_attach_failed',
@@ -365,7 +369,11 @@ async function attachAnalyses(
     }
   }
 
-  return referenceAckText(ingest.analyses, ingest.ignored, ingest.unreadable);
+  return referenceAckText(
+    ingest.analyses.map(({ analysis }) => analysis),
+    ingest.ignored,
+    ingest.unreadable
+  );
 }
 
 /**
@@ -419,7 +427,7 @@ async function ensureAttachableSession(
 function withMediaAnnotation(body: string, ingest: MediaIngest | null): string {
   if (!ingest || ingest.analyses.length === 0) return body;
   const annotations = ingest.analyses
-    .map((analysis: ReferenceAnalysis) => {
+    .map(({ analysis }: { analysis: ReferenceAnalysis }) => {
       const characters = analysis.characters
         .map((c) => (c.series ? `${c.name} (${c.series})` : c.name))
         .join(', ');

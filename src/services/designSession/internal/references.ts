@@ -45,6 +45,14 @@ export interface StoredReference {
   composition: string;
   confidence: number;
   createdAt: string;
+  /**
+   * PRIVATE GCS object path of the stored photo (ADR-0050 — the photo
+   * reaches the image model as pixels, not just as this analysis). A path,
+   * never a URL: the object is private, and a fetchable signed URL is
+   * minted per render. Optional — references attached before this field
+   * existed, or whose upload failed, carry analysis only.
+   */
+  imagePath?: string;
 }
 
 /**
@@ -63,7 +71,8 @@ async function resolveDescriptorTags(analysis: ReferenceAnalysis): Promise<strin
 /** Build the persistable entry from a vision analysis. */
 export async function buildStoredReference(
   analysis: ReferenceAnalysis,
-  source: StoredReference['source']
+  source: StoredReference['source'],
+  imagePath?: string
 ): Promise<StoredReference> {
   return {
     id: randomUUID(),
@@ -77,7 +86,20 @@ export async function buildStoredReference(
     composition: analysis.composition,
     confidence: analysis.confidence,
     createdAt: new Date().toISOString(),
+    ...(imagePath ? { imagePath } : {}),
   };
+}
+
+/**
+ * The stored photo paths across a session's references, oldest-first —
+ * what feeds the render as `referenceImages` once each path is signed.
+ * MAX_SESSION_REFERENCES (6) matches the provider's image_input cap, so
+ * this list never truncates at the model.
+ */
+export function referenceImagePaths(references: StoredReference[]): string[] {
+  return references
+    .map((reference) => reference.imagePath)
+    .filter((path): path is string => Boolean(path));
 }
 
 /** The Brief-facing reference line for one entry. */

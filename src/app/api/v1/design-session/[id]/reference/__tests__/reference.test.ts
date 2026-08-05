@@ -24,6 +24,7 @@ const {
 
 vi.mock('@/services/designSession', () => ({
   attachReference: attachReferenceMock,
+  storeReferencePhoto: vi.fn(async () => 'design-sessions/sess-1/references/ref-1.png'),
 }));
 
 vi.mock('@/services/vision', async (importOriginal) => {
@@ -88,7 +89,12 @@ describe('POST /api/v1/design-session/[id]/reference', () => {
     expect(body.reply).toContain('Want the characters themselves in the piece');
 
     expect(analyzeMock).toHaveBeenCalledWith({ data: 'aGVsbG8=', mimeType: 'image/png' });
-    expect(attachReferenceMock).toHaveBeenCalledWith('sess-1', ANALYSIS, 'web');
+    expect(attachReferenceMock).toHaveBeenCalledWith(
+      'sess-1',
+      ANALYSIS,
+      'web',
+      'design-sessions/sess-1/references/ref-1.png'
+    );
   });
 
   it('speaks the honest unreadable line on a failed analysis — 200, not an error', async () => {
