@@ -138,6 +138,17 @@ export function routeGeneration(request: GenerationRequest): GenerationRoute {
     reasoning = 'Gemini holds full cast completeness on 3+ character requests (#293); Flux drops identities (ADR-0048: served via Replicate)';
   }
 
+  // Attached reference photos force the strong lane regardless of cast size
+  // (#296 18a): likeness needs the one model with a real multi-image
+  // reference input. Placed after the cast rule (same lane either way) and
+  // before the preview/stencil overrides — a preview draft does not spend
+  // the strong lane, and stencil derivation transforms an already-approved
+  // design, where the photo already did its work.
+  if (request.referenceImages?.length) {
+    modelKey = 'nano_banana_2';
+    reasoning = 'Reference photos reach the model as images (ADR-0050); only the Gemini lane takes them';
+  }
+
   if (mode === 'preview') {
     modelKey = 'flux_schnell';
   }

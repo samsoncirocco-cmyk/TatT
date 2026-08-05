@@ -41,6 +41,16 @@ export interface GenerationRequest {
    * `sourceImage`. Defaults to the model's own default when unset.
    */
   sourceStrength?: number;
+  /**
+   * Customer reference photos, as URLs the provider can fetch, delivered to
+   * the image model AS IMAGES (ADR-0050, #296 17a). Distinct from
+   * `sourceImage`: that one preserves a source's composition (image-to-image
+   * on the same design); these carry likeness/subject reference for a fresh
+   * composition. Only models with a real multi-image reference input accept
+   * them — a provider that cannot honor them refuses loudly, because a
+   * likeness silently dropped is a stranger's face in a memorial tattoo.
+   */
+  referenceImages?: string[];
   safetyFilterLevel?: SafetyFilterLevel;
   personGeneration?: string;
   outputFormat?: string;

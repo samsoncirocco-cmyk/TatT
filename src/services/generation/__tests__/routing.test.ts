@@ -56,6 +56,31 @@ describe('generation routing', () => {
     expect(routeGeneration({ prompt: 'x', castSize: 4, isStencilMode: true }).modelId).toBe('flux-dev');
   });
 
+  // Reference photos force the strong lane (#296 18a): likeness needs the
+  // one model with a real multi-image reference input (ADR-0050).
+  it('forces attached reference photos to nano-banana-2 regardless of style or cast size', () => {
+    const route = routeGeneration({
+      prompt: 'memorial portrait',
+      style: 'traditional',
+      referenceImages: ['https://photos.example/mum.jpg'],
+    });
+    expect(route.modelId).toBe('nano-banana-2');
+    expect(route.provider).toBe('replicate');
+    expect(route.reasoning).toContain('ADR-0050');
+  });
+
+  // A preview draft does not spend the strong lane, and stencil derivation
+  // transforms an already-approved design where the photo did its work.
+  it('lets preview and stencil overrides beat the photo force', () => {
+    const photos = ['https://photos.example/mum.jpg'];
+    expect(routeGeneration({ prompt: 'x', referenceImages: photos, mode: 'preview' }).modelId).toBe(
+      'flux-schnell'
+    );
+    expect(
+      routeGeneration({ prompt: 'x', referenceImages: photos, isStencilMode: true }).modelId
+    ).toBe('flux-dev');
+  });
+
   it('falls back to the default mapping (Flux Dev) for unknown styles', () => {
     const route = routeGeneration({ prompt: 'x', style: 'no-such-style' });
     expect(route.modelId).toBe('flux-dev');
