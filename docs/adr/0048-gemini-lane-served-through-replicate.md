@@ -52,6 +52,13 @@ Gemini lane, the customer is told and the reserved credit is released
 under ADR-0049 a round is metered, so a quiet fallback to a lane that drops
 three characters in five is charging someone for a worse product.
 
+*Correction to an earlier reading of this file, found while implementing:* the
+reveal path sets `allowProviderFallback: false` (`orchestrator.ts`), so there
+is no silent downgrade to make loud — today a cast-lane failure fails the whole
+reveal. The rule above therefore specifies a **new** behaviour, loud from
+birth, rather than fixing an existing quiet one. The decision is unchanged; the
+premise was wrong.
+
 `imagen3` is retained as a config alias but is no longer the cast route's
 model key; the name never described what it resolved to.
 
