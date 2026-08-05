@@ -17,6 +17,7 @@
  * connection", which `resolveBookingMode` turns into the request model. There
  * is no path here that throws into a page render.
  */
+import { envBool, envString } from "@/config/envSchema";
 import { ensureAdminApp } from "./firebase-admin";
 import { decryptSecret, encryptSecret, parseEncryptionKey } from "./token-crypto";
 import {
@@ -54,12 +55,12 @@ export interface GoogleOAuthConfig {
  * to the request model rather than breaking a page.
  */
 export function googleOAuthConfig(baseUrl?: string): GoogleOAuthConfig | null {
-  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+  const clientId = envString("GOOGLE_OAUTH_CLIENT_ID");
+  const clientSecret = envString("GOOGLE_OAUTH_CLIENT_SECRET");
   if (!clientId || !clientSecret) return null;
   const origin = (
     baseUrl ??
-    process.env.NEXT_PUBLIC_APP_URL ??
+    envString("NEXT_PUBLIC_APP_URL") ??
     "http://localhost:3000"
   ).replace(/\/$/, "");
   return {
@@ -71,12 +72,12 @@ export function googleOAuthConfig(baseUrl?: string): GoogleOAuthConfig | null {
 
 /** Whether calendar write-back is switched on for this deployment. */
 export function calendarWritesEnabled(): boolean {
-  return process.env.GOOGLE_CALENDAR_WRITE_ENABLED === "true";
+  return envBool("GOOGLE_CALENDAR_WRITE_ENABLED");
 }
 
 async function encryptionKey(): Promise<Buffer | null> {
   try {
-    return parseEncryptionKey(process.env[KEY_ENV_NAME] ?? "");
+    return parseEncryptionKey(envString(KEY_ENV_NAME) ?? "");
   } catch (err) {
     // No key means we cannot read or write any token. Loud in the log, silent
     // to the client — they simply get the request model.
