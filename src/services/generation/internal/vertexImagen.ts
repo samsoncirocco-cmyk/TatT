@@ -22,6 +22,7 @@
  * (`png`/`jpeg` → `image/png`/`image/jpeg`); when omitted, the model picks.
  * Callers that relied on seed for *determinism* no longer get it.
  */
+import { envFloat, envString } from '@/config/envSchema';
 import { getGcpAccessToken } from '@/lib/google-auth-edge';
 import { logEvent } from '@/lib/observability';
 import { buildVertexEndpoint } from '@/lib/vertex-endpoint';
@@ -35,14 +36,14 @@ const PROJECT_ID = process.env.GCP_PROJECT_ID || 'tatt-pro';
  * deploy of this file. Host/location come from buildVertexEndpoint — Gemini
  * 3.x is global-only and must not follow VERTEX_IMAGE_LOCATION / GCP_REGION.
  */
-const IMAGE_MODEL = process.env.VERTEX_IMAGE_MODEL || 'gemini-3.1-flash-image';
+const IMAGE_MODEL = envString('VERTEX_IMAGE_MODEL') ?? 'gemini-3.1-flash-image';
 
 /*
  * Flash Image list price at time of migration. Imagen 3 was $0.02; this only
  * feeds the cost telemetry, so a stale figure skews the spend dashboard rather
  * than any billing path.
  */
-const IMAGE_COST_PER_IMAGE = Number(process.env.VERTEX_IMAGE_COST_USD || 0.039);
+const IMAGE_COST_PER_IMAGE = envFloat('VERTEX_IMAGE_COST_USD') ?? 0.039;
 
 const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 

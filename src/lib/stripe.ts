@@ -15,8 +15,9 @@
  * Never import this in client components — it reads STRIPE_SECRET_KEY.
  */
 import Stripe from 'stripe';
+import { envInt, envString } from '@/config/envSchema';
 
-const secretKey = process.env.STRIPE_SECRET_KEY || '';
+const secretKey = envString('STRIPE_SECRET_KEY') ?? '';
 
 /**
  * A key is a usable live/test key only if it is present and not one of the
@@ -40,14 +41,14 @@ export const stripe = new Stripe(secretKey || 'sk_test_PLACEHOLDER_unconfigured'
  * Platform economics. TatT's take rate on marketplace transactions, in basis
  * points (bps). 1000 bps = 10%. Override per-env with PLATFORM_FEE_BPS.
  */
-export const PLATFORM_FEE_BPS = Number(process.env.PLATFORM_FEE_BPS) || 1000; // 10% default
+export const PLATFORM_FEE_BPS = envInt('PLATFORM_FEE_BPS') ?? 1000; // 10% default
 
 /** Compute the platform's application fee (in cents) from a gross amount (in cents). */
 export function platformFeeCents(grossCents: number): number {
   return Math.round((grossCents * PLATFORM_FEE_BPS) / 10_000);
 }
 
-export const CURRENCY = (process.env.STRIPE_CURRENCY || 'usd').toLowerCase();
+export const CURRENCY = (envString('STRIPE_CURRENCY') ?? 'usd').toLowerCase();
 
 /** Standard "not configured" response body for routes when Stripe is off. */
 export const STRIPE_NOT_CONFIGURED = { error: 'Payments are not configured.', code: 'STRIPE_NOT_CONFIGURED' } as const;

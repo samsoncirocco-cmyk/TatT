@@ -179,6 +179,12 @@ User Request
 
 ## Environment Variables
 
+The single source of truth for every env var the code reads is
+`src/config/envSchema.js` (name, type, required/optional, default, purpose).
+`.env.example` is GENERATED from it — regenerate with `npm run env:example`;
+CI fails on drift via `npm run env:check`. The abridged list below is for
+orientation only.
+
 Create `.env.local` with:
 
 ```bash
@@ -209,9 +215,6 @@ NEXT_PUBLIC_FIREBASE_DATABASE_URL=https://***.firebaseio.com
 
 # OpenRouter (for Council fallback)
 OPENROUTER_API_KEY=sk-or-***
-
-# API Auth (optional)
-TATT_API_KEY=your-secret-key
 
 # Feature Flags
 NEXT_PUBLIC_DEMO_MODE=false
