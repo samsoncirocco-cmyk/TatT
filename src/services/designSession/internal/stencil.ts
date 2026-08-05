@@ -25,7 +25,7 @@ import { logger } from '@/lib/logger';
  * Only flux-dev accepts an image-to-image input (see the generation module's
  * model catalog), so the stencil pass pins it rather than inheriting the
  * session's provider. This does not violate ADR-0016: that pin exists so the
- * four reveal variations stay comparable as a pick signal, and the stencil is
+ * reveal variations stay comparable as a pick signal, and the stencil is
  * a derived deliverable, not a variation.
  */
 const STENCIL_MODEL_ID = 'flux-dev';

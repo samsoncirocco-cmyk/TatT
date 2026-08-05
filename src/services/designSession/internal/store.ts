@@ -97,6 +97,7 @@ export function toDesignSession(session: StoredSession): DesignSession {
     downgraded,
     downgradeReason,
     variations,
+    rounds,
     critiqueCuts,
     critiqueTurns,
     fixesUsed,
@@ -120,6 +121,9 @@ export function toDesignSession(session: StoredSession): DesignSession {
     // undowngraded sessions stay free of the fields entirely.
     ...(downgraded ? { downgraded, downgradeReason } : {}),
     variations,
+    // The pick-to-refine rounds (ADR-0049) are user-facing state: the reveal
+    // renders the live round's cuts and the freeze rules from them.
+    rounds,
     // Post-reveal re-cuts and their turns are the user's own material
     // (ADR-0039) — unlike TurnLogs, they render, so they cross the boundary.
     critiqueCuts,

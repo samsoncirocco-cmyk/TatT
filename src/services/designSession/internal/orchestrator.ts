@@ -9,19 +9,28 @@
 import { randomUUID } from 'crypto';
 import { DEMO_MOCK_IMAGES } from '@/lib/demo-images';
 import { extractIntake } from '../../intake';
-import type { IntakeRecord } from '../../intake/types';
-import { enhanceStructured } from '../../council';
+import type { IntakeRecord, VariationAxis } from '../../intake/types';
+import { enhanceStructured, enhanceRound } from '../../council';
+import type { RoundSpread } from '../../council';
 import { generate, routeGeneration } from '../../generation';
 import type { AspectRatio, GenerationRequest } from '../../generation';
 import { resolveFixAllowance } from '@/lib/studio-fix-allowance';
 import type {
   Variation,
+  RefineRound,
   StartSessionRequest,
   PickRequest,
+  RoundPickRequest,
   RefineRequest,
   CritiqueRequest,
   CritiqueResult,
 } from '../types';
+import {
+  COMPOSITION_AXIS,
+  currentRound,
+  isLadderAxis,
+  nextRoundAxis,
+} from '../roundPlan';
 import { resolveSessionStore } from './store';
 import type { SessionStore, StoredSession } from './store';
 import { deriveRefinementQuestion, adjustPromptForAnswer } from './refinement';
@@ -51,6 +60,8 @@ export type DesignSessionErrorCode =
   | 'INVALID_PHASE'
   | 'INVALID_VARIATION'
   | 'REFINEMENT_CLOSED'
+  | 'ROUND_PICK_FROZEN'
+  | 'ROUND_UNPICKED'
   | 'CONVERSATION_UNAVAILABLE';
 
 const ERROR_STATUS: Record<DesignSessionErrorCode, number> = {
@@ -58,6 +69,10 @@ const ERROR_STATUS: Record<DesignSessionErrorCode, number> = {
   INVALID_PHASE: 409,
   INVALID_VARIATION: 400,
   REFINEMENT_CLOSED: 409,
+  // The round machinery (ADR-0049): a frozen pick can never change — a
+  // render already consumed it — and a round can't refine before its pick.
+  ROUND_PICK_FROZEN: 409,
+  ROUND_UNPICKED: 409,
   // Every conversation provider is down — the route maps this to 503 and
   // the UI downgrades to the scripted intake (ADR-0019 degraded mode).
   CONVERSATION_UNAVAILABLE: 503,
@@ -126,9 +141,10 @@ function pinnedRequest(
      * the model itself fails (ADR-0048). Never silent: the result's
      * fallbackUsed metadata is surfaced as the session's `downgraded` flag,
      * the reveal says so in copy, and the round's credit is released. Only
-     * the reveal opts in — the regen and re-cut keep the strict pin, since a
-     * mid-session provider change is what ADR-0016 still forbids
-     * (one provider per ROUND after the ADR-0052 amendment).
+     * the two-cut rounds (the reveal and refineRound) opt in — the regen and
+     * re-cut keep the strict pin, since a mid-round provider change is what
+     * ADR-0016 still forbids (one provider per ROUND after the ADR-0052
+     * amendment).
      */
     allowDowngrade?: boolean;
     /**
@@ -242,8 +258,8 @@ async function renderDurably(
 /**
  * INTERNAL shared reveal path — everything a start does once an
  * IntakeRecord exists: Council structured enhancement → one route resolved
- * and pinned for the whole session (ADR-0016) → four renders (demo mode:
- * free stock images) → persist at phase 'revealed'.
+ * and pinned for the whole session (ADR-0016) → round one's two renders
+ * (ADR-0049; demo mode: free stock images) → persist at phase 'revealed'.
  *
  * `base` upgrades an existing stored session in place — the conversational
  * intake's confirm (ADR-0020) — preserving its id, createdAt, and internal
@@ -263,8 +279,8 @@ export async function startFromRecord(
   const referencePaths = referenceImagePaths(base?.conversation?.references ?? []);
 
   // ADR-0016: resolve the route exactly once. Every render in this session
-  // — the four reveal variations AND the later refinement regen — uses this
-  // model; the pin is persisted so the regen never re-routes.
+  // — every round's two cuts AND the later refinement regen — uses this
+  // model; the pin is persisted so later rounds never re-route.
   const route = routeGeneration({
     prompt: '',
     // Presence forces the nano-banana lane — the only model whose
@@ -294,7 +310,7 @@ export async function startFromRecord(
   // Set when any reveal render fell back off the pinned model (ADR-0048).
   // One flag for the whole reveal: the session is downgraded if ANY of its
   // cuts came from the fallback lane, because the promise broken is "these
-  // four are from the model your request routed to."
+  // cuts are from the model your request routed to."
   let downgradeReason: string | undefined;
   let variations: Variation[];
   try {
@@ -350,6 +366,18 @@ export async function startFromRecord(
     pinnedModelId: route.modelId,
     pinnedAspectRatio: route.aspectRatio,
     variations,
+    // Round one of the pick-to-refine loop (ADR-0049): the reveal IS the
+    // first round. Its pick stays changeable until a next round is charged.
+    rounds: [
+      {
+        round: 1,
+        axis:
+          enhanced.axisSelection.mode === 'questionnaire'
+            ? enhanced.axisSelection.axes[0]
+            : COMPOSITION_AXIS,
+        variationIds: variations.map(variation => variation.id),
+      },
+    ],
     // Spread so the fields are absent (not undefined) on the happy path —
     // Firestore rejects explicit undefined values.
     ...(downgradeReason ? { downgraded: true, downgradeReason } : {}),
@@ -402,6 +430,225 @@ export async function recordPick(sessionId: string, request: PickRequest): Promi
 
   await store.save(session);
   return session;
+}
+
+/**
+ * Record (or change) the live round's pick (ADR-0049). The pick itself is
+ * free — a silent tap becomes a recorded signal — and stays changeable
+ * until the next round is charged: refineRound freezes it at that moment,
+ * because a render then consumes the picked image as a reference.
+ */
+export async function recordRoundPick(
+  sessionId: string,
+  request: RoundPickRequest
+): Promise<StoredSession> {
+  const store = resolveSessionStore();
+  const session = await loadSession(store, sessionId);
+
+  if (session.phase !== 'revealed') {
+    throw new DesignSessionError(
+      'INVALID_PHASE',
+      `Cannot pick a round cut while the session is '${session.phase}' — rounds live between the reveal and the handoff.`
+    );
+  }
+  const round = currentRound(session.rounds);
+  if (!round) {
+    throw new DesignSessionError(
+      'INVALID_PHASE',
+      `Session '${sessionId}' predates the round machinery — nothing to pick against.`
+    );
+  }
+  if (round.frozen) {
+    throw new DesignSessionError(
+      'ROUND_PICK_FROZEN',
+      `Round ${round.round}'s pick is frozen — the next round already rendered from it.`
+    );
+  }
+  if (!round.variationIds.includes(request.pickedId)) {
+    throw new DesignSessionError(
+      'INVALID_VARIATION',
+      `Variation '${request.pickedId}' is not one of round ${round.round}'s cuts.`
+    );
+  }
+
+  const now = new Date().toISOString();
+  round.pickedId = request.pickedId;
+  round.pickedAt = now;
+  session.updatedAt = now;
+
+  await store.save(session);
+  return session;
+}
+
+/**
+ * Derive the product-bucket object path from a durable cut URL, so the
+ * picked cut can ride the ADR-0050/#333 signed-URL plumbing as a reference.
+ * Returns undefined for anything that is not our bucket (demo stock images)
+ * — the caller then simply renders without the image reference.
+ */
+function bucketObjectPath(imageUrl: string | undefined): string | undefined {
+  if (!imageUrl) return undefined;
+  try {
+    const url = new URL(imageUrl);
+    if (url.hostname !== 'storage.googleapis.com') return undefined;
+    // Shape: /<bucket>/<object path>
+    const path = url.pathname.split('/').slice(2).join('/');
+    return path ? decodeURIComponent(path) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** What one charged refine round produced (ADR-0049). */
+export interface RefineRoundOutcome {
+  session: StoredSession;
+  /** The round just appended — the session's new live round. */
+  round: RefineRound;
+  /** True when the round's renders fell back off the pinned model (ADR-0048). */
+  downgraded: boolean;
+  downgradeReason?: string;
+}
+
+/**
+ * One charged refine round (ADR-0049): freeze the previous round's pick,
+ * spread two new cuts on the next ladder axis while holding every pole
+ * picked so far, and seed both renders with the picked cut's image — the
+ * customer's own reference photos stay attached alongside it (the picked
+ * cut leads, the photos persist).
+ *
+ * The CREDIT is the route's job (reserveGenerationCredit before this call,
+ * releaseGenerationCredit on failure or downgrade — same split as the
+ * confirm route). There is no partial-charge path: the two renders settle
+ * together, and a round that cannot deliver both cuts throws with nothing
+ * persisted — the pick stays changeable and the credit goes back.
+ */
+export async function refineRound(sessionId: string): Promise<RefineRoundOutcome> {
+  const store = resolveSessionStore();
+  const session = await loadSession(store, sessionId);
+
+  if (session.phase !== 'revealed') {
+    throw new DesignSessionError(
+      'INVALID_PHASE',
+      `Cannot run a refine round while the session is '${session.phase}' — rounds live between the reveal and the handoff.`
+    );
+  }
+  const live = currentRound(session.rounds);
+  if (!live) {
+    throw new DesignSessionError(
+      'INVALID_PHASE',
+      `Session '${sessionId}' predates the round machinery — nothing to refine from.`
+    );
+  }
+  if (!live.pickedId) {
+    throw new DesignSessionError(
+      'ROUND_UNPICKED',
+      `Round ${live.round} has no pick yet — the pick is the signal the next round refines from.`
+    );
+  }
+  const picked = session.variations.find(variation => variation.id === live.pickedId);
+  if (!picked) {
+    throw new DesignSessionError(
+      'INVALID_VARIATION',
+      `Session '${sessionId}' round pick no longer matches its variations.`
+    );
+  }
+
+  // Every pole picked so far, in round order — the next round holds all of
+  // them (ADR-0049). Read off each picked cut's own axisPosition, so a
+  // re-picked round contributes the pole actually chosen.
+  const lockedPoles: Partial<Record<VariationAxis, string>> = {};
+  for (const round of session.rounds ?? []) {
+    if (!round.pickedId || !isLadderAxis(round.axis)) continue;
+    const cut = session.variations.find(variation => variation.id === round.pickedId);
+    const pole = cut?.axisPosition[round.axis];
+    if (pole) lockedPoles[round.axis] = pole;
+  }
+
+  const roundNumber = (session.rounds?.length ?? 0) + 1;
+  const axis = nextRoundAxis(
+    session.axisSelection.mode,
+    session.rounds?.length ?? 0
+  ) as RoundSpread['axis'];
+  const enhanced = await enhanceRound(session.intake, { roundNumber, axis, lockedPoles });
+
+  const demo = isDemoMode();
+  const baseIndex = session.variations.length;
+  // Settled in a finally, same as the reveal: a render that succeeded before
+  // a sibling threw was still paid for.
+  let imagesPurchased = 0;
+  let downgradeReason: string | undefined;
+  let cuts: Variation[];
+  try {
+    // The reference chain (ADR-0049): the picked cut LEADS — it is already a
+    // GCS object in our bucket, so it rides the exact ADR-0050/#333 private
+    // signed-URL plumbing the customer's own photos use — and those photos
+    // stay attached after it (nano-banana-2 takes multiple references).
+    const photoPaths = referenceImagePaths(session.conversation?.references ?? []);
+    const pickedPath = demo ? undefined : bucketObjectPath(picked.imageUrl);
+    const referencePaths = [...(pickedPath ? [pickedPath] : []), ...photoPaths];
+    const referenceImages =
+      !demo && referencePaths.length ? await signedReferenceUrls(referencePaths) : undefined;
+    const results = await Promise.allSettled(
+      enhanced.variations.map(async (structured, index): Promise<Variation> => {
+        const prompt = generationPrompt(structured.prompts);
+        // Ids continue the session's running order, so a number spoken over
+        // SMS keeps meaning the same cut the web shows in that position.
+        const id = `v${baseIndex + index + 1}`;
+        let imageUrl: string;
+        if (demo) {
+          imageUrl = DEMO_MOCK_IMAGES[(baseIndex + index) % DEMO_MOCK_IMAGES.length];
+        } else {
+          imageUrl = await renderDurably(
+            session,
+            id,
+            // ADR-0016 (as amended by ADR-0052): one provider per ROUND. The
+            // round reuses the model pinned at session start, and opts into
+            // the loud downgrade exactly as the reveal does (ADR-0048).
+            pinnedRequest(
+              { modelId: session.pinnedModelId, aspectRatio: session.pinnedAspectRatio },
+              prompt,
+              structured.negativePrompt,
+              { allowDowngrade: true, referenceImages }
+            ),
+            (renders) => { imagesPurchased += renders; },
+            (reason) => { downgradeReason ??= reason; },
+            referencePaths
+          );
+        }
+        return {
+          id,
+          axisPosition: structured.axisPosition as Record<string, string>,
+          prompt,
+          negativePrompt: structured.negativePrompt,
+          imageUrl,
+        };
+      })
+    );
+    const failure = results.find(result => result.status === 'rejected');
+    if (failure) throw (failure as PromiseRejectedResult).reason;
+    cuts = results.map(result => (result as PromiseFulfilledResult<Variation>).value);
+  } finally {
+    await recordImageSpend(session.provider, imagesPurchased);
+  }
+
+  // Both cuts delivered: NOW the previous pick freezes (ADR-0049 — a pick
+  // is changeable until the next round is charged, and a failed round above
+  // threw before persisting anything).
+  const now = new Date().toISOString();
+  live.frozen = true;
+  const round: RefineRound = {
+    round: roundNumber,
+    axis,
+    variationIds: cuts.map(cut => cut.id),
+    // Spread so the fields are absent (not undefined) on the happy path.
+    ...(downgradeReason ? { downgraded: true, downgradeReason } : {}),
+  };
+  session.variations = [...session.variations, ...cuts];
+  session.rounds = [...(session.rounds ?? []), round];
+  session.updatedAt = now;
+
+  await store.save(session);
+  return { session, round, downgraded: Boolean(downgradeReason), downgradeReason };
 }
 
 /**

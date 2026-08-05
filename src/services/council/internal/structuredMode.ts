@@ -2,8 +2,9 @@
  * Council structured-input mode (ADR-0015).
  *
  * Accepts the intake record (closed style tags + placement + freeform
- * meaning) and emits four axis-divergent prompt sets. With structured input
- * the Council's job shifts from interpretation to axis differentiation
+ * meaning) and emits a round's two axis-divergent prompt sets (ADR-0049:
+ * two cuts spread on one axis per round). With structured input the
+ * Council's job shifts from interpretation to axis differentiation
  * (ADR-0012), so construction is fully template-based and works offline —
  * no LLM/provider call is made. The classic `enhance()` path and its
  * provider fallbacks are untouched.
@@ -15,7 +16,7 @@ import type {
   AxisSelection,
   VariationAxis,
 } from '../../intake/types';
-import { VARIATION_AXIS_POOL } from '../../intake/types';
+import { VARIATION_AXIS_POOL, ROUND_AXIS_LADDER } from '../../intake/types';
 import { getBaseNegativePrompt, validatePromptLength } from './councilService';
 import { resolvePlacement } from '@/lib/placement';
 
@@ -27,7 +28,7 @@ export interface StructuredVariation {
 }
 
 export interface StructuredEnhanceResult {
-  /** Always exactly four variations (ADR-0012). */
+  /** Always exactly two variations — one round's pair of cuts (ADR-0049). */
   variations: StructuredVariation[];
   axisSelection: AxisSelection;
   metadata?: Record<string, unknown>;
@@ -37,27 +38,6 @@ export interface StructuredEnhanceOptions {
   /** The Council's discussion-update callback — the bot's narration channel (ADR-0015). */
   onDiscussionUpdate?: (update: unknown) => void;
 }
-
-/*
- * Axis priority (ADR-0012): when intake leaves more than two axes ambiguous
- * we pick the two most consequential for VISUAL divergence at reveal scale
- * (four thumbnails side by side):
- *
- *   1. color-blackwork  — color presence/absence changes the entire read at
- *                         any distance; the most divergent single dimension.
- *   2. literal-abstract — changes WHAT the design is, not just how it is
- *                         rendered; second-largest gap between quadrants.
- *   3. bold-fine        — line weight shifts visual weight and aging but the
- *                         subject and palette still read the same.
- *   4. minimal-ornate   — detail density is the subtlest difference at
- *                         thumbnail scale.
- */
-const AXIS_PRIORITY: readonly VariationAxis[] = [
-  'color-blackwork',
-  'literal-abstract',
-  'bold-fine',
-  'minimal-ornate',
-];
 
 interface PoleSpec {
   /** Short phrase for the simple prompt tier. */
@@ -164,8 +144,8 @@ const COMPOSITIONAL_TREATMENTS: CompositionalTreatment[] = [
  * for the subject "rendered large and close" — for a cast of four that is a
  * cropped face, which is exactly what the Kingdom Hearts reveal returned —
  * and `negative space` asks for a "small off-center subject", the opposite
- * of a group. Burning two of four cuts on treatments that must fail leaves
- * the customer two real options, not four.
+ * of a group. Burning round slots on treatments that must fail leaves
+ * the customer fewer real options.
  *
  * These four all hold multiple interacting figures and stay divergent from
  * each other along the dimension that matters here — how the group is
@@ -297,101 +277,53 @@ function keepIfValid(prompt: string): string | undefined {
   return validatePromptLength(prompt).valid ? prompt : undefined;
 }
 
-/*
- * Axes the intake already decided, so padding can never contradict the user.
- * Padding a slot pair with an axis they resolved doesn't just waste the pair
- * (acknowledged noise) — it renders the opposite of what they asked for, e.g.
- * a full-color quadrant in a session that said "black ink only".
- */
-const LITERAL_ABSTRACT_TAGS = new Set([
-  'realism',
-  'portrait',
-  'surrealism',
-  'abstract',
-  'geometric',
-]);
-
-function contradictedAxes(record: IntakeRecord): Set<VariationAxis> {
-  const tags = record.styleTags;
-  const decided = new Set<VariationAxis>();
-
-  if (resolvePalette(tags) !== 'unresolved') decided.add('color-blackwork');
-  if (record.subject?.trim() || tags.some(tag => LITERAL_ABSTRACT_TAGS.has(tag))) {
-    decided.add('literal-abstract');
-  }
-  if (tags.includes('fine-line')) decided.add('bold-fine');
-  if (tags.includes('minimalist') || tags.includes('ornamental')) decided.add('minimal-ornate');
-
-  return decided;
-}
-
 /**
- * Pick which axes the reveal diverges along (ADR-0012). Selection is logged,
- * never silent: the returned rationale is emitted through the discussion
- * callback and included in the result.
+ * Pick which axis the first round diverges along (ADR-0012, ADR-0049).
+ * Selection is logged, never silent: the returned rationale is emitted
+ * through the discussion callback and included in the result.
+ *
+ * Under ADR-0049 the questionnaire axes are a fixed ladder walked one rung
+ * per round (bold-fine → color-blackwork → literal-abstract →
+ * minimal-ornate), so round one always spreads the ladder's first rung —
+ * the customer's later REFINE rounds ask the remaining questions.
  */
 export function selectAxes(record: IntakeRecord): AxisSelection {
   // A named cast is a composition problem before it is a style questionnaire.
-  // Four bold/fine x minimal/ornate quadrants can all make the same fatal
-  // mistake: crop or visually demote part of the cast. Spend the four reveal
-  // slots on layouts that can prove every requested character fits instead.
+  // A bold and a fine cut can make the same fatal mistake: crop or visually
+  // demote part of the cast. Spend the round's two slots on layouts that can
+  // prove every requested character fits instead.
   if ((record.requestedCharacters?.length ?? 0) > 1) {
     return {
       mode: 'compositional',
       axes: [],
       rationale:
         `Compositional mode: the customer named ${record.requestedCharacters!.length} distinct ` +
-        'characters, so the four cuts vary ensemble staging and framing while keeping the cast, ' +
+        'characters, so the two cuts vary ensemble staging and framing while keeping the cast, ' +
         'action, placement, and resolved style locked.',
     };
   }
 
-  // Dedupe while walking priority order so the output is deterministic.
-  const ambiguous = AXIS_PRIORITY.filter(axis => record.ambiguousAxes.includes(axis));
-
-  if (ambiguous.length === 0) {
+  if (record.ambiguousAxes.length === 0) {
     const styleDesc = record.styleTags.length > 0 ? record.styleTags.join(', ') : 'the resolved style';
     return {
       mode: 'compositional',
       axes: [],
       rationale:
         `Compositional mode: intake resolved every variation axis, so style locks to ${styleDesc} ` +
-        'and the four slots vary pose, framing, and negative space instead — the reveal shifts from ' +
+        'and the two slots vary pose, framing, and negative space instead — the reveal shifts from ' +
         'questionnaire to confidence proof (ADR-0012).',
     };
   }
 
-  if (ambiguous.length === 1) {
-    // The AxisSelection contract requires exactly 2 axes in questionnaire
-    // mode, so pad with the highest-priority axis not already covered.
-    // Burning a slot pair on a padded axis is acknowledged noise (ADR-0012),
-    // but it beats showing duplicate quadrants; the rationale says so.
-    // Never pad with an axis the intake decided — that would contradict the
-    // user outright rather than merely waste the pair.
-    const decided = contradictedAxes(record);
-    const candidates = AXIS_PRIORITY.filter(axis => axis !== ambiguous[0]);
-    const free = candidates.filter(axis => !decided.has(axis));
-    const pad = (free[0] ?? candidates[candidates.length - 1]) as VariationAxis;
-    const rationale = free.length
-      ? `Questionnaire mode: intake left only ${ambiguous[0]} unresolved; padded with ` +
-        `${pad} (next most visually consequential axis the intake did not decide) so all ` +
-        'four reveal slots stay distinct.'
-      : `Questionnaire mode: intake left only ${ambiguous[0]} unresolved and decided every ` +
-        `other axis; padded with ${pad} (least visually consequential) so the four slots stay ` +
-        'distinct without overriding a resolved choice more than necessary.';
-    return { mode: 'questionnaire', axes: [ambiguous[0], pad], rationale };
-  }
-
-  const [first, second, ...dropped] = ambiguous;
-  const rationale =
-    dropped.length === 0
-      ? `Questionnaire mode: intake left ${first} and ${second} unresolved; the reveal varies both ` +
-        'so the user\'s pick answers them without being asked.'
-      : `Questionnaire mode: intake left ${ambiguous.join(', ')} unresolved; chose ${first} and ` +
-        `${second} as the two most consequential for visual divergence ` +
-        `(priority: ${AXIS_PRIORITY.join(' > ')}); ${dropped.join(', ')} deferred to refinement.`;
-
-  return { mode: 'questionnaire', axes: [first, second], rationale };
+  const first = ROUND_AXIS_LADDER[0];
+  return {
+    mode: 'questionnaire',
+    axes: [first],
+    rationale:
+      `Questionnaire mode: round one spreads on ${first}, the first rung of the fixed ` +
+      `ADR-0049 ladder (${ROUND_AXIS_LADDER.join(' > ')}); the pick locks a pole and each ` +
+      'REFINE round spreads the next rung while holding everything already picked.',
+  };
 }
 
 /*
@@ -722,9 +654,37 @@ function buildCompositionalVariation(
   };
 }
 
+function resultMetadata(record: IntakeRecord): Record<string, unknown> {
+  return {
+    placement: record.placement,
+    styleTags: record.styleTags,
+    references: record.references,
+    axisPool: VARIATION_AXIS_POOL,
+    generatedAt: new Date().toISOString(),
+    provider: 'template',
+  };
+}
+
 /**
- * Structured-input enhancement (ADR-0015): four axis-divergent variations
- * from an intake record. Pure template construction — never calls a provider.
+ * Which two compositional treatments a round shows: the pool taken two at a
+ * time, wrapping once it runs out — a wrapped pair re-frames rather than
+ * repeats, because by then the previous round's picked image rides along as
+ * a reference (ADR-0049).
+ */
+function compositionalPair(
+  record: IntakeRecord,
+  roundNumber: number
+): CompositionalTreatment[] {
+  const pool = compositionalTreatments(record);
+  const pairCount = Math.max(1, Math.floor(pool.length / 2));
+  const offset = ((roundNumber - 1) % pairCount) * 2;
+  return pool.slice(offset, offset + 2);
+}
+
+/**
+ * Structured-input enhancement (ADR-0015): the first round's two
+ * axis-divergent variations from an intake record (ADR-0049). Pure template
+ * construction — never calls a provider.
  */
 export async function enhanceStructured(
   record: IntakeRecord,
@@ -740,31 +700,86 @@ export async function enhanceStructured(
 
   let variations: StructuredVariation[];
   if (axisSelection.mode === 'questionnaire') {
-    const [axisA, axisB] = axisSelection.axes;
-    const [a0, a1] = AXIS_POLES[axisA];
-    const [b0, b1] = AXIS_POLES[axisB];
+    const [axis] = axisSelection.axes;
+    const [pole0, pole1] = AXIS_POLES[axis];
     variations = [
-      buildQuadrantVariation([axisA, axisB], [a0, b0], ctx),
-      buildQuadrantVariation([axisA, axisB], [a0, b1], ctx),
-      buildQuadrantVariation([axisA, axisB], [a1, b0], ctx),
-      buildQuadrantVariation([axisA, axisB], [a1, b1], ctx),
+      buildQuadrantVariation([axis], [pole0], ctx),
+      buildQuadrantVariation([axis], [pole1], ctx),
     ];
   } else {
-    variations = compositionalTreatments(record).map(treatment =>
+    variations = compositionalPair(record, 1).map(treatment =>
       buildCompositionalVariation(treatment, ctx)
     );
   }
 
+  return { variations, axisSelection, metadata: resultMetadata(record) };
+}
+
+/** One later round's spread (see enhanceRoundStructured). */
+export interface RoundSpread {
+  /** 1-based round number — round 1 is enhanceStructured's reveal. */
+  roundNumber: number;
+  /**
+   * The ladder axis this round spreads on, 'reroll' past the ladder, or
+   * 'composition' for compositional sessions.
+   */
+  axis: VariationAxis | 'reroll' | 'composition';
+  /**
+   * Poles locked by earlier rounds' picks, keyed by axis. Every cut this
+   * round produces holds all of them (ADR-0049).
+   */
+  lockedPoles: Partial<Record<VariationAxis, string>>;
+}
+
+/**
+ * One REFINE round's two variations (ADR-0049): spread on the round's axis
+ * while holding every previously picked pole; a 'reroll' round holds the
+ * locked poles and draws twice. Same template machinery as the first
+ * round — never calls a provider.
+ */
+export async function enhanceRoundStructured(
+  record: IntakeRecord,
+  spread: RoundSpread
+): Promise<StructuredEnhanceResult> {
+  const ctx = buildContext(record);
+  const lockedAxes = Object.keys(spread.lockedPoles) as VariationAxis[];
+  const lockedValues = lockedAxes.map(axis => spread.lockedPoles[axis]!);
+
+  let variations: StructuredVariation[];
+  let rationale: string;
+  if (spread.axis === 'composition') {
+    variations = compositionalPair(record, spread.roundNumber).map(treatment =>
+      buildCompositionalVariation(treatment, ctx)
+    );
+    rationale =
+      `Compositional round ${spread.roundNumber}: two fresh framings of the locked style, ` +
+      'seeded by the previous pick (ADR-0049).';
+  } else if (spread.axis === 'reroll') {
+    // Past the ladder: both slots hold every locked pole and re-draw. The
+    // reference image (the previous pick) is what differentiates the round.
+    const build = () => buildQuadrantVariation([...lockedAxes], [...lockedValues], ctx);
+    variations = [build(), build()];
+    rationale =
+      `Re-roll round ${spread.roundNumber}: every ladder axis is locked ` +
+      `(${lockedAxes.join(', ')}), so both cuts re-draw on the locked poles (ADR-0049).`;
+  } else {
+    const [pole0, pole1] = AXIS_POLES[spread.axis];
+    variations = [
+      buildQuadrantVariation([spread.axis, ...lockedAxes], [pole0, ...lockedValues], ctx),
+      buildQuadrantVariation([spread.axis, ...lockedAxes], [pole1, ...lockedValues], ctx),
+    ];
+    rationale =
+      `Round ${spread.roundNumber} spreads on ${spread.axis} while holding ` +
+      `${lockedAxes.length > 0 ? lockedAxes.map(axis => `${axis}:${spread.lockedPoles[axis]}`).join(', ') : 'nothing yet'} (ADR-0049).`;
+  }
+
   return {
     variations,
-    axisSelection,
-    metadata: {
-      placement: record.placement,
-      styleTags: record.styleTags,
-      references: record.references,
-      axisPool: VARIATION_AXIS_POOL,
-      generatedAt: new Date().toISOString(),
-      provider: 'template',
+    axisSelection: {
+      mode: spread.axis === 'composition' ? 'compositional' : 'questionnaire',
+      axes: spread.axis === 'composition' || spread.axis === 'reroll' ? [] : [spread.axis],
+      rationale,
     },
+    metadata: resultMetadata(record),
   };
 }

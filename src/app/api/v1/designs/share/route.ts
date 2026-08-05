@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
  * POST /api/v1/designs/share — mint a durable share link.
  *
  * One link, one to many cuts. The Forge lets a user pick any subset of the
- * four cuts it just made, and the whole selection becomes a single share:
+ * cuts it just made, and the whole selection becomes a single share:
  * a link you send a friend is one artifact, not one per image.
  *
  * Accepts `imageUrls` (the selection) or `imageUrl` (the single-design path

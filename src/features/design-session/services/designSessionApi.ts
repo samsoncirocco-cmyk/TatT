@@ -7,6 +7,7 @@ import type {
   DesignSession,
   StartSessionRequest,
   PickRequest,
+  RoundPickRequest,
   RefineRequest,
   CritiqueRequest,
   CritiqueResult,
@@ -142,6 +143,28 @@ export function submitPick(sessionId: string, request: PickRequest): Promise<Des
 /** POST /api/v1/design-session/[id]/refine — allowed exactly once (ADR-0013). */
 export function submitRefinement(sessionId: string, request: RefineRequest): Promise<DesignSession> {
   return postJson(`${BASE_PATH}/${sessionId}/refine`, request);
+}
+
+/**
+ * POST /api/v1/design-session/[id]/round/pick — record (or change) the live
+ * round's pick (ADR-0049). Free, and changeable until the next round is
+ * charged.
+ */
+export function submitRoundPick(
+  sessionId: string,
+  request: RoundPickRequest
+): Promise<DesignSession> {
+  return postJson(`${BASE_PATH}/${sessionId}/round/pick`, request);
+}
+
+/**
+ * POST /api/v1/design-session/[id]/round — one charged refine round
+ * (ADR-0049): 1 credit, two new cuts seeded by the picked one. The route's
+ * failure body carries the decided copy ("That round didn't take — your
+ * credit is back. Run it again?"), which the flow shows verbatim.
+ */
+export function runRefineRound(sessionId: string): Promise<DesignSession> {
+  return postJson(`${BASE_PATH}/${sessionId}/round`, {});
 }
 
 /**

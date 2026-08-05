@@ -268,7 +268,7 @@ describe('live-transcript regression: the Togashi sleeve session', () => {
     expect(turn5.stage).toBe('proposal');
     expect(turn5.turnLog.firedRule).toBe('axis-request-proposal');
     expect(turn5.reply).toContain(PROPOSAL_LEAD);
-    expect(turn5.reply).toContain('split the four takes across full color and blackwork');
+    expect(turn5.reply).toContain('split the two cuts across full color and blackwork');
     // The axis is deliberately reopened and leads the selection order, and
     // the palette tags that would re-resolve it are cleared (ADR-0012).
     expect(turn5.record.ambiguousAxes?.[0]).toBe('color-blackwork');

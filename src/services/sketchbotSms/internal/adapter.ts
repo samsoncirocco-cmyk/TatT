@@ -19,9 +19,11 @@
  * an invitation) — never an HTTP status nobody reads and never silence.
  *
  * Worst case for an unknown number per UTC day:
- *   min(SKETCHBOT_SMS_REVEALS_PER_DAY, remaining free reveals) × 4 images
- *   × per-image cost — with the defaults, 2 × 4 × VERTEX_IMAGEN_COST_CENTS
- *   = 32¢, and never more than 2 reveals lifetime without an account.
+ *   min(SKETCHBOT_SMS_REVEALS_PER_DAY, remaining free reveals) × 2 images
+ *   × per-image cost — with the defaults, 2 × 2 × VERTEX_IMAGEN_COST_CENTS
+ *   = 16¢, and never more than 2 reveals lifetime without an account.
+ *   Charged REFINE rounds (ADR-0049) require a LINKED account: they meter
+ *   generation credits, and a number with no account has none to spend.
  */
 import { randomUUID } from 'crypto';
 import { logger } from '@/lib/logger';
@@ -40,13 +42,30 @@ import {
   storeReferencePhoto,
   getSession,
   recordPick,
+  recordRoundPick,
+  refineRound,
   refine,
   critique,
   allCuts,
   isFixRequest,
   attachPlacementPreview,
+  isLadderAxis,
+  ROUND_POLE_LABEL,
   DesignSessionError,
 } from '@/services/designSession';
+import type { DesignSession, RefineRound } from '@/services/designSession';
+// The charged round's credit primitive (ADR-0041 / ADR-0049): reserved at
+// arm time so exhaustion is told immediately, released by the deferred
+// execute on failure or downgrade.
+import {
+  GenerationCreditsExhaustedError,
+  releaseGenerationCredit,
+  reserveGenerationCredit,
+  type GenerationCreditReservation,
+} from '@/lib/generation-credits';
+// The cut-naming vocabulary — the SMS round text names poles exactly the
+// way the web reveal does ("A is bold, B is fine-line").
+import { cutIdentity } from '@/features/design-session/services/revealCutNames';
 import {
   referenceFollowUpText,
   REFERENCE_UNREADABLE_TEXT,
@@ -82,7 +101,13 @@ import {
   capReachedText,
   linkGateText,
   unavailableText,
-  revealClosingText,
+  roundRevealText,
+  roundCutCaption,
+  roundUnpickedText,
+  bookText,
+  ROUND_ACK,
+  ROUND_LOCKED_TEXT,
+  ROUND_FAILED_TEXT,
   cutCaption,
   referenceAckText,
   pickRetryText,
@@ -115,8 +140,12 @@ const REVEAL_PENDING_STALE_MS = 10 * 60 * 1000;
  */
 const IN_FLIGHT_STAGES: Record<string, { waiting: string; recoverTo: string }> = {
   'reveal-pending': {
-    waiting: 'Still sketching — your four cuts land here in a minute or two.',
+    waiting: 'Still sketching — your two cuts land here in a minute or two.',
     recoverTo: 'proposal',
+  },
+  'round-running': {
+    waiting: 'Still cutting the next round — two new cuts land here shortly.',
+    recoverTo: 'revealed',
   },
   'critique-running': {
     waiting: "On it — the new cut lands here shortly.",
@@ -472,7 +501,7 @@ const PLACEMENT_STAGES = new Set([
  * The web does not need one: a user who wants to start again navigates back
  * to /design. SMS has no navigation — every message lands in the same
  * thread — so without an explicit escape a texter would be stuck critiquing
- * the same four cuts forever, because `isFixRequest` reads any sentence as
+ * the same cuts forever, because `isFixRequest` reads any sentence as
  * a fix. Deterministic rather than model-judged: mistaking "start over" for
  * a critique spends a render on a design they have already abandoned.
  */
@@ -497,7 +526,7 @@ async function restartDesign(
 }
 
 /**
- * Everything the web offers after the four cuts land, over SMS.
+ * Everything the web offers after a round's cuts land, over SMS.
  *
  * The web can tell a critique from a pick by which affordance was used —
  * typing versus clicking. SMS has only text, so the split is explicit:
@@ -547,16 +576,327 @@ async function postRevealTurn(
     return mostNotYouTurn(profile, store, session, cuts, body);
   }
 
+  // ── The round vocabulary (ADR-0049): A/B picks, REFINE charges, BOOK exits ──
+  const letter = parseRoundLetter(body);
+  if (letter) {
+    return roundPickTurn(profile, store, session, letter);
+  }
+  if (REFINE_INTENT.test(body)) {
+    return armRefineRound(profile, store, session);
+  }
+  if (BOOK_INTENT.test(body)) {
+    return { kind: 'reply', text: bookText(handoffUrl(appBaseUrl(), session.id)) };
+  }
+
   if (isBarePickReference(body, cuts.length)) {
     return firstPickTurn(profile, store, cuts, body);
   }
 
   if (!isFixRequest(body)) {
     // Chatter costs nothing and gets a real answer, not silence.
-    return { kind: 'reply', text: chatterAckText(cuts.length) };
+    return { kind: 'reply', text: chatterAckText() };
   }
 
   return armCritique(profile, store, body);
+}
+
+/* ── The two-cut round replies (ADR-0049) ──────────────────────────────── */
+
+/** A bare A or B — the round pick. Anything more is an instruction. */
+const ROUND_LETTER = /^\s*(?:cut\s+)?([ab])\s*[.!?]?\s*$/i;
+
+function parseRoundLetter(body: string): 'A' | 'B' | null {
+  const match = body.match(ROUND_LETTER);
+  return match ? (match[1].toUpperCase() as 'A' | 'B') : null;
+}
+
+/** Whole-message keywords, same discipline as RESTART_INTENT. */
+const REFINE_INTENT = /^\s*refine\s*[.!?]?\s*$/i;
+const BOOK_INTENT = /^\s*book\s*[.!?]?\s*$/i;
+
+/** The live round — the only one whose pick can still change. */
+function liveRound(session: DesignSession): RefineRound | undefined {
+  return session.rounds?.[session.rounds.length - 1];
+}
+
+/**
+ * How a round's two cuts are named in SMS copy: the pole label on a ladder
+ * axis ("bold", "fine-line" — same vocabulary the web reveal uses), the
+ * designed cut name otherwise (compositional/re-roll rounds).
+ */
+function roundPoleLabels(
+  round: RefineRound | undefined,
+  cuts: { axisPosition: Record<string, string> }[]
+): [string, string] {
+  const label = (index: number): string => {
+    const cut = cuts[index];
+    if (!cut) return index === 0 ? 'the first take' : 'the second take';
+    if (round && isLadderAxis(round.axis)) {
+      const pole = cut.axisPosition?.[round.axis];
+      const poleLabel = pole ? ROUND_POLE_LABEL[pole] : undefined;
+      if (poleLabel) return poleLabel;
+    }
+    return cutIdentity(cut as Parameters<typeof cutIdentity>[0], index).name;
+  };
+  return [label(0), label(1)];
+}
+
+/**
+ * The A/B reply: record (or change) the round pick (ADR-0049). Free, and
+ * changeable until REFINE charges the next round — the stage deliberately
+ * stays 'revealed' so a second letter re-picks.
+ */
+async function roundPickTurn(
+  profile: SmsProfile,
+  store: ProfileStoreT,
+  session: Awaited<ReturnType<typeof getSession>>,
+  letter: 'A' | 'B'
+): Promise<InboundOutcome> {
+  const round = liveRound(session);
+  const pickedId = round?.variationIds[letter === 'A' ? 0 : 1];
+  if (!round || !pickedId) {
+    // A pre-rounds session (or a malformed round): the old ordinal pick
+    // vocabulary still works, say so instead of guessing.
+    return { kind: 'reply', text: chatterAckText() };
+  }
+
+  try {
+    await recordRoundPick(session.id, { pickedId });
+  } catch (error) {
+    if (error instanceof DesignSessionError && error.code === 'ROUND_PICK_FROZEN') {
+      return {
+        kind: 'reply',
+        text: "That round's already locked into the next one — reply REFINE to keep going, or BOOK when you're ready.",
+      };
+    }
+    if (error instanceof DesignSessionError) {
+      // The session moved on without this channel (web pick, completed
+      // session) — same recovery as the ordinal pick path.
+      profile.pendingPickId = null;
+      profile.lastStage = null;
+      profile.activeSessionId = null;
+      profile.updatedAt = new Date().toISOString();
+      await store.save(profile);
+      logger.warn({
+        event_type: 'sketchbot_sms.round_pick_rejected',
+        phone_last4: phoneLast4(profile.phone),
+        session_id: session.id,
+        code: error.code,
+      });
+      return {
+        kind: 'reply',
+        text: "Looks like that set already moved on without me. Tell me what you're after and I'll start a fresh one.",
+      };
+    }
+    throw error;
+  }
+
+  logger.info({
+    event_type: 'sketchbot_sms.round_pick_recorded',
+    phone_last4: phoneLast4(profile.phone),
+    session_id: session.id,
+    round: round.round,
+    picked_id: pickedId,
+  });
+
+  return { kind: 'reply', text: ROUND_LOCKED_TEXT };
+}
+
+/**
+ * Arm one charged REFINE round (ADR-0049): link gate first (a credit needs
+ * an account to belong to), then the global budget, then ONE generation
+ * credit reserved before anything renders. The deferred executeRefineRound
+ * releases it on failure or downgrade — no partial-charge path.
+ */
+async function armRefineRound(
+  profile: SmsProfile,
+  store: ProfileStoreT,
+  session: Awaited<ReturnType<typeof getSession>>
+): Promise<InboundOutcome> {
+  const base = appBaseUrl();
+  const round = liveRound(session);
+  if (!round?.pickedId) {
+    return { kind: 'reply', text: roundUnpickedText() };
+  }
+
+  // Late upgrade, same as armReveal: the texter may have linked an account
+  // since the conversation started.
+  if (!profile.uid) {
+    profile.uid = await lookupUidByPhone(profile.phone);
+    if (profile.uid) await store.save(profile);
+  }
+  if (!profile.uid) {
+    logger.info({
+      event_type: 'sketchbot_sms.round_link_gate',
+      phone_last4: phoneLast4(profile.phone),
+    });
+    return { kind: 'reply', text: linkGateText(`${base}/signup`) };
+  }
+
+  if (!isDemoMode()) {
+    const budget = await checkBudget();
+    if (!budget.allowed) {
+      logger.warn({
+        event_type: 'sketchbot_sms.round_budget_exhausted',
+        phone_last4: phoneLast4(profile.phone),
+        spent_cents: budget.spentCents,
+      });
+      return { kind: 'reply', text: BUDGET_EXHAUSTED_TEXT };
+    }
+  }
+
+  // One credit per round (ADR-0049). Reserved NOW so an exhausted meter is
+  // told immediately instead of after an ack that promised cuts.
+  let credit: GenerationCreditReservation | undefined;
+  if (!isDemoMode()) {
+    try {
+      credit = await reserveGenerationCredit(profile.uid);
+    } catch (error) {
+      if (error instanceof GenerationCreditsExhaustedError) {
+        return { kind: 'reply', text: error.message };
+      }
+      throw error;
+    }
+  }
+
+  profile.lastStage = 'round-running';
+  profile.revealArmedAt = new Date().toISOString();
+  profile.updatedAt = profile.revealArmedAt;
+  await store.save(profile);
+
+  logger.info({
+    event_type: 'sketchbot_sms.round_armed',
+    phone_last4: phoneLast4(profile.phone),
+    session_id: session.id,
+    credit_source: credit?.source,
+  });
+
+  return {
+    kind: 'refine-round',
+    text: ROUND_ACK,
+    sessionId: session.id,
+    phone: profile.phone,
+    uid: profile.uid,
+    ...(credit ? { credit } : {}),
+    armedAt: profile.revealArmedAt!,
+  };
+}
+
+/**
+ * The deferred half of a charged round (ADR-0049): two renders outlive
+ * Twilio's webhook window, so the ack already went out and the new pair
+ * arrives by MMS with the same A/B ask as the reveal.
+ *
+ * The credit reserved at arm time is released on ANY path that did not
+ * deliver a clean round — supersession, failure, and the ADR-0048 loud
+ * downgrade — and the failure text promises exactly that.
+ */
+export async function executeRefineRound(
+  sessionId: string,
+  phone: string,
+  uid: string,
+  credit: GenerationCreditReservation | undefined,
+  armedAt: string
+): Promise<RevealDelivery> {
+  const store = resolveProfileStore();
+
+  const release = async () => {
+    if (!credit) return;
+    await releaseGenerationCredit(uid, credit).catch((releaseError) => {
+      logger.error({
+        event_type: 'sketchbot_sms.round_credit_release_failed',
+        phone_last4: phoneLast4(phone),
+        session_id: sessionId,
+        error: releaseError instanceof Error ? releaseError.message : String(releaseError),
+      });
+    });
+  };
+
+  if (!(await stillArmed(store, phone, 'round-running', armedAt))) {
+    // Superseded before generation — nothing was bought, hand it back.
+    await release();
+    logger.info({
+      event_type: 'sketchbot_sms.round_superseded',
+      phone_last4: phoneLast4(phone),
+      session_id: sessionId,
+    });
+    return { cuts: [], closingText: '' };
+  }
+
+  let result;
+  try {
+    result = await refineRound(sessionId);
+  } catch (error) {
+    // No partial-charge path (ADR-0049): the round persisted nothing, the
+    // pick stays changeable, and the credit goes back before the copy
+    // promising it does.
+    await release();
+    const profile = await store.get(phone);
+    if (profile && profile.revealArmedAt === armedAt) {
+      profile.lastStage = 'revealed';
+      profile.revealArmedAt = null;
+      profile.updatedAt = new Date().toISOString();
+      await store.save(profile);
+    }
+    logger.error({
+      event_type: 'sketchbot_sms.round_failed',
+      phone_last4: phoneLast4(phone),
+      session_id: sessionId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return { cuts: [], closingText: ROUND_FAILED_TEXT };
+  }
+
+  // Loud downgrade (ADR-0048): the cuts are delivered, but off the pinned
+  // lane — the credit goes back and the closing text says so.
+  if (result.downgraded) await release();
+
+  const profile = (await store.get(phone)) ?? newProfile(phone);
+  // Paid renders already ran — always deliver. Only claim profile state
+  // when this job is still the armed one; do not clobber a newer arm.
+  if (profile.revealArmedAt === armedAt) {
+    profile.lastStage = 'revealed';
+    profile.revealArmedAt = null;
+    profile.updatedAt = new Date().toISOString();
+    await store.save(profile);
+  } else if (profile.revealArmedAt != null) {
+    logger.info({
+      event_type: 'sketchbot_sms.round_superseded',
+      phone_last4: phoneLast4(phone),
+      session_id: sessionId,
+    });
+  }
+
+  const session = result.session;
+  const roundCuts = session.variations.filter((variation) =>
+    result.round.variationIds.includes(variation.id)
+  );
+  const labels = roundPoleLabels(result.round, roundCuts);
+  const cutUrls = roundCuts
+    .map((variation) => variation.imageUrl)
+    .filter((url): url is string => typeof url === 'string' && url.length > 0);
+  const link = await mintShareLink(session, profile, cutUrls);
+
+  logger.info({
+    event_type: 'sketchbot_sms.round_delivered',
+    phone_last4: phoneLast4(phone),
+    session_id: session.id,
+    round: result.round.round,
+    axis: result.round.axis,
+    downgraded: result.downgraded,
+    cuts: cutUrls.length,
+  });
+
+  const downgradeNote = result.downgraded
+    ? 'Heads up — these came off my backup lane, so that credit is back. '
+    : '';
+  return {
+    cuts: cutUrls.map((mediaUrl, index) => ({
+      caption: roundCutCaption(index === 0 ? 'A' : 'B', labels[index]),
+      mediaUrl,
+    })),
+    closingText: `${downgradeNote}${roundRevealText(labels[0], labels[1], link)}`,
+  };
 }
 
 async function armReveal(
@@ -1230,7 +1570,7 @@ async function conversationTurn(
 
 /**
  * The deferred half of a reveal: runs AFTER the webhook already answered
- * (four renders take minutes; Twilio gives webhooks seconds). The daily-cap
+ * (a round's renders take minutes; Twilio gives webhooks seconds). The daily-cap
  * slot was reserved in armReveal — a failure here refunds it, tells the
  * user honestly, and never leaves them waiting on nothing.
  *
@@ -1318,7 +1658,7 @@ export async function executeReveal(
     .map((variation) => variation.imageUrl)
     .filter((url): url is string => typeof url === 'string' && url.length > 0);
 
-  // The bridge into the web session: a durable public share of the four
+  // The bridge into the web session: a durable public share of the round's
   // cuts (/share/<id> — same store the web share flow writes). Falls back
   // to the design surface when no durable store is available.
   const link = await mintShareLink(session, profile, cutUrls);
@@ -1331,12 +1671,18 @@ export async function executeReveal(
     cuts: cutUrls.length,
   });
 
+  // Round one of the pick-to-refine loop (ADR-0049): two cuts captioned by
+  // their poles, then the A/B ask.
+  const labels = roundPoleLabels(liveRound(session), session.variations);
   return {
     cuts: cutUrls.map((mediaUrl, index) => ({
-      caption: cutCaption(index, cutUrls.length),
+      caption:
+        index < 2
+          ? roundCutCaption(index === 0 ? 'A' : 'B', labels[index])
+          : cutCaption(index, cutUrls.length),
       mediaUrl,
     })),
-    closingText: revealClosingText(link),
+    closingText: roundRevealText(labels[0], labels[1], link),
   };
 }
 

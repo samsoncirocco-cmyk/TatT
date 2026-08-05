@@ -10,10 +10,10 @@
  *  - X-Twilio-Signature verified via the official SDK against the exact
  *    public URL and POST params → 403 on missing/invalid
  *
- * Twilio gives webhooks ~15 seconds; four renders take minutes. So the
+ * Twilio gives webhooks ~15 seconds; a round's renders take minutes. So the
  * route answers conversational turns synchronously (one TwiML message) and
  * defers reveal generation to after() — the ack goes back immediately, the
- * four cuts arrive as MMS via the REST sender once they exist.
+ * two cuts arrive as MMS via the REST sender once they exist.
  *
  * MMS delivery is SEQUENTIAL (one cut per message + a closing link text),
  * not a server-side collage: Twilio caps a message's media at 5MB total and
@@ -49,6 +49,7 @@ import {
   executeReveal,
   executeCritique,
   executeRefine,
+  executeRefineRound,
   executePlacement,
   recordOptOut,
   isOptedOut,
@@ -60,7 +61,7 @@ import { createRequestLogger, logger } from '@/lib/logger';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 // The after() reveal work needs the same headroom as the web confirm route:
-// four renders through Replicate's low-credit throttle can take minutes.
+// a round's renders through Replicate's low-credit throttle can take minutes.
 export const maxDuration = 300;
 
 /** Twilio's compliance keywords (default + advanced opt-out vocabulary). */
@@ -275,12 +276,13 @@ export async function POST(req: NextRequest) {
       return twiml(outcome.text);
     }
 
-    // Critique and refinement defer for the same reason a reveal does: one
-    // render still outlives the webhook window. Both deliver whatever cuts
-    // they produced (possibly none) plus a closing text turn.
+    // Critique, refinement, and charged rounds defer for the same reason a
+    // reveal does: a render still outlives the webhook window. Each delivers
+    // whatever cuts it produced (possibly none) plus a closing text turn.
     if (
       outcome.kind === 'critique' ||
       outcome.kind === 'refine' ||
+      outcome.kind === 'refine-round' ||
       outcome.kind === 'placement'
     ) {
       after(async () => {
@@ -299,12 +301,20 @@ export async function POST(req: NextRequest) {
                   { url: outcome.mediaUrl, contentType: outcome.contentType },
                   outcome.message
                 )
-              : await executeRefine(
-                  outcome.sessionId,
-                  outcome.phone,
-                  outcome.answer,
-                  outcome.armedAt
-                );
+              : outcome.kind === 'refine-round'
+                ? await executeRefineRound(
+                    outcome.sessionId,
+                    outcome.phone,
+                    outcome.uid,
+                    outcome.credit,
+                    outcome.armedAt
+                  )
+                : await executeRefine(
+                    outcome.sessionId,
+                    outcome.phone,
+                    outcome.answer,
+                    outcome.armedAt
+                  );
         if (await isOptedOut(outcome.phone)) return;
         if (delivery.cuts.length === 0 && !delivery.closingText) return;
         for (const cut of delivery.cuts) {

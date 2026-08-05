@@ -5,7 +5,7 @@
  * test stubs global fetch and asserts the network stays untouched.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { enhance, enhanceStructured } from '../index';
+import { enhance, enhanceStructured, enhanceRound } from '../index';
 import type { IntakeRecord } from '../../intake/types';
 
 /** The front-loaded presentation clause every prompt must carry (ADR-0023). */
@@ -27,44 +27,37 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('enhanceStructured - questionnaire mode (2 ambiguous axes)', () => {
+describe('enhanceStructured - questionnaire mode (round one, ADR-0049)', () => {
   const record: IntakeRecord = {
     ...baseRecord,
     ambiguousAxes: ['bold-fine', 'color-blackwork'],
   };
 
-  it('returns four variations covering all four quadrants of the two axes', async () => {
+  it('returns two variations spread on the ladder\'s first axis', async () => {
     const result = await enhanceStructured(record);
 
     expect(result.axisSelection.mode).toBe('questionnaire');
-    expect(result.axisSelection.axes).toHaveLength(2);
-    expect(result.axisSelection.axes).toEqual(
-      expect.arrayContaining(['bold-fine', 'color-blackwork'])
-    );
+    // ADR-0049: round one always spreads bold vs fine-line, one axis only.
+    expect(result.axisSelection.axes).toEqual(['bold-fine']);
 
-    expect(result.variations).toHaveLength(4);
-    const quadrants = result.variations.map(v => JSON.stringify(v.axisPosition));
-    expect(new Set(quadrants).size).toBe(4);
-    for (const variation of result.variations) {
-      expect(Object.keys(variation.axisPosition).sort()).toEqual(
-        ['bold-fine', 'color-blackwork'].sort()
-      );
-    }
+    expect(result.variations).toHaveLength(2);
+    expect(result.variations.map(v => v.axisPosition)).toEqual([
+      { 'bold-fine': 'bold' },
+      { 'bold-fine': 'fine' },
+    ]);
   });
 
-  it('produces divergent prompts per quadrant reflecting each pole', async () => {
+  it('produces divergent prompts per cut reflecting each pole', async () => {
     const result = await enhanceStructured(record);
 
     const detailedPrompts = result.variations.map(v => v.prompts.detailed);
-    expect(new Set(detailedPrompts).size).toBe(4);
+    expect(new Set(detailedPrompts).size).toBe(2);
 
     for (const variation of result.variations) {
       const pos = variation.axisPosition as Record<string, string>;
       const prompt = (variation.prompts.detailed || '').toLowerCase();
       if (pos['bold-fine'] === 'bold') expect(prompt).toContain('bold');
       if (pos['bold-fine'] === 'fine') expect(prompt).toContain('fine-line');
-      if (pos['color-blackwork'] === 'color') expect(prompt).toContain('color');
-      if (pos['color-blackwork'] === 'blackwork') expect(prompt).toContain('blackwork');
     }
   });
 
@@ -229,14 +222,18 @@ describe('enhanceStructured - palette (color vs monochrome)', () => {
   });
 });
 
-describe('enhanceStructured - padding never contradicts a resolved axis', () => {
-  it('does not pad a blackwork session with the color axis', async () => {
+describe('enhanceStructured - one axis per round, never a padded second', () => {
+  it('spreads exactly one axis regardless of how much stayed ambiguous', async () => {
     const result = await enhanceStructured({
       ...baseRecord,
       styleTags: ['blackwork'],
       ambiguousAxes: ['minimal-ornate'],
     });
 
+    // The old padding machinery is gone (ADR-0049): the round asks ONE
+    // question, and a blackwork session never gets a color quadrant forced
+    // into its opening pair.
+    expect(result.axisSelection.axes).toEqual(['bold-fine']);
     expect(result.axisSelection.axes).not.toContain('color-blackwork');
     for (const variation of result.variations) {
       const prompt = (variation.prompts.detailed || '').toLowerCase();
@@ -244,7 +241,7 @@ describe('enhanceStructured - padding never contradicts a resolved axis', () => 
     }
   });
 
-  it('does not pad a named-subject session with the literal-abstract axis', async () => {
+  it('does not spread literal-abstract on a named-subject session round one', async () => {
     const result = await enhanceStructured({
       ...baseRecord,
       styleTags: ['color'],
@@ -254,17 +251,6 @@ describe('enhanceStructured - padding never contradicts a resolved axis', () => 
 
     expect(result.axisSelection.axes).not.toContain('literal-abstract');
     expect(result.axisSelection.axes).not.toContain('color-blackwork');
-  });
-
-  it('still pads (least consequential) when the intake decided everything else', async () => {
-    const result = await enhanceStructured({
-      ...baseRecord,
-      styleTags: ['blackwork', 'fine-line', 'minimalist', 'realism'],
-      ambiguousAxes: ['minimal-ornate'],
-    });
-
-    expect(result.axisSelection.axes).toHaveLength(2);
-    expect(result.axisSelection.rationale).toContain('decided every');
   });
 });
 
@@ -306,53 +292,106 @@ describe('enhanceStructured - named subject (IP rule)', () => {
   });
 });
 
-describe('enhanceStructured - more than 2 ambiguous axes', () => {
-  it('picks the two most visually consequential axes by documented priority', async () => {
+describe('enhanceStructured - the fixed ladder (ADR-0049)', () => {
+  it('round one spreads bold-fine no matter how many axes stayed ambiguous', async () => {
     const result = await enhanceStructured({
       ...baseRecord,
       ambiguousAxes: ['minimal-ornate', 'bold-fine', 'literal-abstract', 'color-blackwork'],
     });
 
-    // Priority: color-blackwork > literal-abstract > bold-fine > minimal-ornate
     expect(result.axisSelection.mode).toBe('questionnaire');
-    expect(result.axisSelection.axes).toEqual(['color-blackwork', 'literal-abstract']);
-    expect(result.axisSelection.rationale).toContain('bold-fine');
-    expect(result.axisSelection.rationale).toContain('minimal-ornate');
-  });
-
-  it('pads a single ambiguous axis to two and says so in the rationale', async () => {
-    const result = await enhanceStructured({
-      ...baseRecord,
-      ambiguousAxes: ['minimal-ornate'],
-    });
-
-    expect(result.axisSelection.mode).toBe('questionnaire');
-    expect(result.axisSelection.axes).toHaveLength(2);
-    expect(result.axisSelection.axes).toContain('minimal-ornate');
-    expect(result.axisSelection.rationale.toLowerCase()).toContain('padded');
+    expect(result.axisSelection.axes).toEqual(['bold-fine']);
+    // The rationale names the ladder — selection is logged, never silent.
+    expect(result.axisSelection.rationale).toContain('ladder');
   });
 });
 
 describe('enhanceStructured - compositional fallback (empty ambiguousAxes)', () => {
-  it('locks style and varies composition across four distinct treatments', async () => {
+  it('locks style and varies composition across two distinct treatments', async () => {
     const result = await enhanceStructured(baseRecord);
 
     expect(result.axisSelection.mode).toBe('compositional');
     expect(result.axisSelection.axes).toEqual([]);
 
-    expect(result.variations).toHaveLength(4);
+    expect(result.variations).toHaveLength(2);
     const compositions = result.variations.map(
       v => (v.axisPosition as { composition: string }).composition
     );
     expect(compositions.every(Boolean)).toBe(true);
-    expect(new Set(compositions).size).toBe(4);
+    expect(new Set(compositions).size).toBe(2);
 
     // Style locks: every variation carries the same style spec.
     for (const variation of result.variations) {
       expect(variation.prompts.simple).toContain('neo-traditional');
     }
     const detailedPrompts = result.variations.map(v => v.prompts.detailed);
-    expect(new Set(detailedPrompts).size).toBe(4);
+    expect(new Set(detailedPrompts).size).toBe(2);
+  });
+});
+
+describe('enhanceRound - later rounds hold every picked pole (ADR-0049)', () => {
+  const record: IntakeRecord = {
+    ...baseRecord,
+    ambiguousAxes: ['bold-fine', 'color-blackwork'],
+  };
+
+  it('spreads the round axis while carrying the locked poles in every cut', async () => {
+    const result = await enhanceRound(record, {
+      roundNumber: 2,
+      axis: 'color-blackwork',
+      lockedPoles: { 'bold-fine': 'bold' },
+    });
+
+    expect(result.axisSelection.mode).toBe('questionnaire');
+    expect(result.axisSelection.axes).toEqual(['color-blackwork']);
+    expect(result.variations).toHaveLength(2);
+    expect(result.variations.map(v => v.axisPosition)).toEqual([
+      { 'color-blackwork': 'color', 'bold-fine': 'bold' },
+      { 'color-blackwork': 'blackwork', 'bold-fine': 'bold' },
+    ]);
+    // The locked pole reads in both prompts — the round HOLDS the pick.
+    for (const variation of result.variations) {
+      expect((variation.prompts.detailed || '').toLowerCase()).toContain('bold');
+    }
+  });
+
+  it('re-rolls on the locked poles past the ladder', async () => {
+    const locked = {
+      'bold-fine': 'fine',
+      'color-blackwork': 'blackwork',
+      'literal-abstract': 'literal',
+      'minimal-ornate': 'minimal',
+    } as const;
+    const result = await enhanceRound(record, {
+      roundNumber: 5,
+      axis: 'reroll',
+      lockedPoles: locked,
+    });
+
+    expect(result.variations).toHaveLength(2);
+    for (const variation of result.variations) {
+      expect(variation.axisPosition).toEqual(locked);
+    }
+  });
+
+  it('compositional rounds take the next treatment pair from the pool', async () => {
+    const round1 = await enhanceRound(baseRecord, {
+      roundNumber: 1,
+      axis: 'composition',
+      lockedPoles: {},
+    });
+    const round2 = await enhanceRound(baseRecord, {
+      roundNumber: 2,
+      axis: 'composition',
+      lockedPoles: {},
+    });
+
+    const compositionsOf = (result: typeof round1) =>
+      result.variations.map(v => (v.axisPosition as { composition: string }).composition);
+    expect(round1.variations).toHaveLength(2);
+    expect(round2.variations).toHaveLength(2);
+    // Different pairs — round two does not repeat round one's framings.
+    expect(new Set([...compositionsOf(round1), ...compositionsOf(round2)]).size).toBe(4);
   });
 });
 

@@ -11,7 +11,7 @@ import {
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-// Four renders + council must survive Replicate's low-credit throttle
+// Two renders + council must survive Replicate's low-credit throttle
 // (burst of 1 per ~10s window): 4 renders can need ~1min of retry waits
 // plus generation. Fluid compute is enabled on this project, so 300s is
 // legal on every plan tier.
@@ -24,7 +24,7 @@ export const maxDuration = 300;
 //
 // Demo mode (NEXT_PUBLIC_DEMO_MODE): the REAL service still runs — and
 // persists the session, so the follow-up pick/refine/get routes work — but
-// the orchestrator substitutes free stock images for the four renders. No
+// the orchestrator substitutes free stock images for the round's renders. No
 // cost, so rate/budget policy is skipped; a short simulated latency keeps
 // the /api/v1/generate demo feel.
 

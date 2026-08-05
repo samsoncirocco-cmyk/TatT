@@ -31,7 +31,7 @@ const EXTENSION_BY_MIME: Record<string, string> = {
 };
 
 /**
- * Long enough for a full reveal (four renders, provider queue included),
+ * Long enough for a full round (two renders, provider queue included),
  * short enough that a leaked URL goes stale the same hour.
  */
 export const REFERENCE_URL_TTL_SECONDS = 15 * 60;

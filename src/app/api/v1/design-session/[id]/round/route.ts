@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
-import { confirmProposal } from '@/services/designSession';
+import { refineRound, DesignSessionError } from '@/services/designSession';
 import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { checkBudget } from '@/lib/budget-tracker';
 import { createRequestLogger } from '@/lib/logger';
@@ -15,32 +15,41 @@ import {
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-// Two renders + council must survive Replicate's low-credit throttle
-// (burst of 1 per ~10s window). Sized for four renders originally; kept at
-// 300s rather than shrunk (ADR-0049's guidance: more headroom, not less) —
-// the Replicate lane may not batch, and reference signing rides on top.
-// Fluid compute is enabled on this project, so 300s is legal on every
-// plan tier.
+// Two renders + reference signing must survive Replicate's low-credit
+// throttle (burst of 1 per ~10s window). Fluid compute is enabled on this
+// project, so 300s is legal on every plan tier — kept at the confirm
+// route's ceiling for headroom rather than resized down (ADR-0049).
 export const maxDuration = 300;
 
 /**
- * POST /api/v1/design-session/[id]/confirm — the user's yes to the
- * conversation's proposal (ADR-0020). Fires the existing reveal pipeline
- * (round one's 2 renders on one pinned provider, ADR-0049), so the full budget policy of the start
- * route applies and the service records what those renders cost. A 'no' or correction is just
- * another converse message, never this endpoint. The ConfirmRequest body is
- * reserved-empty in the frozen contract, so no body validation exists yet.
+ * The round failure line (ADR-0049 acceptance copy). The credit release
+ * below is what makes the second sentence true — the copy and the refund
+ * ship together or not at all.
+ */
+const ROUND_FAILED_COPY = "That round didn't take — your credit is back. Run it again?";
+
+/**
+ * POST /api/v1/design-session/[id]/round — one charged refine round
+ * (ADR-0049): reserve ONE generation credit, then render two new cuts
+ * spread on the next ladder axis, seeded by the previous round's picked
+ * image (plus the customer's own reference photos). The pick itself was
+ * free; this is the moment it freezes.
+ *
+ * No partial-charge path: if both cuts can't be delivered the service
+ * throws with nothing persisted, the credit is released here, and the
+ * response says so in the decided copy. A downgrade off the pinned lane
+ * (ADR-0048) still delivers, but loudly — the credit goes back and the
+ * response carries the flag.
  *
  * Demo mode (NEXT_PUBLIC_DEMO_MODE): the real service still runs — and
- * persists the revealed session — but the renders are free stock images, so
- * rate/budget policy is skipped, matching the start route (including its
- * simulated latency).
+ * persists the new round — but the renders are free stock images, so
+ * rate/budget/credit policy is skipped, matching the confirm route.
  */
 export async function POST(
     req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const reqLogger = createRequestLogger('design-session-confirm');
+    const reqLogger = createRequestLogger('design-session-round');
     // Seeded before the try so a setup failure — including one thrown by
     // `await params` itself — still logs a session_id.
     let sessionId = 'unknown';
@@ -77,45 +86,43 @@ export async function POST(
 
         ({ id: sessionId } = await params);
 
-        if (demoMode) await new Promise(r => setTimeout(r, 1500));
-
+        // One credit per round (ADR-0041 primitive, ADR-0049 metering).
+        // Reserved BEFORE the renders; released on any failure below.
         if (!demoMode) {
             creditReservation = await reserveGenerationCredit(user.uid);
         }
 
-        const session = await confirmProposal(sessionId);
+        const { session, round, downgraded } = await refineRound(sessionId);
         generationSucceeded = true;
 
-        // Loud downgrade (ADR-0048): the reveal rendered, but on a fallback
-        // lane instead of the model the cast routing chose. The round is not
-        // charged — the credit goes back (at-most-once inside the primitive),
-        // and the response says so alongside the session's own `downgraded`
-        // flag so the reveal copy can tell the customer. A release failure
-        // must not fail a reveal the customer already has: log it, keep
-        // creditReleased false, and the ledger errs against us, not them.
+        // Loud downgrade (ADR-0048): the round rendered, but on a fallback
+        // lane instead of the pinned model. The round is not charged — the
+        // credit goes back (at-most-once inside the primitive) and the
+        // response says so. A release failure must not fail a round the
+        // customer already has: log it and let the ledger err against us.
         let creditReleased = false;
-        if (session.downgraded && creditReservation) {
+        if (downgraded && creditReservation) {
             creditReleased = await releaseGenerationCredit(user.uid, creditReservation)
                 .then(() => true)
                 .catch((releaseError) => {
-                    console.error('[Design session] failed to return credit for downgraded reveal:', releaseError);
+                    console.error('[Design session] failed to return credit for downgraded round:', releaseError);
                     return false;
                 });
         }
 
-        reqLogger.complete('design_session.confirm.success', {
+        reqLogger.complete('design_session.round.success', {
             session_id: session.id,
-            provider: session.provider,
-            axis_mode: session.axisSelection.mode,
-            downgraded: session.downgraded === true,
+            round: round.round,
+            axis: round.axis,
+            downgraded,
             credit_released: creditReleased,
         });
 
-        return NextResponse.json({ success: true, session, credits: creditReservation, creditReleased });
+        return NextResponse.json({ success: true, session, round, credits: creditReservation, creditReleased });
     } catch (error) {
         if (uid && creditReservation && !generationSucceeded) {
             await releaseGenerationCredit(uid, creditReservation).catch((releaseError) => {
-                console.error('[Design session] failed to return unused generation credit:', releaseError);
+                console.error('[Design session] failed to return unused round credit:', releaseError);
             });
         }
         if (error instanceof GenerationCreditsExhaustedError || (error as { code?: string }).code === 'GENERATION_CREDITS_EXHAUSTED') {
@@ -124,10 +131,19 @@ export async function POST(
                 { status: 402 }
             );
         }
-        reqLogger.error('design_session.confirm.failed', error as Error, {
+        reqLogger.error('design_session.round.failed', error as Error, {
             session_id: sessionId,
             error_code: (error as { code?: string }).code || 'DESIGN_SESSION_FAILED',
         });
-        return designSessionErrorResponse(error);
+        // Domain refusals (frozen pick, no pick yet, wrong phase) keep their
+        // own messages; a render that died mid-round gets the decided copy —
+        // the credit release above is what makes it honest.
+        if (error instanceof DesignSessionError) {
+            return designSessionErrorResponse(error);
+        }
+        return NextResponse.json(
+            { error: ROUND_FAILED_COPY, code: 'ROUND_FAILED', creditReleased: creditReservation != null },
+            { status: 502 }
+        );
     }
 }

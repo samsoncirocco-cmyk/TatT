@@ -11,7 +11,7 @@ import { parseBinaryChoices } from '../components/RefinementPrompt';
 // axisSelection.rationale is an internal audit log (ADR-0012) and must
 // never render in the chat.
 const REVEAL_NARRATION =
-  'I split these four on line weight and how much detail they carry — your picks tell me which way to lean.';
+  'I split these two on line weight — your pick tells me which way to lean.';
 
 // The fetch client attaches Firebase bearer auth (matching the API routes'
 // verifyApiAuth gate); stub it so tests need no signed-in user.
@@ -42,7 +42,8 @@ vi.mock('framer-motion', () => {
   };
 });
 
-const variations = [1, 2, 3, 4].map((n) => ({
+// Round one's pair (ADR-0049): two cuts spread on one axis.
+const variations = [1, 2].map((n) => ({
   id: `v${n}`,
   axisPosition: { 'bold-fine': n % 2 ? 'bold' : 'fine' },
   prompt: `prompt ${n}`,
@@ -61,20 +62,66 @@ const baseSession: DesignSession = {
   },
   axisSelection: {
     mode: 'questionnaire',
-    axes: ['bold-fine', 'minimal-ornate'],
-    rationale: 'Your idea left line weight and density open, so the four split along those.',
+    axes: ['bold-fine'],
+    rationale: 'Questionnaire mode: round one spreads on bold-fine, the first ladder rung.',
   },
   provider: 'replicate',
   variations,
+  rounds: [{ round: 1, axis: 'bold-fine', variationIds: ['v1', 'v2'] }],
   createdAt: '2026-07-24T00:00:00Z',
   updatedAt: '2026-07-24T00:00:00Z',
 };
 
-const pickedSession: DesignSession = {
+/** Round one with its pick landed — still changeable (ADR-0049). */
+const roundPickedSession: DesignSession = {
   ...baseSession,
+  rounds: [
+    {
+      round: 1,
+      axis: 'bold-fine',
+      variationIds: ['v1', 'v2'],
+      pickedId: 'v2',
+      pickedAt: '2026-07-24T00:01:00Z',
+    },
+  ],
+};
+
+/** A charged second round: round 1 frozen, two new cuts on the next axis. */
+const roundTwoSession: DesignSession = {
+  ...baseSession,
+  variations: [
+    ...variations,
+    {
+      id: 'v3',
+      axisPosition: { 'color-blackwork': 'color', 'bold-fine': 'fine' },
+      prompt: 'prompt 3',
+      imageUrl: 'https://img.test/design-3.png',
+    },
+    {
+      id: 'v4',
+      axisPosition: { 'color-blackwork': 'blackwork', 'bold-fine': 'fine' },
+      prompt: 'prompt 4',
+      imageUrl: 'https://img.test/design-4.png',
+    },
+  ],
+  rounds: [
+    {
+      round: 1,
+      axis: 'bold-fine',
+      variationIds: ['v1', 'v2'],
+      pickedId: 'v2',
+      pickedAt: '2026-07-24T00:01:00Z',
+      frozen: true,
+    },
+    { round: 2, axis: 'color-blackwork', variationIds: ['v3', 'v4'] },
+  ],
+};
+
+const pickedSession: DesignSession = {
+  ...roundPickedSession,
   phase: 'picked',
   pickId: 'v2',
-  mostNotYouId: 'v3',
+  mostNotYouId: 'v1',
   refinementQuestion: 'Bolder lines or keep them fine?',
 };
 
@@ -123,9 +170,10 @@ async function answerIntake() {
 }
 
 describe('DesignSessionFlow', () => {
-  it('walks intake → reveal → pick → most-not-you → refine → complete', async () => {
+  it('walks intake → reveal → round pick → lock-in → refine → complete', async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse(baseSession))
+      .mockResolvedValueOnce(jsonResponse(roundPickedSession))
       .mockResolvedValueOnce(jsonResponse(pickedSession))
       .mockResolvedValueOnce(jsonResponse(completeSession));
 
@@ -145,31 +193,38 @@ describe('DesignSessionFlow', () => {
       meaningAnswer: 'strength after a rough year',
     });
 
-    // Reveal: in-voice narration + 4 designs. The raw audit rationale must
-    // never reach the transcript (a live session leaked "Questionnaire
-    // mode: intake left …" as a chat bubble).
+    // Reveal: in-voice narration + the round prompt + 2 cuts (ADR-0049).
+    // The raw audit rationale must never reach the transcript.
     await screen.findByText(REVEAL_NARRATION);
+    expect(screen.getByText('Two cuts. Tap the one that’s closer.')).toBeTruthy();
     expect(screen.queryByText(baseSession.axisSelection.rationale)).toBeNull();
     expect(screen.queryByText(/questionnaire mode/i)).toBeNull();
-    expect(screen.getAllByAltText(/^Design \d$/)).toHaveLength(4);
+    expect(screen.getAllByAltText(/^Design \d$/)).toHaveLength(2);
 
-    // Pick one → most-not-you prompt over the remaining three.
+    // Tap → the FREE round pick (ADR-0049) → the computed next-axis invite.
     fireEvent.click(screen.getByRole('button', { name: /^Pick design 2 / }));
-    await screen.findByText(/which one feels most/i);
+    await screen.findByText(
+      'Good eye. Refine it? Next round is full-color vs blackwork — 1 credit.'
+    );
     expect(screen.getByText('Your pick')).toBeTruthy();
-    const notYouButtons = screen.getAllByRole('button', { name: /feels most not me/i });
-    expect(notYouButtons).toHaveLength(3);
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/design-session/sess-1/round/pick',
+      expect.objectContaining({ method: 'POST' })
+    );
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ pickedId: 'v2' });
+    expect(screen.getByRole('button', { name: 'Refine — 1 credit' })).toBeTruthy();
 
-    // Most-not-you tap → pick POST with both signals.
-    fireEvent.click(screen.getByRole('button', { name: /^Design 3 feels most not me / }));
+    // Lock it in → old pick POST with the other cut as the implicit
+    // most-not-you (one clean negative signal, no extra tap).
+    fireEvent.click(screen.getByRole('button', { name: 'Lock it in' }));
     await screen.findByText(pickedSession.refinementQuestion!);
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/v1/design-session/sess-1/pick',
       expect.objectContaining({ method: 'POST' })
     );
-    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({
+    expect(JSON.parse(fetchMock.mock.calls[2][1].body)).toEqual({
       pickId: 'v2',
-      mostNotYouId: 'v3',
+      mostNotYouId: 'v1',
     });
 
     // Binary question renders as two choices; answering triggers refine POST.
@@ -179,7 +234,7 @@ describe('DesignSessionFlow', () => {
       '/api/v1/design-session/sess-1/refine',
       expect.objectContaining({ method: 'POST' })
     );
-    expect(JSON.parse(fetchMock.mock.calls[2][1].body)).toEqual({ answer: 'Bolder lines' });
+    expect(JSON.parse(fetchMock.mock.calls[3][1].body)).toEqual({ answer: 'Bolder lines' });
 
     // Handoff card: brief summary quoted back + honest placement note (ADR-0014).
     // ("inner forearm" also appears in the intake transcript, hence getAllByText.)
@@ -200,9 +255,91 @@ describe('DesignSessionFlow', () => {
     );
   });
 
+  // The pick-to-refine loop itself (ADR-0049): a charged round renders two
+  // NEW cuts on the next ladder axis and the grid moves to them.
+  describe('refine rounds (ADR-0049)', () => {
+    async function reachRoundPicked() {
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse(baseSession))
+        .mockResolvedValueOnce(jsonResponse(roundPickedSession));
+      render(<DesignSessionFlow />);
+      await answerIntake();
+      await screen.findByText(REVEAL_NARRATION);
+      fireEvent.click(screen.getByRole('button', { name: /^Pick design 2 / }));
+      await screen.findByRole('button', { name: 'Refine — 1 credit' });
+    }
+
+    it('charges a round and reveals the next pair on the next axis', async () => {
+      await reachRoundPicked();
+
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse({ success: true, session: roundTwoSession, round: roundTwoSession.rounds![1] })
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Refine — 1 credit' }));
+
+      // The round POST fired, and the grid now shows round two's cuts.
+      await screen.findByRole('button', { name: /^Pick design 3 / });
+      expect(fetchMock).toHaveBeenLastCalledWith(
+        '/api/v1/design-session/sess-1/round',
+        expect.objectContaining({ method: 'POST' })
+      );
+      expect(screen.getAllByAltText(/^Design \d$/)).toHaveLength(2);
+      expect(screen.getByRole('button', { name: /^Pick design 4 / })).toBeTruthy();
+      // Round two has no pick yet — no invite, no charged button.
+      expect(screen.queryByRole('button', { name: 'Refine — 1 credit' })).toBeNull();
+    });
+
+    it('lets the pick change until the round is charged', async () => {
+      await reachRoundPicked();
+
+      const repicked: DesignSession = {
+        ...baseSession,
+        rounds: [
+          {
+            round: 1,
+            axis: 'bold-fine',
+            variationIds: ['v1', 'v2'],
+            pickedId: 'v1',
+            pickedAt: '2026-07-24T00:02:00Z',
+          },
+        ],
+      };
+      fetchMock.mockResolvedValueOnce(jsonResponse(repicked));
+
+      // Tapping the other cut re-picks — same endpoint, no charge.
+      fireEvent.click(screen.getByRole('button', { name: /^Pick design 1 / }));
+      await waitFor(() =>
+        expect(JSON.parse(fetchMock.mock.calls[2][1].body)).toEqual({ pickedId: 'v1' })
+      );
+      expect(fetchMock).toHaveBeenLastCalledWith(
+        '/api/v1/design-session/sess-1/round/pick',
+        expect.objectContaining({ method: 'POST' })
+      );
+    });
+
+    it('shows the decided failure copy and a retry when the round dies', async () => {
+      await reachRoundPicked();
+
+      fetchMock.mockResolvedValueOnce({
+        ok: false,
+        status: 502,
+        json: async () => ({
+          error: "That round didn't take — your credit is back. Run it again?",
+          code: 'ROUND_FAILED',
+          creditReleased: true,
+        }),
+      } as Response);
+      fireEvent.click(screen.getByRole('button', { name: 'Refine — 1 credit' }));
+
+      await screen.findByText("That round didn't take — your credit is back. Run it again?");
+      expect(screen.getByRole('button', { name: /retry/i })).toBeTruthy();
+    });
+  });
+
   it('offers no second refinement affordance after completion (ADR-0013 hard stop)', async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse(baseSession))
+      .mockResolvedValueOnce(jsonResponse(roundPickedSession))
       .mockResolvedValueOnce(jsonResponse(pickedSession))
       .mockResolvedValueOnce(jsonResponse(completeSession));
 
@@ -210,7 +347,7 @@ describe('DesignSessionFlow', () => {
     await answerIntake();
     await screen.findByText(REVEAL_NARRATION);
     fireEvent.click(screen.getByRole('button', { name: /^Pick design 2 / }));
-    fireEvent.click(await screen.findByRole('button', { name: /^Design 3 feels most not me / }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Lock it in' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Bolder lines' }));
     await screen.findByAltText('Your refined design');
 
@@ -218,13 +355,12 @@ describe('DesignSessionFlow', () => {
     expect(screen.queryByRole('button', { name: /regenerate|try again|another|one more|refine/i })).toBeNull();
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(screen.queryByRole('button', { name: /pick design/i })).toBeNull();
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
   // ADR-0039: the chat used to die at the reveal — there was no reply box at
-  // all, so "riku's missing" had nowhere to go. These pin that it survives,
-  // that the re-cut it produces is pickable, and that it still closes at the
-  // Brief.
+  // all, so "riku's missing" had nowhere to go. These pin that it survives
+  // the two-cut rounds and still closes at the Brief.
   describe('critique lane (ADR-0039)', () => {
     async function reachReveal() {
       fetchMock.mockResolvedValueOnce(jsonResponse(baseSession));
@@ -240,16 +376,16 @@ describe('DesignSessionFlow', () => {
       expect(screen.getByText(/if something.s off, just say it/i)).toBeTruthy();
 
       const recut = {
-        id: 'v3-fix1',
+        id: 'v1-fix1',
         axisPosition: { 'bold-fine': 'bold' },
-        prompt: 'prompt 3 recut',
+        prompt: 'prompt 1 recut',
         imageUrl: 'https://img.test/recut.png',
       };
       fetchMock.mockResolvedValueOnce(
         jsonResponse({
           success: true,
           session: { ...baseSession, critiqueCuts: [recut], fixesUsed: 1 },
-          reply: 're-cut cut three with that. 5 more re-cuts before i hand you over.',
+          reply: 're-cut cut one with that. 5 more re-cuts before i hand you over.',
           cut: recut,
           fixesRemaining: 5,
           exhausted: false,
@@ -257,25 +393,23 @@ describe('DesignSessionFlow', () => {
         })
       );
 
-      fireEvent.change(box, { target: { value: 'the third one but less color' } });
+      fireEvent.change(box, { target: { value: 'the first one but less color' } });
       fireEvent.submit(box.closest('form')!);
 
-      await screen.findByText(/re-cut cut three with that/i);
+      await screen.findByText(/re-cut cut one with that/i);
       expect(fetchMock).toHaveBeenLastCalledWith(
         '/api/v1/design-session/sess-1/critique',
         expect.objectContaining({ method: 'POST' })
       );
       expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({
-        message: 'the third one but less color',
+        message: 'the first one but less color',
       });
 
       // The user's words are echoed back, and the re-cut renders beside the
-      // four — pickable, so the loop closes where it started.
-      expect(screen.getByText('the third one but less color')).toBeTruthy();
-      expect(screen.getAllByAltText(/^Design \d$/)).toHaveLength(5);
-      // The re-cut counts on from the reveal's four, so no two pick targets
-      // announce themselves as the same design.
-      expect(screen.getByRole('button', { name: /^Pick design 5 / })).toBeTruthy();
+      // round's pair, numbered on from it.
+      expect(screen.getByText('the first one but less color')).toBeTruthy();
+      expect(screen.getAllByAltText(/^Design \d$/)).toHaveLength(3);
+      expect(screen.getByAltText('Design 3')).toBeTruthy();
     });
 
     it('speaks the ceiling instead of silently refusing, and never renders past it', async () => {
@@ -297,8 +431,8 @@ describe('DesignSessionFlow', () => {
       fireEvent.submit(box.closest('form')!);
 
       await screen.findByText(/that.s your artist.s job/i);
-      // Refusal spoken, no new cut — the four are still all there is.
-      expect(screen.getAllByAltText(/^Design \d$/)).toHaveLength(4);
+      // Refusal spoken, no new cut — the pair is still all there is.
+      expect(screen.getAllByAltText(/^Design \d$/)).toHaveLength(2);
     });
 
     it('keeps the reveal usable when a critique turn fails', async () => {
@@ -316,57 +450,9 @@ describe('DesignSessionFlow', () => {
 
       await screen.findByText(/image provider is busy/i);
       // The failure is a line in the lane, not a banner over the reveal: the
-      // four cuts are still tappable.
+      // round's cuts are still tappable.
       expect(screen.getByRole('button', { name: /^Pick design 2 / })).toBeTruthy();
       expect(screen.getByLabelText("Tell me what's wrong with it")).toBeTruthy();
-    });
-
-    it('lets a customer take a re-cut forward after the first pick', async () => {
-      fetchMock
-        .mockResolvedValueOnce(jsonResponse(baseSession))
-        .mockResolvedValueOnce(jsonResponse(pickedSession));
-      render(<DesignSessionFlow />);
-      await answerIntake();
-      await screen.findByText(REVEAL_NARRATION);
-      fireEvent.click(screen.getByRole('button', { name: /^Pick design 2 / }));
-      fireEvent.click(await screen.findByRole('button', { name: /^Design 3 feels most not me / }));
-      await screen.findByText(pickedSession.refinementQuestion!);
-
-      const recut = {
-        id: 'v1-fix1',
-        axisPosition: { 'bold-fine': 'bold' },
-        prompt: 'prompt 1 with Riku restored',
-        imageUrl: 'https://img.test/recut-after-pick.png',
-      };
-      fetchMock
-        .mockResolvedValueOnce(jsonResponse({
-          success: true,
-          session: { ...pickedSession, critiqueCuts: [recut], fixesUsed: 1 },
-          reply: 're-cut cut one with that.',
-          cut: recut,
-          fixesRemaining: 5,
-          exhausted: false,
-          generated: true,
-        }))
-        .mockResolvedValueOnce(jsonResponse({ ...pickedSession, pickId: recut.id }));
-
-      const box = screen.getByLabelText("Tell me what's wrong with it");
-      fireEvent.change(box, { target: { value: "riku's missing" } });
-      fireEvent.submit(box.closest('form')!);
-
-      const recutButton = await screen.findByRole('button', { name: /^Pick design 5 / });
-      expect(recutButton.hasAttribute('disabled')).toBe(false);
-      fireEvent.click(recutButton);
-
-      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
-      expect(fetchMock).toHaveBeenLastCalledWith(
-        '/api/v1/design-session/sess-1/pick',
-        expect.objectContaining({ method: 'POST' })
-      );
-      expect(JSON.parse(fetchMock.mock.calls[3][1].body)).toEqual({
-        pickId: recut.id,
-        mostNotYouId: 'v3',
-      });
     });
   });
 

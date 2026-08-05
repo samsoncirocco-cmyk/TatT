@@ -27,7 +27,14 @@ import { NextResponse } from 'next/server';
 const NOT_FOUND_CODES = new Set(['SESSION_NOT_FOUND']);
 // One-way phase machine violations (ADR-0013 hard stop included) are
 // conflicts with current resource state → 409.
-const CONFLICT_CODES = new Set(['INVALID_PHASE', 'REFINEMENT_CLOSED']);
+const CONFLICT_CODES = new Set([
+    'INVALID_PHASE',
+    'REFINEMENT_CLOSED',
+    // The round machinery (ADR-0049): a frozen pick and a pickless refine
+    // are both conflicts with current resource state.
+    'ROUND_PICK_FROZEN',
+    'ROUND_UNPICKED',
+]);
 // Request referenced something that can't apply (e.g. a pickId that isn't
 // one of the session's variations) → 400.
 const BAD_REQUEST_CODES = new Set(['INVALID_VARIATION']);

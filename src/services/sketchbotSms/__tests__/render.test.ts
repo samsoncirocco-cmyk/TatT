@@ -5,9 +5,12 @@ import {
   SMS_MAX_CHARS,
   capReachedText,
   linkGateText,
-  revealClosingText,
+  roundRevealText,
+  roundCutCaption,
   cutCaption,
   BUDGET_EXHAUSTED_TEXT,
+  ROUND_LOCKED_TEXT,
+  ROUND_FAILED_TEXT,
 } from '../internal/render';
 
 describe('stripMarkdown', () => {
@@ -89,9 +92,23 @@ describe('channel phrasings', () => {
     );
   });
 
-  it('reveal closing text carries the share link', () => {
-    expect(revealClosingText('https://tatttester.com/share/abc')).toContain(
-      '/share/abc'
+  it('round reveal text names both poles, asks A or B, and carries the share link', () => {
+    const text = roundRevealText('bold', 'fine-line', 'https://tatttester.com/share/abc');
+    expect(text).toContain('Two cuts this round: A is bold, B is fine-line. Reply A or B.');
+    expect(text).toContain('/share/abc');
+  });
+
+  it('round cut captions carry the letter and the pole', () => {
+    expect(roundCutCaption('A', 'bold')).toBe('Cut A — bold');
+    expect(roundCutCaption('B', 'fine-line')).toBe('Cut B — fine-line');
+  });
+
+  it('the locked and failed round lines are the decided ADR-0049 copy', () => {
+    expect(ROUND_LOCKED_TEXT).toBe(
+      "Locked. Reply REFINE for the next round (1 credit) or BOOK when you're ready."
+    );
+    expect(ROUND_FAILED_TEXT).toBe(
+      "That round didn't take — your credit is back. Reply REFINE to try again."
     );
   });
 

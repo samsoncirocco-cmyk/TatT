@@ -42,7 +42,7 @@ function SignupPageInner() {
       <div className="grid grid-cols-1 lg:grid-cols-2 min-h-[calc(100vh-140px)]">
         <AuthBrandPanel
           quiet
-          quote="Described my sleeve in one sentence, had four cuts before my coffee went cold. My artist worked straight off the stencil."
+          quote="Described my sleeve in one sentence, had two cuts before my coffee went cold. My artist worked straight off the stencil."
           attribution="River M. — Pro member"
         />
 

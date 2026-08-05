@@ -50,7 +50,7 @@ export default function DesignPage() {
           </div>
           <SlashHeadline slashed="SketchBot" size="form" className="mt-4" />
           <p className="mt-2 font-body text-[13px] leading-[1.55] text-white/60">
-            your design consult — say it messy, leave with four takes.
+            your design consult — say it messy, leave with two cuts a round.
           </p>
         </div>
       </div>

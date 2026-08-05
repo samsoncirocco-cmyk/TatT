@@ -3,7 +3,7 @@
 // build against these types — treat this file as frozen; changing it is a
 // cross-module contract change, not a local edit.
 
-/** One dimension of deliberate divergence across a reveal's four designs (ADR-0012). */
+/** One dimension of deliberate divergence across a round's two cuts (ADR-0012, ADR-0049). */
 export type VariationAxis =
   | 'bold-fine'
   | 'color-blackwork'
@@ -11,6 +11,19 @@ export type VariationAxis =
   | 'minimal-ornate';
 
 export const VARIATION_AXIS_POOL: readonly VariationAxis[] = [
+  'bold-fine',
+  'color-blackwork',
+  'literal-abstract',
+  'minimal-ornate',
+];
+
+/**
+ * The fixed axis order of the pick-to-refine rounds (ADR-0049): round 1
+ * spreads bold vs fine-line — the most visible difference to an untrained
+ * eye — then color, then subject treatment, then detail density. Rounds
+ * past the ladder re-roll on the locked poles.
+ */
+export const ROUND_AXIS_LADDER: readonly VariationAxis[] = [
   'bold-fine',
   'color-blackwork',
   'literal-abstract',
@@ -77,9 +90,9 @@ export interface IntakeRecord {
  * why. Axis selection is logged, never silent (ADR-0012).
  */
 export interface AxisSelection {
-  /** 'questionnaire' varies 2 axes; 'compositional' locks style, varies composition (resolved intake). */
+  /** 'questionnaire' varies one axis per round (ADR-0049); 'compositional' locks style, varies composition (resolved intake). */
   mode: 'questionnaire' | 'compositional';
-  /** Exactly 2 axes in questionnaire mode; empty in compositional mode. */
+  /** Exactly 1 axis per round in questionnaire mode (ADR-0049); empty in compositional mode. */
   axes: VariationAxis[];
   /** Plain-language reason these axes were chosen (or why style locked). */
   rationale: string;

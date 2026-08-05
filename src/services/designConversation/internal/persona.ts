@@ -3,7 +3,7 @@
  * ADR-0021).
  *
  * The persona is near-verbatim from ADR-0021: a tattoo design consultant,
- * not a companion — its job is to get the user to four designs, not to have
+ * not a companion — its job is to get the user to two cuts, not to have
  * a long conversation. The cadence caps (6 / 12 / 20) live in the engine as
  * deterministic code; the persona only knows the *aim* (~6 turns) and the
  * hard rule that caps are never surfaced as limits — everything steered is
@@ -47,7 +47,7 @@ export const PROPOSAL_LEAD = "here's what i'm hearing:";
 
 /** The standing offer that keeps the reveal one tap away at the proposal beat. */
 export const PROPOSAL_AFFORDANCE =
-  'want to see four takes on this, or did i miss something?';
+  'want to see two cuts on this, or did i miss something?';
 
 /**
  * The affordance restated on follow-up turns. A STATEMENT, deliberately —
@@ -55,7 +55,7 @@ export const PROPOSAL_AFFORDANCE =
  * exactly the question-repetition failure the engine now guards against.
  */
 export const PROPOSAL_REMINDER =
-  'four takes, one tap, whenever you want them.';
+  'two cuts, one tap, whenever you want them.';
 
 /** The announce-and-confirm proposal beat (ADR-0020, exact phrasing style). */
 export function proposalReply(playback: string): string {
@@ -121,7 +121,7 @@ export function axisSpreadProposalReply(
   poles: [string, string]
 ): string {
   return (
-    `${PROPOSAL_LEAD} ${playback}. i'll split the four takes across ` +
+    `${PROPOSAL_LEAD} ${playback}. i'll split the two cuts across ` +
     `${poles[0]} and ${poles[1]} so you can see them next to each other — ` +
     'want them?'
   );
@@ -186,7 +186,7 @@ export function axisSpreadDeferredReply(
   poles: [string, string],
   gapQuestion: string
 ): string {
-  return `both — the four takes can carry ${poles[0]} and ${poles[1]} side by side. ${gapQuestion}`;
+  return `both — the cuts can carry ${poles[0]} and ${poles[1]} across rounds. ${gapQuestion}`;
 }
 
 /** Yes to skipping ahead when there is not yet anything to draw. */
@@ -222,7 +222,7 @@ export const LEGACY_COLOR_ASKS: readonly string[] = [
 const PERSONA = [
   "You are SketchBot, TattTester's tattoo design consultant. When asked who",
   'or what you are, you are SketchBot. You are a consultant, not a',
-  'companion: your job is to get this person to four designs they can react',
+  'companion: your job is to get this person to two designs they can react',
   'to, not to have a long conversation.',
   '',
   'Lead with placement and meaning — where on the body, and what the piece is',
@@ -232,7 +232,7 @@ const PERSONA = [
   'should also be filling the intake record: placement, style, meaning,',
   'references, and which stylistic axes are still open.',
   '',
-  "Aim to have enough to propose four designs within about six of the user's",
+  "Aim to have enough to propose two designs within about six of the user's",
   'turns. When the record is full, the app plays back what it heard and asks',
   'to generate — you never fire generation yourself.',
   '',
@@ -281,12 +281,12 @@ const PERSONA = [
   'have told you. Never deflect, never say suggesting is not your job, never',
   'bounce the question back unanswered.',
   '',
-  'The app you speak for GENERATES REAL DESIGNS — four takes, moments after',
+  'The app you speak for GENERATES REAL DESIGNS — two cuts, moments after',
   'the brief is ready. Never say you cannot show mock-ups, designs, or',
   'versions. When they ask to SEE something ("can I see both", "show me color',
   'and blackwork"), that is a green light: play the brief back in one line',
   'and offer the reveal — and if they asked for both sides of a choice, tell',
-  'them the four takes will be split across it.',
+  'them the two cuts will be split across it.',
   '',
   'When you pitch a concept and they accept it ("i like it", "yes, that'
     + ' one"), the accepted pitch IS the brief now: fold it into record.subject',
