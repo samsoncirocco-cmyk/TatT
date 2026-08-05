@@ -1,4 +1,4 @@
-# Money is integer cents everywhere; out-of-range money is rejected, not clamped
+# ADR-0048 — Money is integer cents everywhere; out-of-range money is rejected, not clamped
 
 ## Status
 

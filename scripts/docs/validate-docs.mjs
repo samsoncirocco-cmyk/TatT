@@ -112,19 +112,9 @@ for (const name of adrFiles) {
   adrGroups.set(prefix, [...(adrGroups.get(prefix) ?? []), name]);
 }
 
-const acceptedDuplicate = new Set([
-  '0026-money-in-cents-reject-out-of-range.md',
-  '0026-reinstatement-self-signup.md',
-]);
 for (const [prefix, names] of adrGroups) {
   if (names.length < 2) continue;
-  const isKnown0026 =
-    prefix === '0026' &&
-    names.length === acceptedDuplicate.size &&
-    names.every((name) => acceptedDuplicate.has(name));
-  if (!isKnown0026) {
-    errors.push(`duplicate ADR prefix ${prefix}: ${names.join(', ')}`);
-  }
+  errors.push(`duplicate ADR prefix ${prefix}: ${names.join(', ')}`);
 }
 
 if (!/verified_against:\s+[0-9a-f]{7,40}/.test(featureLedger)) {
