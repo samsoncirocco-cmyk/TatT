@@ -103,11 +103,12 @@ consent remain separate gates.
 - Scraped profiles are still never labeled "verified" (ADR-0032; artist
   verification entry above).
 
-## ADR numbering — RESOLVED 2026-07-30
+## ADR numbering — RESOLVED 2026-08-04
 
 Two files used the `0026` prefix. `0026-reinstatement-self-signup.md` has 11
 inbound references across code and docs and kept its number.
-`0026-money-in-cents-reject-out-of-range.md` had no inbound references beyond
-this file, so it was renamed to `0038-money-in-cents-reject-out-of-range.md`
-(the next free number; ADRs run through `0037`). No other file required a
-reference update.
+`0026-money-in-cents-reject-out-of-range.md` had no inbound references, so it
+was renamed to `0048-money-in-cents-reject-out-of-range.md`. `0038` was already
+assigned to `0038-the-studio-is-the-refinery.md`, so it was not reusable. The
+documentation validator now rejects every duplicate ADR prefix instead of
+carrying a permanent exception for this one.
