@@ -55,6 +55,13 @@ import {
   PROPOSAL_LEAD,
   PROPOSAL_REMINDER,
   COLOR_QUESTION,
+  KEEP_GOING_QUESTION,
+  REPEAT_FALLBACK,
+  axisSpreadDeferredReply,
+  drawRequestDeferredReply,
+  LEGACY_COLOR_ASKS,
+  LEGACY_IP_NOTES,
+  LEGACY_PROPOSAL_LEADS,
   COLOR_RETRY_QUESTION,
   IP_NOTE,
   EVOCATION_STEM,
@@ -404,9 +411,6 @@ function mergeExtractedSubject(
  * "Got it. " — so containment, not equality, is the test that catches it.
  * ────────────────────────────────────────────────────────────────────────── */
 
-const REPEAT_FALLBACK =
-  "Sorry — I just asked that. Anything else you want me to know about the look, or should I show you some directions?";
-
 /** Long enough that containment means repetition, not a shared stock phrase. */
 const REPEAT_MIN_WORDS = 8;
 
@@ -511,7 +515,14 @@ function dropRepeatedQuestions(
  * the call and advances.
  * ────────────────────────────────────────────────────────────────────────── */
 
-const COLOR_ASK_KEYS = [normalizeForCompare(COLOR_QUESTION), normalizeForCompare(COLOR_RETRY_QUESTION)];
+const COLOR_ASK_KEYS = [
+  COLOR_QUESTION,
+  COLOR_RETRY_QUESTION,
+  // Sessions that predate the loud-register rewrite still carry the old
+  // wording; without them the ask count resets and the palette question can
+  // be asked a third time.
+  ...LEGACY_COLOR_ASKS,
+].map(normalizeForCompare);
 
 function countColorAsks(messages: ConversationMessage[]): number {
   return botTexts(messages).filter((text) => {
@@ -680,10 +691,11 @@ function withIpNote(
   messages: ConversationMessage[]
 ): string {
   if (!(record.subject ?? '').trim()) return reply;
+  const notes = [IP_NOTE, ...LEGACY_IP_NOTES];
   const alreadySaid = messages.some(
-    (message) => message.role === 'bot' && message.text.includes(IP_NOTE)
+    (message) => message.role === 'bot' && notes.some((note) => message.text.includes(note))
   );
-  if (alreadySaid || reply.includes(IP_NOTE)) return reply;
+  if (alreadySaid || notes.some((note) => reply.includes(note))) return reply;
   return `${reply} ${IP_NOTE}`;
 }
 
@@ -697,8 +709,9 @@ function hasAlreadyProposed(messages: ConversationMessage[]): boolean {
   // includes(), not startsWith(): a proposal can carry a lead-in sentence
   // (the palette recommendation, the axis-spread framing) ahead of the
   // playback and it still counts as the announce beat having fired.
+  const leads = [PROPOSAL_LEAD, ...LEGACY_PROPOSAL_LEADS];
   return messages.some(
-    (message) => message.role === 'bot' && message.text.includes(PROPOSAL_LEAD)
+    (message) => message.role === 'bot' && leads.some((lead) => message.text.includes(lead))
   );
 }
 
@@ -954,9 +967,10 @@ export async function runConversationTurn(
     // the one real gap.
     stage = 'chatting';
     firedRule = 'none';
-    reply = `Both — good instinct, the four takes can carry ${axisRequest.labels[0]} and ${axisRequest.labels[1]} side by side. ${
+    reply = axisSpreadDeferredReply(
+      axisRequest.labels,
       hasPlacement ? SUBJECT_GATE_QUESTION : PLACEMENT_GATE_QUESTION
-    }`;
+    );
   } else if (drawRequest && hasRequiredFields) {
     // Skip-the-questions honored (TAT-48): the record can already generate
     // — placement plus something to draw, the same gate confirm enforces —
@@ -976,9 +990,9 @@ export async function runConversationTurn(
     // never a refusal, never a limit).
     stage = 'chatting';
     firedRule = 'none';
-    reply = `Deal — no more questions than I actually need. ${
+    reply = drawRequestDeferredReply(
       hasPlacement ? SUBJECT_GATE_QUESTION : PLACEMENT_GATE_QUESTION
-    }`;
+    );
   } else if (colorCall) {
     reply = colorCallReply(colorCall, hasNamedCharacters);
     if (hasRequiredFields) {
@@ -1020,8 +1034,7 @@ export async function runConversationTurn(
     stage = 'chatting';
     firedRule = 'none';
     let candidate =
-      asTrimmedString(payload.reply) ||
-      "Tell me more — what's drawing you to this piece?";
+      asTrimmedString(payload.reply) || KEEP_GOING_QUESTION;
 
     // The meaning slot is closed (TAT-51): a pure-looks answer was given,
     // so any meaning question the model still tries gets stripped — the

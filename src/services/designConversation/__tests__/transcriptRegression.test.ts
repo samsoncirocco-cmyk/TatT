@@ -19,6 +19,7 @@
  *  (g) sleeve-appropriate generation params (9:16, never square)
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { colorCallReply } from '../internal/persona';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -247,7 +248,8 @@ describe('live-transcript regression: the Togashi sleeve session', () => {
     const turn4 = results[3];
 
     expect(turn4.reply).not.toMatch(/not here to suggest|it'?s (really )?up to you/i);
-    expect(turn4.reply).toContain("Full color — that's my call");
+    // The recommendation itself, not its wording: colorCallReply owns the copy.
+    expect(turn4.reply).toContain(colorCallReply('recommendation', true));
     // The recommendation resolves the slot and the record advances — the
     // proposal beat fires on the same turn (the reveal is the questionnaire).
     expect(turn4.stage).toBe('proposal');
