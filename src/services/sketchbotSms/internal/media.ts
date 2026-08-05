@@ -115,9 +115,16 @@ export async function fetchTwilioMedia(item: InboundMediaItem): Promise<Referenc
   }
 }
 
+/** One readable inbound image: its reading, plus the pixels themselves —
+ * kept so the adapter can store the photo for the render (ADR-0050). */
+export interface AnalyzedMedia {
+  analysis: ReferenceAnalysis;
+  image: ReferenceImage;
+}
+
 /** What one message's media boiled down to, ready for the adapter's reply. */
 export interface MediaIngest {
-  analyses: ReferenceAnalysis[];
+  analyses: AnalyzedMedia[];
   /** Items that could not be fetched or read. */
   unreadable: number;
   /** Items beyond the per-message analysis cap. */
@@ -154,7 +161,7 @@ export async function analyzeInboundMedia(media: InboundMediaItem[]): Promise<Me
       ingest.unreadable += 1;
       continue;
     }
-    ingest.analyses.push(outcome.analysis);
+    ingest.analyses.push({ analysis: outcome.analysis, image });
   }
 
   return ingest;

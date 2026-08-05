@@ -28,6 +28,8 @@ import { deriveRefinementQuestion, adjustPromptForAnswer } from './refinement';
 import { derivePlacementNotes } from './placementNotes';
 import { deriveStencil } from './stencil';
 import { durableRender } from './durableImage';
+import { referenceImagePaths } from './references';
+import { signedReferenceUrls } from './referencePhotos';
 import { recordImageSpend } from './spend';
 import {
   allCuts,
@@ -129,6 +131,14 @@ function pinnedRequest(
      * (one provider per ROUND after the ADR-0052 amendment).
      */
     allowDowngrade?: boolean;
+    /**
+     * Freshly signed URLs of the session's reference photos (ADR-0050).
+     * The pin bypasses routing, so the photos must ride the request
+     * explicitly — the provider refuses loudly if the pinned model cannot
+     * take them, which cannot happen in practice: photos force the
+     * nano-banana pin at session start.
+     */
+    referenceImages?: string[];
   }
 ): GenerationRequest {
   return {
@@ -138,6 +148,7 @@ function pinnedRequest(
     modelId: pin.modelId,
     aspectRatio: pin.aspectRatio,
     allowProviderFallback: opts?.allowDowngrade === true,
+    ...(opts?.referenceImages?.length ? { referenceImages: opts.referenceImages } : {}),
     ...(textGuardEnabled() ? { screenText: {} } : {}),
   };
 }
@@ -184,7 +195,10 @@ async function renderDurably(
   tag: string,
   request: GenerationRequest,
   onPurchase: (renders: number) => void,
-  onDowngrade?: (reason: string) => void
+  onDowngrade?: (reason: string) => void,
+  // Stable storage paths, NOT the request's signed URLs — the identity
+  // must survive a re-mint or a retry never recovers its staged render.
+  referencePaths?: string[]
 ): Promise<string> {
   const outcome = await durableRender(
     {
@@ -193,6 +207,7 @@ async function renderDurably(
       prompt: request.prompt,
       negativePrompt: request.negativePrompt,
       modelId: request.modelId ?? '',
+      ...(referencePaths?.length ? { referenceImagePaths: referencePaths } : {}),
     },
     async () => {
       const result = await generate(request);
@@ -242,11 +257,20 @@ export async function startFromRecord(
   const store = resolveSessionStore();
   const enhanced = await enhanceStructured(intake);
 
+  // Reference photos attached during intake (ADR-0050). Paths are stable
+  // session state; the fetchable signed URLs are minted per reveal, right
+  // before the renders that consume them.
+  const referencePaths = referenceImagePaths(base?.conversation?.references ?? []);
+
   // ADR-0016: resolve the route exactly once. Every render in this session
   // — the four reveal variations AND the later refinement regen — uses this
   // model; the pin is persisted so the regen never re-routes.
   const route = routeGeneration({
     prompt: '',
+    // Presence forces the nano-banana lane — the only model whose
+    // image_input can carry the photos. Routing reads only the count, so
+    // the stable paths stand in for the yet-unminted signed URLs here.
+    ...(referencePaths.length ? { referenceImages: referencePaths } : {}),
     // Intake tags are ordered by conversation/extraction, not by routing
     // importance. Passing the full set means ['color', 'anime'] still reaches
     // the anime-capable model instead of falling through on the generic tag.
@@ -274,6 +298,11 @@ export async function startFromRecord(
   let downgradeReason: string | undefined;
   let variations: Variation[];
   try {
+    // Minted once for the whole reveal, loudly: a photo the customer sent
+    // that cannot be fetched must fail the render, not silently vanish
+    // from it (ADR-0050). Demo mode renders stock images and signs nothing.
+    const referenceImages =
+      !demo && referencePaths.length ? await signedReferenceUrls(referencePaths) : undefined;
     const results = await Promise.allSettled(
       enhanced.variations.map(async (structured, index): Promise<Variation> => {
         const prompt = generationPrompt(structured.prompts);
@@ -287,9 +316,13 @@ export async function startFromRecord(
           imageUrl = await renderDurably(
             shell,
             id,
-            pinnedRequest(route, prompt, structured.negativePrompt, { allowDowngrade: true }),
+            pinnedRequest(route, prompt, structured.negativePrompt, {
+              allowDowngrade: true,
+              referenceImages,
+            }),
             (renders) => { imagesPurchased += renders; },
-            (reason) => { downgradeReason ??= reason; }
+            (reason) => { downgradeReason ??= reason; },
+            referencePaths
           );
         }
         return {
@@ -415,6 +448,9 @@ export async function refine(sessionId: string, request: RefineRequest): Promise
   } else {
     let imagesPurchased = 0;
     try {
+      // The same photos that informed the reveal inform the regen — the
+      // pin already guarantees a reference-capable model when any exist.
+      const referencePaths = referenceImagePaths(session.conversation?.references ?? []);
       // ADR-0016: the regen reuses the exact model pinned at session start.
       imageUrl = await renderDurably(
         session,
@@ -422,9 +458,14 @@ export async function refine(sessionId: string, request: RefineRequest): Promise
         pinnedRequest(
           { modelId: session.pinnedModelId, aspectRatio: session.pinnedAspectRatio },
           adjustedPrompt,
-          picked.negativePrompt
+          picked.negativePrompt,
+          referencePaths.length
+            ? { referenceImages: await signedReferenceUrls(referencePaths) }
+            : undefined
         ),
-        (renders) => { imagesPurchased = renders; }
+        (renders) => { imagesPurchased = renders; },
+        undefined,
+        referencePaths
       );
     } finally {
       await recordImageSpend(session.provider, imagesPurchased);
@@ -552,17 +593,24 @@ export async function critique(
     // customer asked for by name, so it is the LAST one that may expire.
     let purchased = 0;
     try {
+      // The same photos that informed the reveal inform the re-cut.
+      const referencePaths = referenceImagePaths(session.conversation?.references ?? []);
       imageUrl = await renderDurably(
         session,
         cutId,
         pinnedRequest(
           { modelId: session.pinnedModelId, aspectRatio: session.pinnedAspectRatio },
           adjustedPrompt,
-          target.negativePrompt
+          target.negativePrompt,
+          referencePaths.length
+            ? { referenceImages: await signedReferenceUrls(referencePaths) }
+            : undefined
         ),
         (renders) => {
           purchased += renders;
-        }
+        },
+        undefined,
+        referencePaths
       );
     } finally {
       // Billed at the moment of purchase, so a copy that fails after a paid

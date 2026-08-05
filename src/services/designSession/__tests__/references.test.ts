@@ -12,6 +12,7 @@ import { clearMemorySessions, memorySessionStore } from '../internal/store';
 import {
   applyReferenceSignals,
   buildStoredReference,
+  referenceImagePaths,
   subjectFromReferences,
   MAX_SESSION_REFERENCES,
 } from '../internal/references';
@@ -165,6 +166,26 @@ describe('attachReference', () => {
     expect(stored!.conversation!.references![MAX_SESSION_REFERENCES - 1].summary).toBe(
       `reference ${MAX_SESSION_REFERENCES + 1}`
     );
+  });
+
+  // ADR-0050: the stored photo path persists with the entry, and the
+  // accessor yields only real paths — analysis-only references (photo
+  // upload failed, or attached before the field existed) contribute none.
+  it('persists the photo path and exposes it through referenceImagePaths', async () => {
+    const sessionId = await startConversation();
+    await attachReference(
+      sessionId,
+      analysis({ summary: 'with photo' }),
+      'sms',
+      'design-sessions/s/references/r1.jpg'
+    );
+    await attachReference(sessionId, analysis({ summary: 'analysis only' }), 'web');
+
+    const stored = await memorySessionStore.get(sessionId);
+    const references = stored!.conversation!.references!;
+    expect(references[0].imagePath).toBe('design-sessions/s/references/r1.jpg');
+    expect(references[1].imagePath).toBeUndefined();
+    expect(referenceImagePaths(references)).toEqual(['design-sessions/s/references/r1.jpg']);
   });
 
   it('refuses outside conversational intake', async () => {

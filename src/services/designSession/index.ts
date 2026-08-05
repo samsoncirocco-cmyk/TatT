@@ -174,7 +174,10 @@ export type { AttachReferenceResult };
 export async function attachReference(
   sessionId: string,
   analysis: ReferenceAnalysis,
-  source: 'sms' | 'web'
+  source: 'sms' | 'web',
+  imagePath?: string
 ): Promise<AttachReferenceResult> {
-  return runAttachReference(sessionId, analysis, source);
+  return runAttachReference(sessionId, analysis, source, imagePath);
 }
+
+export { storeReferencePhoto } from './internal/referencePhotos';

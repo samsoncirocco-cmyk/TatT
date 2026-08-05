@@ -30,13 +30,25 @@ export interface RenderIdentity {
   prompt: string;
   negativePrompt?: string;
   modelId: string;
+  /**
+   * STABLE storage paths of attached reference photos (ADR-0050) — never
+   * the signed URLs, which change on every mint and would defeat staged
+   * recovery. Photos change what the image looks like, so two renders
+   * differing only in attached photos must not collide on one object.
+   */
+  referenceImagePaths?: string[];
 }
 
 /** Short, stable digest of everything that decides what the image looks like. */
 function renderFingerprint(identity: RenderIdentity): string {
   return createHash('sha256')
     .update(
-      [identity.prompt, identity.negativePrompt ?? '', identity.modelId].join('\0')
+      [
+        identity.prompt,
+        identity.negativePrompt ?? '',
+        identity.modelId,
+        ...(identity.referenceImagePaths ?? []),
+      ].join('\0')
     )
     .digest('hex')
     .slice(0, 16);
