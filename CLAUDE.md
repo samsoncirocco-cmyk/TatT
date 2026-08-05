@@ -1,5 +1,7 @@
 # CLAUDE.md - TatT AI Agent Instructions
 
+> How to work (values layer, repo-agnostic): `docs/AGENT_PRINCIPLES.md` — effort-matching, when to plan/interview/recon, and how to maintain this file. This file holds the repo facts; that one holds the judgment.
+
 ## Project Overview
 
 **TatT** is an AI-powered tattoo design platform that combines:
