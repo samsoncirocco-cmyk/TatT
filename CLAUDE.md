@@ -96,7 +96,7 @@ Single source of truth: `src/config/envSchema.js` (name, type, required/optional
 - A booking is a **reservation** only for artists with a live synced Google Calendar (claimed profile + published hours + fresh free/busy + writable hold store); `resolveBookingMode` fails closed to "request" (`docs/adr/0027`). Picking a slot takes a 35-minute exclusive hold and pins the Stripe Checkout `expires_at` to it.
 - The client pays the booking fee (`PLATFORM_FEE_BPS`) **on top** of the deposit; the artist keeps 100% of the deposit (`docs/adr/0007`).
 - Unclaimed-artist deposits are HELD on a `:BookingRelay` node and either transferred on claim or auto-refunded after `DEPOSIT_HOLD_DAYS` by the daily cron (`docs/adr/0005`–`0006`); claim flow has dual entry converging on `transferHeldDeposits` (`docs/adr/0008`).
-- Money handling: cents only, reject out-of-range (`docs/adr/0026-money-in-cents-reject-out-of-range.md`).
+- Money handling: cents only, reject out-of-range (`docs/adr/0054-money-in-cents-reject-out-of-range.md`).
 
 ---
 
