@@ -193,6 +193,16 @@ function parseJsonFromText(text: string): RawTurnPayload | null {
  * Provider calls
  * ────────────────────────────────────────────────────────────────────────── */
 
+/**
+ * Bound on each provider call (#327) — the last unbounded production
+ * fetches. Without it, a stalled provider burns the route's entire
+ * function budget before the customer hears anything. Expiry throws
+ * TimeoutError into the chain's existing catch, which is already the
+ * right behavior: failover to the next provider, scripted fallback when
+ * exhausted. 30s matches the render gate's vision ceiling.
+ */
+const PROVIDER_CALL_TIMEOUT_MS = 30_000;
+
 async function callVertex(
   systemPrompt: string,
   messages: ConversationMessage[],
@@ -204,6 +214,7 @@ async function callVertex(
 
   const response = await fetch(endpoint, {
     method: 'POST',
+    signal: AbortSignal.timeout(PROVIDER_CALL_TIMEOUT_MS),
     headers: {
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
@@ -235,6 +246,7 @@ async function callOpenRouter(
 ): Promise<RawTurnPayload | null> {
   const response = await fetch(OPENROUTER_API_URL, {
     method: 'POST',
+    signal: AbortSignal.timeout(PROVIDER_CALL_TIMEOUT_MS),
     headers: {
       Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
       'Content-Type': 'application/json',
