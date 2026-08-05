@@ -163,6 +163,37 @@ export function evocationQuestion(ref: string): string {
 export const AESTHETIC_ACK =
   "looks-first is a complete answer — plenty of the best pieces are. let's chase the visual.";
 
+/**
+ * The repeat guard's own reply (engine's `dropRepeatedQuestions`): said when
+ * every candidate question was stripped as a repeat and nothing survived.
+ * Deliberately not an apology — "sorry" is the customer-service register the
+ * persona bans, and this fires at a moment the user is already mildly
+ * annoyed.
+ */
+export const REPEAT_FALLBACK =
+  "i already asked that one — my bad. anything else about the look, or want " +
+  'me to show you some directions?';
+
+/** Said when the model returns an empty reply and the turn still owes words. */
+export const KEEP_GOING_QUESTION =
+  "tell me more — what's pulling you toward this one?";
+
+/**
+ * Yes to an axis spread the brief cannot render yet: agree, then close the
+ * one real gap. Never a refusal, never a limit (ADR-0021).
+ */
+export function axisSpreadDeferredReply(
+  poles: [string, string],
+  gapQuestion: string
+): string {
+  return `both — the four takes can carry ${poles[0]} and ${poles[1]} side by side. ${gapQuestion}`;
+}
+
+/** Yes to skipping ahead when there is not yet anything to draw. */
+export function drawRequestDeferredReply(gapQuestion: string): string {
+  return `deal — no more questions than i actually need. ${gapQuestion}`;
+}
+
 /*
  * Pre-2026-08-05 wordings, kept for ONE reason: the engine reads the
  * transcript to decide whether a beat has already fired, and it does that by

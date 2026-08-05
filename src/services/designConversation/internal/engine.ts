@@ -55,6 +55,10 @@ import {
   PROPOSAL_LEAD,
   PROPOSAL_REMINDER,
   COLOR_QUESTION,
+  KEEP_GOING_QUESTION,
+  REPEAT_FALLBACK,
+  axisSpreadDeferredReply,
+  drawRequestDeferredReply,
   LEGACY_COLOR_ASKS,
   LEGACY_IP_NOTES,
   LEGACY_PROPOSAL_LEADS,
@@ -406,9 +410,6 @@ function mergeExtractedSubject(
  * repeat was NOT byte-identical — the second copy simply dropped a leading
  * "Got it. " — so containment, not equality, is the test that catches it.
  * ────────────────────────────────────────────────────────────────────────── */
-
-const REPEAT_FALLBACK =
-  "Sorry — I just asked that. Anything else you want me to know about the look, or should I show you some directions?";
 
 /** Long enough that containment means repetition, not a shared stock phrase. */
 const REPEAT_MIN_WORDS = 8;
@@ -966,9 +967,10 @@ export async function runConversationTurn(
     // the one real gap.
     stage = 'chatting';
     firedRule = 'none';
-    reply = `Both — good instinct, the four takes can carry ${axisRequest.labels[0]} and ${axisRequest.labels[1]} side by side. ${
+    reply = axisSpreadDeferredReply(
+      axisRequest.labels,
       hasPlacement ? SUBJECT_GATE_QUESTION : PLACEMENT_GATE_QUESTION
-    }`;
+    );
   } else if (drawRequest && hasRequiredFields) {
     // Skip-the-questions honored (TAT-48): the record can already generate
     // — placement plus something to draw, the same gate confirm enforces —
@@ -988,9 +990,9 @@ export async function runConversationTurn(
     // never a refusal, never a limit).
     stage = 'chatting';
     firedRule = 'none';
-    reply = `Deal — no more questions than I actually need. ${
+    reply = drawRequestDeferredReply(
       hasPlacement ? SUBJECT_GATE_QUESTION : PLACEMENT_GATE_QUESTION
-    }`;
+    );
   } else if (colorCall) {
     reply = colorCallReply(colorCall, hasNamedCharacters);
     if (hasRequiredFields) {
@@ -1032,8 +1034,7 @@ export async function runConversationTurn(
     stage = 'chatting';
     firedRule = 'none';
     let candidate =
-      asTrimmedString(payload.reply) ||
-      "Tell me more — what's drawing you to this piece?";
+      asTrimmedString(payload.reply) || KEEP_GOING_QUESTION;
 
     // The meaning slot is closed (TAT-51): a pure-looks answer was given,
     // so any meaning question the model still tries gets stripped — the
