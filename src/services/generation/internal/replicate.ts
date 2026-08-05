@@ -42,6 +42,11 @@ interface ReplicateModel {
 // Verified from the models' published OpenAPI schemas (replicate.com/<slug>).
 const FLUX_ASPECT_RATIOS = new Set(['1:1', '16:9', '21:9', '3:2', '2:3', '4:5', '5:4', '3:4', '4:3', '9:16', '9:21']);
 const KREA_ASPECT_RATIOS = new Set(['1:1', '4:3', '3:2', '16:9', '2.35:1', '4:5', '2:3', '9:16']);
+// Fetched from the live model API 2026-08-05 (also carries
+// 'match_input_image' and banner ratios 1:4/4:1/1:8/8:1, deliberately
+// excluded: the first needs an input image and the rest are not tattoo
+// shapes).
+const NANO_BANANA_ASPECT_RATIOS = new Set(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']);
 
 // The Flux/Krea catalog (replaced the SDXL-era models — two generations
 // behind on linework and prompt adherence). None of these accept a
@@ -75,6 +80,29 @@ export const REPLICATE_MODELS: Record<string, ReplicateModel> = {
     params: {
       output_format: 'png'
     }
+  },
+  // The cast lane (ADR-0048): Gemini-family image model, replacing the
+  // Vertex imagen3 route for 3+ character requests. Contract verified live
+  // in the #318 measurement run: exactly one output per prediction (a
+  // string URI, no num_outputs input), $0.067/output at the default 1K
+  // resolution.
+  'nano-banana-2': {
+    id: 'nano-banana-2',
+    name: 'Nano Banana 2 (Gemini)',
+    slug: 'google/nano-banana-2',
+    cost: 0.067,
+    supportsNumOutputs: false,
+    supportsSourceImage: false,
+    // The schema DOES take image input — but as an `image_input` ARRAY, not
+    // the `image` field this provider sends. Declaring support before that
+    // field is wired would silently drop the source image, which is exactly
+    // the failure the sourceImage contract exists to prevent. Wired in the
+    // reference-photos-as-pixels step (#296 17a), not here.
+    aspectRatios: NANO_BANANA_ASPECT_RATIOS,
+    aspectRemap: {},
+    // output_format defaults to jpg on this model — pin png to match the
+    // rest of the catalog and the durable-image pipeline's expectations.
+    params: { output_format: 'png' }
   },
   krea2: {
     id: 'krea2',

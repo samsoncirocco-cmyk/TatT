@@ -221,9 +221,46 @@ describe('startSession', () => {
       expect(request.modelId).toBe('imagen3');
       expect(request.aspectRatio).toBe('9:16');
       expect(request.numImages).toBe(1);
-      // Provider fallback would cross providers mid-session — must be off.
-      expect(request.allowProviderFallback).toBe(false);
+      // The reveal opts into the loud downgrade (ADR-0048): a failed pinned
+      // model may fall to its chain, flagged, never silently.
+      expect(request.allowProviderFallback).toBe(true);
     }
+  });
+
+  // ADR-0048's loud downgrade: a reveal that rendered on a fallback lane
+  // must say so on the session — copy and the credit release both read it.
+  it('marks the session downgraded when any reveal render fell back', async () => {
+    let call = 0;
+    mockGenerate.mockImplementation(async request => ({
+      images: [`https://replicate.delivery/pbxt/${++imageCounter}/out.png`],
+      metadata: {
+        model: request.modelId ?? 'unknown',
+        provider: 'replicate' as const,
+        generatedAt: new Date().toISOString(),
+        durationMs: 1,
+        attempts: 1,
+        // Only the second render downgrades — one is enough.
+        fallbackUsed: ++call === 2,
+        ...(call === 2 ? { fallbackReason: 'REPLICATE_ERROR' } : {}),
+      },
+    }));
+
+    const session = await startSession(startRequest);
+
+    expect(session.downgraded).toBe(true);
+    expect(session.downgradeReason).toBe('REPLICATE_ERROR');
+    // And it survives persistence + the public projection.
+    const fetched = await getSession(session.id);
+    expect(fetched?.downgraded).toBe(true);
+  });
+
+  it('leaves the downgrade fields entirely absent on a clean reveal', async () => {
+    const session = await startSession(startRequest);
+
+    // Absent, not false/undefined-valued: Firestore rejects explicit
+    // undefined, and "no downgrade" must not look like a recorded fact.
+    expect('downgraded' in session).toBe(false);
+    expect('downgradeReason' in session).toBe(false);
   });
 
   // #293: the cast roster must reach routing, or the 3+ character rule can

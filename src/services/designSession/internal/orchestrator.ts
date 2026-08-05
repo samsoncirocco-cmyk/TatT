@@ -114,7 +114,19 @@ function textGuardEnabled(): boolean {
 function pinnedRequest(
   pin: { modelId: string; aspectRatio?: AspectRatio },
   prompt: string,
-  negativePrompt?: string
+  negativePrompt?: string,
+  opts?: {
+    /**
+     * Let the render fall back to the pinned model's configured chain when
+     * the model itself fails (ADR-0048). Never silent: the result's
+     * fallbackUsed metadata is surfaced as the session's `downgraded` flag,
+     * the reveal says so in copy, and the round's credit is released. Only
+     * the reveal opts in — the regen and re-cut keep the strict pin, since a
+     * mid-session provider change is what ADR-0016 still forbids
+     * (one provider per ROUND after the ADR-0052 amendment).
+     */
+    allowDowngrade?: boolean;
+  }
 ): GenerationRequest {
   return {
     prompt,
@@ -122,7 +134,7 @@ function pinnedRequest(
     numImages: 1,
     modelId: pin.modelId,
     aspectRatio: pin.aspectRatio,
-    allowProviderFallback: false,
+    allowProviderFallback: opts?.allowDowngrade === true,
     ...(textGuardEnabled() ? { screenText: {} } : {}),
   };
 }
@@ -168,7 +180,8 @@ async function renderDurably(
   session: { id: string },
   tag: string,
   request: GenerationRequest,
-  onPurchase: (renders: number) => void
+  onPurchase: (renders: number) => void,
+  onDowngrade?: (reason: string) => void
 ): Promise<string> {
   return durableRender(
     {
@@ -185,6 +198,12 @@ async function renderDurably(
       // returns metadata, so the fallback is for malformed results only —
       // undercounting a re-roll is a cheaper failure than a failed reveal.
       onPurchase(1 + (result.metadata?.textGuardRerolls ?? 0));
+      // Not fired for a render recovered from a previous attempt's staging:
+      // durableRender returns before render() runs, which is correct — a
+      // reused image carries whatever the session already recorded.
+      if (result.metadata?.fallbackUsed) {
+        onDowngrade?.(result.metadata.fallbackReason || 'PRIMARY_FAILED');
+      }
       return result.images[0];
     }
   );
@@ -233,6 +252,11 @@ export async function startFromRecord(
   // still paid for. allSettled (rather than all) so every in-flight render is
   // accounted for before the failure surfaces.
   let imagesPurchased = 0;
+  // Set when any reveal render fell back off the pinned model (ADR-0048).
+  // One flag for the whole reveal: the session is downgraded if ANY of its
+  // cuts came from the fallback lane, because the promise broken is "these
+  // four are from the model your request routed to."
+  let downgradeReason: string | undefined;
   let variations: Variation[];
   try {
     const results = await Promise.allSettled(
@@ -248,8 +272,9 @@ export async function startFromRecord(
           imageUrl = await renderDurably(
             shell,
             id,
-            pinnedRequest(route, prompt, structured.negativePrompt),
-            (renders) => { imagesPurchased += renders; }
+            pinnedRequest(route, prompt, structured.negativePrompt, { allowDowngrade: true }),
+            (renders) => { imagesPurchased += renders; },
+            (reason) => { downgradeReason ??= reason; }
           );
         }
         return {
@@ -277,6 +302,9 @@ export async function startFromRecord(
     pinnedModelId: route.modelId,
     pinnedAspectRatio: route.aspectRatio,
     variations,
+    // Spread so the fields are absent (not undefined) on the happy path —
+    // Firestore rejects explicit undefined values.
+    ...(downgradeReason ? { downgraded: true, downgradeReason } : {}),
     updatedAt: now,
   };
 

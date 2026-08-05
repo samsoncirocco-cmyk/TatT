@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { routeGeneration } from '../internal/routing';
+import { routeGeneration, fallbackChainForModelId } from '../internal/routing';
 import { STYLE_MODEL_MAPPING } from '@/config/modelRoutingRules.js';
 
 describe('generation routing', () => {
@@ -29,14 +29,21 @@ describe('generation routing', () => {
   });
 
   // #293: Flux held 39–49% cast completeness on 3+ character requests while
-  // the Gemini lane held 100%. The text risk that kept styles off Google is
-  // the render text guard's job now, so cast size may route to Vertex even
-  // though no style does.
-  it('routes 3+ named characters to the Gemini lane regardless of style', () => {
+  // the Gemini lane held 100%. ADR-0048 moved that lane from Vertex to
+  // nano-banana-2 on Replicate — one bill, no Vertex quota exposure — so
+  // the cast route no longer leaves Replicate at all.
+  it('routes 3+ named characters to the Gemini lane on Replicate regardless of style', () => {
     const route = routeGeneration({ prompt: 'x', style: 'anime', castSize: 3 });
-    expect(route.modelId).toBe('imagen3');
-    expect(route.provider).toBe('vertex-ai');
+    expect(route.modelId).toBe('nano-banana-2');
+    expect(route.provider).toBe('replicate');
     expect(route.reasoning).toContain('cast completeness');
+  });
+
+  // Downgrade path (ADR-0048): the cast lane's chain falls to the Flux
+  // family, resolved to catalog ids with the primary removed.
+  it('gives the cast lane a Flux fallback chain', () => {
+    const route = routeGeneration({ prompt: 'x', castSize: 3 });
+    expect(route.fallbackChain).toEqual(['flux-dev', 'flux-schnell']);
   });
 
   it('keeps one- and two-character requests on the style route', () => {
@@ -148,5 +155,23 @@ describe('generation routing', () => {
     expect(route.modelId).toBe('krea2');
     expect(route.fallbackChain).toEqual(['flux-dev', 'flux-schnell']);
     expect(route.fallbackChain).not.toContain('krea2');
+  });
+
+  // Pinned sessions store the RESOLVED catalog id (ADR-0016), so the loud
+  // downgrade (ADR-0048) resolves chains from that form too.
+  describe('fallbackChainForModelId', () => {
+    it('resolves a pinned catalog id to its config chain', () => {
+      expect(fallbackChainForModelId('nano-banana-2')).toEqual(['flux-dev', 'flux-schnell']);
+      expect(fallbackChainForModelId('krea2')).toEqual(['flux-dev', 'flux-schnell']);
+    });
+
+    it('accepts config keys and excludes the model itself', () => {
+      expect(fallbackChainForModelId('flux_dev')).toEqual(['flux-schnell', 'krea2']);
+      expect(fallbackChainForModelId('flux-dev')).not.toContain('flux-dev');
+    });
+
+    it('returns an empty chain for unknown ids rather than guessing', () => {
+      expect(fallbackChainForModelId('no-such-model')).toEqual([]);
+    });
   });
 });
