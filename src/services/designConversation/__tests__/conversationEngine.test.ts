@@ -480,6 +480,27 @@ describe('runTurn — provider chain', () => {
     expect(result.turnLog.model).toBe('z-ai/glm-5.2');
   });
 
+  // #327: both provider fetches carry a timeout signal, and expiry (a
+  // TimeoutError throw) rides the existing failover — a stalled Vertex
+  // never hangs the turn, the next provider answers instead.
+  it('bounds both provider calls and fails over when the timeout fires', async () => {
+    configureVertex();
+    configureOpenRouter();
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(
+        new DOMException('The operation was aborted due to timeout', 'TimeoutError')
+      )
+      .mockResolvedValueOnce(openRouterResponse(SPARSE_PAYLOAD));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await runTurn({ messages: MESSAGES, userTurn: 1 });
+
+    expect(result.turnLog.model).toBe('z-ai/glm-5.2');
+    expect(fetchMock.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
+    expect(fetchMock.mock.calls[1][1].signal).toBeInstanceOf(AbortSignal);
+  });
+
   it('throws ConversationUnavailableError when every provider fails', async () => {
     configureVertex();
     configureOpenRouter();
