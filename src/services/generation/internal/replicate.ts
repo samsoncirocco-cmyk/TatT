@@ -32,6 +32,13 @@ interface ReplicateModel {
    * an image-to-image caller is asking for.
    */
   supportsSourceImage: boolean;
+  /**
+   * Accepts an `image_input` ARRAY of reference images (ADR-0050 likeness).
+   * Only nano-banana-2 has it. Distinct from supportsSourceImage — that is
+   * composition-preserving image-to-image; this is subject/likeness
+   * reference for a fresh composition.
+   */
+  supportsReferenceImages: boolean;
   /** Ratios this model's input schema actually accepts (verified against its OpenAPI schema). */
   aspectRatios: ReadonlySet<string>;
   /** Requested ratio → nearest schema-legal ratio, for the gaps in aspectRatios. */
@@ -60,6 +67,7 @@ export const REPLICATE_MODELS: Record<string, ReplicateModel> = {
     cost: 0.025,
     supportsNumOutputs: true,
     supportsSourceImage: true,
+    supportsReferenceImages: false,
     aspectRatios: FLUX_ASPECT_RATIOS,
     aspectRemap: {},
     params: {
@@ -75,6 +83,7 @@ export const REPLICATE_MODELS: Record<string, ReplicateModel> = {
     cost: 0.003,
     supportsNumOutputs: true,
     supportsSourceImage: false,
+    supportsReferenceImages: false,
     aspectRatios: FLUX_ASPECT_RATIOS,
     aspectRemap: {},
     params: {
@@ -92,12 +101,12 @@ export const REPLICATE_MODELS: Record<string, ReplicateModel> = {
     slug: 'google/nano-banana-2',
     cost: 0.067,
     supportsNumOutputs: false,
+    // sourceImage stays false: the schema's image input is `image_input`,
+    // an ARRAY carrying likeness/subject reference — not the single `image`
+    // field composition-preserving image-to-image sends. Conflating them
+    // would silently repurpose a stencil derivation into a reference remix.
     supportsSourceImage: false,
-    // The schema DOES take image input — but as an `image_input` ARRAY, not
-    // the `image` field this provider sends. Declaring support before that
-    // field is wired would silently drop the source image, which is exactly
-    // the failure the sourceImage contract exists to prevent. Wired in the
-    // reference-photos-as-pixels step (#296 17a), not here.
+    supportsReferenceImages: true,
     aspectRatios: NANO_BANANA_ASPECT_RATIOS,
     aspectRemap: {},
     // output_format defaults to jpg on this model — pin png to match the
@@ -111,6 +120,7 @@ export const REPLICATE_MODELS: Record<string, ReplicateModel> = {
     cost: 0.035,
     supportsNumOutputs: false,
     supportsSourceImage: false,
+    supportsReferenceImages: false,
     aspectRatios: KREA_ASPECT_RATIOS,
     // Krea's schema has no 3:4 — 4:5 is the nearest portrait ratio it takes.
     aspectRemap: { '3:4': '4:5' },
@@ -143,6 +153,19 @@ function resolveModel(modelId?: string): ReplicateModel {
 export function modelSupportsSourceImage(modelId?: string): boolean {
   return resolveModel(modelId).supportsSourceImage;
 }
+
+/**
+ * Whether a model id can honor `referenceImages` (ADR-0050 likeness).
+ * Exported for the same reason as modelSupportsSourceImage: a fallback to a
+ * model that would drop the customer's photo must be skipped, because a
+ * likeness silently dropped is a stranger's face in a memorial tattoo.
+ */
+export function modelSupportsReferenceImages(modelId?: string): boolean {
+  return resolveModel(modelId).supportsReferenceImages;
+}
+
+/** Schema cap on nano-banana-2's image_input; also our session cap is 6. */
+const MAX_REFERENCE_IMAGES = 6;
 
 function resolveAspectRatio(model: ReplicateModel, aspectRatio?: AspectRatio): string {
   if (!aspectRatio) return '1:1';
@@ -281,6 +304,21 @@ async function generateWithReplicate(request: GenerationRequest): Promise<Genera
       input.prompt_strength = Math.min(Math.max(request.sourceStrength, 0), 1);
     }
   }
+  // Reference photos as pixels (ADR-0050, #296 17a). Refused loudly on a
+  // model without the input, for the same reason sourceImage is: a caller
+  // promising a customer their photo informs the render must not silently
+  // get a photo-less render back.
+  const referenceImages = (request.referenceImages ?? []).filter(Boolean);
+  if (referenceImages.length > 0) {
+    if (!model.supportsReferenceImages) {
+      throw makeGenerationError(
+        `Model '${model.id}' has no reference-image input; referenceImages cannot be honored.`,
+        { status: 400, code: 'REFERENCE_IMAGES_UNSUPPORTED' }
+      );
+    }
+    input.image_input = referenceImages.slice(0, MAX_REFERENCE_IMAGES);
+  }
+
   if (request.seed !== undefined && request.seed !== '') {
     const seed = Number(request.seed);
     if (Number.isFinite(seed)) input.seed = seed;

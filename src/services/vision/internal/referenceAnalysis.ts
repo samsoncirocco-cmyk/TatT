@@ -61,6 +61,14 @@ function visionModel(): string {
   return process.env.VISION_MODEL || DEFAULT_VISION_MODEL;
 }
 
+/**
+ * Bound on the Vertex vision call (#327) — same ceiling the render gate
+ * uses. Without it, a stalled provider burns the route's entire function
+ * budget; expiry lands in the existing fail-soft catch as { status:
+ * 'failed' }, the same degrade as any provider error.
+ */
+const VISION_CALL_TIMEOUT_MS = 30_000;
+
 function vertexProjectId(): string | null {
   return (
     process.env.NEXT_PUBLIC_VERTEX_AI_PROJECT_ID ||
@@ -212,6 +220,7 @@ async function callVertexVision(image: ReferenceImage): Promise<unknown> {
 
   const response = await fetch(endpoint, {
     method: 'POST',
+    signal: AbortSignal.timeout(VISION_CALL_TIMEOUT_MS),
     headers: {
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',

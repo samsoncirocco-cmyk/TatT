@@ -1,7 +1,11 @@
 // Public entry point of the generation module (ADR-0001).
 // Everything under internal/ is implementation detail — import only from here.
 import { vertexImagenProvider } from './internal/vertexImagen';
-import { replicateProvider, modelSupportsSourceImage } from './internal/replicate';
+import {
+  replicateProvider,
+  modelSupportsSourceImage,
+  modelSupportsReferenceImages,
+} from './internal/replicate';
 import { routeGeneration, inferProvider, fallbackChainForModelId } from './internal/routing';
 import type { GenerationRequest, GenerationResult, ProviderName } from './internal/provider';
 import { asGenerationError } from './internal/provider';
@@ -223,9 +227,16 @@ export async function generate(request: GenerationRequest): Promise<GenerationRe
     // An image-to-image request can only fall back to a model that also
     // takes a source image. Letting the others through would replace the
     // primary model's real failure with a uniform SOURCE_IMAGE_UNSUPPORTED.
-    const fallbackModels = resolved.sourceImage
+    // Same rule for reference photos (ADR-0050): no current fallback model
+    // takes them, so a photo-carrying request gets an empty chain and fails
+    // visibly — a render without the customer's photo is not a downgrade,
+    // it is a different product than the one they asked for.
+    let fallbackModels = resolved.sourceImage
       ? routedFallbacks.filter(modelSupportsSourceImage)
       : routedFallbacks;
+    if (resolved.referenceImages?.length) {
+      fallbackModels = fallbackModels.filter(modelSupportsReferenceImages);
+    }
 
     let lastError: Error = error;
     for (const modelId of fallbackModels) {
