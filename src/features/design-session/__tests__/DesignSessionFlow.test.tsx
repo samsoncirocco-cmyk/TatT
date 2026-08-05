@@ -317,6 +317,49 @@ describe('DesignSessionFlow', () => {
       );
     });
 
+    it('speaks the ADR-0048 downgrade and the refund when a round came off the backup lane', async () => {
+      await reachRoundPicked();
+
+      const downgradedRound = {
+        ...roundTwoSession.rounds![1],
+        downgraded: true,
+        downgradeReason: 'REPLICATE_ERROR',
+      };
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse({
+          success: true,
+          session: { ...roundTwoSession, rounds: [roundTwoSession.rounds![0], downgradedRound] },
+          round: downgradedRound,
+          creditReleased: true,
+        })
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Refine — 1 credit' }));
+
+      // Delivered, said, and the refund only claimed because it landed.
+      await screen.findByText('heads up — this round came off my backup lane, so that credit is back.');
+      expect(screen.getByRole('button', { name: /^Pick design 3 / })).toBeTruthy();
+    });
+
+    it('announces the downgrade without the refund claim when the release failed', async () => {
+      await reachRoundPicked();
+
+      const downgradedRound = { ...roundTwoSession.rounds![1], downgraded: true };
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse({
+          success: true,
+          session: { ...roundTwoSession, rounds: [roundTwoSession.rounds![0], downgradedRound] },
+          round: downgradedRound,
+          creditReleased: false,
+        })
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Refine — 1 credit' }));
+
+      await screen.findByText('heads up — this round came off my backup lane.');
+      expect(
+        screen.queryByText('heads up — this round came off my backup lane, so that credit is back.')
+      ).toBeNull();
+    });
+
     it('shows the decided failure copy and a retry when the round dies', async () => {
       await reachRoundPicked();
 

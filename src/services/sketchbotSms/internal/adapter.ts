@@ -108,6 +108,7 @@ import {
   ROUND_ACK,
   ROUND_LOCKED_TEXT,
   ROUND_FAILED_TEXT,
+  ROUND_FAILED_NO_REFUND_TEXT,
   cutCaption,
   referenceAckText,
   pickRetryText,
@@ -761,8 +762,28 @@ async function armRefineRound(
 
   profile.lastStage = 'round-running';
   profile.revealArmedAt = new Date().toISOString();
+  // Persisted at reserve time, not only in the deferred closure: a crash
+  // between here and delivery leaves a reconcilable reservation id instead
+  // of an unaccountable missing credit.
+  profile.pendingCreditReservationId = credit?.id ?? null;
   profile.updatedAt = profile.revealArmedAt;
-  await store.save(profile);
+  try {
+    await store.save(profile);
+  } catch (saveError) {
+    // The arm never happened: hand the credit straight back rather than
+    // leaking it into a state nothing will ever deliver or release.
+    if (credit) {
+      await releaseGenerationCredit(profile.uid, credit).catch((releaseError) => {
+        logger.error({
+          event_type: 'sketchbot_sms.round_credit_release_failed',
+          phone_last4: phoneLast4(profile.phone),
+          session_id: session.id,
+          error: releaseError instanceof Error ? releaseError.message : String(releaseError),
+        });
+      });
+    }
+    throw saveError;
+  }
 
   logger.info({
     event_type: 'sketchbot_sms.round_armed',
@@ -800,16 +821,24 @@ export async function executeRefineRound(
 ): Promise<RevealDelivery> {
   const store = resolveProfileStore();
 
-  const release = async () => {
-    if (!credit) return;
-    await releaseGenerationCredit(uid, credit).catch((releaseError) => {
-      logger.error({
-        event_type: 'sketchbot_sms.round_credit_release_failed',
-        phone_last4: phoneLast4(phone),
-        session_id: sessionId,
-        error: releaseError instanceof Error ? releaseError.message : String(releaseError),
+  /**
+   * Release the reserved credit, reporting whether it actually landed —
+   * the copy only claims "your credit is back" when this returns true.
+   */
+  const release = async (): Promise<boolean> => {
+    if (!credit) return false;
+    return releaseGenerationCredit(uid, credit)
+      .then(() => true)
+      .catch((releaseError) => {
+        logger.error({
+          event_type: 'sketchbot_sms.round_credit_release_failed',
+          phone_last4: phoneLast4(phone),
+          session_id: sessionId,
+          reservation_id: credit.id,
+          error: releaseError instanceof Error ? releaseError.message : String(releaseError),
+        });
+        return false;
       });
-    });
   };
 
   if (!(await stillArmed(store, phone, 'round-running', armedAt))) {
@@ -825,16 +854,22 @@ export async function executeRefineRound(
 
   let result;
   try {
-    result = await refineRound(sessionId);
+    // The reservation id rides inside the service's round claim (and the
+    // claim race serializes concurrent web + SMS rounds server-side).
+    result = await refineRound(
+      sessionId,
+      credit ? { reservationId: credit.id } : undefined
+    );
   } catch (error) {
-    // No partial-charge path (ADR-0049): the round persisted nothing, the
-    // pick stays changeable, and the credit goes back before the copy
-    // promising it does.
-    await release();
+    // No partial-charge path (ADR-0049): the round persisted nothing and
+    // the pick stays changeable. The refund is only CLAIMED in copy when
+    // the release actually succeeded.
+    const released = await release();
     const profile = await store.get(phone);
     if (profile && profile.revealArmedAt === armedAt) {
       profile.lastStage = 'revealed';
       profile.revealArmedAt = null;
+      profile.pendingCreditReservationId = released ? null : profile.pendingCreditReservationId;
       profile.updatedAt = new Date().toISOString();
       await store.save(profile);
     }
@@ -842,14 +877,16 @@ export async function executeRefineRound(
       event_type: 'sketchbot_sms.round_failed',
       phone_last4: phoneLast4(phone),
       session_id: sessionId,
+      credit_released: released,
       error: error instanceof Error ? error.message : String(error),
     });
-    return { cuts: [], closingText: ROUND_FAILED_TEXT };
+    return { cuts: [], closingText: released || !credit ? ROUND_FAILED_TEXT : ROUND_FAILED_NO_REFUND_TEXT };
   }
 
   // Loud downgrade (ADR-0048): the cuts are delivered, but off the pinned
-  // lane — the credit goes back and the closing text says so.
-  if (result.downgraded) await release();
+  // lane — the credit goes back, and the note below only says so when the
+  // release actually landed.
+  const downgradeRefunded = result.downgraded ? await release() : false;
 
   const profile = (await store.get(phone)) ?? newProfile(phone);
   // Paid renders already ran — always deliver. Only claim profile state
@@ -857,6 +894,9 @@ export async function executeRefineRound(
   if (profile.revealArmedAt === armedAt) {
     profile.lastStage = 'revealed';
     profile.revealArmedAt = null;
+    // The round settled: charged (kept) or refunded — either way the
+    // reservation is no longer pending reconciliation.
+    profile.pendingCreditReservationId = null;
     profile.updatedAt = new Date().toISOString();
     await store.save(profile);
   } else if (profile.revealArmedAt != null) {
@@ -887,8 +927,12 @@ export async function executeRefineRound(
     cuts: cutUrls.length,
   });
 
+  // The refund is only claimed when it landed; a downgraded round whose
+  // release failed is still announced, just without the ledger promise.
   const downgradeNote = result.downgraded
-    ? 'Heads up — these came off my backup lane, so that credit is back. '
+    ? downgradeRefunded
+      ? 'Heads up — these came off my backup lane, so that credit is back. '
+      : 'Heads up — these came off my backup lane. '
     : '';
   return {
     cuts: cutUrls.map((mediaUrl, index) => ({

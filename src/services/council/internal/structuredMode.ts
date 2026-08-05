@@ -303,6 +303,20 @@ export function selectAxes(record: IntakeRecord): AxisSelection {
     };
   }
 
+  // The customer explicitly asked to SEE a split ("both color and
+  // blackwork?") and the bot promised it — round one delivers THAT axis,
+  // not the ladder's first rung; the ladder resumes on the remaining rungs.
+  if (record.requestedAxis) {
+    return {
+      mode: 'questionnaire',
+      axes: [record.requestedAxis],
+      rationale:
+        `Questionnaire mode: the customer explicitly asked to see both poles of ` +
+        `${record.requestedAxis}, so round one spreads it ahead of the fixed ADR-0049 ` +
+        `ladder (${ROUND_AXIS_LADDER.join(' > ')}); later rounds walk the rungs not yet asked.`,
+    };
+  }
+
   if (record.ambiguousAxes.length === 0) {
     const styleDesc = record.styleTags.length > 0 ? record.styleTags.join(', ') : 'the resolved style';
     return {

@@ -38,10 +38,13 @@ vi.mock('@/services/storage/imageStorageService', () => ({
   copyImageToPath: vi.fn(),
   uploadImageToPath: vi.fn(),
 }));
-// The ADR-0050/#333 signed-URL plumbing the picked cut rides on.
+// The ADR-0050/#333 signed-URL plumbing the picked cut rides on. The
+// signing bucket matches the fixture bucket, so the drift guard only fires
+// in the test that deliberately drifts it.
 vi.mock('@/services/gcs-service', () => ({
   getSignedUrl: vi.fn(async (path: string) => `https://signed.test/${path}`),
   uploadToGCS: vi.fn(),
+  signingBucketName: vi.fn(() => 'tatt-pro-assets'),
 }));
 vi.mock('@/lib/budget-tracker', () => ({
   recordSpend: vi.fn(),
@@ -397,5 +400,217 @@ describe('refineRound — the charged next round', () => {
     expect(mockGenerate).not.toHaveBeenCalled();
     expect(mockGetSignedUrl).not.toHaveBeenCalled();
     expect(next.variations[2].imageUrl).toBe(DEMO_MOCK_IMAGES[2 % DEMO_MOCK_IMAGES.length]);
+  });
+});
+
+describe('one charged round at a time (claim race)', () => {
+  it('serializes two concurrent rounds — the loser never renders or persists', async () => {
+    const session = await startSession(startRequest);
+    await recordRoundPick(session.id, { pickedId: 'v2' });
+
+    // Hold the winner's first render open so the second call arrives while
+    // the round is mid-flight — the web double-click / web+SMS interleaving.
+    let releaseRender!: () => void;
+    const gate = new Promise<void>((resolve) => { releaseRender = resolve; });
+    mockGenerate.mockImplementation(async request => {
+      await gate;
+      return {
+        images: [`https://replicate.delivery/pbxt/${++imageCounter}/out.png`],
+        metadata: {
+          model: request.modelId ?? 'unknown',
+          provider: 'vertex-ai' as const,
+          generatedAt: new Date().toISOString(),
+          durationMs: 1,
+          attempts: 1,
+          fallbackUsed: false,
+        },
+      };
+    });
+
+    const winner = refineRound(session.id, { reservationId: 'res-winner' });
+    // Let the winner claim the slot before the loser arrives.
+    await new Promise((resolve) => setImmediate(resolve));
+    const loser = refineRound(session.id, { reservationId: 'res-loser' });
+
+    await expect(loser).rejects.toMatchObject({
+      code: 'ROUND_IN_FLIGHT',
+      status: 409,
+    });
+    releaseRender();
+    const { round } = await winner;
+
+    // Exactly one round delivered, on exactly two renders — the loser spent
+    // nothing and clobbered nothing.
+    expect(round.round).toBe(2);
+    expect(mockGenerate).toHaveBeenCalledTimes(4); // 2 reveal + 2 round
+    const stored = (await memorySessionStore.get(session.id)) as StoredSession;
+    expect(stored.rounds).toHaveLength(2);
+    expect(stored.variations.map(v => v.id)).toEqual(['v1', 'v2', 'v3', 'v4']);
+    // The delivered round's final save also freed the slot.
+    expect(stored.roundInFlight).toBeUndefined();
+  });
+
+  it('persists the credit reservation id inside the claim while rendering', async () => {
+    const session = await startSession(startRequest);
+    await recordRoundPick(session.id, { pickedId: 'v2' });
+
+    let midRenderClaim: unknown;
+    mockGenerate.mockImplementation(async request => {
+      midRenderClaim ??= ((await memorySessionStore.get(session.id)) as StoredSession)
+        .roundInFlight;
+      return {
+        images: [`https://replicate.delivery/pbxt/${++imageCounter}/out.png`],
+        metadata: {
+          model: request.modelId ?? 'unknown',
+          provider: 'vertex-ai' as const,
+          generatedAt: new Date().toISOString(),
+          durationMs: 1,
+          attempts: 1,
+          fallbackUsed: false,
+        },
+      };
+    });
+
+    await refineRound(session.id, { reservationId: 'res-42' });
+
+    // The charge is reconcilable from the session record mid-flight, not
+    // only from the caller's in-memory closure.
+    expect(midRenderClaim).toMatchObject({ reservationId: 'res-42' });
+  });
+
+  it('frees the slot on failure so the promised retry can run', async () => {
+    const session = await startSession(startRequest);
+    await recordRoundPick(session.id, { pickedId: 'v2' });
+
+    mockGenerate.mockRejectedValue(new Error('provider blew up'));
+    await expect(refineRound(session.id)).rejects.toThrow('provider blew up');
+
+    const stored = (await memorySessionStore.get(session.id)) as StoredSession;
+    expect(stored.roundInFlight).toBeUndefined();
+
+    // The retry is not locked out.
+    mockGenerate.mockImplementation(async request => ({
+      images: [`https://replicate.delivery/pbxt/${++imageCounter}/out.png`],
+      metadata: {
+        model: request.modelId ?? 'unknown',
+        provider: 'vertex-ai' as const,
+        generatedAt: new Date().toISOString(),
+        durationMs: 1,
+        attempts: 1,
+        fallbackUsed: false,
+      },
+    }));
+    const { round } = await refineRound(session.id);
+    expect(round.round).toBe(2);
+  });
+});
+
+describe('an explicitly requested axis leads round one (ADR-0049)', () => {
+  it('resumes the ladder on the first rung not yet asked', async () => {
+    // The conversation promised color vs blackwork, so round one spread it.
+    mockEnhanceStructured.mockResolvedValue({
+      axisSelection: {
+        mode: 'questionnaire' as const,
+        axes: ['color-blackwork' as const],
+        rationale: 'the customer explicitly asked to see both poles',
+      },
+      variations: [
+        { axisPosition: { 'color-blackwork': 'color' }, prompts: { detailed: 'd1' }, negativePrompt: 'n1' },
+        { axisPosition: { 'color-blackwork': 'blackwork' }, prompts: { detailed: 'd2' }, negativePrompt: 'n2' },
+      ],
+    });
+
+    const session = await startSession(startRequest);
+    expect(session.rounds?.[0].axis).toBe('color-blackwork');
+
+    await recordRoundPick(session.id, { pickedId: 'v1' });
+    await refineRound(session.id);
+
+    // Round two spreads bold-fine — the first UNASKED rung, never a repeat
+    // of the split round one already answered.
+    expect(mockEnhanceRound).toHaveBeenCalledWith(intakeRecord, {
+      roundNumber: 2,
+      axis: 'bold-fine',
+      lockedPoles: { 'color-blackwork': 'color' },
+    });
+  });
+});
+
+describe('legacy sessions (revealed before rounds existed)', () => {
+  it('synthesizes round one from the legacy cuts on first pick', async () => {
+    const session = await startSession(startRequest);
+    // Simulate a pre-ADR-0049 stored session: four cuts, no rounds.
+    const stored = (await memorySessionStore.get(session.id)) as StoredSession;
+    delete stored.rounds;
+    stored.variations = [1, 2, 3, 4].map(n => ({
+      id: `v${n}`,
+      axisPosition: { 'bold-fine': n % 2 ? 'bold' : 'fine' },
+      prompt: `p${n}`,
+      imageUrl: durableUrl(`design-sessions/${session.id}/v${n}-abc.png`),
+    }));
+    await memorySessionStore.save(stored);
+
+    const picked = await recordRoundPick(session.id, { pickedId: 'v3' });
+
+    // The pick did not dead-end: round one now exists over ALL legacy cuts.
+    expect(picked.rounds).toEqual([
+      expect.objectContaining({
+        round: 1,
+        axis: 'bold-fine',
+        variationIds: ['v1', 'v2', 'v3', 'v4'],
+        pickedId: 'v3',
+      }),
+    ]);
+
+    // And the loop continues from it: the next round holds the picked pole.
+    const { round } = await refineRound(session.id);
+    expect(round.round).toBe(2);
+    expect(mockEnhanceRound).toHaveBeenCalledWith(intakeRecord, {
+      roundNumber: 2,
+      axis: 'color-blackwork',
+      lockedPoles: { 'bold-fine': 'bold' },
+    });
+  });
+});
+
+describe('the picked-cut reference is bucket-verified (config drift guard)', () => {
+  it('fails the round loudly when the cut lives in a different bucket than signing', async () => {
+    const session = await startSession(startRequest);
+    const stored = (await memorySessionStore.get(session.id)) as StoredSession;
+    stored.variations = stored.variations.map(variation => ({
+      ...variation,
+      imageUrl: `https://storage.googleapis.com/some-other-bucket/${variation.id}.png`,
+    }));
+    await memorySessionStore.save(stored);
+    await recordRoundPick(session.id, { pickedId: 'v2' });
+
+    await expect(refineRound(session.id)).rejects.toThrow(/some-other-bucket/);
+
+    // Loud and clean: nothing rendered, nothing persisted, slot freed.
+    expect(mockGenerate).toHaveBeenCalledTimes(2); // reveal only
+    const after = (await memorySessionStore.get(session.id)) as StoredSession;
+    expect(after.rounds).toHaveLength(1);
+    expect(after.roundInFlight).toBeUndefined();
+  });
+
+  it('renders unseeded (and logs) when the cut has no usable GCS URL at all', async () => {
+    const session = await startSession(startRequest);
+    const stored = (await memorySessionStore.get(session.id)) as StoredSession;
+    stored.variations = stored.variations.map(variation => ({
+      ...variation,
+      imageUrl: `https://replicate.delivery/pbxt/expired/${variation.id}.png`,
+    }));
+    await memorySessionStore.save(stored);
+    await recordRoundPick(session.id, { pickedId: 'v2' });
+
+    const { round } = await refineRound(session.id);
+
+    // Delivered — a missing reference degrades the seed, not the round —
+    // but with no reference images attached and nothing signed.
+    expect(round.round).toBe(2);
+    expect(mockGetSignedUrl).not.toHaveBeenCalled();
+    for (const [request] of mockGenerate.mock.calls.slice(2)) {
+      expect(request.referenceImages).toBeUndefined();
+    }
   });
 });

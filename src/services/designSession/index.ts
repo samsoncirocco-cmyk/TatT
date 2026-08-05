@@ -121,13 +121,20 @@ export async function recordRoundPick(
 
 /**
  * One charged refine round (ADR-0049): two new cuts spread on the next
- * ladder axis, holding every pole picked so far, seeded with the picked
- * cut's image plus the customer's own reference photos. The caller (route)
- * owns the credit: reserve before, release on failure or downgrade. Throws
+ * unasked ladder axis, holding every pole picked so far, seeded with the
+ * picked cut's image plus the customer's own reference photos. The caller
+ * (route) owns the credit: reserve before, release on failure or downgrade,
+ * and pass the reservation id so it persists inside the round claim —
+ * reconcilable if this process dies mid-render. One round at a time per
+ * session: a concurrent call throws ROUND_IN_FLIGHT (409) with nothing
+ * charged past its own reservation, which the caller then releases. Throws
  * with nothing persisted when the round cannot deliver both cuts.
  */
-export async function refineRound(sessionId: string): Promise<RefineRoundResult> {
-  const { session, ...rest } = await runRefineRound(sessionId);
+export async function refineRound(
+  sessionId: string,
+  opts?: { reservationId?: string }
+): Promise<RefineRoundResult> {
+  const { session, ...rest } = await runRefineRound(sessionId, opts);
   return { session: toDesignSession(session), ...rest };
 }
 

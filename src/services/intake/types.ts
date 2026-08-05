@@ -83,6 +83,14 @@ export interface IntakeRecord {
   references: string[];
   /** Axes the intake left ambiguous — drives variation-axis selection (ADR-0012). */
   ambiguousAxes: VariationAxis[];
+  /**
+   * An axis the customer EXPLICITLY asked to see spread ("can I see both
+   * color and blackwork?"). Round one honors it ahead of the fixed
+   * ADR-0049 ladder — the conversation promised that split, so the reveal
+   * must deliver it; the ladder resumes on the remaining rungs. Absent
+   * when nothing was requested.
+   */
+  requestedAxis?: VariationAxis;
 }
 
 /**

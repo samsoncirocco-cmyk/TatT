@@ -7,6 +7,8 @@
  * generation strictly through their public entry points.
  */
 import { randomUUID } from 'crypto';
+import { logger } from '@/lib/logger';
+import { signingBucketName } from '@/services/gcs-service';
 import { DEMO_MOCK_IMAGES } from '@/lib/demo-images';
 import { extractIntake } from '../../intake';
 import type { IntakeRecord, VariationAxis } from '../../intake/types';
@@ -31,8 +33,8 @@ import {
   isLadderAxis,
   nextRoundAxis,
 } from '../roundPlan';
-import { resolveSessionStore } from './store';
-import type { SessionStore, StoredSession } from './store';
+import { resolveSessionStore, ROUND_CLAIM_STALE_MS } from './store';
+import type { RoundClaim, SessionStore, StoredSession } from './store';
 import { deriveRefinementQuestion, adjustPromptForAnswer } from './refinement';
 import { derivePlacementNotes } from './placementNotes';
 import { deriveStencil } from './stencil';
@@ -62,6 +64,7 @@ export type DesignSessionErrorCode =
   | 'REFINEMENT_CLOSED'
   | 'ROUND_PICK_FROZEN'
   | 'ROUND_UNPICKED'
+  | 'ROUND_IN_FLIGHT'
   | 'CONVERSATION_UNAVAILABLE';
 
 const ERROR_STATUS: Record<DesignSessionErrorCode, number> = {
@@ -73,6 +76,9 @@ const ERROR_STATUS: Record<DesignSessionErrorCode, number> = {
   // render already consumed it — and a round can't refine before its pick.
   ROUND_PICK_FROZEN: 409,
   ROUND_UNPICKED: 409,
+  // A second charged round while one is rendering loses the claim race —
+  // it must never double-charge or clobber the winner's state.
+  ROUND_IN_FLIGHT: 409,
   // Every conversation provider is down — the route maps this to 503 and
   // the UI downgrades to the scripted intake (ADR-0019 degraded mode).
   CONVERSATION_UNAVAILABLE: 503,
@@ -451,12 +457,33 @@ export async function recordRoundPick(
       `Cannot pick a round cut while the session is '${session.phase}' — rounds live between the reveal and the handoff.`
     );
   }
-  const round = currentRound(session.rounds);
+  let round = currentRound(session.rounds);
   if (!round) {
-    throw new DesignSessionError(
-      'INVALID_PHASE',
-      `Session '${sessionId}' predates the round machinery — nothing to pick against.`
-    );
+    if (session.variations.length === 0) {
+      throw new DesignSessionError(
+        'INVALID_PHASE',
+        `Session '${sessionId}' has no cuts to pick against.`
+      );
+    }
+    // A session revealed before rounds existed (stored pre-ADR-0049) must
+    // not dead-end at its own reveal: synthesize round one from the legacy
+    // cuts on first pick, so the pick — and every refine round after it —
+    // works exactly as on a fresh session.
+    round = {
+      round: 1,
+      axis:
+        session.axisSelection.mode === 'questionnaire' && session.axisSelection.axes[0]
+          ? session.axisSelection.axes[0]
+          : COMPOSITION_AXIS,
+      variationIds: session.variations.map(variation => variation.id),
+    };
+    session.rounds = [round];
+    logger.info({
+      event_type: 'design_session.legacy_round_synthesized',
+      session_id: session.id,
+      axis: round.axis,
+      cut_count: round.variationIds.length,
+    });
   }
   if (round.frozen) {
     throw new DesignSessionError(
@@ -480,23 +507,65 @@ export async function recordRoundPick(
   return session;
 }
 
-/**
- * Derive the product-bucket object path from a durable cut URL, so the
- * picked cut can ride the ADR-0050/#333 signed-URL plumbing as a reference.
- * Returns undefined for anything that is not our bucket (demo stock images)
- * — the caller then simply renders without the image reference.
- */
-function bucketObjectPath(imageUrl: string | undefined): string | undefined {
+/** A public GCS object URL split into its bucket and object path. */
+function parseBucketUrl(
+  imageUrl: string | undefined
+): { bucket: string; path: string } | undefined {
   if (!imageUrl) return undefined;
   try {
     const url = new URL(imageUrl);
     if (url.hostname !== 'storage.googleapis.com') return undefined;
     // Shape: /<bucket>/<object path>
-    const path = url.pathname.split('/').slice(2).join('/');
-    return path ? decodeURIComponent(path) : undefined;
+    const [, bucket, ...rest] = url.pathname.split('/');
+    const path = rest.join('/');
+    return bucket && path ? { bucket, path: decodeURIComponent(path) } : undefined;
   } catch {
     return undefined;
   }
+}
+
+/**
+ * The picked cut's object path for the ADR-0050/#333 signed-URL plumbing.
+ *
+ * The cut's URL carries its own bucket (imageStorageService's env chain)
+ * while getSignedUrl signs against gcs-service's — the chains CAN drift,
+ * and a drifted config would seed the round with a signed URL that 404s at
+ * the provider. That is a config failure, so it fails the round loudly
+ * (before anything is half-shown; the route releases the credit) instead
+ * of rendering an unseeded round that quietly ignores the pick.
+ *
+ * A cut with no usable GCS URL at all is logged, never silent: the round
+ * still renders, but the pick could not seed it.
+ */
+function pickedCutReferencePath(
+  sessionId: string,
+  picked: Variation
+): string | undefined {
+  const parsed = parseBucketUrl(picked.imageUrl);
+  if (!parsed) {
+    logger.warn({
+      event_type: 'design_session.round_reference_unavailable',
+      session_id: sessionId,
+      variation_id: picked.id,
+      image_url_host: (() => {
+        try {
+          return picked.imageUrl ? new URL(picked.imageUrl).hostname : 'absent';
+        } catch {
+          return 'unparseable';
+        }
+      })(),
+    });
+    return undefined;
+  }
+  const signingBucket = signingBucketName();
+  if (parsed.bucket !== signingBucket) {
+    throw new Error(
+      `Picked cut lives in bucket '${parsed.bucket}' but reference URLs are signed ` +
+        `against '${signingBucket}' — refusing to seed the round with a reference that ` +
+        'would 404 at the provider (check GCS_BUCKET_NAME / GCP_STORAGE_BUCKET drift).'
+    );
+  }
+  return parsed.path;
 }
 
 /** What one charged refine round produced (ADR-0049). */
@@ -518,11 +587,23 @@ export interface RefineRoundOutcome {
  *
  * The CREDIT is the route's job (reserveGenerationCredit before this call,
  * releaseGenerationCredit on failure or downgrade — same split as the
- * confirm route). There is no partial-charge path: the two renders settle
- * together, and a round that cannot deliver both cuts throws with nothing
- * persisted — the pick stays changeable and the credit goes back.
+ * confirm route). Pass the reservation id in `opts`: it is persisted inside
+ * the round claim, so a reservation orphaned by a crash mid-render is
+ * reconcilable from the session record. There is no partial-charge path:
+ * the two renders settle together, and a round that cannot deliver both
+ * cuts throws with nothing persisted — the pick stays changeable and the
+ * credit goes back.
+ *
+ * CONCURRENCY: exactly one charged round per session at a time. The slot is
+ * claimed atomically (store.claimRound — a Firestore transaction, never the
+ * last-write-wins save) BEFORE anything renders; a concurrent call throws
+ * ROUND_IN_FLIGHT so its caller releases the credit it reserved, instead of
+ * two rounds double-charging and clobbering each other's variation ids.
  */
-export async function refineRound(sessionId: string): Promise<RefineRoundOutcome> {
+export async function refineRound(
+  sessionId: string,
+  opts?: { reservationId?: string }
+): Promise<RefineRoundOutcome> {
   const store = resolveSessionStore();
   const session = await loadSession(store, sessionId);
 
@@ -553,6 +634,60 @@ export async function refineRound(sessionId: string): Promise<RefineRoundOutcome
     );
   }
 
+  // Claim the single charged-round slot before anything paid runs. A live
+  // claim refuses; a stale one (crashed instance) is evicted with its
+  // orphaned reservation logged for reconciliation.
+  const claim: RoundClaim = {
+    id: randomUUID(),
+    ...(opts?.reservationId ? { reservationId: opts.reservationId } : {}),
+    at: new Date().toISOString(),
+  };
+  const claimed = await store.claimRound(session.id, claim, ROUND_CLAIM_STALE_MS);
+  if (claimed.status === 'missing') {
+    throw new DesignSessionError('SESSION_NOT_FOUND', `No design session '${sessionId}'.`);
+  }
+  if (claimed.status === 'held') {
+    throw new DesignSessionError(
+      'ROUND_IN_FLIGHT',
+      `Session '${sessionId}' already has a round rendering — one charged round at a time.`
+    );
+  }
+  if (claimed.evicted) {
+    logger.warn({
+      event_type: 'design_session.round_claim_evicted',
+      session_id: session.id,
+      stale_claim_id: claimed.evicted.id,
+      // The fact that makes an orphaned charge reconcilable.
+      orphaned_reservation_id: claimed.evicted.reservationId ?? null,
+      claimed_at: claimed.evicted.at,
+    });
+  }
+
+  try {
+    return await runClaimedRound(store, session, live, picked);
+  } catch (error) {
+    // A failed round frees the slot so the promised retry can actually run.
+    // Best-effort: a release failure must not mask the render failure, and
+    // a stuck claim self-heals via the stale window.
+    await store.releaseRound(session.id, claim.id).catch((releaseError) => {
+      logger.error({
+        event_type: 'design_session.round_claim_release_failed',
+        session_id: session.id,
+        claim_id: claim.id,
+        error: releaseError instanceof Error ? releaseError.message : String(releaseError),
+      });
+    });
+    throw error;
+  }
+}
+
+/** The claimed body of refineRound — everything after the slot is won. */
+async function runClaimedRound(
+  store: SessionStore,
+  session: StoredSession,
+  live: RefineRound,
+  picked: Variation
+): Promise<RefineRoundOutcome> {
   // Every pole picked so far, in round order — the next round holds all of
   // them (ADR-0049). Read off each picked cut's own axisPosition, so a
   // re-picked round contributes the pole actually chosen.
@@ -565,9 +700,12 @@ export async function refineRound(sessionId: string): Promise<RefineRoundOutcome
   }
 
   const roundNumber = (session.rounds?.length ?? 0) + 1;
+  // Next unasked rung of the ladder — round one may have led with an axis
+  // the customer explicitly requested, so progression skips axes already
+  // spread rather than replaying the ladder by index.
   const axis = nextRoundAxis(
     session.axisSelection.mode,
-    session.rounds?.length ?? 0
+    (session.rounds ?? []).map(round => round.axis)
   ) as RoundSpread['axis'];
   const enhanced = await enhanceRound(session.intake, { roundNumber, axis, lockedPoles });
 
@@ -584,7 +722,9 @@ export async function refineRound(sessionId: string): Promise<RefineRoundOutcome
     // signed-URL plumbing the customer's own photos use — and those photos
     // stay attached after it (nano-banana-2 takes multiple references).
     const photoPaths = referenceImagePaths(session.conversation?.references ?? []);
-    const pickedPath = demo ? undefined : bucketObjectPath(picked.imageUrl);
+    // Bucket-verified (never a signed URL that 404s) and logged when the
+    // cut has no usable GCS path; demo stock images seed nothing by design.
+    const pickedPath = demo ? undefined : pickedCutReferencePath(session.id, picked);
     const referencePaths = [...(pickedPath ? [pickedPath] : []), ...photoPaths];
     const referenceImages =
       !demo && referencePaths.length ? await signedReferenceUrls(referencePaths) : undefined;
@@ -647,6 +787,10 @@ export async function refineRound(sessionId: string): Promise<RefineRoundOutcome
   session.rounds = [...(session.rounds ?? []), round];
   session.updatedAt = now;
 
+  // This save is also the claim release: `session` was loaded before the
+  // slot was claimed, so it carries no roundInFlight, and save() replaces
+  // the whole document — delivering the round and freeing the slot in one
+  // write.
   await store.save(session);
   return { session, round, downgraded: Boolean(downgradeReason), downgradeReason };
 }

@@ -173,7 +173,9 @@ function revealedSession() {
       prompt: `prompt ${n}`,
       imageUrl: `https://storage.example/cut-${n}.png`,
     })),
-    rounds: [{ round: 1, axis: 'bold-fine', variationIds: ['v1', 'v2'] }],
+    rounds: [
+      { round: 1, axis: 'bold-fine', variationIds: ['v1', 'v2'] },
+    ] as import('@/services/designSession').RefineRound[],
     createdAt: '2026-07-29T00:00:00.000Z',
     updatedAt: '2026-07-29T00:00:00.000Z',
   };
@@ -1013,6 +1015,9 @@ describe('the two-cut rounds (ADR-0049)', () => {
       expect(refineRound).not.toHaveBeenCalled();
       const profile = await memoryProfileStore.get(PHONE);
       expect(profile?.lastStage).toBe('round-running');
+      // Persisted at reserve time, not only in the deferred closure: a
+      // crash before delivery leaves a reconcilable reservation id.
+      expect(profile?.pendingCreditReservationId).toBe('res-1');
     });
 
     it('speaks the empty meter instead of arming a round it cannot charge', async () => {
@@ -1098,9 +1103,34 @@ describe('the two-cut rounds (ADR-0049)', () => {
       expect(delivery.cuts).toHaveLength(0);
       expect(delivery.closingText).toBe(ROUND_FAILED_TEXT);
       expect(releaseGenerationCredit).toHaveBeenCalledWith('user-1', credit);
-      // Re-armed for another REFINE, exactly as the copy promises.
+      // Re-armed for another REFINE, exactly as the copy promises — and the
+      // refunded reservation is no longer pending reconciliation.
       const profile = await memoryProfileStore.get(PHONE);
       expect(profile?.lastStage).toBe('revealed');
+      expect(profile?.pendingCreditReservationId).toBeNull();
+    });
+
+    it('never claims the refund when the release itself failed', async () => {
+      mockLinked('user-1');
+      await driveToPicked();
+      await handleInbound({ phone: PHONE, body: 'REFINE' });
+      vi.mocked(refineRound).mockRejectedValueOnce(new Error('provider blew up'));
+      vi.mocked(releaseGenerationCredit).mockRejectedValueOnce(new Error('firestore down'));
+
+      const credit = { id: 'res-1', source: 'free' as const, freeRemaining: 24, paidRemaining: 0 };
+      const delivery = await executeRefineRound(
+        's1',
+        PHONE,
+        'user-1',
+        credit,
+        await currentArmedAt()
+      );
+
+      // Honest copy: no "your credit is back" for a refund that did not land
+      // — and the reservation stays on the profile for reconciliation.
+      expect(delivery.closingText).toBe("That round didn't take. Reply REFINE to try again.");
+      const profile = await memoryProfileStore.get(PHONE);
+      expect(profile?.pendingCreditReservationId).toBe('res-1');
     });
 
     it('releases the credit on an ADR-0048 downgrade and says so', async () => {

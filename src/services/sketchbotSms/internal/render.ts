@@ -147,9 +147,17 @@ export const ROUND_LOCKED_TEXT =
 export const ROUND_ACK =
   "On it — cutting the next round now. Two new cuts land here in a minute or two.";
 
-/** A charged round failed after the ack (ADR-0049 acceptance copy). */
+/**
+ * A charged round failed after the ack (ADR-0049 acceptance copy). Sent
+ * only when the credit release actually landed — the refund claim and the
+ * refund ship together or not at all.
+ */
 export const ROUND_FAILED_TEXT =
   "That round didn't take — your credit is back. Reply REFINE to try again.";
+
+/** Same failure when the release itself failed: no refund claim made. */
+export const ROUND_FAILED_NO_REFUND_TEXT =
+  "That round didn't take. Reply REFINE to try again.";
 
 /** REFINE before any A/B — the round has no pick to refine from. */
 export function roundUnpickedText(): string {

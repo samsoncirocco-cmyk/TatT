@@ -41,6 +41,16 @@ export const REFINE_BUTTON_LABEL = 'Refine — 1 credit';
 export const LOCK_IN_LABEL = 'Lock it in';
 
 /**
+ * The ADR-0048 loud downgrade, on web: the round rendered off the pinned
+ * lane, and the refund line is only spoken when the release actually
+ * landed — same honesty rule as the SMS wording.
+ */
+export const ROUND_DOWNGRADED_REFUNDED_NOTICE =
+  'heads up — this round came off my backup lane, so that credit is back.';
+export const ROUND_DOWNGRADED_NOTICE =
+  'heads up — this round came off my backup lane.';
+
+/**
  * The invitation that keeps the chat alive past the reveal (ADR-0039). Says
  * the feature out loud with the exact kind of sentence it accepts — nobody
  * types criticism at a screen that never offered to hear it.
@@ -91,6 +101,9 @@ export function DesignSessionFlow({ initialSession }: { initialSession?: DesignS
   const [session, setSession] = useState<DesignSession | null>(initialSession ?? null);
   const [error, setError] = useState<string | null>(null);
   const [lastAction, setLastAction] = useState<SessionAction | null>(null);
+  // The ADR-0048 downgrade notice for the latest charged round — spoken,
+  // never swallowed; cleared by the next action.
+  const [roundNotice, setRoundNotice] = useState<string | null>(null);
   // The critique lane (ADR-0039): its own transcript below the reveal, so the
   // round taps and the typed criticism read as one conversation.
   const [critiqueLog, setCritiqueLog] = useState<ConversationMessage[]>([]);
@@ -109,6 +122,7 @@ export function DesignSessionFlow({ initialSession }: { initialSession?: DesignS
   const runAction = (action: SessionAction) => {
     setError(null);
     setLastAction(action);
+    setRoundNotice(null);
 
     let call: Promise<DesignSession>;
     let nextStep: FlowStep;
@@ -122,7 +136,16 @@ export function DesignSessionFlow({ initialSession }: { initialSession?: DesignS
       nextStep = 'reveal';
     } else if (action.kind === 'round') {
       setStep('rounding');
-      call = runRefineRound(action.sessionId);
+      // The ADR-0048 facts ride the envelope: a downgraded round is said
+      // out loud, and the refund is only claimed when it landed.
+      call = runRefineRound(action.sessionId).then((result) => {
+        if (result.downgraded) {
+          setRoundNotice(
+            result.creditReleased ? ROUND_DOWNGRADED_REFUNDED_NOTICE : ROUND_DOWNGRADED_NOTICE
+          );
+        }
+        return result.session;
+      });
       nextStep = 'reveal';
     } else if (action.kind === 'pick') {
       setStep('picking');
@@ -267,6 +290,7 @@ export function DesignSessionFlow({ initialSession }: { initialSession?: DesignS
       {showGrid && session && (
         <>
           <ChatBubble role="bot">{revealNarration(session.axisSelection)}</ChatBubble>
+          {roundNotice && <ChatBubble role="bot">{roundNotice}</ChatBubble>}
           <ChatBubble role="bot">{ROUND_PROMPT}</ChatBubble>
           <RevealGrid
             variations={roundCuts}
@@ -282,7 +306,10 @@ export function DesignSessionFlow({ initialSession }: { initialSession?: DesignS
           {step === 'reveal' && roundPickId && session.rounds && (
             <>
               <ChatBubble role="bot">
-                {refineInviteLine(session.axisSelection.mode, session.rounds.length)}
+                {refineInviteLine(
+                  session.axisSelection.mode,
+                  session.rounds.map((round) => round.axis)
+                )}
               </ChatBubble>
               <div className="flex gap-3">
                 <button

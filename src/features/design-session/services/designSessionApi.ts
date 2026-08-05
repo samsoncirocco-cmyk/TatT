@@ -158,13 +158,63 @@ export function submitRoundPick(
 }
 
 /**
+ * What one charged round hands the flow: the session plus the ADR-0048
+ * facts the route's envelope carries — a downgraded round was delivered
+ * off the pinned lane and (when the release landed) refunded, and the
+ * reveal must say so rather than swallow it.
+ */
+export interface RefineRoundResponse {
+  session: DesignSession;
+  downgraded: boolean;
+  creditReleased: boolean;
+}
+
+/**
  * POST /api/v1/design-session/[id]/round — one charged refine round
  * (ADR-0049): 1 credit, two new cuts seeded by the picked one. The route's
  * failure body carries the decided copy ("That round didn't take — your
- * credit is back. Run it again?"), which the flow shows verbatim.
+ * credit is back. Run it again?" — refund claimed only when it happened),
+ * which the flow shows verbatim.
  */
-export function runRefineRound(sessionId: string): Promise<DesignSession> {
-  return postJson(`${BASE_PATH}/${sessionId}/round`, {});
+export async function runRefineRound(sessionId: string): Promise<RefineRoundResponse> {
+  const res = await postAuthed(`${BASE_PATH}/${sessionId}/round`, {});
+
+  let data: unknown = null;
+  try {
+    data = await res.json();
+  } catch {
+    // Non-JSON body — fall through to the status error below.
+  }
+
+  if (!res.ok) {
+    const payload = (data ?? {}) as {
+      error?: string;
+      code?: string;
+      retryable?: boolean;
+      retryAfterMs?: number;
+    };
+    throw new DesignSessionRequestError(
+      payload.error ?? `Design session request failed (${res.status})`,
+      {
+        code: payload.code ?? 'DESIGN_SESSION_FAILED',
+        status: res.status,
+        retryable: payload.retryable === true,
+        retryAfterMs: payload.retryAfterMs,
+      }
+    );
+  }
+
+  const record = data as {
+    session?: DesignSession;
+    round?: { downgraded?: boolean };
+    creditReleased?: boolean;
+  } | null;
+  if (!record?.session) throw new Error('Design session response was empty');
+  return {
+    session: record.session,
+    downgraded: record.round?.downgraded === true,
+    creditReleased: record.creditReleased === true,
+  };
 }
 
 /**

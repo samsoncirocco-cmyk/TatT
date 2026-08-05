@@ -46,16 +46,18 @@ export const ROUND_POLE_LABEL: Record<string, string> = {
 };
 
 /**
- * The axis the NEXT round spreads on, given how many rounds exist.
+ * The axis the NEXT round spreads on, given the axes already spread.
  * Compositional sessions stay compositional; questionnaire sessions walk
- * the ladder and then re-roll on locked poles — there is no hard cap.
+ * the ladder — skipping any rung an earlier round already asked (round one
+ * may lead with an axis the customer explicitly requested) — and then
+ * re-roll on locked poles. There is no hard cap.
  */
 export function nextRoundAxis(
   mode: 'questionnaire' | 'compositional',
-  roundCount: number
+  priorAxes: readonly string[]
 ): string {
   if (mode === 'compositional') return COMPOSITION_AXIS;
-  return ROUND_AXIS_LADDER[roundCount] ?? REROLL_AXIS;
+  return ROUND_AXIS_LADDER.find(axis => !priorAxes.includes(axis)) ?? REROLL_AXIS;
 }
 
 /**
@@ -77,10 +79,10 @@ export function roundAxisLabel(axis: string): string {
  */
 export function refineInviteLine(
   mode: 'questionnaire' | 'compositional',
-  roundCount: number
+  priorAxes: readonly string[]
 ): string {
   return `Good eye. Refine it? Next round is ${roundAxisLabel(
-    nextRoundAxis(mode, roundCount)
+    nextRoundAxis(mode, priorAxes)
   )} — 1 credit.`;
 }
 

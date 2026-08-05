@@ -130,6 +130,13 @@ export interface SmsProfile {
   /** When the in-flight render was armed — stale-recovery for the *-running stages. */
   revealArmedAt?: string | null;
   /**
+   * The generation-credit reservation charged for the in-flight REFINE
+   * round (ADR-0049). Persisted at reserve time — not only in the deferred
+   * closure — so a reservation orphaned by a crash between arm and delivery
+   * is reconcilable from the profile. Cleared when the round settles.
+   */
+  pendingCreditReservationId?: string | null;
+  /**
    * Variation id chosen at 'revealed', held until the most-not-you tap
    * arrives — recordPick needs both ids at once and refuses a pair that
    * names the same cut twice.

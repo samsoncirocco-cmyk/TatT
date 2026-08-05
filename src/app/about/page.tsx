@@ -15,7 +15,7 @@ const SECTIONS = [
     n: "02",
     word: "Generate",
     body: [
-      "Four passes, each a different cut at the same idea — different angle, different weight, different attitude. Render time varies with the design and studio traffic.",
+      "Two passes a round, each a different cut at the same idea — different angle, different weight, different attitude. Render time varies with the design and studio traffic.",
       "Pick the one that hits or try again. If a render breaks, your prompt and settings stay put so you can retry the exact idea without rebuilding it.",
     ],
   },

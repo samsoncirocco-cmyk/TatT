@@ -292,6 +292,43 @@ describe('enhanceStructured - named subject (IP rule)', () => {
   });
 });
 
+describe('enhanceStructured - an explicitly requested spread wins round one', () => {
+  it('honors the axis the customer asked to SEE ahead of the ladder', async () => {
+    // The conversation's axis-request path ("can i see both color and
+    // blackwork?") promised this split — round one must deliver it, not
+    // bold-fine.
+    const result = await enhanceStructured({
+      ...baseRecord,
+      styleTags: [],
+      ambiguousAxes: ['color-blackwork', 'bold-fine'],
+      requestedAxis: 'color-blackwork',
+    });
+
+    expect(result.axisSelection.mode).toBe('questionnaire');
+    expect(result.axisSelection.axes).toEqual(['color-blackwork']);
+    expect(result.axisSelection.rationale).toContain('explicitly asked');
+    expect(result.variations.map(v => v.axisPosition)).toEqual([
+      { 'color-blackwork': 'color' },
+      { 'color-blackwork': 'blackwork' },
+    ]);
+  });
+
+  it('still defers to compositional mode for a named cast', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      requestedCharacters: ['Sora', 'Riku'],
+      subject: 'Sora and Riku sparring',
+      ambiguousAxes: ['color-blackwork'],
+      requestedAxis: 'color-blackwork',
+    });
+
+    // Pre-existing rule: a cast is a composition problem first — the
+    // spread request never traded away ensemble staging before ADR-0049
+    // either.
+    expect(result.axisSelection.mode).toBe('compositional');
+  });
+});
+
 describe('enhanceStructured - the fixed ladder (ADR-0049)', () => {
   it('round one spreads bold-fine no matter how many axes stayed ambiguous', async () => {
     const result = await enhanceStructured({

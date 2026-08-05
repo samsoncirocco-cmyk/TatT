@@ -23,10 +23,12 @@ export const maxDuration = 300;
 
 /**
  * The round failure line (ADR-0049 acceptance copy). The credit release
- * below is what makes the second sentence true — the copy and the refund
- * ship together or not at all.
+ * below is what makes the second sentence true — this copy is only sent
+ * when the release actually succeeded; otherwise the neutral line goes out
+ * and the ledger question stays honest.
  */
 const ROUND_FAILED_COPY = "That round didn't take — your credit is back. Run it again?";
+const ROUND_FAILED_NEUTRAL_COPY = "That round didn't take. Run it again?";
 
 /**
  * POST /api/v1/design-session/[id]/round — one charged refine round
@@ -92,7 +94,13 @@ export async function POST(
             creditReservation = await reserveGenerationCredit(user.uid);
         }
 
-        const { session, round, downgraded } = await refineRound(sessionId);
+        // The reservation id rides inside the service's round claim, so a
+        // charge orphaned by a crash mid-render stays reconcilable from the
+        // session record.
+        const { session, round, downgraded } = await refineRound(
+            sessionId,
+            creditReservation ? { reservationId: creditReservation.id } : undefined
+        );
         generationSucceeded = true;
 
         // Loud downgrade (ADR-0048): the round rendered, but on a fallback
@@ -120,10 +128,16 @@ export async function POST(
 
         return NextResponse.json({ success: true, session, round, credits: creditReservation, creditReleased });
     } catch (error) {
+        // Track whether the refund actually landed: the failure copy only
+        // claims "your credit is back" when it is true.
+        let creditReleased = false;
         if (uid && creditReservation && !generationSucceeded) {
-            await releaseGenerationCredit(uid, creditReservation).catch((releaseError) => {
-                console.error('[Design session] failed to return unused round credit:', releaseError);
-            });
+            creditReleased = await releaseGenerationCredit(uid, creditReservation)
+                .then(() => true)
+                .catch((releaseError) => {
+                    console.error('[Design session] failed to return unused round credit:', releaseError);
+                    return false;
+                });
         }
         if (error instanceof GenerationCreditsExhaustedError || (error as { code?: string }).code === 'GENERATION_CREDITS_EXHAUSTED') {
             return NextResponse.json(
@@ -134,15 +148,21 @@ export async function POST(
         reqLogger.error('design_session.round.failed', error as Error, {
             session_id: sessionId,
             error_code: (error as { code?: string }).code || 'DESIGN_SESSION_FAILED',
+            credit_released: creditReleased,
         });
-        // Domain refusals (frozen pick, no pick yet, wrong phase) keep their
-        // own messages; a render that died mid-round gets the decided copy —
-        // the credit release above is what makes it honest.
+        // Domain refusals (frozen pick, no pick yet, a round already in
+        // flight, wrong phase) keep their own messages; a render that died
+        // mid-round gets the decided copy — but only when the release above
+        // actually succeeded, otherwise the neutral line.
         if (error instanceof DesignSessionError) {
             return designSessionErrorResponse(error);
         }
         return NextResponse.json(
-            { error: ROUND_FAILED_COPY, code: 'ROUND_FAILED', creditReleased: creditReservation != null },
+            {
+                error: creditReleased ? ROUND_FAILED_COPY : ROUND_FAILED_NEUTRAL_COPY,
+                code: 'ROUND_FAILED',
+                creditReleased,
+            },
             { status: 502 }
         );
     }

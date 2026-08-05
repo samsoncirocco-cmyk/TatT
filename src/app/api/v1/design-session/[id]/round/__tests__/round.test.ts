@@ -32,12 +32,12 @@ const {
 vi.mock('@/services/designSession', () => {
   class DesignSessionError extends Error {
     readonly code: string;
-    readonly status: number;
-    constructor(code: string, status = 409, message = code) {
+    // Every round domain refusal is a conflict — same as the real class.
+    readonly status = 409;
+    constructor(code: string, message = code) {
       super(message);
       this.name = 'DesignSessionError';
       this.code = code;
-      this.status = status;
     }
   }
   return {
@@ -128,11 +128,13 @@ describe('POST /api/v1/design-session/[id]/round route adapter', () => {
     expect(json.round).toMatchObject({ round: 2, axis: 'color-blackwork' });
     expect(json.creditReleased).toBe(false);
 
-    // The credit precedes the renders; the round is one credit, exactly.
+    // The credit precedes the renders; the round is one credit, exactly —
+    // and the reservation id rides into the service's round claim so an
+    // orphaned charge stays reconcilable.
     expect(reserveGenerationCreditMock).toHaveBeenCalledTimes(1);
     expect(reserveGenerationCreditMock).toHaveBeenCalledWith('uid_customer');
     expect(releaseGenerationCreditMock).not.toHaveBeenCalled();
-    expect(refineRoundMock).toHaveBeenCalledWith('sess-1');
+    expect(refineRoundMock).toHaveBeenCalledWith('sess-1', { reservationId: 'res-1' });
     expect(rateLimitMock).toHaveBeenCalledWith(expect.anything(), 'generation');
   });
 
@@ -199,13 +201,39 @@ describe('POST /api/v1/design-session/[id]/round route adapter', () => {
   });
 
   it('maps a round without a pick to 409 and releases the credit', async () => {
-    refineRoundMock.mockRejectedValueOnce(new DesignSessionError('ROUND_UNPICKED'));
+    refineRoundMock.mockRejectedValueOnce(new DesignSessionError('ROUND_UNPICKED', 'no pick yet'));
 
     const res = await POST(makeRequest(URL, {}), routeParams('sess-1'));
 
     expect(res.status).toBe(409);
     expect((await res.json()).code).toBe('ROUND_UNPICKED');
     expect(releaseGenerationCreditMock).toHaveBeenCalledWith('uid_customer', RESERVATION);
+  });
+
+  it('maps a concurrent round to 409 ROUND_IN_FLIGHT and releases the credit', async () => {
+    refineRoundMock.mockRejectedValueOnce(
+      new DesignSessionError('ROUND_IN_FLIGHT', 'already rendering')
+    );
+
+    const res = await POST(makeRequest(URL, {}), routeParams('sess-1'));
+
+    // The loser of the claim race spends nothing: its own reservation goes
+    // straight back and the winner's round is untouched.
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe('ROUND_IN_FLIGHT');
+    expect(releaseGenerationCreditMock).toHaveBeenCalledWith('uid_customer', RESERVATION);
+  });
+
+  it('uses the neutral failure copy when the release itself fails', async () => {
+    refineRoundMock.mockRejectedValueOnce(new Error('provider blew up'));
+    releaseGenerationCreditMock.mockRejectedValueOnce(new Error('firestore down'));
+
+    const res = await POST(makeRequest(URL, {}), routeParams('sess-1'));
+
+    // "your credit is back" is only said when it is true.
+    const json = await res.json();
+    expect(json.error).toBe("That round didn't take. Run it again?");
+    expect(json.creditReleased).toBe(false);
   });
 
   it('returns 402 when the budget is exhausted, before the credit', async () => {

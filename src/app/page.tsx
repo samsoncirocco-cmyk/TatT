@@ -26,7 +26,7 @@ const STEPS = [
   {
     n: "02",
     title: "Generate",
-    body: "AI cuts four passes in seconds. Pick the one that bites. Iterate or ship.",
+    body: "AI cuts two passes in seconds. Pick the one that bites. Iterate or ship.",
   },
   {
     n: "03",

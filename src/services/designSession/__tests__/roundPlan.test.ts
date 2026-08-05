@@ -23,20 +23,36 @@ describe('the axis ladder (ADR-0049 acceptance order)', () => {
       'literal-abstract',
       'minimal-ornate',
     ]);
-    expect(nextRoundAxis('questionnaire', 0)).toBe('bold-fine');
-    expect(nextRoundAxis('questionnaire', 1)).toBe('color-blackwork');
-    expect(nextRoundAxis('questionnaire', 2)).toBe('literal-abstract');
-    expect(nextRoundAxis('questionnaire', 3)).toBe('minimal-ornate');
+    expect(nextRoundAxis('questionnaire', [])).toBe('bold-fine');
+    expect(nextRoundAxis('questionnaire', ['bold-fine'])).toBe('color-blackwork');
+    expect(nextRoundAxis('questionnaire', ['bold-fine', 'color-blackwork'])).toBe(
+      'literal-abstract'
+    );
+    expect(
+      nextRoundAxis('questionnaire', ['bold-fine', 'color-blackwork', 'literal-abstract'])
+    ).toBe('minimal-ornate');
+  });
+
+  it('skips rungs already spread — round one may lead with a requested axis', () => {
+    // The customer asked to SEE color vs blackwork, so round one spread it;
+    // the ladder resumes on the rungs not yet asked (never repeats one).
+    expect(nextRoundAxis('questionnaire', ['color-blackwork'])).toBe('bold-fine');
+    expect(nextRoundAxis('questionnaire', ['color-blackwork', 'bold-fine'])).toBe(
+      'literal-abstract'
+    );
   });
 
   it('re-rolls on locked poles past the ladder — no hard round cap', () => {
-    expect(nextRoundAxis('questionnaire', 4)).toBe(REROLL_AXIS);
-    expect(nextRoundAxis('questionnaire', 17)).toBe(REROLL_AXIS);
+    const allRungs = [...ROUND_AXIS_LADDER];
+    expect(nextRoundAxis('questionnaire', allRungs)).toBe(REROLL_AXIS);
+    expect(nextRoundAxis('questionnaire', [...allRungs, REROLL_AXIS, REROLL_AXIS])).toBe(
+      REROLL_AXIS
+    );
   });
 
   it('keeps compositional sessions on framing rounds', () => {
-    expect(nextRoundAxis('compositional', 0)).toBe(COMPOSITION_AXIS);
-    expect(nextRoundAxis('compositional', 5)).toBe(COMPOSITION_AXIS);
+    expect(nextRoundAxis('compositional', [])).toBe(COMPOSITION_AXIS);
+    expect(nextRoundAxis('compositional', [COMPOSITION_AXIS])).toBe(COMPOSITION_AXIS);
   });
 
   it('knows which axes a round can lock', () => {
@@ -56,17 +72,21 @@ describe('round copy is computed from the ladder, never hardcoded', () => {
 
   it('builds the decided post-pick invitation from the NEXT axis', () => {
     // After round one, the next round is the second rung.
-    expect(refineInviteLine('questionnaire', 1)).toBe(
+    expect(refineInviteLine('questionnaire', ['bold-fine'])).toBe(
       'Good eye. Refine it? Next round is full-color vs blackwork — 1 credit.'
     );
-    expect(refineInviteLine('questionnaire', 2)).toBe(
+    expect(refineInviteLine('questionnaire', ['bold-fine', 'color-blackwork'])).toBe(
       'Good eye. Refine it? Next round is literal vs abstract — 1 credit.'
+    );
+    // A requested axis led round one: the invite offers the first unasked rung.
+    expect(refineInviteLine('questionnaire', ['color-blackwork'])).toBe(
+      'Good eye. Refine it? Next round is bold vs fine-line — 1 credit.'
     );
   });
 
   it('still invites past the ladder and on compositional sessions', () => {
-    expect(refineInviteLine('questionnaire', 4)).toContain('re-roll');
-    expect(refineInviteLine('compositional', 1)).toContain('framings');
+    expect(refineInviteLine('questionnaire', [...ROUND_AXIS_LADDER])).toContain('re-roll');
+    expect(refineInviteLine('compositional', [COMPOSITION_AXIS])).toContain('framings');
   });
 });
 

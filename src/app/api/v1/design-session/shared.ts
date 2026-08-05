@@ -30,10 +30,11 @@ const NOT_FOUND_CODES = new Set(['SESSION_NOT_FOUND']);
 const CONFLICT_CODES = new Set([
     'INVALID_PHASE',
     'REFINEMENT_CLOSED',
-    // The round machinery (ADR-0049): a frozen pick and a pickless refine
-    // are both conflicts with current resource state.
+    // The round machinery (ADR-0049): a frozen pick, a pickless refine, and
+    // a round already rendering are all conflicts with current resource state.
     'ROUND_PICK_FROZEN',
     'ROUND_UNPICKED',
+    'ROUND_IN_FLIGHT',
 ]);
 // Request referenced something that can't apply (e.g. a pickId that isn't
 // one of the session's variations) → 400.
