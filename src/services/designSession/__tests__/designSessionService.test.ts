@@ -263,6 +263,55 @@ describe('startSession', () => {
     expect('downgradeReason' in session).toBe(false);
   });
 
+  // The staged-reuse hole (Sonnet's #329 review): attempt #1 stages a
+  // FALLBACK render for v1, then fails on a sibling before the session
+  // saves. The retry recovers v1 from staging — render() never runs for it —
+  // so the downgrade fact must come from the staged object's own metadata,
+  // written at upload time, or the customer pays for an undisclosed
+  // downgraded round.
+  it('reports a downgrade recovered from a staged image the retry never re-renders', async () => {
+    mockRecoverImageAtPath.mockImplementation(async objectPath =>
+      objectPath.includes('/v1-')
+        ? {
+            imageUrl: durableUrl(objectPath),
+            metadata: { downgradeReason: 'REPLICATE_ERROR' },
+          }
+        : null
+    );
+
+    const session = await startSession(startRequest);
+
+    // v1 was recovered, not re-bought: only the other three rendered…
+    expect(mockGenerate).toHaveBeenCalledTimes(3);
+    // …but the reveal still carries the downgrade of the render it reuses.
+    expect(session.downgraded).toBe(true);
+    expect(session.downgradeReason).toBe('REPLICATE_ERROR');
+  });
+
+  it('writes the downgrade fact into the staged object metadata at upload time', async () => {
+    let call = 0;
+    mockGenerate.mockImplementation(async request => ({
+      images: [`data:image/png;base64,aW1n${++imageCounter}`],
+      metadata: {
+        model: request.modelId ?? 'unknown',
+        provider: 'replicate' as const,
+        generatedAt: new Date().toISOString(),
+        durationMs: 1,
+        attempts: 1,
+        fallbackUsed: ++call === 1,
+        ...(call === 1 ? { fallbackReason: 'REPLICATE_ERROR' } : {}),
+      },
+    }));
+
+    await startSession(startRequest);
+
+    // The v1 upload (data URL → uploadImageToPath) must carry the fact.
+    const flagged = mockUploadImageToPath.mock.calls.filter(
+      ([, , metadata]) => (metadata as Record<string, string>)?.downgradeReason === 'REPLICATE_ERROR'
+    );
+    expect(flagged).toHaveLength(1);
+  });
+
   // #293: the cast roster must reach routing, or the 3+ character rule can
   // never fire and every ensemble stays on the identity-dropping lane.
   it('passes the requested cast size to routing', async () => {

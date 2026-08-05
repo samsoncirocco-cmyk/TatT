@@ -101,7 +101,7 @@ export async function deriveStencil(
   if (!stencilDerivationEnabled()) return null;
 
   try {
-    return await durableRender(
+    const outcome = await durableRender(
       {
         sessionId,
         tag: `${tag}-stencil`,
@@ -122,9 +122,10 @@ export async function deriveStencil(
           // that cannot would silently return a different design.
           allowProviderFallback: false,
         });
-        return result.images[0];
+        return { image: result.images[0] };
       }
     );
+    return outcome.imageUrl;
   } catch (error) {
     logger.warn({
       event_type: 'design_session.stencil_failed',

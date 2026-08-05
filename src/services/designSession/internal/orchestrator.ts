@@ -102,13 +102,16 @@ export async function loadSession(store: SessionStore, sessionId: string): Promi
 /**
  * Screen every customer-facing render for lettering nobody asked for (#297).
  *
- * OFF by default and in every environment. Enabling it is a spend decision,
- * not a code one: one vision call per render, plus up to one extra paid render
- * when the guard re-rolls. It ships ON only alongside the routing choice it is
- * a prerequisite for.
+ * ON by default since the ADR-0048 routing switch — the flag-OFF era's
+ * written condition ("flag-ON ships only with the routing change, never
+ * before") is met by the change that moved the cast lane to nano-banana-2,
+ * whose #318 verification measured unsolicited lettering on 2/20 corpus
+ * outputs. Opt-OUT by setting RENDER_TEXT_GUARD=false; the spend it gates
+ * (one vision call per render, occasional re-roll) is bounded by the guard's
+ * own budget checks.
  */
 function textGuardEnabled(): boolean {
-  return process.env.RENDER_TEXT_GUARD === 'true';
+  return process.env.RENDER_TEXT_GUARD !== 'false';
 }
 
 function pinnedRequest(
@@ -183,7 +186,7 @@ async function renderDurably(
   onPurchase: (renders: number) => void,
   onDowngrade?: (reason: string) => void
 ): Promise<string> {
-  return durableRender(
+  const outcome = await durableRender(
     {
       sessionId: session.id,
       tag,
@@ -198,15 +201,27 @@ async function renderDurably(
       // returns metadata, so the fallback is for malformed results only —
       // undercounting a re-roll is a cheaper failure than a failed reveal.
       onPurchase(1 + (result.metadata?.textGuardRerolls ?? 0));
-      // Not fired for a render recovered from a previous attempt's staging:
-      // durableRender returns before render() runs, which is correct — a
-      // reused image carries whatever the session already recorded.
-      if (result.metadata?.fallbackUsed) {
-        onDowngrade?.(result.metadata.fallbackReason || 'PRIMARY_FAILED');
-      }
-      return result.images[0];
+      return {
+        image: result.images[0],
+        // A downgrade is a property of the IMAGE, not of this attempt: the
+        // staging fingerprint keys on the REQUESTED modelId, so the fact
+        // that a fallback model actually served it must travel in the staged
+        // object's own metadata or a retry that reuses the object loses it —
+        // undisclosed and unrefunded, the exact ADR-0048 failure.
+        ...(result.metadata?.fallbackUsed
+          ? { metadata: { downgradeReason: result.metadata.fallbackReason || 'PRIMARY_FAILED' } }
+          : {}),
+      };
     }
   );
+  // Fired from the durable outcome, not the render call, so a staged image
+  // recovered on a retry reports the downgrade of the render it reuses.
+  // onPurchase deliberately stays inside render(): purchase describes this
+  // attempt (a reuse buys nothing), downgrade describes the artifact.
+  if (outcome.metadata.downgradeReason) {
+    onDowngrade?.(outcome.metadata.downgradeReason);
+  }
+  return outcome.imageUrl;
 }
 
 /**
