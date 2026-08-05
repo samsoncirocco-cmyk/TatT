@@ -21,7 +21,7 @@ Generate, manipulate, and merge multi-layer RGBA tattoo designs for complex comp
 ## Steps
 
 ### 1. Generate Multi-Layer Design (Vertex Imagen)
-**Location:** `src/lib/vertex-imagen-client.ts`
+**Location:** `src/services/generation/internal/vertexImagen.ts` (routing via `src/config/modelRoutingRules.js`; the adapter calls Gemini image models despite its name)
 
 **Layer Types:**
 - **Base (Outline):** Black lines only, transparent background
