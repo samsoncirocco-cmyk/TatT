@@ -401,4 +401,74 @@ describe('generation module — replicate provider seam', () => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
   });
+
+  // Reference photos as pixels (#296 17a, ADR-0050): the photos reach
+  // nano-banana-2 as its image_input array; any model without that input
+  // refuses loudly instead of silently rendering without the photo.
+  describe('reference photos', () => {
+    function nanoBananaResponse(uri = 'https://img.example/nb.png') {
+      return {
+        ok: true,
+        json: async () => ({ id: 'pred_nb', status: 'succeeded', output: uri })
+      };
+    }
+
+    it('sends attached photos as the image_input array on nano-banana-2', async () => {
+      fetchMock.mockResolvedValueOnce(nanoBananaResponse());
+
+      const photos = ['https://photos.example/a.jpg', 'https://photos.example/b.jpg'];
+      const result = await generate({ prompt: 'the two of us', referenceImages: photos });
+
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(url).toBe('https://api.replicate.com/v1/models/google/nano-banana-2/predictions');
+      expect(JSON.parse(init.body).input.image_input).toEqual(photos);
+      expect(result.metadata.model).toBe('nano-banana-2');
+    });
+
+    it('caps image_input at the schema limit of 6', async () => {
+      fetchMock.mockResolvedValueOnce(nanoBananaResponse());
+
+      const photos = Array.from({ length: 8 }, (_, i) => `https://photos.example/${i}.jpg`);
+      await generate({ prompt: 'group', referenceImages: photos });
+
+      expect(JSON.parse(fetchMock.mock.calls[0][1].body).input.image_input).toEqual(
+        photos.slice(0, 6)
+      );
+    });
+
+    it('drops empty entries rather than sending them to the model', async () => {
+      fetchMock.mockResolvedValueOnce(nanoBananaResponse());
+
+      await generate({ prompt: 'solo', referenceImages: ['', 'https://photos.example/a.jpg'] });
+
+      expect(JSON.parse(fetchMock.mock.calls[0][1].body).input.image_input).toEqual([
+        'https://photos.example/a.jpg'
+      ]);
+    });
+
+    it('refuses loudly when a pinned model has no reference-image input', async () => {
+      await expect(
+        generate({
+          prompt: 'portrait',
+          modelId: 'flux-dev',
+          referenceImages: ['https://photos.example/a.jpg']
+        })
+      ).rejects.toThrow(/no reference-image input/);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    // A render without the customer's photo is a different product than the
+    // one they asked for — the photo request must fail visibly, never fall
+    // back to a photo-less Flux render.
+    it('does not fall back to a photo-less model when the photo lane fails', async () => {
+      fetchMock.mockResolvedValue(errorResponse(500));
+
+      await expect(
+        generate({ prompt: 'portrait', referenceImages: ['https://photos.example/a.jpg'] })
+      ).rejects.toThrow(/Replicate API Error/);
+      for (const [url] of fetchMock.mock.calls) {
+        expect(url).toContain('google/nano-banana-2');
+      }
+    });
+  });
 });

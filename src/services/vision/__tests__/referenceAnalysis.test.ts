@@ -120,6 +120,21 @@ describe('analyzeReferenceImage', () => {
     expect(recordSpend).not.toHaveBeenCalled();
   });
 
+  // #327: the vision call carries a timeout signal, and its expiry (a
+  // TimeoutError throw) degrades through the same fail-soft catch as any
+  // provider error — never a hang, never a throw to the caller.
+  it('bounds the vision call and fails soft when the timeout fires', async () => {
+    fetchMock.mockRejectedValue(
+      new DOMException('The operation was aborted due to timeout', 'TimeoutError')
+    );
+
+    const outcome = await analyzeReferenceImage(IMAGE);
+
+    expect(outcome).toEqual({ status: 'failed' });
+    expect(recordSpend).not.toHaveBeenCalled();
+    expect(fetchMock.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
+  });
+
   it('fails soft on an unparseable model response', async () => {
     fetchMock.mockResolvedValue({
       ok: true,
