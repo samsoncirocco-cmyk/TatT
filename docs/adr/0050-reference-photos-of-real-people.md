@@ -45,16 +45,26 @@ The positions behind that, each decided by the owner:
 ## On the minors question, recorded honestly
 
 The recommendation was to prohibit photos containing minors outright. **The
-owner chose no rule.** This ADR does not invent one, and the terms will not
-state a position the owner did not take — that failure mode is exactly what
-ADR-0053 exists to prevent.
+owner chose no rule**, and when the consequence was put to him he reaffirmed
+it with his reasoning:
 
-What is recorded instead: this is the position most likely to change under
-counsel review, and it interacts with the decision above, because "no rule"
-plus "the image is sent to a third-party render API" means a photograph of a
-child could leave our infrastructure. It goes in
-`docs/legal/likeness-counsel-notes.md` as the first open question, not as a
-silent agent-authored ban.
+> *"we are getting rid of the photo on our end at the end of the session, it's
+> no different than them choosing to upload a photo into Google or ChatGPT."*
+
+That reasoning is recorded because it is the decision, and it is coherent: the
+retention answer above is what carries it. A family photo passed to a
+general-purpose AI service is an ordinary thing people already do knowingly,
+and this product does it for a narrower purpose and keeps nothing afterwards.
+The disclosure answer means they are told which provider it reaches before
+they send it.
+
+This ADR does not invent a prohibition the owner declined — that failure mode
+is exactly what ADR-0053 exists to prevent. What it does record is that this
+remains the position most likely to be revisited under counsel review, since
+some jurisdictions treat facial data of minors under their own statutes
+regardless of retention. It goes to
+`docs/legal/likeness-counsel-notes.md` as an open question **for counsel**, not
+as an agent's second opinion on a settled call.
 
 ## Consequences
 
