@@ -55,6 +55,9 @@ import {
   PROPOSAL_LEAD,
   PROPOSAL_REMINDER,
   COLOR_QUESTION,
+  LEGACY_COLOR_ASKS,
+  LEGACY_IP_NOTES,
+  LEGACY_PROPOSAL_LEADS,
   COLOR_RETRY_QUESTION,
   IP_NOTE,
   EVOCATION_STEM,
@@ -511,7 +514,14 @@ function dropRepeatedQuestions(
  * the call and advances.
  * ────────────────────────────────────────────────────────────────────────── */
 
-const COLOR_ASK_KEYS = [normalizeForCompare(COLOR_QUESTION), normalizeForCompare(COLOR_RETRY_QUESTION)];
+const COLOR_ASK_KEYS = [
+  COLOR_QUESTION,
+  COLOR_RETRY_QUESTION,
+  // Sessions that predate the loud-register rewrite still carry the old
+  // wording; without them the ask count resets and the palette question can
+  // be asked a third time.
+  ...LEGACY_COLOR_ASKS,
+].map(normalizeForCompare);
 
 function countColorAsks(messages: ConversationMessage[]): number {
   return botTexts(messages).filter((text) => {
@@ -680,10 +690,11 @@ function withIpNote(
   messages: ConversationMessage[]
 ): string {
   if (!(record.subject ?? '').trim()) return reply;
+  const notes = [IP_NOTE, ...LEGACY_IP_NOTES];
   const alreadySaid = messages.some(
-    (message) => message.role === 'bot' && message.text.includes(IP_NOTE)
+    (message) => message.role === 'bot' && notes.some((note) => message.text.includes(note))
   );
-  if (alreadySaid || reply.includes(IP_NOTE)) return reply;
+  if (alreadySaid || notes.some((note) => reply.includes(note))) return reply;
   return `${reply} ${IP_NOTE}`;
 }
 
@@ -697,8 +708,9 @@ function hasAlreadyProposed(messages: ConversationMessage[]): boolean {
   // includes(), not startsWith(): a proposal can carry a lead-in sentence
   // (the palette recommendation, the axis-spread framing) ahead of the
   // playback and it still counts as the announce beat having fired.
+  const leads = [PROPOSAL_LEAD, ...LEGACY_PROPOSAL_LEADS];
   return messages.some(
-    (message) => message.role === 'bot' && message.text.includes(PROPOSAL_LEAD)
+    (message) => message.role === 'bot' && leads.some((lead) => message.text.includes(lead))
   );
 }
 

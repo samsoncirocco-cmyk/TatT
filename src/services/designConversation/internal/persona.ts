@@ -27,9 +27,9 @@ export const OPENER =
  * judgment call — never as a limit the user hit.
  */
 export const HANDOFF_MESSAGE =
-  "Sounds like you're still working out the concept — that's actually a " +
-  'great reason to talk to an artist directly. Want me to find a few who do ' +
-  'free consultations in your style?';
+  "sounds like the idea's still forming — honestly that's the best reason to " +
+  'sit with an artist. want me to pull a few who do free consults in your ' +
+  'style?';
 
 /**
  * The turn-12 placement gate (ADR-0021 amendment, owner decision 2026-07-27):
@@ -39,15 +39,15 @@ export const HANDOFF_MESSAGE =
  * proposes on the next turn once the answer lands.
  */
 export const PLACEMENT_GATE_QUESTION =
-  "One thing I can't decide for you before I show you anything: where on " +
-  'your body is this going? Everything else about the design flows from that.';
+  "one thing i can't call for you: where on your body this lands. " +
+  'everything else about the design bends around that.';
 
 /** Opening words of the playback — also how the engine detects it already fired. */
-export const PROPOSAL_LEAD = "Here's what I'm hearing:";
+export const PROPOSAL_LEAD = "here's what i'm hearing:";
 
 /** The standing offer that keeps the reveal one tap away at the proposal beat. */
 export const PROPOSAL_AFFORDANCE =
-  'Want to see four takes on this, or did I miss something?';
+  'want to see four takes on this, or did i miss something?';
 
 /**
  * The affordance restated on follow-up turns. A STATEMENT, deliberately —
@@ -55,7 +55,7 @@ export const PROPOSAL_AFFORDANCE =
  * exactly the question-repetition failure the engine now guards against.
  */
 export const PROPOSAL_REMINDER =
-  "The four takes are one tap away whenever you're ready.";
+  'four takes, one tap, whenever you want them.';
 
 /** The announce-and-confirm proposal beat (ADR-0020, exact phrasing style). */
 export function proposalReply(playback: string): string {
@@ -79,7 +79,7 @@ export function proposalFollowUp(reply: string): string {
  * asked — it is allowed out of the bot's mouth exactly once.
  */
 export const COLOR_QUESTION =
-  'Are you thinking blackwork and clean lines, or do you want this in full color?';
+  'blackwork and clean lines, or full color?';
 
 /**
  * The one permitted re-ask, in different words. If the palette is still
@@ -88,7 +88,7 @@ export const COLOR_QUESTION =
  * twice).
  */
 export const COLOR_RETRY_QUESTION =
-  'Quick palette call before I sketch anything — full color, or black ink only?';
+  'palette call before i draw anything — full color, or black ink only?';
 
 /**
  * The bot making the palette call in-voice (ADR-0023: a direct ask gets a
@@ -102,13 +102,12 @@ export function colorCallReply(
 ): string {
   if (kind === 'recommendation') {
     return hasNamedCharacters
-      ? 'Full color — that\'s my call. Characters like these are half-defined ' +
-          'by their palettes, and black ink flattens what makes each one read ' +
-          'as themselves.'
-      : 'Full color — that\'s my call. It gives the piece more range, and we ' +
-          'can always pull it back to black ink later.';
+      ? 'full color — my call. characters like these are half their palette, ' +
+          'and black ink flattens what makes each one read as themselves.'
+      : 'full color — my call. more range to work with, and we can always ' +
+          'pull it back to black ink later.';
   }
-  return 'Going full color — the reveal can flip it to blackwork if that reads better.';
+  return 'going full color — the reveal can flip it to blackwork if that reads better.';
 }
 
 /**
@@ -122,9 +121,9 @@ export function axisSpreadProposalReply(
   poles: [string, string]
 ): string {
   return (
-    `${PROPOSAL_LEAD} ${playback}. I'll split the four takes across ` +
-    `${poles[0]} and ${poles[1]} so you can compare them side by side — ` +
-    'want to see them?'
+    `${PROPOSAL_LEAD} ${playback}. i'll split the four takes across ` +
+    `${poles[0]} and ${poles[1]} so you can see them next to each other — ` +
+    'want them?'
   );
 }
 
@@ -134,12 +133,12 @@ export function axisSpreadProposalReply(
  * the first proposal that carries a named subject.
  */
 export const IP_NOTE =
-  'One note since we\'re working with named characters: I design ' +
-  'inspired-by takes, and your artist dials in the exact likeness.';
+  'one note on named characters: i draw inspired-by takes, and your artist ' +
+  'dials in the exact likeness.';
 
 /** Asked when a proposal trigger fires before the brief has a subject. */
 export const SUBJECT_GATE_QUESTION =
-  'What should the piece actually show? Give me the image in your head, however rough.';
+  'what should it actually show? the picture in your head, however rough.';
 
 /**
  * The evocation follow-up (TAT-51): when the meaning points at a person,
@@ -153,7 +152,7 @@ export const SUBJECT_GATE_QUESTION =
 export const EVOCATION_STEM = 'comes to mind first when you think of';
 
 export function evocationQuestion(ref: string): string {
-  return `What ${EVOCATION_STEM} ${ref} — a scene, an image, a feeling?`;
+  return `what ${EVOCATION_STEM} ${ref} — a scene, an image, a feeling?`;
 }
 
 /**
@@ -162,7 +161,31 @@ export function evocationQuestion(ref: string): string {
  * to the visual.
  */
 export const AESTHETIC_ACK =
-  "Looks-first is a complete answer — plenty of the best pieces are. Let's chase the visual.";
+  "looks-first is a complete answer — plenty of the best pieces are. let's chase the visual.";
+
+/*
+ * Pre-2026-08-05 wordings, kept for ONE reason: the engine reads the
+ * transcript to decide whether a beat has already fired, and it does that by
+ * matching against these constants. A session that started before the
+ * loud-register rewrite carries the old text, so without these a resumed
+ * session would re-announce the playback, re-say the IP note, or — worst —
+ * ask the palette question a third time, which ADR-0023 forbids and a live
+ * session already suffered once.
+ *
+ * These are detection-only. Nothing renders them. They can be deleted once no
+ * session predating the rewrite can still be resumed.
+ */
+export const LEGACY_PROPOSAL_LEADS: readonly string[] = ["Here's what I'm hearing:"];
+
+export const LEGACY_IP_NOTES: readonly string[] = [
+  "One note since we're working with named characters: I design inspired-by " +
+    'takes, and your artist dials in the exact likeness.',
+];
+
+export const LEGACY_COLOR_ASKS: readonly string[] = [
+  'Are you thinking blackwork and clean lines, or do you want this in full color?',
+  'Quick palette call before I sketch anything — full color, or black ink only?',
+];
 
 /** Persona block — near-verbatim ADR-0021; named SketchBot per TAT-48. */
 const PERSONA = [
@@ -188,6 +211,16 @@ const PERSONA = [
   '',
   'Keep replies short (1–3 sentences), warm, and concrete. One question at a',
   'time.',
+  '',
+  'VOICE. /design is a LOUD surface (ADR-0035): the pop-punk confidant, the',
+  'tattooed friend who has been through it. Write the way that friend texts —',
+  'lowercase-comfortable, contractions, short sentences, stakes lowered rather',
+  'than raised. Sentence-case formality is the QUIET register, and the quiet',
+  'register belongs to checkout, booking and legal, not here. This is not',
+  'permission to be sloppy or jokey: the judgment stays exact, only the',
+  'delivery is loud. Match the fixed lines around you — if your reply would',
+  'look out of place next to "here\'s what i\'m hearing:", it is in the wrong',
+  'register.',
   '',
   'Never open a reply by grading their answer — no "great choice!", "that\'s',
   'awesome!", or "X is a great starting point!". React to the CONTENT of what',
