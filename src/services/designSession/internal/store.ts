@@ -94,6 +94,8 @@ export function toDesignSession(session: StoredSession): DesignSession {
     intake,
     axisSelection,
     provider,
+    downgraded,
+    downgradeReason,
     variations,
     critiqueCuts,
     critiqueTurns,
@@ -113,6 +115,10 @@ export function toDesignSession(session: StoredSession): DesignSession {
     intake,
     axisSelection,
     provider,
+    // A downgrade is user-facing by design (ADR-0048): the reveal copy and
+    // the credit release both read it, so it crosses the boundary. Spread so
+    // undowngraded sessions stay free of the fields entirely.
+    ...(downgraded ? { downgraded, downgradeReason } : {}),
     variations,
     // Post-reveal re-cuts and their turns are the user's own material
     // (ADR-0039) — unlike TurnLogs, they render, so they cross the boundary.

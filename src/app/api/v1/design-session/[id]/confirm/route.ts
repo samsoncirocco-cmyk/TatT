@@ -84,13 +84,32 @@ export async function POST(
         const session = await confirmProposal(sessionId);
         generationSucceeded = true;
 
+        // Loud downgrade (ADR-0048): the reveal rendered, but on a fallback
+        // lane instead of the model the cast routing chose. The round is not
+        // charged — the credit goes back (at-most-once inside the primitive),
+        // and the response says so alongside the session's own `downgraded`
+        // flag so the reveal copy can tell the customer. A release failure
+        // must not fail a reveal the customer already has: log it, keep
+        // creditReleased false, and the ledger errs against us, not them.
+        let creditReleased = false;
+        if (session.downgraded && creditReservation) {
+            creditReleased = await releaseGenerationCredit(user.uid, creditReservation)
+                .then(() => true)
+                .catch((releaseError) => {
+                    console.error('[Design session] failed to return credit for downgraded reveal:', releaseError);
+                    return false;
+                });
+        }
+
         reqLogger.complete('design_session.confirm.success', {
             session_id: session.id,
             provider: session.provider,
             axis_mode: session.axisSelection.mode,
+            downgraded: session.downgraded === true,
+            credit_released: creditReleased,
         });
 
-        return NextResponse.json({ success: true, session, credits: creditReservation });
+        return NextResponse.json({ success: true, session, credits: creditReservation, creditReleased });
     } catch (error) {
         if (uid && creditReservation && !generationSucceeded) {
             await releaseGenerationCredit(uid, creditReservation).catch((releaseError) => {

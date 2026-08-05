@@ -358,9 +358,9 @@ export const ENV_SECTIONS = [
       },
       { name: 'IMAGEN_REPLICATE_COST_USD', type: 'float', required: false, purpose: '' },
       {
-        name: 'RENDER_TEXT_GUARD', type: 'bool', required: false, default: 'false',
-        commentedOut: true, example: 'true',
-        purpose: "Render text guard (#297/#305): screens every design-session render for\nlettering the request did not ask for, re-rolling once if found. Costs one\nvision call per image plus the occasional re-roll render. 'true' enables it;\nanything else leaves it off.",
+        name: 'RENDER_TEXT_GUARD', type: 'bool', required: false, default: 'true',
+        commentedOut: true, example: 'false',
+        purpose: "Render text guard (#297/#305): screens every design-session render for\nlettering the request did not ask for, re-rolling once if found. Costs one\nvision call per image plus the occasional re-roll render. ON by default\nsince the ADR-0048 routing switch (#318 measured 2/20 unsolicited\nlettering on the cast lane); set 'false' to opt out.",
       },
       { name: 'TEXT_GUARD_MODEL', type: 'string', required: false, purpose: '' },
       {

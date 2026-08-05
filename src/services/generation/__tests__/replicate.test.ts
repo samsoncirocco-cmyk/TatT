@@ -321,4 +321,84 @@ describe('generation module — replicate provider seam', () => {
       expect(body.input.aspect_ratio).toBeDefined();
     });
   });
+
+  // The cast lane (ADR-0048): nano-banana-2 replaced the Vertex imagen3
+  // route for 3+ character requests. Contract verified live in #318: one
+  // output per prediction, returned as a bare URI string, not an array.
+  describe('nano-banana-2 cast lane', () => {
+    /** nano-banana-2 returns a single URI string, not an array. */
+    function nanoBananaResponse(uri = 'https://img.example/nb.png') {
+      return {
+        ok: true,
+        json: async () => ({ id: 'pred_nb', status: 'succeeded', output: uri })
+      };
+    }
+
+    it('routes a 3+ cast request to the nano-banana-2 endpoint with png pinned', async () => {
+      fetchMock.mockResolvedValueOnce(nanoBananaResponse());
+
+      const result = await generate({ prompt: 'goku, vegeta and piccolo', castSize: 3 });
+
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(url).toBe('https://api.replicate.com/v1/models/google/nano-banana-2/predictions');
+      const body = JSON.parse(init.body);
+      // jpg is this model's default; the catalog pins png like every other lane.
+      expect(body.input.output_format).toBe('png');
+      // Single-output model: num_outputs must never be sent.
+      expect(body.input.num_outputs).toBeUndefined();
+      expect(result.images).toEqual(['https://img.example/nb.png']);
+      expect(result.metadata).toMatchObject({ model: 'nano-banana-2', provider: 'replicate', fallbackUsed: false });
+    });
+
+    it('fans out one prediction per requested image', async () => {
+      fetchMock
+        .mockResolvedValueOnce(nanoBananaResponse('https://img.example/1.png'))
+        .mockResolvedValueOnce(nanoBananaResponse('https://img.example/2.png'))
+        .mockResolvedValueOnce(nanoBananaResponse('https://img.example/3.png'))
+        .mockResolvedValueOnce(nanoBananaResponse('https://img.example/4.png'));
+
+      const result = await generate({ prompt: 'four heroes', castSize: 4, numImages: 4 });
+
+      expect(fetchMock).toHaveBeenCalledTimes(4);
+      expect(result.images).toHaveLength(4);
+    });
+
+    // The loud downgrade (ADR-0048): a pinned cast model that fails falls to
+    // the Flux chain ONLY when the caller opted in, and the result says so.
+    it('falls back to flux-dev with fallbackUsed flagged when the pinned model opts in', async () => {
+      fetchMock
+        .mockResolvedValueOnce(errorResponse(500))
+        .mockResolvedValueOnce(replicateResponse(['https://img.example/fallback.png']));
+
+      const result = await generate({
+        prompt: 'ensemble',
+        modelId: 'nano-banana-2',
+        allowProviderFallback: true
+      });
+
+      expect(fetchMock.mock.calls[0][0]).toContain('google/nano-banana-2');
+      expect(fetchMock.mock.calls[1][0]).toContain('black-forest-labs/flux-dev');
+      expect(result.images).toEqual(['https://img.example/fallback.png']);
+      expect(result.metadata.fallbackUsed).toBe(true);
+      expect(result.metadata.fallbackReason).toBeTruthy();
+    });
+
+    it('still fails loudly, no fallback, when a pinned model has not opted in', async () => {
+      fetchMock.mockResolvedValueOnce(errorResponse(500));
+
+      await expect(
+        generate({ prompt: 'ensemble', modelId: 'nano-banana-2', allowProviderFallback: false })
+      ).rejects.toThrow(/Replicate API Error/);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the historical no-fallback default for pinned models that pass nothing', async () => {
+      fetchMock.mockResolvedValueOnce(errorResponse(500));
+
+      await expect(
+        generate({ prompt: 'ensemble', modelId: 'nano-banana-2' })
+      ).rejects.toThrow(/Replicate API Error/);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+  });
 });

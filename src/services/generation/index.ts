@@ -2,7 +2,7 @@
 // Everything under internal/ is implementation detail — import only from here.
 import { vertexImagenProvider } from './internal/vertexImagen';
 import { replicateProvider, modelSupportsSourceImage } from './internal/replicate';
-import { routeGeneration, inferProvider } from './internal/routing';
+import { routeGeneration, inferProvider, fallbackChainForModelId } from './internal/routing';
 import type { GenerationRequest, GenerationResult, ProviderName } from './internal/provider';
 import { asGenerationError } from './internal/provider';
 import { screenForText } from './internal/textGuard';
@@ -36,12 +36,19 @@ interface ResolvedRoute {
 
 function resolveRoute(request: GenerationRequest): { route: ResolvedRoute; request: GenerationRequest } {
   if (request.modelId) {
-    // Explicit model choice skips routing; the caller owns aspect/negative prompt.
+    // Explicit model choice skips routing; the caller owns aspect/negative
+    // prompt. The fallback chain is resolved ONLY on explicit opt-in
+    // (allowProviderFallback === true): a pinned model that quietly fell
+    // back was the silent downgrade ADR-0048 forbids, so a pinned caller
+    // that wants the downgrade must ask for it — and gets it flagged in the
+    // result's fallbackUsed/fallbackReason metadata. Callers passing
+    // undefined keep the historical no-fallback behavior.
     return {
       route: {
         modelId: request.modelId,
         provider: inferProvider(request.modelId),
-        fallbackChain: []
+        fallbackChain:
+          request.allowProviderFallback === true ? fallbackChainForModelId(request.modelId) : []
       },
       request
     };

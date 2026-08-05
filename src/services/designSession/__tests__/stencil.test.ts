@@ -17,11 +17,13 @@ vi.mock('../../generation', () => ({
 // Stand in for the real durableRender: run the paid render, hand back a
 // product-owned URL. Keeps this suite about the stencil's own decisions.
 vi.mock('../internal/durableImage', () => ({
-  durableRender: vi.fn(async (_identity: unknown, render: () => Promise<string>) => {
-    const raw = await render();
-    if (!raw) throw new Error('Generation returned no image');
-    return 'https://storage.googleapis.com/tatt/stencil.png';
-  }),
+  durableRender: vi.fn(
+    async (_identity: unknown, render: () => Promise<{ image: string; metadata?: Record<string, string> }>) => {
+      const { image, metadata = {} } = await render();
+      if (!image) throw new Error('Generation returned no image');
+      return { imageUrl: 'https://storage.googleapis.com/tatt/stencil.png', metadata };
+    }
+  ),
 }));
 
 import { deriveStencil, stencilPromptStrength } from '../internal/stencil';

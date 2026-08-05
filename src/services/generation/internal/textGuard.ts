@@ -71,6 +71,15 @@ export interface TextVerdict {
 
 const CLEAN: TextVerdict = { intruded: false, words: [], screened: true };
 
+// Fetch bounds (#327). The guard runs in front of every render now that it
+// defaults on, so neither call may hold a reveal hostage: expiry throws,
+// screenForText's catch degrades to a skipped verdict. Image fetch is a
+// third-party object store serving a file that already exists — 15s is
+// generous. The vision call does real inference — 30s matches the bound the
+// #318 harness proved out.
+const IMAGE_FETCH_TIMEOUT_MS = 15_000;
+const VISION_CALL_TIMEOUT_MS = 30_000;
+
 function skipped(skipReason: TextVerdict['skipReason']): TextVerdict {
   return { intruded: false, words: [], screened: false, skipReason };
 }
@@ -192,7 +201,13 @@ async function resolveImagePayload(
   }
 
   if (/^https?:\/\//i.test(image)) {
-    const response = await fetch(image);
+    // Bounded (#327): this fetches a THIRD-PARTY host (Replicate's object
+    // store), in front of every render now that the guard defaults on. A
+    // slow host must degrade through the skip path, not hold the customer's
+    // reveal until the function ceiling kills it. Expiry throws, the
+    // screenForText catch returns skipped — the degrade the guard already
+    // knows how to do.
+    const response = await fetch(image, { signal: AbortSignal.timeout(IMAGE_FETCH_TIMEOUT_MS) });
     if (!response.ok) return null;
     const bytes = Buffer.from(await response.arrayBuffer());
     if (!bytes.byteLength) return null;
@@ -224,7 +239,9 @@ export async function screenForText(
     if (!payload) return skipped('parse');
 
     const model = guardModel();
+    // Bounded (#327): a hung vision call degrades to skipped, same as above.
     const response = await fetch(buildVertexEndpoint(vertexProjectId(), model), {
+      signal: AbortSignal.timeout(VISION_CALL_TIMEOUT_MS),
       method: 'POST',
       headers: {
         Authorization: `Bearer ${await getGcpAccessToken()}`,

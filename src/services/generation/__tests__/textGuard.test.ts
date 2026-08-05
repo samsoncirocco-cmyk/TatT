@@ -117,7 +117,12 @@ describe('screenForText — image payload resolution', () => {
     const verdict = await screenForText('https://img.example/1.png', 'a fox');
 
     expect(verdict).toEqual({ intruded: true, words: ['GOKU'], screened: true });
-    expect(fetchMock).toHaveBeenNthCalledWith(1, 'https://img.example/1.png');
+    // Bounded fetch (#327): the third-party image host gets an abort signal.
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      'https://img.example/1.png',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
     const visionBody = JSON.parse(fetchMock.mock.calls[1][1].body);
     expect(visionBody.contents[0].parts[0].inlineData).toEqual({
       mimeType: 'image/png',
@@ -385,6 +390,43 @@ describe('generation seam — unrequested-lettering guard', () => {
 
     expect(renderCalls).toBe(1);
     expect(result.metadata.textIntrusion).toBe(false);
+  });
+
+  // #327: both guard fetches are bounded by AbortSignal.timeout. Expiry
+  // rejects like any network failure and must degrade to a skipped verdict —
+  // a slow third-party host stalls the check, never the customer's reveal.
+  it('degrades a timed-out guard fetch to skipped, keeping the render', async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).includes('flash-lite')) {
+        guardCalls += 1;
+        throw Object.assign(new Error('The operation was aborted due to timeout'), {
+          name: 'TimeoutError',
+        });
+      }
+      renderCalls += 1;
+      return renderResponse();
+    });
+
+    const result = await generate({
+      prompt: 'a fox',
+      style: 'realism',
+      modelId: 'imagen3',
+      screenText: {},
+    });
+
+    expect(renderCalls).toBe(1);
+    expect(result.images).toHaveLength(1);
+    expect(result.metadata.textGuardSkipped).toBe('parse');
+    expect(result.metadata.textIntrusion).toBeUndefined();
+  });
+
+  it('passes an abort signal to both guard fetches', async () => {
+    wire([[]]);
+
+    await generate({ prompt: 'a fox', style: 'realism', modelId: 'imagen3', screenText: {} });
+
+    const guardCall = fetchMock.mock.calls.find(([url]) => String(url).includes('flash-lite'));
+    expect(guardCall?.[1]?.signal).toBeInstanceOf(AbortSignal);
   });
 
   it('reports a failed check as skipped, never as clean', async () => {

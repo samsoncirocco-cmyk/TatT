@@ -153,6 +153,52 @@ describe('POST /api/v1/design-session/[id]/confirm route adapter', () => {
     );
   });
 
+  // ADR-0048's loud downgrade: the reveal succeeded but on a fallback lane,
+  // so the round is not charged — the credit goes back and the response says
+  // so for the reveal copy.
+  it('releases the credit and flags the response when the reveal downgraded', async () => {
+    confirmProposalMock.mockResolvedValueOnce({
+      ...makeSession(),
+      downgraded: true,
+      downgradeReason: 'REPLICATE_ERROR',
+    });
+
+    const res = await POST(makeRequest(URL, {}), routeParams('sess-1'));
+
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.session.downgraded).toBe(true);
+    expect(json.creditReleased).toBe(true);
+    expect(releaseGenerationCreditMock).toHaveBeenCalledWith(
+      'uid_customer',
+      { source: 'free', freeRemaining: 24, paidRemaining: 0 }
+    );
+  });
+
+  it('keeps the charge and never calls release on an undowngraded reveal', async () => {
+    confirmProposalMock.mockResolvedValueOnce(makeSession());
+
+    const res = await POST(makeRequest(URL, {}), routeParams('sess-1'));
+
+    const json = await res.json();
+    expect(json.creditReleased).toBe(false);
+    expect(releaseGenerationCreditMock).not.toHaveBeenCalled();
+  });
+
+  // A failed release must not fail a reveal the customer already has — the
+  // ledger errs against us, never them.
+  it('still returns the downgraded reveal when the credit release itself fails', async () => {
+    confirmProposalMock.mockResolvedValueOnce({ ...makeSession(), downgraded: true });
+    releaseGenerationCreditMock.mockRejectedValueOnce(new Error('firestore down'));
+
+    const res = await POST(makeRequest(URL, {}), routeParams('sess-1'));
+
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.success).toBe(true);
+    expect(json.creditReleased).toBe(false);
+  });
+
   it('returns the rate-limit response when the limiter denies', async () => {
     rateLimitMock.mockResolvedValueOnce({ allowed: false, limit: 10, remaining: 0, reset: 1 });
     rateLimitResponseMock.mockReturnValueOnce(

@@ -42,6 +42,16 @@ export interface DesignSession {
   axisSelection: AxisSelection;
   /** Image provider locked for the whole session (ADR-0016). */
   provider: string;
+  /**
+   * True when the reveal's renders fell back off the model the routing
+   * chose (ADR-0048): the cuts are real but came from a weaker lane, so the
+   * reveal says so in copy and the round's credit is released. Never set on
+   * a session that rendered on its routed model. Additive optional field —
+   * existing stored sessions simply lack it.
+   */
+  downgraded?: boolean;
+  /** Machine-readable cause from the failed primary (provider error code). */
+  downgradeReason?: string;
   /** Exactly 4 after reveal. */
   variations: Variation[];
   /**
