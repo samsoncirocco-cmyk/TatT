@@ -10,6 +10,7 @@ import {
   executeReveal,
   executeCritique,
   executeRefine,
+  executeRefineRound,
   recordOptOut,
   isOptedOut,
 } from '../index';
@@ -19,6 +20,9 @@ import {
 } from '../internal/profileStore';
 import {
   REVEAL_ACK,
+  ROUND_ACK,
+  ROUND_LOCKED_TEXT,
+  ROUND_FAILED_TEXT,
   BUDGET_EXHAUSTED_TEXT,
   REVEAL_FAILED_TEXT,
   CRITIQUE_FAILED_TEXT,
@@ -29,10 +33,17 @@ import {
   confirmProposal,
   getSession,
   recordPick,
+  recordRoundPick,
+  refineRound,
   refine,
   critique,
   DesignSessionError,
 } from '@/services/designSession';
+import {
+  reserveGenerationCredit,
+  releaseGenerationCredit,
+  GenerationCreditsExhaustedError,
+} from '@/lib/generation-credits';
 import { checkBudget, recordConversationTurnSpend } from '@/lib/budget-tracker';
 import { resolveSharedDesignStore } from '@/lib/shared-design-store';
 import { getAuth } from 'firebase-admin/auth';
@@ -49,12 +60,15 @@ vi.mock('@/services/designSession', async () => {
       this.status = 500;
     }
   }
+  const roundPlan = await import('@/services/designSession/roundPlan');
   return {
     converse: vi.fn(),
     confirmProposal: vi.fn(),
     attachReference: vi.fn(),
     getSession: vi.fn(),
     recordPick: vi.fn(),
+    recordRoundPick: vi.fn(),
+    refineRound: vi.fn(),
     refine: vi.fn(),
     critique: vi.fn(),
     // The REAL pure helpers. They decide whether a message is a fix request
@@ -63,7 +77,29 @@ vi.mock('@/services/designSession', async () => {
     // import: internal/critique has no I/O, only type imports.
     allCuts: pureCritique.allCuts,
     isFixRequest: pureCritique.isFixRequest,
+    // The real round plan (ADR-0049) — pure, and the pole labels under test
+    // ARE the labels the copy computes from.
+    isLadderAxis: roundPlan.isLadderAxis,
+    ROUND_POLE_LABEL: roundPlan.ROUND_POLE_LABEL,
     DesignSessionError,
+  };
+});
+
+// The round credit primitive (ADR-0041/0049): mocked so no Firestore runs;
+// the exhausted error class stays REAL so instanceof catches keep working.
+vi.mock('@/lib/generation-credits', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/generation-credits')>(
+    '@/lib/generation-credits'
+  );
+  return {
+    GenerationCreditsExhaustedError: actual.GenerationCreditsExhaustedError,
+    reserveGenerationCredit: vi.fn(async () => ({
+      id: 'res-1',
+      source: 'free' as const,
+      freeRemaining: 24,
+      paidRemaining: 0,
+    })),
+    releaseGenerationCredit: vi.fn(async () => {}),
   };
 });
 
@@ -130,13 +166,16 @@ function revealedSession() {
       references: [],
       ambiguousAxes: [],
     },
-    axisSelection: { mode: 'questionnaire', axes: [], rationale: '' },
-    variations: [1, 2, 3, 4].map((n) => ({
+    axisSelection: { mode: 'questionnaire', axes: ['bold-fine'], rationale: '' },
+    variations: [1, 2].map((n) => ({
       id: `v${n}`,
-      axisPosition: {},
+      axisPosition: { 'bold-fine': n === 1 ? 'bold' : 'fine' },
       prompt: `prompt ${n}`,
       imageUrl: `https://storage.example/cut-${n}.png`,
     })),
+    rounds: [
+      { round: 1, axis: 'bold-fine', variationIds: ['v1', 'v2'] },
+    ] as import('@/services/designSession').RefineRound[],
     createdAt: '2026-07-29T00:00:00.000Z',
     updatedAt: '2026-07-29T00:00:00.000Z',
   };
@@ -295,7 +334,7 @@ describe('reveal flow', () => {
     expect(confirmProposal).not.toHaveBeenCalled();
   });
 
-  it('delivers four captioned cuts and a share link, and records the spend', async () => {
+  it('delivers two pole-captioned cuts and the A/B ask, and records the spend', async () => {
     await driveToProposal();
     await handleInbound({ phone: PHONE, body: 'yes' });
     vi.mocked(confirmProposal).mockResolvedValueOnce(
@@ -304,16 +343,21 @@ describe('reveal flow', () => {
 
     const delivery = await executeReveal('s1', PHONE, await currentArmedAt());
 
-    expect(delivery.cuts).toHaveLength(4);
+    expect(delivery.cuts).toHaveLength(2);
     expect(delivery.cuts[0]).toEqual({
-      caption: 'Cut 1 of 4',
+      caption: 'Cut A — bold',
       mediaUrl: 'https://storage.example/cut-1.png',
     });
+    expect(delivery.cuts[1].caption).toBe('Cut B — fine-line');
+    // The decided ADR-0049 SMS copy: poles computed from the round's axis.
+    expect(delivery.closingText).toContain(
+      'Two cuts this round: A is bold, B is fine-line. Reply A or B.'
+    );
     expect(delivery.closingText).toMatch(/https:\/\/tatttester\.com\/share\/[a-z0-9-]+/i);
-    // The share carries all four cuts and the intake context.
+    // The share carries both cuts and the intake context.
     expect(shareSave).toHaveBeenCalledTimes(1);
     const share = shareSave.mock.calls[0][0] as Record<string, unknown>;
-    expect(share.imageUrls).toHaveLength(4);
+    expect(share.imageUrls).toHaveLength(2);
     expect(share.bodyPart).toBe('forearm');
 
     const profile = await memoryProfileStore.get(PHONE);
@@ -389,7 +433,7 @@ describe('parity with the web after the reveal', () => {
       expect(profile?.lastStage).toBe('critique-running');
     });
 
-    it('delivers the new cut numbered after the reveal four', async () => {
+    it('delivers the new cut numbered after the round pair', async () => {
       await driveToRevealed();
       await handleInbound({ phone: PHONE, body: 'riku is missing' });
       vi.mocked(critique).mockResolvedValueOnce({
@@ -411,10 +455,10 @@ describe('parity with the web after the reveal', () => {
         await currentArmedAt()
       );
 
-      // Five cuts exist now, so the new one is "Cut 5 of 5" — the same
+      // Three cuts exist now, so the new one is "Cut 3 of 3" — the same
       // position the web shows it in.
       expect(delivery.cuts).toEqual([
-        { caption: 'Cut 5 of 5', mediaUrl: 'https://s/c1.png' },
+        { caption: 'Cut 3 of 3', mediaUrl: 'https://s/c1.png' },
       ]);
       expect(delivery.closingText).toContain('Added Riku');
       const profile = await memoryProfileStore.get(PHONE);
@@ -480,7 +524,7 @@ describe('parity with the web after the reveal', () => {
       const outcome = await handleInbound({ phone: PHONE, body: 'love these' });
 
       expect(outcome.kind).toBe('reply');
-      if (outcome.kind === 'reply') expect(outcome.text).toContain('lock one in');
+      if (outcome.kind === 'reply') expect(outcome.text).toContain('Reply A or B');
       expect(critique).not.toHaveBeenCalled();
     });
   });
@@ -490,13 +534,13 @@ describe('parity with the web after the reveal', () => {
     it('reads a bare number as a choice, not a fix', async () => {
       await driveToRevealed();
 
-      const outcome = await handleInbound({ phone: PHONE, body: '3' });
+      const outcome = await handleInbound({ phone: PHONE, body: '2' });
 
       expect(outcome.kind).toBe('reply');
       if (outcome.kind === 'reply') expect(outcome.text).toContain('least you');
       expect(critique).not.toHaveBeenCalled();
       const profile = await memoryProfileStore.get(PHONE);
-      expect(profile?.pendingPickId).toBe('v3');
+      expect(profile?.pendingPickId).toBe('v2');
       expect(profile?.lastStage).toBe('pick-pending');
     });
 
@@ -517,7 +561,7 @@ describe('parity with the web after the reveal', () => {
 
     it('records the pair on the second tap and asks the refinement question', async () => {
       await driveToRevealed();
-      await handleInbound({ phone: PHONE, body: 'the third one' });
+      await handleInbound({ phone: PHONE, body: 'the second one' });
       vi.mocked(recordPick).mockResolvedValueOnce({
         ...revealedSession(),
         phase: 'picked',
@@ -526,7 +570,7 @@ describe('parity with the web after the reveal', () => {
 
       const outcome = await handleInbound({ phone: PHONE, body: '1' });
 
-      expect(recordPick).toHaveBeenCalledWith('s1', { pickId: 'v3', mostNotYouId: 'v1' });
+      expect(recordPick).toHaveBeenCalledWith('s1', { pickId: 'v2', mostNotYouId: 'v1' });
       if (outcome.kind === 'reply') expect(outcome.text).toBe('Bolder, or keep it fine?');
       const profile = await memoryProfileStore.get(PHONE);
       expect(profile?.lastStage).toBe('refine-pending');
@@ -546,7 +590,7 @@ describe('parity with the web after the reveal', () => {
     // a dislike. Recording "make 2 bolder" as most-not-you would pollute the Brief.
     it('does not treat a fix request as the most-not-you pick', async () => {
       await driveToRevealed();
-      await handleInbound({ phone: PHONE, body: '3' });
+      await handleInbound({ phone: PHONE, body: '2' });
 
       const outcome = await handleInbound({ phone: PHONE, body: 'make 2 bolder' });
 
@@ -555,7 +599,7 @@ describe('parity with the web after the reveal', () => {
       if (outcome.kind === 'reply') expect(outcome.text).toContain('Just the number');
       const profile = await memoryProfileStore.get(PHONE);
       expect(profile?.lastStage).toBe('pick-pending');
-      expect(profile?.pendingPickId).toBe('v3');
+      expect(profile?.pendingPickId).toBe('v2');
     });
 
     // Critique cuts are pickable on the web (ADR-0039), so a number over SMS
@@ -567,7 +611,7 @@ describe('parity with the web after the reveal', () => {
         critiqueCuts: [{ id: 'c1', axisPosition: {}, prompt: 'p', imageUrl: 'https://s/c1.png' }],
       } as unknown as Awaited<ReturnType<typeof getSession>>);
 
-      await handleInbound({ phone: PHONE, body: '5' });
+      await handleInbound({ phone: PHONE, body: '3' });
 
       const profile = await memoryProfileStore.get(PHONE);
       expect(profile?.pendingPickId).toBe('c1');
@@ -577,7 +621,7 @@ describe('parity with the web after the reveal', () => {
   describe('the refinement round', () => {
     async function driveToRefinePending(phone = PHONE) {
       await driveToRevealed(phone);
-      await handleInbound({ phone, body: '3' });
+      await handleInbound({ phone, body: '2' });
       vi.mocked(recordPick).mockResolvedValueOnce({
         ...revealedSession(),
         phase: 'picked',
@@ -806,7 +850,7 @@ describe('parity with the web after the reveal', () => {
 
       const delivery = await executeReveal('s1', PHONE, armedAt);
 
-      expect(delivery.cuts).toHaveLength(4);
+      expect(delivery.cuts).toHaveLength(2);
       expect(delivery.closingText).toMatch(/share|design/i);
       const after = await memoryProfileStore.get(PHONE);
       expect(after?.lastStage).toBe('revealed');
@@ -841,9 +885,333 @@ describe('parity with the web after the reveal', () => {
       const delivery = await executeCritique('s1', PHONE, 'make it bolder', armedAt);
 
       expect(delivery.cuts).toEqual([
-        { caption: 'Cut 5 of 5', mediaUrl: 'https://s/c1.png' },
+        { caption: 'Cut 3 of 3', mediaUrl: 'https://s/c1.png' },
       ]);
       expect(delivery.closingText).toContain('Bolder');
+    });
+  });
+});
+
+describe('the two-cut rounds (ADR-0049)', () => {
+  /** Walk a phone to delivered cuts, with the session readable. */
+  async function driveToRevealed(phone = PHONE) {
+    await driveToProposal(phone);
+    await handleInbound({ phone, body: 'yes' });
+    vi.mocked(confirmProposal).mockResolvedValueOnce(
+      revealedSession() as unknown as Awaited<ReturnType<typeof confirmProposal>>
+    );
+    await executeReveal('s1', phone, await currentArmedAt(phone));
+    vi.mocked(getSession).mockResolvedValue(
+      revealedSession() as unknown as Awaited<ReturnType<typeof getSession>>
+    );
+  }
+
+  function pickedRoundSession() {
+    const session = revealedSession();
+    session.rounds = [
+      {
+        round: 1,
+        axis: 'bold-fine',
+        variationIds: ['v1', 'v2'],
+        pickedId: 'v2',
+        pickedAt: '2026-07-29T00:01:00.000Z',
+      },
+    ];
+    return session;
+  }
+
+  describe('the A/B pick', () => {
+    it('records the pick on a bare A, free, and stays repickable', async () => {
+      await driveToRevealed();
+      vi.mocked(recordRoundPick).mockResolvedValue(
+        pickedRoundSession() as unknown as Awaited<ReturnType<typeof recordRoundPick>>
+      );
+
+      const outcome = await handleInbound({ phone: PHONE, body: 'A' });
+
+      expect(recordRoundPick).toHaveBeenCalledWith('s1', { pickedId: 'v1' });
+      expect(outcome).toEqual({ kind: 'reply', text: ROUND_LOCKED_TEXT });
+      // Nothing charged, nothing armed — the pick is the free signal.
+      expect(reserveGenerationCredit).not.toHaveBeenCalled();
+      const profile = await memoryProfileStore.get(PHONE);
+      expect(profile?.lastStage).toBe('revealed');
+
+      // A second letter re-picks — changeable until the round is charged.
+      const again = await handleInbound({ phone: PHONE, body: 'b' });
+      expect(recordRoundPick).toHaveBeenLastCalledWith('s1', { pickedId: 'v2' });
+      expect(again).toEqual({ kind: 'reply', text: ROUND_LOCKED_TEXT });
+    });
+
+    it('tells a texter when the round is already frozen', async () => {
+      await driveToRevealed();
+      vi.mocked(recordRoundPick).mockRejectedValueOnce(
+        new DesignSessionError('ROUND_PICK_FROZEN')
+      );
+
+      const outcome = await handleInbound({ phone: PHONE, body: 'B' });
+
+      expect(outcome.kind).toBe('reply');
+      if (outcome.kind === 'reply') expect(outcome.text).toContain('REFINE');
+      expect(critique).not.toHaveBeenCalled();
+    });
+
+    it('never reads A/B inside an instruction as a pick', async () => {
+      await driveToRevealed();
+
+      const outcome = await handleInbound({ phone: PHONE, body: 'make a bolder version' });
+
+      expect(recordRoundPick).not.toHaveBeenCalled();
+      expect(outcome.kind).toBe('critique');
+    });
+  });
+
+  describe('REFINE — the charged round', () => {
+    async function driveToPicked(phone = PHONE) {
+      await driveToRevealed(phone);
+      vi.mocked(getSession).mockResolvedValue(
+        pickedRoundSession() as unknown as Awaited<ReturnType<typeof getSession>>
+      );
+    }
+
+    it('asks for a pick first when the round has none', async () => {
+      await driveToRevealed();
+
+      const outcome = await handleInbound({ phone: PHONE, body: 'REFINE' });
+
+      expect(outcome.kind).toBe('reply');
+      if (outcome.kind === 'reply') expect(outcome.text).toContain('A or B');
+      expect(reserveGenerationCredit).not.toHaveBeenCalled();
+    });
+
+    it('gates an unlinked number behind an account — a credit needs an owner', async () => {
+      await driveToPicked();
+
+      const outcome = await handleInbound({ phone: PHONE, body: 'refine' });
+
+      expect(outcome.kind).toBe('reply');
+      if (outcome.kind === 'reply') {
+        expect(outcome.text).toContain('https://tatttester.com/signup');
+      }
+      expect(reserveGenerationCredit).not.toHaveBeenCalled();
+      expect(refineRound).not.toHaveBeenCalled();
+    });
+
+    it('reserves ONE credit at arm time and defers the renders', async () => {
+      mockLinked('user-1');
+      await driveToPicked();
+
+      const outcome = await handleInbound({ phone: PHONE, body: 'REFINE' });
+
+      expect(reserveGenerationCredit).toHaveBeenCalledWith('user-1');
+      expect(outcome).toMatchObject({
+        kind: 'refine-round',
+        text: ROUND_ACK,
+        sessionId: 's1',
+        phone: PHONE,
+        uid: 'user-1',
+        credit: expect.objectContaining({ id: 'res-1' }),
+      });
+      // Renders are deferred — nothing fired synchronously.
+      expect(refineRound).not.toHaveBeenCalled();
+      const profile = await memoryProfileStore.get(PHONE);
+      expect(profile?.lastStage).toBe('round-running');
+      // Persisted at reserve time, not only in the deferred closure: a
+      // crash before delivery leaves a reconcilable reservation id.
+      expect(profile?.pendingCreditReservationId).toBe('res-1');
+    });
+
+    it('speaks the empty meter instead of arming a round it cannot charge', async () => {
+      mockLinked('user-1');
+      await driveToPicked();
+      vi.mocked(reserveGenerationCredit).mockRejectedValueOnce(
+        new GenerationCreditsExhaustedError()
+      );
+
+      const outcome = await handleInbound({ phone: PHONE, body: 'REFINE' });
+
+      expect(outcome.kind).toBe('reply');
+      if (outcome.kind === 'reply') expect(outcome.text).toContain('free generations');
+      expect(refineRound).not.toHaveBeenCalled();
+    });
+
+    it('delivers the next pair with the A/B ask and keeps the credit', async () => {
+      mockLinked('user-1');
+      await driveToPicked();
+      await handleInbound({ phone: PHONE, body: 'REFINE' });
+
+      const roundTwo = pickedRoundSession();
+      roundTwo.rounds![0].frozen = true;
+      roundTwo.variations = [
+        ...roundTwo.variations,
+        {
+          id: 'v3',
+          axisPosition: { 'color-blackwork': 'color', 'bold-fine': 'fine' },
+          prompt: 'p3',
+          imageUrl: 'https://storage.example/cut-3.png',
+        },
+        {
+          id: 'v4',
+          axisPosition: { 'color-blackwork': 'blackwork', 'bold-fine': 'fine' },
+          prompt: 'p4',
+          imageUrl: 'https://storage.example/cut-4.png',
+        },
+      ];
+      const newRound = { round: 2, axis: 'color-blackwork', variationIds: ['v3', 'v4'] };
+      roundTwo.rounds = [...roundTwo.rounds!, newRound];
+      vi.mocked(refineRound).mockResolvedValueOnce({
+        session: roundTwo,
+        round: newRound,
+        downgraded: false,
+      } as unknown as Awaited<ReturnType<typeof refineRound>>);
+
+      const delivery = await executeRefineRound(
+        's1',
+        PHONE,
+        'user-1',
+        { id: 'res-1', source: 'free', freeRemaining: 24, paidRemaining: 0 },
+        await currentArmedAt()
+      );
+
+      expect(delivery.cuts).toEqual([
+        { caption: 'Cut A — full-color', mediaUrl: 'https://storage.example/cut-3.png' },
+        { caption: 'Cut B — blackwork', mediaUrl: 'https://storage.example/cut-4.png' },
+      ]);
+      expect(delivery.closingText).toContain(
+        'Two cuts this round: A is full-color, B is blackwork. Reply A or B.'
+      );
+      // A delivered round keeps its credit.
+      expect(releaseGenerationCredit).not.toHaveBeenCalled();
+      const profile = await memoryProfileStore.get(PHONE);
+      expect(profile?.lastStage).toBe('revealed');
+    });
+
+    it('releases the credit and speaks the decided copy when the round dies', async () => {
+      mockLinked('user-1');
+      await driveToPicked();
+      await handleInbound({ phone: PHONE, body: 'REFINE' });
+      vi.mocked(refineRound).mockRejectedValueOnce(new Error('provider blew up'));
+
+      const credit = { id: 'res-1', source: 'free' as const, freeRemaining: 24, paidRemaining: 0 };
+      const delivery = await executeRefineRound(
+        's1',
+        PHONE,
+        'user-1',
+        credit,
+        await currentArmedAt()
+      );
+
+      expect(delivery.cuts).toHaveLength(0);
+      expect(delivery.closingText).toBe(ROUND_FAILED_TEXT);
+      expect(releaseGenerationCredit).toHaveBeenCalledWith('user-1', credit);
+      // Re-armed for another REFINE, exactly as the copy promises — and the
+      // refunded reservation is no longer pending reconciliation.
+      const profile = await memoryProfileStore.get(PHONE);
+      expect(profile?.lastStage).toBe('revealed');
+      expect(profile?.pendingCreditReservationId).toBeNull();
+    });
+
+    it('never claims the refund when the release itself failed', async () => {
+      mockLinked('user-1');
+      await driveToPicked();
+      await handleInbound({ phone: PHONE, body: 'REFINE' });
+      vi.mocked(refineRound).mockRejectedValueOnce(new Error('provider blew up'));
+      vi.mocked(releaseGenerationCredit).mockRejectedValueOnce(new Error('firestore down'));
+
+      const credit = { id: 'res-1', source: 'free' as const, freeRemaining: 24, paidRemaining: 0 };
+      const delivery = await executeRefineRound(
+        's1',
+        PHONE,
+        'user-1',
+        credit,
+        await currentArmedAt()
+      );
+
+      // Honest copy: no "your credit is back" for a refund that did not land
+      // — and the reservation stays on the profile for reconciliation.
+      expect(delivery.closingText).toBe("That round didn't take. Reply REFINE to try again.");
+      const profile = await memoryProfileStore.get(PHONE);
+      expect(profile?.pendingCreditReservationId).toBe('res-1');
+    });
+
+    it('releases the credit on an ADR-0048 downgrade and says so', async () => {
+      mockLinked('user-1');
+      await driveToPicked();
+      await handleInbound({ phone: PHONE, body: 'REFINE' });
+
+      const roundTwo = pickedRoundSession();
+      const newRound = {
+        round: 2,
+        axis: 'color-blackwork',
+        variationIds: ['v3', 'v4'],
+        downgraded: true,
+        downgradeReason: 'REPLICATE_ERROR',
+      };
+      roundTwo.variations = [
+        ...roundTwo.variations,
+        { id: 'v3', axisPosition: { 'color-blackwork': 'color' }, prompt: 'p3', imageUrl: 'https://storage.example/cut-3.png' },
+        { id: 'v4', axisPosition: { 'color-blackwork': 'blackwork' }, prompt: 'p4', imageUrl: 'https://storage.example/cut-4.png' },
+      ];
+      roundTwo.rounds = [...roundTwo.rounds!, newRound];
+      vi.mocked(refineRound).mockResolvedValueOnce({
+        session: roundTwo,
+        round: newRound,
+        downgraded: true,
+        downgradeReason: 'REPLICATE_ERROR',
+      } as unknown as Awaited<ReturnType<typeof refineRound>>);
+
+      const credit = { id: 'res-1', source: 'free' as const, freeRemaining: 24, paidRemaining: 0 };
+      const delivery = await executeRefineRound(
+        's1',
+        PHONE,
+        'user-1',
+        credit,
+        await currentArmedAt()
+      );
+
+      // Delivered AND refunded AND said — the loud downgrade, never silent.
+      expect(delivery.cuts).toHaveLength(2);
+      expect(delivery.closingText).toContain('credit is back');
+      expect(releaseGenerationCredit).toHaveBeenCalledWith('user-1', credit);
+    });
+
+    it('never double-fires a round on an impatient second REFINE', async () => {
+      mockLinked('user-1');
+      await driveToPicked();
+      await handleInbound({ phone: PHONE, body: 'REFINE' });
+
+      const again = await handleInbound({ phone: PHONE, body: 'REFINE' });
+
+      expect(again.kind).toBe('reply');
+      if (again.kind === 'reply') expect(again.text).toContain('Still cutting');
+      expect(reserveGenerationCredit).toHaveBeenCalledTimes(1);
+    });
+
+    it('refuses the round when the global budget is gone, before the credit', async () => {
+      mockLinked('user-1');
+      await driveToPicked();
+      vi.mocked(checkBudget).mockResolvedValueOnce({
+        allowed: false,
+        spentCents: 50_000,
+        remainingCents: 0,
+      });
+
+      const outcome = await handleInbound({ phone: PHONE, body: 'REFINE' });
+
+      if (outcome.kind === 'reply') expect(outcome.text).toBe(BUDGET_EXHAUSTED_TEXT);
+      expect(reserveGenerationCredit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('BOOK', () => {
+    it('hands off to smart-match carrying the session id', async () => {
+      await driveToRevealed();
+
+      const outcome = await handleInbound({ phone: PHONE, body: 'BOOK' });
+
+      expect(outcome.kind).toBe('reply');
+      if (outcome.kind === 'reply') {
+        expect(outcome.text).toContain('https://tatttester.com/smart-match?ds=s1');
+      }
     });
   });
 });

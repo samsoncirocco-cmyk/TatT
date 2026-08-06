@@ -215,7 +215,7 @@ export default function DesignsPage() {
                 No cuts yet<span className="text-pink">.</span>
               </div>
               <p className="mt-4 text-[12px] uppercase tracking-[0.2em] text-white/50 font-body">
-                Describe the ink you want and get four takes to pick from.
+                Describe the ink you want and get two cuts to pick from.
               </p>
               <Link
                 href="/design"

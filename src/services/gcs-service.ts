@@ -75,6 +75,17 @@ const storage = new Storage({
 
 const bucketName = process.env.GCS_BUCKET_NAME || process.env.GCS_BUCKET || 'tatt-pro-assets';
 const bucket: Bucket = storage.bucket(bucketName);
+
+/**
+ * The bucket every signed URL from this module resolves against. Exported
+ * so callers holding a public object URL (imageStorageService resolves its
+ * bucket from a DIFFERENT env chain) can verify the object actually lives
+ * where this module signs — a drifted config would otherwise mint signed
+ * URLs that 404 at the render provider.
+ */
+export function signingBucketName(): string {
+    return bucketName;
+}
 const signedUrlExpiry = parseInt(process.env.GCS_SIGNED_URL_EXPIRY || '3600', 10);
 
 /**

@@ -19,11 +19,10 @@ export function routeParams(id: string): { params: Promise<{ id: string }> } {
 }
 
 export function makeVariations(): Variation[] {
+  // One round's pair (ADR-0049): two cuts spread on one axis.
   return [
-    { id: 'var-1', axisPosition: { 'bold-fine': 'bold', 'color-blackwork': 'color' }, prompt: 'p1', imageUrl: 'https://img/1.png' },
-    { id: 'var-2', axisPosition: { 'bold-fine': 'bold', 'color-blackwork': 'blackwork' }, prompt: 'p2', imageUrl: 'https://img/2.png' },
-    { id: 'var-3', axisPosition: { 'bold-fine': 'fine', 'color-blackwork': 'color' }, prompt: 'p3', imageUrl: 'https://img/3.png' },
-    { id: 'var-4', axisPosition: { 'bold-fine': 'fine', 'color-blackwork': 'blackwork' }, prompt: 'p4', imageUrl: 'https://img/4.png' },
+    { id: 'var-1', axisPosition: { 'bold-fine': 'bold' }, prompt: 'p1', imageUrl: 'https://img/1.png' },
+    { id: 'var-2', axisPosition: { 'bold-fine': 'fine' }, prompt: 'p2', imageUrl: 'https://img/2.png' },
   ];
 }
 
@@ -40,11 +39,12 @@ export function makeSession(overrides: Partial<DesignSession> = {}): DesignSessi
     },
     axisSelection: {
       mode: 'questionnaire',
-      axes: ['bold-fine', 'color-blackwork'],
-      rationale: 'intake left line weight and color unresolved',
+      axes: ['bold-fine'],
+      rationale: 'round one spreads the first ladder rung (ADR-0049)',
     },
     provider: 'vertex-ai',
     variations: makeVariations(),
+    rounds: [{ round: 1, axis: 'bold-fine', variationIds: ['var-1', 'var-2'] }],
     createdAt: '2026-07-24T00:00:00.000Z',
     updatedAt: '2026-07-24T00:00:00.000Z',
     ...overrides,

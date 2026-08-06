@@ -82,7 +82,7 @@ export function renderSmsReply(text: string, maxChars: number = SMS_MAX_CHARS): 
 
 /** Ack sent the moment a reveal is armed — renders take minutes. */
 export const REVEAL_ACK =
-  "On it. I'm sketching four takes now — give me a couple of minutes and they'll land right here.";
+  "On it. I'm sketching two cuts now — give me a couple of minutes and they'll land right here.";
 
 /** Per-phone daily reveal cap reached — a judgment call, never a wall. */
 export function capReachedText(webUrl: string): string {
@@ -123,18 +123,55 @@ export const INTERNAL_ERROR_TEXT =
   "Something went sideways on my end — that's mine to fix, not yours. Text me again in a minute and I'll pick this straight back up.";
 
 /**
- * Closing text of a reveal MMS sequence — the bridge into the web session,
- * and the invitation that opens everything after it.
- *
- * It names both moves the channel now understands, because a texter who is
- * told only "here are four" has no way to know they can talk back to them.
+ * Closing text of a round's MMS sequence (ADR-0049 acceptance copy): the
+ * two cuts named by their poles, the A/B ask, and the bridge into the web
+ * session. Pole labels are computed from the round's axis — never
+ * hardcoded per axis.
  */
-export function revealClosingText(shareUrl: string): string {
+export function roundRevealText(
+  poleA: string,
+  poleB: string,
+  shareUrl: string
+): string {
   return (
-    'Four takes, four directions. Tell me what to change on any of them, text ' +
-    `a number to lock one in, or say "start over" for a fresh idea. See them ` +
-    `big here: ${shareUrl}`
+    `Two cuts this round: A is ${poleA}, B is ${poleB}. Reply A or B. ` +
+    `See them big here: ${shareUrl}`
   );
+}
+
+/** The round pick landed (ADR-0049 acceptance copy) — changeable until REFINE. */
+export const ROUND_LOCKED_TEXT =
+  "Locked. Reply REFINE for the next round (1 credit) or BOOK when you're ready.";
+
+/** Ack sent the moment a REFINE round is armed — two renders take minutes. */
+export const ROUND_ACK =
+  "On it — cutting the next round now. Two new cuts land here in a minute or two.";
+
+/**
+ * A charged round failed after the ack (ADR-0049 acceptance copy). Sent
+ * only when the credit release actually landed — the refund claim and the
+ * refund ship together or not at all.
+ */
+export const ROUND_FAILED_TEXT =
+  "That round didn't take — your credit is back. Reply REFINE to try again.";
+
+/** Same failure when the release itself failed: no refund claim made. */
+export const ROUND_FAILED_NO_REFUND_TEXT =
+  "That round didn't take. Reply REFINE to try again.";
+
+/** REFINE before any A/B — the round has no pick to refine from. */
+export function roundUnpickedText(): string {
+  return 'Pick one first — reply A or B, then REFINE cuts the next round from it.';
+}
+
+/** The BOOK reply: straight to the artists, carrying the session. */
+export function bookText(matchUrl: string): string {
+  return `Here are the artists whose work actually fits it: ${matchUrl}`;
+}
+
+/** Caption for one of a round's two cuts — "Cut A — bold". */
+export function roundCutCaption(letter: 'A' | 'B', poleLabel: string): string {
+  return `Cut ${letter} — ${poleLabel}`;
 }
 
 /** The reply named no single cut — ask again without scolding. */
@@ -156,10 +193,10 @@ export function pickCollisionText(cutCount: number): string {
 }
 
 /** Praise with no instruction in it — answered, never silently ignored. */
-export function chatterAckText(cutCount: number): string {
+export function chatterAckText(): string {
   return (
-    `Glad they landed. Tell me what to change on any of them, or text a ` +
-    `number 1 to ${cutCount} to lock one in.`
+    'Glad they landed. Reply A or B to pick this round, or tell me what to ' +
+    'change on either of them.'
   );
 }
 
@@ -201,7 +238,7 @@ export function refinedClosingText(matchUrl: string, hasStencil = false): string
 export const REFINE_FAILED_TEXT =
   "That rework didn't come together — my fault, not yours. Tell me again what you'd change and I'll take another run at it.";
 
-/** Caption for cut n of 4 in the sequential MMS delivery. */
+/** Caption for cut n of the session's running order (critique re-cuts). */
 export function cutCaption(index: number, total: number): string {
   return `Cut ${index + 1} of ${total}`;
 }

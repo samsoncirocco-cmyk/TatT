@@ -13,12 +13,12 @@ import { useEffect, useState } from 'react';
  * every beat.
  */
 
-/** The reveal generation — four cuts always, so every line holds. */
+/** The reveal generation — two cuts a round (ADR-0049), so every line holds. */
 export const REVEAL_BEAT_LINES = [
   'warming up the machines…',
   'mixing ink…',
-  'pulling four directions apart…',
-  'four cuts, almost dry…',
+  'pulling two directions apart…',
+  'two cuts, almost dry…',
 ] as const;
 
 /** The one refinement regen (ADR-0013). */

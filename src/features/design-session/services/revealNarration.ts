@@ -22,11 +22,11 @@ const AXIS_SPOKEN: Record<VariationAxis, string> = {
 
 export function revealNarration(axisSelection: AxisSelection): string {
   if (axisSelection.mode === 'compositional' || axisSelection.axes.length === 0) {
-    return 'Style is locked in, so these four play with pose, framing, and negative space.';
+    return 'Style is locked in, so these two play with pose, framing, and negative space.';
   }
   const spoken = axisSelection.axes.map(
     (axis) => AXIS_SPOKEN[axis] ?? axis.replace(/-/g, ' vs ')
   );
   const split = spoken.length > 1 ? `${spoken[0]} and ${spoken[1]}` : spoken[0];
-  return `I split these four on ${split} — your picks tell me which way to lean.`;
+  return `I split these two on ${split} — your pick tells me which way to lean.`;
 }

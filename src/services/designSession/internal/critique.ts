@@ -50,8 +50,8 @@ const POLE_WORD: Record<string, RegExp> = {
 };
 
 /**
- * Every cut the session can be talking about: the reveal's four, then any
- * cuts critique already produced.
+ * Every cut the session can be talking about: every round's cuts in render
+ * order, then any cuts critique already produced.
  */
 export function allCuts(session: Pick<DesignSession, 'variations' | 'critiqueCuts'>): Variation[] {
   return [...session.variations, ...(session.critiqueCuts ?? [])];
@@ -59,7 +59,7 @@ export function allCuts(session: Pick<DesignSession, 'variations' | 'critiqueCut
 
 /**
  * Which cut this critique is about, in falling order of confidence:
- *   1. an ordinal naming one of the reveal's four ("the third one")
+ *   1. an ordinal naming one of the session's cuts ("the third one")
  *   2. a pole word only one reveal cut carries ("the blackwork one")
  *   3. the most recent cut critique produced — the user is still fixing it
  *   4. the session's pick, once one exists

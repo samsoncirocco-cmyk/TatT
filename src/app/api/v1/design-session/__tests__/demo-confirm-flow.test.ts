@@ -101,7 +101,7 @@ describe('demo design session — proposal to one confirm reveal', () => {
         variations: expect.any(Array),
       },
     });
-    expect(confirmed.session.variations).toHaveLength(4);
+    expect(confirmed.session.variations).toHaveLength(2);
     expect(confirmed).not.toHaveProperty('error');
 
     // A repeated confirmation cannot fire generation again.

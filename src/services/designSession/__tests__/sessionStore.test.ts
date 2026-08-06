@@ -128,6 +128,62 @@ describe('memorySessionStore', () => {
   });
 });
 
+describe('memorySessionStore — the charged-round claim (ADR-0049)', () => {
+  beforeEach(() => clearMemorySessions());
+
+  const claim = (id: string, at = new Date().toISOString()) => ({ id, at });
+  const STALE_MS = 10 * 60 * 1000;
+
+  it('claims a free slot, refuses a held one, and frees it on release', async () => {
+    await memorySessionStore.save(makeSession());
+
+    const won = await memorySessionStore.claimRound('sess-1', claim('c1'), STALE_MS);
+    expect(won.status).toBe('claimed');
+
+    // The loser of the race never gets the slot.
+    const lost = await memorySessionStore.claimRound('sess-1', claim('c2'), STALE_MS);
+    expect(lost).toMatchObject({ status: 'held', heldBy: { id: 'c1' } });
+
+    await memorySessionStore.releaseRound('sess-1', 'c1');
+    const again = await memorySessionStore.claimRound('sess-1', claim('c3'), STALE_MS);
+    expect(again.status).toBe('claimed');
+  });
+
+  it('evicts a stale claim and hands it back for orphan reconciliation', async () => {
+    await memorySessionStore.save(makeSession());
+    const stale = {
+      id: 'dead',
+      reservationId: 'res-orphan',
+      at: new Date(Date.now() - STALE_MS - 1000).toISOString(),
+    };
+    await memorySessionStore.claimRound('sess-1', stale, STALE_MS);
+
+    const won = await memorySessionStore.claimRound('sess-1', claim('c1'), STALE_MS);
+
+    // Claimed over the corpse — and the orphaned reservation id surfaces so
+    // the caller can log it for reconciliation.
+    expect(won).toMatchObject({
+      status: 'claimed',
+      evicted: { id: 'dead', reservationId: 'res-orphan' },
+    });
+  });
+
+  it('release is a no-op for a claim that is no longer the holder', async () => {
+    await memorySessionStore.save(makeSession());
+    await memorySessionStore.claimRound('sess-1', claim('c1'), STALE_MS);
+
+    await memorySessionStore.releaseRound('sess-1', 'someone-else');
+
+    const still = await memorySessionStore.claimRound('sess-1', claim('c2'), STALE_MS);
+    expect(still.status).toBe('held');
+  });
+
+  it('reports a missing session instead of inventing a slot', async () => {
+    const result = await memorySessionStore.claimRound('nope', claim('c1'), STALE_MS);
+    expect(result.status).toBe('missing');
+  });
+});
+
 describe('firestoreSessionStore', () => {
   it('writes to design_sessions/<id> with undefined fields stripped', async () => {
     const session = makeSession();

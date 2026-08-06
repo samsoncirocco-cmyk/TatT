@@ -10,7 +10,7 @@ import { DesignConversation } from '../components/DesignConversation';
 // The in-voice reveal narration derived from the fixture's axisSelection —
 // the raw audit rationale (ADR-0012) never renders in the chat.
 const REVEAL_NARRATION =
-  'I split these four on line weight and how much detail they carry — your picks tell me which way to lean.';
+  'I split these two on line weight — your pick tells me which way to lean.';
 
 // The fetch client attaches Firebase bearer auth (matching the API routes'
 // verifyApiAuth gate); stub it so tests need no signed-in user.
@@ -53,7 +53,8 @@ function converseResponse(overrides: Partial<ConverseResponse> = {}): ConverseRe
   };
 }
 
-const variations = [1, 2, 3, 4].map((n) => ({
+// One round's pair (ADR-0049): two cuts spread on one axis.
+const variations = [1, 2].map((n) => ({
   id: `v${n}`,
   axisPosition: { 'bold-fine': n % 2 ? 'bold' : 'fine' },
   prompt: `prompt ${n}`,
@@ -72,20 +73,26 @@ const revealedSession: DesignSession = {
   },
   axisSelection: {
     mode: 'questionnaire',
-    axes: ['bold-fine', 'minimal-ornate'],
-    rationale: 'Your idea left line weight and density open, so the four split along those.',
+    axes: ['bold-fine'],
+    rationale: 'Round one spreads on bold-fine, the first rung of the ladder.',
   },
   provider: 'replicate',
   variations,
+  rounds: [{ round: 1, axis: 'bold-fine', variationIds: ['v1', 'v2'] }],
   createdAt: '2026-07-24T00:00:00Z',
   updatedAt: '2026-07-24T00:00:00Z',
 };
 
-const pickedSession: DesignSession = {
+const roundPickedSession: DesignSession = {
   ...revealedSession,
+  rounds: [{ round: 1, axis: 'bold-fine', variationIds: ['v1', 'v2'], pickedId: 'v2', pickedAt: '2026-07-24T00:00:00Z' }],
+};
+
+const pickedSession: DesignSession = {
+  ...roundPickedSession,
   phase: 'picked',
   pickId: 'v2',
-  mostNotYouId: 'v3',
+  mostNotYouId: 'v1',
   refinementQuestion: 'Bolder lines or keep them fine?',
 };
 
@@ -244,9 +251,9 @@ describe('DesignConversation', () => {
       expect.objectContaining({ method: 'POST' })
     );
 
-    // The EXISTING reveal UI: four designs, pick affordances.
-    expect(screen.getAllByAltText(/^Design \d$/)).toHaveLength(4);
-    expect(screen.getAllByRole('button', { name: /pick design/i })).toHaveLength(4);
+    // The EXISTING reveal UI: the round's two cuts, pick affordances.
+    expect(screen.getAllByAltText(/^Design \d$/)).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: /pick design/i })).toHaveLength(2);
     // Conversation transcript kept above the reveal; no proposal CTA left.
     expect(screen.getByText(OPENER)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /show me/i })).toBeNull();
@@ -276,7 +283,7 @@ describe('DesignConversation', () => {
     // Straight to the reveal — the confirm fired without a consent tap.
     await screen.findByText(REVEAL_NARRATION);
     expect(fetchMock.mock.calls[2][0]).toBe('/api/v1/design-session/sess-1/confirm');
-    expect(screen.getAllByAltText(/^Design \d$/)).toHaveLength(4);
+    expect(screen.getAllByAltText(/^Design \d$/)).toHaveLength(2);
     expect(screen.queryByRole('button', { name: /show me/i })).toBeNull();
   });
 
@@ -398,14 +405,17 @@ describe('DesignConversation', () => {
 
     fetchMock
       .mockResolvedValueOnce(jsonResponse(revealedSession))
+      .mockResolvedValueOnce(jsonResponse(roundPickedSession))
       .mockResolvedValueOnce(jsonResponse(pickedSession))
       .mockResolvedValueOnce(jsonResponse(completeSession));
 
     fireEvent.click(screen.getByRole('button', { name: /show me/i }));
     await screen.findByText(REVEAL_NARRATION);
 
+    // Round pick (free, ADR-0049) → lock it in (the other cut is the
+    // implicit most-not-you) → the one ADR-0013 refinement.
     fireEvent.click(screen.getByRole('button', { name: /^Pick design 2 / }));
-    fireEvent.click(await screen.findByRole('button', { name: /^Design 3 feels most not me / }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Lock it in' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Bolder lines' }));
     await screen.findByAltText('Your refined design');
 
@@ -636,7 +646,7 @@ describe('DesignConversation — SketchBot notepad (TAT-48)', () => {
 
     // The anchored CTA fires the confirm path into the reveal.
     fetchMock.mockResolvedValueOnce(jsonResponse(revealedSession));
-    fireEvent.click(screen.getByRole('button', { name: /draw 4 takes/i }));
+    fireEvent.click(screen.getByRole('button', { name: /draw 2 cuts/i }));
     await screen.findByText(REVEAL_NARRATION);
     expect(fetchMock).toHaveBeenLastCalledWith(
       '/api/v1/design-session/sess-1/confirm',
@@ -669,7 +679,7 @@ describe('DesignConversation — SketchBot notepad (TAT-48)', () => {
     // The brief still reads back — but nothing is tappable and the CTA is done.
     expect(screen.getByText('Gon (Hunter x Hunter)')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /fix / })).toBeNull();
-    expect(screen.queryByRole('button', { name: /draw 4 takes/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /draw 2 cuts/i })).toBeNull();
   });
 
   it('pull-up sheet: peeking by default, expands and collapses on tap', async () => {

@@ -62,7 +62,7 @@ type ConversationAction =
  * One door, fast lane (ADR-0028): when the engine's proposal fires on the
  * very first user turn — the existing readiness detection judged the first
  * input a complete prompt — the consent tap is skipped and the confirm
- * fires immediately, landing straight on the four-cut reveal. The confirm
+ * fires immediately, landing straight on the two-cut reveal. The confirm
  * route keeps owning budget/rate policy and spend recording, and the
  * Council still runs inside it (never the raw-prompt bypass). An
  * `initialPrompt` (the /design?prompt= deep link) is sent as the user's

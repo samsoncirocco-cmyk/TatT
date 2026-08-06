@@ -58,7 +58,7 @@ describe('Home — hero: the two doors to SketchBot (TAT-52)', () => {
 
     const text = document.body.textContent ?? '';
     expect(text).toContain('an arm sleeve of my favorite anime');
-    expect(text).toContain('say less. four takes coming.');
+    expect(text).toContain('say less. two cuts coming.');
   });
 });
 
@@ -71,7 +71,7 @@ describe('Home — text SketchBot mention (TAT-49)', () => {
     expect(link.getAttribute('href')).toBe('sms:+16029051867');
 
     const text = (document.body.textContent ?? '').replace(/ /g, ' ');
-    expect(text).toContain('SketchBot texts back four designs');
+    expect(text).toContain('SketchBot texts back two designs');
     // The carrier disclosure sits directly beside the number (A2P review
     // checks for it) with both policy links.
     expect(text).toContain(

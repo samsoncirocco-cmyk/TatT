@@ -6,9 +6,9 @@ import { cutIdentity } from '../services/revealCutNames';
 export type RevealMode = 'pick' | 'not-you' | 'locked';
 
 /**
- * The four-design reveal (ADR-0012). Staggered entrance, tap to pick, then
- * the same grid hosts the most-not-you tap over the remaining three — one
- * clean negative signal instead of three noisy non-picks.
+ * The round reveal (ADR-0012, ADR-0049): two named cuts side by side, tap
+ * the one that's closer. The same grid can still host the most-not-you tap
+ * ('not-you' mode) where a flow needs the one clean negative signal.
  *
  * The theater (TAT-52): cuts land one at a time on the design system's
  * `snap` hard cut-in — `.reveal-cut-1..4` spaces them a full beat apart

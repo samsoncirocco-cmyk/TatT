@@ -10,6 +10,7 @@ export {
   executeReveal,
   executeCritique,
   executeRefine,
+  executeRefineRound,
   executePlacement,
   recordOptOut,
   isOptedOut,

@@ -104,6 +104,12 @@ function completeIntakeRecord(
     ...(record.vibe ? { vibe: record.vibe } : {}),
     references: record.references ?? [],
     ambiguousAxes,
+    // The explicitly requested spread (ADR-0049) rides through to axis
+    // selection — except literal-abstract on a named subject, which the
+    // same rule above already forbids from rendering abstract.
+    ...(record.requestedAxis && !(subject && record.requestedAxis === 'literal-abstract')
+      ? { requestedAxis: record.requestedAxis }
+      : {}),
   };
 }
 

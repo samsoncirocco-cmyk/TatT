@@ -26,7 +26,7 @@ const STEPS = [
   {
     n: "02",
     title: "Generate",
-    body: "AI cuts four passes in seconds. Pick the one that bites. Iterate or ship.",
+    body: "AI cuts two passes in seconds. Pick the one that bites. Iterate or ship.",
   },
   {
     n: "03",
@@ -77,7 +77,7 @@ export default async function Home() {
             <p className="rise rise-3 mt-5 md:mt-7 max-w-[40ch] text-[15px] leading-[1.55] text-white/70 font-body">
               Forever is a big ask —{" "}
               <span className="scribble text-pink">test it first</span>. Tell
-              SketchBot your idea and get four cuts back before a needle gets
+              SketchBot your idea and get two cuts back before a needle gets
               anywhere near you.
             </p>
 
@@ -88,7 +88,7 @@ export default async function Home() {
                 &ldquo;an arm sleeve of my favorite anime&rdquo;
               </p>
               <p className="self-end bg-pink text-black px-3.5 py-2">
-                say less. four takes coming.
+                say less. two cuts coming.
               </p>
             </div>
 
@@ -112,7 +112,7 @@ export default async function Home() {
                     >
                       {sms.display}
                     </a>{" "}
-                    — SketchBot texts back four designs.
+                    — SketchBot texts back two designs.
                   </p>
                   <SmsDisclosure className="mt-2 max-w-[62ch]" />
                 </div>
@@ -183,7 +183,7 @@ export default async function Home() {
               </span>
             </div>
             <p className="mb-12 text-[14px] text-white/60 font-body leading-[1.55] max-w-[52ch]">
-              Four cuts from the same pipeline behind{" "}
+              Two cuts from the same pipeline behind{" "}
               <span className="text-white/80">Start your design</span> — shown
               as examples, not community posts.
             </p>

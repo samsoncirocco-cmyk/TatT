@@ -15,16 +15,18 @@ import {
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-// Four renders + council must survive Replicate's low-credit throttle
-// (burst of 1 per ~10s window): 4 renders can need ~1min of retry waits
-// plus generation. Fluid compute is enabled on this project, so 300s is
-// legal on every plan tier.
+// Two renders + council must survive Replicate's low-credit throttle
+// (burst of 1 per ~10s window). Sized for four renders originally; kept at
+// 300s rather than shrunk (ADR-0049's guidance: more headroom, not less) —
+// the Replicate lane may not batch, and reference signing rides on top.
+// Fluid compute is enabled on this project, so 300s is legal on every
+// plan tier.
 export const maxDuration = 300;
 
 /**
  * POST /api/v1/design-session/[id]/confirm — the user's yes to the
  * conversation's proposal (ADR-0020). Fires the existing reveal pipeline
- * (4 renders on one pinned provider), so the full budget policy of the start
+ * (round one's 2 renders on one pinned provider, ADR-0049), so the full budget policy of the start
  * route applies and the service records what those renders cost. A 'no' or correction is just
  * another converse message, never this endpoint. The ConfirmRequest body is
  * reserved-empty in the frozen contract, so no body validation exists yet.

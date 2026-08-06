@@ -573,6 +573,10 @@ function applyAxisSpread(record: Partial<IntakeRecord>, axis: VariationAxis): vo
   }
   const rest = (record.ambiguousAxes ?? []).filter((candidate) => candidate !== axis);
   record.ambiguousAxes = [axis, ...rest];
+  // The explicit ask travels to axis selection by name (ADR-0049): round
+  // one leads with THIS axis instead of the ladder's first rung, so the
+  // split the bot just promised is the split the customer is charged for.
+  record.requestedAxis = axis;
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
