@@ -1479,9 +1479,36 @@ export async function executeCritique(
     return { cuts: [], closingText: '' };
   }
 
+  // A reroll-set turn ("new ones") is a charged round, not a fix — the
+  // service calls this port's reserve() only when the classifier says so,
+  // and settles an exhausted meter as spoken copy. Only a linked texter has
+  // a meter to stand behind it; unlinked, the service refuses in voice
+  // toward the web link, mirroring the round lane's link gate.
+  const armed = await store.get(phone);
+  const uid = armed?.uid;
+  const roundCredit = uid
+    ? {
+        reserve: () => reserveGenerationCredit(uid),
+        release: (reservation: { id: string }) =>
+          releaseGenerationCredit(uid, reservation as GenerationCreditReservation)
+            .then(() => true)
+            .catch((releaseError) => {
+              logger.error({
+                event_type: 'sketchbot_sms.reroll_credit_release_failed',
+                phone_last4: phoneLast4(phone),
+                session_id: sessionId,
+                reservation_id: reservation.id,
+                error:
+                  releaseError instanceof Error ? releaseError.message : String(releaseError),
+              });
+              return false;
+            }),
+      }
+    : undefined;
+
   let result;
   try {
-    result = await critique(sessionId, { message });
+    result = await critique(sessionId, { message }, roundCredit ? { roundCredit } : undefined);
   } catch (error) {
     const profile = await store.get(phone);
     if (profile && profile.revealArmedAt === armedAt) {
@@ -1523,14 +1550,24 @@ export async function executeCritique(
     fixes_remaining: result.fixesRemaining,
   });
 
-  // The new cut takes the next number in the session's running order, so
-  // "5" means to the texter exactly what the fifth tile means on the web.
-  const position = allCuts(result.session).length;
+  // New cuts take the next numbers in the session's running order, so "5"
+  // means to the texter exactly what the fifth tile means on the web. A
+  // per-cut fix delivers one image; a reroll-set turn delivers the fresh
+  // round's pair.
+  const all = allCuts(result.session);
+  const delivered = (result.cuts?.length ? result.cuts : result.cut ? [result.cut] : []).filter(
+    (cut) => Boolean(cut.imageUrl)
+  );
   return {
-    cuts:
-      result.cut?.imageUrl
-        ? [{ caption: cutCaption(position - 1, position), mediaUrl: result.cut.imageUrl }]
-        : [],
+    // Positions come from allCuts — the canonical order both channels share
+    // — not from "last N": a reroll's pair sits before any critique cuts.
+    cuts: delivered.map((cut) => ({
+      caption: cutCaption(
+        all.findIndex((candidate) => candidate.id === cut.id),
+        all.length
+      ),
+      mediaUrl: cut.imageUrl!,
+    })),
     closingText: renderSmsReply(result.reply),
   };
 }

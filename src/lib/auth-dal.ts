@@ -8,7 +8,7 @@ if (!ensureAdminApp()) {
   console.warn('[Auth DAL] No Firebase Admin credentials configured. Token verification will fail.');
 }
 
-interface VerifiedUser {
+export interface VerifiedUser {
   uid: string;
   email?: string;
 }

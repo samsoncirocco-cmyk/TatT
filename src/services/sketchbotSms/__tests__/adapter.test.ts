@@ -465,6 +465,74 @@ describe('parity with the web after the reveal', () => {
       expect(profile?.lastStage).toBe('revealed');
     });
 
+    it('delivers a reroll pair with round-order captions, port wired to the linked meter', async () => {
+      // "new ones" through the same seam: the service classifies and draws
+      // the fresh round; this channel stands the credit port and sends BOTH
+      // cuts, numbered from allCuts — the order the web shows.
+      await driveToRevealed();
+      await handleInbound({ phone: PHONE, body: 'new ones' });
+      const armed = await memoryProfileStore.get(PHONE);
+      armed!.uid = 'user-1';
+      await memoryProfileStore.save(armed!);
+
+      const freshCuts = [3, 4].map((n) => ({
+        id: `v${n}`,
+        axisPosition: { 'bold-fine': n === 3 ? 'bold' : 'fine' },
+        prompt: `fresh ${n}`,
+        imageUrl: `https://storage.example/cut-${n}.png`,
+      }));
+      const session = {
+        ...revealedSession(),
+        variations: [...revealedSession().variations, ...freshCuts],
+        rounds: [
+          { round: 1, axis: 'bold-fine', variationIds: ['v1', 'v2'] },
+          { round: 2, axis: 'bold-fine', variationIds: ['v3', 'v4'] },
+        ],
+      };
+      vi.mocked(critique).mockResolvedValueOnce({
+        session,
+        reply: 'fresh pair’s up — that was one credit.',
+        cuts: freshCuts,
+        round: session.rounds[1],
+        fixesRemaining: 24,
+        exhausted: false,
+        generated: true,
+      } as unknown as Awaited<ReturnType<typeof critique>>);
+
+      const delivery = await executeCritique('s1', PHONE, 'new ones', await currentArmedAt());
+
+      expect(delivery.cuts).toEqual([
+        { caption: 'Cut 3 of 4', mediaUrl: 'https://storage.example/cut-3.png' },
+        { caption: 'Cut 4 of 4', mediaUrl: 'https://storage.example/cut-4.png' },
+      ]);
+      expect(delivery.closingText).toContain('fresh pair');
+
+      // The port rides the call, wired to THIS texter's meter.
+      const call = vi.mocked(critique).mock.calls.at(-1)!;
+      const opts = call[2] as { roundCredit: { reserve: () => Promise<{ id: string }> } };
+      expect(opts?.roundCredit).toBeDefined();
+      await opts.roundCredit.reserve();
+      expect(reserveGenerationCredit).toHaveBeenCalledWith('user-1');
+    });
+
+    it('stands NO credit port behind an unlinked texter — the service refuses in voice', async () => {
+      await driveToRevealed();
+      await handleInbound({ phone: PHONE, body: 'new ones' });
+      vi.mocked(critique).mockResolvedValueOnce({
+        session: revealedSession(),
+        reply: 'a fresh set is a full round on your credits…',
+        fixesRemaining: 24,
+        exhausted: false,
+        generated: false,
+      } as unknown as Awaited<ReturnType<typeof critique>>);
+
+      await executeCritique('s1', PHONE, 'new ones', await currentArmedAt());
+
+      const call = vi.mocked(critique).mock.calls.at(-1)!;
+      expect(call[2]).toBeUndefined();
+      expect(reserveGenerationCredit).not.toHaveBeenCalled();
+    });
+
     it('passes a turn that spent nothing straight through', async () => {
       await driveToRevealed();
       await handleInbound({ phone: PHONE, body: 'again but bolder' });
