@@ -12,6 +12,7 @@ import { signingBucketName } from '@/services/gcs-service';
 import { DEMO_MOCK_IMAGES } from '@/lib/demo-images';
 import { extractIntake } from '../../intake';
 import type { IntakeRecord, VariationAxis } from '../../intake/types';
+import { settledAxes } from '../../intake/settledAxes';
 import { enhanceStructured, enhanceRound } from '../../council';
 import type { RoundSpread } from '../../council';
 import { generate, routeGeneration } from '../../generation';
@@ -52,6 +53,7 @@ import {
 import {
   ALLOWANCE_SPENT_LINE,
   CHATTER_LINE,
+  NO_SUCH_CUT_LINE,
   WHICH_CUT_LINE,
   fixLandedLine,
   fixesLeftLine,
@@ -700,12 +702,17 @@ async function runClaimedRound(
   }
 
   const roundNumber = (session.rounds?.length ?? 0) + 1;
-  // Next unasked rung of the ladder — round one may have led with an axis
-  // the customer explicitly requested, so progression skips axes already
-  // spread rather than replaying the ladder by index.
+  // Next OPEN rung of the ladder — round one may have led with an axis the
+  // customer explicitly requested, so progression skips axes already spread
+  // rather than replaying the ladder by index; and it skips rungs the brief
+  // itself settled (ADR-0049), so a blackwork-committed session never pays
+  // a credit for a color-blackwork round that contradicts its own palette
+  // clause. When every rung is asked or settled, the round re-rolls on the
+  // locked poles as usual.
   const axis = nextRoundAxis(
     session.axisSelection.mode,
-    (session.rounds ?? []).map(round => round.axis)
+    (session.rounds ?? []).map(round => round.axis),
+    settledAxes(session.intake)
   ) as RoundSpread['axis'];
   const enhanced = await enhanceRound(session.intake, { roundNumber, axis, lockedPoles });
 
@@ -965,8 +972,14 @@ export async function critique(
   // Refused before any paid call, and spoken — never a silent no-op.
   if (remainingBefore <= 0) return settle(ALLOWANCE_SPENT_LINE);
 
-  const target = resolveCritiqueTarget(session, message);
-  if (!target) return settle(WHICH_CUT_LINE);
+  // Two different failures, two different replies, and neither spends a render.
+  // `missed` means they named a cut we could not place — asking "which one am i
+  // fixing?" there reads as not listening, and guessing costs a paid render on
+  // a design they did not ask for (the session 0f6234e9 "totem" turn).
+  const resolved = resolveCritiqueTarget(session, message);
+  if (resolved.kind === 'missed') return settle(NO_SUCH_CUT_LINE);
+  if (resolved.kind === 'none') return settle(WHICH_CUT_LINE);
+  const target = resolved.variation;
 
   const adjustedPrompt = adjustPromptForCritique(target, message);
   const cutId = `${target.id}-fix${used + 1}`;

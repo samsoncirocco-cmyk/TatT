@@ -32,7 +32,7 @@ export const ROUND_AXIS_POLES: Record<VariationAxis, [string, string]> = {
 
 /**
  * How each pole reads in round copy — same designed vocabulary as
- * revealCutNames' POLE_NAME (never the raw internal value).
+ * `./cutIdentity`'s POLE_NAME (never the raw internal value).
  */
 export const ROUND_POLE_LABEL: Record<string, string> = {
   bold: 'bold',
@@ -46,18 +46,30 @@ export const ROUND_POLE_LABEL: Record<string, string> = {
 };
 
 /**
- * The axis the NEXT round spreads on, given the axes already spread.
- * Compositional sessions stay compositional; questionnaire sessions walk
- * the ladder — skipping any rung an earlier round already asked (round one
- * may lead with an axis the customer explicitly requested) — and then
- * re-roll on locked poles. There is no hard cap.
+ * The axis the NEXT round spreads on, given the axes already spread and the
+ * axes the brief itself already settled. Compositional sessions stay
+ * compositional; questionnaire sessions walk the ladder — skipping any rung
+ * an earlier round already asked (round one may lead with an axis the
+ * customer explicitly requested) AND any rung the intake resolved
+ * (ADR-0049: a blackwork-committed brief must never be charged a credit for
+ * a color-blackwork round whose color cut contradicts its own palette
+ * clause) — and then re-roll on locked poles. There is no hard cap.
+ *
+ * `settledAxes` arrives as plain data (compute it with the intake module's
+ * settledAxes(record)) so this module stays pure and dependency-free —
+ * server and reveal UI keep computing the identical next axis.
  */
 export function nextRoundAxis(
   mode: 'questionnaire' | 'compositional',
-  priorAxes: readonly string[]
+  priorAxes: readonly string[],
+  settledAxes: readonly string[] = []
 ): string {
   if (mode === 'compositional') return COMPOSITION_AXIS;
-  return ROUND_AXIS_LADDER.find(axis => !priorAxes.includes(axis)) ?? REROLL_AXIS;
+  return (
+    ROUND_AXIS_LADDER.find(
+      axis => !priorAxes.includes(axis) && !settledAxes.includes(axis)
+    ) ?? REROLL_AXIS
+  );
 }
 
 /**
@@ -79,10 +91,11 @@ export function roundAxisLabel(axis: string): string {
  */
 export function refineInviteLine(
   mode: 'questionnaire' | 'compositional',
-  priorAxes: readonly string[]
+  priorAxes: readonly string[],
+  settledAxes: readonly string[] = []
 ): string {
   return `Good eye. Refine it? Next round is ${roundAxisLabel(
-    nextRoundAxis(mode, priorAxes)
+    nextRoundAxis(mode, priorAxes, settledAxes)
   )} — 1 credit.`;
 }
 

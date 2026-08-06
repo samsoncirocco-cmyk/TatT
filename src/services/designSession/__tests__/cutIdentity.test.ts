@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Variation } from '@/services/designSession/types';
-import { cutIdentity } from '../services/revealCutNames';
+import { cutIdentity } from '../cutIdentity';
 
 const variation = (axisPosition: Record<string, string>): Variation => ({
   id: 'v1',

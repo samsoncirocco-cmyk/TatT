@@ -17,6 +17,8 @@ import type {
   VariationAxis,
 } from '../../intake/types';
 import { VARIATION_AXIS_POOL, ROUND_AXIS_LADDER } from '../../intake/types';
+import { resolvePalette, settledAxes } from '../../intake/settledAxes';
+import type { Palette } from '../../intake/settledAxes';
 import { getBaseNegativePrompt, validatePromptLength } from './councilService';
 import { resolvePlacement } from '@/lib/placement';
 
@@ -306,6 +308,10 @@ export function selectAxes(record: IntakeRecord): AxisSelection {
   // The customer explicitly asked to SEE a split ("both color and
   // blackwork?") and the bot promised it — round one delivers THAT axis,
   // not the ladder's first rung; the ladder resumes on the remaining rungs.
+  // The request also wins over a settled-axis skip (below): asking to see
+  // the split is stronger, later evidence than the brief tags that settled
+  // it — and the conversation already reopened the axis when it recorded
+  // the request.
   if (record.requestedAxis) {
     return {
       mode: 'questionnaire',
@@ -329,46 +335,39 @@ export function selectAxes(record: IntakeRecord): AxisSelection {
     };
   }
 
-  const first = ROUND_AXIS_LADDER[0];
+  // Round one takes the ladder's first rung the brief did NOT already
+  // settle (ADR-0049): a blackwork-resolved brief must never open on a
+  // color-blackwork spread whose color cut contradicts its own palette
+  // clause. Every axis still in ambiguousAxes is unsettled by construction,
+  // so this branch (ambiguousAxes non-empty) always finds a rung; the
+  // fallback only satisfies the type-checker.
+  const settled = settledAxes(record);
+  const first =
+    ROUND_AXIS_LADDER.find(axis => !settled.includes(axis)) ?? ROUND_AXIS_LADDER[0];
+  const skipNote =
+    settled.length > 0
+      ? ` — skipping ${settled.join(', ')}, already settled by the brief`
+      : '';
   return {
     mode: 'questionnaire',
     axes: [first],
     rationale:
-      `Questionnaire mode: round one spreads on ${first}, the first rung of the fixed ` +
-      `ADR-0049 ladder (${ROUND_AXIS_LADDER.join(' > ')}); the pick locks a pole and each ` +
-      'REFINE round spreads the next rung while holding everything already picked.',
+      `Questionnaire mode: round one spreads on ${first}, the first open rung of the fixed ` +
+      `ADR-0049 ladder (${ROUND_AXIS_LADDER.join(' > ')})${skipNote}; the pick locks a pole ` +
+      'and each REFINE round spreads the next open rung while holding everything already picked.',
   };
 }
 
 /*
- * Palette resolution. Style tags decide whether a session is monochrome or
- * color, and that single decision drives two things: the front-loaded palette
- * clause and the negative prompt. Presentation is NOT one of them — it is
- * pinned to flash art for every session, see presentationClause(). Flux
- * weights the front of a prompt far more heavily than a trailing negative,
- * which is why the palette leads rather than being folded into "Avoid:".
+ * Palette resolution (resolvePalette, re-imported from the intake module —
+ * it now lives beside the record it reads, because the round-axis ladder
+ * skips settled rungs off the same decision). The palette drives two things
+ * here: the front-loaded palette clause and the negative prompt.
+ * Presentation is NOT one of them — it is pinned to flash art for every
+ * session, see presentationClause(). Flux weights the front of a prompt far
+ * more heavily than a trailing negative, which is why the palette leads
+ * rather than being folded into "Avoid:".
  */
-const MONOCHROME_TAGS = new Set([
-  'blackwork',
-  'black-and-grey',
-  'fine-line',
-  'geometric',
-  'dotwork',
-]);
-
-const COLOR_TAGS = new Set(['color', 'neo-traditional', 'watercolor', 'new-school']);
-
-type Palette = 'color' | 'monochrome' | 'unresolved';
-
-/**
- * Color wins a tag conflict ("fine-line color"): naming color is an explicit
- * commitment, while the monochrome tags are often just line-style shorthand.
- */
-export function resolvePalette(styleTags: readonly string[]): Palette {
-  if (styleTags.some(tag => COLOR_TAGS.has(tag))) return 'color';
-  if (styleTags.some(tag => MONOCHROME_TAGS.has(tag))) return 'monochrome';
-  return 'unresolved';
-}
 
 /** Front-loaded palette clause — first words of every prompt tier. */
 function paletteClause(palette: Palette): string {

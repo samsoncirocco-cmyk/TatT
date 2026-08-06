@@ -1,0 +1,301 @@
+{
+  "$comment": "Golden routing/memory eval. See README.md in this directory. Turns marked source:'live' are verbatim from Firestore design_sessions/0f6234e9-c699-4b98-b0ba-fb289c1a3226 (2026-08-05). Turns marked source:'synthetic' cover classes that session never exercised.",
+  "sessionId": "0f6234e9-c699-4b98-b0ba-fb289c1a3226",
+  "capturedAt": "2026-08-05T23:13:00Z",
+  "routes": [
+    "intake",
+    "commentary",
+    "iterate-cut",
+    "swap-subject",
+    "reroll-set",
+    "new-idea",
+    "ambiguous"
+  ],
+  "turns": [
+    {
+      "n": 1,
+      "source": "live",
+      "phase": "intake",
+      "message": "I have a tattoo idea",
+      "expectedRoute": "intake",
+      "expectedWrites": [],
+      "note": "No concept yet. Nothing is durable about 'I have an idea' \u2014 do not create an Idea on an opener."
+    },
+    {
+      "n": 2,
+      "source": "live",
+      "phase": "intake",
+      "message": "I want to build out a sleeve eventually so I want some kind of consistent style I can land on that won't block me out of other tattoos later",
+      "expectedRoute": "intake",
+      "expectedWrites": [],
+      "note": "States the sleeve constraint before any Idea exists. Held on the turn, attached when the Idea is created on turn 3. ADR-0055 defers modelling the sleeve itself."
+    },
+    {
+      "n": 3,
+      "source": "live",
+      "phase": "intake",
+      "message": "Right arm, and I wanted greek myths to be the main piece but I also want to incorporate other things which is why I wasn't sure on the sleeve, like I guess lets start with a different one first that we want to not clash with the other ones. So I recently saw a cool tattoo of Nelson from the Simpsons but punk with a tear. And I want something like that, Punk Simpsons that is hard dark lines that won't crash with greek myth tats",
+      "expectedRoute": "intake",
+      "expectedWrites": [
+        {
+          "op": "idea.create",
+          "concept": "punk Simpsons arm piece",
+          "placement": "right arm"
+        },
+        {
+          "op": "idea.reference.add",
+          "value": "a tattoo of punk Nelson with a tear that he saw",
+          "relation": "INSPIRED_BY"
+        },
+        {
+          "op": "idea.subject.set",
+          "subject": "Nelson Muntz from The Simpsons, punk, crying",
+          "relation": "DEPICTS"
+        },
+        {
+          "op": "idea.styleTag.add",
+          "tag": "blackwork",
+          "tier": "canonical",
+          "relation": "USES_STYLE"
+        },
+        {
+          "op": "idea.descriptor.add",
+          "value": "punk",
+          "tier": "free",
+          "facet": "mood"
+        },
+        {
+          "op": "idea.descriptor.add",
+          "value": "hard dark lines",
+          "tier": "free",
+          "facet": "linework"
+        },
+        {
+          "op": "idea.descriptor.add",
+          "value": "crying",
+          "tier": "free",
+          "facet": "mood"
+        },
+        {
+          "op": "idea.constraint.add",
+          "value": "must not clash with future greek myth work",
+          "relation": "HAS_CONSTRAINT"
+        }
+      ],
+      "note": "Two ideas are named in one message. Only the Simpsons piece is created \u2014 the customer explicitly defers the Greek myth one ('lets start with a different one first'). A router that creates both is wrong; a router that creates the Greek one is very wrong."
+    },
+    {
+      "n": 4,
+      "source": "live",
+      "phase": "reveal",
+      "message": "<consent to the proposal>",
+      "expectedRoute": "intake",
+      "expectedWrites": [
+        {
+          "op": "generationSet.create",
+          "setNumber": 1,
+          "size": 4
+        },
+        {
+          "op": "cut.create",
+          "count": 4,
+          "withActualTags": true
+        }
+      ],
+      "note": "Set size is whatever the pass drew \u2014 4 here, 2 under a pick-to-refine round. Nothing may assume 4."
+    },
+    {
+      "n": 5,
+      "source": "live",
+      "phase": "post-reveal",
+      "message": "Lets try and make it specifically of Homer Simpson, and make it punk with dark lines, but not a lot of detail, so it is simple linework",
+      "expectedRoute": "swap-subject",
+      "expectedWrites": [
+        {
+          "op": "idea.subject.abandon",
+          "subject": "Nelson Muntz from The Simpsons, punk, crying",
+          "relation": "REJECTED_DESCRIPTOR"
+        },
+        {
+          "op": "idea.subject.set",
+          "subject": "Homer Simpson, punk",
+          "relation": "DEPICTS"
+        },
+        {
+          "op": "idea.descriptor.add",
+          "value": "simple linework",
+          "tier": "free",
+          "facet": "linework"
+        },
+        {
+          "op": "idea.descriptor.add",
+          "value": "low detail",
+          "tier": "free",
+          "facet": "texture-detail"
+        },
+        {
+          "op": "generationSet.create",
+          "setNumber": 2,
+          "underSameIdea": true
+        }
+      ],
+      "actual": "WHICH_CUT_LINE \u2014 'which one am i fixing? tap it, or just say the number'",
+      "note": "REGRESSION CASE. Same Idea, new subject (ADR-0055). The live system asked which cut to fix; nothing was being fixed."
+    },
+    {
+      "n": 6,
+      "source": "live",
+      "phase": "post-reveal",
+      "message": "Redo it again and give me 4 new ones",
+      "expectedRoute": "reroll-set",
+      "expectedWrites": [
+        {
+          "op": "generationSet.create",
+          "setNumber": 3,
+          "underSameIdea": true
+        }
+      ],
+      "actual": "WHICH_CUT_LINE (identical reply, 2nd consecutive)",
+      "note": "REGRESSION CASE. Default for 'new ones' is new pictures, same Idea (ADR-0056)."
+    },
+    {
+      "n": 7,
+      "source": "live",
+      "phase": "post-reveal",
+      "message": "Give me 4 new samples not any particular number",
+      "expectedRoute": "reroll-set",
+      "expectedWrites": [
+        {
+          "op": "generationSet.create",
+          "setNumber": 4,
+          "underSameIdea": true
+        }
+      ],
+      "actual": "WHICH_CUT_LINE (identical reply, 3rd consecutive)",
+      "note": "REGRESSION CASE. 'not any particular number' explicitly refuses the question being asked. A router that still asks it has failed the clearest signal in the session."
+    },
+    {
+      "n": 8,
+      "source": "synthetic",
+      "phase": "post-reveal",
+      "message": "the third one is sick",
+      "expectedRoute": "commentary",
+      "expectedWrites": [
+        {
+          "op": "signal.pick",
+          "cutOrdinal": 3
+        }
+      ],
+      "note": "Approval of a specific cut. No render fires."
+    },
+    {
+      "n": 9,
+      "source": "synthetic",
+      "phase": "post-reveal",
+      "message": "hate the first one, way too busy",
+      "expectedRoute": "commentary",
+      "expectedWrites": [
+        {
+          "op": "signal.reject",
+          "cutOrdinal": 1
+        },
+        {
+          "op": "idea.descriptor.negative.add",
+          "value": "busy",
+          "tier": "free",
+          "facet": "texture-detail",
+          "relation": "REJECTED_DESCRIPTOR"
+        }
+      ],
+      "note": "Rejection carries a reason. The reason is a negative descriptor, not a style tag."
+    },
+    {
+      "n": 10,
+      "source": "synthetic",
+      "phase": "post-reveal",
+      "message": "make the third one bigger and lose the sparkles",
+      "expectedRoute": "iterate-cut",
+      "expectedWrites": [
+        {
+          "op": "cut.iterate",
+          "cutOrdinal": 3
+        }
+      ],
+      "note": "The one case the current critique lane already handles correctly. It must keep working."
+    },
+    {
+      "n": 11,
+      "source": "synthetic",
+      "phase": "post-reveal",
+      "message": "actually forget the simpsons, lets do the greek myth one now",
+      "expectedRoute": "new-idea",
+      "expectedWrites": [
+        {
+          "op": "idea.close",
+          "reason": "customer moved on"
+        },
+        {
+          "op": "idea.create",
+          "concept": "greek myth piece",
+          "placement": "right arm",
+          "inheritsConstraints": true
+        }
+      ],
+      "note": "A genuine new Idea. Note it inherits the arm and the don't-clash constraint from turn 3 \u2014 the customer stated both about the sleeve, not about the Simpsons piece."
+    },
+    {
+      "n": 12,
+      "source": "synthetic",
+      "phase": "post-reveal",
+      "message": "nah start over",
+      "expectedRoute": "ambiguous",
+      "expectedWrites": [],
+      "expectedReply": "asks one question \u2014 fresh takes on the Simpsons piece, or a different tattoo entirely?",
+      "note": "Two turns of history cannot disambiguate this. ADR-0056 requires a question, not a guess. The question doubles as a taste probe."
+    },
+    {
+      "n": 13,
+      "source": "synthetic",
+      "phase": "post-reveal",
+      "message": "the totem, but make the top character bigger",
+      "expectedRoute": "iterate-cut",
+      "expectedWrites": [
+        {
+          "op": "cut.iterate",
+          "cutName": "the totem"
+        }
+      ],
+      "note": "Reconstructs the Smash-export failure (sprint plan fix #1); this session's round was never compositional, so the turn is synthetic. The customer names a cut by the designed name the grid showed them, and resolution must land on THAT cut. The live system had no server-side knowledge of 'the totem', matched nothing, fell through to its most-recent-cut default, re-cut 'the run', and announced it by name - a paid render on a design nobody asked for."
+    },
+    {
+      "n": 14,
+      "source": "synthetic",
+      "phase": "post-reveal",
+      "message": "the totem, but make the top character bigger",
+      "expectedRoute": "ambiguous",
+      "expectedWrites": [],
+      "expectedReply": "says it cannot place that name and re-offers tap-or-number - never re-cuts a design the customer did not refer to",
+      "note": "Same message, on a round with no stacked-tiers cut. A name from the vocabulary that this round did not show is a miss to ask about, NOT a licence to fall back to the pick or the newest re-cut. This is the assertion that separates 'named a cut and missed' from 'named no cut at all' - the latter (turn 10's bare critique) may still use context."
+    }
+  ],
+  "facets": [
+    "style",
+    "subject",
+    "motif",
+    "composition",
+    "linework",
+    "color",
+    "texture-detail",
+    "mood",
+    "placement",
+    "scale",
+    "constraint"
+  ],
+  "relations": [
+    "INSPIRED_BY",
+    "DEPICTS",
+    "USES_STYLE",
+    "HAS_CONSTRAINT",
+    "REJECTED_DESCRIPTOR"
+  ]
+}

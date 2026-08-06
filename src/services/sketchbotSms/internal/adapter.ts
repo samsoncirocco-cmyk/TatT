@@ -65,7 +65,7 @@ import {
 } from '@/lib/generation-credits';
 // The cut-naming vocabulary — the SMS round text names poles exactly the
 // way the web reveal does ("A is bold, B is fine-line").
-import { cutIdentity } from '@/features/design-session/services/revealCutNames';
+import { cutIdentity } from '@/services/designSession/cutIdentity';
 import {
   referenceFollowUpText,
   REFERENCE_UNREADABLE_TEXT,

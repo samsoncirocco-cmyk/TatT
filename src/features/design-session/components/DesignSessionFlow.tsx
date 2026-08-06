@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { DesignSession } from '@/services/designSession/types';
 import { refineInviteLine } from '@/services/designSession/roundPlan';
+import { settledAxes } from '@/services/intake/settledAxes';
 import type { ConversationMessage } from '@/services/designConversation';
 import {
   startSession,
@@ -308,7 +309,11 @@ export function DesignSessionFlow({ initialSession }: { initialSession?: DesignS
               <ChatBubble role="bot">
                 {refineInviteLine(
                   session.axisSelection.mode,
-                  session.rounds.map((round) => round.axis)
+                  session.rounds.map((round) => round.axis),
+                  // Rungs the brief settled are skipped server-side too
+                  // (ADR-0049) — the invite must promise the axis the
+                  // charged round will actually spread.
+                  settledAxes(session.intake)
                 )}
               </ChatBubble>
               <div className="flex gap-3">
