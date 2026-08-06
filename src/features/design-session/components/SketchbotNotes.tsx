@@ -24,7 +24,7 @@ export const NOTES_HINT = 'tap to fix';
 export const NOTES_EMPTY_LINE = 'nothing yet — talk to me.';
 export const IP_HEADS_UP_LINE =
   'heads-up: inspired-by take — your artist dials in the exact likeness.';
-export const DRAW_CTA_LABEL = 'ready when you are — draw 4 takes ▸';
+export const DRAW_CTA_LABEL = 'ready when you are — draw 2 cuts ▸';
 
 interface NoteRow {
   key: string;

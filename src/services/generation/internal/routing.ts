@@ -16,6 +16,11 @@ const MODEL_ID_MAP: Record<string, string> = {
   flux_dev: 'flux-dev',
   flux_schnell: 'flux-schnell',
   krea_2: 'krea2',
+  nano_banana_2: 'nano-banana-2',
+  // No longer any route's key (ADR-0048 moved the cast lane to
+  // nano-banana-2 on Replicate), but sessions pinned before the switch
+  // stored this id and must keep resolving to the Vertex path they were
+  // pinned on (ADR-0016).
   imagen3: 'imagen3',
   // Retired SDXL-era config keys — kept so anything still passing an old
   // key (or a stored pinned route) resolves to the closest current model.
@@ -91,6 +96,28 @@ const buildNegativePrompt = (baseNegativePrompt: string | undefined, isStencilMo
 export const inferProvider = (modelId: string): ProviderName =>
   modelId === 'imagen3' ? 'vertex-ai' : 'replicate';
 
+// Resolved catalog id → the config key MODEL_FALLBACK_CHAIN is keyed by.
+// Pinned sessions store the RESOLVED id (ADR-0016), so a caller asking for
+// the fallback chain of a pinned model arrives with the catalog id.
+const CONFIG_KEY_BY_MODEL_ID: Record<string, string> = {
+  'flux-dev': 'flux_dev',
+  'flux-schnell': 'flux_schnell',
+  krea2: 'krea_2',
+  'nano-banana-2': 'nano_banana_2',
+  imagen3: 'imagen3'
+};
+
+/**
+ * Fallback chain for an explicitly pinned model id (ADR-0048's loud
+ * downgrade). Accepts either a resolved catalog id or a config key, returns
+ * resolved ids with the model itself removed. Unknown ids get an empty
+ * chain — no fallback is safer than a guessed one.
+ */
+export const fallbackChainForModelId = (modelId: string): string[] => {
+  const configKey = CONFIG_KEY_BY_MODEL_ID[modelId] ?? modelId;
+  return resolveFallbackChain(configKey).filter((id) => id !== resolveModelId(configKey));
+};
+
 export function routeGeneration(request: GenerationRequest): GenerationRoute {
   const mode = request.mode || 'standard';
 
@@ -100,14 +127,26 @@ export function routeGeneration(request: GenerationRequest): GenerationRoute {
   let reasoning = styleMapping?.reasoning || 'Default model routing';
 
   // 3+ named characters route to the Gemini lane (#293): Flux holds 39–49%
-  // cast completeness on those requests while gemini-3.1-flash-image held
-  // 100%. Gemini's text-intrusion habit is the render text guard's job
-  // (#297/#305) — every lane shares that risk and the gate screens them all.
-  // Preview and stencil below still win: previews are cheap drafts, and
-  // stencil derivation needs flux-dev's image input.
+  // cast completeness on those requests while the Gemini image model held
+  // 100%. Served via Replicate as nano-banana-2 (ADR-0048) — one bill, no
+  // Vertex quota exposure. Gemini's text-intrusion habit is the render text
+  // guard's job (#297/#305) — every lane shares that risk and the gate
+  // screens them all. Preview and stencil below still win: previews are
+  // cheap drafts, and stencil derivation needs flux-dev's image input.
   if ((request.castSize ?? 0) >= 3) {
-    modelKey = 'imagen3';
-    reasoning = 'Gemini holds full cast completeness on 3+ character requests (#293); Flux drops identities';
+    modelKey = 'nano_banana_2';
+    reasoning = 'Gemini holds full cast completeness on 3+ character requests (#293); Flux drops identities (ADR-0048: served via Replicate)';
+  }
+
+  // Attached reference photos force the strong lane regardless of cast size
+  // (#296 18a): likeness needs the one model with a real multi-image
+  // reference input. Placed after the cast rule (same lane either way) and
+  // before the preview/stencil overrides — a preview draft does not spend
+  // the strong lane, and stencil derivation transforms an already-approved
+  // design, where the photo already did its work.
+  if (request.referenceImages?.length) {
+    modelKey = 'nano_banana_2';
+    reasoning = 'Reference photos reach the model as images (ADR-0050); only the Gemini lane takes them';
   }
 
   if (mode === 'preview') {

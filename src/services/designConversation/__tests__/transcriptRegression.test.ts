@@ -19,6 +19,7 @@
  *  (g) sleeve-appropriate generation params (9:16, never square)
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { colorCallReply } from '../internal/persona';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -247,7 +248,8 @@ describe('live-transcript regression: the Togashi sleeve session', () => {
     const turn4 = results[3];
 
     expect(turn4.reply).not.toMatch(/not here to suggest|it'?s (really )?up to you/i);
-    expect(turn4.reply).toContain("Full color — that's my call");
+    // The recommendation itself, not its wording: colorCallReply owns the copy.
+    expect(turn4.reply).toContain(colorCallReply('recommendation', true));
     // The recommendation resolves the slot and the record advances — the
     // proposal beat fires on the same turn (the reveal is the questionnaire).
     expect(turn4.stage).toBe('proposal');
@@ -266,7 +268,7 @@ describe('live-transcript regression: the Togashi sleeve session', () => {
     expect(turn5.stage).toBe('proposal');
     expect(turn5.turnLog.firedRule).toBe('axis-request-proposal');
     expect(turn5.reply).toContain(PROPOSAL_LEAD);
-    expect(turn5.reply).toContain('split the four takes across full color and blackwork');
+    expect(turn5.reply).toContain('split the two cuts across full color and blackwork');
     // The axis is deliberately reopened and leads the selection order, and
     // the palette tags that would re-resolve it are cleared (ADR-0012).
     expect(turn5.record.ambiguousAxes?.[0]).toBe('color-blackwork');

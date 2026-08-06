@@ -17,6 +17,15 @@ import {
   type ConversationMessage,
 } from '../index';
 import { scoreRecord, CONFIDENCE_THRESHOLD } from '../internal/confidence';
+// Assert against the constants, not their wording. These tests are about the
+// beat firing, not about the copy in it — hardcoding the sentence made a pure
+// copy change look like nine behavioural regressions.
+import {
+  HANDOFF_MESSAGE,
+  PROPOSAL_AFFORDANCE,
+  PROPOSAL_LEAD,
+  PROPOSAL_REMINDER,
+} from '../internal/persona';
 import { resetStyleTagCache } from '../internal/ontology';
 import {
   PROVIDER_FAILOVER_EVENT,
@@ -169,7 +178,7 @@ describe('runTurn — judgment cadence', () => {
     expect(result.playback).toBeTruthy();
     // ADR-0020's exact phrasing style.
     expect(result.reply).toBe(
-      `Here's what I'm hearing: ${result.playback}. Want to see four takes on this, or did I miss something?`
+      `${PROPOSAL_LEAD} ${result.playback}. ${PROPOSAL_AFFORDANCE}`
     );
     expect(result.playback).toContain('fine line');
     expect(result.playback).toContain('left forearm');
@@ -241,8 +250,8 @@ describe('runTurn — forced cadence (deterministic code, not model judgment)', 
     expect(result.stage).toBe('proposal');
     expect(result.turnLog.firedRule).toBe('turn12-force-proposal');
     expect(result.playback).toBeTruthy();
-    expect(result.reply).toContain("Here's what I'm hearing:");
-    expect(result.reply).toContain('Want to see four takes on this, or did I miss something?');
+    expect(result.reply).toContain(PROPOSAL_LEAD);
+    expect(result.reply).toContain(PROPOSAL_AFFORDANCE);
     // Best guess on a sparse record still reads as a judgment call, not a limit.
     expect(result.reply).not.toMatch(/limit|turn|cap/i);
   });
@@ -308,11 +317,7 @@ describe('runTurn — forced cadence (deterministic code, not model judgment)', 
 
     expect(result.stage).toBe('handoff');
     expect(result.turnLog.firedRule).toBe('turn20-handoff');
-    expect(result.reply).toBe(
-      "Sounds like you're still working out the concept — that's actually a " +
-        'great reason to talk to an artist directly. Want me to find a few who do ' +
-        'free consultations in your style?'
-    );
+    expect(result.reply).toBe(HANDOFF_MESSAGE);
     expect(result.reply).not.toMatch(/limit|cap/i);
     expect(HANDOFF_URL).toBe('/smart-match');
   });
@@ -473,6 +478,27 @@ describe('runTurn — provider chain', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0][0]).toContain('openrouter.ai');
     expect(result.turnLog.model).toBe('z-ai/glm-5.2');
+  });
+
+  // #327: both provider fetches carry a timeout signal, and expiry (a
+  // TimeoutError throw) rides the existing failover — a stalled Vertex
+  // never hangs the turn, the next provider answers instead.
+  it('bounds both provider calls and fails over when the timeout fires', async () => {
+    configureVertex();
+    configureOpenRouter();
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(
+        new DOMException('The operation was aborted due to timeout', 'TimeoutError')
+      )
+      .mockResolvedValueOnce(openRouterResponse(SPARSE_PAYLOAD));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await runTurn({ messages: MESSAGES, userTurn: 1 });
+
+    expect(result.turnLog.model).toBe('z-ai/glm-5.2');
+    expect(fetchMock.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
+    expect(fetchMock.mock.calls[1][1].signal).toBeInstanceOf(AbortSignal);
   });
 
   it('throws ConversationUnavailableError when every provider fails', async () => {
@@ -670,7 +696,7 @@ describe('runTurn — demo mode (NEXT_PUBLIC_DEMO_MODE)', () => {
     expect(turn3.stage).toBe('proposal');
     expect(turn3.turnLog.firedRule).toBe('judgment');
     expect(turn3.playback).toBeTruthy();
-    expect(turn3.reply).toContain("Here's what I'm hearing:");
+    expect(turn3.reply).toContain(PROPOSAL_LEAD);
     expect(turn3.record).toEqual({
       placement: 'left forearm',
       styleTags: ['fine-line'],
@@ -851,7 +877,7 @@ describe('runTurn — repeated-reply guard', () => {
 
 describe('runTurn — proposal beat answers follow-up questions', () => {
   const PLAYED_BACK =
-    "Here's what I'm hearing: a illustrative piece on your forearm — love for anime/manga. Want to see four takes on this, or did I miss something?";
+    `${PROPOSAL_LEAD} a illustrative piece on your forearm — love for anime/manga. ${PROPOSAL_AFFORDANCE}`;
 
   const AFTER_PROPOSAL: ConversationMessage[] = [
     { role: 'bot', text: opener() },
@@ -877,7 +903,9 @@ describe('runTurn — proposal beat answers follow-up questions', () => {
     expect(result.reply).toContain('Hunter x Hunter');
     // The reveal must stay one tap away — restated as a STATEMENT, never
     // the same affordance question verbatim a second time.
-    expect(result.reply).toContain('one tap away');
+    expect(result.reply).toContain(PROPOSAL_REMINDER);
+    // ...and as a statement, not the affordance question asked twice.
+    expect(result.reply).not.toContain(PROPOSAL_AFFORDANCE);
   });
 
   it('still announces the playback the FIRST time the beat fires', async () => {
@@ -887,7 +915,7 @@ describe('runTurn — proposal beat answers follow-up questions', () => {
     const result = await runTurn({ messages: MESSAGES, userTurn: 3 });
 
     expect(result.reply).toBe(
-      `Here's what I'm hearing: ${result.playback}. Want to see four takes on this, or did I miss something?`
+      `${PROPOSAL_LEAD} ${result.playback}. ${PROPOSAL_AFFORDANCE}`
     );
   });
 
@@ -902,7 +930,7 @@ describe('runTurn — proposal beat answers follow-up questions', () => {
 
     const result = await runTurn({ messages: AFTER_PROPOSAL, userTurn: 4 });
 
-    expect(result.reply).toContain("Here's what I'm hearing:");
+    expect(result.reply).toContain(PROPOSAL_LEAD);
     expect(result.reply).toContain(result.playback!);
   });
 });
@@ -1118,7 +1146,7 @@ describe('runTurn — draw request (TAT-48 visible fast lane)', () => {
     expect(result.turnLog.firedRule).toBe('draw-request-proposal');
     // The announce beat still runs — consent is never skipped (ADR-0020).
     expect(result.playback).toBeTruthy();
-    expect(result.reply).toContain("Here's what I'm hearing:");
+    expect(result.reply).toContain(PROPOSAL_LEAD);
   });
 
   it('asks for the one real gap instead of refusing when there is nothing to draw yet', async () => {

@@ -2,11 +2,14 @@
 
 import { useState } from 'react';
 import type { DesignSession } from '@/services/designSession/types';
+import { refineInviteLine } from '@/services/designSession/roundPlan';
 import type { ConversationMessage } from '@/services/designConversation';
 import {
   startSession,
   submitCritique,
   submitPick,
+  submitRoundPick,
+  runRefineRound,
   submitRefinement,
 } from '../services/designSessionApi';
 import { revealNarration } from '../services/revealNarration';
@@ -24,6 +27,29 @@ import { PlacementPreview } from './PlacementPreview';
 const QUESTION_PLACEMENT = 'Where does it go?';
 const QUESTION_MEANING = 'And what do you want to feel when you look at it?';
 
+/** The round prompt (ADR-0049 acceptance copy) — two cuts, one axis, one tap. */
+export const ROUND_PROMPT = 'Two cuts. Tap the one that’s closer.';
+
+/** The charged-round button (ADR-0049 acceptance copy). */
+export const REFINE_BUTTON_LABEL = 'Refine — 1 credit';
+
+/**
+ * The way OUT of the loop: locks the round pick as the session's pick (the
+ * other cut is the implicit most-not-you) and opens the one ADR-0013
+ * refinement question toward the Brief.
+ */
+export const LOCK_IN_LABEL = 'Lock it in';
+
+/**
+ * The ADR-0048 loud downgrade, on web: the round rendered off the pinned
+ * lane, and the refund line is only spoken when the release actually
+ * landed — same honesty rule as the SMS wording.
+ */
+export const ROUND_DOWNGRADED_REFUNDED_NOTICE =
+  'heads up — this round came off my backup lane, so that credit is back.';
+export const ROUND_DOWNGRADED_NOTICE =
+  'heads up — this round came off my backup lane.';
+
 /**
  * The invitation that keeps the chat alive past the reveal (ADR-0039). Says
  * the feature out loud with the exact kind of sentence it accepts — nobody
@@ -39,7 +65,8 @@ type FlowStep =
   | 'ask-meaning'
   | 'starting'
   | 'reveal'
-  | 'most-not-you'
+  | 'round-picking'
+  | 'rounding'
   | 'picking'
   | 'refine'
   | 'refining'
@@ -48,13 +75,18 @@ type FlowStep =
 /** The in-flight session call, kept around so a failed one can be retried. */
 type SessionAction =
   | { kind: 'start'; placement: string; meaning: string }
+  | { kind: 'round-pick'; sessionId: string; pickedId: string }
+  | { kind: 'round'; sessionId: string }
   | { kind: 'pick'; sessionId: string; pickId: string; mostNotYouId: string }
   | { kind: 'refine'; sessionId: string; answer: string };
 
 /**
- * The design session as one conversation: intake → working state → reveal →
- * pick → most-not-you tap → one refinement round → hard-stop handoff
- * (ADR-0013). State only ever moves forward.
+ * The design session as one conversation: intake → working state → the
+ * pick-to-refine loop (ADR-0049: two cuts a round, the tap picks a pole,
+ * REFINE charges one credit and seeds the next round with the picked image)
+ * → lock-in → one refinement round → hard-stop handoff (ADR-0013). State
+ * only ever moves forward, except the loop itself, which the credit meter
+ * ends.
  *
  * The scripted two-question intake here is the LLM-down degraded mode
  * (ADR-0019); the live conversational intake (DesignConversation) hands an
@@ -67,23 +99,53 @@ export function DesignSessionFlow({ initialSession }: { initialSession?: DesignS
   const [placementAnswer, setPlacementAnswer] = useState('');
   const [meaningAnswer, setMeaningAnswer] = useState('');
   const [session, setSession] = useState<DesignSession | null>(initialSession ?? null);
-  const [pickId, setPickId] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
   const [lastAction, setLastAction] = useState<SessionAction | null>(null);
+  // The ADR-0048 downgrade notice for the latest charged round — spoken,
+  // never swallowed; cleared by the next action.
+  const [roundNotice, setRoundNotice] = useState<string | null>(null);
   // The critique lane (ADR-0039): its own transcript below the reveal, so the
-  // pick/most-not-you taps and the typed criticism read as one conversation.
+  // round taps and the typed criticism read as one conversation.
   const [critiqueLog, setCritiqueLog] = useState<ConversationMessage[]>([]);
   const [critiquePending, setCritiquePending] = useState(false);
+
+  // The live round (ADR-0049): the only one whose pick can still change.
+  const liveRound = session?.rounds?.[session.rounds.length - 1];
+  // Sessions revealed before rounds existed fall back to all variations.
+  const roundCuts = session
+    ? liveRound
+      ? session.variations.filter((variation) => liveRound.variationIds.includes(variation.id))
+      : session.variations
+    : [];
+  const roundPickId = liveRound?.pickedId;
 
   const runAction = (action: SessionAction) => {
     setError(null);
     setLastAction(action);
+    setRoundNotice(null);
 
     let call: Promise<DesignSession>;
     let nextStep: FlowStep;
     if (action.kind === 'start') {
       setStep('starting');
       call = startSession({ placementAnswer: action.placement, meaningAnswer: action.meaning });
+      nextStep = 'reveal';
+    } else if (action.kind === 'round-pick') {
+      setStep('round-picking');
+      call = submitRoundPick(action.sessionId, { pickedId: action.pickedId });
+      nextStep = 'reveal';
+    } else if (action.kind === 'round') {
+      setStep('rounding');
+      // The ADR-0048 facts ride the envelope: a downgraded round is said
+      // out loud, and the refund is only claimed when it landed.
+      call = runRefineRound(action.sessionId).then((result) => {
+        if (result.downgraded) {
+          setRoundNotice(
+            result.creditReleased ? ROUND_DOWNGRADED_REFUNDED_NOTICE : ROUND_DOWNGRADED_NOTICE
+          );
+        }
+        return result.session;
+      });
       nextStep = 'reveal';
     } else if (action.kind === 'pick') {
       setStep('picking');
@@ -118,28 +180,40 @@ export function DesignSessionFlow({ initialSession }: { initialSession?: DesignS
     runAction({ kind: 'start', placement: placementAnswer, meaning: text });
   };
 
+  /**
+   * A tap on a round cut records (or changes) the round's pick — free and
+   * changeable until the next round is charged (ADR-0049). Cuts outside the
+   * live round (critique re-cuts) re-target the pick only through the old
+   * pick machinery at lock-in time, so a tap there is ignored here.
+   */
   const handleGridSelect = (variationId: string) => {
-    if (step === 'reveal') {
-      setPickId(variationId);
-      setStep('most-not-you');
-    } else if (step === 'most-not-you' && session && pickId) {
-      runAction({ kind: 'pick', sessionId: session.id, pickId, mostNotYouId: variationId });
-    } else if (
-      step === 'refine' &&
-      session?.mostNotYouId &&
-      variationId !== session.mostNotYouId
-    ) {
-      // A critique re-cut can land after the first pick. Taking it forward is
-      // a re-pick, not a second refinement: update the server-side selection
-      // and derive the one refinement question from the new cut.
-      setPickId(variationId);
-      runAction({
-        kind: 'pick',
-        sessionId: session.id,
-        pickId: variationId,
-        mostNotYouId: session.mostNotYouId,
-      });
-    }
+    if (step !== 'reveal' || !session) return;
+    if (!roundCuts.some((cut) => cut.id === variationId)) return;
+    if (variationId === roundPickId) return;
+    runAction({ kind: 'round-pick', sessionId: session.id, pickedId: variationId });
+  };
+
+  /** The charged next round — 1 credit, seeded by the picked cut. */
+  const handleRefineRound = () => {
+    if (!session) return;
+    runAction({ kind: 'round', sessionId: session.id });
+  };
+
+  /**
+   * Lock the round pick in as the session's pick and head for the Brief:
+   * with two cuts the unpicked one IS the most-not-you — one clean negative
+   * signal, no extra tap.
+   */
+  const handleLockIn = () => {
+    if (!session || !roundPickId) return;
+    const other = roundCuts.find((cut) => cut.id !== roundPickId);
+    if (!other) return;
+    runAction({
+      kind: 'pick',
+      sessionId: session.id,
+      pickId: roundPickId,
+      mostNotYouId: other.id,
+    });
   };
 
   /**
@@ -168,13 +242,14 @@ export function DesignSessionFlow({ initialSession }: { initialSession?: DesignS
       .finally(() => setCritiquePending(false));
   };
 
-  const gridMode: RevealMode = step === 'reveal' ? 'pick' : step === 'most-not-you' ? 'not-you' : 'locked';
-  const critiqueGridMode: RevealMode = step === 'refine' ? 'pick' : gridMode;
-  const showGrid = session !== null && (step === 'reveal' || step === 'most-not-you' || step === 'picking');
+  const gridMode: RevealMode = step === 'reveal' ? 'pick' : 'locked';
+  const showGrid =
+    session !== null &&
+    (step === 'reveal' || step === 'round-picking' || step === 'picking');
   // Open from the reveal until the Brief exists — at 'complete' the ADR-0013
   // hard stop has fired and the handoff owns the screen.
   const showCritique =
-    session !== null && (step === 'reveal' || step === 'most-not-you' || step === 'refine');
+    session !== null && (step === 'reveal' || step === 'refine');
   const critiqueCuts = session?.critiqueCuts ?? [];
 
   return (
@@ -209,29 +284,56 @@ export function DesignSessionFlow({ initialSession }: { initialSession?: DesignS
           narration is in-voice, DERIVED from the axis selection — the raw
           axisSelection.rationale is an internal audit log (ADR-0012) and
           must never render as a chat message. */}
-      {step === 'starting' && !error && <GeneratingBeat lines={REVEAL_BEAT_LINES} />}
+      {(step === 'starting' || step === 'rounding') && !error && (
+        <GeneratingBeat lines={REVEAL_BEAT_LINES} />
+      )}
       {showGrid && session && (
         <>
           <ChatBubble role="bot">{revealNarration(session.axisSelection)}</ChatBubble>
-          <ChatBubble role="bot">
-            {step === 'most-not-you' ? (
-              <>
-                And which one feels most <em>not</em> you? Ruling one out teaches me as much as
-                your pick.
-              </>
-            ) : (
-              'Four directions. Tap the one that hits.'
-            )}
-          </ChatBubble>
+          {roundNotice && <ChatBubble role="bot">{roundNotice}</ChatBubble>}
+          <ChatBubble role="bot">{ROUND_PROMPT}</ChatBubble>
           <RevealGrid
-            variations={session.variations}
+            variations={roundCuts}
             mode={gridMode}
-            pickId={pickId}
+            pickId={roundPickId}
             onSelect={handleGridSelect}
+            indexOffset={Math.max(0, session.variations.findIndex((v) => v.id === roundCuts[0]?.id))}
           />
+          {/* The pick landed: the invitation into the next round (ADR-0049).
+              Copy computes the next axis from the ladder, never hardcoded.
+              The pick stays changeable — tapping the other cut re-picks —
+              until "Refine" charges the round and freezes it. */}
+          {step === 'reveal' && roundPickId && session.rounds && (
+            <>
+              <ChatBubble role="bot">
+                {refineInviteLine(
+                  session.axisSelection.mode,
+                  session.rounds.map((round) => round.axis)
+                )}
+              </ChatBubble>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleRefineRound}
+                  className="press font-body text-[10px] uppercase tracking-[0.2em] text-black bg-pink hover:bg-white px-3 py-2"
+                >
+                  {REFINE_BUTTON_LABEL}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLockIn}
+                  className="press font-body text-[10px] uppercase tracking-[0.2em] text-white/70 hover:text-black hover:bg-pink border hairline px-3 py-2"
+                >
+                  {LOCK_IN_LABEL}
+                </button>
+              </div>
+            </>
+          )}
         </>
       )}
-      {step === 'picking' && !error && <ThinkingLine label="Reading your pick" />}
+      {(step === 'round-picking' || step === 'picking') && !error && (
+        <ThinkingLine label="Reading your pick" />
+      )}
 
       {/* One refinement round — then the hard stop (ADR-0013) */}
       {step === 'refine' && session?.refinementQuestion && (
@@ -247,7 +349,7 @@ export function DesignSessionFlow({ initialSession }: { initialSession?: DesignS
 
       {/* The critique lane (ADR-0039): the chat survives the reveal, so plain
           criticism re-cuts the design instead of being discarded. Re-cuts
-          render through the same grid, and stay pickable. */}
+          render through the same grid. */}
       {showCritique && session && (
         <>
           <ChatBubble role="bot">{CRITIQUE_INVITE}</ChatBubble>
@@ -259,9 +361,8 @@ export function DesignSessionFlow({ initialSession }: { initialSession?: DesignS
           {critiqueCuts.length > 0 && (
             <RevealGrid
               variations={critiqueCuts}
-              mode={critiqueGridMode}
-              pickId={pickId}
-              onSelect={handleGridSelect}
+              mode="locked"
+              pickId={roundPickId}
               indexOffset={session.variations.length}
             />
           )}

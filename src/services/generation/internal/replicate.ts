@@ -32,6 +32,13 @@ interface ReplicateModel {
    * an image-to-image caller is asking for.
    */
   supportsSourceImage: boolean;
+  /**
+   * Accepts an `image_input` ARRAY of reference images (ADR-0050 likeness).
+   * Only nano-banana-2 has it. Distinct from supportsSourceImage — that is
+   * composition-preserving image-to-image; this is subject/likeness
+   * reference for a fresh composition.
+   */
+  supportsReferenceImages: boolean;
   /** Ratios this model's input schema actually accepts (verified against its OpenAPI schema). */
   aspectRatios: ReadonlySet<string>;
   /** Requested ratio → nearest schema-legal ratio, for the gaps in aspectRatios. */
@@ -42,6 +49,11 @@ interface ReplicateModel {
 // Verified from the models' published OpenAPI schemas (replicate.com/<slug>).
 const FLUX_ASPECT_RATIOS = new Set(['1:1', '16:9', '21:9', '3:2', '2:3', '4:5', '5:4', '3:4', '4:3', '9:16', '9:21']);
 const KREA_ASPECT_RATIOS = new Set(['1:1', '4:3', '3:2', '16:9', '2.35:1', '4:5', '2:3', '9:16']);
+// Fetched from the live model API 2026-08-05 (also carries
+// 'match_input_image' and banner ratios 1:4/4:1/1:8/8:1, deliberately
+// excluded: the first needs an input image and the rest are not tattoo
+// shapes).
+const NANO_BANANA_ASPECT_RATIOS = new Set(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']);
 
 // The Flux/Krea catalog (replaced the SDXL-era models — two generations
 // behind on linework and prompt adherence). None of these accept a
@@ -55,6 +67,7 @@ export const REPLICATE_MODELS: Record<string, ReplicateModel> = {
     cost: 0.025,
     supportsNumOutputs: true,
     supportsSourceImage: true,
+    supportsReferenceImages: false,
     aspectRatios: FLUX_ASPECT_RATIOS,
     aspectRemap: {},
     params: {
@@ -70,11 +83,35 @@ export const REPLICATE_MODELS: Record<string, ReplicateModel> = {
     cost: 0.003,
     supportsNumOutputs: true,
     supportsSourceImage: false,
+    supportsReferenceImages: false,
     aspectRatios: FLUX_ASPECT_RATIOS,
     aspectRemap: {},
     params: {
       output_format: 'png'
     }
+  },
+  // The cast lane (ADR-0048): Gemini-family image model, replacing the
+  // Vertex imagen3 route for 3+ character requests. Contract verified live
+  // in the #318 measurement run: exactly one output per prediction (a
+  // string URI, no num_outputs input), $0.067/output at the default 1K
+  // resolution.
+  'nano-banana-2': {
+    id: 'nano-banana-2',
+    name: 'Nano Banana 2 (Gemini)',
+    slug: 'google/nano-banana-2',
+    cost: 0.067,
+    supportsNumOutputs: false,
+    // sourceImage stays false: the schema's image input is `image_input`,
+    // an ARRAY carrying likeness/subject reference — not the single `image`
+    // field composition-preserving image-to-image sends. Conflating them
+    // would silently repurpose a stencil derivation into a reference remix.
+    supportsSourceImage: false,
+    supportsReferenceImages: true,
+    aspectRatios: NANO_BANANA_ASPECT_RATIOS,
+    aspectRemap: {},
+    // output_format defaults to jpg on this model — pin png to match the
+    // rest of the catalog and the durable-image pipeline's expectations.
+    params: { output_format: 'png' }
   },
   krea2: {
     id: 'krea2',
@@ -83,6 +120,7 @@ export const REPLICATE_MODELS: Record<string, ReplicateModel> = {
     cost: 0.035,
     supportsNumOutputs: false,
     supportsSourceImage: false,
+    supportsReferenceImages: false,
     aspectRatios: KREA_ASPECT_RATIOS,
     // Krea's schema has no 3:4 — 4:5 is the nearest portrait ratio it takes.
     aspectRemap: { '3:4': '4:5' },
@@ -115,6 +153,19 @@ function resolveModel(modelId?: string): ReplicateModel {
 export function modelSupportsSourceImage(modelId?: string): boolean {
   return resolveModel(modelId).supportsSourceImage;
 }
+
+/**
+ * Whether a model id can honor `referenceImages` (ADR-0050 likeness).
+ * Exported for the same reason as modelSupportsSourceImage: a fallback to a
+ * model that would drop the customer's photo must be skipped, because a
+ * likeness silently dropped is a stranger's face in a memorial tattoo.
+ */
+export function modelSupportsReferenceImages(modelId?: string): boolean {
+  return resolveModel(modelId).supportsReferenceImages;
+}
+
+/** Schema cap on nano-banana-2's image_input; also our session cap is 6. */
+const MAX_REFERENCE_IMAGES = 6;
 
 function resolveAspectRatio(model: ReplicateModel, aspectRatio?: AspectRatio): string {
   if (!aspectRatio) return '1:1';
@@ -253,6 +304,21 @@ async function generateWithReplicate(request: GenerationRequest): Promise<Genera
       input.prompt_strength = Math.min(Math.max(request.sourceStrength, 0), 1);
     }
   }
+  // Reference photos as pixels (ADR-0050, #296 17a). Refused loudly on a
+  // model without the input, for the same reason sourceImage is: a caller
+  // promising a customer their photo informs the render must not silently
+  // get a photo-less render back.
+  const referenceImages = (request.referenceImages ?? []).filter(Boolean);
+  if (referenceImages.length > 0) {
+    if (!model.supportsReferenceImages) {
+      throw makeGenerationError(
+        `Model '${model.id}' has no reference-image input; referenceImages cannot be honored.`,
+        { status: 400, code: 'REFERENCE_IMAGES_UNSUPPORTED' }
+      );
+    }
+    input.image_input = referenceImages.slice(0, MAX_REFERENCE_IMAGES);
+  }
+
   if (request.seed !== undefined && request.seed !== '') {
     const seed = Number(request.seed);
     if (Number.isFinite(seed)) input.seed = seed;

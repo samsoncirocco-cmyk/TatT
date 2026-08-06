@@ -221,9 +221,95 @@ describe('startSession', () => {
       expect(request.modelId).toBe('imagen3');
       expect(request.aspectRatio).toBe('9:16');
       expect(request.numImages).toBe(1);
-      // Provider fallback would cross providers mid-session — must be off.
-      expect(request.allowProviderFallback).toBe(false);
+      // The reveal opts into the loud downgrade (ADR-0048): a failed pinned
+      // model may fall to its chain, flagged, never silently.
+      expect(request.allowProviderFallback).toBe(true);
     }
+  });
+
+  // ADR-0048's loud downgrade: a reveal that rendered on a fallback lane
+  // must say so on the session — copy and the credit release both read it.
+  it('marks the session downgraded when any reveal render fell back', async () => {
+    let call = 0;
+    mockGenerate.mockImplementation(async request => ({
+      images: [`https://replicate.delivery/pbxt/${++imageCounter}/out.png`],
+      metadata: {
+        model: request.modelId ?? 'unknown',
+        provider: 'replicate' as const,
+        generatedAt: new Date().toISOString(),
+        durationMs: 1,
+        attempts: 1,
+        // Only the second render downgrades — one is enough.
+        fallbackUsed: ++call === 2,
+        ...(call === 2 ? { fallbackReason: 'REPLICATE_ERROR' } : {}),
+      },
+    }));
+
+    const session = await startSession(startRequest);
+
+    expect(session.downgraded).toBe(true);
+    expect(session.downgradeReason).toBe('REPLICATE_ERROR');
+    // And it survives persistence + the public projection.
+    const fetched = await getSession(session.id);
+    expect(fetched?.downgraded).toBe(true);
+  });
+
+  it('leaves the downgrade fields entirely absent on a clean reveal', async () => {
+    const session = await startSession(startRequest);
+
+    // Absent, not false/undefined-valued: Firestore rejects explicit
+    // undefined, and "no downgrade" must not look like a recorded fact.
+    expect('downgraded' in session).toBe(false);
+    expect('downgradeReason' in session).toBe(false);
+  });
+
+  // The staged-reuse hole (Sonnet's #329 review): attempt #1 stages a
+  // FALLBACK render for v1, then fails on a sibling before the session
+  // saves. The retry recovers v1 from staging — render() never runs for it —
+  // so the downgrade fact must come from the staged object's own metadata,
+  // written at upload time, or the customer pays for an undisclosed
+  // downgraded round.
+  it('reports a downgrade recovered from a staged image the retry never re-renders', async () => {
+    mockRecoverImageAtPath.mockImplementation(async objectPath =>
+      objectPath.includes('/v1-')
+        ? {
+            imageUrl: durableUrl(objectPath),
+            metadata: { downgradeReason: 'REPLICATE_ERROR' },
+          }
+        : null
+    );
+
+    const session = await startSession(startRequest);
+
+    // v1 was recovered, not re-bought: only the other three rendered…
+    expect(mockGenerate).toHaveBeenCalledTimes(3);
+    // …but the reveal still carries the downgrade of the render it reuses.
+    expect(session.downgraded).toBe(true);
+    expect(session.downgradeReason).toBe('REPLICATE_ERROR');
+  });
+
+  it('writes the downgrade fact into the staged object metadata at upload time', async () => {
+    let call = 0;
+    mockGenerate.mockImplementation(async request => ({
+      images: [`data:image/png;base64,aW1n${++imageCounter}`],
+      metadata: {
+        model: request.modelId ?? 'unknown',
+        provider: 'replicate' as const,
+        generatedAt: new Date().toISOString(),
+        durationMs: 1,
+        attempts: 1,
+        fallbackUsed: ++call === 1,
+        ...(call === 1 ? { fallbackReason: 'REPLICATE_ERROR' } : {}),
+      },
+    }));
+
+    await startSession(startRequest);
+
+    // The v1 upload (data URL → uploadImageToPath) must carry the fact.
+    const flagged = mockUploadImageToPath.mock.calls.filter(
+      ([, , metadata]) => (metadata as Record<string, string>)?.downgradeReason === 'REPLICATE_ERROR'
+    );
+    expect(flagged).toHaveLength(1);
   });
 
   // #293: the cast roster must reach routing, or the 3+ character rule can

@@ -197,7 +197,11 @@ export async function recoverImageAtPath(
  * prediction output from replicate.delivery and deletes it after an hour. A
  * design that outlives that hour has to be holding our copy, not their link.
  */
-export async function copyImageToPath(objectPath: string, sourceUrl: string): Promise<string> {
+export async function copyImageToPath(
+  objectPath: string,
+  sourceUrl: string,
+  objectMetadata: Record<string, string> = {}
+): Promise<string> {
   if (typeof window !== 'undefined') {
     throw new Error('[ImageStorage] copyImageToPath is server-only');
   }
@@ -209,7 +213,7 @@ export async function copyImageToPath(objectPath: string, sourceUrl: string): Pr
     );
   }
   const bytes = await response.arrayBuffer();
-  return uploadImageToPath(objectPath, bytes, { sourceHost: hostOf(sourceUrl) });
+  return uploadImageToPath(objectPath, bytes, { sourceHost: hostOf(sourceUrl), ...objectMetadata });
 }
 
 function hostOf(url: string): string {

@@ -104,6 +104,12 @@ function completeIntakeRecord(
     ...(record.vibe ? { vibe: record.vibe } : {}),
     references: record.references ?? [],
     ambiguousAxes,
+    // The explicitly requested spread (ADR-0049) rides through to axis
+    // selection — except literal-abstract on a named subject, which the
+    // same rule above already forbids from rendering abstract.
+    ...(record.requestedAxis && !(subject && record.requestedAxis === 'literal-abstract')
+      ? { requestedAxis: record.requestedAxis }
+      : {}),
   };
 }
 
@@ -292,7 +298,8 @@ export interface AttachReferenceResult {
 export async function attachReference(
   sessionId: string,
   analysis: ReferenceAnalysis,
-  source: StoredReference['source']
+  source: StoredReference['source'],
+  imagePath?: string
 ): Promise<AttachReferenceResult> {
   const store = resolveSessionStore();
   const session = await loadSession(store, sessionId);
@@ -310,7 +317,7 @@ export async function attachReference(
     );
   }
 
-  const reference = await buildStoredReference(analysis, source);
+  const reference = await buildStoredReference(analysis, source, imagePath);
   // Newest-first eviction bound: a brief, not a photo album.
   const references = [...(session.conversation.references ?? []), reference].slice(
     -MAX_SESSION_REFERENCES

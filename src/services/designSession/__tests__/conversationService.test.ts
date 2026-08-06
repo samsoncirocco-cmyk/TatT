@@ -44,6 +44,10 @@ vi.mock('../../intake', () => ({ extractIntake: vi.fn() }));
 vi.mock('../../council', () => ({ enhanceStructured: vi.fn() }));
 vi.mock('../../generation', () => ({ generate: vi.fn(), routeGeneration: vi.fn() }));
 vi.mock('@/lib/firebase-admin', () => ({ ensureAdminApp: vi.fn(() => false) }));
+vi.mock('@/services/gcs-service', () => ({
+  uploadToGCS: vi.fn(),
+  getSignedUrl: vi.fn(async (path: string) => `https://signed.example/${path}?sig=test`),
+}));
 vi.mock('@/services/storage/imageStorageService', () => ({
   recoverImageAtPath: vi.fn(async () => null),
   copyImageToPath: vi.fn(
@@ -374,6 +378,62 @@ describe('confirmProposal', () => {
     expect(stored.conversation?.transcript.length).toBeGreaterThan(0);
     expect(stored.conversation?.turnLogs.length).toBeGreaterThan(0);
     expect(stored.pinnedModelId).toBe('imagen3');
+  });
+
+  // ADR-0050: photos attached during intake reach the reveal as pixels —
+  // presence forces routing, and every render's request carries freshly
+  // signed URLs of the stored (private) photos.
+  it('feeds stored reference photos into routing and every reveal render', async () => {
+    const sessionId = await converseToProposal();
+    const stored = (await memorySessionStore.get(sessionId)) as StoredSession;
+    stored.conversation!.references = [
+      {
+        id: 'ref-1',
+        source: 'sms',
+        summary: 'a rose photo',
+        subjects: ['rose'],
+        characters: [],
+        styleTags: [],
+        styleDescriptors: [],
+        palette: [],
+        composition: '',
+        confidence: 0.9,
+        createdAt: new Date().toISOString(),
+        imagePath: 'design-sessions/s/references/r1.jpg',
+      },
+      {
+        // Analysis-only reference (photo upload failed): contributes no URL.
+        id: 'ref-2',
+        source: 'web',
+        summary: 'a swallow sketch',
+        subjects: ['swallow'],
+        characters: [],
+        styleTags: [],
+        styleDescriptors: [],
+        palette: [],
+        composition: '',
+        confidence: 0.8,
+        createdAt: new Date().toISOString(),
+      },
+    ];
+    await memorySessionStore.save(stored);
+
+    await confirmProposal(sessionId);
+
+    // Routing sees the stable paths (presence forces the photo lane).
+    expect(mockRouteGeneration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        referenceImages: ['design-sessions/s/references/r1.jpg'],
+      })
+    );
+    // Every render's request carries the signed, fetchable URL — and never
+    // an entry for the analysis-only reference.
+    expect(mockGenerate).toHaveBeenCalledTimes(4);
+    for (const [request] of mockGenerate.mock.calls) {
+      expect(request.referenceImages).toEqual([
+        'https://signed.example/design-sessions/s/references/r1.jpg?sig=test',
+      ]);
+    }
   });
 
   it('never leaks conversation state or the pinned route in public returns', async () => {

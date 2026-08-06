@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { ensureAdminApp } from './firebase-admin';
 import { logger } from './logger';
 import { writeBudgetMetric } from './monitoring-client';
+import { envInt } from '@/config/envSchema';
 
 export interface BudgetConfig {
   maxSpendCents: number;
@@ -11,30 +12,27 @@ export interface BudgetConfig {
 
 // Monthly cap in cents; override via BUDGET_MAX_SPEND_CENTS (e.g. 1000 = $10).
 const DEFAULT_BUDGET: BudgetConfig = {
-  maxSpendCents: Number(process.env.BUDGET_MAX_SPEND_CENTS) || 50_000,
+  maxSpendCents: envInt('BUDGET_MAX_SPEND_CENTS') ?? 50_000,
   periodMs: 30 * 24 * 60 * 60 * 1000, // 30 days
 };
 
 // Cost of a single Vertex AI (Imagen 3) generated image, in cents.
 // Imagen 3 is ~$0.04/image; override via VERTEX_IMAGEN_COST_CENTS.
-export const VERTEX_IMAGEN_COST_CENTS =
-  Number(process.env.VERTEX_IMAGEN_COST_CENTS) || 4;
+export const VERTEX_IMAGEN_COST_CENTS = envInt('VERTEX_IMAGEN_COST_CENTS') ?? 4;
 
 // Conversational-intake turns (design bot, ADR-0019) are near-free next to
 // image renders, but untracked spend categories are how caps become fiction
 // — so they get their own line item from day one. Conservative flat
 // estimate: one cent per this many turns, charged by ceiling (the first
 // turn of every block adds the cent). Override via CONVERSATION_TURNS_PER_CENT.
-export const CONVERSATION_TURNS_PER_CENT =
-  Number(process.env.CONVERSATION_TURNS_PER_CENT) || 10;
+export const CONVERSATION_TURNS_PER_CENT = envInt('CONVERSATION_TURNS_PER_CENT') ?? 10;
 
 // One reference-image vision analysis (TAT-50): a single Gemini Flash
 // multimodal call — one image in, a small JSON brief out. Real cost is a
 // fraction of a cent; charged flat at 1¢ as a deliberate over-estimate,
 // same philosophy as the conversation-turn line item. Override via
 // VISION_ANALYSIS_COST_CENTS.
-export const VISION_ANALYSIS_COST_CENTS =
-  Number(process.env.VISION_ANALYSIS_COST_CENTS) || 1;
+export const VISION_ANALYSIS_COST_CENTS = envInt('VISION_ANALYSIS_COST_CENTS') ?? 1;
 
 export type BudgetResult = {
   allowed: boolean;

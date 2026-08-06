@@ -1,6 +1,6 @@
 /**
- * Human names for the reveal's four cuts, derived from each variation's
- * axis position.
+ * Human names for a round's two cuts, derived from each variation's
+ * axis position (ADR-0049: two cuts a round).
  *
  * Same law as revealNarration (ADR-0012 / TAT-47 defect 8): the axis
  * machinery is an audit artifact, not chat copy. A cut is never labeled
@@ -47,7 +47,7 @@ const COMPOSITION_IDENTITY: Record<string, CutIdentity> = {
   'dynamic flow': { name: 'the mover', caption: 'built to sweep with the body' },
   'negative space': { name: 'the breather', caption: 'small mark, big air' },
   'close crop': { name: 'the close-up', caption: 'in tight, on purpose' },
-  // Ensemble briefs get their own four cuts (a close crop of four characters
+  // Ensemble briefs get their own cuts (a close crop of four characters
   // is one cropped face), so each needs a designed name here too — otherwise
   // a whole cast reveal falls back to "cut one … cut four".
   'ensemble emblem': { name: 'the emblem', caption: 'the whole cast, dead center' },

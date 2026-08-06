@@ -204,7 +204,7 @@ describe('TAT-50 acceptance — MMS reference image end to end', () => {
 
     // ── The yes: reveal fires through council + generation ──
     const confirmRes = await POST(webhookRequest({ From: PHONE, Body: 'yes' }));
-    expect(await confirmRes.text()).toContain('sketching four takes');
+    expect(await confirmRes.text()).toContain('sketching two cuts');
     expect(afterCallbacks).toHaveLength(1);
     await afterCallbacks[0]();
 
@@ -218,8 +218,8 @@ describe('TAT-50 acceptance — MMS reference image end to end', () => {
 
     // (4) Style/subject signal reached the enhancement path: the Council's
     // structured prompts carry the reference's style tag and characters.
-    expect(vi.mocked(generate)).toHaveBeenCalledTimes(4);
-    expect(revealed!.variations).toHaveLength(4);
+    expect(vi.mocked(generate)).toHaveBeenCalledTimes(2);
+    expect(revealed!.variations).toHaveLength(2);
     const prompt = revealed!.variations[0].prompt.toLowerCase();
     expect(prompt).toContain('anime');
     expect(prompt).toContain('yusuke');

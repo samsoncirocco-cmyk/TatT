@@ -15,7 +15,7 @@ import type { ShareVoteTally } from '@/lib/share-votes';
  * Two things happened here at once, on purpose:
  *
  * 1. A share can now hold several cuts, not one. The Forge lets a user select
- *    any subset of the four cuts it just made and mint ONE link for the set,
+ *    any subset of the cuts it just made and mint ONE link for the set,
  *    so this page leads with a cover cut and offers the rest as a strip.
  *    Shares minted before that carry only `imageUrl`, so the list is derived
  *    rather than assumed — an old link renders exactly as it always did.

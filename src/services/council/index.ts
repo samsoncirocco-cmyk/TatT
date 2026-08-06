@@ -7,12 +7,19 @@
 // "enhance this prompt" — everything else (provider selection, caching,
 // character detection, stencil-mode detection) is private.
 import { enhancePrompt, CouncilProviderError } from './internal/councilService';
-import { enhanceStructured as runStructured } from './internal/structuredMode';
-import type { StructuredEnhanceResult } from './internal/structuredMode';
+import {
+  enhanceStructured as runStructured,
+  enhanceRoundStructured as runRoundStructured,
+} from './internal/structuredMode';
+import type { StructuredEnhanceResult, RoundSpread } from './internal/structuredMode';
 import type { IntakeRecord } from '../intake/types';
 
 export { CouncilProviderError };
-export type { StructuredEnhanceResult, StructuredVariation } from './internal/structuredMode';
+export type {
+  StructuredEnhanceResult,
+  StructuredVariation,
+  RoundSpread,
+} from './internal/structuredMode';
 
 export interface CouncilEnhanceRequest {
   /** The user's rough tattoo idea, in their own words. */
@@ -44,16 +51,28 @@ export async function enhance(request: CouncilEnhanceRequest): Promise<CouncilEn
 }
 
 /**
- * Structured-input mode (ADR-0015): enhance an intake record into four
- * axis-divergent prompt variations (ADR-0012). Questionnaire mode varies the
- * two most ambiguous axes; when intake resolved every axis, style locks and
- * the four slots vary composition instead. Axis selection is always narrated
- * through `onDiscussionUpdate` — never silent. Template-based: works offline
- * without any provider call.
+ * Structured-input mode (ADR-0015): enhance an intake record into the first
+ * round's two axis-divergent prompt variations (ADR-0012, ADR-0049).
+ * Questionnaire mode spreads the ADR-0049 ladder's first axis; when intake
+ * resolved every axis, style locks and the two slots vary composition
+ * instead. Axis selection is always narrated through `onDiscussionUpdate` —
+ * never silent. Template-based: works offline without any provider call.
  */
 export async function enhanceStructured(
   record: IntakeRecord,
   opts?: { onDiscussionUpdate?: (update: unknown) => void }
 ): Promise<StructuredEnhanceResult> {
   return runStructured(record, opts);
+}
+
+/**
+ * One REFINE round's two variations (ADR-0049): spread on the round's axis
+ * while holding every previously picked pole. Template-based like
+ * enhanceStructured — never calls a provider.
+ */
+export async function enhanceRound(
+  record: IntakeRecord,
+  spread: RoundSpread
+): Promise<StructuredEnhanceResult> {
+  return runRoundStructured(record, spread);
 }

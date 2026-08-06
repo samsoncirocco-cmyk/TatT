@@ -32,6 +32,34 @@ export const MODEL_CONFIGS = {
         cost: 0.02
     },
 
+    // The cast lane (ADR-0048): Gemini-family image model served through
+    // Replicate, replacing the Vertex `imagen3` route. Same model family the
+    // #293 bake-off measured at 100% cast completeness on 3+ character
+    // requests; moving it to Replicate puts every render on one bill and one
+    // quota. `imagen3` remains only as an alias for sessions pinned before
+    // the switch.
+    nano_banana_2: {
+        id: 'nano-banana-2',
+        name: 'Nano Banana 2 (Gemini)',
+        description: 'Cast lane — full character-identity retention on ensemble requests',
+        provider: 'replicate',
+        strengths: [
+            'Holds 3+ named character identities where Flux drops them (#293)',
+            'Photorealistic rendering',
+            'Complex multi-subject compositions'
+        ],
+        limitations: [
+            'Known text-intrusion habit — ships behind the render text guard (#297)',
+            'Single output per prediction',
+            'No negative-prompt input (negatives folded into prompt)'
+        ],
+        bestFor: ['ensemble', 'cast', 'multi-character'],
+        estimatedTime: '10-20 seconds',
+        // Replicate's published price at 1K resolution, verified live in the
+        // #318 measurement run (one output per prediction, $0.067/output).
+        cost: 0.067
+    },
+
     flux_dev: {
         id: 'flux-dev',
         name: 'FLUX.1 Dev',
@@ -208,6 +236,7 @@ export const STYLE_MODEL_MAPPING = {
  * Defines fallback sequence if primary model is unavailable
  */
 export const MODEL_FALLBACK_CHAIN = {
+    nano_banana_2: ['flux_dev', 'flux_schnell'],
     imagen3: ['flux_dev', 'flux_schnell'],
     flux_dev: ['flux_schnell', 'krea_2'],
     flux_schnell: ['flux_dev', 'krea_2'],
@@ -219,6 +248,11 @@ export const MODEL_FALLBACK_CHAIN = {
  * Additional keywords to optimize prompts for each model
  */
 export const MODEL_PROMPT_MODIFIERS = {
+    nano_banana_2: {
+        positive: 'photorealistic, highly detailed, sharp focus, every named character distinct and complete',
+        negative: 'cartoon, low quality, blurry, watermark, text, signature, merged figures, missing characters'
+    },
+
     imagen3: {
         positive: 'photorealistic, highly detailed, professional photography, natural lighting, sharp focus, 8k resolution',
         negative: 'cartoon, anime, illustrated, painting, drawing, sketch, low quality, blurry'
@@ -247,7 +281,9 @@ export const MODEL_PROMPT_MODIFIERS = {
  * provider folds these into the prompt as an "Avoid:" clause instead.
  */
 export const MODEL_NEGATIVE_PROMPTS = {
-    imagen3: 'cartoon, anime, illustrated, painting, drawing, sketch, low quality, blurry, distorted, watermark, text, signature, unrealistic anatomy, cluttered background, oversaturated, pixelated, amateur',
+    nano_banana_2: 'cartoon, low quality, blurry, distorted, watermark, text, signature, unrealistic anatomy, merged figures, missing characters, cluttered background, oversaturated, pixelated, amateur',
+
+    imagen3:'cartoon, anime, illustrated, painting, drawing, sketch, low quality, blurry, distorted, watermark, text, signature, unrealistic anatomy, cluttered background, oversaturated, pixelated, amateur',
 
     flux_dev: 'blurry, low quality, muddy shading, messy lines, distorted, watermark, text, signature, unrealistic anatomy, cluttered background, oversaturated, pixelated, amateur',
 

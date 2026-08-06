@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
-import { attachReference } from '@/services/designSession';
+import { attachReference, storeReferencePhoto } from '@/services/designSession';
 import {
     analyzeReferenceImage,
     referenceAckText,
@@ -101,7 +101,14 @@ export async function POST(
             });
         }
 
-        const result = await attachReference(sessionId, outcome.analysis, 'web');
+        // Keep the pixels too (ADR-0050): stored privately, fail-soft — a
+        // reference whose photo upload failed still attaches its analysis.
+        const imagePath = await storeReferencePhoto(sessionId, {
+            data: imageBase64.trim(),
+            mimeType: mimeType.toLowerCase(),
+        });
+
+        const result = await attachReference(sessionId, outcome.analysis, 'web', imagePath);
 
         reqLogger.complete('design_session.reference.success', {
             session_id: result.sessionId,

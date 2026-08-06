@@ -19,7 +19,7 @@
  * of a name and absence of its contradiction are different claims.
  */
 import { describe, it, expect } from 'vitest';
-import { enhanceStructured } from '../internal/structuredMode';
+import { enhanceStructured, enhanceRoundStructured } from '../internal/structuredMode';
 import { getBaseNegativePrompt } from '../internal/councilService';
 import type { IntakeRecord } from '../../intake/types';
 
@@ -88,7 +88,7 @@ describe('ensemble prompt contract — the Kingdom Hearts session', () => {
   it('never forbids "multiple people" when the customer named a cast', async () => {
     const result = await enhanceStructured(KINGDOM_HEARTS);
 
-    expect(result.variations).toHaveLength(4);
+    expect(result.variations).toHaveLength(2);
     for (const [index, variation] of result.variations.entries()) {
       expect(
         variation.negativePrompt,
@@ -243,28 +243,36 @@ describe('ensemble contract is title-agnostic, not a Kingdom Hearts patch', () =
  * `negative space` ("small off-center subject") cannot hold four sparring
  * characters — those two cuts were spent before the model ran.
  */
-describe('compositional treatments — an ensemble gets four cuts that can hold it', () => {
-  const compositionsOf = async (record: IntakeRecord) =>
-    (await enhanceStructured(record)).variations.map(
+describe('compositional treatments — an ensemble gets cuts that can hold it', () => {
+  /** Round one's pair plus round two's — the pool a session walks (ADR-0049). */
+  const compositionsAcrossRounds = async (record: IntakeRecord) => {
+    const round1 = await enhanceStructured(record);
+    const round2 = await enhanceRoundStructured(record, {
+      roundNumber: 2,
+      axis: 'composition',
+      lockedPoles: {},
+    });
+    return [...round1.variations, ...round2.variations].map(
       variation => (variation.axisPosition as { composition: string }).composition
     );
+  };
 
   it('never offers a close crop or negative space to a named cast', async () => {
-    const compositions = await compositionsOf(KINGDOM_HEARTS);
+    const compositions = await compositionsAcrossRounds(KINGDOM_HEARTS);
 
     expect(compositions).not.toContain('close crop');
     expect(compositions).not.toContain('negative space');
   });
 
-  it('keeps exactly four distinct cuts for the ensemble (ADR-0012)', async () => {
-    const compositions = await compositionsOf(KINGDOM_HEARTS);
+  it('keeps two distinct cuts per round, four across the pool (ADR-0049)', async () => {
+    const compositions = await compositionsAcrossRounds(KINGDOM_HEARTS);
 
     expect(compositions).toHaveLength(4);
     expect(new Set(compositions).size).toBe(4);
   });
 
-  it('still offers both to a single-subject brief', async () => {
-    const compositions = await compositionsOf(SINGLE_SUBJECT);
+  it('still offers both to a single-subject brief across its rounds', async () => {
+    const compositions = await compositionsAcrossRounds(SINGLE_SUBJECT);
 
     expect(compositions).toContain('close crop');
     expect(compositions).toContain('negative space');
@@ -274,7 +282,7 @@ describe('compositional treatments — an ensemble gets four cuts that can hold 
     const noRoster = { ...SINGLE_SUBJECT };
     delete noRoster.requestedCharacters;
 
-    expect(await compositionsOf(noRoster)).toContain('close crop');
+    expect(await compositionsAcrossRounds(noRoster)).toContain('close crop');
   });
 });
 
@@ -313,12 +321,15 @@ describe('compositional treatments — a sleeve never argues with its own placem
     }
   });
 
-  it('applies to a single-subject sleeve too, and keeps four distinct cuts', async () => {
-    const result = await enhanceStructured({
-      ...SINGLE_SUBJECT,
-      placement: 'full sleeve',
+  it('applies to a single-subject sleeve too, and keeps the pool distinct', async () => {
+    const sleeve = { ...SINGLE_SUBJECT, placement: 'full sleeve' };
+    const round1 = await enhanceStructured(sleeve);
+    const round2 = await enhanceRoundStructured(sleeve, {
+      roundNumber: 2,
+      axis: 'composition',
+      lockedPoles: {},
     });
-    const compositions = result.variations.map(
+    const compositions = [...round1.variations, ...round2.variations].map(
       variation => (variation.axisPosition as { composition: string }).composition
     );
 
@@ -328,18 +339,13 @@ describe('compositional treatments — a sleeve never argues with its own placem
     expect(compositions).not.toContain('close crop');
   });
 
-  it('leaves a non-sleeve placement on the default cuts', async () => {
+  it('leaves a non-sleeve placement on the default cuts, two a round', async () => {
     const result = await enhanceStructured(SINGLE_SUBJECT);
     const compositions = result.variations.map(
       variation => (variation.axisPosition as { composition: string }).composition
     );
 
-    expect(compositions).toEqual([
-      'centered emblem',
-      'dynamic flow',
-      'negative space',
-      'close crop',
-    ]);
+    expect(compositions).toEqual(['centered emblem', 'dynamic flow']);
   });
 });
 

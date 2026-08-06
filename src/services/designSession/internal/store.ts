@@ -55,6 +55,34 @@ export interface ConversationState {
 }
 
 /**
+ * The single charged-round slot (ADR-0049): at most one refine round may be
+ * in flight per session. Claimed atomically (claimRound) BEFORE any render,
+ * carrying the credit reservation id so an orphaned reservation — process
+ * killed between reserve and delivery — stays reconcilable from the
+ * session record rather than existing only in a dead closure.
+ */
+export interface RoundClaim {
+  /** Unique per attempt — release and the final save match on it. */
+  id: string;
+  /** The generation-credit reservation charged for this round, if any. */
+  reservationId?: string;
+  /** When the claim landed (ISO) — drives stale eviction. */
+  at: string;
+}
+
+/**
+ * A claim older than this is presumed dead (crashed instance): the web
+ * route's 300s ceiling plus generous headroom, mirroring the SMS channel's
+ * REVEAL_PENDING_STALE_MS discipline.
+ */
+export const ROUND_CLAIM_STALE_MS = 10 * 60 * 1000;
+
+export type ClaimRoundResult =
+  | { status: 'claimed'; evicted?: RoundClaim }
+  | { status: 'held'; heldBy: RoundClaim }
+  | { status: 'missing' };
+
+/**
  * What we persist: the public DesignSession plus the pinned generation
  * route. ADR-0016 locks one provider per session — the frozen contract
  * carries the provider name, and we additionally pin the exact model id
@@ -72,11 +100,27 @@ export interface StoredSession extends DesignSession {
    * on the session after the reveal — the logs travel with it (ADR-0022).
    */
   conversation?: ConversationState;
+  /**
+   * The in-flight charged round's claim (ADR-0049). Present only between
+   * claimRound and the round's final save (or releaseRound on failure) —
+   * a concurrent refine round must lose the claim race, never double-charge.
+   */
+  roundInFlight?: RoundClaim;
 }
 
 export interface SessionStore {
   get(id: string): Promise<StoredSession | null>;
   save(session: StoredSession): Promise<void>;
+  /**
+   * Atomically claim the session's single charged-round slot. A live claim
+   * refuses ('held'); a stale one (older than staleMs) is evicted and
+   * returned so the caller can log its orphaned reservation. Firestore runs
+   * this in a transaction — two concurrent rounds must serialize here, not
+   * on the plain last-write-wins save().
+   */
+  claimRound(id: string, claim: RoundClaim, staleMs: number): Promise<ClaimRoundResult>;
+  /** Clear the slot when it still belongs to `claimId` (failure path). */
+  releaseRound(id: string, claimId: string): Promise<void>;
 }
 
 /**
@@ -94,7 +138,10 @@ export function toDesignSession(session: StoredSession): DesignSession {
     intake,
     axisSelection,
     provider,
+    downgraded,
+    downgradeReason,
     variations,
+    rounds,
     critiqueCuts,
     critiqueTurns,
     fixesUsed,
@@ -113,7 +160,14 @@ export function toDesignSession(session: StoredSession): DesignSession {
     intake,
     axisSelection,
     provider,
+    // A downgrade is user-facing by design (ADR-0048): the reveal copy and
+    // the credit release both read it, so it crosses the boundary. Spread so
+    // undowngraded sessions stay free of the fields entirely.
+    ...(downgraded ? { downgraded, downgradeReason } : {}),
     variations,
+    // The pick-to-refine rounds (ADR-0049) are user-facing state: the reveal
+    // renders the live round's cuts and the freeze rules from them.
+    rounds,
     // Post-reveal re-cuts and their turns are the user's own material
     // (ADR-0039) — unlike TurnLogs, they render, so they cross the boundary.
     critiqueCuts,
@@ -155,6 +209,22 @@ export const memorySessionStore: SessionStore = {
   async save(session) {
     sessions.set(session.id, structuredClone(session));
   },
+  // Atomic by construction: the whole read-check-write runs synchronously
+  // on the one JS thread, so no await can interleave a second claimant.
+  async claimRound(id, claim, staleMs) {
+    const session = sessions.get(id);
+    if (!session) return { status: 'missing' };
+    const held = session.roundInFlight;
+    if (held && Date.now() - (Date.parse(held.at) || 0) < staleMs) {
+      return { status: 'held', heldBy: structuredClone(held) };
+    }
+    session.roundInFlight = structuredClone(claim);
+    return { status: 'claimed', ...(held ? { evicted: structuredClone(held) } : {}) };
+  },
+  async releaseRound(id, claimId) {
+    const session = sessions.get(id);
+    if (session?.roundInFlight?.id === claimId) delete session.roundInFlight;
+  },
 };
 
 /** Test hook: reset the in-memory store between cases. */
@@ -180,6 +250,34 @@ export const firestoreSessionStore: SessionStore = {
     // drops undefined values at every depth.
     const doc = JSON.parse(JSON.stringify(session)) as Record<string, unknown>;
     await getFirestore().collection(COLLECTION).doc(session.id).set(doc);
+  },
+  // The one write that must NOT be last-write-wins: two concurrent charged
+  // rounds serialize on this transaction, and the loser never renders.
+  async claimRound(id, claim, staleMs) {
+    const { getFirestore } = await import('firebase-admin/firestore');
+    const db = getFirestore();
+    const ref = db.collection(COLLECTION).doc(id);
+    return db.runTransaction(async (tx): Promise<ClaimRoundResult> => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) return { status: 'missing' };
+      const held = (snap.data() as StoredSession).roundInFlight;
+      if (held && Date.now() - (Date.parse(held.at) || 0) < staleMs) {
+        return { status: 'held', heldBy: held };
+      }
+      tx.update(ref, { roundInFlight: JSON.parse(JSON.stringify(claim)) });
+      return { status: 'claimed', ...(held ? { evicted: held } : {}) };
+    });
+  },
+  async releaseRound(id, claimId) {
+    const { getFirestore, FieldValue } = await import('firebase-admin/firestore');
+    const db = getFirestore();
+    const ref = db.collection(COLLECTION).doc(id);
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) return;
+      if ((snap.data() as StoredSession).roundInFlight?.id !== claimId) return;
+      tx.update(ref, { roundInFlight: FieldValue.delete() });
+    });
   },
 };
 

@@ -12,7 +12,7 @@ import type { IntakeRecord, AxisSelection } from '../intake/types';
  */
 export type SessionPhase = 'intake' | 'revealed' | 'picked' | 'complete';
 
-/** One of the reveal's four designs (or the single refined regen). */
+/** One of a round's two cuts (or the single refined regen). */
 export interface Variation {
   id: string;
   /** Questionnaire mode: axis → pole (e.g. {"bold-fine":"bold"}). Compositional mode: {composition: "<treatment>"}. */
@@ -20,6 +20,40 @@ export interface Variation {
   prompt: string;
   negativePrompt?: string;
   imageUrl?: string;
+}
+
+/**
+ * One two-cut round of the pick-to-refine loop (ADR-0049). Round 1 is the
+ * reveal itself; every later round is charged one generation credit, holds
+ * the poles picked so far, and seeds its renders with the previous round's
+ * picked image as a reference.
+ */
+export interface RefineRound {
+  /** 1-based round number. */
+  round: number;
+  /**
+   * The axis this round spreads on: a ladder axis ('bold-fine', …),
+   * 'composition' for compositional sessions, or 'reroll' past the ladder.
+   */
+  axis: string;
+  /** The two cuts this round produced, in display order. */
+  variationIds: string[];
+  /** The cut the customer picked. Absent until they tap/reply. */
+  pickedId?: string;
+  /** When the pick landed (server clock, ISO). */
+  pickedAt?: string;
+  /**
+   * Set the moment the NEXT round is charged — a frozen pick can never
+   * change again, because a render already consumed it as a reference.
+   */
+  frozen?: boolean;
+  /**
+   * True when this round's renders fell back off the pinned model
+   * (ADR-0048): delivered, said out loud, and the round's credit released.
+   */
+  downgraded?: boolean;
+  /** Machine-readable cause from the failed primary (provider error code). */
+  downgradeReason?: string;
 }
 
 /** One post-reveal critique turn and what it produced (ADR-0039). */
@@ -42,11 +76,30 @@ export interface DesignSession {
   axisSelection: AxisSelection;
   /** Image provider locked for the whole session (ADR-0016). */
   provider: string;
-  /** Exactly 4 after reveal. */
+  /**
+   * True when the reveal's renders fell back off the model the routing
+   * chose (ADR-0048): the cuts are real but came from a weaker lane, so the
+   * reveal says so in copy and the round's credit is released. Never set on
+   * a session that rendered on its routed model. Additive optional field —
+   * existing stored sessions simply lack it.
+   */
+  downgraded?: boolean;
+  /** Machine-readable cause from the failed primary (provider error code). */
+  downgradeReason?: string;
+  /**
+   * Every round's cuts in render order — two per round (ADR-0049). Round 1
+   * contributes v1/v2; each refine round appends two more.
+   */
   variations: Variation[];
   /**
+   * The pick-to-refine rounds, oldest first (ADR-0049). The last entry is
+   * the live round; its pick stays changeable until the next round is
+   * charged. Absent on sessions revealed before rounds existed.
+   */
+  rounds?: RefineRound[];
+  /**
    * Extra cuts produced by post-reveal critique (ADR-0039). Kept out of
-   * `variations` so the reveal stays the four axis-divergent takes the pick
+   * `variations` so the rounds stay the axis-divergent takes the pick
    * signal is read against — but pickable all the same, so a critique that
    * lands can be chosen.
    */
@@ -116,6 +169,24 @@ export interface PickRequest {
 /** POST /api/v1/design-session/[id]/refine — allowed exactly once. */
 export interface RefineRequest {
   answer: string;
+}
+
+/** POST /api/v1/design-session/[id]/round/pick — the round's pick (free). */
+export interface RoundPickRequest {
+  pickedId: string;
+}
+
+/**
+ * What one charged refine round hands back (ADR-0049). `downgraded` is what
+ * the route refunds on — the round rendered, but off the pinned lane.
+ */
+export interface RefineRoundResult {
+  session: DesignSession;
+  /** The round just produced — the session's last rounds entry. */
+  round: RefineRound;
+  /** True when the round's renders fell back off the pinned model (ADR-0048). */
+  downgraded: boolean;
+  downgradeReason?: string;
 }
 
 /** POST /api/v1/design-session/[id]/critique — one post-reveal turn (ADR-0039). */

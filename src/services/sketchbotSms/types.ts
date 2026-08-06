@@ -62,6 +62,26 @@ export type InboundOutcome =
       armedAt: string;
     }
   | {
+      kind: 'refine-round';
+      text: string;
+      sessionId: string;
+      phone: string;
+      /** The linked account charged for the round (ADR-0049 metering). */
+      uid: string;
+      /**
+       * The generation credit reserved at arm time — executeRefineRound
+       * releases it on failure or downgrade (ADR-0048). Absent in demo mode.
+       */
+      credit?: {
+        id: string;
+        source: 'free' | 'paid';
+        freeRemaining: number;
+        paidRemaining: number;
+      };
+      /** Matches profile.revealArmedAt — executeRefineRound aborts if superseded. */
+      armedAt: string;
+    }
+  | {
       kind: 'placement';
       text: string;
       sessionId: string;
@@ -97,8 +117,9 @@ export interface SmsProfile {
    * Conversation stage after the last turn. Engine stages ('chatting',
    * 'proposal', 'handoff') plus the channel-owned ones:
    *
-   *   'reveal-pending'   — four renders in flight; a second yes must not re-fire
-   *   'revealed'         — cuts delivered; critique and the pick are both live
+   *   'reveal-pending'   — round one's renders in flight; a second yes must not re-fire
+   *   'revealed'         — cuts delivered; critique, the A/B pick, and REFINE are live
+   *   'round-running'    — a charged REFINE round's two renders in flight (ADR-0049)
    *   'critique-running' — one re-cut in flight
    *   'pick-pending'     — pick captured, awaiting the most-not-you tap
    *   'refine-pending'   — pick recorded, awaiting the refinement answer
@@ -108,6 +129,13 @@ export interface SmsProfile {
   lastStage?: string | null;
   /** When the in-flight render was armed — stale-recovery for the *-running stages. */
   revealArmedAt?: string | null;
+  /**
+   * The generation-credit reservation charged for the in-flight REFINE
+   * round (ADR-0049). Persisted at reserve time — not only in the deferred
+   * closure — so a reservation orphaned by a crash between arm and delivery
+   * is reconcilable from the profile. Cleared when the round settles.
+   */
+  pendingCreditReservationId?: string | null;
   /**
    * Variation id chosen at 'revealed', held until the most-not-you tap
    * arrives — recordPick needs both ids at once and refuses a pair that

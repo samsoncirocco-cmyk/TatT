@@ -15,16 +15,18 @@ import {
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-// Four renders + council must survive Replicate's low-credit throttle
-// (burst of 1 per ~10s window): 4 renders can need ~1min of retry waits
-// plus generation. Fluid compute is enabled on this project, so 300s is
-// legal on every plan tier.
+// Two renders + council must survive Replicate's low-credit throttle
+// (burst of 1 per ~10s window). Sized for four renders originally; kept at
+// 300s rather than shrunk (ADR-0049's guidance: more headroom, not less) —
+// the Replicate lane may not batch, and reference signing rides on top.
+// Fluid compute is enabled on this project, so 300s is legal on every
+// plan tier.
 export const maxDuration = 300;
 
 /**
  * POST /api/v1/design-session/[id]/confirm — the user's yes to the
  * conversation's proposal (ADR-0020). Fires the existing reveal pipeline
- * (4 renders on one pinned provider), so the full budget policy of the start
+ * (round one's 2 renders on one pinned provider, ADR-0049), so the full budget policy of the start
  * route applies and the service records what those renders cost. A 'no' or correction is just
  * another converse message, never this endpoint. The ConfirmRequest body is
  * reserved-empty in the frozen contract, so no body validation exists yet.
@@ -84,13 +86,32 @@ export async function POST(
         const session = await confirmProposal(sessionId);
         generationSucceeded = true;
 
+        // Loud downgrade (ADR-0048): the reveal rendered, but on a fallback
+        // lane instead of the model the cast routing chose. The round is not
+        // charged — the credit goes back (at-most-once inside the primitive),
+        // and the response says so alongside the session's own `downgraded`
+        // flag so the reveal copy can tell the customer. A release failure
+        // must not fail a reveal the customer already has: log it, keep
+        // creditReleased false, and the ledger errs against us, not them.
+        let creditReleased = false;
+        if (session.downgraded && creditReservation) {
+            creditReleased = await releaseGenerationCredit(user.uid, creditReservation)
+                .then(() => true)
+                .catch((releaseError) => {
+                    console.error('[Design session] failed to return credit for downgraded reveal:', releaseError);
+                    return false;
+                });
+        }
+
         reqLogger.complete('design_session.confirm.success', {
             session_id: session.id,
             provider: session.provider,
             axis_mode: session.axisSelection.mode,
+            downgraded: session.downgraded === true,
+            credit_released: creditReleased,
         });
 
-        return NextResponse.json({ success: true, session, credits: creditReservation });
+        return NextResponse.json({ success: true, session, credits: creditReservation, creditReleased });
     } catch (error) {
         if (uid && creditReservation && !generationSucceeded) {
             await releaseGenerationCredit(uid, creditReservation).catch((releaseError) => {

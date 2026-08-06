@@ -95,13 +95,13 @@ by a scrape. Instagram is immutable after identity verification, and
 |------|---------------|
 | Council enhancement | `src/services/councilService.ts` |
 | Image generation | `src/services/generationService.ts` |
-| Legacy generation + upload | `src/lib/vertex-imagen-client.ts` |
+| Generation model routing | `src/config/modelRoutingRules.js` |
+| Vertex generation adapter (calls Gemini image models despite its name) | `src/services/generation/internal/vertexImagen.ts` |
 | Multi-layer processing | `src/services/multiLayerService.js` |
 | Canvas layer management | `src/services/canvasService.ts` |
 | Layer management hook | `src/features/generate/hooks/useLayerManagement.ts` |
 | Generation hook | `src/features/generate/hooks/useImageGeneration.js` |
 | API: v1 generate | `src/app/api/v1/generate/route.ts` |
-| API: legacy generate | `src/app/api/generate/route.ts` |
 | GCP auth | `src/lib/google-auth-edge.ts` |
 
 ### `directives/council-enhance.md`
@@ -280,7 +280,6 @@ is a separate, identity-checked self-signup.
 | Health | `src/app/api/health/route.ts` |
 | Debug | `src/app/api/debug/route.ts` |
 | Generate (v1) | `src/app/api/v1/generate/route.ts` |
-| Generate (legacy) | `src/app/api/generate/route.ts` |
 | Council | `src/app/api/v1/council/enhance/route.ts` |
 | Match semantic | `src/app/api/v1/match/semantic/route.ts` |
 | Match update | `src/app/api/v1/match/update/route.ts` |

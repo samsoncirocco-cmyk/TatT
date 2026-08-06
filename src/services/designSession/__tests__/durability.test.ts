@@ -258,6 +258,17 @@ describe('idempotency — a retry reuses the staged object', () => {
       durableObjectPath({ ...identity, prompt: 'a different sparrow' })
     );
     expect(durableObjectPath(identity)).toMatch(/^design-sessions\/sess-1\/v1-[0-9a-f]{16}\.png$/);
+
+    // Attached photos change what the image looks like (ADR-0050): a render
+    // with photos must not collide with — and silently recover — a
+    // photo-less render staged at the same prompt/model. Stable paths key
+    // the fingerprint, so re-minting signed URLs cannot break recovery.
+    const withPhotos = {
+      ...identity,
+      referenceImagePaths: ['design-sessions/sess-1/references/r1.jpg'],
+    };
+    expect(durableObjectPath(withPhotos)).toBe(durableObjectPath({ ...withPhotos }));
+    expect(durableObjectPath(withPhotos)).not.toBe(durableObjectPath(identity));
   });
 
   it('does not re-buy or re-upload a render that is already staged', async () => {

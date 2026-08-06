@@ -30,13 +30,25 @@ export interface RenderIdentity {
   prompt: string;
   negativePrompt?: string;
   modelId: string;
+  /**
+   * STABLE storage paths of attached reference photos (ADR-0050) — never
+   * the signed URLs, which change on every mint and would defeat staged
+   * recovery. Photos change what the image looks like, so two renders
+   * differing only in attached photos must not collide on one object.
+   */
+  referenceImagePaths?: string[];
 }
 
 /** Short, stable digest of everything that decides what the image looks like. */
 function renderFingerprint(identity: RenderIdentity): string {
   return createHash('sha256')
     .update(
-      [identity.prompt, identity.negativePrompt ?? '', identity.modelId].join('\0')
+      [
+        identity.prompt,
+        identity.negativePrompt ?? '',
+        identity.modelId,
+        ...(identity.referenceImagePaths ?? []),
+      ].join('\0')
     )
     .digest('hex')
     .slice(0, 16);
@@ -47,13 +59,40 @@ export function durableObjectPath(identity: RenderIdentity): string {
   return `design-sessions/${identity.sessionId}/${identity.tag}-${renderFingerprint(identity)}.png`;
 }
 
+/** What one paid render produced, plus facts about HOW it was produced. */
+export interface RenderOutput {
+  /** Hosted provider URL or inline data URL. */
+  image: string;
+  /**
+   * Facts that must survive a retry, staged INTO the object's metadata at
+   * write time. The motivating fact is a downgrade (ADR-0048): the staging
+   * fingerprint keys on the REQUESTED modelId, so without this a staged
+   * fallback render recovered by a later confirm attempt is indistinguishable
+   * from a clean one — the downgrade would go undisclosed and unrefunded,
+   * and the information would be gone, not just delayed.
+   */
+  metadata?: Record<string, string>;
+}
+
+export interface DurableRenderResult {
+  imageUrl: string;
+  /**
+   * The render facts, whether this call paid for the render or recovered a
+   * previous attempt's staged copy. Storage metadata values not written by
+   * a RenderOutput (e.g. sourceHost, uploadedAt) appear here too.
+   */
+  metadata: Record<string, string>;
+}
+
 /**
- * Produce one durable image for `identity`, returning a product-owned URL.
+ * Produce one durable image for `identity`, returning a product-owned URL
+ * plus the render facts staged with it.
  *
  * `render` is the paid provider call; it is invoked only when nothing is
  * already staged at the deterministic path. Anything it returns — a hosted
  * provider URL or an inline data URL — is copied into our bucket before this
- * resolves.
+ * resolves, together with its metadata, so a retry that reuses the staged
+ * object recovers the facts of the render it is reusing.
  *
  * Failure to make the copy is a failed generation, and it throws. There is no
  * degrade-to-provider-URL fallback on purpose: handing back a link that dies
@@ -63,24 +102,27 @@ export function durableObjectPath(identity: RenderIdentity): string {
  */
 export async function durableRender(
   identity: RenderIdentity,
-  render: () => Promise<string>
-): Promise<string> {
+  render: () => Promise<RenderOutput>
+): Promise<DurableRenderResult> {
   const objectPath = durableObjectPath(identity);
 
   // A previous attempt may have paid for and staged this exact render before
   // failing further along (another variation threw, or the session write did).
-  // Reusing it is what stops a retry from re-buying the generation.
+  // Reusing it is what stops a retry from re-buying the generation — and the
+  // staged metadata is what stops the reuse from erasing how that render
+  // was actually produced.
   const staged = await recoverImageAtPath(objectPath);
-  if (staged) return staged.imageUrl;
+  if (staged) return { imageUrl: staged.imageUrl, metadata: staged.metadata };
 
-  const rendered = await render();
+  const { image: rendered, metadata = {} } = await render();
   if (!rendered) {
     throw new Error(`Generation returned no image for ${identity.tag}`);
   }
 
-  return rendered.startsWith('data:')
-    ? uploadImageToPath(objectPath, decodeDataUrl(rendered))
-    : copyImageToPath(objectPath, rendered);
+  const imageUrl = rendered.startsWith('data:')
+    ? await uploadImageToPath(objectPath, decodeDataUrl(rendered), metadata)
+    : await copyImageToPath(objectPath, rendered, metadata);
+  return { imageUrl, metadata };
 }
 
 function decodeDataUrl(dataUrl: string): Buffer {

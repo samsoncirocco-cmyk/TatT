@@ -12,7 +12,7 @@ import { rememberShare } from "../services/shareLinkMemory";
  *
  * Takes a list of cuts rather than one, because both callers are really the
  * same action on a different-sized selection: /designs/[id] shares the one
- * design it is about, and the Forge shares whichever of the four cuts the
+ * design it is about, and the Forge shares whichever of the cuts the
  * user ticked. Either way it mints ONE link holding the whole set — a share
  * is an artifact you send a friend, so N picks must not mean N links.
  *

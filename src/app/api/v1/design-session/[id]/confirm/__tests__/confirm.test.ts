@@ -1,6 +1,6 @@
 // Seam tests for POST /api/v1/design-session/[id]/confirm: the designSession
 // service is mocked at its public entry point; these tests pin the route's
-// policy (auth gate, generation rate bucket, budget, 4-image spend recording,
+// policy (auth gate, generation rate bucket, budget, spend recording,
 // domain-error mapping, demo mode) and the { success, session } shape.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextResponse } from 'next/server';
@@ -90,7 +90,7 @@ describe('POST /api/v1/design-session/[id]/confirm route adapter', () => {
     delete process.env.NEXT_PUBLIC_DEMO_MODE;
   });
 
-  it('confirms the proposal and records vertex spend for the 4 reveal images', async () => {
+  it('confirms the proposal and returns the two-cut reveal (ADR-0049)', async () => {
     const session = makeSession();
     confirmProposalMock.mockResolvedValueOnce(session);
 
@@ -100,10 +100,10 @@ describe('POST /api/v1/design-session/[id]/confirm route adapter', () => {
     const json = await res.json();
     expect(json.success).toBe(true);
     expect(json.session).toMatchObject({ id: 'sess-1', phase: 'revealed' });
-    expect(json.session.variations).toHaveLength(4);
+    expect(json.session.variations).toHaveLength(2);
 
     expect(confirmProposalMock).toHaveBeenCalledWith('sess-1');
-    // Generation-tier rate bucket — the confirm fires 4 paid renders.
+    // Generation-tier rate bucket — the confirm fires the round's paid renders.
     expect(rateLimitMock).toHaveBeenCalledWith(expect.anything(), 'generation');
     // Spend belongs to the service, which alone knows how many renders it
     // actually bought — the route must not add a second charge.
@@ -131,7 +131,7 @@ describe('POST /api/v1/design-session/[id]/confirm route adapter', () => {
     expect(confirmProposalMock).not.toHaveBeenCalled();
   });
 
-  it('does not fire the four-image reveal when the account has no cuts left', async () => {
+  it('does not fire the reveal when the account has no cuts left', async () => {
     reserveGenerationCreditMock.mockRejectedValueOnce(
       Object.assign(new Error('No cuts left'), { code: 'GENERATION_CREDITS_EXHAUSTED' })
     );
@@ -151,6 +151,52 @@ describe('POST /api/v1/design-session/[id]/confirm route adapter', () => {
       'uid_customer',
       { source: 'free', freeRemaining: 24, paidRemaining: 0 }
     );
+  });
+
+  // ADR-0048's loud downgrade: the reveal succeeded but on a fallback lane,
+  // so the round is not charged — the credit goes back and the response says
+  // so for the reveal copy.
+  it('releases the credit and flags the response when the reveal downgraded', async () => {
+    confirmProposalMock.mockResolvedValueOnce({
+      ...makeSession(),
+      downgraded: true,
+      downgradeReason: 'REPLICATE_ERROR',
+    });
+
+    const res = await POST(makeRequest(URL, {}), routeParams('sess-1'));
+
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.session.downgraded).toBe(true);
+    expect(json.creditReleased).toBe(true);
+    expect(releaseGenerationCreditMock).toHaveBeenCalledWith(
+      'uid_customer',
+      { source: 'free', freeRemaining: 24, paidRemaining: 0 }
+    );
+  });
+
+  it('keeps the charge and never calls release on an undowngraded reveal', async () => {
+    confirmProposalMock.mockResolvedValueOnce(makeSession());
+
+    const res = await POST(makeRequest(URL, {}), routeParams('sess-1'));
+
+    const json = await res.json();
+    expect(json.creditReleased).toBe(false);
+    expect(releaseGenerationCreditMock).not.toHaveBeenCalled();
+  });
+
+  // A failed release must not fail a reveal the customer already has — the
+  // ledger errs against us, never them.
+  it('still returns the downgraded reveal when the credit release itself fails', async () => {
+    confirmProposalMock.mockResolvedValueOnce({ ...makeSession(), downgraded: true });
+    releaseGenerationCreditMock.mockRejectedValueOnce(new Error('firestore down'));
+
+    const res = await POST(makeRequest(URL, {}), routeParams('sess-1'));
+
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.success).toBe(true);
+    expect(json.creditReleased).toBe(false);
   });
 
   it('returns the rate-limit response when the limiter denies', async () => {

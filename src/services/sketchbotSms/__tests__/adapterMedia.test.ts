@@ -39,6 +39,7 @@ vi.mock('@/services/designSession', async () => {
     converse: vi.fn(),
     confirmProposal: vi.fn(),
     attachReference: vi.fn(async () => ({ sessionId: 's1', summary: '', notes: {} })),
+    storeReferencePhoto: vi.fn(async () => 'design-sessions/s1/references/ref-1.jpg'),
     getSession: vi.fn(),
     recordPick: vi.fn(),
     refine: vi.fn(),
@@ -81,9 +82,12 @@ const CHIBI_ANALYSIS: ReferenceAnalysis = {
   confidence: 0.9,
 };
 
+/** The pixels riding alongside the analysis (ADR-0050). */
+const CHIBI_IMAGE = { data: 'cGl4ZWxz', mimeType: 'image/jpeg' };
+
 function ingest(overrides: Partial<MediaIngest> = {}): MediaIngest {
   return {
-    analyses: [CHIBI_ANALYSIS],
+    analyses: [{ analysis: CHIBI_ANALYSIS, image: CHIBI_IMAGE }],
     unreadable: 0,
     ignored: 0,
     budgetExhausted: false,
@@ -131,7 +135,7 @@ describe('media-only MMS', () => {
 
     // The opener call created the session and the reference attached to it.
     expect(converseMock).toHaveBeenCalledWith({});
-    expect(attachMock).toHaveBeenCalledWith('s-new', CHIBI_ANALYSIS, 'sms');
+    expect(attachMock).toHaveBeenCalledWith('s-new', CHIBI_ANALYSIS, 'sms', 'design-sessions/s1/references/ref-1.jpg');
     const profile = await memoryProfileStore.get(PHONE);
     expect(profile!.activeSessionId).toBe('s-new');
     expect(profile!.sessionIds).toContain('s-new');
@@ -190,7 +194,7 @@ describe('media + text', () => {
     expect(turnCall.sessionId).toBe('s1');
     expect(turnCall.message).toContain('something like this on my forearm');
     expect(turnCall.message).toContain('[photo attached — five chibi anime characters');
-    expect(attachMock).toHaveBeenCalledWith('s1', CHIBI_ANALYSIS, 'sms');
+    expect(attachMock).toHaveBeenCalledWith('s1', CHIBI_ANALYSIS, 'sms', 'design-sessions/s1/references/ref-1.jpg');
   });
 
   it('continues the text turn after a budget-refused analysis, with the capacity line first', async () => {
@@ -220,7 +224,7 @@ describe('media + confirmation', () => {
     if (outcome.kind !== 'reveal') throw new Error('unreachable');
     expect(outcome.text).toContain('five chibi anime characters');
     expect(outcome.text).toContain(REVEAL_ACK);
-    expect(attachMock).toHaveBeenCalledWith('s1', CHIBI_ANALYSIS, 'sms');
+    expect(attachMock).toHaveBeenCalledWith('s1', CHIBI_ANALYSIS, 'sms', 'design-sessions/s1/references/ref-1.jpg');
   });
 });
 

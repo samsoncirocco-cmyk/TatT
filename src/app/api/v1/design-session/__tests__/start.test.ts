@@ -75,7 +75,7 @@ describe('POST /api/v1/design-session route adapter', () => {
     const json = await res.json();
     expect(json.success).toBe(true);
     expect(json.session).toMatchObject({ id: 'sess-1', phase: 'revealed' });
-    expect(json.session.variations).toHaveLength(4);
+    expect(json.session.variations).toHaveLength(2);
 
     // The route trims answers before handing them to the service.
     expect(startSessionMock).toHaveBeenCalledWith({

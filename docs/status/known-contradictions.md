@@ -103,11 +103,25 @@ consent remain separate gates.
 - Scraped profiles are still never labeled "verified" (ADR-0032; artist
   verification entry above).
 
-## ADR numbering — RESOLVED 2026-07-30
+## ADR numbering — RESOLVED 2026-08-05
 
 Two files used the `0026` prefix. `0026-reinstatement-self-signup.md` has 11
 inbound references across code and docs and kept its number.
-`0026-money-in-cents-reject-out-of-range.md` had no inbound references beyond
-this file, so it was renamed to `0038-money-in-cents-reject-out-of-range.md`
-(the next free number; ADRs run through `0037`). No other file required a
-reference update.
+`0026-money-in-cents-reject-out-of-range.md` had no inbound references from
+code, so it was renamed. (It did have one from `CLAUDE.md`, missed at the time
+and left pointing at the dead `0026` path until this change.) `0038` was already assigned to `0038-the-studio-is-the-refinery.md`,
+so it was not reusable. The documentation validator now rejects every duplicate
+ADR prefix instead of carrying a permanent exception for this one.
+
+The first rename sent the money ADR to `0048`, which looked free on disk but was
+not free in practice: `0048` was already the routing/cast-lane decision, cited 24
+times across 14 source files, and the ADR itself was written and waiting in an
+open PR. The money ADR moved again to
+`0054-money-in-cents-reject-out-of-range.md` — it still has no inbound code
+references, so it is the cheap side of the collision, whereas renumbering the
+router would have meant ~33 citation edits in files with PRs in flight.
+
+Reserved by open ADR PRs at the time of this rename, and not reusable: `0048`
+(router — Gemini via Replicate) and `0049` (two cuts a round), plus `0050`–`0053`
+(likeness/reference photos and siblings). Check open PRs' file lists, not just
+`docs/adr/` on main, before claiming the next free ADR number.
