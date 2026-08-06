@@ -159,6 +159,12 @@ function sanitizeRecord(
  * Playback: the one-line best-guess summary (ADR-0020)
  * ────────────────────────────────────────────────────────────────────────── */
 
+/**
+ * The subject fallback, spoken when no character label resolved. Shorter than
+ * the meaning budget on purpose: this is a name, not prose.
+ */
+const PLAYBACK_SUBJECT_MAX = 90;
+/** Meaning is the last resort — no character, no subject, nothing else known. */
 const PLAYBACK_MEANING_MAX = 140;
 /** The scene/moment clause rides after the character list, never truncating it. */
 const PLAYBACK_MOMENT_MAX = 120;
@@ -199,10 +205,91 @@ export function buildPlayback(
       ? `, ${truncateAtWord((moment ?? '').trim(), PLAYBACK_MOMENT_MAX)}`
       : '';
     tailPart = ` — ${subject}${momentPart}`;
-  } else if (meaning) {
-    tailPart = ` — ${truncateAtWord(meaning, PLAYBACK_MEANING_MAX)}`;
+  } else {
+    // No character label resolved — the catalog did not recognize anyone. The
+    // SUBJECT still knows what we are about to draw, and it outranks meaning.
+    //
+    // Meaning is *why* they want it, not what is in the picture. Speaking it
+    // as the piece is how a session that asked for Nelson Muntz got told we
+    // were drawing "punk with a tear" — and the customer cannot tell we
+    // substituted one for the other, because both sound like a description.
+    //
+    // Meaning stays as the LAST resort rather than being removed: with no
+    // character and no subject it is the only thing we know, and a brief whose
+    // whole content is "a hummingbird for my grandmother" deserves a sentence
+    // that mentions the hummingbird. The bug was the precedence, not the
+    // existence of the fallback.
+    const spoken = spokenSubject(record.subject);
+    if (spoken) tailPart = ` — ${spoken}`;
+    // Marked as the WHY, never asserted as the what. Bare, the meaning clause
+    // sits in the exact position a subject would and reads as one — which is
+    // the same substitution this fix exists to stop, just wearing a smaller
+    // mask. "about" says we are repeating what it means to them, not claiming
+    // to know what is in the picture.
+    else if (meaning) tailPart = ` — about ${truncateAtWord(meaning, PLAYBACK_MEANING_MAX)}`;
   }
   return `${article} ${style}piece ${placement}${tailPart}`;
+}
+
+/**
+ * `record.subject` trimmed down to something worth reading aloud.
+ *
+ * The subject is written for the image model, not for a person: it carries the
+ * costume anchors the prompts need ("Nelson Muntz with blue shirt, purple
+ * shorts, single tear, punk styling"). Speaking that whole string back is
+ * unreadable, so the playback takes the leading clause — the part that names
+ * the thing — and stops there.
+ *
+ * Returns undefined when there is nothing nameable, in which case the playback
+ * simply says less. A shorter true sentence beats a longer substituted one.
+ */
+function spokenSubject(subject: string | undefined): string | undefined {
+  const value = (subject ?? '').trim();
+  if (!value) return undefined;
+
+  // Up to the first anchor clause — "X with ...", "X, wearing ..." — so the
+  // prompt's costume prose does not arrive in the customer's sentence.
+  const clauses = value
+    .split(/\s*[,;]|\s+\bwith\b\s+/i)
+    .map((clause) => clause.trim())
+    .filter(Boolean);
+  if (clauses.length === 0) return truncateAtWord(value, PLAYBACK_SUBJECT_MAX);
+
+  // The extraction prompt offers two subject shapes and joins the franchise
+  // differently in each: "Izuku Midoriya (Deku) FROM My Hero Academia, ..."
+  // keeps the franchise inside the first clause, but "Killua Zoldyck, Hunter
+  // x Hunter, silver spiky hair, ..." puts it in the second — where a
+  // first-clause-only rule silently dropped it, while the same prompt line
+  // instructs the model to name the character AND the franchise.
+  //
+  // Costume prose and a franchise are both comma-delimited, so the boundary
+  // cannot be the comma. Title case is what separates them: "Hunter x Hunter"
+  // is mostly capitalized, "silver spiky hair" is not.
+  const spoken =
+    clauses[1] && looksLikeTitle(clauses[1])
+      ? `${clauses[0]}, ${clauses[1]}`
+      : clauses[0];
+  return truncateAtWord(spoken, PLAYBACK_SUBJECT_MAX);
+}
+
+/**
+ * Does this clause read as a proper name — a franchise or series — rather than
+ * appearance prose?
+ *
+ * Majority-capitalized and short. Connectors ("of", "the") and the single
+ * lowercase letters titles use as joins ("Hunter x Hunter") do not count
+ * against it, since neither is capitalized in a real title either.
+ */
+function looksLikeTitle(clause: string): boolean {
+  if (clause.length > 40) return false;
+  const words = clause.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return false;
+  const meaningful = words.filter(
+    (word) => word.length > 1 && !LOWERCASE_NAME_CONNECTORS.has(word.toLowerCase())
+  );
+  if (meaningful.length === 0) return false;
+  const capitalized = meaningful.filter((word) => /^[\p{Lu}\p{Lt}]/u.test(word));
+  return capitalized.length >= Math.ceil(meaningful.length / 2);
 }
 
 /**
