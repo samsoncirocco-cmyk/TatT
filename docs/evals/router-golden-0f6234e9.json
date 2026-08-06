@@ -252,6 +252,30 @@
       "expectedWrites": [],
       "expectedReply": "asks one question \u2014 fresh takes on the Simpsons piece, or a different tattoo entirely?",
       "note": "Two turns of history cannot disambiguate this. ADR-0056 requires a question, not a guess. The question doubles as a taste probe."
+    },
+    {
+      "n": 13,
+      "source": "synthetic",
+      "phase": "post-reveal",
+      "message": "the totem, but make the top character bigger",
+      "expectedRoute": "iterate-cut",
+      "expectedWrites": [
+        {
+          "op": "cut.iterate",
+          "cutName": "the totem"
+        }
+      ],
+      "note": "Reconstructs the Smash-export failure (sprint plan fix #1); this session's round was never compositional, so the turn is synthetic. The customer names a cut by the designed name the grid showed them, and resolution must land on THAT cut. The live system had no server-side knowledge of 'the totem', matched nothing, fell through to its most-recent-cut default, re-cut 'the run', and announced it by name - a paid render on a design nobody asked for."
+    },
+    {
+      "n": 14,
+      "source": "synthetic",
+      "phase": "post-reveal",
+      "message": "the totem, but make the top character bigger",
+      "expectedRoute": "ambiguous",
+      "expectedWrites": [],
+      "expectedReply": "says it cannot place that name and re-offers tap-or-number - never re-cuts a design the customer did not refer to",
+      "note": "Same message, on a round with no stacked-tiers cut. A name from the vocabulary that this round did not show is a miss to ask about, NOT a licence to fall back to the pick or the newest re-cut. This is the assertion that separates 'named a cut and missed' from 'named no cut at all' - the latter (turn 10's bare critique) may still use context."
     }
   ],
   "facets": [

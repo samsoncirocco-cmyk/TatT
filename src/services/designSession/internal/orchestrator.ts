@@ -52,6 +52,7 @@ import {
 import {
   ALLOWANCE_SPENT_LINE,
   CHATTER_LINE,
+  NO_SUCH_CUT_LINE,
   WHICH_CUT_LINE,
   fixLandedLine,
   fixesLeftLine,
@@ -965,8 +966,14 @@ export async function critique(
   // Refused before any paid call, and spoken — never a silent no-op.
   if (remainingBefore <= 0) return settle(ALLOWANCE_SPENT_LINE);
 
-  const target = resolveCritiqueTarget(session, message);
-  if (!target) return settle(WHICH_CUT_LINE);
+  // Two different failures, two different replies, and neither spends a render.
+  // `missed` means they named a cut we could not place — asking "which one am i
+  // fixing?" there reads as not listening, and guessing costs a paid render on
+  // a design they did not ask for (the session 0f6234e9 "totem" turn).
+  const resolved = resolveCritiqueTarget(session, message);
+  if (resolved.kind === 'missed') return settle(NO_SUCH_CUT_LINE);
+  if (resolved.kind === 'none') return settle(WHICH_CUT_LINE);
+  const target = resolved.variation;
 
   const adjustedPrompt = adjustPromptForCritique(target, message);
   const cutId = `${target.id}-fix${used + 1}`;

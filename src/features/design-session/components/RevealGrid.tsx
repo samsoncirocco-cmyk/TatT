@@ -1,7 +1,7 @@
 'use client';
 
 import type { Variation } from '@/services/designSession/types';
-import { cutIdentity } from '../services/revealCutNames';
+import { cutIdentity } from '@/services/designSession/cutIdentity';
 
 export type RevealMode = 'pick' | 'not-you' | 'locked';
 
