@@ -17,7 +17,12 @@ import {
   isFixRequest,
   resolveCritiqueTarget,
 } from '../internal/critique';
-import { ALLOWANCE_SPENT_LINE, CHATTER_LINE, WHICH_CUT_LINE } from '../internal/critiqueVoice';
+import {
+  ALLOWANCE_SPENT_LINE,
+  CHATTER_LINE,
+  NO_SUCH_CUT_LINE,
+  WHICH_CUT_LINE,
+} from '../internal/critiqueVoice';
 import { DEFAULT_STUDIO_FIX_ALLOWANCE } from '@/lib/studio-fix-allowance';
 import { generate } from '../../generation';
 import {
@@ -88,19 +93,35 @@ async function seed(overrides: Partial<StoredSession> = {}): Promise<StoredSessi
   return session;
 }
 
+/** The cut a resolution landed on, or its non-cut kind — keeps assertions short. */
+const resolved = (
+  session: Parameters<typeof resolveCritiqueTarget>[0],
+  message: string
+): string => {
+  const result = resolveCritiqueTarget(session, message);
+  return result.kind === 'cut' ? result.variation.id : result.kind;
+};
+
+/** A compositional round — this is where the designed names live. */
+function sleeveCuts(): Variation[] {
+  return [
+    { id: 'c1', axisPosition: { composition: 'stacked tiers' }, prompt: 'p1' },
+    { id: 'c2', axisPosition: { composition: 'connected transitions' }, prompt: 'p2' },
+  ];
+}
+
 describe('critique — which cut is this about', () => {
   const session = { variations: variations(), critiqueCuts: [] as Variation[], pickId: undefined };
 
   it('reads an ordinal off the message', () => {
-    expect(resolveCritiqueTarget(session, 'the third one but less color')?.id).toBe('v3');
-    expect(resolveCritiqueTarget(session, '#2 is closer')?.id).toBe('v2');
-    expect(resolveCritiqueTarget(session, 'cut four, keyblades bigger')?.id).toBe('v4');
+    expect(resolved(session, 'the third one but less color')).toBe('v3');
+    expect(resolved(session, '#2 is closer')).toBe('v2');
+    expect(resolved(session, 'cut four, keyblades bigger')).toBe('v4');
   });
 
   it('reads a pole word only when exactly one cut carries it', () => {
-    // Two cuts are blackwork and two are bold — ambiguous, so no guess.
-    expect(resolveCritiqueTarget(session, 'the blackwork one is too busy')).toBeUndefined();
-    // Only v1 is both, but neither word alone disambiguates.
+    // Two cuts are blackwork — a reference that cannot land, so we ask.
+    expect(resolved(session, 'the blackwork one is too busy')).toBe('missed');
     const twoAxis = {
       variations: [
         variations()[0],
@@ -111,16 +132,82 @@ describe('critique — which cut is this about', () => {
       critiqueCuts: [] as Variation[],
       pickId: undefined,
     };
-    expect(resolveCritiqueTarget(twoAxis, 'the color one, riku is missing')?.id).toBe('v1');
+    expect(resolved(twoAxis, 'the color one, riku is missing')).toBe('v1');
   });
 
   it('falls back to the newest re-cut, then the pick, then nothing', () => {
     const recut: Variation = { id: 'v2-fix1', axisPosition: {}, prompt: 'p2 fixed' };
-    expect(resolveCritiqueTarget({ ...session, critiqueCuts: [recut] }, "riku's missing")?.id).toBe(
-      'v2-fix1'
-    );
-    expect(resolveCritiqueTarget({ ...session, pickId: 'v2' }, "riku's missing")?.id).toBe('v2');
-    expect(resolveCritiqueTarget(session, "riku's missing")).toBeUndefined();
+    expect(resolved({ ...session, critiqueCuts: [recut] }, "riku's missing")).toBe('v2-fix1');
+    expect(resolved({ ...session, pickId: 'v2' }, "riku's missing")).toBe('v2');
+    expect(resolved(session, "riku's missing")).toBe('none');
+  });
+});
+
+/**
+ * The failure this fix exists for. The customer read "the totem" under a cut,
+ * typed "the totem", and the resolver — which had never seen that name — fell
+ * through to its default and re-cut a different design, announcing it by name.
+ */
+describe('critique — the designed name the grid showed', () => {
+  const sleeve = { variations: sleeveCuts(), critiqueCuts: [] as Variation[], pickId: undefined };
+
+  it('resolves the name the customer was actually shown', () => {
+    expect(resolved(sleeve, 'the totem but bigger')).toBe('c1');
+    expect(resolved(sleeve, 'the run is too busy')).toBe('c2');
+  });
+
+  it('accepts the name without its article', () => {
+    expect(resolved(sleeve, 'totem, but make the top character bigger')).toBe('c1');
+  });
+
+  it('NEVER matches a name inside a longer word', () => {
+    // "the running man" is not "the run". Substring matching here is how a
+    // near-miss becomes a paid render on the wrong design.
+    expect(resolved(sleeve, 'make it look like the running man poster')).toBe('none');
+  });
+
+  it('ASKS rather than guessing when the name is from another round', () => {
+    // The regression: "the totem" against a round with no stacked-tiers cut
+    // used to fall through and re-cut whatever was most recent.
+    const noTotem = { variations: [sleeveCuts()[1]], critiqueCuts: [] as Variation[], pickId: undefined };
+    expect(resolved(noTotem, 'the totem but bigger')).toBe('missed');
+  });
+
+  it('ASKS even when there is a re-cut or a pick to fall back on', () => {
+    // The exact shape of the 0f6234e9 failure: context existed, so the old
+    // resolver had something to return, and returned it confidently.
+    const recut: Variation = { id: 'c2-fix1', axisPosition: {}, prompt: 'p2 fixed' };
+    const noTotem = {
+      variations: [sleeveCuts()[1]],
+      critiqueCuts: [recut],
+      pickId: 'c2',
+    };
+    expect(resolved(noTotem, 'the totem but bigger')).toBe('missed');
+  });
+
+  it('ASKS when two cuts answer to the same name', () => {
+    const twins = {
+      variations: [
+        { id: 'c1', axisPosition: { composition: 'centered emblem' }, prompt: 'p1' },
+        { id: 'c2', axisPosition: { composition: 'ensemble emblem' }, prompt: 'p2' },
+      ],
+      critiqueCuts: [] as Variation[],
+      pickId: undefined,
+    };
+    expect(resolved(twins, 'the emblem, but bigger')).toBe('missed');
+  });
+
+  it('ASKS when the ordinal runs past the end of the round', () => {
+    // Two-cut rounds (ADR-0049) make "the fourth one" reachable and wrong.
+    expect(resolved(sleeve, 'the fourth one is closest')).toBe('missed');
+  });
+
+  it('does NOT interrogate a pole word nothing carries', () => {
+    // "too colorful" on a blackwork round is a complaint about the piece, not
+    // a reference to a cut nobody rendered. Treating every pole word as a
+    // reference would make the lane ask questions instead of doing work.
+    const recut: Variation = { id: 'c2-fix1', axisPosition: {}, prompt: 'p2 fixed' };
+    expect(resolved({ ...sleeve, critiqueCuts: [recut] }, 'too colorful')).toBe('c2-fix1');
   });
 });
 
@@ -276,6 +363,31 @@ describe('critique — the orchestrator turn', () => {
     expect(result.generated).toBe(false);
     expect(result.reply).toBe(WHICH_CUT_LINE);
     expect(mockGenerate).not.toHaveBeenCalled();
+  });
+
+  it('SPENDS NOTHING on a cut name it cannot place, even with a pick to fall back on', async () => {
+    // The money path of the 0f6234e9 failure. A pick exists, so the old
+    // resolver had a target to return and returned it — a paid render on a
+    // design the customer never referred to, announced by name as if correct.
+    await seed({ phase: 'picked', pickId: 'v2', mostNotYouId: 'v4' });
+    const result = await critique('sess-critique', { message: 'the totem, but bigger' });
+
+    expect(result.generated).toBe(false);
+    expect(result.reply).toBe(NO_SUCH_CUT_LINE);
+    expect(mockGenerate).not.toHaveBeenCalled();
+    expect(mockRecordSpend).not.toHaveBeenCalled();
+    // Nothing was fixed, so nothing came off the allowance.
+    expect(result.fixesRemaining).toBe(DEFAULT_STUDIO_FIX_ALLOWANCE);
+  });
+
+  it('names the cut back with the name the grid showed', async () => {
+    // What we say and what we resolve come from one table now — the reply
+    // that announced the wrong cut is the same string the resolver matched on.
+    await seed({ variations: sleeveCuts() });
+    const result = await critique('sess-critique', { message: 'the totem, but bigger' });
+
+    expect(result.generated).toBe(true);
+    expect(result.reply).toContain('the totem');
   });
 
   it('applies a bare critique to the pick once one exists', async () => {

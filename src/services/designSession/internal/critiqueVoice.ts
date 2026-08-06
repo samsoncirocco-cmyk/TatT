@@ -27,6 +27,18 @@ export function fixLandedLine(targetName: string): string {
 export const WHICH_CUT_LINE =
   "which one am i fixing? tap it, or just say the number — 'the third one'.";
 
+/**
+ * They named a cut and it did not resolve to exactly one — a name from another
+ * round, a number past the end, or a word both cuts answer to.
+ *
+ * Separate copy from WHICH_CUT_LINE on purpose. "which one am i fixing?" reads
+ * as not-listening when the customer just told us, in the vocabulary we taught
+ * them. This says we heard a name and could not place it, which is the true
+ * thing, and it re-offers the two references that always work.
+ */
+export const NO_SUCH_CUT_LINE =
+  "i'm not sure which one you mean — tap it, or say the number and i'll take it from there.";
+
 /** A message that isn't a fix request. Warm, short, and hands the ball back. */
 export const CHATTER_LINE = "still here — tell me what's wrong with it and i'll re-cut.";
 
