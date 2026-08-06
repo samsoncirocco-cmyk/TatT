@@ -1,0 +1,103 @@
+{
+  "lane": "replicate-nano-banana",
+  "declaredRenderCostUsd": 0,
+  "summary": {
+    "total": 4,
+    "complete": 4,
+    "meanCompleteness": 1
+  },
+  "results": [
+    {
+      "file": "two-people_v0.png",
+      "recordId": "two-people",
+      "expected": [
+        "a woman tattoo artist",
+        "a man holding a sketchbook"
+      ],
+      "subjects": [
+        "Woman",
+        "Man",
+        "Tattoo machine",
+        "Sketchbook",
+        "Pencil",
+        "Lightbulb",
+        "Tattoo ink bottles",
+        "Tattoo needles",
+        "Rose",
+        "Banner",
+        "Eye"
+      ],
+      "found": [
+        "a woman tattoo artist",
+        "a man holding a sketchbook"
+      ],
+      "completeness": 1
+    },
+    {
+      "file": "two-people_v1.png",
+      "recordId": "two-people",
+      "expected": [
+        "a woman tattoo artist",
+        "a man holding a sketchbook"
+      ],
+      "subjects": [
+        "woman",
+        "man",
+        "tattoo machine",
+        "sketchbook",
+        "rose",
+        "rose",
+        "leaves",
+        "eagle drawing",
+        "rose drawings"
+      ],
+      "found": [
+        "a woman tattoo artist",
+        "a man holding a sketchbook"
+      ],
+      "completeness": 1
+    },
+    {
+      "file": "two-people_v2.png",
+      "recordId": "two-people",
+      "expected": [
+        "a woman tattoo artist",
+        "a man holding a sketchbook"
+      ],
+      "subjects": [
+        "woman",
+        "man",
+        "tattoo machine",
+        "sketchbook",
+        "roses",
+        "flowers",
+        "banner"
+      ],
+      "found": [
+        "a woman tattoo artist",
+        "a man holding a sketchbook"
+      ],
+      "completeness": 1
+    },
+    {
+      "file": "two-people_v3.png",
+      "recordId": "two-people",
+      "expected": [
+        "a woman tattoo artist",
+        "a man holding a sketchbook"
+      ],
+      "subjects": [
+        "woman",
+        "man",
+        "tattoo machine",
+        "sketchbook",
+        "paper"
+      ],
+      "found": [
+        "a woman tattoo artist",
+        "a man holding a sketchbook"
+      ],
+      "completeness": 1
+    }
+  ]
+}

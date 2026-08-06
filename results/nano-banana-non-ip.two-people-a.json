@@ -1,0 +1,63 @@
+{
+  "lane": "replicate-nano-banana",
+  "declaredRenderCostUsd": 0,
+  "summary": {
+    "total": 2,
+    "complete": 2,
+    "meanCompleteness": 1
+  },
+  "results": [
+    {
+      "file": "two-people_v0.png",
+      "recordId": "two-people",
+      "expected": [
+        "a woman tattoo artist",
+        "a man holding a sketchbook"
+      ],
+      "subjects": [
+        "woman",
+        "man",
+        "tattoo machine",
+        "ink bottle",
+        "ink bottle",
+        "sketchbook",
+        "pencil",
+        "lightbulb",
+        "rose",
+        "rose",
+        "rose",
+        "rose",
+        "rose",
+        "rose",
+        "banner",
+        "eye"
+      ],
+      "found": [
+        "a woman tattoo artist",
+        "a man holding a sketchbook"
+      ],
+      "completeness": 1
+    },
+    {
+      "file": "two-people_v1.png",
+      "recordId": "two-people",
+      "expected": [
+        "a woman tattoo artist",
+        "a man holding a sketchbook"
+      ],
+      "subjects": [
+        "woman",
+        "man",
+        "tattoo machine",
+        "sketchbook",
+        "belt with tools",
+        "eagle drawing"
+      ],
+      "found": [
+        "a woman tattoo artist",
+        "a man holding a sketchbook"
+      ],
+      "completeness": 1
+    }
+  ]
+}

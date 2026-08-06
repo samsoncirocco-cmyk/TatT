@@ -21,6 +21,7 @@ export const REGION = process.env.GCP_REGION || 'us-central1';
 const IMAGEN_MODEL = 'imagen-3.0-generate-001';
 const FLUX_SLUG = 'black-forest-labs/flux-dev';
 const IMAGEN_REPLICATE_SLUG = process.env.IMAGEN_REPLICATE_SLUG || 'google/imagen-4';
+const NANO_BANANA_REPLICATE_SLUG = 'google/nano-banana-2';
 const GEMINI_IMAGE_MODEL = process.env.VERTEX_IMAGE_MODEL || 'gemini-3.1-flash-image';
 
 /*
@@ -33,6 +34,10 @@ export const LANE_COST_USD = {
   flux: 0.025,
   gemini: 0.039,
   'replicate-imagen': Number(process.env.IMAGEN_REPLICATE_COST_USD || 0.04),
+  // Replicate's public price table, verified 2026-08-04: 1K is $0.067 per
+  // output image. The cast corpus deliberately fixes 1K, so this is a
+  // declared per-image price rather than an elapsed-time estimate.
+  'replicate-nano-banana': 0.067,
 };
 
 export function adcToken() {
@@ -168,6 +173,29 @@ export async function replicateImagen(apiToken, prompt, negativePrompt, aspectRa
 }
 
 /**
+ * Google Nano Banana 2 as served by Replicate — the exact lane proposed in
+ * ADR-0048, not the older Imagen-4 comparison arm.
+ *
+ * Its live schema accepts one output URI and exposes no `num_outputs` input.
+ * One harness render is therefore one paid prediction and one output image.
+ * Keep 1K explicit: it is the production-resolution comparison and gives the
+ * measurement a stable, published $0.067 per-image price.
+ */
+export async function replicateNanoBanana(apiToken, prompt, negativePrompt, aspectRatio) {
+  return runReplicateModel(
+    NANO_BANANA_REPLICATE_SLUG,
+    apiToken,
+    {
+      prompt: withAvoidClause(prompt, negativePrompt),
+      aspect_ratio: aspectRatio,
+      resolution: '1K',
+      output_format: 'png',
+    },
+    'ReplicateNanoBanana'
+  );
+}
+
+/**
  * Vertex Gemini image — what the product's `vertex-ai` provider now calls
  * after the Imagen migration (#277). Mirrors that provider exactly: global
  * publisher host, `:generateContent`, aspect ratio via `imageConfig`.
@@ -258,5 +286,14 @@ export function resolveLane(lane) {
       costUsd: LANE_COST_USD['replicate-imagen'],
     };
   }
-  throw new Error(`unknown lane '${lane}' (expected imagen|flux|gemini|replicate-imagen)`);
+  if (lane === 'replicate-nano-banana') {
+    return {
+      render: replicateNanoBanana,
+      token: replicateToken(),
+      costUsd: LANE_COST_USD['replicate-nano-banana'],
+    };
+  }
+  throw new Error(
+    `unknown lane '${lane}' (expected imagen|flux|gemini|replicate-imagen|replicate-nano-banana)`
+  );
 }

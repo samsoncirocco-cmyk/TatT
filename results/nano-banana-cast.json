@@ -1,0 +1,417 @@
+{
+  "dir": "/private/tmp/tatt-measurement/results/nano-banana-cast",
+  "lane": "replicate-nano-banana",
+  "summary": {
+    "total": 18,
+    "complete": 17,
+    "none": 0,
+    "meanCompleteness": 0.9888888888888889,
+    "textIntrusions": 2,
+    "intrudedWords": [
+      "HA",
+      "A"
+    ],
+    "byRecord": {
+      "batman-2": {
+        "total": 4,
+        "sum": 4,
+        "complete": 4
+      },
+      "dragon-ball-3": {
+        "total": 4,
+        "sum": 4,
+        "complete": 4
+      },
+      "kingdom-hearts-4": {
+        "total": 3,
+        "sum": 3,
+        "complete": 3
+      },
+      "mha-5": {
+        "total": 3,
+        "sum": 2.8,
+        "complete": 2
+      },
+      "naruto-2": {
+        "total": 4,
+        "sum": 4,
+        "complete": 4
+      }
+    }
+  },
+  "results": [
+    {
+      "file": "batman-2_v0.png",
+      "recordId": "batman-2",
+      "cast": [
+        "Batman",
+        "Joker"
+      ],
+      "found": [
+        "Batman",
+        "Joker"
+      ],
+      "extra": [],
+      "completeness": 1,
+      "hasText": false,
+      "words": [],
+      "summary": "Batman and Joker facing each other, comic book style, bold outlines"
+    },
+    {
+      "file": "batman-2_v1.png",
+      "recordId": "batman-2",
+      "cast": [
+        "Batman",
+        "Joker"
+      ],
+      "found": [
+        "Batman",
+        "Joker"
+      ],
+      "extra": [],
+      "completeness": 1,
+      "hasText": true,
+      "words": [
+        "HA",
+        "HA",
+        "HA",
+        "HA"
+      ],
+      "summary": "Batman and Joker in a dynamic confrontation, comic book style with bold outlines and speech bubbles."
+    },
+    {
+      "file": "batman-2_v2.png",
+      "recordId": "batman-2",
+      "cast": [
+        "Batman",
+        "Joker"
+      ],
+      "found": [
+        "Batman",
+        "Joker"
+      ],
+      "extra": [],
+      "completeness": 1,
+      "hasText": true,
+      "words": [
+        "A"
+      ],
+      "summary": "Split oval design featuring Batman and Joker, comic book style with bold outlines and vibrant colors."
+    },
+    {
+      "file": "batman-2_v3.png",
+      "recordId": "batman-2",
+      "cast": [
+        "Batman",
+        "Joker"
+      ],
+      "found": [
+        "Batman",
+        "Joker"
+      ],
+      "extra": [],
+      "completeness": 1,
+      "hasText": false,
+      "words": [],
+      "summary": "Batman and Joker in a dynamic comic book style confrontation"
+    },
+    {
+      "file": "dragon-ball-3_v0.png",
+      "recordId": "dragon-ball-3",
+      "cast": [
+        "Goku",
+        "Vegeta",
+        "Piccolo"
+      ],
+      "found": [
+        "Goku",
+        "Vegeta",
+        "Piccolo"
+      ],
+      "extra": [],
+      "completeness": 1,
+      "hasText": false,
+      "words": [],
+      "summary": "Three Dragon Ball Z characters (Goku, Vegeta, Piccolo) standing together, full body, bold outlines"
+    },
+    {
+      "file": "dragon-ball-3_v1.png",
+      "recordId": "dragon-ball-3",
+      "cast": [
+        "Goku",
+        "Vegeta",
+        "Piccolo"
+      ],
+      "found": [
+        "Goku",
+        "Vegeta",
+        "Piccolo"
+      ],
+      "extra": [],
+      "completeness": 1,
+      "hasText": false,
+      "words": [],
+      "summary": "Three Dragon Ball Z characters (Goku, Vegeta, Piccolo) in dynamic action poses, emitting energy blasts"
+    },
+    {
+      "file": "dragon-ball-3_v2.png",
+      "recordId": "dragon-ball-3",
+      "cast": [
+        "Goku",
+        "Vegeta",
+        "Piccolo"
+      ],
+      "found": [
+        "Goku",
+        "Vegeta",
+        "Piccolo"
+      ],
+      "extra": [],
+      "completeness": 1,
+      "hasText": false,
+      "words": [],
+      "summary": "Three Dragon Ball Z characters (Piccolo, Vegeta, Goku) stacked vertically, cel-shaded with bold outlines."
+    },
+    {
+      "file": "dragon-ball-3_v3.png",
+      "recordId": "dragon-ball-3",
+      "cast": [
+        "Goku",
+        "Vegeta",
+        "Piccolo"
+      ],
+      "found": [
+        "Goku",
+        "Vegeta",
+        "Piccolo"
+      ],
+      "extra": [],
+      "completeness": 1,
+      "hasText": false,
+      "words": [],
+      "summary": "Three Dragon Ball Z characters (Goku, Vegeta, Piccolo) in dynamic poses, full body, cel-shaded style."
+    },
+    {
+      "file": "kingdom-hearts-4_v0.png",
+      "recordId": "kingdom-hearts-4",
+      "cast": [
+        "Sora",
+        "Riku",
+        "Kairi",
+        "Roxas"
+      ],
+      "found": [
+        "Sora",
+        "Riku",
+        "Kairi",
+        "Roxas"
+      ],
+      "extra": [],
+      "completeness": 1,
+      "hasText": false,
+      "words": [],
+      "summary": "Four Kingdom Hearts characters with keyblades arranged in a heart shape with swirling motifs"
+    },
+    {
+      "file": "kingdom-hearts-4_v1.png",
+      "recordId": "kingdom-hearts-4",
+      "cast": [
+        "Sora",
+        "Riku",
+        "Kairi",
+        "Roxas"
+      ],
+      "found": [
+        "Sora",
+        "Riku",
+        "Kairi",
+        "Roxas"
+      ],
+      "extra": [],
+      "completeness": 1,
+      "hasText": false,
+      "words": [],
+      "summary": "Four anime-style Kingdom Hearts characters with Keyblades and elemental effects, in dynamic action poses."
+    },
+    {
+      "file": "kingdom-hearts-4_v2.png",
+      "recordId": "kingdom-hearts-4",
+      "cast": [
+        "Sora",
+        "Riku",
+        "Kairi",
+        "Roxas"
+      ],
+      "found": [
+        "Sora",
+        "Riku",
+        "Kairi",
+        "Roxas"
+      ],
+      "extra": [],
+      "completeness": 1,
+      "hasText": false,
+      "words": [],
+      "summary": "Four Kingdom Hearts anime characters stacked vertically with keyblades and thematic backgrounds"
+    },
+    {
+      "file": "kingdom-hearts-4_v3.png",
+      "cast": [
+        "Sora",
+        "Riku",
+        "Kairi",
+        "Roxas"
+      ],
+      "error": "The operation was aborted due to timeout"
+    },
+    {
+      "file": "mha-5_v0.png",
+      "recordId": "mha-5",
+      "cast": [
+        "Deku",
+        "Bakugo",
+        "Todoroki",
+        "Uraraka",
+        "All Might"
+      ],
+      "found": [
+        "Deku",
+        "Bakugo",
+        "Todoroki",
+        "Uraraka",
+        "All Might"
+      ],
+      "extra": [],
+      "completeness": 1,
+      "hasText": false,
+      "words": [],
+      "summary": "five anime characters from My Hero Academia in dynamic poses with power effects on a white background"
+    },
+    {
+      "file": "mha-5_v1.png",
+      "cast": [
+        "Deku",
+        "Bakugo",
+        "Todoroki",
+        "Uraraka",
+        "All Might"
+      ],
+      "error": "The operation was aborted due to timeout"
+    },
+    {
+      "file": "mha-5_v2.png",
+      "recordId": "mha-5",
+      "cast": [
+        "Deku",
+        "Bakugo",
+        "Todoroki",
+        "Uraraka",
+        "All Might"
+      ],
+      "found": [
+        "Bakugo",
+        "Todoroki",
+        "Uraraka",
+        "All Might"
+      ],
+      "extra": [
+        "Midoriya Izuku"
+      ],
+      "completeness": 0.8,
+      "hasText": false,
+      "words": [],
+      "summary": "five My Hero Academia characters stacked vertically, bold outlines, vibrant colors"
+    },
+    {
+      "file": "mha-5_v3.png",
+      "recordId": "mha-5",
+      "cast": [
+        "Deku",
+        "Bakugo",
+        "Todoroki",
+        "Uraraka",
+        "All Might"
+      ],
+      "found": [
+        "Deku",
+        "Bakugo",
+        "Todoroki",
+        "Uraraka",
+        "All Might"
+      ],
+      "extra": [],
+      "completeness": 1,
+      "hasText": false,
+      "words": [],
+      "summary": "five My Hero Academia characters in dynamic action poses, bold outlines, cel shading"
+    },
+    {
+      "file": "naruto-2_v0.png",
+      "recordId": "naruto-2",
+      "cast": [
+        "Naruto",
+        "Sasuke"
+      ],
+      "found": [
+        "Naruto",
+        "Sasuke"
+      ],
+      "extra": [],
+      "completeness": 1,
+      "hasText": false,
+      "words": [],
+      "summary": "Naruto and Sasuke in a detailed dotwork and blackwork tattoo design with symbolic elements."
+    },
+    {
+      "file": "naruto-2_v1.png",
+      "recordId": "naruto-2",
+      "cast": [
+        "Naruto",
+        "Sasuke"
+      ],
+      "found": [
+        "Naruto",
+        "Sasuke"
+      ],
+      "extra": [],
+      "completeness": 1,
+      "hasText": false,
+      "words": [],
+      "summary": "Naruto and Sasuke clashing with Rasengan and Chidori in a dynamic pose"
+    },
+    {
+      "file": "naruto-2_v2.png",
+      "recordId": "naruto-2",
+      "cast": [
+        "Naruto",
+        "Sasuke"
+      ],
+      "found": [
+        "Naruto",
+        "Sasuke"
+      ],
+      "extra": [],
+      "completeness": 1,
+      "hasText": false,
+      "words": [],
+      "summary": "Two anime characters, Sasuke and Naruto, in dynamic action poses with their signature abilities, in black and grey."
+    },
+    {
+      "file": "naruto-2_v3.png",
+      "recordId": "naruto-2",
+      "cast": [
+        "Naruto",
+        "Sasuke"
+      ],
+      "found": [
+        "Naruto",
+        "Sasuke"
+      ],
+      "extra": [],
+      "completeness": 1,
+      "hasText": false,
+      "words": [],
+      "summary": "Naruto and Sasuke in dynamic action poses with energy effects, black and white line art"
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "lane": "replicate-nano-banana",
+  "declaredRenderCostUsd": 0,
+  "summary": {
+    "total": 2,
+    "complete": 2,
+    "meanCompleteness": 1
+  },
+  "results": [
+    {
+      "file": "person-and-pet_v2.png",
+      "recordId": "person-and-pet",
+      "expected": [
+        "person",
+        "dog"
+      ],
+      "subjects": [
+        "person",
+        "dog",
+        "backpack",
+        "hiking stick",
+        "mountains",
+        "trees",
+        "path",
+        "rocks"
+      ],
+      "found": [
+        "person",
+        "dog"
+      ],
+      "completeness": 1
+    },
+    {
+      "file": "person-and-pet_v3.png",
+      "recordId": "person-and-pet",
+      "expected": [
+        "person",
+        "dog"
+      ],
+      "subjects": [
+        "woman",
+        "dog",
+        "backpack",
+        "water bottle",
+        "beanie",
+        "hiking boots",
+        "rock"
+      ],
+      "found": [
+        "person",
+        "dog"
+      ],
+      "completeness": 1
+    }
+  ]
+}

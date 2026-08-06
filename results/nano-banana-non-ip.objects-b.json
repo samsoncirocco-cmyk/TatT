@@ -1,0 +1,51 @@
+{
+  "lane": "replicate-nano-banana",
+  "declaredRenderCostUsd": 0,
+  "summary": {
+    "total": 2,
+    "complete": 2,
+    "meanCompleteness": 1
+  },
+  "results": [
+    {
+      "file": "three-objects_v2.png",
+      "recordId": "three-objects",
+      "expected": [
+        "an antique pocket watch",
+        "an old key",
+        "a compass"
+      ],
+      "subjects": [
+        "pocket watch",
+        "key",
+        "compass"
+      ],
+      "found": [
+        "an antique pocket watch",
+        "an old key",
+        "a compass"
+      ],
+      "completeness": 1
+    },
+    {
+      "file": "three-objects_v3.png",
+      "recordId": "three-objects",
+      "expected": [
+        "an antique pocket watch",
+        "an old key",
+        "a compass"
+      ],
+      "subjects": [
+        "pocket watch",
+        "key",
+        "compass"
+      ],
+      "found": [
+        "an antique pocket watch",
+        "an old key",
+        "a compass"
+      ],
+      "completeness": 1
+    }
+  ]
+}

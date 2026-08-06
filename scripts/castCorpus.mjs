@@ -24,6 +24,7 @@ import { ANALYSIS_PROMPT } from '../src/services/vision/internal/referenceAnalys
 import { PROJECT_ID, REGION } from './renderLanes.mjs';
 
 const VISION_MODEL = process.env.VISION_MODEL || 'gemini-2.5-flash';
+const VISION_TIMEOUT_MS = 30_000;
 
 /**
  * Named casts of 2–5. Each record is shaped exactly like the IntakeRecord the
@@ -156,6 +157,7 @@ export async function readCast(accessToken, base64Png) {
   const endpoint = `https://${REGION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/publishers/google/models/${VISION_MODEL}:generateContent`;
   const res = await fetch(endpoint, {
     method: 'POST',
+    signal: AbortSignal.timeout(VISION_TIMEOUT_MS),
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [
@@ -199,6 +201,7 @@ export async function readTextIntrusion(accessToken, base64Png) {
   const endpoint = `https://${REGION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/publishers/google/models/${VISION_MODEL}:generateContent`;
   const res = await fetch(endpoint, {
     method: 'POST',
+    signal: AbortSignal.timeout(VISION_TIMEOUT_MS),
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [

@@ -1,0 +1,241 @@
+{
+  "lane": "replicate-nano-banana",
+  "declaredRenderCostUsd": 0.804,
+  "summary": {
+    "total": 10,
+    "complete": 6,
+    "meanCompleteness": 0.8
+  },
+  "results": [
+    {
+      "file": "person-and-pet_v0.png",
+      "recordId": "person-and-pet",
+      "expected": [
+        "a hiker",
+        "a dog"
+      ],
+      "subjects": [
+        "man",
+        "dog",
+        "backpack",
+        "rocks",
+        "trees",
+        "mountains",
+        "clouds",
+        "compass rose"
+      ],
+      "found": [
+        "a dog"
+      ],
+      "completeness": 0.5
+    },
+    {
+      "file": "person-and-pet_v1.png",
+      "recordId": "person-and-pet",
+      "expected": [
+        "a hiker",
+        "a dog"
+      ],
+      "subjects": [
+        "person",
+        "dog",
+        "mountains",
+        "trees",
+        "clouds",
+        "moon",
+        "stars",
+        "river"
+      ],
+      "found": [
+        "a dog"
+      ],
+      "completeness": 0.5
+    },
+    {
+      "file": "person-and-pet_v2.png",
+      "recordId": "person-and-pet",
+      "expected": [
+        "a hiker",
+        "a dog"
+      ],
+      "subjects": [
+        "man",
+        "dog",
+        "backpack",
+        "hiking stick",
+        "mountains",
+        "trees",
+        "rocks"
+      ],
+      "found": [
+        "a dog"
+      ],
+      "completeness": 0.5
+    },
+    {
+      "file": "person-and-pet_v3.png",
+      "recordId": "person-and-pet",
+      "expected": [
+        "a hiker",
+        "a dog"
+      ],
+      "subjects": [
+        "woman",
+        "dog",
+        "backpack",
+        "water bottle",
+        "rock"
+      ],
+      "found": [
+        "a dog"
+      ],
+      "completeness": 0.5
+    },
+    {
+      "file": "three-objects_v0.png",
+      "recordId": "three-objects",
+      "expected": [
+        "an antique pocket watch",
+        "an old key",
+        "a compass"
+      ],
+      "subjects": [
+        "pocket watch",
+        "key",
+        "compass"
+      ],
+      "found": [
+        "an antique pocket watch",
+        "an old key",
+        "a compass"
+      ],
+      "completeness": 1
+    },
+    {
+      "file": "three-objects_v1.png",
+      "recordId": "three-objects",
+      "expected": [
+        "an antique pocket watch",
+        "an old key",
+        "a compass"
+      ],
+      "subjects": [
+        "pocket watch",
+        "key",
+        "compass"
+      ],
+      "found": [
+        "an antique pocket watch",
+        "an old key",
+        "a compass"
+      ],
+      "completeness": 1
+    },
+    {
+      "file": "three-objects_v2.png",
+      "recordId": "three-objects",
+      "expected": [
+        "an antique pocket watch",
+        "an old key",
+        "a compass"
+      ],
+      "subjects": [
+        "pocket watch",
+        "key",
+        "compass"
+      ],
+      "found": [
+        "an antique pocket watch",
+        "an old key",
+        "a compass"
+      ],
+      "completeness": 1
+    },
+    {
+      "file": "three-objects_v3.png",
+      "recordId": "three-objects",
+      "expected": [
+        "an antique pocket watch",
+        "an old key",
+        "a compass"
+      ],
+      "error": "The operation was aborted due to timeout"
+    },
+    {
+      "file": "two-people_v0.png",
+      "recordId": "two-people",
+      "expected": [
+        "a woman tattoo artist",
+        "a man holding a sketchbook"
+      ],
+      "error": "The operation was aborted due to timeout"
+    },
+    {
+      "file": "two-people_v1.png",
+      "recordId": "two-people",
+      "expected": [
+        "a woman tattoo artist",
+        "a man holding a sketchbook"
+      ],
+      "subjects": [
+        "woman",
+        "man",
+        "tattoo machine",
+        "sketchbook",
+        "belt with tools",
+        "rose",
+        "rose",
+        "eagle drawing"
+      ],
+      "found": [
+        "a woman tattoo artist",
+        "a man holding a sketchbook"
+      ],
+      "completeness": 1
+    },
+    {
+      "file": "two-people_v2.png",
+      "recordId": "two-people",
+      "expected": [
+        "a woman tattoo artist",
+        "a man holding a sketchbook"
+      ],
+      "subjects": [
+        "woman",
+        "man",
+        "tattoo machine",
+        "sketchbook",
+        "rose drawing",
+        "roses",
+        "flowers",
+        "decorative frame",
+        "banner"
+      ],
+      "found": [
+        "a woman tattoo artist",
+        "a man holding a sketchbook"
+      ],
+      "completeness": 1
+    },
+    {
+      "file": "two-people_v3.png",
+      "recordId": "two-people",
+      "expected": [
+        "a woman tattoo artist",
+        "a man holding a sketchbook"
+      ],
+      "subjects": [
+        "woman",
+        "man",
+        "tattoo gun",
+        "paper",
+        "sketchbook"
+      ],
+      "found": [
+        "a woman tattoo artist",
+        "a man holding a sketchbook"
+      ],
+      "completeness": 1
+    }
+  ]
+}
