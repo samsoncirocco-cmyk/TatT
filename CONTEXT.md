@@ -213,3 +213,42 @@ what's wrong — "riku's missing", "too busy", "the third one but less color"
 Composition-level, which is what separates it from the Studio's point and
 say; bounded by the same fix allowance and closed once the Brief exists.
 _Avoid_: regenerate, retry, edit (that's the Studio)
+
+### Idea graph (ADR-0055–0058)
+
+**Idea**:
+The durable thing a customer is pursuing, above any one session and across
+both channels (ADR-0055): placement, register, style intent, and standing
+constraints — "the punk Simpsons piece on the right arm that has to sit next
+to Greek myths later." Holds a mutable subject and remembers the subjects it
+moved off. Outlives the session; a Brief is what one resolved session hands
+off, an Idea is the thread the Briefs hang from.
+_Avoid_: session, concept (as a separate noun), project
+
+**Subject**:
+The character or thing an Idea is currently depicting — Nelson, Homer, a
+kraken. A field inside the Idea, never its identity: swapping it is an
+iteration, not a new Idea (ADR-0055). A swapped-away subject is recorded as
+abandoned, because a rejection is signal.
+_Avoid_: idea, topic
+
+**Generation set**:
+One render pass under an Idea, and every cut it produced. Sized by what the
+pass drew — four at the ADR-0012 reveal, two under a pick-to-refine round —
+never a fixed count.
+_Avoid_: reveal (that's the first set only), batch, the four
+
+**Session router**:
+The layer that classifies every inbound message for the life of the session
+and dispatches it (ADR-0056): continue intake, commentary, iterate, swap
+subject, re-roll, new Idea, or ambiguous. Decides *who answers*; the intake
+engine still decides *what intake says*. Middleware around the model call,
+never a bigger system prompt.
+_Avoid_: orchestrator (taken), agent (too vague), classifier (undersells it)
+
+**Descriptor**:
+A free-text word recorded on an Idea — "punk", "crying", "hard dark lines"
+(ADR-0058). Steers prompts, carries provenance and a recurrence count, and
+never joins artists. Distinct from a canonical style tag, which is closed,
+human-governed under ADR-0011, and the only vocabulary matching runs on.
+_Avoid_: tag (ambiguous — say descriptor or style tag), keyword
