@@ -221,7 +221,12 @@ export function buildPlayback(
     // existence of the fallback.
     const spoken = spokenSubject(record.subject);
     if (spoken) tailPart = ` — ${spoken}`;
-    else if (meaning) tailPart = ` — ${truncateAtWord(meaning, PLAYBACK_MEANING_MAX)}`;
+    // Marked as the WHY, never asserted as the what. Bare, the meaning clause
+    // sits in the exact position a subject would and reads as one — which is
+    // the same substitution this fix exists to stop, just wearing a smaller
+    // mask. "about" says we are repeating what it means to them, not claiming
+    // to know what is in the picture.
+    else if (meaning) tailPart = ` — about ${truncateAtWord(meaning, PLAYBACK_MEANING_MAX)}`;
   }
   return `${article} ${style}piece ${placement}${tailPart}`;
 }
@@ -241,11 +246,50 @@ export function buildPlayback(
 function spokenSubject(subject: string | undefined): string | undefined {
   const value = (subject ?? '').trim();
   if (!value) return undefined;
+
   // Up to the first anchor clause — "X with ...", "X, wearing ..." — so the
   // prompt's costume prose does not arrive in the customer's sentence.
-  const head = value.split(/\s*[,;]|\s+\bwith\b\s+/i)[0]?.trim() ?? '';
-  const spoken = head || value;
+  const clauses = value
+    .split(/\s*[,;]|\s+\bwith\b\s+/i)
+    .map((clause) => clause.trim())
+    .filter(Boolean);
+  if (clauses.length === 0) return truncateAtWord(value, PLAYBACK_SUBJECT_MAX);
+
+  // The extraction prompt offers two subject shapes and joins the franchise
+  // differently in each: "Izuku Midoriya (Deku) FROM My Hero Academia, ..."
+  // keeps the franchise inside the first clause, but "Killua Zoldyck, Hunter
+  // x Hunter, silver spiky hair, ..." puts it in the second — where a
+  // first-clause-only rule silently dropped it, while the same prompt line
+  // instructs the model to name the character AND the franchise.
+  //
+  // Costume prose and a franchise are both comma-delimited, so the boundary
+  // cannot be the comma. Title case is what separates them: "Hunter x Hunter"
+  // is mostly capitalized, "silver spiky hair" is not.
+  const spoken =
+    clauses[1] && looksLikeTitle(clauses[1])
+      ? `${clauses[0]}, ${clauses[1]}`
+      : clauses[0];
   return truncateAtWord(spoken, PLAYBACK_SUBJECT_MAX);
+}
+
+/**
+ * Does this clause read as a proper name — a franchise or series — rather than
+ * appearance prose?
+ *
+ * Majority-capitalized and short. Connectors ("of", "the") and the single
+ * lowercase letters titles use as joins ("Hunter x Hunter") do not count
+ * against it, since neither is capitalized in a real title either.
+ */
+function looksLikeTitle(clause: string): boolean {
+  if (clause.length > 40) return false;
+  const words = clause.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return false;
+  const meaningful = words.filter(
+    (word) => word.length > 1 && !LOWERCASE_NAME_CONNECTORS.has(word.toLowerCase())
+  );
+  if (meaningful.length === 0) return false;
+  const capitalized = meaningful.filter((word) => /^[\p{Lu}\p{Lt}]/u.test(word));
+  return capitalized.length >= Math.ceil(meaningful.length / 2);
 }
 
 /**

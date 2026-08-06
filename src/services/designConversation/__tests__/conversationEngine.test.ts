@@ -856,6 +856,51 @@ describe('runTurn — playback names a recognized character', () => {
     expect(playback).toContain('hummingbird');
   });
 
+  it('keeps the franchise when the extractor comma-joins it to the name', () => {
+    // The extraction prompt offers two subject shapes: one joins the franchise
+    // with "from", the other with a comma. A first-clause-only trim silently
+    // dropped the franchise from the comma-joined shape, while the same prompt
+    // line instructs the model to name the character AND the franchise.
+    const playback = buildPlayback({
+      placement: 'forearm',
+      subject:
+        'Killua Zoldyck, Hunter x Hunter, silver spiky hair, blue eyes, plain long-sleeve white turtleneck, wide shorts, boots',
+    });
+
+    expect(playback).toContain('Killua Zoldyck, Hunter x Hunter');
+    // ...and still none of the costume prose that follows it.
+    expect(playback).not.toContain('turtleneck');
+    expect(playback).not.toContain('silver spiky hair');
+  });
+
+  it('does not mistake appearance prose for a franchise', () => {
+    const playback = buildPlayback({
+      placement: 'forearm',
+      subject: 'Nelson Muntz, blue shirt, purple shorts, single tear',
+    });
+
+    expect(playback).toContain('Nelson Muntz');
+    expect(playback).not.toContain('blue shirt');
+  });
+
+  it('MARKS the meaning as the why rather than asserting it as the subject', () => {
+    // Bare, the meaning clause sits in the exact position a subject would and
+    // reads as one — the same substitution in a smaller mask.
+    const withMeaning = buildPlayback({
+      placement: 'left forearm',
+      meaning: 'a hummingbird for my grandmother',
+    });
+    const withSubject = buildPlayback({
+      placement: 'left forearm',
+      subject: 'Nelson Muntz with a blue shirt',
+    });
+
+    expect(withMeaning).toContain('— about a hummingbird for my grandmother');
+    // The subject path asserts, because there we actually know.
+    expect(withSubject).toContain('— Nelson Muntz');
+    expect(withSubject).not.toContain('about');
+  });
+
   it('falls back to the meaning when no character is named', async () => {
     configureVertex();
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(vertexResponse(RICH_PAYLOAD)));
