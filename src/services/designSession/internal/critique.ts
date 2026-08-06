@@ -10,6 +10,12 @@
  * The orchestrator owns everything stateful — the allowance ledger, the
  * pinned-model regen, persistence.
  */
+import {
+  ALL_CUT_NAMES,
+  cutIdentity,
+  messageNamesCut,
+  sessionCutIdentities,
+} from '../cutIdentity';
 import type { DesignSession, Variation } from '../types';
 
 /* ── Which cut ───────────────────────────────────────────────────────────── */
@@ -58,55 +64,122 @@ export function allCuts(session: Pick<DesignSession, 'variations' | 'critiqueCut
 }
 
 /**
+ * What a critique turn is about.
+ *
+ * `missed` exists because the old `Variation | undefined` could not tell two
+ * very different situations apart, and that conflation is what cost a customer
+ * a render in session 0f6234e9:
+ *
+ * - They typed "the totem" — a cut name this product genuinely uses, and one
+ *   the grid had shown them. Nothing resolved it, so the resolver fell through
+ *   to its "most recent cut" default, re-cut *the run*, and announced it by
+ *   name. Confident, wrong, and paid for.
+ * - They typed "make it bigger" — naming no cut at all. Falling through to the
+ *   cut they are visibly working on is not a guess there; it is the context of
+ *   the conversation, and taking it away would make the lane tedious.
+ *
+ * So: named a cut and it did not resolve to exactly one → `missed`, ask.
+ * Named no cut → the context fallbacks still apply. Only `none` (no reference
+ * and no context) reaches the original "which one am i fixing?" line.
+ */
+export type CritiqueTarget =
+  | { kind: 'cut'; variation: Variation }
+  | { kind: 'missed' }
+  | { kind: 'none' };
+
+/**
  * Which cut this critique is about, in falling order of confidence:
  *   1. an ordinal naming one of the session's cuts ("the third one")
- *   2. a pole word only one reveal cut carries ("the blackwork one")
- *   3. the most recent cut critique produced — the user is still fixing it
- *   4. the session's pick, once one exists
- * Nothing matching returns undefined, and the caller asks rather than
- * guessing: guessing wrong here spends a real render on the wrong design.
+ *   2. the designed name the grid showed under the cut ("the totem")
+ *   3. a pole word only one reveal cut carries ("the blackwork one")
+ *   4. the most recent cut critique produced — the user is still fixing it
+ *   5. the session's pick, once one exists
+ *
+ * 1–3 are the allowlist, and they are exact matches on normalized text: no
+ * stemming, no edit distance, no semantics. A reference that misses is not
+ * retried more loosely — it is handed back as a question, because the cheapest
+ * possible outcome of an unresolved name is asking, and the most expensive is
+ * rendering the wrong design.
  */
 export function resolveCritiqueTarget(
   session: Pick<DesignSession, 'variations' | 'critiqueCuts' | 'pickId'>,
   message: string
-): Variation | undefined {
+): CritiqueTarget {
   const text = (message || '').trim();
 
+  // An ordinal is an unambiguous reference. Out of range is still a reference —
+  // "the fourth one" against a two-cut round is a miss to ask about, never a
+  // reason to fall through to something they did not name.
   const ordinal = text.match(ORDINAL_PATTERN);
   if (ordinal) {
     const token = ordinal[1].toLowerCase();
     const index = (ORDINAL_WORDS[token] ?? Number(token)) - 1;
-    if (index >= 0 && index < session.variations.length) return session.variations[index];
+    if (index >= 0 && index < session.variations.length) {
+      return { kind: 'cut', variation: session.variations[index] };
+    }
+    return { kind: 'missed' };
   }
 
-  // A pole word only counts when exactly one reveal cut carries it —
-  // "the bold one" means nothing when two cuts are bold.
+  // The names the customer was actually shown, matched against the same table
+  // the grid rendered from. Two cuts sharing a name is a miss, not a coin flip.
+  const named = sessionCutIdentities(session).filter(({ identity }) =>
+    messageNamesCut(text, identity.name)
+  );
+  if (named.length === 1) return { kind: 'cut', variation: named[0].variation };
+  if (named.length > 1) return { kind: 'missed' };
+
+  // A pole word is a weaker signal than a name, and deliberately treated as
+  // one. Exactly one carrier resolves it. Two carriers is a real ambiguity —
+  // "the bold one" means nothing when both cuts are bold — so ask. But ZERO
+  // carriers is usually not a reference at all: "too colorful" against a
+  // blackwork round is a critique of the piece, not a cut nobody rendered, and
+  // treating it as a miss would interrogate people for describing their
+  // complaint.
   for (const [pole, pattern] of Object.entries(POLE_WORD)) {
     if (!pattern.test(text)) continue;
     const carrying = session.variations.filter((variation) =>
       Object.values(variation.axisPosition).includes(pole)
     );
-    if (carrying.length === 1) return carrying[0];
+    if (carrying.length === 1) return { kind: 'cut', variation: carrying[0] };
+    if (carrying.length > 1) return { kind: 'missed' };
   }
 
+  // A designed name from the wider vocabulary that this session never showed —
+  // "the totem" on a round that has no stacked-tiers cut. The customer is
+  // pointing at something; we just do not have it. Ask.
+  if (ALL_CUT_NAMES.some((name) => messageNamesCut(text, name))) {
+    return { kind: 'missed' };
+  }
+
+  // Named nothing. Context is legitimate from here down.
   const critiqueCuts = session.critiqueCuts ?? [];
-  if (critiqueCuts.length > 0) return critiqueCuts[critiqueCuts.length - 1];
+  if (critiqueCuts.length > 0) {
+    return { kind: 'cut', variation: critiqueCuts[critiqueCuts.length - 1] };
+  }
 
   if (session.pickId) {
-    return allCuts(session).find((variation) => variation.id === session.pickId);
+    const picked = allCuts(session).find((variation) => variation.id === session.pickId);
+    if (picked) return { kind: 'cut', variation: picked };
   }
 
-  return undefined;
+  return { kind: 'none' };
 }
 
-/** How a cut is named back to the user — designed strings, never raw axis values. */
+/**
+ * How a cut is named back to the user — the same designed string the grid put
+ * under it, so "re-cut the totem" can only ever mean the cut the customer was
+ * looking at when they typed "the totem".
+ *
+ * Speaking a different vocabulary than we resolve is what made the original
+ * failure unreadable: the reply said a name the resolver had no concept of.
+ */
 export function cutLabel(
   session: Pick<DesignSession, 'variations'>,
   variation: Variation
 ): string {
   const index = session.variations.findIndex((candidate) => candidate.id === variation.id);
   if (index < 0) return 'that last one';
-  return `cut ${['one', 'two', 'three', 'four'][index] ?? index + 1}`;
+  return cutIdentity(variation, index).name;
 }
 
 /* ── Is it a fix request? ────────────────────────────────────────────────── */
