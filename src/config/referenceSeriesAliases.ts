@@ -28,9 +28,13 @@ export const REFERENCE_SERIES_ALIASES: Readonly<Record<string, readonly string[]
   'super mario': ['mario', 'super mario bros', 'mario bros', 'mario kart'],
   'super smash bros': ['smash bros', 'smash', 'ssbu'],
   'pokemon': ['pokémon', 'pkmn'],
-  'sonic the hedgehog': ['sonic'],
-  'metroid': ['samus'],
-  'kirby': [],
+  // Deliberately NOT keyed or aliased on a bare character name. "Kirby",
+  // "Samus" and "Sonic" are people, and a person's name in this table reads
+  // as a second named franchise — which flips the crossover branch in
+  // `mergeCharacterIdentities` and starts demanding catalog corroboration on
+  // a session that never crossed over. Found by the test below.
+  'sonic the hedgehog': [],
+  'metroid': [],
   'street fighter': ['sf'],
   'mortal kombat': ['mk'],
   'halo': [],

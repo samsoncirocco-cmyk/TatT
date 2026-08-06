@@ -22,7 +22,7 @@
  * hostages.
  */
 import { describe, it, expect } from 'vitest';
-import { groundedCharacterIdentities } from '@/services/intake';
+import { groundedCharacterIdentities, mergeCharacterIdentities } from '@/services/intake';
 
 /** The 2026-08-05 opener, verbatim, misspelling included. */
 const SMASH_TURN_1 =
@@ -152,5 +152,118 @@ describe('near-miss rescue — a typo must not delete a character', () => {
     );
 
     expect(result.map((i) => i.name)).toEqual(['Roxas']);
+  });
+});
+
+/**
+ * The downgrade's blast radius.
+ *
+ * A blank series is the ABSENCE of a named source, not a source. Letting it
+ * into `explicitlyNamedSeries` made one unverifiable franchise look like a
+ * second one, flipped the crossover branch on a session with no crossover,
+ * and then deleted every provider identity the catalog could not corroborate
+ * — including fully-verified ones. That is strictly worse than the bug this
+ * file exists to fix: it turns "we lost the character with the odd franchise"
+ * into "we lost the whole cast", and it fires in exactly the situation the fix
+ * targets (a franchise our table does not know, so the catalog does not know
+ * it either).
+ */
+describe('a name-only identity is not a phantom second franchise', () => {
+  const ONE_FRANCHISE = 'a kingdom hearts sleeve with sora fighting kirby';
+
+  it('keeps BOTH when one character has no verifiable source', () => {
+    expect(
+      mergeCharacterIdentities(
+        [
+          { name: 'Sora', series: 'Kingdom Hearts' },
+          { name: 'Kirby', series: '' },
+        ],
+        [],
+        ONE_FRANCHISE
+      )
+    ).toEqual([
+      { name: 'Sora', series: 'Kingdom Hearts' },
+      { name: 'Kirby', series: '' },
+    ]);
+  });
+
+  it('carries a name-only identity THROUGH a genuine crossover', () => {
+    // Crossover correction fixes a source the provider may have swapped. A
+    // name-only identity has none to correct — requiring catalog
+    // corroboration it can never have would delete it for the same reason as
+    // before, one layer down.
+    const merged = mergeCharacterIdentities(
+      [
+        { name: 'Cloud', series: 'Final Fantasy VII' },
+        { name: 'Sora', series: 'Kingdom Hearts' },
+        { name: 'Chell', series: '' },
+      ],
+      [{ name: 'Cloud', series: 'Final Fantasy VII' }],
+      'cloud from final fantasy vii and sora from kingdom hearts and chell'
+    );
+
+    expect(merged.map((identity) => identity.name)).toContain('Chell');
+  });
+
+  it('takes the catalog source when it knows a name-only character', () => {
+    // The downgrade means "we could not verify it", not "there is none". The
+    // catalog verifying it is precisely the evidence that was missing.
+    expect(
+      mergeCharacterIdentities(
+        [{ name: 'Link', series: '' }],
+        [{ name: 'Link', series: 'The Legend of Zelda' }],
+        'link from zelda'
+      )
+    ).toEqual([{ name: 'Link', series: 'The Legend of Zelda' }]);
+  });
+
+  it('still corrects a provider-swapped source in a real crossover', () => {
+    // The guard the crossover branch exists for, unchanged by any of this.
+    const merged = mergeCharacterIdentities(
+      [{ name: 'Cloud', series: 'Kingdom Hearts' }],
+      [{ name: 'Cloud', series: 'Final Fantasy VII' }],
+      'cloud from final fantasy vii in a kingdom hearts sleeve'
+    );
+
+    expect(merged).toEqual([{ name: 'Cloud', series: 'Final Fantasy VII' }]);
+  });
+});
+
+/**
+ * Two name-only identities compare `'' === ''` in the corroboration match and
+ * the final dedup. Review flagged this as a separate, smaller question than
+ * the crossover bug; pinning today's answer so it cannot drift silently.
+ */
+describe('two name-only identities', () => {
+  it('are kept as two distinct people, not deduped into one', () => {
+    // The dedup keys on name AND series. Two DIFFERENT people who both happen
+    // to lack a verifiable franchise share `series: ''` — that must not read
+    // as "the same identity twice".
+    expect(
+      mergeCharacterIdentities(
+        [
+          { name: 'Chell', series: '' },
+          { name: 'Ripley', series: '' },
+        ],
+        [],
+        'chell and ripley on my arm'
+      )
+    ).toEqual([
+      { name: 'Chell', series: '' },
+      { name: 'Ripley', series: '' },
+    ]);
+  });
+
+  it('collapse to one when they are the SAME person named twice', () => {
+    expect(
+      mergeCharacterIdentities(
+        [
+          { name: 'Chell', series: '' },
+          { name: 'Chell', series: '' },
+        ],
+        [],
+        'chell on my arm'
+      )
+    ).toEqual([{ name: 'Chell', series: '' }]);
   });
 });

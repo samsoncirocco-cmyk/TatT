@@ -237,23 +237,47 @@ export function mergeCharacterIdentities(
   detected: readonly CharacterIdentity[],
   sourceText = ''
 ): CharacterIdentity[] {
-  const explicitlyNamedSeries = new Set([
-    ...referenceSeriesIn(sourceText).map(normalize),
-    ...provider.map((identity) => normalize(identity.series)),
-    ...detected
-      .filter((identity) => referenceSeriesMentioned(sourceText, identity.series))
-      .map((identity) => normalize(identity.series)),
-  ]);
+  // A name-only identity contributes NO series, so it must not be counted as
+  // one. Letting `''` into this set made a single unverifiable franchise look
+  // like a second source, flipped `isCrossover`, and then the crossover branch
+  // deleted the very character the name-only downgrade had just saved — the
+  // original bug, one layer further down.
+  const explicitlyNamedSeries = new Set(
+    [
+      ...referenceSeriesIn(sourceText).map(normalize),
+      ...provider.map((identity) => normalize(identity.series)),
+      ...detected
+        .filter((identity) => referenceSeriesMentioned(sourceText, identity.series))
+        .map((identity) => normalize(identity.series)),
+    ].filter(Boolean)
+  );
   const isCrossover = explicitlyNamedSeries.size > 1;
   const providerWithCorroboratedSources = provider.flatMap((identity) => {
     if (!isCrossover) return [identity];
+    // Crossover correction fixes a source the provider may have swapped. A
+    // name-only identity has no source to correct and no source to get wrong,
+    // so it is carried through rather than requiring catalog corroboration it
+    // can never have — the catalog not knowing someone is why it is name-only.
+    if (!identity.series) return [identity];
     const corroborated = detected.find((candidate) =>
       sameCharacterName(candidate.name, identity.name)
     );
     return corroborated ? [corroborated] : [];
   });
+  // A name-only identity is missing information, not asserting its absence.
+  // Where the catalog knows the same character's source, take it — the whole
+  // point of the downgrade is that we could not verify the franchise, and the
+  // catalog verifying it is exactly the evidence that was missing.
+  const providerWithBestKnownSources = providerWithCorroboratedSources.map((identity) => {
+    if (identity.series) return identity;
+    const known = detected.find(
+      (candidate) => candidate.series && sameCharacterName(candidate.name, identity.name)
+    );
+    return known ? { name: identity.name, series: known.series } : identity;
+  });
+
   return [
-    ...providerWithCorroboratedSources,
+    ...providerWithBestKnownSources,
     ...detected.filter((identity) =>
       !providerWithCorroboratedSources.some((candidate) =>
         sameCharacterName(candidate.name, identity.name)
