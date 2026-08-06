@@ -27,6 +27,7 @@ import {
   PROPOSAL_REMINDER,
 } from '../internal/persona';
 import { resetStyleTagCache } from '../internal/ontology';
+import { buildPlayback } from '../internal/engine';
 import {
   PROVIDER_FAILOVER_EVENT,
   CONVERSATION_DEGRADED_EVENT,
@@ -809,6 +810,50 @@ describe('runTurn — playback names a recognized character', () => {
     // would make the spoken sentence unreadable.
     expect(result.playback!.toLowerCase()).not.toContain('orange gi');
     expect(result.playback!.toLowerCase()).not.toContain('spiky');
+  });
+
+  /**
+   * The reported failure: a session about Nelson Muntz was read back as
+   * "punk with a tear". The catalog did not recognize him, so the label was
+   * empty and the playback reached straight past `subject` — which knew
+   * exactly what we were about to draw — to `meaning`, which is why they
+   * wanted it. Both sound like descriptions, so the substitution is invisible.
+   */
+  it('speaks the SUBJECT, not the meaning, when the catalog knows nobody', () => {
+    const playback = buildPlayback({
+      placement: 'forearm',
+      styleTags: ['neo traditional'],
+      subject: 'Nelson Muntz with a blue shirt, purple shorts, single tear, punk styling',
+      meaning: 'punk with a tear',
+    });
+
+    expect(playback).toContain('Nelson Muntz');
+    expect(playback).not.toContain('punk with a tear');
+  });
+
+  it('trims the costume anchors off the subject before speaking it', () => {
+    // `subject` is written for the image model. Reading the whole string back
+    // is unreadable, so only the clause that names the thing is spoken.
+    const playback = buildPlayback({
+      placement: 'forearm',
+      subject: 'Nelson Muntz with a blue shirt, purple shorts, single tear',
+    });
+
+    expect(playback).toContain('Nelson Muntz');
+    expect(playback).not.toContain('purple shorts');
+    expect(playback).not.toContain('blue shirt');
+  });
+
+  it('still falls back to meaning when there is no subject either', () => {
+    // The bug was the precedence, not the existence of the fallback. A brief
+    // whose whole content is the meaning deserves a sentence that uses it.
+    const playback = buildPlayback({
+      placement: 'left forearm',
+      styleTags: ['fine line'],
+      meaning: 'a hummingbird for my grandmother, delicate and warm',
+    });
+
+    expect(playback).toContain('hummingbird');
   });
 
   it('falls back to the meaning when no character is named', async () => {

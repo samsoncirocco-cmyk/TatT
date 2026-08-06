@@ -159,6 +159,12 @@ function sanitizeRecord(
  * Playback: the one-line best-guess summary (ADR-0020)
  * ────────────────────────────────────────────────────────────────────────── */
 
+/**
+ * The subject fallback, spoken when no character label resolved. Shorter than
+ * the meaning budget on purpose: this is a name, not prose.
+ */
+const PLAYBACK_SUBJECT_MAX = 90;
+/** Meaning is the last resort — no character, no subject, nothing else known. */
 const PLAYBACK_MEANING_MAX = 140;
 /** The scene/moment clause rides after the character list, never truncating it. */
 const PLAYBACK_MOMENT_MAX = 120;
@@ -199,10 +205,47 @@ export function buildPlayback(
       ? `, ${truncateAtWord((moment ?? '').trim(), PLAYBACK_MOMENT_MAX)}`
       : '';
     tailPart = ` — ${subject}${momentPart}`;
-  } else if (meaning) {
-    tailPart = ` — ${truncateAtWord(meaning, PLAYBACK_MEANING_MAX)}`;
+  } else {
+    // No character label resolved — the catalog did not recognize anyone. The
+    // SUBJECT still knows what we are about to draw, and it outranks meaning.
+    //
+    // Meaning is *why* they want it, not what is in the picture. Speaking it
+    // as the piece is how a session that asked for Nelson Muntz got told we
+    // were drawing "punk with a tear" — and the customer cannot tell we
+    // substituted one for the other, because both sound like a description.
+    //
+    // Meaning stays as the LAST resort rather than being removed: with no
+    // character and no subject it is the only thing we know, and a brief whose
+    // whole content is "a hummingbird for my grandmother" deserves a sentence
+    // that mentions the hummingbird. The bug was the precedence, not the
+    // existence of the fallback.
+    const spoken = spokenSubject(record.subject);
+    if (spoken) tailPart = ` — ${spoken}`;
+    else if (meaning) tailPart = ` — ${truncateAtWord(meaning, PLAYBACK_MEANING_MAX)}`;
   }
   return `${article} ${style}piece ${placement}${tailPart}`;
+}
+
+/**
+ * `record.subject` trimmed down to something worth reading aloud.
+ *
+ * The subject is written for the image model, not for a person: it carries the
+ * costume anchors the prompts need ("Nelson Muntz with blue shirt, purple
+ * shorts, single tear, punk styling"). Speaking that whole string back is
+ * unreadable, so the playback takes the leading clause — the part that names
+ * the thing — and stops there.
+ *
+ * Returns undefined when there is nothing nameable, in which case the playback
+ * simply says less. A shorter true sentence beats a longer substituted one.
+ */
+function spokenSubject(subject: string | undefined): string | undefined {
+  const value = (subject ?? '').trim();
+  if (!value) return undefined;
+  // Up to the first anchor clause — "X with ...", "X, wearing ..." — so the
+  // prompt's costume prose does not arrive in the customer's sentence.
+  const head = value.split(/\s*[,;]|\s+\bwith\b\s+/i)[0]?.trim() ?? '';
+  const spoken = head || value;
+  return truncateAtWord(spoken, PLAYBACK_SUBJECT_MAX);
 }
 
 /**
