@@ -266,17 +266,25 @@ export type CritiqueIntent =
  *
  * ## Order, and why
  *
- * Re-roll is checked before whole-piece, and whole-piece before per-cut. "new
- * ones, more cinematic" is a re-roll carrying a hint, not a whole-piece fix —
- * so the more destructive reading wins only on explicit signal, and the
- * explicit signal is checked first. Per-cut is last because a message that
- * names a cut is the narrowest possible reading and should not be reached by
- * elimination.
+ * **A cut named by reference outranks everything.** "the third one, give me
+ * another version" and "the third one, more like an unreal engine 5 look" are
+ * both fixes to cut three. Naming a cut is the narrowest thing a customer can
+ * do, and the two readings it outranks are the two that throw the round away.
  *
- * A cut named *by reference* outranks a whole-piece phrase: "the third one,
- * more like an unreal engine 5 look" is a fix to cut three. Only a message
- * that reaches a cut by *context* can be re-read as being about the piece,
- * which is exactly what `CritiqueTarget.via` exists to tell us.
+ * This guard applies to the re-roll branch and not only the whole-piece one,
+ * which is the correction review made on this code: re-roll used to
+ * short-circuit before any reference check ran, so "the third one, give me
+ * another version" spent a credit discarding both cuts — including the one the
+ * customer had just named to keep. The re-roll arm is the destructive one, so
+ * its guard has to be the strictest in the function rather than the loosest.
+ *
+ * Only a cut reached by *context* can be re-read as being about the whole
+ * piece, which is exactly what `CritiqueTarget.via` exists to tell us.
+ *
+ * Below that guard, re-roll is checked before whole-piece, and whole-piece
+ * before per-cut-by-context. "new ones, more cinematic" is a re-roll carrying
+ * a hint, not a whole-piece fix — so among messages that name no cut, the more
+ * destructive reading still wins on explicit signal.
  *
  * ## What this changes about money
  *
@@ -303,25 +311,30 @@ export function classifyCritiqueTurn(
 
   if (!isFixRequest(text)) return { kind: 'commentary' };
 
+  // Resolved FIRST, before either destructive reading gets a look. Both of
+  // those throw the round away, so neither may fire on a message that named a
+  // cut — and neither may fire on a name we could not place either.
+  const target = resolveCritiqueTarget(session, text);
+
+  // Named a cut we could not place. Ask before anything else reads the
+  // message: a name we cannot resolve must never be re-read as "throw the set
+  // away" just because it also mentioned a style word or a re-roll word.
+  if (target.kind === 'missed') {
+    return { kind: 'ambiguous', because: 'unplaceable-name' };
+  }
+
+  // They named a cut. That is the narrowest reading and it wins outright.
+  if (target.kind === 'cut' && target.via === 'reference') {
+    return { kind: 'iterate-cut', target: target.variation };
+  }
+
   if (REROLL_PATTERN.test(text)) {
     // The whole message is the hint — the executor folds the customer's own
     // words in additively (ADR-0010), rather than us deciding what they meant.
     return { kind: 'reroll-set', styleHint: WHOLE_PIECE_PATTERN.test(text) ? text : '' };
   }
 
-  const target = resolveCritiqueTarget(session, text);
-
-  // Named a cut we could not place. Ask before anything else reads the message
-  // — a name we cannot resolve must never be re-read as a request about the
-  // whole piece just because it also mentioned a style word.
-  if (target.kind === 'missed') {
-    return { kind: 'ambiguous', because: 'unplaceable-name' };
-  }
-
-  const namedACut = target.kind === 'cut' && target.via === 'reference';
-  if (!namedACut && WHOLE_PIECE_PATTERN.test(text)) {
-    return { kind: 'reroll-set', styleHint: text };
-  }
+  if (WHOLE_PIECE_PATTERN.test(text)) return { kind: 'reroll-set', styleHint: text };
 
   if (target.kind === 'cut') return { kind: 'iterate-cut', target: target.variation };
 

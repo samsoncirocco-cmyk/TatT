@@ -270,6 +270,48 @@ describe('critique — what kind of turn is this (ADR-0056)', () => {
     expect(intent.kind === 'iterate-cut' && intent.target.id).toBe('v3');
   });
 
+  it('A NAMED CUT OUTRANKS a re-roll phrase too', () => {
+    // Found in review of this PR. "another version" matches the re-roll
+    // pattern, and the re-roll branch used to short-circuit before any
+    // reference check — so this spent a credit discarding BOTH cuts,
+    // including the one the customer had just named to keep.
+    const intent = classifyCritiqueTurn(session, 'the third one, give me another version');
+
+    expect(intent.kind).toBe('iterate-cut');
+    expect(intent.kind === 'iterate-cut' && intent.target.id).toBe('v3');
+  });
+
+  it('a named cut outranks a re-roll asked by designed name, not just by ordinal', () => {
+    const sleeve = { variations: sleeveCuts(), critiqueCuts: [] as Variation[], pickId: undefined };
+    const intent = classifyCritiqueTurn(sleeve, 'redo the totem');
+
+    expect(intent.kind).toBe('iterate-cut');
+    expect(intent.kind === 'iterate-cut' && intent.target.id).toBe('c1');
+  });
+
+  it('an unplaceable name is never upgraded to a re-roll', () => {
+    // The destructive arm must not fire on a reference we could not resolve
+    // any more than it fires on one we could.
+    const sleeve = {
+      variations: [{ id: 'c2', axisPosition: { composition: 'connected transitions' }, prompt: 'p' }],
+      critiqueCuts: [] as Variation[],
+      pickId: undefined,
+    };
+    const intent = classifyCritiqueTurn(sleeve, 'the totem, give me another version');
+
+    expect(intent).toEqual({ kind: 'ambiguous', because: 'unplaceable-name' });
+  });
+
+  it('still re-rolls when a working cut is only reached by CONTEXT', () => {
+    // The guard is about being NAMED, not about a target existing. A re-cut in
+    // progress must not block "start over".
+    const withRecut = {
+      ...session,
+      critiqueCuts: [{ id: 'v1-fix1', axisPosition: {}, prompt: 'p' } as Variation],
+    };
+    expect(classifyCritiqueTurn(withRecut, 'start over').kind).toBe('reroll-set');
+  });
+
   it('does not re-read an unplaceable NAME as a whole-piece request', () => {
     // "the totem" on a round without one, plus a style word. The name failed;
     // that must surface as a question, not get quietly upgraded to a re-roll

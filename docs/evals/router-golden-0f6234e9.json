@@ -332,6 +332,20 @@
         }
       ],
       "note": "Re-roll and direction in one message. The destructive reading wins because the re-roll signal is explicit, and the direction rides along as a hint rather than being dropped. Ordering inside the classifier: reroll-set before whole-piece before iterate-cut."
+    },
+    {
+      "n": 18,
+      "source": "synthetic",
+      "phase": "post-reveal",
+      "message": "the third one, give me another version",
+      "expectedRoute": "iterate-cut",
+      "expectedWrites": [
+        {
+          "op": "cut.iterate",
+          "cutOrdinal": 3
+        }
+      ],
+      "note": "The re-roll twin of turn 16, and the collision nothing covered until review found it. 'another version' reads as a re-roll, but the message also names cut 3. A named cut outranks BOTH destructive readings - reroll-set here would spend a credit discarding the whole round including the cut the customer just named to keep. The reroll arm is the destructive one, so its guard is the strictest in the classifier, not the loosest."
     }
   ],
   "facets": [
