@@ -15,6 +15,7 @@ import {
   recordPick as runPick,
   recordRoundPick as runRoundPick,
   refineRound as runRefineRound,
+  rerollRound as runRerollRound,
   refine as runRefine,
   critique as runCritique,
   getSession as loadById,
@@ -135,6 +136,29 @@ export async function refineRound(
   opts?: { reservationId?: string }
 ): Promise<RefineRoundResult> {
   const { session, ...rest } = await runRefineRound(sessionId, opts);
+  return { session: toDesignSession(session), ...rest };
+}
+
+/**
+ * One charged RE-ROLL round: the customer rejected the whole live set
+ * ("new ones", "new samples" — session 0f6234e9), so draw two fresh cuts
+ * on the SAME axis as the rejected round. No pick is required or recorded
+ * on the rejected round — the absence of a pick IS the signal (ADR-0049) —
+ * and the new round seeds from the same references the rejected round used
+ * (a prior round's frozen pick still leads; the customer's photos persist),
+ * never from the rejected cuts. Costs ONE generation credit exactly like
+ * refineRound and shares its credit split (route reserves before, releases
+ * on failure or downgrade, reservation id rides the round claim), its
+ * no-partial-charge rule, and its claim gate — a re-roll while a round is
+ * in flight throws ROUND_IN_FLIGHT (409). `hint` is optional customer
+ * freetext ("more cinematic") threaded additively into both prompts.
+ * Callable from the web round route and the SMS adapter alike.
+ */
+export async function rerollRound(
+  sessionId: string,
+  opts?: { reservationId?: string; hint?: string }
+): Promise<RefineRoundResult> {
+  const { session, ...rest } = await runRerollRound(sessionId, opts);
   return { session: toDesignSession(session), ...rest };
 }
 

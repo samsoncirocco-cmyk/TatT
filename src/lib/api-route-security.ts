@@ -83,6 +83,7 @@ export const API_ROUTE_SECURITY: Record<string, RouteSecurityEntry> = {
   'v1/design-session/[id]/reference': { class: 'firebase-auth' },
   'v1/design-session/[id]/round': { class: 'firebase-auth' },
   'v1/design-session/[id]/round/pick': { class: 'firebase-auth' },
+  'v1/design-session/[id]/round/reroll': { class: 'firebase-auth' },
   'v1/design-session/converse': { class: 'firebase-auth' },
   'v1/designs/share': { class: 'firebase-auth' },
   'v1/designs/share/[shareId]': {
