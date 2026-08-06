@@ -329,6 +329,62 @@ describe('enhanceStructured - an explicitly requested spread wins round one', ()
   });
 });
 
+describe('enhanceStructured - round one skips rungs the brief already settled (ADR-0049)', () => {
+  it('a blackwork-resolved brief never opens on color-blackwork', async () => {
+    // fine-line settles bold-fine and blackwork settles the palette, so the
+    // first OPEN rung is literal-abstract — never a color cut whose prompt
+    // contradicts the brief's own "zero color" clause.
+    const result = await enhanceStructured({
+      ...baseRecord,
+      styleTags: ['blackwork', 'fine-line'],
+      ambiguousAxes: ['literal-abstract', 'minimal-ornate'],
+    });
+
+    expect(result.axisSelection.mode).toBe('questionnaire');
+    expect(result.axisSelection.axes).toEqual(['literal-abstract']);
+    expect(result.axisSelection.rationale).toContain('already settled');
+    for (const variation of result.variations) {
+      expect((variation.prompts.detailed || '').toLowerCase()).not.toContain(
+        'vibrant full-color'
+      );
+    }
+  });
+
+  it('a full-color-resolved brief skips the palette rung just the same', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      styleTags: ['color', 'fine-line'],
+      ambiguousAxes: ['literal-abstract', 'minimal-ornate'],
+    });
+
+    expect(result.axisSelection.axes).toEqual(['literal-abstract']);
+  });
+
+  it('an unresolved palette does NOT skip — the question is still worth asking', async () => {
+    const result = await enhanceStructured({
+      ...baseRecord,
+      styleTags: ['illustrative'],
+      ambiguousAxes: ['bold-fine', 'color-blackwork', 'literal-abstract', 'minimal-ornate'],
+    });
+
+    expect(result.axisSelection.axes).toEqual(['bold-fine']);
+  });
+
+  it('an explicitly requested axis wins over a settled skip', async () => {
+    // Asking to SEE the split is stronger, later evidence than the tags
+    // that settled it — the conversation promised this split.
+    const result = await enhanceStructured({
+      ...baseRecord,
+      styleTags: ['blackwork'],
+      ambiguousAxes: ['color-blackwork', 'bold-fine'],
+      requestedAxis: 'color-blackwork',
+    });
+
+    expect(result.axisSelection.axes).toEqual(['color-blackwork']);
+    expect(result.axisSelection.rationale).toContain('explicitly asked');
+  });
+});
+
 describe('enhanceStructured - the fixed ladder (ADR-0049)', () => {
   it('round one spreads bold-fine no matter how many axes stayed ambiguous', async () => {
     const result = await enhanceStructured({

@@ -284,6 +284,51 @@ describe('refineRound — the charged next round', () => {
     }
   });
 
+  it('skips a rung the brief already settled — a blackwork brief never buys a color round', async () => {
+    // The live-bug shape: intake resolved the palette to blackwork ("zero
+    // color"), yet the old ladder still charged round two as color-blackwork
+    // — a credit spent on a prompt that says "zero color" and "vibrant
+    // full-color" at once. settledAxes(intake) now removes the rung
+    // (ADR-0049).
+    mockExtractIntake.mockResolvedValue({
+      ...intakeRecord,
+      styleTags: ['blackwork'],
+      ambiguousAxes: ['bold-fine', 'minimal-ornate'],
+    });
+    const session = await startSession(startRequest);
+    await recordRoundPick(session.id, { pickedId: 'v2' });
+    const { round } = await refineRound(session.id);
+
+    expect(round.axis).toBe('literal-abstract');
+    expect(mockEnhanceRound).toHaveBeenCalledWith(
+      expect.objectContaining({ styleTags: ['blackwork'] }),
+      expect.objectContaining({ axis: 'literal-abstract' })
+    );
+  });
+
+  it('falls through to the re-roll when every remaining rung is asked or settled', async () => {
+    // Everything the ladder could still ask, the brief already answered:
+    // blackwork settles the palette, the named subject settles
+    // literal-abstract, minimalist settles the density. After round one's
+    // bold-fine, the charged round re-rolls on the locked pole instead of
+    // contradicting any of it.
+    mockExtractIntake.mockResolvedValue({
+      ...intakeRecord,
+      styleTags: ['blackwork', 'minimalist'],
+      subject: 'a sparrow mid-flight',
+      ambiguousAxes: [],
+    });
+    const session = await startSession(startRequest);
+    await recordRoundPick(session.id, { pickedId: 'v2' });
+    const { round } = await refineRound(session.id);
+
+    expect(round.axis).toBe('reroll');
+    expect(mockEnhanceRound).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ axis: 'reroll', lockedPoles: { 'bold-fine': 'fine' } })
+    );
+  });
+
   it('chains the picked cut as the LEADING reference, photos persisting after it', async () => {
     const session = await startSession(startRequest);
 

@@ -86,20 +86,25 @@ const roundPickedSession: DesignSession = {
   ],
 };
 
-/** A charged second round: round 1 frozen, two new cuts on the next axis. */
+/**
+ * A charged second round: round 1 frozen, two new cuts on the next OPEN
+ * axis. The intake's blackwork tag settled color-blackwork (ADR-0049), so
+ * the ladder skips that rung — round two spreads literal-abstract, never a
+ * color cut against a brief that said blackwork.
+ */
 const roundTwoSession: DesignSession = {
   ...baseSession,
   variations: [
     ...variations,
     {
       id: 'v3',
-      axisPosition: { 'color-blackwork': 'color', 'bold-fine': 'fine' },
+      axisPosition: { 'literal-abstract': 'literal', 'bold-fine': 'fine' },
       prompt: 'prompt 3',
       imageUrl: 'https://img.test/design-3.png',
     },
     {
       id: 'v4',
-      axisPosition: { 'color-blackwork': 'blackwork', 'bold-fine': 'fine' },
+      axisPosition: { 'literal-abstract': 'abstract', 'bold-fine': 'fine' },
       prompt: 'prompt 4',
       imageUrl: 'https://img.test/design-4.png',
     },
@@ -113,7 +118,7 @@ const roundTwoSession: DesignSession = {
       pickedAt: '2026-07-24T00:01:00Z',
       frozen: true,
     },
-    { round: 2, axis: 'color-blackwork', variationIds: ['v3', 'v4'] },
+    { round: 2, axis: 'literal-abstract', variationIds: ['v3', 'v4'] },
   ],
 };
 
@@ -202,9 +207,12 @@ describe('DesignSessionFlow', () => {
     expect(screen.getAllByAltText(/^Design \d$/)).toHaveLength(2);
 
     // Tap → the FREE round pick (ADR-0049) → the computed next-axis invite.
+    // The intake's blackwork tag settled color-blackwork, so the invite
+    // skips that rung — it must promise the axis the charged round will
+    // actually spread, never a color round against a blackwork brief.
     fireEvent.click(screen.getByRole('button', { name: /^Pick design 2 / }));
     await screen.findByText(
-      'Good eye. Refine it? Next round is full-color vs blackwork — 1 credit.'
+      'Good eye. Refine it? Next round is literal vs abstract — 1 credit.'
     );
     expect(screen.getByText('Your pick')).toBeTruthy();
     expect(fetchMock).toHaveBeenCalledWith(
