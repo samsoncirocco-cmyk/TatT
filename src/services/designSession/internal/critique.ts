@@ -81,9 +81,14 @@ export function allCuts(session: Pick<DesignSession, 'variations' | 'critiqueCut
  * So: named a cut and it did not resolve to exactly one → `missed`, ask.
  * Named no cut → the context fallbacks still apply. Only `none` (no reference
  * and no context) reaches the original "which one am i fixing?" line.
+ *
+ * `via` records how a cut was reached: `reference` when the message named it,
+ * `context` when it is simply the cut being worked on. The router above needs
+ * that distinction — "more like an unreal engine 5 look" resolves to a cut by
+ * context, but it is not a request about that cut.
  */
 export type CritiqueTarget =
-  | { kind: 'cut'; variation: Variation }
+  | { kind: 'cut'; variation: Variation; via: 'reference' | 'context' }
   | { kind: 'missed' }
   | { kind: 'none' };
 
@@ -115,7 +120,7 @@ export function resolveCritiqueTarget(
     const token = ordinal[1].toLowerCase();
     const index = (ORDINAL_WORDS[token] ?? Number(token)) - 1;
     if (index >= 0 && index < session.variations.length) {
-      return { kind: 'cut', variation: session.variations[index] };
+      return { kind: 'cut', variation: session.variations[index], via: 'reference' };
     }
     return { kind: 'missed' };
   }
@@ -125,23 +130,46 @@ export function resolveCritiqueTarget(
   const named = sessionCutIdentities(session).filter(({ identity }) =>
     messageNamesCut(text, identity.name)
   );
-  if (named.length === 1) return { kind: 'cut', variation: named[0].variation };
+  if (named.length === 1) {
+    return { kind: 'cut', variation: named[0].variation, via: 'reference' };
+  }
   if (named.length > 1) return { kind: 'missed' };
 
-  // A pole word is a weaker signal than a name, and deliberately treated as
-  // one. Exactly one carrier resolves it. Two carriers is a real ambiguity —
-  // "the bold one" means nothing when both cuts are bold — so ask. But ZERO
-  // carriers is usually not a reference at all: "too colorful" against a
-  // blackwork round is a critique of the piece, not a cut nobody rendered, and
-  // treating it as a miss would interrogate people for describing their
-  // complaint.
-  for (const [pole, pattern] of Object.entries(POLE_WORD)) {
-    if (!pattern.test(text)) continue;
-    const carrying = session.variations.filter((variation) =>
-      Object.values(variation.axisPosition).includes(pole)
-    );
-    if (carrying.length === 1) return { kind: 'cut', variation: carrying[0] };
+  // Pole words are a weaker signal than a name, and deliberately treated as
+  // one.
+  //
+  // EVERY pole word in the message is taken together, not the first one found.
+  // Checking them one at a time made specificity actively harmful: on a round
+  // where three cuts share a locked "fine" pole, "the fine blackwork one" —
+  // the most precise thing a customer can say — matched "fine" first, saw
+  // three carriers, and gave up, while the vaguer "the blackwork one" resolved.
+  // Intersecting instead means more words can only ever narrow. (Found by
+  // review on #340; costs nothing today because the failure only asks, but the
+  // rule was backwards.)
+  const matchedPoles = Object.entries(POLE_WORD)
+    .filter(([, pattern]) => pattern.test(text))
+    .map(([pole]) => pole);
+
+  if (matchedPoles.length > 0) {
+    const carrying = session.variations.filter((variation) => {
+      const poles = Object.values(variation.axisPosition);
+      return matchedPoles.every((pole) => poles.includes(pole));
+    });
+    if (carrying.length === 1) {
+      return { kind: 'cut', variation: carrying[0], via: 'reference' };
+    }
     if (carrying.length > 1) return { kind: 'missed' };
+
+    // Nothing carries the combination. If some of those words describe cuts
+    // that exist, they described a pairing this round never drew — ask. If
+    // none of them describe anything here, it is not a reference at all:
+    // "too colorful" against a blackwork round is a complaint about the piece,
+    // and interrogating it would be its own failure.
+    const anyPoleExists = session.variations.some((variation) => {
+      const poles = Object.values(variation.axisPosition);
+      return matchedPoles.some((pole) => poles.includes(pole));
+    });
+    if (anyPoleExists) return { kind: 'missed' };
   }
 
   // A designed name from the wider vocabulary that this session never showed —
@@ -154,12 +182,12 @@ export function resolveCritiqueTarget(
   // Named nothing. Context is legitimate from here down.
   const critiqueCuts = session.critiqueCuts ?? [];
   if (critiqueCuts.length > 0) {
-    return { kind: 'cut', variation: critiqueCuts[critiqueCuts.length - 1] };
+    return { kind: 'cut', variation: critiqueCuts[critiqueCuts.length - 1], via: 'context' };
   }
 
   if (session.pickId) {
     const picked = allCuts(session).find((variation) => variation.id === session.pickId);
-    if (picked) return { kind: 'cut', variation: picked };
+    if (picked) return { kind: 'cut', variation: picked, via: 'context' };
   }
 
   return { kind: 'none' };
@@ -180,6 +208,124 @@ export function cutLabel(
   const index = session.variations.findIndex((candidate) => candidate.id === variation.id);
   if (index < 0) return 'that last one';
   return cutIdentity(variation, index).name;
+}
+
+/* ── What kind of turn is this? ──────────────────────────────────────────── */
+
+/**
+ * Explicit re-roll: the customer wants different pictures, not this one fixed.
+ *
+ * Kept narrow on purpose. This arm throws away the current set, so it should
+ * fire on an unmistakable ask and nothing else — "redo", "start over", "new
+ * ones", "new samples". Session 0f6234e9 died on exactly these words, having
+ * asked "which one am i fixing?" three times at a customer who had said, in
+ * plain English, that they were not fixing one.
+ */
+const REROLL_PATTERN =
+  /\b(?:redo|start over|do ?over|try again)\b|\b(?:new|other|different|more|another|fresh)\s+(?:\w+\s+){0,2}(?:ones?|samples?|takes?|options?|versions?|designs?|cuts?|sets?|batch)\b/i;
+
+/**
+ * A direction for the whole piece rather than a change to one cut.
+ *
+ * "more like an unreal engine 5 look" is not a per-cut fix, and routing it to
+ * "which cut?" is how the second failed session ended. The signal is a request
+ * about the *look* — a named style, a reference to emulate, an overall feel —
+ * with no cut named alongside it.
+ */
+const WHOLE_PIECE_PATTERN =
+  /\b(?:look|style|vibe|feel|aesthetic|energy|mood)\b|\b(?:more|less)\s+like\b|\bin the style of\b|\bkind of\b.*\b(?:like|feel)\b/i;
+
+/**
+ * What this post-reveal turn is asking for, in ADR-0056's vocabulary.
+ *
+ * `reroll-set` carries `styleHint` — the customer's own words when they asked
+ * for a direction as well as new pictures. Empty for a bare re-roll. Both are
+ * the same outcome (a fresh round under the same Idea); the hint only rides
+ * along additively into the round's prompt.
+ */
+export type CritiqueIntent =
+  | { kind: 'commentary' }
+  | { kind: 'reroll-set'; styleHint: string }
+  | { kind: 'iterate-cut'; target: Variation }
+  | { kind: 'ambiguous'; because: 'unplaceable-name' | 'no-cut-named' };
+
+/**
+ * The single front door for a post-reveal turn (ADR-0056).
+ *
+ * ## Why this is a rule table when ADR-0056 rejects rule tables
+ *
+ * 0056 decides the router is a classifier, not keywords, and it is right: a
+ * rule table freezes today's guesses about what customers say, and
+ * `CHATTER_PATTERN` already proves the point by failing on "not any particular
+ * number". These branches are the sanctioned interim — the router's first
+ * routes, hardcoded, so tonight's two dead sessions stop dying while there is
+ * still no golden set large enough to grade a classifier against. The golden
+ * file beside this code is what that grading will eventually run on. When it
+ * is big enough, this function is what gets replaced, and its shape is the
+ * point: one place decides, so promoting it is a swap rather than a hunt.
+ *
+ * ## Order, and why
+ *
+ * Re-roll is checked before whole-piece, and whole-piece before per-cut. "new
+ * ones, more cinematic" is a re-roll carrying a hint, not a whole-piece fix —
+ * so the more destructive reading wins only on explicit signal, and the
+ * explicit signal is checked first. Per-cut is last because a message that
+ * names a cut is the narrowest possible reading and should not be reached by
+ * elimination.
+ *
+ * A cut named *by reference* outranks a whole-piece phrase: "the third one,
+ * more like an unreal engine 5 look" is a fix to cut three. Only a message
+ * that reaches a cut by *context* can be re-read as being about the piece,
+ * which is exactly what `CritiqueTarget.via` exists to tell us.
+ *
+ * ## What this changes about money
+ *
+ * A message like "more like an unreal engine 5 look" used to be heading for a
+ * fix-allowance re-cut. Routed as `reroll-set` it becomes a fresh two-cut
+ * round — **one generation credit** (ADR-0049), not a fix. That is coherent
+ * (new pictures cost a round) but it is a customer-visible change to what this
+ * class of message costs, and it is deliberate rather than incidental.
+ *
+ * ## What `styleHint` is NOT, yet
+ *
+ * It rides the round's prompt additively and nothing else. No
+ * `idea.descriptor.add`, no durable record — there is no Idea object to write
+ * one to until the ADR-0055 graph work starts. So a direction given this way
+ * survives the round it was given in and no longer; a customer who says
+ * "more cinematic" twice is telling us twice. The golden file already encodes
+ * the descriptor writes this should eventually produce.
+ */
+export function classifyCritiqueTurn(
+  session: Pick<DesignSession, 'variations' | 'critiqueCuts' | 'pickId'>,
+  message: string
+): CritiqueIntent {
+  const text = (message || '').trim();
+
+  if (!isFixRequest(text)) return { kind: 'commentary' };
+
+  if (REROLL_PATTERN.test(text)) {
+    // The whole message is the hint — the executor folds the customer's own
+    // words in additively (ADR-0010), rather than us deciding what they meant.
+    return { kind: 'reroll-set', styleHint: WHOLE_PIECE_PATTERN.test(text) ? text : '' };
+  }
+
+  const target = resolveCritiqueTarget(session, text);
+
+  // Named a cut we could not place. Ask before anything else reads the message
+  // — a name we cannot resolve must never be re-read as a request about the
+  // whole piece just because it also mentioned a style word.
+  if (target.kind === 'missed') {
+    return { kind: 'ambiguous', because: 'unplaceable-name' };
+  }
+
+  const namedACut = target.kind === 'cut' && target.via === 'reference';
+  if (!namedACut && WHOLE_PIECE_PATTERN.test(text)) {
+    return { kind: 'reroll-set', styleHint: text };
+  }
+
+  if (target.kind === 'cut') return { kind: 'iterate-cut', target: target.variation };
+
+  return { kind: 'ambiguous', because: 'no-cut-named' };
 }
 
 /* ── Is it a fix request? ────────────────────────────────────────────────── */
