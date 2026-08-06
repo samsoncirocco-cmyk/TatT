@@ -560,8 +560,14 @@ function characterIdentityClause(
   identities: readonly CharacterIdentity[]
 ): string {
   if (identities.length === 0) return '';
+  // A name-only identity is a character whose franchise we could not verify
+  // (see groundedCharacterIdentities). Speak the name alone — "Link — " is
+  // worse than "Link", and inventing a franchise to fill the gap is worse
+  // than both.
   return `Character identities: ${identities
-    .map((identity) => `${identity.name} — ${identity.series}`)
+    .map((identity) =>
+      identity.series ? `${identity.name} — ${identity.series}` : identity.name
+    )
     .join('; ')}.`;
 }
 

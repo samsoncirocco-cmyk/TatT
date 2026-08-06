@@ -1,0 +1,55 @@
+{
+  "$comment": "Golden routing/memory eval for the SECOND failed session of 2026-08-05 (the 'Smash' session). See README.md in this directory. Turns marked source:'live' are verbatim from the customer-facing PDF export captured 2026-08-05 17:45 local; the export carries the rendered conversation only, so `expectedWrites` describe the writes the turn should produce rather than payloads observed on the wire.",
+  "sessionId": "smash-export-2026-08-05",
+  "capturedAt": "2026-08-05T17:45:00-07:00",
+  "routes": [
+    "intake",
+    "commentary",
+    "iterate-cut",
+    "swap-subject",
+    "reroll-set",
+    "new-idea",
+    "ambiguous"
+  ],
+  "turns": [
+    {
+      "n": 1,
+      "source": "live",
+      "phase": "intake",
+      "message": "a kingdom hearts sleeve with roxas and sora fight link from zelda and boswer from mario",
+      "expectedRoute": "intake",
+      "expectedWrites": [
+        {
+          "op": "idea.subject.set",
+          "subject": "Roxas, Sora, Link, and Bowser",
+          "relation": "DEPICTS"
+        },
+        {
+          "op": "idea.cast.set",
+          "cast": [
+            "Roxas",
+            "Sora",
+            "Link",
+            "Bowser"
+          ]
+        }
+      ],
+      "actual": "cast recorded as [Roxas, Sora] - Link and Bowser silently dropped",
+      "note": "REGRESSION CASE, and the first LIVE turn captured from this session. Four characters named, two survived. Two independent grounding rejections, each sufficient alone: (1) the SERIES half - 'The Legend of Zelda' and 'Super Mario' could not be verified against a transcript saying 'zelda' and 'mario', because REFERENCE_SERIES_ALIASES was anime-only, and an unverifiable franchise deleted the person who belonged to it; (2) the NAME half - the customer typed 'boswer', the extractor correctly returned 'Bowser', and exact literal grounding deleted the character for being spelled right. Both survivors are the two names typed cleanly with a franchise named in the exact form the table happened to store. The rule this pins: grounding verifies claims, it does not take hostages."
+    },
+    {
+      "n": 4,
+      "source": "live",
+      "phase": "post-reveal",
+      "message": "<system playback>",
+      "expectedRoute": "intake",
+      "expectedWrites": [],
+      "expectedReply": "a color and anime and illustrative piece on your sleeve - Roxas, Sora, Link, and Bowser",
+      "actual": "a color and anime and illustrative piece on your sleeve - roxas and sora",
+      "note": "The customer-visible consequence of turn 1, and the first sentence they read back. The next customer turn is 'you dropped some of the characters i mentioned' - the failure was obvious to them and invisible to us."
+    }
+  ],
+  "relations": [
+    "DEPICTS"
+  ]
+}

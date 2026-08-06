@@ -17,6 +17,29 @@ export const REFERENCE_SERIES_ALIASES: Readonly<Record<string, readonly string[]
   'kingdom hearts': ['kh'],
   'final fantasy vii': ['ff7', 'final fantasy 7'],
   'no game no life': ['ngnl'],
+  // Games and Western franchises. The list above was anime-only, and an
+  // absent franchise used to delete the character who belonged to it — a
+  // customer saying "boswer from mario" lost Bowser because "super mario"
+  // was not a key here. The failure mode is fixed in
+  // `groundedCharacterIdentities` (an unverified series no longer takes the
+  // person with it); these entries are the patch layer that lets the common
+  // cases keep their franchise as well as their name.
+  'the legend of zelda': ['zelda', 'loz', 'botw', 'totk', 'ocarina of time'],
+  'super mario': ['mario', 'super mario bros', 'mario bros', 'mario kart'],
+  'super smash bros': ['smash bros', 'smash', 'ssbu'],
+  'pokemon': ['pokémon', 'pkmn'],
+  'sonic the hedgehog': ['sonic'],
+  'metroid': ['samus'],
+  'kirby': [],
+  'street fighter': ['sf'],
+  'mortal kombat': ['mk'],
+  'halo': [],
+  'minecraft': [],
+  'league of legends': ['lol'],
+  'star wars': [],
+  'marvel': ['mcu'],
+  'dc comics': ['dc'],
+  'the simpsons': ['simpsons'],
 };
 
 export function normalizeReferenceText(value: string): string {
