@@ -15,11 +15,13 @@ import {
   recordPick as runPick,
   recordRoundPick as runRoundPick,
   refineRound as runRefineRound,
+  rerollRound as runRerollRound,
   refine as runRefine,
   critique as runCritique,
   getSession as loadById,
   attachPlacementPreview as runAttachPreview,
 } from './internal/orchestrator';
+import type { RoundCreditPort } from './internal/orchestrator';
 import {
   converse as runConverse,
   confirmProposal as runConfirm,
@@ -46,7 +48,7 @@ import type {
 import type { ConverseRequest, ConverseResponse } from '../designConversation/types';
 
 export { DesignSessionError } from './internal/orchestrator';
-export type { DesignSessionErrorCode } from './internal/orchestrator';
+export type { DesignSessionErrorCode, RoundCreditPort } from './internal/orchestrator';
 // Cut identity, for channels that must name cuts back to the user rather
 // than render a clickable grid. `allCuts` is the canonical order — the
 // rounds' takes followed by anything critique produced — so a number spoken
@@ -139,6 +141,29 @@ export async function refineRound(
 }
 
 /**
+ * One charged RE-ROLL round: the customer rejected the whole live set
+ * ("new ones", "new samples" — session 0f6234e9), so draw two fresh cuts
+ * on the SAME axis as the rejected round. No pick is required or recorded
+ * on the rejected round — the absence of a pick IS the signal (ADR-0049) —
+ * and the new round seeds from the same references the rejected round used
+ * (a prior round's frozen pick still leads; the customer's photos persist),
+ * never from the rejected cuts. Costs ONE generation credit exactly like
+ * refineRound and shares its credit split (route reserves before, releases
+ * on failure or downgrade, reservation id rides the round claim), its
+ * no-partial-charge rule, and its claim gate — a re-roll while a round is
+ * in flight throws ROUND_IN_FLIGHT (409). `hint` is optional customer
+ * freetext ("more cinematic") threaded additively into both prompts.
+ * Callable from the web round route and the SMS adapter alike.
+ */
+export async function rerollRound(
+  sessionId: string,
+  opts?: { reservationId?: string; hint?: string }
+): Promise<RefineRoundResult> {
+  const { session, ...rest } = await runRerollRound(sessionId, opts);
+  return { session: toDesignSession(session), ...rest };
+}
+
+/**
  * The one refinement round (ADR-0013 hard stop): adjust the picked
  * prompt from the answer, regenerate a single image on the session's
  * pinned provider, assemble the artist Brief, and close the session at
@@ -165,9 +190,10 @@ export async function refine(sessionId: string, request: RefineRequest): Promise
  */
 export async function critique(
   sessionId: string,
-  request: CritiqueRequest
+  request: CritiqueRequest,
+  opts?: { roundCredit?: RoundCreditPort }
 ): Promise<CritiqueResult> {
-  const { session, ...rest } = await runCritique(sessionId, request);
+  const { session, ...rest } = await runCritique(sessionId, request, opts);
   return { session: toDesignSession(session), ...rest };
 }
 

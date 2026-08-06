@@ -14,7 +14,7 @@ import { extractIntake } from '../../intake';
 import type { IntakeRecord, VariationAxis } from '../../intake/types';
 import { settledAxes } from '../../intake/settledAxes';
 import { enhanceStructured, enhanceRound } from '../../council';
-import type { RoundSpread } from '../../council';
+import type { RoundSpread, StructuredEnhanceResult } from '../../council';
 import { generate, routeGeneration } from '../../generation';
 import type { AspectRatio, GenerationRequest } from '../../generation';
 import { resolveFixAllowance } from '@/lib/studio-fix-allowance';
@@ -33,6 +33,7 @@ import {
   currentRound,
   isLadderAxis,
   nextRoundAxis,
+  roundAxisLabel,
 } from '../roundPlan';
 import { resolveSessionStore, ROUND_CLAIM_STALE_MS } from './store';
 import type { RoundClaim, SessionStore, StoredSession } from './store';
@@ -53,10 +54,14 @@ import {
   ALLOWANCE_SPENT_LINE,
   CHATTER_LINE,
   NO_SUCH_CUT_LINE,
-  SET_REDRAW_UNAVAILABLE_LINE,
+  REROLL_DOWNGRADED_NOTE,
+  REROLL_DOWNGRADED_REFUNDED_NOTE,
+  REROLL_NEEDS_ACCOUNT_LINE,
+  ROUND_IN_FLIGHT_LINE,
   WHICH_CUT_LINE,
   fixLandedLine,
   fixesLeftLine,
+  rerollLandedLine,
 } from './critiqueVoice';
 
 export type DesignSessionErrorCode =
@@ -636,15 +641,33 @@ export async function refineRound(
     );
   }
 
-  // Claim the single charged-round slot before anything paid runs. A live
-  // claim refuses; a stale one (crashed instance) is evicted with its
-  // orphaned reservation logged for reconciliation.
+  const claim = await claimRoundSlot(store, session.id, opts?.reservationId);
+  try {
+    return await runClaimedRound(store, session, live, picked);
+  } catch (error) {
+    await releaseRoundSlot(store, session.id, claim.id);
+    throw error;
+  }
+}
+
+/**
+ * Claim the single charged-round slot before anything paid runs — shared by
+ * refineRound and rerollRound, which meter identically (one credit, one
+ * round, two cuts). A live claim refuses with ROUND_IN_FLIGHT; a stale one
+ * (crashed instance) is evicted with its orphaned reservation logged for
+ * reconciliation.
+ */
+async function claimRoundSlot(
+  store: SessionStore,
+  sessionId: string,
+  reservationId?: string
+): Promise<RoundClaim> {
   const claim: RoundClaim = {
     id: randomUUID(),
-    ...(opts?.reservationId ? { reservationId: opts.reservationId } : {}),
+    ...(reservationId ? { reservationId } : {}),
     at: new Date().toISOString(),
   };
-  const claimed = await store.claimRound(session.id, claim, ROUND_CLAIM_STALE_MS);
+  const claimed = await store.claimRound(sessionId, claim, ROUND_CLAIM_STALE_MS);
   if (claimed.status === 'missing') {
     throw new DesignSessionError('SESSION_NOT_FOUND', `No design session '${sessionId}'.`);
   }
@@ -657,30 +680,34 @@ export async function refineRound(
   if (claimed.evicted) {
     logger.warn({
       event_type: 'design_session.round_claim_evicted',
-      session_id: session.id,
+      session_id: sessionId,
       stale_claim_id: claimed.evicted.id,
       // The fact that makes an orphaned charge reconcilable.
       orphaned_reservation_id: claimed.evicted.reservationId ?? null,
       claimed_at: claimed.evicted.at,
     });
   }
+  return claim;
+}
 
-  try {
-    return await runClaimedRound(store, session, live, picked);
-  } catch (error) {
-    // A failed round frees the slot so the promised retry can actually run.
-    // Best-effort: a release failure must not mask the render failure, and
-    // a stuck claim self-heals via the stale window.
-    await store.releaseRound(session.id, claim.id).catch((releaseError) => {
-      logger.error({
-        event_type: 'design_session.round_claim_release_failed',
-        session_id: session.id,
-        claim_id: claim.id,
-        error: releaseError instanceof Error ? releaseError.message : String(releaseError),
-      });
+/**
+ * Free the round slot after a failed round so the promised retry can
+ * actually run. Best-effort: a release failure must not mask the render
+ * failure, and a stuck claim self-heals via the stale window.
+ */
+async function releaseRoundSlot(
+  store: SessionStore,
+  sessionId: string,
+  claimId: string
+): Promise<void> {
+  await store.releaseRound(sessionId, claimId).catch((releaseError) => {
+    logger.error({
+      event_type: 'design_session.round_claim_release_failed',
+      session_id: sessionId,
+      claim_id: claimId,
+      error: releaseError instanceof Error ? releaseError.message : String(releaseError),
     });
-    throw error;
-  }
+  });
 }
 
 /** The claimed body of refineRound — everything after the slot is won. */
@@ -716,6 +743,52 @@ async function runClaimedRound(
   ) as RoundSpread['axis'];
   const enhanced = await enhanceRound(session.intake, { roundNumber, axis, lockedPoles });
 
+  const { cuts, downgradeReason } = await renderRoundCuts(session, enhanced, picked);
+
+  // Both cuts delivered: NOW the previous pick freezes (ADR-0049 — a pick
+  // is changeable until the next round is charged, and a failed round above
+  // threw before persisting anything).
+  const now = new Date().toISOString();
+  live.frozen = true;
+  const round: RefineRound = {
+    round: roundNumber,
+    axis,
+    variationIds: cuts.map(cut => cut.id),
+    // Spread so the fields are absent (not undefined) on the happy path.
+    ...(downgradeReason ? { downgraded: true, downgradeReason } : {}),
+  };
+  session.variations = [...session.variations, ...cuts];
+  session.rounds = [...(session.rounds ?? []), round];
+  session.updatedAt = now;
+
+  // This save is also the claim release: `session` was loaded before the
+  // slot was claimed, so it carries no roundInFlight, and save() replaces
+  // the whole document — delivering the round and freeing the slot in one
+  // write.
+  await store.save(session);
+  return { session, round, downgraded: Boolean(downgradeReason), downgradeReason };
+}
+
+/**
+ * The two-cut render core shared by refineRound and rerollRound: sign the
+ * reference chain (the lead cut, when there is one, rides ahead of the
+ * customer's own photos), render both cuts durably on the model pinned at
+ * session start (ADR-0016 as amended by ADR-0052: one provider per round)
+ * with the ADR-0048 loud-downgrade opt-in, and record spend in a finally.
+ * There is no partial delivery: either both cuts come back or this throws
+ * with nothing persisted — the caller's claim release and the route's
+ * credit release do the rest.
+ */
+async function renderRoundCuts(
+  session: StoredSession,
+  enhanced: StructuredEnhanceResult,
+  // The cut whose image leads the reference chain — the previous round's
+  // pick for a refine round, a PRIOR round's frozen pick for a re-roll,
+  // absent when nothing was ever picked.
+  leadCut?: Variation,
+  // Optional customer freetext threaded into both prompts (re-roll only).
+  hint?: string
+): Promise<{ cuts: Variation[]; downgradeReason?: string }> {
   const demo = isDemoMode();
   const baseIndex = session.variations.length;
   // Settled in a finally, same as the reveal: a render that succeeded before
@@ -724,20 +797,21 @@ async function runClaimedRound(
   let downgradeReason: string | undefined;
   let cuts: Variation[];
   try {
-    // The reference chain (ADR-0049): the picked cut LEADS — it is already a
+    // The reference chain (ADR-0049): the lead cut FIRST — it is already a
     // GCS object in our bucket, so it rides the exact ADR-0050/#333 private
     // signed-URL plumbing the customer's own photos use — and those photos
     // stay attached after it (nano-banana-2 takes multiple references).
     const photoPaths = referenceImagePaths(session.conversation?.references ?? []);
     // Bucket-verified (never a signed URL that 404s) and logged when the
     // cut has no usable GCS path; demo stock images seed nothing by design.
-    const pickedPath = demo ? undefined : pickedCutReferencePath(session.id, picked);
-    const referencePaths = [...(pickedPath ? [pickedPath] : []), ...photoPaths];
+    const leadPath =
+      demo || !leadCut ? undefined : pickedCutReferencePath(session.id, leadCut);
+    const referencePaths = [...(leadPath ? [leadPath] : []), ...photoPaths];
     const referenceImages =
       !demo && referencePaths.length ? await signedReferenceUrls(referencePaths) : undefined;
     const results = await Promise.allSettled(
       enhanced.variations.map(async (structured, index): Promise<Variation> => {
-        const prompt = generationPrompt(structured.prompts);
+        const prompt = withStyleHint(generationPrompt(structured.prompts), hint);
         // Ids continue the session's running order, so a number spoken over
         // SMS keeps meaning the same cut the web shows in that position.
         const id = `v${baseIndex + index + 1}`;
@@ -748,9 +822,6 @@ async function runClaimedRound(
           imageUrl = await renderDurably(
             session,
             id,
-            // ADR-0016 (as amended by ADR-0052): one provider per ROUND. The
-            // round reuses the model pinned at session start, and opts into
-            // the loud downgrade exactly as the reveal does (ADR-0048).
             pinnedRequest(
               { modelId: session.pinnedModelId, aspectRatio: session.pinnedAspectRatio },
               prompt,
@@ -777,27 +848,133 @@ async function runClaimedRound(
   } finally {
     await recordImageSpend(session.provider, imagesPurchased);
   }
+  return { cuts, downgradeReason };
+}
 
-  // Both cuts delivered: NOW the previous pick freezes (ADR-0049 — a pick
-  // is changeable until the next round is charged, and a failed round above
-  // threw before persisting anything).
+/**
+ * Thread an optional customer style hint into a render prompt — additive
+ * only: the hint rides after the Council's prompt in the customer's own
+ * words (same verbatim posture as adjustPromptForCritique), never replacing
+ * any of it. Blank hints are no-ops.
+ */
+function withStyleHint(prompt: string, hint?: string): string {
+  const words = (hint ?? '').trim().replace(/\s+/g, ' ');
+  return words ? `${prompt} Customer direction: "${words}".` : prompt;
+}
+
+/**
+ * One charged RE-ROLL round (sprint fix #2, session 0f6234e9): the customer
+ * rejected the whole live set — "new ones", "new samples" — so draw two
+ * fresh cuts on the SAME axis as the rejected round. Both cuts were
+ * rejected, which means the axis question is still unanswered: the new
+ * round re-asks it, and the rejected round keeps NO pick — the absence of a
+ * pick IS the recorded signal (ADR-0049: the pick is the signal).
+ *
+ * Costs ONE generation credit, exactly like any round (ADR-0049: one
+ * credit, one round, two cuts) — it is NOT a critique fix and never touches
+ * the fix allowance. The route owns the credit with the same split as the
+ * refine round: reserve before this call, release on failure or downgrade,
+ * reservation id persisted inside the round claim. No partial-charge path:
+ * both cuts settle together or this throws with nothing persisted.
+ *
+ * References: a re-roll seeds from the same inputs the REJECTED round used
+ * — a prior round's frozen pick (if any) still leads, the customer's own
+ * photos persist — never from the rejected cuts themselves (nothing was
+ * picked, so nothing leads from that round).
+ *
+ * CONCURRENCY: the same claimRound gate as refineRound — a re-roll while
+ * any round is in flight throws ROUND_IN_FLIGHT.
+ *
+ * `hint` is optional customer freetext ("new ones, more cinematic")
+ * threaded additively into both prompts.
+ */
+export async function rerollRound(
+  sessionId: string,
+  opts?: { reservationId?: string; hint?: string }
+): Promise<RefineRoundOutcome> {
+  const store = resolveSessionStore();
+  const session = await loadSession(store, sessionId);
+
+  if (session.phase !== 'revealed') {
+    throw new DesignSessionError(
+      'INVALID_PHASE',
+      `Cannot re-roll while the session is '${session.phase}' — rounds live between the reveal and the handoff.`
+    );
+  }
+  const rejected = currentRound(session.rounds);
+  if (!rejected) {
+    throw new DesignSessionError(
+      'INVALID_PHASE',
+      `Session '${sessionId}' predates the round machinery — nothing to re-roll.`
+    );
+  }
+  // Deliberately NO pick requirement — rejecting the set is exactly the
+  // move a customer makes when they cannot pick.
+
+  const claim = await claimRoundSlot(store, session.id, opts?.reservationId);
+  try {
+    return await runClaimedReroll(store, session, rejected, opts?.hint);
+  } catch (error) {
+    await releaseRoundSlot(store, session.id, claim.id);
+    throw error;
+  }
+}
+
+/** The claimed body of rerollRound — everything after the slot is won. */
+async function runClaimedReroll(
+  store: SessionStore,
+  session: StoredSession,
+  rejected: RefineRound,
+  hint?: string
+): Promise<RefineRoundOutcome> {
+  const rounds = session.rounds ?? [];
+  // Every pole locked by EARLIER rounds' picks — the rejected round locks
+  // nothing: its whole set was refused, so its axis question is still open.
+  // (A stray pick recorded before the customer changed their mind and
+  // rejected the set is cleared below, so it never poisons later rounds.)
+  const lockedPoles: Partial<Record<VariationAxis, string>> = {};
+  for (const round of rounds) {
+    if (round === rejected || !round.pickedId || !isLadderAxis(round.axis)) continue;
+    const cut = session.variations.find(variation => variation.id === round.pickedId);
+    const pole = cut?.axisPosition[round.axis];
+    if (pole) lockedPoles[round.axis] = pole;
+  }
+
+  const roundNumber = rounds.length + 1;
+  // SAME axis as the rejected round — the question it asked was never
+  // answered, so the re-roll asks it again with two fresh draws.
+  const axis = rejected.axis as RoundSpread['axis'];
+  const enhanced = await enhanceRound(session.intake, { roundNumber, axis, lockedPoles });
+
+  // Same reference inputs as the rejected round: the round BEFORE it
+  // contributed the leading picked cut (if it had one); the rejected cuts
+  // themselves seed nothing.
+  const prior = rounds[rounds.indexOf(rejected) - 1];
+  const leadCut = prior?.pickedId
+    ? session.variations.find(variation => variation.id === prior.pickedId)
+    : undefined;
+
+  const { cuts, downgradeReason } = await renderRoundCuts(session, enhanced, leadCut, hint);
+
   const now = new Date().toISOString();
-  live.frozen = true;
+  // The rejection unrecords any stray pick: no pick may stand on the
+  // rejected round (absence of pick = the signal), and unlike a refine
+  // round nothing freezes — no render consumed a pick from this round.
+  delete rejected.pickedId;
+  delete rejected.pickedAt;
   const round: RefineRound = {
     round: roundNumber,
-    axis,
+    axis: rejected.axis,
     variationIds: cuts.map(cut => cut.id),
     // Spread so the fields are absent (not undefined) on the happy path.
     ...(downgradeReason ? { downgraded: true, downgradeReason } : {}),
   };
   session.variations = [...session.variations, ...cuts];
-  session.rounds = [...(session.rounds ?? []), round];
+  session.rounds = [...rounds, round];
   session.updatedAt = now;
 
-  // This save is also the claim release: `session` was loaded before the
-  // slot was claimed, so it carries no roundInFlight, and save() replaces
-  // the whole document — delivering the round and freeing the slot in one
-  // write.
+  // Same one-write delivery-and-release as the refine round: `session` was
+  // loaded before the claim, so save() also frees the slot.
   await store.save(session);
   return { session, round, downgraded: Boolean(downgradeReason), downgradeReason };
 }
@@ -925,9 +1102,30 @@ export async function refine(sessionId: string, request: RefineRequest): Promise
  * round has fired and produced the Brief; the Studio and the artist own
  * everything after.
  */
+/**
+ * How the critique lane pays for a fresh round (ADR-0049 metering reached
+ * through the ADR-0056 front door). The credit is the CALLER's job
+ * everywhere else — the round route and the SMS round arm reserve before
+ * calling and release on failure or downgrade — but only the classifier
+ * inside `critique` knows a turn needs one, so the channel hands in a PORT
+ * instead of a reservation. `reserve` is called only on the reroll-set arm,
+ * after every free settle has had its chance; it throws the
+ * generation-credit primitive's own exhaustion error (code
+ * `GENERATION_CREDITS_EXHAUSTED`, message = the meter line the SMS round
+ * lane already sends verbatim). `release` resolves true only when the
+ * refund actually landed, because copy claims a refund only when it is
+ * true. Structural on purpose: the orchestrator never imports the credits
+ * module, same as it never imports auth.
+ */
+export interface RoundCreditPort {
+  reserve(): Promise<{ id: string }>;
+  release(reservation: { id: string }): Promise<boolean>;
+}
+
 export async function critique(
   sessionId: string,
-  request: CritiqueRequest
+  request: CritiqueRequest,
+  opts?: { roundCredit?: RoundCreditPort }
 ): Promise<{ session: StoredSession } & Omit<CritiqueResult, 'session'>> {
   const store = resolveSessionStore();
   const session = await loadSession(store, sessionId);
@@ -968,21 +1166,118 @@ export async function critique(
     };
   };
 
+  /**
+   * The wired reroll-set arm (sprint fix #2 meeting ADR-0056): the customer
+   * rejected the whole set, so draw a fresh round through rerollRound — one
+   * generation credit through the caller's port, never the fix allowance.
+   *
+   * Money first, then render, then record: reserve through the port (an
+   * exhausted meter settles with the primitive's own line, spending
+   * nothing), run the executor with the reservation riding the round claim,
+   * release on any failure or on the ADR-0048 loud downgrade, and only then
+   * record the turn — on the session the re-roll SAVED, because `session`
+   * up here predates the new round and save() replaces the document whole:
+   * settling on it would clobber the round just delivered.
+   */
+  const settleRerollSet = async (styleHint: string) => {
+    const demo = isDemoMode();
+    let reservation: { id: string } | undefined;
+    if (!demo) {
+      if (!opts?.roundCredit) {
+        // The channel could not stand a meter behind this turn (today: an
+        // unlinked texter). Refuse toward the path that works — never the
+        // "which one am i fixing?" deadlock this arm exists to end.
+        return settle(REROLL_NEEDS_ACCOUNT_LINE);
+      }
+      try {
+        reservation = await opts.roundCredit.reserve();
+      } catch (error) {
+        const shaped = error as { code?: string; name?: string; message?: string };
+        if (
+          shaped.code === 'GENERATION_CREDITS_EXHAUSTED' ||
+          shaped.name === 'GenerationCreditsExhaustedError'
+        ) {
+          // The primitive's meter line IS the honest copy — the same
+          // sentence the SMS round lane sends for the same refusal.
+          return settle((error as Error).message);
+        }
+        throw error;
+      }
+    }
+
+    /** Hand the credit back; true only when the refund actually landed. */
+    const release = async (): Promise<boolean> => {
+      if (!reservation || !opts?.roundCredit) return false;
+      return opts.roundCredit.release(reservation);
+    };
+
+    let outcome: RefineRoundOutcome;
+    try {
+      outcome = await rerollRound(sessionId, {
+        ...(reservation ? { reservationId: reservation.id } : {}),
+        ...(styleHint ? { hint: styleHint } : {}),
+      });
+    } catch (error) {
+      const released = await release();
+      if (error instanceof DesignSessionError && error.code === 'ROUND_IN_FLIGHT') {
+        // Honest capacity: the claim gate serialized this ask behind a
+        // running round, and the credit just went back.
+        return settle(ROUND_IN_FLIGHT_LINE);
+      }
+      logger.error({
+        event_type: 'design_session.critique_reroll_failed',
+        session_id: sessionId,
+        credit_released: released,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+
+    // ADR-0048 loud downgrade: delivered off the pinned lane → not charged.
+    const refunded = outcome.downgraded ? await release() : false;
+    const charged = Boolean(reservation) && !refunded;
+    const reply = [
+      rerollLandedLine(roundAxisLabel(outcome.round.axis), charged),
+      ...(outcome.downgraded
+        ? [refunded ? REROLL_DOWNGRADED_REFUNDED_NOTE : REROLL_DOWNGRADED_NOTE]
+        : []),
+    ].join(' ');
+
+    const fresh = outcome.session;
+    const now = new Date().toISOString();
+    fresh.critiqueTurns = [...(fresh.critiqueTurns ?? []), { message, reply, at: now }];
+    fresh.updatedAt = now;
+    await store.save(fresh);
+
+    const remaining = Math.max(0, allowance - (fresh.fixesUsed ?? 0));
+    return {
+      session: fresh,
+      reply,
+      fixesRemaining: remaining,
+      exhausted: remaining <= 0,
+      generated: true as boolean,
+      round: outcome.round,
+      // In display order — the round's own order, resolved to full cuts so
+      // both channels can present images without re-deriving them.
+      cuts: outcome.round.variationIds
+        .map(id => fresh.variations.find(variation => variation.id === id))
+        .filter((cut): cut is Variation => Boolean(cut)),
+    };
+  };
+
   // The whole front door, decided once (ADR-0056). Every arm that is not a
   // per-cut fix settles without spending: this lane may only ever charge for a
-  // re-cut it actually rendered.
+  // render it actually bought.
   const intent = classifyCritiqueTurn(session, message);
 
   if (intent.kind === 'commentary') return settle(CHATTER_LINE);
 
-  // Asked for a fresh set. The route is decided here; the executor that draws
-  // one lands with the re-roll work, so until then this is a sentence rather
-  // than a stack trace — and rather than the "which one am i fixing?" deadlock
-  // that ended two sessions.
+  // Asked for a fresh set: a NEW two-cut round on the rejected round's own
+  // axis (the set was refused whole, so the axis question is still open).
   // Deliberately ahead of the fix allowance: a fresh set is a generation
   // round (ADR-0049, one credit), not a fix. Gating it on the fix allowance
   // would refuse it with the wrong ceiling, out of the wrong budget.
-  if (intent.kind === 'reroll-set') return settle(SET_REDRAW_UNAVAILABLE_LINE);
+  if (intent.kind === 'reroll-set') return settleRerollSet(intent.styleHint);
 
   // Refused before any paid call, and spoken — never a silent no-op. Ahead of
   // the ambiguous arms because at the ceiling the true thing to say is that

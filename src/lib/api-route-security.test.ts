@@ -23,7 +23,10 @@ function routeKey(file: string): string {
 }
 
 const ENFORCEMENT: Record<string, RegExp | null> = {
-  'firebase-auth': /verifyApiAuth\s*\(/,
+  // Either form of the gate counts: verifyApiAuthWithUser is verifyApiAuth
+  // with the decoded user handed back (one decode per request — the
+  // critique route's credit port needs the uid the gate already verified).
+  'firebase-auth': /verifyApiAuth(WithUser)?\s*\(/,
   'cloud-tasks-oidc': /verifyCloudTaskRequest\s*\(/,
   'webhook-signature': /verifyStripeSignature\s*\(|constructEvent\s*\(|validateTwilioSignature\s*\(/,
   public: null,

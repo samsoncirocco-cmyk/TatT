@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyApiAuth } from '@/lib/api-auth';
-import { critique } from '@/services/designSession';
+import { verifyApiAuthWithUser } from '@/lib/api-auth';
+import { critique, type RoundCreditPort } from '@/services/designSession';
 import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { checkBudget } from '@/lib/budget-tracker';
 import { createRequestLogger } from '@/lib/logger';
@@ -8,6 +8,11 @@ import {
     designSessionErrorResponse,
     invalidRequestResponse,
 } from '../../shared';
+import {
+    releaseGenerationCredit,
+    reserveGenerationCredit,
+    type GenerationCreditReservation,
+} from '@/lib/generation-credits';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -40,8 +45,16 @@ export async function POST(
     let sessionId = 'unknown';
 
     try {
-        const authError = await verifyApiAuth(req);
-        if (authError) return authError;
+        // ONE decode for the whole request: the gate and the uid come from
+        // the same verifyIdToken round-trip. Verifying twice was a race — a
+        // transient failure on the second decode silently downgraded a
+        // signed-in customer to the account-gate line instead of charging
+        // them normally. The uid stands the generation meter behind a
+        // reroll-set turn (ADR-0056 → ADR-0049: one credit); every free
+        // critique arm serves exactly the callers it always served.
+        const auth = await verifyApiAuthWithUser(req);
+        if (auth.error) return auth.error;
+        const user = auth.user;
 
         const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
@@ -73,7 +86,26 @@ export async function POST(
         // which misses a render that was paid for and then failed to store,
         // and double-bills nothing only by luck. The pre-flight checkBudget
         // above stays: that is the route's job.
-        const result = await critique(sessionId, { message: message.trim() });
+        //
+        // The credit PORT is this route's half of the reroll-set arm: the
+        // service calls reserve() only when the turn classifies as a fresh
+        // round (one credit, ADR-0049 — never the fix allowance) and
+        // release() on failure or ADR-0048 downgrade. An exhausted meter is
+        // settled inside the service as spoken copy, not thrown back here.
+        // Always present on this route: the gate that admitted the request
+        // decoded the uid, so an authorized web caller can never be
+        // silently treated as meterless.
+        const roundCredit: RoundCreditPort = {
+            reserve: () => reserveGenerationCredit(user.uid),
+            release: (reservation) =>
+                releaseGenerationCredit(user.uid, reservation as GenerationCreditReservation)
+                    .then(() => true)
+                    .catch((releaseError) => {
+                        console.error('[Design session] failed to return reroll credit:', releaseError);
+                        return false;
+                    }),
+        };
+        const result = await critique(sessionId, { message: message.trim() }, { roundCredit });
 
         reqLogger.complete('design_session.critique.success', {
             session_id: result.session.id,

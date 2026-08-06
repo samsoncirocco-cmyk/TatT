@@ -22,11 +22,15 @@ import {
   ALLOWANCE_SPENT_LINE,
   CHATTER_LINE,
   NO_SUCH_CUT_LINE,
-  SET_REDRAW_UNAVAILABLE_LINE,
+  REROLL_DOWNGRADED_REFUNDED_NOTE,
+  REROLL_NEEDS_ACCOUNT_LINE,
+  ROUND_IN_FLIGHT_LINE,
   WHICH_CUT_LINE,
+  rerollLandedLine,
 } from '../internal/critiqueVoice';
 import { DEFAULT_STUDIO_FIX_ALLOWANCE } from '@/lib/studio-fix-allowance';
 import { generate } from '../../generation';
+import { enhanceRound } from '../../council';
 import {
   copyImageToPath,
   recoverImageAtPath,
@@ -36,7 +40,7 @@ import { recordSpend } from '@/lib/budget-tracker';
 import type { Variation } from '../types';
 
 vi.mock('../../intake', () => ({ extractIntake: vi.fn() }));
-vi.mock('../../council', () => ({ enhanceStructured: vi.fn() }));
+vi.mock('../../council', () => ({ enhanceStructured: vi.fn(), enhanceRound: vi.fn() }));
 vi.mock('../../generation', () => ({ generate: vi.fn(), routeGeneration: vi.fn() }));
 vi.mock('@/lib/firebase-admin', () => ({ ensureAdminApp: vi.fn(() => false) }));
 // A re-cut is stored like every other render (TAT-57 durability), so the
@@ -53,6 +57,7 @@ vi.mock('@/lib/budget-tracker', () => ({
 }));
 
 const mockGenerate = vi.mocked(generate);
+const mockEnhanceRound = vi.mocked(enhanceRound);
 const mockRecoverImageAtPath = vi.mocked(recoverImageAtPath);
 const mockCopyImageToPath = vi.mocked(copyImageToPath);
 const mockUploadImageToPath = vi.mocked(uploadImageToPath);
@@ -547,35 +552,6 @@ describe('critique — the orchestrator turn', () => {
     expect(result.fixesRemaining).toBe(DEFAULT_STUDIO_FIX_ALLOWANCE);
   });
 
-  it('answers a re-roll with a sentence, never a stack trace or the wrong question', async () => {
-    // The route is decided; the executor that draws a fresh set lands with the
-    // re-roll work. Until then this must be honest copy — the old behaviour
-    // was "which one am i fixing?", three times, at a customer who had just
-    // said they were not fixing one.
-    await seed();
-    const result = await critique('sess-critique', {
-      message: 'Give me 4 new samples not any particular number',
-    });
-
-    expect(result.generated).toBe(false);
-    expect(result.reply).toBe(SET_REDRAW_UNAVAILABLE_LINE);
-    expect(result.reply).not.toBe(WHICH_CUT_LINE);
-    expect(mockGenerate).not.toHaveBeenCalled();
-    expect(mockRecordSpend).not.toHaveBeenCalled();
-  });
-
-  it('does NOT refuse a re-roll out of the fix allowance', async () => {
-    // A fresh set is a generation round (one credit, ADR-0049), not a fix.
-    // Spending the fix allowance must not silently close the re-roll door.
-    process.env.STUDIO_FIX_ALLOWANCE = '0';
-    await seed();
-    const result = await critique('sess-critique', { message: 'start over' });
-
-    expect(result.reply).toBe(SET_REDRAW_UNAVAILABLE_LINE);
-    expect(result.reply).not.toBe(ALLOWANCE_SPENT_LINE);
-    expect(mockGenerate).not.toHaveBeenCalled();
-  });
-
   it('names the cut back with the name the grid showed', async () => {
     // What we say and what we resolve come from one table now — the reply
     // that announced the wrong cut is the same string the resolver matched on.
@@ -633,5 +609,206 @@ describe('critique — the orchestrator turn', () => {
     const picked = await recordPick('sess-critique', { pickId: cutId, mostNotYouId: 'v4' });
     expect(picked.phase).toBe('picked');
     expect(picked.pickId).toBe(cutId);
+  });
+});
+
+describe('critique — the reroll-set arm, wired (sprint fix #2)', () => {
+  /** Round one over the seeded four cuts — what a modern session carries. */
+  const roundOne = () => [
+    { round: 1, axis: 'bold-fine', variationIds: ['v1', 'v2', 'v3', 'v4'] },
+  ];
+
+  /** What the council hands the re-roll: two fresh takes on the same axis. */
+  const rerollEnhance = {
+    axisSelection: {
+      mode: 'questionnaire' as const,
+      axes: ['bold-fine' as const],
+      rationale: 'reroll re-asks the rejected axis',
+    },
+    variations: [
+      { axisPosition: { 'bold-fine': 'bold' }, prompts: { detailed: 'rd1' }, negativePrompt: 'rn1' },
+      { axisPosition: { 'bold-fine': 'fine' }, prompts: { detailed: 'rd2' }, negativePrompt: 'rn2' },
+    ],
+  };
+
+  /** The channel's half of the arm — reserve/release spies, all-happy. */
+  const creditPort = () => ({
+    reserve: vi.fn(async () => ({ id: 'res-critique-1' })),
+    release: vi.fn(async () => true),
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    clearMemorySessions();
+    delete process.env.NEXT_PUBLIC_STUDIO_FIX_ALLOWANCE;
+    delete process.env.STUDIO_FIX_ALLOWANCE;
+    delete process.env.NEXT_PUBLIC_DEMO_MODE;
+    mockGenerate.mockResolvedValue({ images: ['https://img/fresh.png'] } as never);
+    mockEnhanceRound.mockResolvedValue(rerollEnhance as never);
+    mockRecoverImageAtPath.mockResolvedValue(null);
+    mockCopyImageToPath.mockImplementation(async objectPath => durableUrl(objectPath));
+    mockUploadImageToPath.mockImplementation(async objectPath => durableUrl(objectPath));
+    mockRecordSpend.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    delete process.env.STUDIO_FIX_ALLOWANCE;
+    delete process.env.NEXT_PUBLIC_DEMO_MODE;
+  });
+
+  it('draws a fresh round on the rejected axis for the deadlock message — one credit, no pick required', async () => {
+    await seed({ rounds: roundOne() });
+    const port = creditPort();
+    const result = await critique(
+      'sess-critique',
+      { message: 'Give me 4 new samples not any particular number' },
+      { roundCredit: port }
+    );
+
+    // Delivered: a NEW two-cut round on the SAME axis, presented for both
+    // channels, with the ladder copy from the round machinery.
+    expect(result.generated).toBe(true);
+    expect(result.round).toMatchObject({ round: 2, axis: 'bold-fine', variationIds: ['v5', 'v6'] });
+    expect(result.cuts?.map(cut => cut.id)).toEqual(['v5', 'v6']);
+    expect(result.reply).toBe(rerollLandedLine('bold vs fine-line', true));
+    // One credit exactly, through the port, kept (no downgrade).
+    expect(port.reserve).toHaveBeenCalledTimes(1);
+    expect(port.release).not.toHaveBeenCalled();
+    expect(mockGenerate).toHaveBeenCalledTimes(2);
+
+    // The turn and the round persisted TOGETHER — the settle must not
+    // clobber the round the executor just saved.
+    const stored = (await memorySessionStore.get('sess-critique')) as StoredSession;
+    expect(stored.rounds).toHaveLength(2);
+    expect(stored.variations.map(v => v.id)).toEqual(['v1', 'v2', 'v3', 'v4', 'v5', 'v6']);
+    expect(stored.critiqueTurns).toHaveLength(1);
+    // No pick recorded on the rejected round — absence IS the signal — and
+    // the fix allowance is untouched: a re-roll is a round, not a fix.
+    expect(stored.rounds?.[0].pickedId).toBeUndefined();
+    expect(stored.fixesUsed ?? 0).toBe(0);
+  });
+
+  it('threads the customer direction into both fresh prompts, additively', async () => {
+    await seed({ rounds: roundOne() });
+    await critique(
+      'sess-critique',
+      { message: 'new ones, more cinematic feel' },
+      { roundCredit: creditPort() }
+    );
+
+    const prompts = mockGenerate.mock.calls.map(([request]) => (request as { prompt: string }).prompt);
+    expect(prompts).toEqual([
+      'rd1 Customer direction: "new ones, more cinematic feel".',
+      'rd2 Customer direction: "new ones, more cinematic feel".',
+    ]);
+  });
+
+  it('does NOT refuse a re-roll out of the fix allowance', async () => {
+    // A fresh set is a generation round (one credit, ADR-0049), not a fix.
+    // Spending the fix allowance must not close the re-roll door.
+    process.env.STUDIO_FIX_ALLOWANCE = '0';
+    await seed({ rounds: roundOne() });
+    const result = await critique(
+      'sess-critique',
+      { message: 'start over' },
+      { roundCredit: creditPort() }
+    );
+
+    expect(result.generated).toBe(true);
+    expect(result.reply).not.toBe(ALLOWANCE_SPENT_LINE);
+    expect(result.round?.round).toBe(2);
+  });
+
+  it("settles the meter's own line when generation credits are exhausted, spending nothing", async () => {
+    await seed({ rounds: roundOne() });
+    const port = creditPort();
+    port.reserve.mockRejectedValueOnce(
+      Object.assign(new Error('You have used your free generations. Buy 25 more cuts to keep designing.'), {
+        code: 'GENERATION_CREDITS_EXHAUSTED',
+      })
+    );
+
+    const result = await critique('sess-critique', { message: 'new ones' }, { roundCredit: port });
+
+    expect(result.generated).toBe(false);
+    expect(result.reply).toBe(
+      'You have used your free generations. Buy 25 more cuts to keep designing.'
+    );
+    expect(mockGenerate).not.toHaveBeenCalled();
+    expect(port.release).not.toHaveBeenCalled();
+  });
+
+  it('maps a round already in flight to honest copy and hands the credit back', async () => {
+    const session = await seed({ rounds: roundOne() });
+    // A live claim — the web double-click / web+SMS interleaving.
+    session.roundInFlight = { id: 'claim-live', at: new Date().toISOString() };
+    await memorySessionStore.save(session);
+    const port = creditPort();
+
+    const result = await critique('sess-critique', { message: 'new ones' }, { roundCredit: port });
+
+    expect(result.generated).toBe(false);
+    expect(result.reply).toBe(ROUND_IN_FLIGHT_LINE);
+    expect(port.reserve).toHaveBeenCalledTimes(1);
+    expect(port.release).toHaveBeenCalledTimes(1);
+    expect(mockGenerate).not.toHaveBeenCalled();
+  });
+
+  it('releases the credit on an ADR-0048 downgrade and says so — loud, refunded, delivered', async () => {
+    await seed({ rounds: roundOne() });
+    mockGenerate.mockResolvedValue({
+      images: ['https://img/fresh.png'],
+      metadata: { fallbackUsed: true, fallbackReason: 'REPLICATE_ERROR' },
+    } as never);
+    const port = creditPort();
+
+    const result = await critique('sess-critique', { message: 'new ones' }, { roundCredit: port });
+
+    expect(result.generated).toBe(true);
+    expect(port.release).toHaveBeenCalledTimes(1);
+    // The landed line does not claim a credit that went back, and the note
+    // claims the refund only because the release actually landed.
+    expect(result.reply).toBe(
+      `${rerollLandedLine('bold vs fine-line', false)} ${REROLL_DOWNGRADED_REFUNDED_NOTE}`
+    );
+  });
+
+  it('releases the credit and rethrows when the round dies — nothing persisted', async () => {
+    await seed({ rounds: roundOne() });
+    mockGenerate.mockRejectedValue(new Error('provider blew up'));
+    const port = creditPort();
+
+    await expect(
+      critique('sess-critique', { message: 'new ones' }, { roundCredit: port })
+    ).rejects.toThrow('provider blew up');
+
+    expect(port.release).toHaveBeenCalledTimes(1);
+    const stored = (await memorySessionStore.get('sess-critique')) as StoredSession;
+    expect(stored.rounds).toHaveLength(1);
+    expect(stored.critiqueTurns ?? []).toEqual([]);
+    expect(stored.roundInFlight).toBeUndefined();
+  });
+
+  it('refuses in voice when no channel meter stands behind the turn', async () => {
+    // Today: an unlinked texter. The refusal points at the path that works —
+    // never the "which one am i fixing?" deadlock this arm exists to end.
+    await seed({ rounds: roundOne() });
+    const result = await critique('sess-critique', { message: 'new ones' });
+
+    expect(result.generated).toBe(false);
+    expect(result.reply).toBe(REROLL_NEEDS_ACCOUNT_LINE);
+    expect(mockGenerate).not.toHaveBeenCalled();
+  });
+
+  it('draws a free fresh pair in demo mode, and does not claim a credit was spent', async () => {
+    process.env.NEXT_PUBLIC_DEMO_MODE = 'true';
+    await seed({ rounds: roundOne() });
+
+    const result = await critique('sess-critique', { message: 'new ones' });
+
+    expect(result.generated).toBe(true);
+    expect(mockGenerate).not.toHaveBeenCalled();
+    expect(result.cuts).toHaveLength(2);
+    expect(result.reply).toBe(rerollLandedLine('bold vs fine-line', false));
   });
 });
