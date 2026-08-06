@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/api-auth';
-import { critique } from '@/services/designSession';
+import { critique, type RoundCreditPort } from '@/services/designSession';
 import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { checkBudget } from '@/lib/budget-tracker';
 import { createRequestLogger } from '@/lib/logger';
@@ -8,6 +8,12 @@ import {
     designSessionErrorResponse,
     invalidRequestResponse,
 } from '../../shared';
+import { verifyFirebaseToken } from '@/lib/auth-dal';
+import {
+    releaseGenerationCredit,
+    reserveGenerationCredit,
+    type GenerationCreditReservation,
+} from '@/lib/generation-credits';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -43,6 +49,15 @@ export async function POST(
         const authError = await verifyApiAuth(req);
         if (authError) return authError;
 
+        // The same bearer verifyApiAuth just accepted, decoded for its uid
+        // WHEN it carries one — never a new gate. Every free critique arm
+        // (chatter, per-cut fixes, the asks) serves exactly the callers it
+        // served before this route knew about money; the uid is only what
+        // stands a generation meter behind a reroll-set turn (ADR-0056 →
+        // ADR-0049: one credit), and a caller without one is refused for
+        // THAT ARM in voice by the service, at 200, spending nothing.
+        const user = await verifyFirebaseToken(req).catch(() => null);
+
         const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
         if (!demoMode) {
@@ -73,7 +88,31 @@ export async function POST(
         // which misses a render that was paid for and then failed to store,
         // and double-bills nothing only by luck. The pre-flight checkBudget
         // above stays: that is the route's job.
-        const result = await critique(sessionId, { message: message.trim() });
+        //
+        // The credit PORT is this route's half of the reroll-set arm: the
+        // service calls reserve() only when the turn classifies as a fresh
+        // round (one credit, ADR-0049 — never the fix allowance) and
+        // release() on failure or ADR-0048 downgrade. An exhausted meter is
+        // settled inside the service as spoken copy, not thrown back here.
+        // Built only when the bearer decoded to a uid — absent, the service
+        // gates the reroll arm alone and every free arm runs untouched.
+        const roundCredit: RoundCreditPort | undefined = user
+            ? {
+                  reserve: () => reserveGenerationCredit(user.uid),
+                  release: (reservation) =>
+                      releaseGenerationCredit(user.uid, reservation as GenerationCreditReservation)
+                          .then(() => true)
+                          .catch((releaseError) => {
+                              console.error('[Design session] failed to return reroll credit:', releaseError);
+                              return false;
+                          }),
+              }
+            : undefined;
+        const result = await critique(
+            sessionId,
+            { message: message.trim() },
+            roundCredit ? { roundCredit } : undefined
+        );
 
         reqLogger.complete('design_session.critique.success', {
             session_id: result.session.id,

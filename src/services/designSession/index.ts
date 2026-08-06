@@ -21,6 +21,7 @@ import {
   getSession as loadById,
   attachPlacementPreview as runAttachPreview,
 } from './internal/orchestrator';
+import type { RoundCreditPort } from './internal/orchestrator';
 import {
   converse as runConverse,
   confirmProposal as runConfirm,
@@ -47,7 +48,7 @@ import type {
 import type { ConverseRequest, ConverseResponse } from '../designConversation/types';
 
 export { DesignSessionError } from './internal/orchestrator';
-export type { DesignSessionErrorCode } from './internal/orchestrator';
+export type { DesignSessionErrorCode, RoundCreditPort } from './internal/orchestrator';
 // Cut identity, for channels that must name cuts back to the user rather
 // than render a clickable grid. `allCuts` is the canonical order — the
 // rounds' takes followed by anything critique produced — so a number spoken
@@ -189,9 +190,10 @@ export async function refine(sessionId: string, request: RefineRequest): Promise
  */
 export async function critique(
   sessionId: string,
-  request: CritiqueRequest
+  request: CritiqueRequest,
+  opts?: { roundCredit?: RoundCreditPort }
 ): Promise<CritiqueResult> {
-  const { session, ...rest } = await runCritique(sessionId, request);
+  const { session, ...rest } = await runCritique(sessionId, request, opts);
   return { session: toDesignSession(session), ...rest };
 }
 

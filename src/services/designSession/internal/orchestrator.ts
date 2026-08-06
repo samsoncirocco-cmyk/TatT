@@ -33,6 +33,7 @@ import {
   currentRound,
   isLadderAxis,
   nextRoundAxis,
+  roundAxisLabel,
 } from '../roundPlan';
 import { resolveSessionStore, ROUND_CLAIM_STALE_MS } from './store';
 import type { RoundClaim, SessionStore, StoredSession } from './store';
@@ -53,10 +54,14 @@ import {
   ALLOWANCE_SPENT_LINE,
   CHATTER_LINE,
   NO_SUCH_CUT_LINE,
-  SET_REDRAW_UNAVAILABLE_LINE,
+  REROLL_DOWNGRADED_NOTE,
+  REROLL_DOWNGRADED_REFUNDED_NOTE,
+  REROLL_NEEDS_ACCOUNT_LINE,
+  ROUND_IN_FLIGHT_LINE,
   WHICH_CUT_LINE,
   fixLandedLine,
   fixesLeftLine,
+  rerollLandedLine,
 } from './critiqueVoice';
 
 export type DesignSessionErrorCode =
@@ -1097,9 +1102,30 @@ export async function refine(sessionId: string, request: RefineRequest): Promise
  * round has fired and produced the Brief; the Studio and the artist own
  * everything after.
  */
+/**
+ * How the critique lane pays for a fresh round (ADR-0049 metering reached
+ * through the ADR-0056 front door). The credit is the CALLER's job
+ * everywhere else — the round route and the SMS round arm reserve before
+ * calling and release on failure or downgrade — but only the classifier
+ * inside `critique` knows a turn needs one, so the channel hands in a PORT
+ * instead of a reservation. `reserve` is called only on the reroll-set arm,
+ * after every free settle has had its chance; it throws the
+ * generation-credit primitive's own exhaustion error (code
+ * `GENERATION_CREDITS_EXHAUSTED`, message = the meter line the SMS round
+ * lane already sends verbatim). `release` resolves true only when the
+ * refund actually landed, because copy claims a refund only when it is
+ * true. Structural on purpose: the orchestrator never imports the credits
+ * module, same as it never imports auth.
+ */
+export interface RoundCreditPort {
+  reserve(): Promise<{ id: string }>;
+  release(reservation: { id: string }): Promise<boolean>;
+}
+
 export async function critique(
   sessionId: string,
-  request: CritiqueRequest
+  request: CritiqueRequest,
+  opts?: { roundCredit?: RoundCreditPort }
 ): Promise<{ session: StoredSession } & Omit<CritiqueResult, 'session'>> {
   const store = resolveSessionStore();
   const session = await loadSession(store, sessionId);
@@ -1140,21 +1166,118 @@ export async function critique(
     };
   };
 
+  /**
+   * The wired reroll-set arm (sprint fix #2 meeting ADR-0056): the customer
+   * rejected the whole set, so draw a fresh round through rerollRound — one
+   * generation credit through the caller's port, never the fix allowance.
+   *
+   * Money first, then render, then record: reserve through the port (an
+   * exhausted meter settles with the primitive's own line, spending
+   * nothing), run the executor with the reservation riding the round claim,
+   * release on any failure or on the ADR-0048 loud downgrade, and only then
+   * record the turn — on the session the re-roll SAVED, because `session`
+   * up here predates the new round and save() replaces the document whole:
+   * settling on it would clobber the round just delivered.
+   */
+  const settleRerollSet = async (styleHint: string) => {
+    const demo = isDemoMode();
+    let reservation: { id: string } | undefined;
+    if (!demo) {
+      if (!opts?.roundCredit) {
+        // The channel could not stand a meter behind this turn (today: an
+        // unlinked texter). Refuse toward the path that works — never the
+        // "which one am i fixing?" deadlock this arm exists to end.
+        return settle(REROLL_NEEDS_ACCOUNT_LINE);
+      }
+      try {
+        reservation = await opts.roundCredit.reserve();
+      } catch (error) {
+        const shaped = error as { code?: string; name?: string; message?: string };
+        if (
+          shaped.code === 'GENERATION_CREDITS_EXHAUSTED' ||
+          shaped.name === 'GenerationCreditsExhaustedError'
+        ) {
+          // The primitive's meter line IS the honest copy — the same
+          // sentence the SMS round lane sends for the same refusal.
+          return settle((error as Error).message);
+        }
+        throw error;
+      }
+    }
+
+    /** Hand the credit back; true only when the refund actually landed. */
+    const release = async (): Promise<boolean> => {
+      if (!reservation || !opts?.roundCredit) return false;
+      return opts.roundCredit.release(reservation);
+    };
+
+    let outcome: RefineRoundOutcome;
+    try {
+      outcome = await rerollRound(sessionId, {
+        ...(reservation ? { reservationId: reservation.id } : {}),
+        ...(styleHint ? { hint: styleHint } : {}),
+      });
+    } catch (error) {
+      const released = await release();
+      if (error instanceof DesignSessionError && error.code === 'ROUND_IN_FLIGHT') {
+        // Honest capacity: the claim gate serialized this ask behind a
+        // running round, and the credit just went back.
+        return settle(ROUND_IN_FLIGHT_LINE);
+      }
+      logger.error({
+        event_type: 'design_session.critique_reroll_failed',
+        session_id: sessionId,
+        credit_released: released,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+
+    // ADR-0048 loud downgrade: delivered off the pinned lane → not charged.
+    const refunded = outcome.downgraded ? await release() : false;
+    const charged = Boolean(reservation) && !refunded;
+    const reply = [
+      rerollLandedLine(roundAxisLabel(outcome.round.axis), charged),
+      ...(outcome.downgraded
+        ? [refunded ? REROLL_DOWNGRADED_REFUNDED_NOTE : REROLL_DOWNGRADED_NOTE]
+        : []),
+    ].join(' ');
+
+    const fresh = outcome.session;
+    const now = new Date().toISOString();
+    fresh.critiqueTurns = [...(fresh.critiqueTurns ?? []), { message, reply, at: now }];
+    fresh.updatedAt = now;
+    await store.save(fresh);
+
+    const remaining = Math.max(0, allowance - (fresh.fixesUsed ?? 0));
+    return {
+      session: fresh,
+      reply,
+      fixesRemaining: remaining,
+      exhausted: remaining <= 0,
+      generated: true as boolean,
+      round: outcome.round,
+      // In display order — the round's own order, resolved to full cuts so
+      // both channels can present images without re-deriving them.
+      cuts: outcome.round.variationIds
+        .map(id => fresh.variations.find(variation => variation.id === id))
+        .filter((cut): cut is Variation => Boolean(cut)),
+    };
+  };
+
   // The whole front door, decided once (ADR-0056). Every arm that is not a
   // per-cut fix settles without spending: this lane may only ever charge for a
-  // re-cut it actually rendered.
+  // render it actually bought.
   const intent = classifyCritiqueTurn(session, message);
 
   if (intent.kind === 'commentary') return settle(CHATTER_LINE);
 
-  // Asked for a fresh set. The route is decided here; the executor that draws
-  // one lands with the re-roll work, so until then this is a sentence rather
-  // than a stack trace — and rather than the "which one am i fixing?" deadlock
-  // that ended two sessions.
+  // Asked for a fresh set: a NEW two-cut round on the rejected round's own
+  // axis (the set was refused whole, so the axis question is still open).
   // Deliberately ahead of the fix allowance: a fresh set is a generation
   // round (ADR-0049, one credit), not a fix. Gating it on the fix allowance
   // would refuse it with the wrong ceiling, out of the wrong budget.
-  if (intent.kind === 'reroll-set') return settle(SET_REDRAW_UNAVAILABLE_LINE);
+  if (intent.kind === 'reroll-set') return settleRerollSet(intent.styleHint);
 
   // Refused before any paid call, and spoken — never a silent no-op. Ahead of
   // the ambiguous arms because at the ceiling the true thing to say is that

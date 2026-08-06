@@ -204,6 +204,14 @@ export interface CritiqueResult {
   reply: string;
   /** The cut this turn produced, when it produced one. */
   cut?: Variation;
+  /**
+   * The fresh cuts a reroll-set turn produced (ADR-0056 route → ADR-0049
+   * round), in display order. Present only when the turn drew a new round;
+   * per-cut fixes keep using `cut`.
+   */
+  cuts?: Variation[];
+  /** The round a reroll-set turn appended — the session's new live round. */
+  round?: RefineRound;
   /** Fixes left in this session's allowance. */
   fixesRemaining: number;
   /** True once the allowance is spent — the reply is the artist handoff. */

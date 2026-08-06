@@ -13,6 +13,9 @@ const {
   rateLimitMock,
   rateLimitResponseMock,
   verifyApiAuthMock,
+  verifyFirebaseTokenMock,
+  reserveGenerationCreditMock,
+  releaseGenerationCreditMock,
 } = vi.hoisted(() => ({
   critiqueMock: vi.fn(),
   recordSpendMock: vi.fn(),
@@ -20,6 +23,9 @@ const {
   rateLimitMock: vi.fn(),
   rateLimitResponseMock: vi.fn(),
   verifyApiAuthMock: vi.fn(),
+  verifyFirebaseTokenMock: vi.fn(),
+  reserveGenerationCreditMock: vi.fn(),
+  releaseGenerationCreditMock: vi.fn(),
 }));
 
 vi.mock('@/services/designSession', () => ({
@@ -31,6 +37,12 @@ vi.mock('@/services/designSession', () => ({
 }));
 
 vi.mock('@/lib/api-auth', () => ({ verifyApiAuth: verifyApiAuthMock }));
+vi.mock('@/lib/auth-dal', () => ({ verifyFirebaseToken: verifyFirebaseTokenMock }));
+vi.mock('@/lib/generation-credits', () => ({
+  reserveGenerationCredit: reserveGenerationCreditMock,
+  releaseGenerationCredit: releaseGenerationCreditMock,
+  GenerationCreditsExhaustedError: class GenerationCreditsExhaustedError extends Error {},
+}));
 
 vi.mock('@/lib/rate-limit', () => ({
   rateLimit: rateLimitMock,
@@ -72,6 +84,9 @@ describe('POST /api/v1/design-session/[id]/critique route adapter', () => {
     vi.clearAllMocks();
     delete process.env.NEXT_PUBLIC_DEMO_MODE;
     verifyApiAuthMock.mockResolvedValue(null);
+    verifyFirebaseTokenMock.mockResolvedValue({ uid: 'uid_customer' });
+    reserveGenerationCreditMock.mockResolvedValue({ id: 'res-9' });
+    releaseGenerationCreditMock.mockResolvedValue(undefined);
     rateLimitMock.mockResolvedValue({ allowed: true });
     checkBudgetMock.mockResolvedValue({ allowed: true, spentCents: 0 });
     recordSpendMock.mockResolvedValue(undefined);
@@ -92,7 +107,11 @@ describe('POST /api/v1/design-session/[id]/critique route adapter', () => {
     expect(body.cut.id).toBe('var-1-fix1');
     expect(body.fixesRemaining).toBe(5);
     // The message reaches the service trimmed.
-    expect(critiqueMock).toHaveBeenCalledWith('sess-1', { message: "the first one, riku's missing" });
+    expect(critiqueMock).toHaveBeenCalledWith(
+      'sess-1',
+      { message: "the first one, riku's missing" },
+      { roundCredit: expect.objectContaining({ reserve: expect.any(Function), release: expect.any(Function) }) }
+    );
   });
 
   /*
@@ -123,6 +142,64 @@ describe('POST /api/v1/design-session/[id]/critique route adapter', () => {
 
     expect(res.status).toBe(200);
     expect(recordSpendMock).not.toHaveBeenCalled();
+  });
+
+  it('serves a tokenless caller every free arm, with NO port and no new gate', async () => {
+    // The money gate is scoped to the reroll-set arm, not the route: a
+    // caller who legitimately critiqued without a decodable uid before
+    // still can — the service simply gets no port, so chatter and per-cut
+    // fixes run untouched and only a fresh-set ask is refused in voice
+    // (at 200, inside the service). Never a 401 here.
+    verifyFirebaseTokenMock.mockResolvedValue(null);
+    critiqueMock.mockResolvedValue(generatedResult());
+
+    const res = await POST(makeRequest(URL, { message: 'the first one, too busy' }), routeParams('sess-1'));
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).cut.id).toBe('var-1-fix1');
+    expect(critiqueMock).toHaveBeenCalledWith(
+      'sess-1',
+      { message: 'the first one, too busy' },
+      undefined
+    );
+    expect(reserveGenerationCreditMock).not.toHaveBeenCalled();
+  });
+
+  it('treats a bearer that fails to decode the same as no uid — free arms still served', async () => {
+    verifyFirebaseTokenMock.mockRejectedValue(new Error('malformed token'));
+    critiqueMock.mockResolvedValue({
+      session: makeSession(),
+      reply: 'still here — tell me what’s wrong with it and i’ll re-cut.',
+      fixesRemaining: 6,
+      exhausted: false,
+      generated: false,
+    });
+
+    const res = await POST(makeRequest(URL, { message: 'love it' }), routeParams('sess-1'));
+
+    expect(res.status).toBe(200);
+    const [, , opts] = critiqueMock.mock.calls[0];
+    expect(opts).toBeUndefined();
+    expect(reserveGenerationCreditMock).not.toHaveBeenCalled();
+  });
+
+  it('stands a per-user credit port behind the service — reserve and honest release', async () => {
+    // The service calls the port only on a reroll-set turn; the route's job
+    // is that reserve/release are wired to THIS uid's meter and that release
+    // reports the truth (false when the refund did not land).
+    critiqueMock.mockResolvedValue(generatedResult());
+    await POST(makeRequest(URL, { message: 'new ones' }), routeParams('sess-1'));
+
+    const [, , opts] = critiqueMock.mock.calls[0];
+    const reservation = await opts.roundCredit.reserve();
+    expect(reserveGenerationCreditMock).toHaveBeenCalledWith('uid_customer');
+    expect(reservation).toEqual({ id: 'res-9' });
+
+    await expect(opts.roundCredit.release(reservation)).resolves.toBe(true);
+    expect(releaseGenerationCreditMock).toHaveBeenCalledWith('uid_customer', { id: 'res-9' });
+
+    releaseGenerationCreditMock.mockRejectedValueOnce(new Error('firestore down'));
+    await expect(opts.roundCredit.release(reservation)).resolves.toBe(false);
   });
 
   it('rejects an empty message before touching the service', async () => {
