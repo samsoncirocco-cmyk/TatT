@@ -7,7 +7,7 @@ const { verifyFirebaseToken } = vi.hoisted(() => ({
 
 vi.mock('./auth-dal', () => ({ verifyFirebaseToken }));
 
-import { verifyApiAuth } from './api-auth';
+import { verifyApiAuth, verifyApiAuthWithUser } from './api-auth';
 
 describe('verifyApiAuth', () => {
   beforeEach(() => verifyFirebaseToken.mockReset());
@@ -60,5 +60,59 @@ describe('verifyApiAuth', () => {
     });
 
     await expect(verifyApiAuth(request)).resolves.toBeNull();
+  });
+
+  it('verifies the token exactly ONCE even through the yes/no wrapper', async () => {
+    // The wrapper delegates to verifyApiAuthWithUser — one implementation,
+    // one decode. A second verifyIdToken round-trip on the same request is
+    // the race the critique route hit: gate passes, re-decode transiently
+    // fails, signed-in customer silently treated as anonymous.
+    verifyFirebaseToken.mockResolvedValue({ uid: 'user-123' });
+    const request = new NextRequest('http://localhost/api/test', {
+      headers: { Authorization: 'Bearer valid-token' },
+    });
+
+    await verifyApiAuth(request);
+
+    expect(verifyFirebaseToken).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('verifyApiAuthWithUser', () => {
+  beforeEach(() => verifyFirebaseToken.mockReset());
+
+  it('hands back the decoded user from the SAME verification that authorized', async () => {
+    verifyFirebaseToken.mockResolvedValue({ uid: 'user-123', email: 'u@example.com' });
+    const request = new NextRequest('http://localhost/api/test', {
+      headers: { Authorization: 'Bearer valid-token' },
+    });
+
+    const result = await verifyApiAuthWithUser(request);
+
+    expect(result.error).toBeNull();
+    expect(result.user).toEqual({ uid: 'user-123', email: 'u@example.com' });
+    // The pin: one token verification per request, never two.
+    expect(verifyFirebaseToken).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses a missing bearer with the exact response verifyApiAuth sends', async () => {
+    const result = await verifyApiAuthWithUser(new NextRequest('http://localhost/api/test'));
+
+    expect(result.error?.status).toBe(401);
+    expect(result.user).toBeUndefined();
+    expect(verifyFirebaseToken).not.toHaveBeenCalled();
+  });
+
+  it('refuses an invalid token with 401 and no user', async () => {
+    verifyFirebaseToken.mockResolvedValue(null);
+    const request = new NextRequest('http://localhost/api/test', {
+      headers: { Authorization: 'Bearer invalid-token' },
+    });
+
+    const result = await verifyApiAuthWithUser(request);
+
+    expect(result.error?.status).toBe(401);
+    expect(result.user).toBeUndefined();
+    expect(verifyFirebaseToken).toHaveBeenCalledTimes(1);
   });
 });

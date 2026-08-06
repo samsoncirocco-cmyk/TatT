@@ -12,7 +12,7 @@ const {
   checkBudgetMock,
   rateLimitMock,
   rateLimitResponseMock,
-  verifyApiAuthMock,
+  verifyApiAuthWithUserMock,
   verifyFirebaseTokenMock,
   reserveGenerationCreditMock,
   releaseGenerationCreditMock,
@@ -22,7 +22,7 @@ const {
   checkBudgetMock: vi.fn(),
   rateLimitMock: vi.fn(),
   rateLimitResponseMock: vi.fn(),
-  verifyApiAuthMock: vi.fn(),
+  verifyApiAuthWithUserMock: vi.fn(),
   verifyFirebaseTokenMock: vi.fn(),
   reserveGenerationCreditMock: vi.fn(),
   releaseGenerationCreditMock: vi.fn(),
@@ -36,7 +36,12 @@ vi.mock('@/services/designSession', () => ({
   getSession: vi.fn(),
 }));
 
-vi.mock('@/lib/api-auth', () => ({ verifyApiAuth: verifyApiAuthMock }));
+vi.mock('@/lib/api-auth', () => ({
+  verifyApiAuth: vi.fn(),
+  verifyApiAuthWithUser: verifyApiAuthWithUserMock,
+}));
+// The route must NEVER decode the token itself — auth-dal stays mocked
+// purely to prove it goes uncalled (the single-decode pin).
 vi.mock('@/lib/auth-dal', () => ({ verifyFirebaseToken: verifyFirebaseTokenMock }));
 vi.mock('@/lib/generation-credits', () => ({
   reserveGenerationCredit: reserveGenerationCreditMock,
@@ -83,8 +88,7 @@ describe('POST /api/v1/design-session/[id]/critique route adapter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.NEXT_PUBLIC_DEMO_MODE;
-    verifyApiAuthMock.mockResolvedValue(null);
-    verifyFirebaseTokenMock.mockResolvedValue({ uid: 'uid_customer' });
+    verifyApiAuthWithUserMock.mockResolvedValue({ error: null, user: { uid: 'uid_customer' } });
     reserveGenerationCreditMock.mockResolvedValue({ id: 'res-9' });
     releaseGenerationCreditMock.mockResolvedValue(undefined);
     rateLimitMock.mockResolvedValue({ allowed: true });
@@ -144,43 +148,32 @@ describe('POST /api/v1/design-session/[id]/critique route adapter', () => {
     expect(recordSpendMock).not.toHaveBeenCalled();
   });
 
-  it('serves a tokenless caller every free arm, with NO port and no new gate', async () => {
-    // The money gate is scoped to the reroll-set arm, not the route: a
-    // caller who legitimately critiqued without a decodable uid before
-    // still can — the service simply gets no port, so chatter and per-cut
-    // fixes run untouched and only a fresh-set ask is refused in voice
-    // (at 200, inside the service). Never a 401 here.
-    verifyFirebaseTokenMock.mockResolvedValue(null);
-    critiqueMock.mockResolvedValue(generatedResult());
+  it('returns the auth refusal untouched and never reaches the service', async () => {
+    const denied = NextResponse.json({ error: 'Invalid authorization token' }, { status: 401 });
+    verifyApiAuthWithUserMock.mockResolvedValueOnce({ error: denied });
 
-    const res = await POST(makeRequest(URL, { message: 'the first one, too busy' }), routeParams('sess-1'));
+    const res = await POST(makeRequest(URL, { message: 'new ones' }), routeParams('sess-1'));
 
-    expect(res.status).toBe(200);
-    expect((await res.json()).cut.id).toBe('var-1-fix1');
-    expect(critiqueMock).toHaveBeenCalledWith(
-      'sess-1',
-      { message: 'the first one, too busy' },
-      undefined
-    );
+    expect(res.status).toBe(401);
+    expect(critiqueMock).not.toHaveBeenCalled();
     expect(reserveGenerationCreditMock).not.toHaveBeenCalled();
   });
 
-  it('treats a bearer that fails to decode the same as no uid — free arms still served', async () => {
-    verifyFirebaseTokenMock.mockRejectedValue(new Error('malformed token'));
-    critiqueMock.mockResolvedValue({
-      session: makeSession(),
-      reply: 'still here — tell me what’s wrong with it and i’ll re-cut.',
-      fixesRemaining: 6,
-      exhausted: false,
-      generated: false,
-    });
+  it('verifies the token exactly ONCE per request — gate and uid from the same decode', async () => {
+    // The race this pins shut: verifyApiAuth() decoding and discarding,
+    // then a second verifyFirebaseToken() fetching the uid. If the second
+    // decode transiently failed, a signed-in customer was silently treated
+    // as meterless. Now the gate hands back the user it decoded, and the
+    // route touches auth-dal zero times itself.
+    critiqueMock.mockResolvedValue(generatedResult());
 
-    const res = await POST(makeRequest(URL, { message: 'love it' }), routeParams('sess-1'));
+    await POST(makeRequest(URL, { message: 'new ones' }), routeParams('sess-1'));
 
-    expect(res.status).toBe(200);
+    expect(verifyApiAuthWithUserMock).toHaveBeenCalledTimes(1);
+    expect(verifyFirebaseTokenMock).not.toHaveBeenCalled();
+    // And the port built from that single decode is on the call.
     const [, , opts] = critiqueMock.mock.calls[0];
-    expect(opts).toBeUndefined();
-    expect(reserveGenerationCreditMock).not.toHaveBeenCalled();
+    expect(opts.roundCredit).toBeDefined();
   });
 
   it('stands a per-user credit port behind the service — reserve and honest release', async () => {
