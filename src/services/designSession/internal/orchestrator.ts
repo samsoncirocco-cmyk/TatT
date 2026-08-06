@@ -12,6 +12,7 @@ import { signingBucketName } from '@/services/gcs-service';
 import { DEMO_MOCK_IMAGES } from '@/lib/demo-images';
 import { extractIntake } from '../../intake';
 import type { IntakeRecord, VariationAxis } from '../../intake/types';
+import { settledAxes } from '../../intake/settledAxes';
 import { enhanceStructured, enhanceRound } from '../../council';
 import type { RoundSpread } from '../../council';
 import { generate, routeGeneration } from '../../generation';
@@ -701,12 +702,17 @@ async function runClaimedRound(
   }
 
   const roundNumber = (session.rounds?.length ?? 0) + 1;
-  // Next unasked rung of the ladder — round one may have led with an axis
-  // the customer explicitly requested, so progression skips axes already
-  // spread rather than replaying the ladder by index.
+  // Next OPEN rung of the ladder — round one may have led with an axis the
+  // customer explicitly requested, so progression skips axes already spread
+  // rather than replaying the ladder by index; and it skips rungs the brief
+  // itself settled (ADR-0049), so a blackwork-committed session never pays
+  // a credit for a color-blackwork round that contradicts its own palette
+  // clause. When every rung is asked or settled, the round re-rolls on the
+  // locked poles as usual.
   const axis = nextRoundAxis(
     session.axisSelection.mode,
-    (session.rounds ?? []).map(round => round.axis)
+    (session.rounds ?? []).map(round => round.axis),
+    settledAxes(session.intake)
   ) as RoundSpread['axis'];
   const enhanced = await enhanceRound(session.intake, { roundNumber, axis, lockedPoles });
 

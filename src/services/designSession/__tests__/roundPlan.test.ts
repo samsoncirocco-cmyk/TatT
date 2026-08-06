@@ -42,6 +42,33 @@ describe('the axis ladder (ADR-0049 acceptance order)', () => {
     );
   });
 
+  it('skips rungs the brief already settled — never a round the brief contradicts', () => {
+    // A blackwork-resolved brief (settledAxes derived it from the intake):
+    // round two after bold-fine skips color-blackwork, so no credit is ever
+    // spent on a prompt that says "zero color" and "vibrant full-color" at
+    // once (ADR-0049).
+    expect(nextRoundAxis('questionnaire', ['bold-fine'], ['color-blackwork'])).toBe(
+      'literal-abstract'
+    );
+    // Settled rungs are skipped at round one too.
+    expect(nextRoundAxis('questionnaire', [], ['bold-fine', 'color-blackwork'])).toBe(
+      'literal-abstract'
+    );
+    // An unresolved brief (empty settled set) walks the full ladder.
+    expect(nextRoundAxis('questionnaire', ['bold-fine'], [])).toBe('color-blackwork');
+  });
+
+  it('falls through to the re-roll when every remaining rung is asked or settled', () => {
+    expect(
+      nextRoundAxis(
+        'questionnaire',
+        ['bold-fine', 'literal-abstract'],
+        ['color-blackwork', 'minimal-ornate']
+      )
+    ).toBe(REROLL_AXIS);
+    expect(nextRoundAxis('questionnaire', [], [...ROUND_AXIS_LADDER])).toBe(REROLL_AXIS);
+  });
+
   it('re-rolls on locked poles past the ladder — no hard round cap', () => {
     const allRungs = [...ROUND_AXIS_LADDER];
     expect(nextRoundAxis('questionnaire', allRungs)).toBe(REROLL_AXIS);
@@ -81,6 +108,11 @@ describe('round copy is computed from the ladder, never hardcoded', () => {
     // A requested axis led round one: the invite offers the first unasked rung.
     expect(refineInviteLine('questionnaire', ['color-blackwork'])).toBe(
       'Good eye. Refine it? Next round is bold vs fine-line — 1 credit.'
+    );
+    // A settled rung is skipped in the invite too — the copy must promise
+    // the axis the charged round will actually spread (ADR-0049).
+    expect(refineInviteLine('questionnaire', ['bold-fine'], ['color-blackwork'])).toBe(
+      'Good eye. Refine it? Next round is literal vs abstract — 1 credit.'
     );
   });
 
