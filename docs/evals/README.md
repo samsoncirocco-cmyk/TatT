@@ -26,6 +26,7 @@ answer is already agreed.
 | File | What it covers |
 |---|---|
 | `router-golden-0f6234e9.json` | The 2026-08-05 stall. Intake through reveal, subject swap, two re-roll refusals, plus synthetic commentary / rejection / new-idea / ambiguous turns. |
+| `router-golden-smash-cast.json` | The other 2026-08-05 session. Four characters named on the opener, two survived grounding — an unverifiable franchise and a corrected typo each deleted a person. |
 
 ## Adding to a set
 
