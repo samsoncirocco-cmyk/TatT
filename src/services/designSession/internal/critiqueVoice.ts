@@ -39,6 +39,19 @@ export const WHICH_CUT_LINE =
 export const NO_SUCH_CUT_LINE =
   "i'm not sure which one you mean — tap it, or say the number and i'll take it from there.";
 
+/**
+ * They asked for a fresh set — new pictures, or a direction for the whole
+ * piece — and the executor that draws one is not wired up yet (ADR-0056's
+ * `reroll-set` route; the action lands with the re-roll work).
+ *
+ * This exists so the gap between two merges is a sentence rather than a stack
+ * trace. It is honest about the limit, offers the thing that does work right
+ * now, and does not promise a timeline the code cannot keep. Delete it — not
+ * the route — when the executor lands.
+ */
+export const SET_REDRAW_UNAVAILABLE_LINE =
+  "i can't redraw the whole set just yet — tell me which cut to work on and i'll take it from there.";
+
 /** A message that isn't a fix request. Warm, short, and hands the ball back. */
 export const CHATTER_LINE = "still here — tell me what's wrong with it and i'll re-cut.";
 

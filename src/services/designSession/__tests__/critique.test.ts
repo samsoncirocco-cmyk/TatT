@@ -14,6 +14,7 @@ import { memorySessionStore, clearMemorySessions } from '../internal/store';
 import type { StoredSession } from '../internal/store';
 import {
   adjustPromptForCritique,
+  classifyCritiqueTurn,
   isFixRequest,
   resolveCritiqueTarget,
 } from '../internal/critique';
@@ -21,6 +22,7 @@ import {
   ALLOWANCE_SPENT_LINE,
   CHATTER_LINE,
   NO_SUCH_CUT_LINE,
+  SET_REDRAW_UNAVAILABLE_LINE,
   WHICH_CUT_LINE,
 } from '../internal/critiqueVoice';
 import { DEFAULT_STUDIO_FIX_ALLOWANCE } from '@/lib/studio-fix-allowance';
@@ -211,6 +213,171 @@ describe('critique — the designed name the grid showed', () => {
   });
 });
 
+/**
+ * The other half of the two dead sessions. "Give me 4 new samples not any
+ * particular number" and "more like an unreal engine 5 look" both drew
+ * "which one am i fixing?" — the first three times running, the second twice
+ * before the customer gave up. Neither was ever about one cut.
+ */
+describe('critique — what kind of turn is this (ADR-0056)', () => {
+  const session = { variations: variations(), critiqueCuts: [] as Variation[], pickId: undefined };
+
+  it('routes the exact messages that deadlocked session 0f6234e9', () => {
+    for (const message of [
+      'Redo it again and give me 4 new ones',
+      'Give me 4 new samples not any particular number',
+      'start over',
+      'can i get some different options',
+    ]) {
+      expect(classifyCritiqueTurn(session, message).kind).toBe('reroll-set');
+    }
+  });
+
+  it('routes a direction for the whole piece, and carries their words', () => {
+    const intent = classifyCritiqueTurn(session, 'more like an unreal engine 5 look');
+
+    expect(intent.kind).toBe('reroll-set');
+    expect(intent.kind === 'reroll-set' && intent.styleHint).toBe(
+      'more like an unreal engine 5 look'
+    );
+  });
+
+  it('carries the hint on a re-roll that also asks for a direction', () => {
+    // Fable's ordering: the destructive reading wins on explicit signal, and
+    // the direction rides along rather than being lost.
+    const intent = classifyCritiqueTurn(session, 'new ones, more cinematic feel');
+
+    expect(intent.kind).toBe('reroll-set');
+    expect(intent.kind === 'reroll-set' && intent.styleHint).toBe('new ones, more cinematic feel');
+  });
+
+  it('leaves the hint empty on a bare re-roll', () => {
+    const intent = classifyCritiqueTurn(session, 'redo it');
+
+    expect(intent.kind === 'reroll-set' && intent.styleHint).toBe('');
+  });
+
+  it('A NAMED CUT OUTRANKS a whole-piece phrase', () => {
+    // "the third one, more like an unreal engine 5 look" is a fix to cut
+    // three. Only a cut reached by CONTEXT can be re-read as being about the
+    // piece — which is what `via` exists to tell us.
+    const intent = classifyCritiqueTurn(
+      session,
+      'the third one, more like an unreal engine 5 look'
+    );
+
+    expect(intent.kind).toBe('iterate-cut');
+    expect(intent.kind === 'iterate-cut' && intent.target.id).toBe('v3');
+  });
+
+  it('A NAMED CUT OUTRANKS a re-roll phrase too', () => {
+    // Found in review of this PR. "another version" matches the re-roll
+    // pattern, and the re-roll branch used to short-circuit before any
+    // reference check — so this spent a credit discarding BOTH cuts,
+    // including the one the customer had just named to keep.
+    const intent = classifyCritiqueTurn(session, 'the third one, give me another version');
+
+    expect(intent.kind).toBe('iterate-cut');
+    expect(intent.kind === 'iterate-cut' && intent.target.id).toBe('v3');
+  });
+
+  it('a named cut outranks a re-roll asked by designed name, not just by ordinal', () => {
+    const sleeve = { variations: sleeveCuts(), critiqueCuts: [] as Variation[], pickId: undefined };
+    const intent = classifyCritiqueTurn(sleeve, 'redo the totem');
+
+    expect(intent.kind).toBe('iterate-cut');
+    expect(intent.kind === 'iterate-cut' && intent.target.id).toBe('c1');
+  });
+
+  it('an unplaceable name is never upgraded to a re-roll', () => {
+    // The destructive arm must not fire on a reference we could not resolve
+    // any more than it fires on one we could.
+    const sleeve = {
+      variations: [{ id: 'c2', axisPosition: { composition: 'connected transitions' }, prompt: 'p' }],
+      critiqueCuts: [] as Variation[],
+      pickId: undefined,
+    };
+    const intent = classifyCritiqueTurn(sleeve, 'the totem, give me another version');
+
+    expect(intent).toEqual({ kind: 'ambiguous', because: 'unplaceable-name' });
+  });
+
+  it('still re-rolls when a working cut is only reached by CONTEXT', () => {
+    // The guard is about being NAMED, not about a target existing. A re-cut in
+    // progress must not block "start over".
+    const withRecut = {
+      ...session,
+      critiqueCuts: [{ id: 'v1-fix1', axisPosition: {}, prompt: 'p' } as Variation],
+    };
+    expect(classifyCritiqueTurn(withRecut, 'start over').kind).toBe('reroll-set');
+  });
+
+  it('does not re-read an unplaceable NAME as a whole-piece request', () => {
+    // "the totem" on a round without one, plus a style word. The name failed;
+    // that must surface as a question, not get quietly upgraded to a re-roll
+    // that throws away the set.
+    const sleeve = {
+      variations: [{ id: 'c2', axisPosition: { composition: 'connected transitions' }, prompt: 'p' }],
+      critiqueCuts: [] as Variation[],
+      pickId: undefined,
+    };
+    const intent = classifyCritiqueTurn(sleeve, 'the totem, but a more cinematic look');
+
+    expect(intent.kind).toBe('ambiguous');
+    expect(intent.kind === 'ambiguous' && intent.because).toBe('unplaceable-name');
+  });
+
+  it('still routes a plain per-cut fix to the cut', () => {
+    expect(classifyCritiqueTurn(session, 'the third one but less color').kind).toBe('iterate-cut');
+  });
+
+  it('keeps chatter out of every other arm', () => {
+    expect(classifyCritiqueTurn(session, 'love it').kind).toBe('commentary');
+  });
+
+  it('distinguishes its two ambiguous reasons', () => {
+    expect(
+      classifyCritiqueTurn(session, "riku's missing")
+    ).toEqual({ kind: 'ambiguous', because: 'no-cut-named' });
+    // A two-cut round (ADR-0049) makes "the fourth one" reachable and wrong.
+    const round = { variations: sleeveCuts(), critiqueCuts: [] as Variation[], pickId: undefined };
+    expect(
+      classifyCritiqueTurn(round, 'the fourth one is closest')
+    ).toEqual({ kind: 'ambiguous', because: 'unplaceable-name' });
+  });
+});
+
+/**
+ * Found by review on #340: checking pole words one at a time made being more
+ * specific give a worse answer than being vaguer.
+ */
+describe('critique — more pole words can only narrow', () => {
+  // Three cuts share a locked 'fine' pole; only one is also blackwork.
+  const locked = {
+    variations: [
+      { id: 'a', axisPosition: { 'bold-fine': 'fine', 'color-blackwork': 'color' }, prompt: 'p' },
+      { id: 'b', axisPosition: { 'bold-fine': 'fine', 'color-blackwork': 'color' }, prompt: 'p' },
+      { id: 'c', axisPosition: { 'bold-fine': 'fine', 'color-blackwork': 'blackwork' }, prompt: 'p' },
+    ],
+    critiqueCuts: [] as Variation[],
+    pickId: undefined,
+  };
+
+  it('resolves the maximally specific reference', () => {
+    // 'fine' alone matches three. Checked first and alone, it used to give up
+    // here — while the vaguer 'the blackwork one' resolved fine.
+    expect(resolved(locked, 'the fine blackwork one, riku is missing')).toBe('c');
+  });
+
+  it('still asks when the words together match more than one', () => {
+    expect(resolved(locked, 'the fine color one')).toBe('missed');
+  });
+
+  it('asks when they described a pairing this round never drew', () => {
+    expect(resolved(locked, 'the bold blackwork one')).toBe('missed');
+  });
+});
+
 describe('critique — is it a fix request', () => {
   it('treats real criticism as a fix, including the founder’s own examples', () => {
     for (const message of [
@@ -378,6 +545,35 @@ describe('critique — the orchestrator turn', () => {
     expect(mockRecordSpend).not.toHaveBeenCalled();
     // Nothing was fixed, so nothing came off the allowance.
     expect(result.fixesRemaining).toBe(DEFAULT_STUDIO_FIX_ALLOWANCE);
+  });
+
+  it('answers a re-roll with a sentence, never a stack trace or the wrong question', async () => {
+    // The route is decided; the executor that draws a fresh set lands with the
+    // re-roll work. Until then this must be honest copy — the old behaviour
+    // was "which one am i fixing?", three times, at a customer who had just
+    // said they were not fixing one.
+    await seed();
+    const result = await critique('sess-critique', {
+      message: 'Give me 4 new samples not any particular number',
+    });
+
+    expect(result.generated).toBe(false);
+    expect(result.reply).toBe(SET_REDRAW_UNAVAILABLE_LINE);
+    expect(result.reply).not.toBe(WHICH_CUT_LINE);
+    expect(mockGenerate).not.toHaveBeenCalled();
+    expect(mockRecordSpend).not.toHaveBeenCalled();
+  });
+
+  it('does NOT refuse a re-roll out of the fix allowance', async () => {
+    // A fresh set is a generation round (one credit, ADR-0049), not a fix.
+    // Spending the fix allowance must not silently close the re-roll door.
+    process.env.STUDIO_FIX_ALLOWANCE = '0';
+    await seed();
+    const result = await critique('sess-critique', { message: 'start over' });
+
+    expect(result.reply).toBe(SET_REDRAW_UNAVAILABLE_LINE);
+    expect(result.reply).not.toBe(ALLOWANCE_SPENT_LINE);
+    expect(mockGenerate).not.toHaveBeenCalled();
   });
 
   it('names the cut back with the name the grid showed', async () => {
