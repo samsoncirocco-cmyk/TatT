@@ -32,7 +32,7 @@ export const ROUND_AXIS_POLES: Record<VariationAxis, [string, string]> = {
 
 /**
  * How each pole reads in round copy — same designed vocabulary as
- * revealCutNames' POLE_NAME (never the raw internal value).
+ * `./cutIdentity`'s POLE_NAME (never the raw internal value).
  */
 export const ROUND_POLE_LABEL: Record<string, string> = {
   bold: 'bold',
