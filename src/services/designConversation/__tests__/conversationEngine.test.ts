@@ -27,6 +27,7 @@ import {
   PROPOSAL_REMINDER,
 } from '../internal/persona';
 import { resetStyleTagCache } from '../internal/ontology';
+import { buildPlayback } from '../internal/engine';
 import {
   PROVIDER_FAILOVER_EVENT,
   CONVERSATION_DEGRADED_EVENT,
@@ -809,6 +810,95 @@ describe('runTurn — playback names a recognized character', () => {
     // would make the spoken sentence unreadable.
     expect(result.playback!.toLowerCase()).not.toContain('orange gi');
     expect(result.playback!.toLowerCase()).not.toContain('spiky');
+  });
+
+  /**
+   * The reported failure: a session about Nelson Muntz was read back as
+   * "punk with a tear". The catalog did not recognize him, so the label was
+   * empty and the playback reached straight past `subject` — which knew
+   * exactly what we were about to draw — to `meaning`, which is why they
+   * wanted it. Both sound like descriptions, so the substitution is invisible.
+   */
+  it('speaks the SUBJECT, not the meaning, when the catalog knows nobody', () => {
+    const playback = buildPlayback({
+      placement: 'forearm',
+      styleTags: ['neo traditional'],
+      subject: 'Nelson Muntz with a blue shirt, purple shorts, single tear, punk styling',
+      meaning: 'punk with a tear',
+    });
+
+    expect(playback).toContain('Nelson Muntz');
+    expect(playback).not.toContain('punk with a tear');
+  });
+
+  it('trims the costume anchors off the subject before speaking it', () => {
+    // `subject` is written for the image model. Reading the whole string back
+    // is unreadable, so only the clause that names the thing is spoken.
+    const playback = buildPlayback({
+      placement: 'forearm',
+      subject: 'Nelson Muntz with a blue shirt, purple shorts, single tear',
+    });
+
+    expect(playback).toContain('Nelson Muntz');
+    expect(playback).not.toContain('purple shorts');
+    expect(playback).not.toContain('blue shirt');
+  });
+
+  it('still falls back to meaning when there is no subject either', () => {
+    // The bug was the precedence, not the existence of the fallback. A brief
+    // whose whole content is the meaning deserves a sentence that uses it.
+    const playback = buildPlayback({
+      placement: 'left forearm',
+      styleTags: ['fine line'],
+      meaning: 'a hummingbird for my grandmother, delicate and warm',
+    });
+
+    expect(playback).toContain('hummingbird');
+  });
+
+  it('keeps the franchise when the extractor comma-joins it to the name', () => {
+    // The extraction prompt offers two subject shapes: one joins the franchise
+    // with "from", the other with a comma. A first-clause-only trim silently
+    // dropped the franchise from the comma-joined shape, while the same prompt
+    // line instructs the model to name the character AND the franchise.
+    const playback = buildPlayback({
+      placement: 'forearm',
+      subject:
+        'Killua Zoldyck, Hunter x Hunter, silver spiky hair, blue eyes, plain long-sleeve white turtleneck, wide shorts, boots',
+    });
+
+    expect(playback).toContain('Killua Zoldyck, Hunter x Hunter');
+    // ...and still none of the costume prose that follows it.
+    expect(playback).not.toContain('turtleneck');
+    expect(playback).not.toContain('silver spiky hair');
+  });
+
+  it('does not mistake appearance prose for a franchise', () => {
+    const playback = buildPlayback({
+      placement: 'forearm',
+      subject: 'Nelson Muntz, blue shirt, purple shorts, single tear',
+    });
+
+    expect(playback).toContain('Nelson Muntz');
+    expect(playback).not.toContain('blue shirt');
+  });
+
+  it('MARKS the meaning as the why rather than asserting it as the subject', () => {
+    // Bare, the meaning clause sits in the exact position a subject would and
+    // reads as one — the same substitution in a smaller mask.
+    const withMeaning = buildPlayback({
+      placement: 'left forearm',
+      meaning: 'a hummingbird for my grandmother',
+    });
+    const withSubject = buildPlayback({
+      placement: 'left forearm',
+      subject: 'Nelson Muntz with a blue shirt',
+    });
+
+    expect(withMeaning).toContain('— about a hummingbird for my grandmother');
+    // The subject path asserts, because there we actually know.
+    expect(withSubject).toContain('— Nelson Muntz');
+    expect(withSubject).not.toContain('about');
   });
 
   it('falls back to the meaning when no character is named', async () => {
